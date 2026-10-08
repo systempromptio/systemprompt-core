@@ -912,24 +912,6 @@ sp --json infra logs view | jq '.data.logs[] | select(.level == "ERROR")'
 sp --json infra logs trace list | jq '.data.traces[] | select(.status == "failed")'
 ```
 
----
-
-## Compliance Checklist
-
-- [x] All `execute` entry points accept `ctx: &CommandContext`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] `delete` command requires `--yes` / `-y` flag
-- [x] `cleanup` command requires `--older-than` or `--keep-last-days`
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Time range filters consistent across commands
-- [x] `-n` shortcut available for limit flags
-
-
----
-
 ### logs governance report
 
 Read back what warn mode caught.

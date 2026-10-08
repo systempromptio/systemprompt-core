@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_database::IdentifierError;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::domain_error;
 
@@ -25,14 +26,29 @@ domain_error! {
         #[error("invalid roles: {0:?}")]
         InvalidRoles(Vec<String>),
 
-        #[error("pool error: {0}")]
-        Pool(String),
+        #[error("purge {kind} {name} is not a safe SQL identifier")]
+        PurgeIdentifier {
+            kind: &'static str,
+            name: String,
+            #[source]
+            source: IdentifierError,
+        },
+
+        #[error("account merge is unavailable: no owner reassignments are configured")]
+        MergeUnavailable,
+
+        #[error("owner reassignment failed in the {domain} domain: {source}")]
+        OwnerReassignment {
+            domain: &'static str,
+            #[source]
+            source: systemprompt_traits::RepositoryError,
+        },
     }
 }
 
 impl From<sqlx::Error> for UserError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }
 

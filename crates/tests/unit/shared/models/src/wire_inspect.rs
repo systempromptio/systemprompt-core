@@ -6,7 +6,7 @@
 //! and it stays bounded on a body an attacker controls.
 
 use serde_json::json;
-use systemprompt_models::wire::inspect::{SurfaceBudget, sse_string_leaves, string_leaves};
+use systemprompt_wire::inspect::{SurfaceBudget, sse_string_leaves, string_leaves};
 
 fn surface(value: &serde_json::Value) -> Vec<String> {
     string_leaves(

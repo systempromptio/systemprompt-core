@@ -32,11 +32,11 @@ pub struct VerifyArgs {
 
 pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let repo = ContentRepository::new(&pool)?;
+    let repo = ContentRepository::new(&pool);
 
     let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {
         let id = ContentId::new(args.identifier.clone());
-        repo.get_by_id(&id)
+        repo.find_by_id(&id)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
     } else {
@@ -45,7 +45,7 @@ pub async fn execute(args: VerifyArgs, ctx: &CommandContext) -> Result<CommandOu
             .as_ref()
             .ok_or_else(|| anyhow!("--source required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
+        repo.find_by_source_and_slug(&source, &args.identifier, &LocaleCode::english())
             .await?
             .ok_or_else(|| {
                 anyhow!(

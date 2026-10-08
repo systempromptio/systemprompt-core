@@ -194,7 +194,7 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         not_before: chrono::DateTime::parse_from_rfc3339("2026-09-05T00:00:00Z")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("test-user"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
         tenant_id: None,
         user: None,
         plugins,
@@ -208,6 +208,7 @@ fn manifest(plugins: Vec<PluginEntry>, marketplaces: Vec<ManifestMarketplace>) -
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces,
@@ -224,6 +225,8 @@ fn manifest_marketplace(id: &str, name: &str, plugin_ids: &[&str]) -> ManifestMa
             .collect(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -300,6 +303,7 @@ fn a_corrupt_sidecar_is_an_error_rather_than_an_empty_ownership_record() {
 #[test]
 fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
     use systemprompt_bridge::gateway::manifest::SkillEntry;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
     let skills: Vec<SkillEntry> = [("setup_admin", vec!["cowork"]), ("admin_report", vec![])]
         .into_iter()
@@ -320,7 +324,7 @@ fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
             std::fs::write(path.join("SKILL.md"), "instructions").expect("skill file");
         }
     }
-    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("projection");
+    filter_skills_for_host(destination.path(), &skills, HostKind::ClaudeCode).expect("projection");
     assert!(!destination.path().join("skills/setup-admin").exists());
     assert!(
         destination
@@ -335,13 +339,13 @@ fn host_projection_removes_cowork_setup_without_changing_the_source_bundle() {
             .exists()
     );
     assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
-    filter_skills_for_host(destination.path(), &skills, "claude-code").expect("repeat");
-    filter_skills_for_host(source.path(), &skills, "cowork").expect("cowork");
+    filter_skills_for_host(destination.path(), &skills, HostKind::ClaudeCode).expect("repeat");
     assert!(source.path().join("skills/setup-admin/SKILL.md").exists());
 }
 #[test]
 fn host_projection_removes_an_excluded_file_skill_without_touching_foreign_skills() {
     use systemprompt_bridge::gateway::manifest::SkillEntry;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::claude_code_cli::filter_skills_for_host;
 
     let excluded: SkillEntry = serde_json::from_value(serde_json::json!({
@@ -362,7 +366,7 @@ fn host_projection_removes_an_excluded_file_skill_without_touching_foreign_skill
     )
     .unwrap();
 
-    filter_skills_for_host(destination.path(), &[excluded], "claude-code")
+    filter_skills_for_host(destination.path(), &[excluded], HostKind::ClaudeCode)
         .expect("file-shaped exclusion is removable");
 
     assert!(!destination.path().join("skills/setup-admin").exists());

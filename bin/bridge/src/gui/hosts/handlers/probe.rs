@@ -8,23 +8,23 @@ use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::hosts::state::ProbeSeq;
 use crate::gui::{GuiApp, emit};
 use crate::host_sync::HostSync;
-use crate::ids::HostId;
 use crate::integration::{HostAppSnapshot, ProfileState, ProxyHealth};
 use crate::proxy_probe;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use super::finish;
 
 pub(crate) fn on_probe_requested(
     app: &GuiApp,
-    host_id: &HostId,
+    host_id: HostKind,
     cause: ProbeCause,
     reply_to: ReplyId,
 ) {
     let Some(host) =
-        crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "re-verify", reply_to)
+        crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "re-verify", reply_to)
     else {
         return;
     };
@@ -33,7 +33,7 @@ pub(crate) fn on_probe_requested(
     }
     let Some(seq) = app
         .state
-        .begin_host_probe(host_id.as_str(), cause == ProbeCause::Tick)
+        .begin_host_probe(host_id, cause == ProbeCause::Tick)
     else {
         if let Some(id) = reply_to {
             let err = BridgeError::new(
@@ -45,7 +45,6 @@ pub(crate) fn on_probe_requested(
         }
         return;
     };
-    let host_id_owned = host_id.clone();
     let proxy = app.proxy.clone();
     let env = app.probe_env();
     app.ctx.spawn(async move {
@@ -53,7 +52,7 @@ pub(crate) fn on_probe_requested(
             Ok(snap) => snap,
             Err(e) => {
                 proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFailed {
-                    host_id: Some((host_id_owned, seq)),
+                    host_id: Some((host_id, seq)),
                     error: format!("host probe task failed: {e}"),
                     reply_to,
                 }));
@@ -61,7 +60,7 @@ pub(crate) fn on_probe_requested(
             },
         };
         proxy.send_event(UiEvent::Host(HostUiEvent::ProbeFinished {
-            host_id: host_id_owned,
+            host_id,
             seq,
             cause,
             snapshot: snap,
@@ -72,7 +71,7 @@ pub(crate) fn on_probe_requested(
 
 #[derive(Clone, Copy)]
 pub(crate) struct ProbeResult<'a> {
-    pub host_id: &'a HostId,
+    pub host_id: HostKind,
     pub seq: ProbeSeq,
     pub cause: ProbeCause,
     pub snapshot: &'a HostAppSnapshot,
@@ -90,11 +89,11 @@ pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, repl
         .state
         .snapshot()
         .hosts
-        .get(host_id.as_str())
+        .get(host_id)
         .and_then(|s| s.snapshot.clone());
     if !app
         .state
-        .apply_host_snapshot(host_id.as_str(), seq, snapshot.clone())
+        .apply_host_snapshot(host_id, seq, snapshot.clone())
     {
         tracing::debug!(host_id = %host_id, "superseded host probe result discarded");
         finish(app, Ok(json!({ "superseded": true })), reply_to);
@@ -122,15 +121,15 @@ pub(crate) fn on_probe_finished(app: &mut GuiApp, result: &ProbeResult<'_>, repl
         super::repair_stale_unattended(app, host_id, snapshot);
     }
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::single_host_value(&snap, host_id.as_str());
+    let value = crate::gui::hosts::serde::single_host_payload(&snap, host_id);
     if app.state.first_run_active() {
         crate::gui::first_run::handlers::on_probe_result(app, host_id, snapshot);
     }
     finish(app, Ok(json!({ "snapshot": value })), reply_to);
 }
 
-fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
-    if host_id.as_str() != crate::integration::cowork_plugins::CoworkSync.host_id() {
+fn cowork_session_now_available(app: &GuiApp, host_id: HostKind) -> bool {
+    if host_id != crate::integration::cowork_plugins::CoworkSync.host_id() {
         return false;
     }
     let snap = app.state.snapshot();
@@ -149,7 +148,7 @@ fn cowork_session_now_available(app: &GuiApp, host_id: &HostId) -> bool {
 }
 
 fn state_change_line(
-    host_id: &HostId,
+    host_id: HostKind,
     prev: Option<&HostAppSnapshot>,
     next: &HostAppSnapshot,
     proxy_port: u16,
@@ -249,18 +248,17 @@ pub(crate) fn on_proxy_probe_finished(app: &mut GuiApp, health: ProxyHealth, rep
     app.refresh_ui();
     emit::emit_proxy_changed(app);
     let snap = app.state.snapshot();
-    let value = crate::gui::server_json::local_proxy_value(&snap);
+    let value = crate::gui::server_json::local_proxy_payload(&snap);
     finish(app, Ok(json!({ "health": value })), reply_to);
 }
 
 pub(crate) fn on_probe_failed(
     app: &mut GuiApp,
-    host_id: Option<&(HostId, ProbeSeq)>,
+    host_id: Option<(HostKind, ProbeSeq)>,
     error: &str,
     reply_to: ReplyId,
 ) {
-    app.state
-        .finish_failed_probe(host_id.map(|(id, seq)| (id.as_str(), *seq)));
+    app.state.finish_failed_probe(host_id);
     app.append_log_error(error);
     if let Some(id) = reply_to {
         emit::send_reply_payload(app, id, &IpcReplyPayload::err(BridgeError::internal(error)));

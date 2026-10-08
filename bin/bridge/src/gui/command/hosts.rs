@@ -12,6 +12,7 @@ use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use super::args::{HostIdArgs, HostInstallArgs, HostModelFilterArgs};
 use super::{CommandOutcome, parse, send};
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn host_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -47,6 +48,7 @@ pub(super) fn host_dispatch(
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn agent_dispatch(
     app: &GuiApp,
     cmd: &str,
@@ -97,6 +99,7 @@ pub(super) fn agent_dispatch(
     })
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 fn host_probe(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
@@ -114,6 +117,7 @@ fn host_probe(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     }
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 fn host_profile_generate(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostIdArgs>(args) {
         Ok(a) => {
@@ -130,6 +134,7 @@ fn host_profile_generate(app: &GuiApp, args: Value, reply_id: ReplyId) -> Comman
     }
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 fn host_profile_install(app: &GuiApp, args: Value, reply_id: ReplyId) -> CommandOutcome {
     match parse::<HostInstallArgs>(args) {
         Ok(a) => {

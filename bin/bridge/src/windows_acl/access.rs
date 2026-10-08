@@ -97,7 +97,7 @@ fn unelevated_token() -> io::Result<OwnedHandle> {
     }
 }
 fn step(value: i32, name: &str) -> io::Result<()> {
-    checked(value).map_err(|e| io::Error::new(e.kind(), format!("{name}: {e}")))
+    checked(value).map_err(|e| super::call_failed(name, e))
 }
 pub(crate) fn verify_modify_tree(path: &Path) -> io::Result<()> {
     let token = unelevated_token()?;
@@ -130,7 +130,7 @@ fn verify_modify(path: &Path, token: &OwnedHandle) -> io::Result<()> {
             null_mut(),
             &raw mut descriptor,
         ))
-        .map_err(|e| io::Error::new(e.kind(), format!("GetNamedSecurityInfoW: {e}")))?;
+        .map_err(|e| super::call_failed("GetNamedSecurityInfoW", e))?;
         let descriptor = Descriptor(descriptor);
         let mapping = GENERIC_MAPPING {
             GenericRead: FILE_GENERIC_READ,

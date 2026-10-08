@@ -1,16 +1,16 @@
 //! Replayed gateway tool results become one correlated artifact per call id.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::body::to_bytes;
 use http::StatusCode;
 use systemprompt_ai::repository::InsertToolCallParams;
-use systemprompt_api::services::gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
-use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_identifiers::AiToolCallId;
-use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
+use systemprompt_gateway::service::GatewayService;
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{fixture_artifact_ingest, seed_admin_credential};
+use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -69,6 +69,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     let known_id = unique("call_known");
     let unknown_id = unique("call_unknown");
     let known_tool = unique("lookup_inventory");
+    let known_tool_name = McpToolName::new(known_tool.clone());
     let known_input = serde_json::json!({"sku": unique("sku"), "limit": 2});
     let known_call_id = AiToolCallId::new(known_id.clone());
     let known_input_json = known_input.to_string();
@@ -77,7 +78,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
         .insert_tool_call(InsertToolCallParams {
             request_id: &prior_request_id,
             ai_tool_call_id: &known_call_id,
-            tool_name: &known_tool,
+            tool_name: &known_tool_name,
             tool_input: &known_input_json,
             sequence_number: 0,
         })
@@ -128,19 +129,19 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    let database = pool.pool_arc().expect("read pool");
-    let mut artifacts = Vec::new();
-    for _ in 0..80 {
-        artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
-            "SELECT ai_tool_call_id, tool_name, session_id, trace_id, is_structured, is_error, data FROM mcp_artifacts WHERE user_id=$1 AND ai_tool_call_id IN ($2,$3) ORDER BY ai_tool_call_id",
-        )
-        .bind(credential.user_id.as_str()).bind(&known_id).bind(&unknown_id)
-        .fetch_all(database.as_ref()).await?;
-        if artifacts.len() == 2 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    let database = pool.pool();
+    let artifacts = sqlx::query_as::<_, (String, String, String, String, bool, bool, serde_json::Value)>(
+        "SELECT ai_tool_call_id, tool_name, session_id, trace_id, is_structured, is_error, data FROM mcp_artifacts WHERE user_id=$1 AND ai_tool_call_id IN ($2,$3) ORDER BY ai_tool_call_id",
+    )
+    .bind(credential.user_id.as_str()).bind(&known_id).bind(&unknown_id)
+    .fetch_all(database.as_ref()).await?;
     assert_eq!(
         artifacts.len(),
         2,
@@ -208,10 +209,10 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_artifact_safety_scan").await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_artifact_safety_scan").await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "artifact-scan@example.invalid").await?;
-    let raw = pool.pool_arc().expect("private database pool");
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) \
          VALUES ($1,$2,$3,true,100)",
@@ -235,12 +236,12 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
         .mount(&upstream)
         .await;
     let ingest = fixture_artifact_ingest(&pool)?;
-    let resolver = systemprompt_api::services::gateway::policy::PolicyResolver::from_repository(
-        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool)?,
+    let resolver = systemprompt_gateway::policies::PolicyResolver::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&pool),
     );
-    ingest.register_scanner(Arc::new(
-        systemprompt_api::services::gateway::GatewayArtifactScanner::new(resolver),
-    ));
+    ingest.register_scanner(Arc::new(systemprompt_gateway::GatewayArtifactScanner::new(
+        resolver,
+    )));
     let mut repositories = gw_repos(&pool);
     repositories.artifact_ingest = Some(ingest);
     let call_id = unique("artifact_scan_call");
@@ -274,22 +275,22 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
     assert_eq!(response.status(), StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
 
-    let mut findings = Vec::new();
-    for _ in 0..80 {
-        findings = sqlx::query_as::<_, (String, String, String, bool)>(
-            "SELECT f.phase,f.category,f.scanner,f.redacted FROM mcp_artifact_findings f \
-             JOIN mcp_artifacts a ON a.artifact_id=f.artifact_id \
-             WHERE a.user_id=$1 AND a.ai_tool_call_id=$2",
-        )
-        .bind(credential.user_id.as_str())
-        .bind(&call_id)
-        .fetch_all(raw.as_ref())
-        .await?;
-        if !findings.is_empty() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    let findings = sqlx::query_as::<_, (String, String, String, bool)>(
+        "SELECT f.phase,f.category,f.scanner,f.redacted FROM mcp_artifact_findings f \
+         JOIN mcp_artifacts a ON a.artifact_id=f.artifact_id \
+         WHERE a.user_id=$1 AND a.ai_tool_call_id=$2",
+    )
+    .bind(credential.user_id.as_str())
+    .bind(&call_id)
+    .fetch_all(raw.as_ref())
+    .await?;
     assert_eq!(
         findings.len(),
         1,

@@ -27,7 +27,7 @@ pub(super) async fn execute(args: RemoveArgs, ctx: &CommandContext) -> Result<Co
     }
 
     let pool = ctx.db_pool().await?;
-    let ban_repository = BannedIpRepository::new(&pool)?;
+    let ban_repository = BannedIpRepository::new(&pool);
 
     let removed = ban_repository.unban_ip(&args.ip).await?;
 

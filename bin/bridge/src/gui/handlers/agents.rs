@@ -6,17 +6,16 @@
 use std::path::Path;
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use crate::gui::events::ReplyId;
 use crate::gui::hosts::handlers::finish;
 use crate::gui::{GuiApp, emit, window};
-use crate::ids::HostId;
 use crate::integration::host_app::ProfileRemoval;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
-pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
-    let Some(host) =
-        crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "remove", reply_to)
+pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
+    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "remove", reply_to)
     else {
         return;
     };
@@ -42,7 +41,7 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
             app.append_log_error(format!("[{host_id}] removal failed: {e}"));
             Err(BridgeError::new(
                 ErrorScope::Host,
-                if e.kind() == std::io::ErrorKind::PermissionDenied {
+                if e.is_refusal() || e.is_permission_denied() {
                     ErrorCode::Unauthorized
                 } else {
                     ErrorCode::Internal
@@ -54,7 +53,7 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     if result.is_ok() {
         app.proxy.send_event(crate::gui::events::UiEvent::Host(
             crate::gui::hosts::events::HostUiEvent::ProbeRequested {
-                host_id: host_id.clone(),
+                host_id,
                 cause: crate::gui::hosts::events::ProbeCause::Manual,
                 reply_to: None,
             },
@@ -63,13 +62,10 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
-    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(
-        app,
-        host_id.as_str(),
-        "show config file",
-        reply_to,
-    ) else {
+pub(crate) fn on_open_config(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
+    let Some(host) =
+        crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "show config file", reply_to)
+    else {
         return;
     };
     let snapshot = host.probe(&app.probe_env());
@@ -94,9 +90,8 @@ pub(crate) fn on_open_config(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) 
     finish(app, result, reply_to);
 }
 
-pub(crate) fn on_open(app: &GuiApp, host_id: &HostId, reply_to: ReplyId) {
-    let Some(host) =
-        crate::gui::hosts::resolve::resolve_or_reply(app, host_id.as_str(), "open", reply_to)
+pub(crate) fn on_open(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
+    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "open", reply_to)
     else {
         return;
     };

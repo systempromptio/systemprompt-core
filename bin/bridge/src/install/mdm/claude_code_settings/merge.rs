@@ -7,6 +7,8 @@ use std::path::Path;
 
 use super::{MdmError, bridge_env, shell_command_for};
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn merge_bridge_keys(
     root: &mut serde_json::Map<String, serde_json::Value>,
     settings_path: &Path,
@@ -35,6 +37,8 @@ pub(super) fn merge_bridge_keys(
 
 // Why: Claude Code v2.1.146+ forceLoginMethod/forceLoginOrgUUID block API keys
 // and apiKeyHelper.
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn forced_login_conflicts(root: &serde_json::Map<String, serde_json::Value>) -> Vec<String> {
     ["forceLoginMethod", "forceLoginOrgUUID"]
         .into_iter()

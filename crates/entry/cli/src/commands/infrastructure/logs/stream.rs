@@ -11,12 +11,13 @@ use systemprompt_logging::models::LogEntry;
 use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
 use tokio::time;
 
+use super::shared::print_level_line;
 use crate::context::CommandContext;
 
 #[derive(Debug, Args)]
 pub struct StreamArgs {
     #[arg(long, help = "Filter by log level (error, warn, info, debug, trace)")]
-    pub level: Option<String>,
+    pub level: Option<LogLevel>,
 
     #[arg(long, help = "Filter by module name (partial match)")]
     pub module: Option<String>,
@@ -44,7 +45,7 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
         return Err(anyhow!("JSON output is not supported in streaming mode"));
     }
 
-    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?)?;
+    let service = LoggingMaintenanceService::new(&ctx.db_pool().await?);
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 
@@ -81,8 +82,8 @@ pub(super) async fn execute(args: StreamArgs, ctx: &CommandContext) -> Result<()
 fn build_filter(args: &StreamArgs, since: Option<DateTime<Utc>>, limit: i32) -> LogFilter {
     let mut filter = LogFilter::new(1, limit);
 
-    if let Some(ref level) = args.level {
-        filter = filter.with_level(level.to_uppercase());
+    if let Some(level) = args.level {
+        filter = filter.with_level(level.as_str());
     }
     if let Some(ref module) = args.module {
         filter = filter.with_module(module);
@@ -112,8 +113,8 @@ async fn get_logs(
 }
 
 fn display_filters(args: &StreamArgs) {
-    if let Some(ref level) = args.level {
-        CliService::key_value("Level filter", level);
+    if let Some(level) = args.level {
+        CliService::key_value("Level filter", level.as_str());
     }
     if let Some(ref module) = args.module {
         CliService::key_value("Module filter", module);
@@ -150,9 +151,5 @@ fn display_log_entry(log: &LogEntry) {
         },
     );
 
-    match log.level {
-        LogLevel::Error => CliService::error(&line),
-        LogLevel::Warn => CliService::warning(&line),
-        _ => CliService::info(&line),
-    }
+    print_level_line(log.level, &line);
 }

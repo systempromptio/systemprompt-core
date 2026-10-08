@@ -6,8 +6,13 @@
 //! ignored by systemprompt because the equivalent fact is derived from the
 //! tree. `source` is kept as an opaque value because Anthropic permits both a
 //! relative path string and a git/object form;
-//! [`MarketplacePluginEntry::local_path`] is the only reading the importer
-//! accepts.
+//! [`MarketplacePluginEntry::plugin_source`] reads it into a
+//! [`PluginSource`]: a string is a path inside the tree; an object whose
+//! `source` is `github`, `url` or `git-subdir` is remote and fetched at import;
+//! `npm` and `pip` cannot be vendored. Any other object keeps the older
+//! reading of its `path` or `source` string as a local path. An entry whose
+//! `mode` is `pass_through` is not read this way at all: it is kept as
+//! authored (`pass_through`).
 //!
 //! [`HooksFile`] is the `hooks/hooks.json` a plugin ships, whose body is the
 //! same `HookEventsConfig` core already models.
@@ -16,7 +21,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use systemprompt_models::services::hooks::HookEventsConfig;
+use systemprompt_manifest::services::hooks::HookEventsConfig;
+use systemprompt_models::managed::RevisionBundleError;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct MarketplaceOwner {
@@ -68,8 +74,7 @@ pub struct MarketplacePluginEntry {
     #[serde(default)]
     pub keywords: Vec<String>,
     #[serde(default)]
-    // JSON: Anthropic marketplace.json permits a string or an object here
-    pub author: Option<serde_json::Value>,
+    pub author: Option<PluginEntryAuthor>,
     #[serde(default)]
     pub license: Option<String>,
     #[serde(default)]
@@ -80,42 +85,211 @@ pub struct MarketplacePluginEntry {
     pub repository: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    // JSON: Claude Code component path override, a string or an array of them
+    pub skills: Option<serde_json::Value>,
+    #[serde(default)]
+    pub mode: PluginEntryMode,
+}
+
+/// A marketplace entry's `author`: Anthropic permits a bare name or an object;
+/// any other shape reads as absent rather than rejecting the entry.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum PluginEntryAuthor {
+    Name(String),
+    Detailed(PluginEntryAuthorDetail),
+    Unrecognised(serde::de::IgnoredAny),
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PluginEntryAuthorDetail {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub email: Option<String>,
+}
+
+/// How the importer treats a marketplace entry: `vendor` fetches and imports
+/// it, `pass_through` keeps it as authored for Claude Code to fetch.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginEntryMode {
+    #[default]
+    Vendor,
+    PassThrough,
 }
 
 impl MarketplacePluginEntry {
     pub fn author_name(&self) -> Option<String> {
         match self.author.as_ref()? {
-            serde_json::Value::String(s) => Some(s.clone()),
-            serde_json::Value::Object(map) => {
-                map.get("name").and_then(|v| v.as_str()).map(str::to_owned)
-            },
-            _ => None,
+            PluginEntryAuthor::Name(name) => Some(name.clone()),
+            PluginEntryAuthor::Detailed(detail) => detail.name.clone(),
+            PluginEntryAuthor::Unrecognised(_) => None,
         }
     }
 
     pub fn author_email(&self) -> Option<String> {
         match self.author.as_ref()? {
-            serde_json::Value::Object(map) => {
-                map.get("email").and_then(|v| v.as_str()).map(str::to_owned)
-            },
-            _ => None,
+            PluginEntryAuthor::Detailed(detail) => detail.email.clone(),
+            PluginEntryAuthor::Name(_) | PluginEntryAuthor::Unrecognised(_) => None,
         }
     }
 
     pub fn local_path(&self) -> Option<&str> {
-        match self.source.as_ref()? {
-            serde_json::Value::String(s) => Some(s.as_str()),
-            serde_json::Value::Object(map) => map
-                .get("path")
-                .or_else(|| map.get("source"))
-                .and_then(|v| v.as_str()),
+        match self.plugin_source() {
+            Ok(PluginSource::Local(path)) => Some(path),
             _ => None,
         }
     }
 
     pub fn source_is_remote(&self) -> bool {
-        self.source.is_some() && self.local_path().is_none()
+        !matches!(
+            self.plugin_source(),
+            Ok(PluginSource::Default | PluginSource::Local(_))
+        )
     }
+
+    pub fn plugin_source(&self) -> Result<PluginSource<'_>, PluginSourceError> {
+        let Some(value) = self.source.as_ref() else {
+            return Ok(PluginSource::Default);
+        };
+        let map = match value {
+            serde_json::Value::String(path) => return Ok(PluginSource::Local(path)),
+            serde_json::Value::Object(map) => map,
+            _ => return Ok(PluginSource::Unsupported("non-object".to_owned())),
+        };
+        let text = |key: &str| map.get(key).and_then(serde_json::Value::as_str);
+        let kind = text("source");
+        match kind {
+            Some("github" | "url" | "git-subdir") => {
+                RemotePluginSource::from_object(kind.unwrap_or_default(), &text)
+                    .map(PluginSource::Remote)
+            },
+            Some(other @ ("npm" | "pip")) => Ok(PluginSource::Unsupported(other.to_owned())),
+            _ => Ok(text("path").or(kind).map_or_else(
+                || PluginSource::Unsupported("unknown".to_owned()),
+                PluginSource::Local,
+            )),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PluginSourceError {
+    #[error("a {kind} source needs `{key}`")]
+    MissingKey {
+        kind: &'static str,
+        key: &'static str,
+    },
+    #[error("`path` {path:?} is not a relative path: {source}")]
+    Subdirectory {
+        path: String,
+        #[source]
+        source: RevisionBundleError,
+    },
+    #[error("`sha` {0:?} is not a full lowercase commit id")]
+    Commit(String),
+    #[error("{0:?} is not a public https repository URL")]
+    NotPublicHttps(String),
+    #[error("{0:?} is neither `owner/repository` nor an https URL")]
+    Location(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PluginSource<'a> {
+    Default,
+    Local(&'a str),
+    Remote(RemotePluginSource),
+    Unsupported(String),
+}
+
+/// A plugin Claude Code would fetch from git.
+///
+/// Carries the repository as an `https` URL, the subtree the plugin lives in,
+/// and the pin. `commit` is the entry's `sha`, the only reference a
+/// reproducible bundle can use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemotePluginSource {
+    pub repository: String,
+    pub subdirectory: Option<String>,
+    pub reference: Option<String>,
+    pub commit: Option<String>,
+}
+
+impl RemotePluginSource {
+    fn from_object<'v>(
+        kind: &str,
+        text: &dyn Fn(&str) -> Option<&'v str>,
+    ) -> Result<Self, PluginSourceError> {
+        let required = |kind: &'static str, key: &'static str| {
+            text(key).ok_or(PluginSourceError::MissingKey { kind, key })
+        };
+        let (location, subdirectory) = match kind {
+            "github" => (required("github", "repo")?, None),
+            "url" => (required("url", "url")?, None),
+            _ => (
+                required("git-subdir", "url")?,
+                Some(required("git-subdir", "path")?),
+            ),
+        };
+        let subdirectory = subdirectory
+            .map(|path| path.trim_matches('/').trim_start_matches("./"))
+            .filter(|path| !path.is_empty() && *path != ".")
+            .map(|path| {
+                systemprompt_models::managed::validate_path(path)
+                    .map(|()| path.to_owned())
+                    .map_err(|source| PluginSourceError::Subdirectory {
+                        path: path.to_owned(),
+                        source,
+                    })
+            })
+            .transpose()?;
+        let commit = text("sha").map(str::to_owned);
+        if let Some(sha) = &commit
+            && !is_commit(sha)
+        {
+            return Err(PluginSourceError::Commit(sha.clone()));
+        }
+        Ok(Self {
+            repository: repository_url(location)?,
+            subdirectory,
+            reference: text("ref").map(str::to_owned),
+            commit,
+        })
+    }
+}
+
+fn repository_url(location: &str) -> Result<String, PluginSourceError> {
+    if let Some(rest) = location.strip_prefix("https://") {
+        let host = rest.split('/').next().unwrap_or_default();
+        if host.is_empty() || host.contains('@') || rest.chars().any(char::is_whitespace) {
+            return Err(PluginSourceError::NotPublicHttps(location.to_owned()));
+        }
+        return Ok(location.to_owned());
+    }
+    let mut parts = location.split('/');
+    let segment_ok = |part: Option<&str>| {
+        part.is_some_and(|p| {
+            !p.is_empty()
+                && p.bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+        })
+    };
+    if segment_ok(parts.next()) && segment_ok(parts.next()) && parts.next().is_none() {
+        return Ok(format!(
+            "https://github.com/{}.git",
+            location.trim_end_matches(".git")
+        ));
+    }
+    Err(PluginSourceError::Location(location.to_owned()))
+}
+
+fn is_commit(value: &str) -> bool {
+    matches!(value.len(), 40 | 64)
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -14,8 +14,7 @@
 use crate::error::{OauthError, OauthResult as Result};
 use chrono::Utc;
 use std::time::Duration;
-use systemprompt_identifiers::{TokenId, UserId};
-use uuid::Uuid;
+use systemprompt_identifiers::{ChallengeId, TokenId, UserId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WebAuthnChallengeKind {
@@ -42,6 +41,7 @@ pub struct StoreChallengeParams<'a> {
     pub challenge: &'a str,
     pub kind: WebAuthnChallengeKind,
     pub user_id: Option<&'a UserId>,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: &'a serde_json::Value,
     pub oauth_state: Option<&'a str>,
     pub ttl: Duration,
@@ -50,6 +50,7 @@ pub struct StoreChallengeParams<'a> {
 #[derive(Debug, Clone)]
 pub struct ConsumedChallenge {
     pub user_id: Option<UserId>,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: serde_json::Value,
     pub oauth_state: Option<String>,
 }
@@ -64,14 +65,14 @@ pub struct ReserveLinkChallengeParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct LinkChallengeReservation {
-    pub challenge_id: String,
+    pub challenge_id: ChallengeId,
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub state: serde_json::Value,
     pub reused: bool,
 }
 
 fn to_chrono(duration: Duration) -> Result<chrono::Duration> {
-    chrono::Duration::from_std(duration)
-        .map_err(|e| OauthError::Internal(format!("Challenge TTL out of range: {e}")))
+    chrono::Duration::from_std(duration).map_err(OauthError::ChallengeTtl)
 }
 
 impl crate::repository::OAuthRepository {
@@ -96,13 +97,14 @@ impl crate::repository::OAuthRepository {
         Ok(())
     }
 
+    // JSON: webauthn-rs ceremony state — opaque, serialised by the library.
     pub async fn reserve_link_challenge<F>(
         &self,
         params: ReserveLinkChallengeParams<'_>,
         mint: F,
     ) -> Result<LinkChallengeReservation>
     where
-        F: FnOnce(&str) -> Result<serde_json::Value>,
+        F: FnOnce(&ChallengeId) -> Result<serde_json::Value>,
     {
         let now = Utc::now();
         let usable_until = now + to_chrono(params.min_remaining)?;
@@ -112,10 +114,12 @@ impl crate::repository::OAuthRepository {
 
         let mut tx = self.write_pool_ref().begin().await?;
 
-        sqlx::query!("SELECT id FROM users WHERE id = $1 FOR UPDATE", user_id)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or_else(|| OauthError::Internal("Link target user not found".to_owned()))?;
+        sqlx::query!(
+            "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+            user_id
+        )
+        .execute(&mut *tx)
+        .await?;
 
         let live = sqlx::query!(
             "SELECT challenge, session_state FROM webauthn_challenges
@@ -132,7 +136,7 @@ impl crate::repository::OAuthRepository {
         if let Some(row) = live {
             tx.commit().await?;
             return Ok(LinkChallengeReservation {
-                challenge_id: row.challenge,
+                challenge_id: ChallengeId::new(row.challenge),
                 state: row.session_state.unwrap_or(serde_json::Value::Null),
                 reused: true,
             });
@@ -146,14 +150,14 @@ impl crate::repository::OAuthRepository {
         .execute(&mut *tx)
         .await?;
 
-        let challenge_id = Uuid::new_v4().to_string();
+        let challenge_id = ChallengeId::generate();
         let state = mint(&challenge_id)?;
 
         sqlx::query!(
             "INSERT INTO webauthn_challenges
              (challenge, user_id, challenge_type, session_state, expires_at)
              VALUES ($1, $2, $3, $4, $5)",
-            challenge_id,
+            challenge_id.as_str(),
             user_id,
             kind,
             state,
@@ -191,14 +195,5 @@ impl crate::repository::OAuthRepository {
             state: row.session_state.unwrap_or(serde_json::Value::Null),
             oauth_state: row.oauth_state,
         }))
-    }
-
-    pub async fn cleanup_expired_webauthn_challenges(&self) -> Result<u64> {
-        let result =
-            sqlx::query!("DELETE FROM webauthn_challenges WHERE expires_at <= CURRENT_TIMESTAMP")
-                .execute(self.write_pool_ref())
-                .await?;
-
-        Ok(result.rows_affected())
     }
 }

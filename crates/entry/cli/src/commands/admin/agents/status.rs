@@ -47,7 +47,7 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
 
     let all_statuses = orchestrator.list_all().await?;
 
-    let agents_to_check: Vec<(&String, &systemprompt_models::AgentConfig)> = match &args.name {
+    let agents_to_check: Vec<(&String, &systemprompt_manifest::AgentConfig)> = match &args.name {
         Some(name) => {
             let agent = services_config
                 .agents
@@ -61,7 +61,9 @@ pub(super) async fn execute(args: StatusArgs, ctx: &CommandContext) -> Result<Co
     let mut agents: Vec<AgentStatusRow> = Vec::new();
 
     for (name, agent) in agents_to_check {
-        let status = all_statuses.iter().find(|(n, _)| n == name);
+        let status = all_statuses
+            .iter()
+            .find(|(n, _)| n.as_str() == name.as_str());
         let (is_running, pid) = match status {
             Some((_, AgentStatus::Running { pid, .. })) => (true, Some(*pid)),
             Some((_, AgentStatus::Failed { .. })) | None => (false, None),

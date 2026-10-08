@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use std::process::Command;
 use systemprompt_logging::CliService;
+use tokio::process::Command;
 
 use super::common::PostgresConfig;
 
@@ -21,6 +21,7 @@ pub(super) async fn create_database_in_docker(
     let output = Command::new("docker")
         .args(["exec", container_name, "printenv", "POSTGRES_PASSWORD"])
         .output()
+        .await
         .context("Failed to get container password")?;
 
     let container_password = String::from_utf8_lossy(&output.stdout).trim().to_owned();

@@ -16,7 +16,7 @@ use axum::{Extension, Router};
 use systemprompt_api::routes::content;
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{DisposableDb, fixture_app_context};
+use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tower::ServiceExt;
 use uuid::Uuid;
 
@@ -32,7 +32,7 @@ fn authenticated(ctx: &AppContext) -> Router {
 
 async fn seed_searchable(db: &DbPool, term: &str) -> Result<()> {
     let uniq = Uuid::new_v4().to_string();
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \
@@ -229,10 +229,10 @@ async fn an_unknown_campaign_has_no_performance() -> Result<()> {
 
 #[tokio::test]
 async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair() -> Result<()> {
-    let owned = DisposableDb::installed("content_query_failure").await?;
-    let db = owned.pool().await?;
-    let ctx = fixture_app_context(&db, owned.url())?;
-    let raw = db.pool_arc()?;
+    let owned = DisposableDb::with_schema("content_query_failure").await;
+    let db = owned.test_pool().await;
+    let ctx = test_app_context(&db, owned.url());
+    let raw = db.pool();
     sqlx::query("ALTER TABLE markdown_content RENAME TO markdown_content_unavailable")
         .execute(raw.as_ref())
         .await?;
@@ -245,12 +245,9 @@ async fn search_database_failure_is_a_json_500_and_recovers_after_schema_repair(
     .await?;
     assert_eq!(status.as_u16(), 500, "{body}");
     let error: serde_json::Value = serde_json::from_str(&body)?;
-    assert!(
-        error["error"]
-            .as_str()
-            .is_some_and(|value| !value.is_empty()),
-        "{body}"
-    );
+    assert_eq!(error["code"], "internal_error", "{body}");
+    assert_eq!(error["message"], "Internal server error", "{body}");
+    assert!(!body.contains("markdown_content"), "{body}");
 
     sqlx::query("ALTER TABLE markdown_content_unavailable RENAME TO markdown_content")
         .execute(raw.as_ref())
@@ -376,9 +373,9 @@ async fn assert_link_reads_outage(
 async fn link_analytics_reads_report_database_outage_and_recover_without_false_empty_results()
 -> Result<()> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let owned = DisposableDb::installed("link_read_outage").await?;
-    let db = owned.pool().await?;
-    let ctx = fixture_app_context(&db, owned.url())?;
+    let owned = DisposableDb::with_schema("link_read_outage").await;
+    let db = owned.test_pool().await;
+    let ctx = test_app_context(&db, owned.url());
     let click_user = systemprompt_identifiers::UserId::new("content_user");
     let click_session = systemprompt_identifiers::SessionId::generate();
     systemprompt_test_fixtures::seed_user_row(&db, &click_user, "content-user@outage.invalid")
@@ -389,10 +386,10 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
         systemprompt_identifiers::TraceId::generate(),
         systemprompt_identifiers::ContextId::generate(),
         systemprompt_identifiers::AgentName::try_new("link-outage").unwrap(),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(click_user));
+        systemprompt_identifiers::Actor::user(click_user),
+    );
     let campaign = format!("campaign-{}", Uuid::new_v4().simple());
-    let source = systemprompt_content::repository::ContentRepository::new(&db)?
+    let source = systemprompt_content::repository::ContentRepository::new(&db)
         .create(&systemprompt_content::models::CreateContentParams {
             slug: format!("outage-source-{}", Uuid::new_v4().simple()),
             locale: systemprompt_identifiers::LocaleCode::english(),
@@ -410,7 +407,7 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
                 Uuid::new_v4().simple()
             )),
             version_hash: format!("outage-hash-{}", Uuid::new_v4().simple()),
-            links: serde_json::json!([]),
+            links: Vec::new(),
             public: true,
         })
         .await?
@@ -445,19 +442,19 @@ async fn link_analytics_reads_report_database_outage_and_recover_without_false_e
     assert!(redirect.status().is_redirection());
     assert_link_reads_live(&ctx, &link, &campaign, &source).await?;
 
-    let raw = db.pool_arc()?;
+    let raw = db.pool();
     raw.close().await;
     assert_link_reads_outage(&ctx, &link, &campaign, &source, owned.url()).await?;
     drop(ctx);
     drop(raw);
     drop(db);
 
-    let recovered = owned.pool().await?;
-    let recovered_ctx = fixture_app_context(&recovered, owned.url())?;
+    let recovered = owned.test_pool().await;
+    let recovered_ctx = test_app_context(&recovered, owned.url());
     assert_link_reads_live(&recovered_ctx, &link, &campaign, &source).await?;
     let row: i64 = sqlx::query_scalar("SELECT count(*) FROM campaign_links WHERE id=$1")
         .bind(&link)
-        .fetch_one(recovered.pool_arc()?.as_ref())
+        .fetch_one(recovered.pool().as_ref())
         .await?;
     assert_eq!(row, 1);
     drop(recovered_ctx);

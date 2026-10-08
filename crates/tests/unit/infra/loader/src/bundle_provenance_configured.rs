@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use systemprompt_loader::bundle::{BundleCache, owning_bundle_hashes, sources_provenance};
-use systemprompt_models::profile::FetchFailurePolicy;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::profile::FetchFailurePolicy;
+use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, BundleSourceState, ServicesBundleState,
 };
 
@@ -18,9 +18,12 @@ const CHILD_ENV: &str = "SYSTEMPROMPT_PROVENANCE_CONFIGURED_CHILD";
 fn configured_bundle_provenance_survives_missing_and_corrupt_manifests_then_recovers() {
     if std::env::var_os(CHILD_ENV).is_some() {
         run_child_assertions();
-        return;
+    } else {
+        run_parent_and_child();
     }
+}
 
+fn run_parent_and_child() {
     let root = tempfile::tempdir().expect("isolated provenance fixture");
     let services = root.path().join("services");
     let cache_root = root.path().join("cache");

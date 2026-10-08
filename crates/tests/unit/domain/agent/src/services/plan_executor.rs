@@ -4,9 +4,11 @@ use systemprompt_agent::services::a2a_server::processing::strategies::plan_execu
     execute_tools, format_results_for_response,
 };
 use systemprompt_agent::services::shared::Result;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpToolName, SessionId, TraceId, UserId,
+};
 use systemprompt_models::McpTool;
-use systemprompt_models::ai::{ExecutionState, PlannedToolCall, ToolCallResult};
+use systemprompt_models::ai::{ExecutionState, PlannedToolCall, PlannedToolResult};
 use systemprompt_models::execution::context::RequestContext;
 
 struct AlwaysOkExecutor;
@@ -14,7 +16,7 @@ struct AlwaysOkExecutor;
 impl ToolExecutorTrait for AlwaysOkExecutor {
     async fn execute_tool(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         arguments: Value,
         _tools: &[McpTool],
         _ctx: &RequestContext,
@@ -33,12 +35,16 @@ struct AlwaysFailExecutor;
 impl ToolExecutorTrait for AlwaysFailExecutor {
     async fn execute_tool(
         &self,
-        _tool_name: &str,
+        _tool_name: &McpToolName,
         _arguments: Value,
         _tools: &[McpTool],
         _ctx: &RequestContext,
     ) -> Result<ToolOutcome> {
-        Err(systemprompt_agent::services::shared::AgentServiceError::Internal("boom".to_string()))
+        Err(
+            systemprompt_agent::services::shared::AgentServiceError::StreamFailed {
+                message: "boom".to_string(),
+            },
+        )
     }
 }
 
@@ -48,6 +54,7 @@ fn ctx() -> RequestContext {
         TraceId::new("pe-trace"),
         ContextId::generate(),
         AgentName::try_new("pe-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     c.auth.actor = Actor::user(UserId::new("pe-user"));
     c
@@ -80,13 +87,13 @@ fn convert_to_tool_calls_empty() {
 #[test]
 fn convert_to_call_tool_results_maps_success_and_failure() {
     let mut state = ExecutionState::new();
-    state.add_result(ToolCallResult::success(
+    state.add_result(PlannedToolResult::success(
         "ok_tool".to_string(),
         serde_json::json!({}),
         serde_json::json!({"out": "ok"}),
         10,
     ));
-    state.add_result(ToolCallResult::failure(
+    state.add_result(PlannedToolResult::failure(
         "bad_tool".to_string(),
         serde_json::json!({}),
         "fail reason".to_string(),
@@ -118,13 +125,13 @@ async fn executed_tools_keep_the_wire_meta_for_the_artifact_transformer() {
 #[test]
 fn format_results_for_response_includes_indices_and_status() {
     let mut state = ExecutionState::new();
-    state.add_result(ToolCallResult::success(
+    state.add_result(PlannedToolResult::success(
         "first".to_string(),
         serde_json::json!({}),
         serde_json::json!({"answer": 42}),
         5,
     ));
-    state.add_result(ToolCallResult::failure(
+    state.add_result(PlannedToolResult::failure(
         "second".to_string(),
         serde_json::json!({}),
         "oops".to_string(),
@@ -187,4 +194,22 @@ async fn execute_tools_without_templates_runs_plainly() {
         .expect("ok");
     assert_eq!(state.results.len(), 1);
     assert!(state.results[0].success);
+}
+
+#[tokio::test]
+async fn a_planned_call_without_a_tool_name_fails_before_reaching_the_executor() {
+    let calls = vec![call("")];
+    let state = execute_tools(&calls, &[], &ctx(), &AlwaysOkExecutor)
+        .await
+        .expect("ok");
+    assert_eq!(state.results.len(), 1);
+    assert_eq!(state.failed_results().len(), 1);
+    assert!(
+        state.failed_results()[0]
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("tool_name"),
+        "the failure names the rejected field"
+    );
 }

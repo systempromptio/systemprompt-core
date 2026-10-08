@@ -6,8 +6,8 @@
 //! `ai_safety_findings`, `ai_gateway_policies`,
 //! `ai_gateway_thought_signatures`).
 //!
-//! All repositories return [`crate::error::RepositoryError`]. Services are
-//! the only callers — repositories never execute application logic.
+//! All repositories return [`systemprompt_traits::RepositoryError`]. Services
+//! are the only callers — repositories never execute application logic.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,10 +18,10 @@ pub mod ai_request_client_evidence;
 pub mod ai_request_payloads;
 pub mod ai_requests;
 pub mod ai_safety_findings;
+pub mod ai_usage_anomaly;
 pub mod ownership;
 pub mod thought_signatures;
 
-use crate::error::RepositoryError;
 use systemprompt_database::DbPool;
 
 pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow};
@@ -36,6 +36,7 @@ pub use ai_requests::{AiRequestRepository, InsertToolCallParams};
 pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
 };
+pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
 
@@ -50,14 +51,14 @@ pub struct AiRepositories {
 }
 
 impl AiRepositories {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        Ok(Self {
-            requests: AiRequestRepository::new(db)?,
-            payloads: AiRequestPayloadRepository::new(db)?,
-            gateway_policies: AiGatewayPolicyRepository::new(db)?,
-            quota_buckets: AiQuotaBucketRepository::new(db)?,
-            safety_findings: AiSafetyFindingRepository::new(db)?,
-            thought_signatures: AiThoughtSignatureRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            requests: AiRequestRepository::new(db),
+            payloads: AiRequestPayloadRepository::new(db),
+            gateway_policies: AiGatewayPolicyRepository::new(db),
+            quota_buckets: AiQuotaBucketRepository::new(db),
+            safety_findings: AiSafetyFindingRepository::new(db),
+            thought_signatures: AiThoughtSignatureRepository::new(db),
+        }
     }
 }

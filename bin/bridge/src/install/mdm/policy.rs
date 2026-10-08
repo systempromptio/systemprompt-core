@@ -10,16 +10,16 @@
 
 use std::collections::BTreeMap;
 
-use super::error::MdmError;
-use crate::ids::{HostId, HostToken, LoopbackSecret};
-use crate::install::xml;
+use systemprompt_models::bridge::host::HostKind;
 
-pub const CLAUDE_DESKTOP_HOST_ID: &str = "claude-desktop";
+use super::error::MdmError;
+use crate::ids::{HostToken, LoopbackSecret};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PolicyValue {
     Str(String),
     Bool(bool),
+    // JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked JSON.
     Json(serde_json::Value),
 }
 
@@ -31,6 +31,7 @@ pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceGatewayApiKey",
     "inferenceGatewayAuthScheme",
     "inferenceModels",
+    "modelPrefer1mContext",
     "disableEssentialTelemetry",
     "disableNonessentialTelemetry",
     "disableNonessentialServices",
@@ -42,6 +43,24 @@ pub const WRITTEN_POLICY_KEYS: &[&str] = &[
     "inferenceCustomHeaders",
     "deploymentOrganizationUuid",
     "managedMcpServers",
+    "inferenceStreamIdleTimeoutSec",
+    "modelDiscoveryEnabled",
+    "alwaysStartWithDefaultModel",
+    "builtinToolPolicy",
+    "toolSearchEnabled",
+    "disableBundledSkills",
+    "chatAdvancedFileAnalysisEnabled",
+    "mcpToolTimeoutSec",
+    "autoUpdaterEnforcementHours",
+    "relaunchEnforcementHours",
+    "configRecheckIntervalMinutes",
+    "otlpDesktopLogLevel",
+    "otlpContentCapture",
+    "otlpTracesEnabled",
+    "deploymentDisplayName",
+    "otlpEndpoint",
+    "otlpProtocol",
+    "otlpAuthMode",
 ];
 
 /// One managed MCP server as the policy publishes it. `tool_policy` is
@@ -70,12 +89,21 @@ pub struct PolicyInputs<'a> {
 
 #[must_use]
 pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
-    crate::proxy::scoped_token::host_token(secret, &HostId::new(CLAUDE_DESKTOP_HOST_ID))
+    crate::proxy::scoped_token::host_token(secret, HostKind::ClaudeDesktop)
 }
 
 pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
+    let policy = super::desktop_policy::verified_operator_policy()?;
+    claude_desktop_policy_with(inputs, &policy)
+}
+
+pub fn claude_desktop_policy_with(
+    inputs: &PolicyInputs<'_>,
+    policy: &super::desktop_policy::DesktopPolicy,
+) -> Result<Vec<PolicyEntry>, MdmError> {
     let mut out = super::inference::inference_entries(inputs)?;
     out.extend(hardening_entries());
+    out.extend(super::desktop_policy::entries_with_policy(inputs, policy)?);
     if let Some(hosts) = super::cowork_egress_allowed_hosts(inputs.egress_allowed_hosts)? {
         out.push((
             "coworkEgressAllowedHosts",
@@ -114,7 +142,6 @@ fn hardening_entries() -> Vec<PolicyEntry> {
         ("disableEssentialTelemetry", PolicyValue::Bool(true)),
         ("disableNonessentialTelemetry", PolicyValue::Bool(true)),
         ("disableNonessentialServices", PolicyValue::Bool(false)),
-        ("disableAutoUpdates", PolicyValue::Bool(true)),
         ("disableDeploymentModeChooser", PolicyValue::Bool(true)),
         ("isLocalDevMcpEnabled", PolicyValue::Bool(false)),
     ]
@@ -131,6 +158,8 @@ fn workspace_entry() -> PolicyEntry {
     )
 }
 
+// JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked
+// JSON.
 #[must_use]
 pub fn workspace_folders() -> serde_json::Value {
     let workspace = crate::brand::brand().workspace_dir_name;
@@ -165,85 +194,13 @@ fn mcp_value(servers: &[McpServerEntry], host_token: &HostToken) -> PolicyValue 
     ))
 }
 
+// JSON: Claude Desktop managed policy — `object[]` keys hold schema-checked
+// JSON.
 pub(super) fn json_of<T: serde::Serialize>(value: &T) -> serde_json::Value {
     serde_json::to_value(value).unwrap_or(serde_json::Value::Null)
 }
 
-#[must_use]
-pub fn reg_values(policy: &[PolicyEntry]) -> Vec<(&'static str, &'static str, String)> {
-    policy
-        .iter()
-        .map(|(name, value)| (*name, "REG_SZ", reg_encode(value)))
-        .collect()
-}
-
-// Why: Claude's registry encoding requires strings, with arrays and objects
-// encoded as JSON text.
-fn reg_encode(value: &PolicyValue) -> String {
-    match value {
-        PolicyValue::Str(s) => s.clone(),
-        PolicyValue::Bool(b) => b.to_string(),
-        PolicyValue::Json(v) => v.to_string(),
-    }
-}
-
-#[must_use]
-pub fn plist_body(policy: &[PolicyEntry], indent: &str) -> String {
-    let mut out = String::new();
-    for (name, value) in policy {
-        out.push_str(&format!("{indent}<key>{}</key>\n", xml::escape(name)));
-        out.push_str(&plist_value(value, indent));
-    }
-    out
-}
-
-// Why: Claude's published preference encoding specifies string booleans for
-// the top-level policy keys, not plist booleans.
-fn plist_value(value: &PolicyValue, indent: &str) -> String {
-    match value {
-        PolicyValue::Str(s) => format!("{indent}<string>{}</string>\n", xml::escape(s)),
-        PolicyValue::Bool(b) => format!("{indent}<string>{b}</string>\n"),
-        PolicyValue::Json(v) => plist_json(v, indent),
-    }
-}
-
-// Why: inside an `object[]`/`dict` value Claude Desktop reads the native plist
-// as the equivalent JSON and validates each entry against the key's schema. A
-// field typed boolean (`allowedWorkspaceFolders[].isDefaultSelected`) written
-// as a string is a malformed entry, the entry is dropped, and an empty
-// resulting list blocks the Code tab from adding any folder.
-fn plist_json(value: &serde_json::Value, indent: &str) -> String {
-    let inner = format!("{indent}  ");
-    match value {
-        serde_json::Value::Null => format!("{indent}<string></string>\n"),
-        serde_json::Value::Bool(true) => format!("{indent}<true/>\n"),
-        serde_json::Value::Bool(false) => format!("{indent}<false/>\n"),
-        serde_json::Value::Number(n) if n.is_i64() || n.is_u64() => {
-            format!("{indent}<integer>{n}</integer>\n")
-        },
-        serde_json::Value::Number(n) => format!("{indent}<real>{n}</real>\n"),
-        serde_json::Value::String(s) => {
-            format!("{indent}<string>{}</string>\n", xml::escape(s))
-        },
-        serde_json::Value::Array(items) => {
-            let mut out = format!("{indent}<array>\n");
-            for item in items {
-                out.push_str(&plist_json(item, &inner));
-            }
-            out.push_str(&format!("{indent}</array>\n"));
-            out
-        },
-        serde_json::Value::Object(map) => {
-            let mut out = format!("{indent}<dict>\n");
-            for (k, v) in map {
-                out.push_str(&format!("{inner}<key>{}</key>\n", xml::escape(k)));
-                out.push_str(&plist_json(v, &inner));
-            }
-            out.push_str(&format!("{indent}</dict>\n"));
-            out
-        },
-    }
-}
+pub use super::policy_render::{plist_body, reg_values};
 
 // Why: Desktop's `toolPolicy` names tools one by one, so a wildcard can only
 // be expressed over names the catalog knows. A server denied outright or one

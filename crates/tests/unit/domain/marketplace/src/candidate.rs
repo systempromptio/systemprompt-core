@@ -1,13 +1,13 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::MarketplaceId;
+use systemprompt_manifest::services::MarketplaceAccess;
 use systemprompt_marketplace::{
     MarketplaceCandidate, MarketplaceError, MarketplaceFilterError, MarketplaceMembership,
 };
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
-use systemprompt_models::services::MarketplaceAccess;
 
 use crate::plugin;
 use systemprompt_models::bridge::manifest::PluginEntry;
@@ -32,7 +32,8 @@ fn candidate(
 }
 
 fn skill(id: &str) -> SkillEntry {
-    use systemprompt_models::bridge::ids::{Sha256Digest, SkillId, SkillName};
+    use systemprompt_identifiers::{SkillId, SkillName};
+    use systemprompt_models::bridge::ids::Sha256Digest;
     SkillEntry {
         publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
@@ -47,6 +48,7 @@ fn skill(id: &str) -> SkillEntry {
         instructions: String::new(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -74,7 +76,7 @@ fn agent(id: &str) -> AgentEntry {
 fn hook(id: &str) -> HookEntry {
     use systemprompt_identifiers::HookId;
     use systemprompt_models::bridge::ids::Sha256Digest;
-    use systemprompt_models::services::hooks::HookEvent;
+    use systemprompt_models::hooks::HookEvent;
     HookEntry {
         id: HookId::new(id),
         name: id.to_owned(),
@@ -84,6 +86,7 @@ fn hook(id: &str) -> HookEntry {
         matcher: "*".into(),
         command: String::new(),
         is_async: false,
+        timeout: None,
         category: Default::default(),
         tags: vec![],
         sha256: Sha256Digest::try_new(
@@ -94,7 +97,8 @@ fn hook(id: &str) -> HookEntry {
 }
 
 fn artifact(id: &str) -> ArtifactEntry {
-    use systemprompt_models::bridge::ids::{LibraryArtifactId, Sha256Digest};
+    use systemprompt_identifiers::LibraryArtifactId;
+    use systemprompt_models::bridge::ids::Sha256Digest;
     ArtifactEntry {
         id: LibraryArtifactId::try_new(id).expect("valid artifact id"),
         name: id.to_owned(),
@@ -112,11 +116,10 @@ fn artifact(id: &str) -> ArtifactEntry {
 }
 
 fn mcp_server(name: &str) -> ManagedMcpServer {
-    use systemprompt_identifiers::ValidatedUrl;
-    use systemprompt_models::bridge::ids::ManagedMcpServerName;
+    use systemprompt_identifiers::{McpServerId, ValidatedUrl};
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).expect("valid mcp name"),
+        name: McpServerId::try_new(name).expect("valid mcp name"),
         url: ValidatedUrl::try_new(format!("https://api.example.com/mcp/{name}"))
             .expect("valid url"),
         transport: Some("http".into()),
@@ -283,8 +286,7 @@ fn keep(
     hooks: &[&str],
     mcp_servers: &[&str],
 ) -> systemprompt_marketplace::EntryKeepSets {
-    use systemprompt_identifiers::{AgentId, HookId, McpServerId};
-    use systemprompt_models::bridge::ids::{PluginId, SkillId};
+    use systemprompt_identifiers::{AgentId, HookId, McpServerId, PluginId, SkillId};
     systemprompt_marketplace::EntryKeepSets {
         plugins: plugins
             .iter()
@@ -331,7 +333,7 @@ fn retain_entries_shrinks_every_entry_list() {
 #[test]
 fn retain_entries_prunes_artifacts_of_dropped_plugins() {
     use std::collections::{BTreeMap, BTreeSet};
-    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+    use systemprompt_identifiers::{LibraryArtifactId, PluginId};
 
     let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [
         (
@@ -401,11 +403,7 @@ fn into_manifest_parts_carries_membership_into_filter_context() {
 
 #[test]
 fn filter_error_variants_debug() {
-    let variants = [
-        MarketplaceFilterError::Backend("x".into()),
-        MarketplaceFilterError::UnknownUser("u".into()),
-        MarketplaceFilterError::Policy("p".into()),
-    ];
+    let variants = [MarketplaceFilterError::Backend("x".into())];
     for v in &variants {
         let _ = format!("{v:?}");
     }
@@ -416,9 +414,8 @@ fn marketplace_error_variants_debug() {
     let variants: Vec<MarketplaceError> = vec![
         MarketplaceError::NotFound(MarketplaceId::new("missing")),
         MarketplaceError::NoDefault,
-        MarketplaceError::Validation("bad".into()),
         MarketplaceError::Catalog("fail".into()),
-        MarketplaceError::Signing("sig".into()),
+        MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing),
         MarketplaceError::Filter(MarketplaceFilterError::Backend("b".into())),
     ];
     for v in &variants {
@@ -429,7 +426,7 @@ fn marketplace_error_variants_debug() {
 #[test]
 fn into_manifest_parts_routes_skill_owners_to_filter_context() {
     use std::collections::{BTreeMap, BTreeSet};
-    use systemprompt_models::bridge::ids::{PluginId, SkillId};
+    use systemprompt_identifiers::{PluginId, SkillId};
 
     let owners: BTreeMap<SkillId, BTreeSet<PluginId>> = [(
         SkillId::try_new("owned_skill").expect("valid id"),
@@ -466,7 +463,7 @@ fn into_manifest_parts_routes_skill_owners_to_filter_context() {
 #[test]
 fn into_manifest_parts_stamps_artifact_owners_onto_entries() {
     use std::collections::{BTreeMap, BTreeSet};
-    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+    use systemprompt_identifiers::{LibraryArtifactId, PluginId};
 
     let id = LibraryArtifactId::try_new("dash").expect("valid id");
     let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [(
@@ -504,7 +501,7 @@ fn into_manifest_parts_stamps_artifact_owners_onto_entries() {
 #[test]
 fn into_manifest_parts_drops_owners_that_did_not_survive_filtering() {
     use std::collections::{BTreeMap, BTreeSet};
-    use systemprompt_models::bridge::ids::{LibraryArtifactId, PluginId};
+    use systemprompt_identifiers::{LibraryArtifactId, PluginId};
 
     let id = LibraryArtifactId::try_new("dash").expect("valid id");
     let owners: BTreeMap<LibraryArtifactId, BTreeSet<PluginId>> = [(
@@ -536,7 +533,7 @@ fn into_manifest_parts_drops_owners_that_did_not_survive_filtering() {
 #[test]
 fn retain_entries_leaves_skill_owners_untouched() {
     use std::collections::{BTreeMap, BTreeSet};
-    use systemprompt_models::bridge::ids::{PluginId, SkillId};
+    use systemprompt_identifiers::{PluginId, SkillId};
 
     let owners: BTreeMap<SkillId, BTreeSet<PluginId>> = [(
         SkillId::try_new("dropped_skill").expect("valid id"),
@@ -564,9 +561,10 @@ fn retain_entries_leaves_skill_owners_untouched() {
 }
 
 fn rule(id: &str) -> RuleEntry {
-    use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest};
+    use systemprompt_identifiers::{MarketplaceRuleId, RuleName};
+    use systemprompt_models::bridge::ids::Sha256Digest;
     RuleEntry {
-        id: RuleId::try_new(id).expect("valid rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("valid rule id"),
         name: RuleName::try_new(id).expect("valid rule name"),
         description: String::new(),
         file_path: String::new(),
@@ -587,13 +585,13 @@ fn candidate_with_rule_owners(
     owners: &[(&str, &[&str])],
 ) -> MarketplaceCandidate {
     use std::collections::{BTreeMap, BTreeSet as OwnerSet};
-    use systemprompt_models::bridge::ids::{PluginId, RuleId};
+    use systemprompt_identifiers::{MarketplaceRuleId, PluginId};
 
     let rule_owners = owners
         .iter()
         .map(|(rule_id, plugin_ids)| {
             (
-                RuleId::try_new(*rule_id).expect("valid rule id"),
+                MarketplaceRuleId::try_new(*rule_id).expect("valid rule id"),
                 plugin_ids
                     .iter()
                     .map(|p| PluginId::try_new(*p).expect("valid plugin id"))

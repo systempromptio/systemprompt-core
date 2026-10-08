@@ -8,12 +8,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_traits::RepositoryError;
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -25,7 +25,9 @@ pub struct AiRequestPayloadRepository {
 #[derive(Debug, Clone)]
 pub struct AiRequestPayload {
     pub ai_request_id: AiRequestId,
+    // JSON: raw provider request body JSONB — verbatim upstream wire payload.
     pub request_body: Option<Value>,
+    // JSON: raw provider response body JSONB — verbatim upstream wire payload.
     pub response_body: Option<Value>,
     pub request_excerpt: Option<String>,
     pub response_excerpt: Option<String>,
@@ -35,6 +37,7 @@ pub struct AiRequestPayload {
     pub response_bytes: Option<i32>,
     pub request_body_sha256: Option<String>,
     pub prepared_body_sha256: Option<String>,
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's wire shape.
     pub prepared_tools: Option<Value>,
     pub response_body_sha256: Option<String>,
 }
@@ -44,18 +47,15 @@ pub struct AiRequestPayload {
 #[derive(Debug, Clone)]
 pub struct PreparedPayload {
     pub prepared_body_sha256: Option<String>,
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's wire shape.
     pub prepared_tools: Option<Value>,
 }
 
 impl AiRequestPayloadRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn upsert_request(
@@ -91,6 +91,7 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
+    // JSON: JSONB `offered_tools` — tool definitions as the client offered them.
     pub async fn upsert_offered_tools(
         &self,
         ai_request_id: &AiRequestId,
@@ -120,6 +121,8 @@ impl AiRequestPayloadRepository {
         Ok(())
     }
 
+    // JSON: JSONB `prepared_tools` — tool definitions in the upstream provider's
+    // wire shape.
     pub async fn upsert_prepared(
         &self,
         ai_request_id: &AiRequestId,
@@ -175,6 +178,7 @@ impl AiRequestPayloadRepository {
 
 #[derive(Debug, Clone, Copy)]
 pub struct UpsertPayloadParams<'a> {
+    // JSON: raw provider request/response body JSONB — verbatim upstream wire payload.
     pub body: Option<&'a Value>,
     pub excerpt: Option<&'a str>,
     pub truncated: bool,

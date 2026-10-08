@@ -71,7 +71,7 @@ pub(crate) fn artifact_from_row(row: ArtifactRow, parts: Vec<Part>) -> Artifact 
             task_id: row.task_id,
             rendering_hints,
             source: row.source,
-            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_owned()),
+            mcp_execution_id: row.mcp_execution_id,
             mcp_schema,
             is_internal,
             fingerprint: row.fingerprint,
@@ -85,13 +85,17 @@ pub(crate) fn artifact_from_row(row: ArtifactRow, parts: Vec<Part>) -> Artifact 
 
 #[derive(Default)]
 struct StoredArtifactMetadata {
+    // JSON: A2A artifact rendering hints — open metadata object.
     rendering_hints: Option<serde_json::Value>,
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     mcp_schema: Option<serde_json::Value>,
     is_internal: Option<bool>,
     execution_index: Option<usize>,
+    // JSON: A2A artifact extensions — open extension objects.
     artifact_extensions: Vec<serde_json::Value>,
 }
 
+// JSON: JSONB artifact `metadata` column — open A2A metadata object.
 fn stored_metadata(metadata: &serde_json::Value) -> StoredArtifactMetadata {
     let non_null = |key: &str| {
         metadata

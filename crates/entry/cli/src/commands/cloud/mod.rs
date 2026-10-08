@@ -25,6 +25,7 @@ use crate::context::CommandContext;
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_identifiers::ProfileName;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudCommands {
@@ -54,7 +55,12 @@ pub enum CloudCommands {
         #[arg(long)]
         skip_push: bool,
 
-        #[arg(long, short = 'p', help = "Profile name to deploy")]
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name_arg,
+            help = "Profile name to deploy"
+        )]
         profile: Option<String>,
 
         #[arg(long, help = "Run the pre-deploy preflight only, without deploying")]
@@ -63,7 +69,12 @@ pub enum CloudCommands {
 
     #[command(about = "Download the tenant's runtime services/ tree to a local directory")]
     Backup {
-        #[arg(long, short = 'p', help = "Profile name to back up")]
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name_arg,
+            help = "Profile name to back up"
+        )]
         profile: Option<String>,
 
         #[arg(
@@ -79,7 +90,12 @@ pub enum CloudCommands {
 
     #[command(about = "Run the pre-deploy preflight for a profile without deploying")]
     Doctor {
-        #[arg(long, short = 'p', help = "Profile name to check")]
+        #[arg(
+            long,
+            short = 'p',
+            value_parser = crate::shared::parse_profile_name_arg,
+            help = "Profile name to check"
+        )]
         profile: Option<String>,
 
         #[arg(
@@ -107,6 +123,10 @@ impl DescribeCommand for CloudCommands {
     }
 }
 
+fn profile_name(profile: Option<String>) -> Result<Option<ProfileName>> {
+    Ok(profile.map(ProfileName::try_new).transpose()?)
+}
+
 pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
     match cmd {
         CloudCommands::Auth(cmd) => auth::execute(cmd, ctx).await,
@@ -121,7 +141,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             deploy::execute(
                 deploy::DeployArgs {
                     skip_push,
-                    profile_name: profile,
+                    profile_name: profile_name(profile)?,
                     check,
                 },
                 ctx.prompter(),
@@ -136,7 +156,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
         } => {
             backup::execute(
                 backup::BackupArgs {
-                    profile_name: profile,
+                    profile_name: profile_name(profile)?,
                     output,
                     list,
                 },
@@ -148,7 +168,15 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
         CloudCommands::Doctor {
             profile,
             distributed,
-        } => doctor::execute(profile, distributed, ctx.prompter(), &ctx.cli).await,
+        } => {
+            doctor::execute(
+                profile_name(profile)?,
+                distributed,
+                ctx.prompter(),
+                &ctx.cli,
+            )
+            .await
+        },
         CloudCommands::Status => {
             let result = status::execute(&ctx.cli).await?;
             crate::shared::render_result(&result, &ctx.cli);

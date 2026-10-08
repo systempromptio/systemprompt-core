@@ -8,8 +8,8 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use parking_lot::Mutex;
+use systemprompt_identifiers::gateway_hash::conversation_prefix_hash;
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
-use systemprompt_models::gateway_hash::conversation_prefix_hash;
 
 const CONTEXT_CACHE_CAP: usize = 1024;
 
@@ -114,10 +114,9 @@ pub fn derive_gateway_conversation_id(body: &[u8]) -> Option<u64> {
     Some(conversation_prefix_hash(system.as_deref(), &role, &content))
 }
 
-// JSON: polymorphic wire content — `system` and `content` are a string or a
-// block array depending on the inference wire; only their text is hashed.
 #[derive(serde::Deserialize)]
 struct PrefixProbe {
+    // JSON: inference wire `system`/`content` — a string or a block array.
     #[serde(default)]
     system: Option<serde_json::Value>,
     #[serde(default)]
@@ -132,6 +131,7 @@ struct PrefixProbe {
 struct ProbeMessage {
     #[serde(default)]
     role: Option<String>,
+    // JSON: inference wire `system`/`content` — a string or a block array.
     #[serde(default)]
     content: Option<serde_json::Value>,
 }
@@ -168,6 +168,7 @@ impl PrefixProbe {
     }
 }
 
+// JSON: inference wire `system`/`content` — a string or a block array.
 fn system_text(value: Option<&serde_json::Value>) -> Option<String> {
     let v = value?;
     Some(match v {
@@ -176,6 +177,7 @@ fn system_text(value: Option<&serde_json::Value>) -> Option<String> {
     })
 }
 
+// JSON: inference wire `system`/`content` — a string or a block array.
 fn content_text(value: Option<&serde_json::Value>) -> String {
     let Some(v) = value else {
         return String::new();

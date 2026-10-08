@@ -1,7 +1,9 @@
 //! Tests for the proxy-verified identity short-circuit: header extraction,
 //! scope enforcement, and the authenticated context it produces.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::OAuthRequirement;
 use systemprompt_mcp::middleware::AuthenticatedRequestContext;
 use systemprompt_mcp::middleware::rbac::try_proxy_verified_auth;
@@ -14,7 +16,12 @@ fn ctx() -> RequestContext {
         TraceId::new("t-proxy"),
         ContextId::generate(),
         AgentName::try_new("agent-proxy").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
+}
+
+fn srv() -> McpServerId {
+    McpServerId::new("srv")
 }
 
 fn oauth(scopes: Vec<Permission>) -> OAuthRequirement {
@@ -49,7 +56,7 @@ fn verified_headers<'a>() -> Vec<(&'a str, &'a str)> {
 
 #[test]
 fn missing_parts_is_an_error() {
-    let err = try_proxy_verified_auth(None, ctx(), &oauth(vec![]), "srv")
+    let err = try_proxy_verified_auth(None, ctx(), &oauth(vec![]), &srv())
         .expect_err("missing parts rejected");
     assert!(err.to_string().contains("No HTTP parts"));
 }
@@ -57,7 +64,7 @@ fn missing_parts_is_an_error() {
 #[test]
 fn unverified_request_passes_through() {
     let parts = parts_with(&[("authorization", "Bearer tok")]);
-    let result = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), "srv")
+    let result = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), &srv())
         .expect("passthrough ok");
     assert!(result.is_none());
 }
@@ -65,7 +72,7 @@ fn unverified_request_passes_through() {
 #[test]
 fn verified_header_false_passes_through() {
     let parts = parts_with(&[("x-proxy-verified", "false")]);
-    let result = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), "srv")
+    let result = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), &srv())
         .expect("passthrough ok");
     assert!(result.is_none());
 }
@@ -73,7 +80,7 @@ fn verified_header_false_passes_through() {
 #[test]
 fn verified_without_user_id_is_rejected() {
     let parts = parts_with(&[("x-proxy-verified", "true")]);
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), "srv")
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), &srv())
         .expect_err("missing user id rejected");
     assert!(err.to_string().contains("x-user-id"));
 }
@@ -81,7 +88,7 @@ fn verified_without_user_id_is_rejected() {
 #[test]
 fn verified_without_permissions_is_rejected() {
     let parts = parts_with(&[("x-proxy-verified", "true"), ("x-user-id", USER_ID)]);
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), "srv")
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), &srv())
         .expect_err("missing permissions rejected");
     assert!(err.to_string().contains("x-user-permissions"));
 }
@@ -93,7 +100,7 @@ fn verified_with_unparseable_permissions_is_rejected() {
         ("x-user-id", USER_ID),
         ("x-user-permissions", "not-a-permission"),
     ]);
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), "srv")
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![]), &srv())
         .expect_err("bad permissions rejected");
     assert!(err.to_string().contains("x-user-permissions"));
 }
@@ -101,21 +108,21 @@ fn verified_with_unparseable_permissions_is_rejected() {
 #[test]
 fn insufficient_scope_is_rejected() {
     let parts = parts_with(&verified_headers());
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Admin]), "srv")
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Admin]), &srv())
         .expect_err("scope check enforced");
     assert!(err.to_string().contains("Insufficient permissions"));
 }
 
 #[test]
-fn invalid_user_uuid_is_rejected() {
+fn malformed_user_id_is_rejected() {
     let parts = parts_with(&[
         ("x-proxy-verified", "true"),
-        ("x-user-id", "not-a-uuid"),
+        ("x-user-id", "unset"),
         ("x-user-permissions", "mcp"),
         ("authorization", "Bearer t"),
     ]);
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Mcp]), "srv")
-        .expect_err("uuid parse enforced");
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Mcp]), &srv())
+        .expect_err("user id validation enforced");
     assert!(err.to_string().contains("Invalid user ID"));
 }
 
@@ -126,7 +133,7 @@ fn missing_bearer_is_rejected() {
         ("x-user-id", USER_ID),
         ("x-user-permissions", "mcp"),
     ]);
-    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Mcp]), "srv")
+    let err = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::Mcp]), &srv())
         .expect_err("bearer required");
     assert!(err.to_string().contains("Authorization Bearer"));
 }
@@ -135,12 +142,15 @@ fn missing_bearer_is_rejected() {
 fn verified_request_authenticates() {
     let parts = parts_with(&verified_headers());
     let result =
-        try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::User]), "srv")
+        try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::User]), &srv())
             .expect("auth ok")
             .expect("short-circuits");
 
     let auth: AuthenticatedRequestContext = result;
-    assert_eq!(auth.token(), "proxied-token");
+    assert_eq!(
+        auth.auth_token().map(JwtToken::as_str),
+        Some("proxied-token")
+    );
     assert_eq!(auth.context.user_id().to_string(), USER_ID);
     assert!(
         auth.context
@@ -155,7 +165,7 @@ fn verified_request_carries_the_forwarded_roles() {
     let mut headers = verified_headers();
     headers.push(("x-user-roles", "viewer analyst"));
     let parts = parts_with(&headers);
-    let auth = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::User]), "srv")
+    let auth = try_proxy_verified_auth(Some(&parts), ctx(), &oauth(vec![Permission::User]), &srv())
         .expect("auth ok")
         .expect("short-circuits");
     let user = auth.context.user.as_ref().expect("proxy-verified user");

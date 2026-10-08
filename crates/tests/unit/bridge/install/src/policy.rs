@@ -155,7 +155,7 @@ fn the_plist_workspace_folders_carry_native_booleans() {
     assert!(block.contains("<key>isDefaultSelected</key>\n      <false/>"));
     assert!(!block.contains("<string>true</string>"));
     assert!(!block.contains("<string>false</string>"));
-    assert!(body.contains("<key>disableAutoUpdates</key>\n  <string>true</string>"));
+    assert!(body.contains("<key>disableAutoUpdates</key>\n  <string>false</string>"));
     assert!(body.contains("<key>disableNonessentialServices</key>\n  <string>false</string>"));
 }
 
@@ -248,16 +248,7 @@ fn the_gateway_block_is_written_as_one_complete_unit() {
     else {
         panic!("inferenceModels must be a JSON value");
     };
-    assert_eq!(
-        models,
-        &serde_json::json!([
-            "claude-opus-5-5",
-            "claude-opus-5",
-            "claude-sonnet-5",
-            "claude-fable-5-1",
-            "claude-haiku-4-5-20251001"
-        ])
-    );
+    assert_eq!(models, &serde_json::json!(["claude-sonnet-5[1m]"]));
 }
 
 // Why: the gateway supplies a compatible model list through the host profile,
@@ -372,7 +363,7 @@ fn desktop_inference_models_never_carry_non_anthropic_ids() {
 }
 
 #[test]
-fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
+fn an_all_gemini_list_does_not_invent_unadvertised_claude_models() {
     let headers = BTreeMap::new();
     let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
@@ -390,10 +381,5 @@ fn an_all_gemini_list_falls_back_to_the_default_claude_models() {
         panic!("inferenceModels must be a JSON value");
     };
     let ids = models.as_array().expect("array");
-    assert!(!ids.is_empty());
-    assert!(
-        ids.iter()
-            .all(|m| m.as_str().is_some_and(|s| s.contains("claude"))),
-        "{models}"
-    );
+    assert!(ids.is_empty(), "{models}");
 }

@@ -7,13 +7,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
+use systemprompt_logging::LogLevel;
 
 #[derive(Debug, Clone)]
 pub struct LogSearchFilter {
     pub pattern: String,
     pub limit: i64,
     pub since: Option<DateTime<Utc>>,
-    pub level: Option<String>,
+    pub level: Option<LogLevel>,
 }
 
 impl LogSearchFilter {
@@ -32,7 +33,7 @@ impl LogSearchFilter {
     }
 
     systemprompt_models::builder_methods! {
-        with_level(level) -> String,
+        with_level(level) -> LogLevel,
     }
 }
 
@@ -41,15 +42,15 @@ pub struct LogSearchItem {
     pub id: LogId,
     pub trace_id: TraceId,
     pub timestamp: DateTime<Utc>,
-    pub level: String,
+    pub level: LogLevel,
     pub module: String,
     pub message: String,
     pub metadata: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LevelCount {
-    pub level: String,
+    pub level: LogLevel,
     pub count: i64,
 }
 

@@ -12,7 +12,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SessionId, UserId};
 
 use super::AiProviderResult;
@@ -193,5 +192,3 @@ pub trait AiRequestTrace: Send + Sync {
         requests: &[AiRequestId],
     ) -> AiProviderResult<Vec<TraceRequestUsage>>;
 }
-
-pub type DynAiRequestTrace = Arc<dyn AiRequestTrace>;

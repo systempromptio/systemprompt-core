@@ -7,8 +7,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
-use systemprompt_models::{CliPaths, ServicesConfig};
+use systemprompt_manifest::ServicesConfig;
+use systemprompt_models::CliPaths;
 
 use super::find_services_config;
 use crate::constants::{container, storage};
@@ -16,24 +18,20 @@ use crate::constants::{container, storage};
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
-    profile_name: Option<&'a str>,
+    profile_name: Option<&'a ProfileName>,
     services_config: Option<ServicesConfig>,
 }
 
 impl<'a> DockerfileBuilder<'a> {
     pub fn new(project_root: &'a Path) -> Self {
         let services_config = find_services_config(project_root)
-            .map_err(|e| {
+            .inspect_err(|e| {
                 tracing::debug!(error = %e, "No services config found for dockerfile generation");
-                e
             })
             .ok()
             .and_then(|path| {
                 ConfigLoader::load_from_path(&path)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, "Failed to load services config");
-                        e
-                    })
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to load services config"))
                     .ok()
             });
         Self {
@@ -44,7 +42,7 @@ impl<'a> DockerfileBuilder<'a> {
     }
 
     #[must_use]
-    pub const fn with_profile(mut self, name: &'a str) -> Self {
+    pub const fn with_profile(mut self, name: &'a ProfileName) -> Self {
         self.profile_name = Some(name);
         self
     }
@@ -75,7 +73,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web} {services_cache}{extension_dirs}
+RUN mkdir -p {bin} {logs} {storage}/{files} {storage}/{exports} {storage}/{data} {storage}/{scratch} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web} {services_cache}{extension_dirs}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -113,6 +111,10 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             services_path = container::SERVICES,
             services_cache = container::SERVICES_CACHE,
             profiles = container::PROFILES,
+            files = storage::FILES,
+            exports = storage::EXPORTS,
+            data = storage::DATA,
+            scratch = storage::SCRATCH,
             images = storage::IMAGES,
             generated = storage::GENERATED,
             logos = storage::LOGOS,
@@ -207,7 +209,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         format!(
             "    {}={} \\",
             systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,
-            self.profile_name.unwrap_or("container")
+            self.profile_name.map_or("container", ProfileName::as_str)
         )
     }
 

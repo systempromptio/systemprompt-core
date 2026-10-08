@@ -10,22 +10,14 @@
 
 use std::sync::Arc;
 use systemprompt_cli::admin::session::login_helpers::fetch_admin_user;
-use systemprompt_database::DbPool;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{UserRepository, UserService};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let service = UserService::new(Arc::new(UserRepository::new(&db).expect("user repository")));
+    let service = UserService::new(Arc::new(UserRepository::new(&db)));
 
     let unique = uuid::Uuid::new_v4();
     let username = format!("login_local_admin_{}", &unique.to_string()[..8]);
@@ -48,16 +40,13 @@ async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
     assert_eq!(resolved.email, email);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
-        .execute(db.pool_arc().expect("pool").as_ref())
+        .execute(db.pool().as_ref())
         .await;
 }
 
 #[tokio::test]
 async fn fetch_admin_user_missing_local_user_points_to_bootstrap_not_cloud_login() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
     let missing_username = format!("nonexistent_admin_{}", uuid::Uuid::new_v4());
 

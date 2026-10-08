@@ -1,10 +1,11 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{
     DataPart, FileContent, FilePart, Message, MessageRole, Part, TaskState, TextPart,
 };
 use systemprompt_agent::repository::task::UpdateTaskAndSaveMessagesParams;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn msg_with_parts(
     role: MessageRole,
@@ -54,9 +55,7 @@ async fn save_pair(
 
 #[tokio::test]
 async fn text_part_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -104,9 +103,7 @@ async fn text_part_roundtrip() {
 
 #[tokio::test]
 async fn file_part_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -159,9 +156,7 @@ async fn file_part_roundtrip() {
 
 #[tokio::test]
 async fn data_part_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -210,9 +205,7 @@ async fn data_part_roundtrip() {
 
 #[tokio::test]
 async fn mixed_parts_preserve_order() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -268,9 +261,7 @@ async fn mixed_parts_preserve_order() {
 
 #[tokio::test]
 async fn get_messages_by_task_empty() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let msgs = r
         .tasks
@@ -282,9 +273,7 @@ async fn get_messages_by_task_empty() {
 
 #[tokio::test]
 async fn get_messages_by_context_empty() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let msgs = r
         .tasks
@@ -296,9 +285,7 @@ async fn get_messages_by_context_empty() {
 
 #[tokio::test]
 async fn get_message_parts_unknown_message_empty() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let parts = r
         .tasks

@@ -63,5 +63,5 @@ fn validator_load_without_profile_is_load_error() {
 
     let mut v = FilesConfigValidator::new();
     let err = v.load(&StubProvider).expect_err("no profile");
-    assert!(matches!(err, DomainConfigError::LoadError { .. }));
+    assert!(matches!(err, DomainConfigError::Load { .. }));
 }

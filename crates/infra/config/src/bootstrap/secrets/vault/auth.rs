@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use systemprompt_models::profile::VaultAuth;
+use systemprompt_manifest::profile::VaultAuth;
 use zeroize::Zeroizing;
 
 use super::EnvLookup;
@@ -63,7 +63,7 @@ pub(super) async fn login(
             let jwt =
                 std::fs::read_to_string(jwt_path).map_err(|e| VaultError::CredentialFile {
                     path: jwt_path.clone(),
-                    message: e.to_string(),
+                    source: e,
                 })?;
             let body = serde_json::json!({ "role": role, "jwt": jwt.trim() });
             post_login(http, mount, "kubernetes", &body).await
@@ -88,13 +88,12 @@ fn static_token(
     })?;
     let raw = std::fs::read_to_string(path).map_err(|e| VaultError::CredentialFile {
         path: path.to_owned(),
-        message: e.to_string(),
+        source: e,
     })?;
     let token = raw.trim();
     if token.is_empty() {
-        return Err(VaultError::CredentialFile {
+        return Err(VaultError::EmptyCredentialFile {
             path: path.to_owned(),
-            message: "file is empty".to_owned(),
         });
     }
     Ok(VaultSession {
@@ -113,6 +112,7 @@ fn require_env(name: &str, lookup_env: &EnvLookup) -> Result<Zeroizing<String>, 
         })
 }
 
+// JSON: Vault auth `login` request body — fields differ per auth method.
 async fn post_login(
     http: &VaultHttp,
     mount: &str,
@@ -128,9 +128,7 @@ async fn post_login(
         .await?;
 
     let status = response.status();
-    let text = response.text().await.map_err(|e| VaultError::Body {
-        message: e.to_string(),
-    })?;
+    let text = response.text().await.map_err(VaultError::Body)?;
 
     if !status.is_success() {
         return Err(VaultError::Auth {
@@ -140,9 +138,11 @@ async fn post_login(
         });
     }
 
-    let parsed: LoginResponse = serde_json::from_str(&text).map_err(|e| VaultError::Malformed {
-        message: format!("{method} login response: {e}"),
-    })?;
+    let parsed: LoginResponse =
+        serde_json::from_str(&text).map_err(|source| VaultError::Malformed {
+            context: format!("{method} login response"),
+            source,
+        })?;
 
     Ok(VaultSession {
         token: Zeroizing::new(parsed.auth.client_token),

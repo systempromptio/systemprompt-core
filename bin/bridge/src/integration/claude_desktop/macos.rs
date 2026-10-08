@@ -5,14 +5,14 @@
 
 #![cfg(target_os = "macos")]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
-use super::shared::{
-    API_KEY_KEY, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs, redact_if_sensitive,
-};
+pub(super) use super::macos_read::read_domain;
+use super::shared::ProfileGenInputs;
+use crate::install::approval::ApprovalRefusal;
 use crate::install::xml::escape;
-use crate::integration::host_app::{GeneratedProfile, ProfileInstalled};
+use crate::integration::host_app::{GeneratedProfile, HostAppError, ProfileInstalled};
 
 const MANAGED_PREFS_ROOT: &str = "/Library/Managed Preferences";
 const PROFILE_TMPL: &str = include_str!("templates/claude_desktop_profile.mobileconfig.tmpl");
@@ -26,30 +26,19 @@ pub(super) const fn update_needs_approval(
     true
 }
 
-pub(super) fn read_domain(domain: &str) -> DomainRead {
-    let mut out = DomainRead::default();
 
-    let plist_path = candidates(domain).into_iter().find(|p| p.exists());
-
-    if let Some(path) = plist_path.as_ref() {
-        out.source_path = Some(path.display().to_string());
+pub(super) fn candidates(domain: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Ok(user) = std::env::var("USER")
+        && !user.is_empty()
+    {
+        out.push(
+            PathBuf::from(MANAGED_PREFS_ROOT)
+                .join(&user)
+                .join(format!("{domain}.plist")),
+        );
     }
-
-    let plist_json = plist_path
-        .as_deref()
-        .and_then(read_plist_as_json)
-        .unwrap_or(serde_json::Value::Null);
-
-    for key in KEYS_OF_INTEREST {
-        if let Some(raw) = read_key_raw(&plist_json, domain, key) {
-            if *key == API_KEY_KEY {
-                out.api_key_fp = Some(crate::proxy::secret::fingerprint(raw.trim()));
-            }
-            out.keys
-                .insert((*key).to_owned(), redact_if_sensitive(key, raw));
-        }
-    }
-
+    out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
     out
 }
 
@@ -84,7 +73,7 @@ pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::Sys
     Ok(hits)
 }
 
-pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = crate::integration::generated_profile::profile_uuids();
     let xml = render_profile(inputs, &uuids.payload, &uuids.profile)?;
     let path = crate::integration::generated_profile::write(
@@ -101,78 +90,23 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(path: &str) -> std::io::Result<ProfileInstalled> {
-    Command::new("/usr/bin/open").args(["-g", path]).status()?;
-    Ok(ProfileInstalled::ok())
-}
-
-pub(super) fn install_profile_unattended(_path: &str) -> std::io::Result<ProfileInstalled> {
-    Err(std::io::Error::new(
-        std::io::ErrorKind::PermissionDenied,
-        "a configuration profile is approved by the user in System Settings; use Repair",
+pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppError> {
+    let status = Command::new("/usr/bin/open").arg(path).status()?;
+    if !status.success() {
+        return Err(std::io::Error::other("could not open the configuration profile").into());
+    }
+    Ok(ProfileInstalled::with_warning(
+        "Approval required: open System Settings > General > Device Management, select the Claude Desktop profile, and click Install. Then quit and relaunch Claude Desktop.".to_owned(),
     ))
 }
 
-fn candidates(domain: &str) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    if let Ok(user) = std::env::var("USER")
-        && !user.is_empty()
-    {
-        out.push(
-            PathBuf::from(MANAGED_PREFS_ROOT)
-                .join(&user)
-                .join(format!("{domain}.plist")),
-        );
+pub(super) fn install_profile_unattended(_path: &str) -> Result<ProfileInstalled, HostAppError> {
+    Err(ApprovalRefusal::NeedsPrompt {
+        reason: "a configuration profile is approved by the user in System Settings; use Repair",
     }
-    out.push(PathBuf::from(MANAGED_PREFS_ROOT).join(format!("{domain}.plist")));
-    out
+    .into())
 }
 
-fn read_plist_as_json(path: &Path) -> Option<serde_json::Value> {
-    let output = Command::new("/usr/bin/plutil")
-        .arg("-convert")
-        .arg("json")
-        .arg("-o")
-        .arg("-")
-        .arg(path)
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    serde_json::from_slice(&output.stdout).ok()
-}
-
-fn read_key_raw(plist_json: &serde_json::Value, _domain: &str, key: &str) -> Option<String> {
-    if let Some(val) = plist_json.get(key) {
-        return Some(format_plist_value(val));
-    }
-
-    let raw = crate::config::store::managed_policy_store()
-        .read_managed_policy(key)
-        .ok()
-        .flatten()?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    Some(trimmed.to_owned())
-}
-
-// Why: an array of objects (`allowedWorkspaceFolders`, `managedMcpServers`)
-// rendered through a strings-only join printed as empty, which hid a plist
-// whose entries Claude Desktop was dropping as malformed.
-fn format_plist_value(value: &serde_json::Value) -> String {
-    match value {
-        serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Array(items) if items.iter().all(serde_json::Value::is_string) => items
-            .iter()
-            .filter_map(|v| v.as_str().map(str::to_owned))
-            .collect::<Vec<_>>()
-            .join(", "),
-        other => other.to_string(),
-    }
-}
 
 #[expect(
     clippy::literal_string_with_formatting_args,
@@ -183,11 +117,7 @@ fn render_profile(
     payload_uuid: &str,
     profile_uuid: &str,
 ) -> std::io::Result<String> {
-    let models = if inputs.models.is_empty() {
-        super::shared::default_models()
-    } else {
-        super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits)
-    };
+    let models = super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits);
     let models_json = serde_json::to_string(&models)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     let policy = crate::install::mdm::policy::claude_desktop_policy(
@@ -216,7 +146,8 @@ fn render_profile(
     clippy::unnecessary_wraps,
     reason = "return type is fixed by the cross-platform HostApp trait"
 )]
-pub(super) fn remove_profile() -> std::io::Result<crate::integration::host_app::ProfileRemoval> {
+pub(super) fn remove_profile() -> Result<crate::integration::host_app::ProfileRemoval, HostAppError>
+{
     Ok(
         crate::integration::host_app::ProfileRemoval::ManualStepRequired {
             instruction:

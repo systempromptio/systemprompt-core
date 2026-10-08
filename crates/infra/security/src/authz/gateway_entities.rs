@@ -42,12 +42,7 @@ pub async fn reconcile_gateway_entities_exact(
     source: &str,
 ) -> AuthzResult<GatewayReconcileReport> {
     if route_ids.is_empty() {
-        return Err(AuthzError::Validation(
-            "refusing to reconcile the gateway_route catalog against an empty route set — this \
-             would delete every route entity and cascade away every route grant; check that the \
-             profile actually declares a gateway"
-                .to_owned(),
-        ));
+        return Err(AuthzError::EmptyGatewayRouteSet);
     }
     let pruned = repo
         .reconcile_entities(EntityKind::GatewayRoute, route_ids, false, source)

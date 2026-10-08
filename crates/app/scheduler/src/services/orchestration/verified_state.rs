@@ -6,10 +6,11 @@
 
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceAction, ServiceType};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifiedServiceState {
-    pub name: String,
+    pub name: ServiceName,
     pub service_type: ServiceType,
     pub desired_status: DesiredStatus,
     pub runtime_status: RuntimeStatus,
@@ -21,7 +22,7 @@ pub struct VerifiedServiceState {
 
 #[derive(Debug)]
 pub struct VerifiedServiceStateBuilder {
-    name: String,
+    name: ServiceName,
     service_type: ServiceType,
     desired: DesiredStatus,
     runtime: RuntimeStatus,
@@ -32,7 +33,7 @@ pub struct VerifiedServiceStateBuilder {
 
 impl VerifiedServiceStateBuilder {
     pub const fn new(
-        name: String,
+        name: ServiceName,
         service_type: ServiceType,
         desired: DesiredStatus,
         runtime: RuntimeStatus,
@@ -76,7 +77,7 @@ impl VerifiedServiceStateBuilder {
 
 impl VerifiedServiceState {
     pub const fn builder(
-        name: String,
+        name: ServiceName,
         service_type: ServiceType,
         desired: DesiredStatus,
         runtime: RuntimeStatus,

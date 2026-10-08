@@ -1,10 +1,8 @@
 use systemprompt_ai::repository::{AiRequestClientEvidenceRepository, AiRequestRepository};
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, NativeMarker,
-};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, NativeMarker};
 
-use super::{completed_record, pool_or_skip, user};
+use super::{bootstrapped_pool, completed_record, user};
 
 fn evidence() -> ClientEvidence {
     ClientEvidence {
@@ -25,19 +23,16 @@ fn evidence() -> ClientEvidence {
 
 #[tokio::test]
 async fn evidence_is_bound_to_a_request_and_a_correction_replaces_every_attribution_field() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI client evidence fixture database");
+    let pool = bootstrapped_pool().await;
     let owner = user();
     systemprompt_test_fixtures::seed_user_row(&pool, &owner, &format!("{owner}@ai.invalid"))
         .await
         .unwrap();
     let request = AiRequestRepository::new(&pool)
-        .unwrap()
         .insert(&completed_record(&owner))
         .await
         .unwrap();
-    let repository = AiRequestClientEvidenceRepository::new(&pool).unwrap();
+    let repository = AiRequestClientEvidenceRepository::new(&pool);
 
     repository.upsert(&request, &evidence()).await.unwrap();
     let correction = ClientEvidence::internal();
@@ -55,10 +50,8 @@ async fn evidence_is_bound_to_a_request_and_a_correction_replaces_every_attribut
 
 #[tokio::test]
 async fn evidence_cannot_be_recorded_for_a_request_outside_the_audit_lifecycle() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI client evidence fixture database");
-    let repository = AiRequestClientEvidenceRepository::new(&pool).unwrap();
+    let pool = bootstrapped_pool().await;
+    let repository = AiRequestClientEvidenceRepository::new(&pool);
 
     let error = repository
         .upsert(&AiRequestId::generate(), &evidence())

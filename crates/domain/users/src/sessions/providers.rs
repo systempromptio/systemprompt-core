@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::SessionRepository;
 use crate::Result;
+use crate::repository::SessionRepository;
 use async_trait::async_trait;
 use chrono::Utc;
 use systemprompt_identifiers::{SessionId, UserId};
@@ -18,7 +18,7 @@ impl SessionProvider for SessionRepository {
     async fn create_session(&self, input: CreateSessionInput<'_>) -> AnalyticsResult<()> {
         self.create_analytics_session(input)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn find_recent_session_by_fingerprint(
@@ -27,9 +27,9 @@ impl SessionProvider for SessionRepository {
         max_age_seconds: i64,
     ) -> AnalyticsResult<Option<AnalyticsSession>> {
         let result = self
-            .find_recent_by_fingerprint(fingerprint, max_age_seconds)
+            .find_recent_anonymous_by_fingerprint(fingerprint, max_age_seconds)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))?;
 
         Ok(result.map(|r| AnalyticsSession {
             session_id: r.session_id,
@@ -46,7 +46,7 @@ impl SessionProvider for SessionRepository {
         let result = self
             .find_by_id(session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))?;
 
         Ok(result.map(|r| AnalyticsSession {
             session_id: r.session_id,
@@ -63,7 +63,7 @@ impl SessionProvider for SessionRepository {
         let result = self
             .find_active_by_id(session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))?;
 
         Ok(result.map(|r| ActiveSession { user_id: r.user_id }))
     }
@@ -71,13 +71,13 @@ impl SessionProvider for SessionRepository {
     async fn revoke_session(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         self.revoke_session(session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn revoke_all_sessions_for_user(&self, user_id: &UserId) -> AnalyticsResult<u64> {
         self.revoke_all_for_user(user_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn migrate_user_sessions(
@@ -87,13 +87,13 @@ impl SessionProvider for SessionRepository {
     ) -> AnalyticsResult<u64> {
         self.migrate_user_sessions(from_user_id, to_user_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn mark_session_converted(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         self.mark_converted(session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 }
 
@@ -102,13 +102,13 @@ impl SessionUsageCounters for SessionRepository {
     async fn increment_task_count(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::increment_task_count(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 
     async fn increment_message_count(&self, session_id: &SessionId) -> AnalyticsResult<()> {
         Self::increment_message_count(self, session_id)
             .await
-            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+            .map_err(|e| AnalyticsProviderError::Internal(e.into()))
     }
 }
 

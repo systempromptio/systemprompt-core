@@ -8,12 +8,13 @@ use systemprompt_bridge::feedback_capture::capture_host;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::gateway::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest, SkillEntry};
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::host_sync::{HostSyncCtx, HostWarnings};
+use systemprompt_bridge::host_sync::HostSyncCtx;
 use systemprompt_bridge::ids::{BearerToken, LoopbackSecret, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_identifiers::{
     DeviceId, ManagedResourceId, PublicationId, ResourceRevisionId, UserId, ValidatedUrl,
 };
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::SkillPublication;
 use systemprompt_models::feedback::receipts::{
     ConsumerInstallationPlan, ConsumerReceiptResponse, FileReadback, InstallationPlanFile,
@@ -23,7 +24,6 @@ use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-static WARNINGS: HostWarnings = HostWarnings::new();
 static POLICY: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -95,7 +95,7 @@ fn cowork_capture_keeps_failed_generation_pending_when_its_required_plugin_root_
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("cowork-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -117,7 +117,7 @@ fn cowork_capture_keeps_failed_generation_pending_when_its_required_plugin_root_
                 let bearer = BearerToken::default();
                 let ctx = context(&manifest, &server.uri(), &bearer, root);
 
-                assert!(capture_host("claude-desktop", &ctx).await.is_err());
+                assert!(capture_host(HostKind::ClaudeDesktop, &ctx).await.is_err());
                 assert_eq!(outbox.pending_installations().unwrap().len(), 1);
                 assert!(outbox.entries().unwrap().is_empty());
                 assert_eq!(
@@ -127,7 +127,7 @@ fn cowork_capture_keeps_failed_generation_pending_when_its_required_plugin_root_
 
                 server.reset().await;
                 fs::remove_file(skill_root.join("SKILL.md")).unwrap();
-                assert!(capture_host("claude-desktop", &ctx).await.is_err());
+                assert!(capture_host(HostKind::ClaudeDesktop, &ctx).await.is_err());
                 let pending = outbox.pending_installations().unwrap();
                 assert_eq!(
                     pending.len(),
@@ -203,7 +203,7 @@ fn native_host_readback_failure_keeps_foreign_files_and_retry_records_only_verif
                     let enrollment = Enrollment::new(
                         &server.uri(),
                         DeviceId::try_new(format!("{host_name}-device")).unwrap(),
-                        UserId::new("consumer"),
+                        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                         BearerToken::new("sp_device_capture"),
                     )
                     .unwrap();
@@ -226,7 +226,7 @@ fn native_host_readback_failure_keeps_foreign_files_and_retry_records_only_verif
                     let bearer = BearerToken::default();
                     let first_ctx = context(&first_manifest, &server.uri(), &bearer, root);
                     assert!(
-                        capture_host(host_name, &first_ctx).await.is_err(),
+                        capture_host(host_name.parse::<HostKind>().unwrap(), &first_ctx).await.is_err(),
                         "canonical digest mismatch must not produce a receipt for {host_name}"
                     );
                     assert!(outbox.entries().unwrap().is_empty());
@@ -266,7 +266,7 @@ fn native_host_readback_failure_keeps_foreign_files_and_retry_records_only_verif
                         .await;
                     let repaired_manifest = manifest_for(host_name, repaired_publication);
                     let repaired_ctx = context(&repaired_manifest, &server.uri(), &bearer, root);
-                    let outcome = capture_host(host_name, &repaired_ctx).await.unwrap();
+                    let outcome = capture_host(host_name.parse::<HostKind>().unwrap(), &repaired_ctx).await.unwrap();
                     assert_eq!(outcome.recovered, 1);
                     assert!(!outcome.undelivered);
                     assert_eq!(
@@ -297,7 +297,7 @@ fn plugin_entry_for_capture() -> systemprompt_bridge::gateway::manifest::PluginE
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: vec![],
-        hooks: systemprompt_models::services::PluginHooksRef::default(),
+        hooks: systemprompt_models::plugin::PluginHooksRef::default(),
     }
 }
 
@@ -313,6 +313,8 @@ fn claude_manifest(publication: SkillPublication) -> SignedManifest {
             plugin_ids: vec![plugin.id],
             allow_cross_marketplace_dependencies_on: vec![],
             external_marketplaces: vec![],
+            external_plugins: vec![],
+            claude_code: None,
         },
     ];
     manifest
@@ -389,7 +391,7 @@ fn claude_native_cache_rejects_mismatched_evidence_then_acknowledges_repaired_ge
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("claude-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -404,7 +406,11 @@ fn claude_native_cache_rejects_mismatched_evidence_then_acknowledges_repaired_ge
                 let first_manifest = claude_manifest(first);
                 let bearer = BearerToken::default();
                 let first_ctx = context(&first_manifest, &server.uri(), &bearer, root);
-                assert!(capture_host("claude-code", &first_ctx).await.is_err());
+                assert!(
+                    capture_host(HostKind::ClaudeCode, &first_ctx)
+                        .await
+                        .is_err()
+                );
                 assert!(
                     outbox.entries().unwrap().is_empty(),
                     "wrong bytes never become evidence"
@@ -427,7 +433,9 @@ fn claude_native_cache_rejects_mismatched_evidence_then_acknowledges_repaired_ge
                 .await;
                 let repaired_manifest = claude_manifest(repaired);
                 let repaired_ctx = context(&repaired_manifest, &server.uri(), &bearer, root);
-                let outcome = capture_host("claude-code", &repaired_ctx).await.unwrap();
+                let outcome = capture_host(HostKind::ClaudeCode, &repaired_ctx)
+                    .await
+                    .unwrap();
                 assert_eq!(outcome.recovered, 1);
                 assert!(!outcome.undelivered);
                 assert_eq!(
@@ -491,14 +499,14 @@ fn codex_emitter_roots_require_both_source_and_versioned_cache_before_capture() 
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("codex-capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
                 enrollment.save(&feedback_root).unwrap();
                 let capture_ctx = context(&manifest, &server.uri(), &bearer, root);
                 assert!(
-                    capture_host("codex-cli", &capture_ctx).await.is_err(),
+                    capture_host(HostKind::CodexCli, &capture_ctx).await.is_err(),
                     "one surviving copy cannot stand in for the missing Codex cache copy"
                 );
                 assert!(server.received_requests().await.unwrap().is_empty());
@@ -520,7 +528,7 @@ fn manifest() -> SignedManifest {
         manifest_version: ManifestVersion::try_new("2026-04-30T12:00:00Z-deadbeef").unwrap(),
         issued_at: chrono::Utc::now(),
         not_before: chrono::Utc::now(),
-        user_id: UserId::new("consumer"),
+        user_id: UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -535,6 +543,7 @@ fn manifest() -> SignedManifest {
             instructions: "capture".into(),
             hosts: vec!["opencode".into()],
             plugins: vec![],
+            frontmatter: None,
         }],
         rules: vec![],
         agents: vec![],
@@ -545,6 +554,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: vec![],
         marketplaces: vec![],
@@ -602,7 +612,6 @@ fn context<'a>(
     let mappings = Box::leak(Box::new(BTreeMap::new()));
     HostSyncCtx {
         policy_store: &POLICY,
-        warnings: &WARNINGS,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers: mappings,
@@ -642,9 +651,9 @@ fn capture_host_materializes_receipt_and_acknowledges_the_durable_outbox() {
             Mock::given(method("POST")).and(path("/api/v1/consumer/receipts")).and(header("authorization", "Bearer sp_device_capture"))
                 .respond_with(ResponseTemplate::new(200).set_body_json(receipt)).expect(1).mount(&server).await;
             let feedback_root = systemprompt_bridge::feedback::metadata_root().unwrap(); fs::create_dir_all(&feedback_root).unwrap();
-            let enrollment = Enrollment::new(&server.uri(), DeviceId::try_new("capture-device").unwrap(), UserId::new("consumer"), BearerToken::new("sp_device_capture")).unwrap(); enrollment.save(&feedback_root).unwrap();
+            let enrollment = Enrollment::new(&server.uri(), DeviceId::try_new("capture-device").unwrap(), UserId::new("00000000-0000-4000-8000-00000000c0c0"), BearerToken::new("sp_device_capture")).unwrap(); enrollment.save(&feedback_root).unwrap();
             let m = manifest(); let bearer = BearerToken::default(); let ctx = context(&m, &server.uri(), &bearer, root);
-            let outcome = capture_host("opencode", &ctx).await.unwrap();
+            let outcome = capture_host(HostKind::OpenCode, &ctx).await.unwrap();
             assert_eq!(outcome.recovered, 1); assert_eq!(outcome.remaining, 0); assert!(!outcome.undelivered);
             let outbox = Outbox::new(enrollment.outbox_path(&feedback_root), OutboxScope::from_enrollment(&enrollment));
             assert!(outbox.pending_installations().unwrap().is_empty());
@@ -676,7 +685,7 @@ fn capture_host_keeps_the_reserved_plan_when_the_gateway_cannot_supply_a_bundle(
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("capture-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -684,7 +693,7 @@ fn capture_host_keeps_the_reserved_plan_when_the_gateway_cannot_supply_a_bundle(
                 let m = manifest();
                 let bearer = BearerToken::default();
                 let ctx = context(&m, &server.uri(), &bearer, root);
-                assert!(capture_host("opencode", &ctx).await.is_err());
+                assert!(capture_host(HostKind::OpenCode, &ctx).await.is_err());
                 let outbox = Outbox::new(
                     enrollment.outbox_path(&feedback_root),
                     OutboxScope::from_enrollment(&enrollment),
@@ -717,7 +726,7 @@ fn hermes_missing_native_skill_is_rejected_before_reservation_or_networking() {
                 let enrollment = Enrollment::new(
                     &server.uri(),
                     DeviceId::try_new("missing-hermes-device").unwrap(),
-                    UserId::new("consumer"),
+                    UserId::new("00000000-0000-4000-8000-00000000c0c0"),
                     BearerToken::new("sp_device_capture"),
                 )
                 .unwrap();
@@ -725,7 +734,7 @@ fn hermes_missing_native_skill_is_rejected_before_reservation_or_networking() {
                 let bearer = BearerToken::default();
                 let ctx = context(&m, &server.uri(), &bearer, root);
                 assert!(
-                    capture_host("hermes", &ctx).await.is_err(),
+                    capture_host(HostKind::Hermes, &ctx).await.is_err(),
                     "capture cannot claim a native asset that Hermes does not have"
                 );
                 assert!(server.received_requests().await.unwrap().is_empty());

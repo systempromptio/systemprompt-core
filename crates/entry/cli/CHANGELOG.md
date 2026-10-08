@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `admin::agents::delete::stop_agent_process` and `stop_verified_port_holder` move to `admin::agents::process_stop` and are async; `infrastructure::services::cleanup::{dry_run_result, log_service_state}` are async.
+- `ServicesCommands::Serve` gains `skip_migrate`, and `infrastructure::services::serve::execute` takes a `ServeFlags`.
+- The `session` store functions take `&ResolvedPaths` first; `core plugins show` takes a `PluginId`, `api-key revoke --id` an `ApiKeyId`, and `infra db` extension arguments and `plugins config --id` an `ExtensionId` (an empty value is a usage error).
+- `--profile` on `cloud doctor`, `cloud deploy` and `cloud backup` accepts only a profile name, not a path.
+- The alias `SkillDetailOutput` is removed; use `systemprompt_models::services::SkillDetail`.
+
+### Added
+
+- `infra services serve --skip-migrate` (and profile `database.migrate_on_boot`): the node verifies schema currency and refuses to boot when behind, naming the `infra db migrate --profile <name>` command.
+- `admin users api-key issue` takes `--model` (repeatable), `--budget-microdollars`, `--max-requests`, `--window-seconds` and `--scope <dimension>=<value>` (repeatable); `issue` and `list` print limits and scopes.
+- `infra services serve` prints the node's `server.role`.
+
+### Changed
+
+- `infra services stop --api`, `restart api` and `cleanup` signal a process on the API port only when it carries the API server marker; `serve` re-executes itself once on Linux and macOS to carry it. `--kill-port-process` asks for interactive confirmation naming the PID for an unverified holder and is refused non-interactively. Port 0 is never inspected.
+- Setup and error hints name `systemprompt` subcommands instead of `just` recipes.
+- The generated Dockerfile creates `storage/files`, `exports`, `data` and `data/scratch`.
+- `admin users merge` builds the owner-reassignment set through the runtime.
+- The unreachable `admin config get` and `set` modules are deleted.
+
+### Fixed
+
+- The session store resolves under an injected project root, so tests no longer touch the real `~/.systemprompt`.
+- A subcommand `--profile` no longer panics on the global flag.
+- Cloud commands fail closed, pass remote argv faithfully and return honest exit codes.
+
 ## [0.62.0] - 2026-09-25
 
 ### Added

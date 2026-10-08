@@ -7,19 +7,27 @@
 //! Snake ids contain no hyphens, so the projection is injective — two distinct
 //! ids can never collide on a bundle path.
 //!
+//! Auxiliary files are laid out without the default dev-only files (see
+//! [`crate::dev_files`]).
+//!
+//! The SKILL.md frontmatter is `name` (the kebab id) and `description`, then
+//! every authored key the platform does not own, verbatim.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, SkillId};
 
+use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
-use systemprompt_models::bridge::ids::SkillId;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::{ComponentSource, PluginConfig};
+use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
+use systemprompt_models::plugin::ComponentSource;
 
 use super::{BundleContent, BundleFile, PluginBundle};
 
@@ -59,7 +67,7 @@ pub(super) fn append_skill_files(
         bundle.insert(
             format!("skills/{kebab}/SKILL.md"),
             BundleFile {
-                bytes: skill_md(&kebab, skill).into_bytes(),
+                bytes: skill_md(&kebab, skill)?.into_bytes(),
                 executable: false,
             },
         );
@@ -117,12 +125,15 @@ fn insert_skill_id(ids: &mut BTreeSet<SkillId>, raw: &str) {
     }
 }
 
-fn skill_md(kebab: &str, skill: &SkillEntry) -> String {
-    format!(
-        "---\nname: {kebab}\ndescription: \"{}\"\n---\n\n{}\n",
+fn skill_md(kebab: &str, skill: &SkillEntry) -> Result<String, MarketplaceError> {
+    let passthrough = render_passthrough_frontmatter(skill.frontmatter.as_ref()).map_err(|e| {
+        MarketplaceError::catalog(format!("skill {} frontmatter", skill.id.as_str()), e)
+    })?;
+    Ok(format!(
+        "---\nname: {kebab}\ndescription: \"{}\"\n{passthrough}---\n\n{}\n",
         skill.description.replace('"', "\\\""),
         skill.instructions.trim()
-    )
+    ))
 }
 
 fn append_disk_aux_files(
@@ -148,7 +159,10 @@ fn append_managed_files(kebab: &str, files: &RevisionFiles, bundle: &mut PluginB
             && Path::new(&path)
                 .extension()
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"));
-        if path == "config.yaml" || top_level_markdown {
+        if path == "config.yaml"
+            || top_level_markdown
+            || DevFileFilter::defaults().excludes(path, None, false)
+        {
             continue;
         }
         bundle.insert(
@@ -169,7 +183,7 @@ fn collect_aux(
     bundle: &mut PluginBundle,
 ) -> Result<(), MarketplaceError> {
     let io = |path: &Path, e: std::io::Error| {
-        MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
+        MarketplaceError::catalog(format!("skill aux file {}", path.display()), e)
     };
     let entries = std::fs::read_dir(current).map_err(|e| io(current, e))?;
     for entry in entries {
@@ -191,11 +205,14 @@ fn collect_aux(
         {
             continue;
         }
-        let bytes = std::fs::read(&path).map_err(|e| io(&path, e))?;
         let rel = path.strip_prefix(base).map_err(|e| {
-            MarketplaceError::Catalog(format!("skill aux file {}: {e}", path.display()))
+            MarketplaceError::catalog(format!("skill aux file {}", path.display()), e)
         })?;
         let rel = rel.to_string_lossy().replace('\\', "/");
+        if DevFileFilter::defaults().excludes(&format!("{subdir}/{rel}"), None, false) {
+            continue;
+        }
+        let bytes = std::fs::read(&path).map_err(|e| io(&path, e))?;
         let executable = matches!(path.extension().and_then(|e| e.to_str()), Some("sh" | "py"));
         bundle.insert(
             format!("skills/{kebab}/{subdir}/{rel}"),

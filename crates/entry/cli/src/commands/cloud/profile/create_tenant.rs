@@ -39,16 +39,16 @@ pub fn select_tenant_type(prompter: &dyn Prompter, store: &TenantStore) -> Resul
     if selection == 0 {
         if local_count == 0 {
             bail!(
-                "No local tenants available.\nRun 'systemprompt cloud tenant create' (or 'just \
-                 tenant') and select 'Local' to create one."
+                "No local tenants available.\nRun 'systemprompt cloud tenant create' and select \
+                 'Local' to create one."
             );
         }
         Ok(TenantType::Local)
     } else {
         if cloud_count == 0 {
             bail!(
-                "No cloud tenants available.\nRun 'systemprompt cloud tenant create' (or 'just \
-                 tenant') and select 'Cloud' to create one."
+                "No cloud tenants available.\nRun 'systemprompt cloud tenant create' and select \
+                 'Cloud' to create one."
             );
         }
         Ok(TenantType::Cloud)

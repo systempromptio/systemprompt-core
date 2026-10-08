@@ -3,39 +3,31 @@
 //! security, paths, governance, and secret.
 
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    command_or_skip, fixture_or_skip, run, run_with_formats,
+    cli_command, full_fixture, run, run_with_formats,
 };
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     cmd.assert().failure();
 }
 
 #[test]
 fn provider_list_with_formats() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "provider", "list"]);
     run_with_formats(&["admin", "config", "provider", "list"]);
 }
 
 #[test]
 fn provider_enable_disable_and_set_default() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "provider", "enable", "openai"]);
     run_ok(&["admin", "config", "provider", "set", "openai"]);
     run_ok(&["admin", "config", "provider", "disable", "openai"]);
@@ -47,9 +39,7 @@ fn provider_enable_disable_and_set_default() {
 
 #[test]
 fn catalog_provider_add_list_remove() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "catalog", "provider", "list"]);
     run_ok(&[
         "admin",
@@ -134,9 +124,7 @@ fn catalog_provider_add_list_remove() {
 
 #[test]
 fn catalog_model_add_remove() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&[
         "admin",
         "config",
@@ -178,9 +166,7 @@ fn catalog_model_add_remove() {
 
 #[test]
 fn gateway_enable_routes_default_provider() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "gateway", "route", "list"]);
     run_ok(&["admin", "config", "gateway", "enable"]);
     run_ok(&[
@@ -239,9 +225,7 @@ fn gateway_enable_routes_default_provider() {
 
 #[test]
 fn runtime_show_and_set() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "runtime", "show"]);
     run_with_formats(&["admin", "config", "runtime", "show"]);
     run_ok(&[
@@ -272,9 +256,7 @@ fn runtime_show_and_set() {
 
 #[test]
 fn server_show_set_and_cors() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "server", "show"]);
     run_with_formats(&["admin", "config", "server", "show"]);
     run_ok(&[
@@ -326,9 +308,7 @@ fn server_show_set_and_cors() {
 
 #[test]
 fn security_show_set_and_trusted_issuers() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "security", "show"]);
     run_with_formats(&["admin", "config", "security", "show"]);
     run_ok(&[
@@ -379,9 +359,7 @@ fn security_show_set_and_trusted_issuers() {
 
 #[test]
 fn paths_show_and_validate() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "paths", "show"]);
     run_with_formats(&["admin", "config", "paths", "show"]);
     run_with_formats(&["admin", "config", "paths", "validate"]);
@@ -389,9 +367,7 @@ fn paths_show_and_validate() {
 
 #[test]
 fn governance_show_and_set() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "governance", "show"]);
     run_with_formats(&["admin", "config", "governance", "show"]);
     run(&[
@@ -411,18 +387,14 @@ fn governance_show_and_set() {
 
 #[test]
 fn secret_set_provider_and_custom() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run(&["admin", "config", "secret", "set", "anthropic", "sk-test-1"]);
     run(&["admin", "config", "secret", "set", "customsecret", "value1"]);
 }
 
 #[test]
 fn config_show_list_validate_with_formats() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&["admin", "config", "show"]);
     run_with_formats(&["admin", "config", "list"]);
     run_with_formats(&["admin", "config", "validate"]);

@@ -1,14 +1,18 @@
 //! Authentication and role-management provider traits.
 //!
-//! These traits are dispatched as trait objects (`dyn _`), so they use
-//! `#[async_trait]`; native `async fn` in traits is not yet `dyn`-compatible.
+//! `UserProvider` is dispatched as a trait object (`dyn UserProvider`), so it
+//! uses `#[async_trait]`; native `async fn` in traits is not yet
+//! `dyn`-compatible. `RoleProvider` is only used through concrete types and
+//! declares native `async` methods.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::future::Future;
 use systemprompt_identifiers::UserId;
+
+use crate::BoxedSource;
 
 pub type AuthResult<T> = Result<T, AuthProviderError>;
 
@@ -31,7 +35,7 @@ pub enum AuthProviderError {
     InsufficientPermissions,
 
     #[error("Internal error: {0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 #[derive(Debug, Clone)]
@@ -107,13 +111,20 @@ pub trait UserProvider: Send + Sync {
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
 }
 
-#[async_trait]
 pub trait RoleProvider: Send + Sync {
-    async fn get_roles(&self, user_id: &UserId) -> AuthResult<Vec<String>>;
-    async fn assign_role(&self, user_id: &UserId, role: &str) -> AuthResult<()>;
-    async fn revoke_role(&self, user_id: &UserId, role: &str) -> AuthResult<()>;
-    async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>>;
+    fn get_roles(&self, user_id: &UserId) -> impl Future<Output = AuthResult<Vec<String>>> + Send;
+    fn assign_role(
+        &self,
+        user_id: &UserId,
+        role: &str,
+    ) -> impl Future<Output = AuthResult<()>> + Send;
+    fn revoke_role(
+        &self,
+        user_id: &UserId,
+        role: &str,
+    ) -> impl Future<Output = AuthResult<()>> + Send;
+    fn list_users_by_role(
+        &self,
+        role: &str,
+    ) -> impl Future<Output = AuthResult<Vec<AuthUser>>> + Send;
 }
-
-pub type DynUserProvider = Arc<dyn UserProvider>;
-pub type DynRoleProvider = Arc<dyn RoleProvider>;

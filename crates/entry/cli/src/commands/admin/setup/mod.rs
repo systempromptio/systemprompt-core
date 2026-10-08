@@ -29,7 +29,7 @@ pub mod wizard_prompts;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_models::none_if_blank;
+use systemprompt_manifest::none_if_blank;
 
 pub use secrets::SecretsData;
 pub use types::*;
@@ -53,20 +53,10 @@ pub struct SetupArgs {
     )]
     pub docker: bool,
 
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_DB_HOST",
-        default_value = "localhost",
-        help = "PostgreSQL host"
-    )]
+    #[arg(long, default_value = "localhost", help = "PostgreSQL host")]
     pub db_host: String,
 
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_DB_PORT",
-        default_value = "5432",
-        help = "PostgreSQL port"
-    )]
+    #[arg(long, default_value = "5432", help = "PostgreSQL port")]
     pub db_port: u16,
 
     #[arg(
@@ -76,25 +66,14 @@ pub struct SetupArgs {
     )]
     pub port_offset: u16,
 
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_DB_USER",
-        hide_env_values = true,
-        help = "PostgreSQL user (default: systemprompt_`<env>`)"
-    )]
+    #[arg(long, help = "PostgreSQL user (default: systemprompt_`<env>`)")]
     pub db_user: Option<String>,
 
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_DB_PASSWORD",
-        hide_env_values = true,
-        help = "PostgreSQL password (auto-generated if not provided)"
-    )]
+    #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
     pub db_password: Option<String>,
 
     #[arg(
         long,
-        env = "SYSTEMPROMPT_DB_NAME",
         help = "PostgreSQL database name (default: systemprompt_`<env>`)"
     )]
     pub db_name: Option<String>,
@@ -133,7 +112,6 @@ pub struct SetupArgs {
 
     #[arg(
         long,
-        env = "SYSTEMPROMPT_DEFAULT_PROVIDER",
         help = "Provider to make the default (gemini | anthropic | openai); must have a key. \
                 In interactive mode the selected provider is used instead."
     )]

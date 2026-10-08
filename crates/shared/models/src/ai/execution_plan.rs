@@ -2,9 +2,9 @@
 //!
 //! A [`PlanningResult`] is either a direct response or a sequence of
 //! [`PlannedToolCall`]s. As calls run, [`ExecutionState`] accumulates
-//! [`ToolCallResult`]s and halts on the first failure. [`TemplateRef`] parses
-//! the `$N.output.field` references that let a later call consume an earlier
-//! call's output.
+//! [`PlannedToolResult`]s and halts on the first failure. [`TemplateRef`]
+//! parses the `$N.output.field` references that let a later call consume an
+//! earlier call's output.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -75,7 +75,7 @@ impl PlannedToolCall {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolCallResult {
+pub struct PlannedToolResult {
     pub tool_name: String,
     // JSON: MCP tool-call arguments / result are the tool's own JSON.
     pub arguments: Value,
@@ -89,7 +89,7 @@ pub struct ToolCallResult {
     pub duration_ms: u64,
 }
 
-impl ToolCallResult {
+impl PlannedToolResult {
     pub const fn success(
         tool_name: String,
         // JSON: MCP tool-call arguments / result are the tool's own JSON.
@@ -137,7 +137,7 @@ impl ToolCallResult {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExecutionState {
-    pub results: Vec<ToolCallResult>,
+    pub results: Vec<PlannedToolResult>,
     pub halted: bool,
     pub halt_reason: Option<String>,
 }
@@ -147,7 +147,7 @@ impl ExecutionState {
         Self::default()
     }
 
-    pub fn add_result(&mut self, result: ToolCallResult) {
+    pub fn add_result(&mut self, result: PlannedToolResult) {
         if !result.success && !self.halted {
             self.halted = true;
             self.halt_reason.clone_from(&result.error);
@@ -155,11 +155,11 @@ impl ExecutionState {
         self.results.push(result);
     }
 
-    pub fn successful_results(&self) -> Vec<&ToolCallResult> {
+    pub fn successful_results(&self) -> Vec<&PlannedToolResult> {
         self.results.iter().filter(|r| r.success).collect()
     }
 
-    pub fn failed_results(&self) -> Vec<&ToolCallResult> {
+    pub fn failed_results(&self) -> Vec<&PlannedToolResult> {
         self.results.iter().filter(|r| !r.success).collect()
     }
 

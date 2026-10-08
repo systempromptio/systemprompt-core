@@ -6,19 +6,19 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::execution_plan::{TemplateRef, ToolCallResult};
+use super::execution_plan::{PlannedToolResult, TemplateRef};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct TemplateResolver;
 
 impl TemplateResolver {
     // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
-    pub fn resolve_arguments(arguments: &Value, results: &[ToolCallResult]) -> Value {
+    pub fn resolve_arguments(arguments: &Value, results: &[PlannedToolResult]) -> Value {
         Self::resolve_value(arguments, results)
     }
 
     // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
-    fn resolve_value(value: &Value, results: &[ToolCallResult]) -> Value {
+    fn resolve_value(value: &Value, results: &[PlannedToolResult]) -> Value {
         match value {
             Value::String(s) if s.starts_with('$') && s.contains(".output.") => {
                 Self::resolve_template(s, results)
@@ -38,7 +38,7 @@ impl TemplateResolver {
     }
 
     // JSON: MCP tool-call arguments walked for `$N.output.path` templates.
-    fn resolve_template(template: &str, results: &[ToolCallResult]) -> Value {
+    fn resolve_template(template: &str, results: &[PlannedToolResult]) -> Value {
         let Some(template_ref) = TemplateRef::parse(template) else {
             return Value::String(template.to_owned());
         };

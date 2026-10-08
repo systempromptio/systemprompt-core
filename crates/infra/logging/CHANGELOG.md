@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `init_logging`, `DatabaseLayer::new` and `ProxyDatabaseLayer::attach` take `&DbPool`. Migrate by passing a reference.
+- **Breaking:** `services::cli::DisplayUtils` is replaced by the free functions `services::cli::display::{message, section_header, subsection_header}`.
+- **Breaking:** `LoggingError::PoolUnavailable` is removed (never produced).
+
+### Added
+
+- An `OwnerReassignment` for `logs` and `analytics_events`, so an account merge moves this crate's rows itself.
+
+### Changed
+
+- The batch writer belongs to a `LogWriterHandle` whose `shutdown()` flushes buffered and queued entries; the API drain awaits it.
+- The batch log insert lives in the logging repository.
+- Error variants keep their cause as a `#[source]`.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

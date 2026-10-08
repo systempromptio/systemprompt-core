@@ -7,6 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{ElevatedJob, PrivateDirJob, elevate_and_run};
+use crate::install::approval::GatedChangeError;
 
 pub(crate) fn repair_config_dir_elevated() -> std::io::Result<PathBuf> {
     let config = crate::config::config_path()
@@ -25,6 +26,14 @@ pub(crate) fn repair_config_dir_elevated() -> std::io::Result<PathBuf> {
         }],
         ..Default::default()
     };
-    elevate_and_run(&stage_dir, &job)?.require("own", &dir)?;
+    elevate_and_run(&stage_dir, &job)
+        .and_then(|receipt| Ok(receipt.require("own", &dir)?))
+        .map_err(|e| match e {
+            GatedChangeError::Io(e) => e,
+            refused @ GatedChangeError::Refused(_) => {
+                std::io::Error::new(std::io::ErrorKind::PermissionDenied, refused)
+            },
+            other @ GatedChangeError::Elevation(_) => std::io::Error::other(other),
+        })?;
     Ok(dir)
 }

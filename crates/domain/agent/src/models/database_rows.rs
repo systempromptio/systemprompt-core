@@ -30,6 +30,7 @@ pub(crate) struct TaskRow {
     pub completed_at: Option<DateTime<Utc>>,
     pub execution_time_ms: Option<i32>,
     pub error_message: Option<String>,
+    // JSON: JSONB `metadata` column — open A2A metadata object.
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -49,6 +50,7 @@ pub struct TaskMessage {
     pub sequence_number: i32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    // JSON: JSONB `metadata` column — open A2A metadata object.
     pub metadata: Option<serde_json::Value>,
     pub reference_task_ids: Option<Vec<String>>,
 }
@@ -65,7 +67,9 @@ pub struct MessagePart {
     pub file_mime_type: Option<String>,
     pub file_uri: Option<String>,
     pub file_bytes: Option<String>,
+    // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
     pub data_content: Option<serde_json::Value>,
+    // JSON: JSONB `metadata` column — open A2A metadata object.
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -83,6 +87,7 @@ pub struct ArtifactRow {
     pub fingerprint: Option<String>,
     pub skill_id: Option<SkillId>,
     pub skill_name: Option<String>,
+    // JSON: JSONB `metadata` column — open A2A metadata object.
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
 }
@@ -99,7 +104,9 @@ pub struct ArtifactPartRow {
     pub file_mime_type: Option<String>,
     pub file_uri: Option<String>,
     pub file_bytes: Option<String>,
+    // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
     pub data_content: Option<serde_json::Value>,
+    // JSON: JSONB `metadata` column — open A2A metadata object.
     pub metadata: Option<serde_json::Value>,
 }
 
@@ -108,6 +115,7 @@ pub struct ExecutionStepBatchRow {
     pub step_id: ExecutionStepId,
     pub task_id: TaskId,
     pub status: String,
+    // JSON: JSONB `content` column — decoded into `StepContent` by the repository.
     pub content: serde_json::Value,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,

@@ -1,5 +1,5 @@
-//! Agent identity newtypes: opaque [`AgentId`] (UUID-backed), validated
-//! [`AgentName`] (non-empty, reserves `"unknown"`), and
+//! Agent identity newtypes: opaque [`AgentId`] (UUID-backed), checked
+//! [`AgentName`] (non-empty, rejects the `"unknown"`/`"unset"` sentinels), and
 //! [`ExternalAgentId`] for off-platform "super-agents" (Claude Desktop,
 //! Codex CLI, Claude Code) that connect via the bridge binary.
 //!
@@ -11,31 +11,22 @@ crate::define_id!(ExternalAgentId, non_empty);
 
 use crate::error::IdValidationError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, schemars::JsonSchema)]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(transparent))]
-#[serde(transparent)]
-pub struct AgentName(String);
+crate::define_id!(AgentName, checked, validate_agent_name);
+
+fn validate_agent_name(name: &str) -> Result<(), IdValidationError> {
+    if name.trim().is_empty() {
+        return Err(IdValidationError::empty("AgentName"));
+    }
+    if name.eq_ignore_ascii_case("unknown") || name.eq_ignore_ascii_case("unset") {
+        return Err(IdValidationError::invalid(
+            "AgentName",
+            format!("'{name}' is a reserved sentinel, not an agent name"),
+        ));
+    }
+    Ok(())
+}
 
 impl AgentName {
-    pub fn try_new(name: impl Into<String>) -> Result<Self, IdValidationError> {
-        let name = name.into();
-        if name.is_empty() {
-            return Err(IdValidationError::empty("AgentName"));
-        }
-        if name.eq_ignore_ascii_case("unknown") {
-            return Err(IdValidationError::invalid(
-                "AgentName",
-                "'unknown' is reserved for error detection",
-            ));
-        }
-        Ok(Self(name))
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
     pub fn system() -> Self {
         Self("system".to_owned())
     }
@@ -43,14 +34,4 @@ impl AgentName {
     pub fn bridge() -> Self {
         Self("bridge".to_owned())
     }
-
-    // Why: placeholder for artifact metadata built before a request context
-    // exists; `with_request` replaces it, and "unset" is distinguishable from
-    // the reserved "unknown" that `try_new` rejects.
-    pub fn unset() -> Self {
-        Self("unset".to_owned())
-    }
 }
-
-crate::__define_id_validated_conversions!(AgentName);
-crate::__define_id_common!(AgentName);

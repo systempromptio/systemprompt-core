@@ -15,7 +15,7 @@ pub(super) fn diagnostics_dispatch(
     reply_id: ReplyId,
 ) -> Option<CommandOutcome> {
     Some(match cmd {
-        "diagnostics.openLogDirectory" | "openLogFolder" => {
+        "openLogFolder" => {
             send(app, UiEvent::OpenLogDirectory { reply_to: reply_id });
             CommandOutcome::Async
         },

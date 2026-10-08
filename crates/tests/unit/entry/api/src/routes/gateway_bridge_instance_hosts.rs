@@ -5,8 +5,9 @@
 
 use systemprompt_api::routes::gateway::bridge::instance_enabled_hosts;
 use systemprompt_identifiers::ExternalAgentId;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
+use systemprompt_models::bridge::host::HostKind;
 
 fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConfig) {
     let agent_id = ExternalAgentId::try_new(id).expect("valid ExternalAgentId");
@@ -20,6 +21,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
             description: String::new(),
             platforms: Vec::new(),
             docs_url: None,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         },
     )
 }
@@ -27,16 +29,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
 #[test]
 fn empty_catalog_enables_every_known_host() {
     let services = ServicesConfig::default();
-    assert_eq!(
-        instance_enabled_hosts(&services),
-        vec![
-            "claude-code",
-            "claude-desktop",
-            "codex-cli",
-            "hermes",
-            "opencode"
-        ]
-    );
+    assert_eq!(instance_enabled_hosts(&services), HostKind::ALL.to_vec());
 }
 
 #[test]
@@ -47,7 +40,12 @@ fn a_disabled_catalog_entry_removes_its_host() {
         .extend([catalog_entry("codex_cli", false)]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["claude-code", "claude-desktop", "hermes", "opencode"]
+        vec![
+            HostKind::ClaudeCode,
+            HostKind::ClaudeDesktop,
+            HostKind::Hermes,
+            HostKind::OpenCode
+        ]
     );
 }
 
@@ -58,16 +56,7 @@ fn an_enabled_catalog_entry_keeps_its_host() {
         catalog_entry("codex_cli", true),
         catalog_entry("claude_desktop", true),
     ]);
-    assert_eq!(
-        instance_enabled_hosts(&services),
-        vec![
-            "claude-code",
-            "claude-desktop",
-            "codex-cli",
-            "hermes",
-            "opencode"
-        ]
-    );
+    assert_eq!(instance_enabled_hosts(&services), HostKind::ALL.to_vec());
 }
 
 #[test]
@@ -79,6 +68,6 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
     ]);
     assert_eq!(
         instance_enabled_hosts(&services),
-        vec!["codex-cli", "hermes", "opencode"]
+        vec![HostKind::CodexCli, HostKind::Hermes, HostKind::OpenCode]
     );
 }

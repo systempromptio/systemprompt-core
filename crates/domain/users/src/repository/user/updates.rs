@@ -8,13 +8,13 @@ use systemprompt_identifiers::UserId;
 
 use super::operations::UpdateUserParams;
 use crate::error::{Result, UserError};
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserRow, UserStatus};
 use crate::repository::UserRepository;
 
 impl UserRepository {
     pub async fn update_email(&self, id: &UserId, email: &str) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET email = $1, email_verified = false, updated_at = $2
@@ -28,6 +28,8 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -35,7 +37,7 @@ impl UserRepository {
 
     pub async fn update_full_name(&self, id: &UserId, full_name: &str) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET full_name = $1, updated_at = $2
@@ -49,6 +51,8 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -56,7 +60,7 @@ impl UserRepository {
 
     pub async fn update_status(&self, id: &UserId, status: UserStatus) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET status = $1, updated_at = $2
@@ -70,13 +74,15 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
 
     pub async fn update_email_verified(&self, id: &UserId, verified: bool) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET email_verified = $1, updated_at = $2
@@ -90,6 +96,8 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -97,7 +105,7 @@ impl UserRepository {
 
     pub async fn update_display_name(&self, id: &UserId, display_name: &str) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET display_name = $1, updated_at = $2
@@ -111,6 +119,8 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)
@@ -122,7 +132,7 @@ impl UserRepository {
         params: UpdateUserParams<'_>,
     ) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET email = $1, full_name = $2, display_name = $3, status = $4, updated_at = $5
@@ -139,13 +149,15 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
         Ok(row)
     }
 
     pub async fn assign_roles(&self, id: &UserId, roles: &[String]) -> Result<User> {
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             UPDATE users
             SET roles = $1, updated_at = $2
@@ -159,6 +171,8 @@ impl UserRepository {
         )
         .fetch_optional(&*self.write_pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
         Ok(row)

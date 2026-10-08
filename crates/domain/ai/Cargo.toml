@@ -33,7 +33,6 @@ reqwest = { workspace = true }
 rmcp = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -41,7 +40,7 @@ tokio-util = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
-# Job registration
+# Extension registration expands to `inventory::submit!` at the call site.
 inventory = { workspace = true }
 
 # Internal dependencies
@@ -49,7 +48,12 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true }
 
+[package.metadata.cargo-machete]
+# `register_extension!` references this dependency through macro expansion.
+ignored = ["inventory"]

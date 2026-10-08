@@ -1,9 +1,11 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, InstanceId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, InstanceId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynSessionUsageCounters;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
@@ -36,10 +38,8 @@ pub struct Fixture {
 impl Fixture {
     pub async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
-        let url = fixture_database_url()
-            .context("DATABASE_URL must be set for agent integration tests")?;
-        let db = fixture_db_pool(&url).await?;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let db = test_db_pool().await;
+        let pool = db.pool().as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("test_user_{tag}"));
@@ -68,7 +68,7 @@ impl Fixture {
             .execute(&pool)
             .await?;
 
-        let repo = TaskRepository::new(&db, session_usage(&db)?)?;
+        let repo = TaskRepository::new(&db, session_usage(&db)?);
 
         Ok(Self {
             pool,
@@ -105,7 +105,7 @@ impl Fixture {
                 user_id: &self.user_id,
                 session_id: &self.session_id,
                 trace_id: &self.trace_id,
-                agent_name: "test-agent",
+                agent_name: &AgentName::new("test-agent"),
             })
             .await?;
         Ok(task_id)
@@ -137,11 +137,7 @@ impl Fixture {
 }
 
 pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
-    Ok(
-        systemprompt_test_fixtures::fixture_analytics_repositories(db)?
-            .sessions
-            .owner(),
-    )
+    Ok(systemprompt_test_fixtures::fixture_analytics_repositories(db)?.session_store)
 }
 
 pub fn unique_instance() -> InstanceId {

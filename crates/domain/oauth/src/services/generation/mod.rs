@@ -9,8 +9,8 @@ use jsonwebtoken::{Algorithm, Header, encode};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
-use systemprompt_models::Config;
+use systemprompt_identifiers::{AccessTokenId, ClientId, PluginId, SessionId, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{
     ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
@@ -21,8 +21,7 @@ mod secret;
 
 pub use id_jag::{IdJagGrant, mint_id_jag};
 pub use secret::{
-    generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
-    verify_client_secret,
+    generate_client_secret, generate_secure_token, hash_client_secret, verify_client_secret,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,7 +33,7 @@ pub struct JwtConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plugin_id: Option<String>,
+    pub plugin_id: Option<PluginId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
 }
@@ -43,10 +42,9 @@ const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
 
 fn validated_expiry(expires_in: Duration) -> Result<Duration> {
     if expires_in <= Duration::zero() || expires_in > MAX_TOKEN_LIFETIME {
-        return Err(crate::error::OauthError::Internal(format!(
-            "Invalid token expiry: {} seconds. Must be between 1 second and 1 year",
-            expires_in.num_seconds()
-        )));
+        return Err(crate::error::OauthError::InvalidTokenLifetime {
+            seconds: expires_in.num_seconds(),
+        });
     }
     Ok(expires_in)
 }
@@ -87,37 +85,43 @@ impl Default for JwtConfig {
     }
 }
 
-#[expect(
-    clippy::too_many_arguments,
-    reason = "JWT minting needs the full set of claim-shaping inputs; bundling into a struct \
-              would obscure the call sites"
-)]
-pub fn generate_jwt_with_act(
-    user: &AuthenticatedUser,
-    config: JwtConfig,
-    jti: String,
-    session_id: &SessionId,
-    signing: &JwtSigningParams<'_>,
-    act: ActClaim,
-) -> Result<String> {
-    let mut token = build_claims(user, config, jti, session_id, signing)?;
-    token.act = Some(act);
-    encode_claims(&token, signing)
+/// Inputs for minting an RFC 8693 delegated access token carrying an `act`
+/// claim.
+#[derive(Debug)]
+pub struct DelegatedJwtParams<'a> {
+    pub user: &'a AuthenticatedUser,
+    pub config: JwtConfig,
+    pub jti: AccessTokenId,
+    pub session_id: &'a SessionId,
+    pub signing: &'a JwtSigningParams<'a>,
+    pub act: ActClaim,
+}
+
+pub fn generate_jwt_with_act(params: DelegatedJwtParams<'_>) -> Result<String> {
+    let mut token = build_claims(
+        params.user,
+        params.config,
+        params.jti,
+        params.session_id,
+        params.signing,
+    )?;
+    token.act = Some(params.act);
+    encode_claims(&token, params.signing)
 }
 
 fn build_claims(
     user: &AuthenticatedUser,
     config: JwtConfig,
-    jti: String,
+    jti: AccessTokenId,
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<JwtClaims> {
     let expires_in = validated_expiry(config.expires_in)?;
     let expiration = Utc::now()
         .checked_add_signed(expires_in)
-        .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
-        })?
+        .ok_or(crate::error::OauthError::Internal(
+            "Failed to calculate token expiration",
+        ))?
         .timestamp();
     let now = Utc::now().timestamp();
     let user_type = UserType::from_permissions(&config.permissions);
@@ -132,7 +136,7 @@ fn build_claims(
         nbf: Some(now),
         iss: signing.issuer.to_owned(),
         aud: audience,
-        jti,
+        jti: String::from(jti),
         scope: config.permissions,
         username: user.username.clone(),
         email: user.email.clone(),
@@ -154,12 +158,10 @@ fn encode_claims(claims: &JwtClaims, _signing: &JwtSigningParams<'_>) -> Result<
 }
 
 fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
-    let kid = authority::active_kid()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(kid.to_owned());
-    let key = authority::encoding_key()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let key = authority::encoding_key()?;
     let token = encode(&header, claims, key)?;
     Ok(token)
 }
@@ -167,13 +169,11 @@ fn encode_with_authority(claims: &JwtClaims) -> Result<String> {
 fn encode_id_jag_with_authority(
     claims: &crate::services::validation::id_jag::IdJagClaims,
 ) -> Result<String> {
-    let kid = authority::active_kid()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let kid = authority::active_kid()?;
     let mut header = Header::new(Algorithm::RS256);
     header.kid = Some(kid.to_owned());
     header.typ = Some(crate::services::validation::id_jag::ID_JAG_TYP.to_owned());
-    let key = authority::encoding_key()
-        .map_err(|e| crate::error::OauthError::Internal(format!("signing key unavailable: {e}")))?;
+    let key = authority::encoding_key()?;
     let token = encode(&header, claims, key)?;
     Ok(token)
 }
@@ -181,7 +181,7 @@ fn encode_id_jag_with_authority(
 pub fn generate_jwt(
     user: &AuthenticatedUser,
     config: JwtConfig,
-    jti: String,
+    jti: AccessTokenId,
     session_id: &SessionId,
     signing: &JwtSigningParams<'_>,
 ) -> Result<String> {
@@ -209,9 +209,9 @@ pub fn generate_anonymous_jwt_with_expiry(
     let expires_in = validated_expiry(Duration::seconds(expires_in_seconds))?;
     let expiration = Utc::now()
         .checked_add_signed(expires_in)
-        .ok_or_else(|| {
-            crate::error::OauthError::Internal("Failed to calculate token expiration".to_owned())
-        })?
+        .ok_or(crate::error::OauthError::Internal(
+            "Failed to calculate token expiration",
+        ))?
         .timestamp();
 
     let now = Utc::now().timestamp();
@@ -223,7 +223,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         nbf: Some(now),
         iss: signing.issuer.to_owned(),
         aud: JwtAudience::standard(),
-        jti: uuid::Uuid::new_v4().to_string(),
+        jti: String::from(AccessTokenId::generate()),
         scope: vec![Permission::Anonymous],
         username: user_id.to_string(),
         email: user_id.to_string(),

@@ -27,15 +27,17 @@
 //!
 //! - [`AiInferenceError`](systemprompt_models::errors::AiInferenceError) for
 //!   the provider-trait seam
-//! - [`RepositoryError`](error::RepositoryError) for persistence
+//! - the canonical [`RepositoryError`](systemprompt_traits::RepositoryError)
+//!   for persistence
 //! - common transport errors ([`reqwest::Error`], [`serde_json::Error`],
-//!   [`sqlx::Error`], [`std::io::Error`], [`regex::Error`])
-//! - an `Internal(String)` carve-out for cases where the upstream cause is
-//!   stringified at the call site rather than typed
+//!   [`std::io::Error`], [`regex::Error`]) and typed storage / stream causes
+//! - structured variants for conditions the crate itself detects (an
+//!   unconfigured or disabled provider, an unsupported capability, a rejected
+//!   AI policy), each carrying the values that caused it
 //!
-//! The provider-trait surface ([`AiProvider`]) used over the wire bridges to
-//! [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult) in
-//! [`services::core::ai_service`].
+//! The cross-domain [`AiProvider`](systemprompt_models::ai::AiProvider) seam
+//! returns [`AiInferenceResult`](systemprompt_models::errors::AiInferenceResult)
+//! from [`services::core::ai_service`].
 //!
 //! ## Feature flags
 //!
@@ -58,19 +60,7 @@ pub use extension::AiExtension;
 
 pub use services::core::{AiService, AiServiceProviders, ImageService, ImageServiceParts};
 
-pub use services::gateway::{
-    Finding, GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry,
-    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
-    IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
-    NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
-    OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
-    PHASE_RESPONSE, QuotaMode, QuotaWindow, RouteSelector, RouteSelectorEngine, RouteSelectorError,
-    RouteSelectorRegistration, SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner,
-    SafetyScannerRegistration, ScannerFactory, Severity, SystemPromptOverride,
-    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,
-    load_from_yaml as load_gateway_policies_from_yaml,
-};
-pub use services::storage::{ImageStorage, StorageConfig};
+pub use services::storage::{ImageStorage, StorageConfig, StorageConfigError};
 pub use services::tools::NoopToolProvider;
 pub use systemprompt_models::ai::{GenerateResponseParams, GoogleSearchParams};
 
@@ -80,9 +70,9 @@ pub use systemprompt_models::ai::{
     StructuredOutputOptions,
 };
 
-pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall, ToolExecution};
+pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 
-pub use systemprompt_models::services::AiConfig;
+pub use systemprompt_manifest::services::AiConfig;
 
 pub use models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,
@@ -98,7 +88,4 @@ pub use repository::{
     UpsertPayloadParams,
 };
 
-pub use services::tooled::ToolResultFormatter;
 pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};
-
-pub use systemprompt_models::ai::{AiProvider, DynAiProvider};

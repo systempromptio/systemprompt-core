@@ -11,7 +11,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::str::FromStr;
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, PluginId, SessionId, UserId};
 
 use super::{
     JwtAudience, Permission, RateLimitTier, TokenType, UserType, parse_permissions,
@@ -115,7 +115,7 @@ pub struct JwtClaims {
     pub rate_limit_tier: Option<RateLimitTier>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plugin_id: Option<String>,
+    pub plugin_id: Option<PluginId>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub act: Option<ActClaim>,

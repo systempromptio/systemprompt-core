@@ -192,7 +192,7 @@ impl ExtensionLoader {
     #[must_use]
     pub fn get_production_mcp_binary_names(
         project_root: &Path,
-        services_config: &systemprompt_models::ServicesConfig,
+        services_config: &systemprompt_manifest::ServicesConfig,
     ) -> Vec<String> {
         Self::get_enabled_mcp_extensions(project_root)
             .iter()

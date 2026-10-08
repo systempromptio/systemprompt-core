@@ -34,7 +34,7 @@ pub async fn execute_with_pool(
 ) -> Result<CommandOutput> {
     let file_id = parse_file_id(&args.file)?;
 
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let file = service
         .find_by_id(&file_id)
@@ -51,7 +51,7 @@ pub async fn execute_with_pool(
     let metadata_output = convert_metadata(&file);
 
     let output = FileDetailOutput {
-        id: file.id(),
+        id: file.id,
         path: file.path,
         public_url: file.public_url,
         mime_type: file.mime_type,
@@ -73,14 +73,13 @@ pub async fn execute_with_pool(
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {
-    uuid::Uuid::parse_str(id).map_err(|_e| {
+    FileId::try_new(id).map_err(|_e| {
         anyhow!(
             "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
              got '{}'",
             id
         )
-    })?;
-    Ok(FileId::new(id.to_owned()))
+    })
 }
 
 fn convert_metadata(file: &systemprompt_files::File) -> FileMetadataOutput {

@@ -17,8 +17,9 @@ mod engagement;
 mod events;
 mod fingerprint;
 mod overview;
+mod ownership;
 mod requests;
-mod session;
+mod session_signals;
 mod tools;
 mod traffic;
 
@@ -34,43 +35,54 @@ pub use fingerprint::{
     MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
 pub use overview::OverviewAnalyticsRepository;
+pub use ownership::AnalyticsOwnerReassignment;
 pub use requests::RequestAnalyticsRepository;
-pub use session::{
-    CreateSessionParams, SessionBehavioralData, SessionMigrationResult, SessionRecord,
-    SessionRepository,
-};
+pub use session_signals::SessionSignalsRepository;
 pub use tools::ToolAnalyticsRepository;
 pub use tools::list_queries::ToolListParams;
 pub use traffic::{NavigationQuery, PageQuery, TrafficAnalyticsRepository};
 
-use crate::error::Result;
 use systemprompt_database::DbPool;
+use systemprompt_traits::DynSessionStore;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AnalyticsRepositories {
-    pub sessions: SessionRepository,
+    pub session_store: DynSessionStore,
+    pub session_signals: SessionSignalsRepository,
     pub costs: CostAnalyticsRepository,
     pub engagement: EngagementRepository,
     pub events: AnalyticsEventsRepository,
 }
 
+impl std::fmt::Debug for AnalyticsRepositories {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AnalyticsRepositories")
+            .field("session_signals", &self.session_signals)
+            .field("costs", &self.costs)
+            .field("engagement", &self.engagement)
+            .field("events", &self.events)
+            .finish_non_exhaustive()
+    }
+}
+
 impl AnalyticsRepositories {
     pub fn new(
         db: &DbPool,
-        sessions: systemprompt_traits::DynSessionStore,
+        sessions: DynSessionStore,
         event_sink: systemprompt_traits::DynAnalyticsEventStore,
         content: systemprompt_traits::DynContentCatalogStats,
-    ) -> Result<Self> {
-        Ok(Self {
-            sessions: SessionRepository::new(
+    ) -> Self {
+        Self {
+            session_signals: SessionSignalsRepository::new(
                 db,
-                sessions,
+                std::sync::Arc::clone(&sessions),
                 std::sync::Arc::clone(&event_sink),
                 content,
-            )?,
-            costs: CostAnalyticsRepository::new(db)?,
-            engagement: EngagementRepository::new(db)?,
+            ),
+            session_store: sessions,
+            costs: CostAnalyticsRepository::new(db),
+            engagement: EngagementRepository::new(db),
             events: AnalyticsEventsRepository::new(event_sink),
-        })
+        }
     }
 }

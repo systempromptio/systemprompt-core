@@ -117,13 +117,19 @@ async fn closing_a_stream_releases_its_connection_slot() -> anyhow::Result<()> {
 
     // Dropping the response drops the guard that deregisters the connection.
     drop(resp);
+    let mut released = false;
     for _ in 0..50 {
         if AGUI_BROADCASTER.connection_count(&user).await == 0 {
-            return Ok(());
+            released = true;
+            break;
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    panic!("a dropped stream must release its slot, or a reconnecting client hits the cap");
+    assert!(
+        released,
+        "a dropped stream must release its slot, or a reconnecting client hits the cap"
+    );
+    Ok(())
 }
 
 #[tokio::test]

@@ -23,25 +23,29 @@
 
 use std::io;
 
+use systemprompt_identifiers::ServiceName;
+
+#[derive(Debug, thiserror::Error)]
+#[error("KERN_ARGMAX is unusable")]
+struct UnusableArgMax(#[source] std::num::TryFromIntError);
+
 #[must_use]
-pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
-    let Ok(pid) = i32::try_from(pid) else {
-        return false;
-    };
+pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
+    live_environ(pid).is_some_and(|environ| {
+        systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, service_name)
+    })
+}
+
+pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
+    let pid = i32::try_from(pid).ok()?;
 
     match process_args_blob(pid) {
         Ok(blob) => {
-            systemprompt_models::subprocess::environ_from_procargs2(&blob).is_some_and(|environ| {
-                systemprompt_models::subprocess::environ_identifies_child(
-                    environ,
-                    name_key,
-                    service_name,
-                )
-            })
+            systemprompt_models::subprocess::environ_from_procargs2(&blob).map(<[u8]>::to_vec)
         },
         Err(e) => {
             tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
-            false
+            None
         },
     }
 }
@@ -74,13 +78,25 @@ pub fn is_zombie(pid: u32) -> bool {
         )
     };
     if written != want {
-        return false;
+        // Why: Darwin answers ESRCH for a zombie, whose task is already torn
+        // down while its pid stays allocated until the parent reaps it; only
+        // `kill(pid, 0)` still sees such a pid.
+        return written == 0
+            && io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+            && pid_allocated(pid);
     }
 
     // SAFETY: the call above returned a full-size write, so every field is
     // initialised.
     let info = unsafe { info.assume_init() };
     info.pbsi_status == libc::SZOMB
+}
+
+fn pid_allocated(pid: libc::pid_t) -> bool {
+    match nix::sys::signal::kill(nix::unistd::Pid::from_raw(pid), None) {
+        Ok(()) | Err(nix::errno::Errno::EPERM) => true,
+        Err(_) => false,
+    }
 }
 
 #[expect(
@@ -140,5 +156,5 @@ fn arg_max() -> io::Result<usize> {
         return Err(io::Error::last_os_error());
     }
 
-    usize::try_from(value).map_err(|e| io::Error::other(format!("KERN_ARGMAX is unusable: {e}")))
+    usize::try_from(value).map_err(|e| io::Error::other(UnusableArgMax(e)))
 }

@@ -13,9 +13,10 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::{RuleName, Sha256Digest};
+use systemprompt_identifiers::RuleName;
+use systemprompt_manifest::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::RuleEntry;
-use systemprompt_models::services::{DiskRuleConfig, RULE_CONFIG_FILENAME, strip_frontmatter};
 
 use crate::error::MarketplaceError;
 use crate::trace::{NoopTrace, TraceEvent, TraceKind, TraceSink, TraceStage};
@@ -34,10 +35,11 @@ pub fn load_rules_traced(
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read =
-        std::fs::read_dir(&rules_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read = std::fs::read_dir(&rules_dir)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", rules_dir.display()), e))?;
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let entry = entry
+            .map_err(|e| MarketplaceError::catalog(format!("read {}", rules_dir.display()), e))?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -79,11 +81,6 @@ pub fn load_rules_traced(
                 });
             },
             Err(e) => {
-                tracing::error!(
-                    rule_dir = %rule_dir.display(),
-                    error = %e,
-                    "manifest: failed to build rule entry"
-                );
                 trace.record(TraceEvent {
                     kind: TraceKind::Rule,
                     id: dir_name,
@@ -103,9 +100,9 @@ fn build_rule_entry(
 ) -> Result<Option<RuleEntry>, MarketplaceError> {
     let config_path = rule_dir.join(RULE_CONFIG_FILENAME);
     let config_text = std::fs::read_to_string(&config_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskRuleConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
 
     if !config.enabled {
         return Ok(None);
@@ -123,7 +120,7 @@ fn build_rule_entry(
         config.name.clone()
     };
     let name =
-        RuleName::try_new(display_name).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        RuleName::try_new(display_name).map_err(|e| MarketplaceError::catalog("rule name", e))?;
 
     let content_path = rule_dir.join(config.content_file());
     if !content_path.exists() {
@@ -133,13 +130,13 @@ fn build_rule_entry(
         )));
     }
     let raw = std::fs::read_to_string(&content_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?;
     let instructions = strip_frontmatter(&raw).trim().to_owned();
 
     let mut hasher = Sha256::new();
     hasher.update(instructions.as_bytes());
     let sha256 = Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog("rule digest", e))?;
 
     Ok(Some(RuleEntry {
         id: config.id,

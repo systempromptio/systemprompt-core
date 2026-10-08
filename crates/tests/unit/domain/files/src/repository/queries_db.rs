@@ -2,21 +2,15 @@
 //! `update_metadata`, and `search_by_path`, each on uniquely-tagged rows.
 
 use chrono::Utc;
-use systemprompt_database::DbPool;
 use systemprompt_files::{File, FileChecksums, FileMetadata, FileRepository};
 use systemprompt_identifiers::{FileId, UserId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
     let id = uuid::Uuid::new_v4();
     let now = Utc::now();
     File {
-        id,
+        id: FileId::from_uuid(id),
         path: format!("/storage/{tag}/{id}.png"),
         public_url: format!("/files/{tag}/{id}.png"),
         mime_type: "image/png".to_owned(),
@@ -35,8 +29,8 @@ fn file_row(tag: &str, ai_content: bool, user: Option<&UserId>) -> File {
 
 #[tokio::test]
 async fn list_ai_images_includes_inserted_ai_rows() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let tag = format!("ai-list-{}", uuid::Uuid::new_v4().simple());
     let user = UserId::new(format!("u-{tag}"));
 
@@ -60,18 +54,14 @@ async fn list_ai_images_includes_inserted_ai_rows() {
     assert_eq!(by_user[0].id, ai.id);
     assert_eq!(by_user[0].path, ai.path);
 
-    repo.delete(&FileId::new(ai.id.to_string()))
-        .await
-        .expect("cleanup ai");
-    repo.delete(&FileId::new(plain.id.to_string()))
-        .await
-        .expect("cleanup plain");
+    repo.delete(&ai.id.clone()).await.expect("cleanup ai");
+    repo.delete(&plain.id.clone()).await.expect("cleanup plain");
 }
 
 #[tokio::test]
 async fn list_all_and_search_by_path_return_tagged_rows() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let tag = format!("query-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, false, None);
@@ -91,20 +81,18 @@ async fn list_all_and_search_by_path_return_tagged_rows() {
         .expect("search miss");
     assert!(no_matches.is_empty());
 
-    repo.delete(&FileId::new(file.id.to_string()))
-        .await
-        .expect("cleanup");
+    repo.delete(&file.id.clone()).await.expect("cleanup");
 }
 
 #[tokio::test]
 async fn update_metadata_persists_new_checksums() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let tag = format!("meta-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, false, None);
     repo.insert_file(&file).await.expect("insert");
-    let file_id = FileId::new(file.id.to_string());
+    let file_id = file.id.clone();
 
     let metadata =
         FileMetadata::new().with_checksums(FileChecksums::new().with_sha256("abc123def456"));
@@ -131,8 +119,8 @@ async fn update_metadata_persists_new_checksums() {
 
 #[tokio::test]
 async fn get_stats_snapshot_is_internally_consistent() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let tag = format!("stats-{}", uuid::Uuid::new_v4().simple());
 
     let file = file_row(&tag, true, None);
@@ -164,7 +152,5 @@ async fn get_stats_snapshot_is_internally_consistent() {
             .max(0)
     );
 
-    repo.delete(&FileId::new(file.id.to_string()))
-        .await
-        .expect("cleanup");
+    repo.delete(&file.id.clone()).await.expect("cleanup");
 }

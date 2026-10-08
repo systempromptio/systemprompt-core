@@ -26,21 +26,34 @@ fn extract_relation_name_reads_quoted_identifier() {
     assert_eq!(extract_relation_name("dangling \"quote"), "unknown");
 }
 
+fn tables() -> Vec<String> {
+    ["logs", "users", "mcp_tool_executions", "agent_tasks"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
 #[test]
 fn suggest_table_name_matches_substrings_and_typos() {
-    assert_eq!(suggest_table_name("log").as_deref(), Some("logs"));
-    assert_eq!(suggest_table_name("userz").as_deref(), Some("users"));
+    let tables = tables();
+    assert_eq!(suggest_table_name("log", &tables).as_deref(), Some("logs"));
     assert_eq!(
-        suggest_table_name("mcp_tool_execution").as_deref(),
-        Some("mcp_tool_executions")
+        suggest_table_name("userz", &tables).as_deref(),
+        Some("users")
     );
     assert_eq!(
-        suggest_table_name("agent_execution").as_deref(),
-        Some("agent_execution_steps")
+        suggest_table_name("mcp_tool_execution", &tables).as_deref(),
+        Some("mcp_tool_executions")
     );
 }
 
 #[test]
+fn suggest_table_name_only_suggests_tables_that_exist() {
+    assert_eq!(suggest_table_name("sessions", &tables()), None);
+    assert_eq!(suggest_table_name("users", &[]), None);
+}
+
+#[test]
 fn suggest_table_name_returns_none_for_unrelated_input() {
-    assert_eq!(suggest_table_name("zzzzzzzzzzzzzzzzzzz"), None);
+    assert_eq!(suggest_table_name("zzzzzzzzzzzzzzzzzzz", &tables()), None);
 }

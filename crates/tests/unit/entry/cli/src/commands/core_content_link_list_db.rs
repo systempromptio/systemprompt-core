@@ -15,7 +15,7 @@ use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -30,27 +30,22 @@ fn parse(args: &[&str]) -> ContentCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the link list tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).expect("app context"),
+        test_app_context(pool, &url),
     )
 }
 
 /// `campaign_links.source_content_id` is a real foreign key, so a link bound
 /// to content needs a content row to point at.
 async fn seed_content(pool: &DbPool) -> String {
-    let repo = ContentRepository::new(pool).expect("content repository");
+    let repo = ContentRepository::new(pool);
     let slug = format!("ll-{}", Uuid::new_v4().simple());
     let params = CreateContentParams::new(
         slug.clone(),
@@ -128,7 +123,7 @@ async fn list(
 // back the whole table rather than the caller's own links.
 #[tokio::test]
 async fn listing_without_a_filter_is_refused_rather_than_listing_everything() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let err = execute(
         ListArgs {
@@ -148,7 +143,7 @@ async fn listing_without_a_filter_is_refused_rather_than_listing_everything() {
 
 #[tokio::test]
 async fn a_campaign_filter_returns_only_that_campaigns_links() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let mine = format!("camp-{}", Uuid::new_v4().simple());
     let theirs = format!("camp-{}", Uuid::new_v4().simple());
@@ -169,7 +164,7 @@ async fn a_campaign_filter_returns_only_that_campaigns_links() {
 
 #[tokio::test]
 async fn a_content_filter_returns_only_links_from_that_source() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let mine = seed_content(&pool).await;
     let theirs = seed_content(&pool).await;
@@ -188,7 +183,7 @@ async fn a_content_filter_returns_only_links_from_that_source() {
 // for, with nothing in the output saying which filter was applied.
 #[tokio::test]
 async fn campaign_wins_when_both_filters_are_supplied() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let campaign = format!("camp-{}", Uuid::new_v4().simple());
     let content_id = seed_content(&pool).await;
@@ -208,7 +203,7 @@ async fn campaign_wins_when_both_filters_are_supplied() {
 
 #[tokio::test]
 async fn a_campaign_with_no_links_lists_nothing_rather_than_failing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let empty = format!("camp-{}", Uuid::new_v4().simple());
 
@@ -220,7 +215,7 @@ async fn a_campaign_with_no_links_lists_nothing_rather_than_failing() {
 // missing one in a performance report.
 #[tokio::test]
 async fn a_link_that_was_never_clicked_reports_zero_clicks() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let campaign = format!("camp-{}", Uuid::new_v4().simple());
     seed_link(&ctx, Some(&campaign), None).await;

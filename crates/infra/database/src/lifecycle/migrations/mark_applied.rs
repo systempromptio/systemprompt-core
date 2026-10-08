@@ -12,10 +12,11 @@
 
 use super::MigrationService;
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 #[derive(Debug, Clone)]
 pub struct MarkAppliedOutcome {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub version: u32,
     pub name: String,
     pub checksum: String,
@@ -27,14 +28,14 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
         version: u32,
     ) -> Result<MarkAppliedOutcome, LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
 
         let migration = extension
             .migrations()
             .into_iter()
             .find(|m| m.version == version)
             .ok_or_else(|| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 message: format!(
                     "Migration version {version} is not defined for extension '{ext_id}'"
                 ),
@@ -42,7 +43,7 @@ impl MigrationService<'_> {
 
         if migration.tombstone {
             return Err(LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 message: format!(
                     "Migration {version} ('{}') is a tombstone: the slot is recorded as spent and \
                      has no SQL, so there is nothing to mark applied",
@@ -56,7 +57,7 @@ impl MigrationService<'_> {
         let applied = self.get_applied_migrations(ext_id).await?;
         if applied.iter().any(|m| m.version == version) {
             return Err(LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
+                extension: ext_id.clone(),
                 message: format!(
                     "Migration {version} ('{}') is already tracked as applied for extension \
                      '{ext_id}'; nothing to do",
@@ -75,13 +76,14 @@ impl MigrationService<'_> {
                 &[&id, &ext_id, &migration.version, &migration.name, &checksum],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
-                message: format!("Failed to record migration as applied: {e}"),
+            .map_err(|e| LoaderError::MigrationStepFailed {
+                extension: ext_id.clone(),
+                context: "Failed to record migration as applied".to_owned(),
+                source: Box::new(e),
             })?;
 
         Ok(MarkAppliedOutcome {
-            extension_id: ext_id.to_owned(),
+            extension_id: ext_id.clone(),
             version: migration.version,
             name: migration.name.clone(),
             checksum,

@@ -16,4 +16,4 @@ mod errors;
 pub mod resolver;
 
 pub use engine::{ProxyEngine, ProxyKind, ProxyTarget};
-pub use errors::ProxyError;
+pub use errors::{ProxyError, ResponseBuildError};

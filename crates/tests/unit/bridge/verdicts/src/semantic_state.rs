@@ -1,3 +1,6 @@
+use std::sync::LazyLock;
+
+use systemprompt_bridge::gateway::manifest::UserId;
 use systemprompt_bridge::proxy_probe::ProxyHealth;
 use systemprompt_bridge::update::UpdateUiState;
 use systemprompt_bridge::verdict::{Tone, Verdict};
@@ -6,6 +9,9 @@ use systemprompt_bridge::wire::codes::*;
 use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
 use systemprompt_bridge::wire::hosts::HostsPayload;
 use systemprompt_bridge::wire::payloads::*;
+
+static USER: LazyLock<UserId> = LazyLock::new(|| UserId::new("user"));
+static ANOTHER_USER: LazyLock<UserId> = LazyLock::new(|| UserId::new("another-user"));
 
 fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayload<'a> {
     StatePayload {
@@ -43,7 +49,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         },
         verified_identity: Some(VerifiedIdentityPayload {
             email: Some("user@example.com"),
-            user_id: Some("user"),
+            user_id: Some(&*USER),
             tenant_id: None,
             exp_unix: Some(900),
             verified_at_unix: 600,
@@ -108,7 +114,7 @@ fn gateway_identity_and_verdict_changes_remain_visible() {
     next.gateway_url = "https://other.example";
     assert_ne!(first, next.semantic_value().unwrap());
     let mut next = payload(&proxy, &update);
-    next.verified_identity.as_mut().unwrap().user_id = Some("another-user");
+    next.verified_identity.as_mut().unwrap().user_id = Some(&*ANOTHER_USER);
     assert_ne!(first, next.semantic_value().unwrap());
     let mut next = payload(&proxy, &update);
     next.token = Verdict::new(Tone::Warn, TokenCode::Expiring);

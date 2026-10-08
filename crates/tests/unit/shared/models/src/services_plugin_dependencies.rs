@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{MarketplaceId, PluginId};
-use systemprompt_models::bridge::plugin_bundle::ManifestDependency;
-use systemprompt_models::services::{
-    ExternalMarketplace, ExternalMarketplaceSource, MarketplaceConfig, MarketplaceVisibility,
-    PluginAuthor, PluginComponentRef, PluginConfig, PluginDependency, ServicesConfig,
+use systemprompt_manifest::services::{
+    ExternalMarketplace, ExternalMarketplaceSource, ExternalPluginEntry, ExternalPluginSource,
+    MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginConfig, ServicesConfig,
 };
+use systemprompt_models::bridge::manifest::ExternalPluginSkills;
+use systemprompt_models::bridge::plugin_bundle::ManifestDependency;
+use systemprompt_models::plugin::{PluginComponentRef, PluginDependency};
 
 fn author() -> PluginAuthor {
     PluginAuthor {
@@ -66,6 +68,8 @@ fn marketplace(id: &str, plugins: &[&str]) -> MarketplaceConfig {
         access: Default::default(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -74,6 +78,7 @@ fn salesforce() -> ExternalMarketplace {
         name: "salesforce".to_owned(),
         source: ExternalMarketplaceSource::Github {
             repo: "SalesforceCommerceCloud/claude-plugins".to_owned(),
+            reference: None,
         },
     }
 }
@@ -154,6 +159,7 @@ fn external_marketplace_sources_are_validated_and_serialise_as_claude_code_setti
         name: "bad".to_owned(),
         source: ExternalMarketplaceSource::Github {
             repo: "not-a-repo".to_owned(),
+            reference: None,
         },
     }];
     assert!(m.validate("org").is_err(), "github repo must be owner/name");
@@ -162,6 +168,7 @@ fn external_marketplace_sources_are_validated_and_serialise_as_claude_code_setti
         name: "bad".to_owned(),
         source: ExternalMarketplaceSource::Git {
             url: "http://example.com/x.git".to_owned(),
+            reference: None,
         },
     }];
     assert!(m.validate("org").is_err(), "git url must be https");
@@ -170,6 +177,7 @@ fn external_marketplace_sources_are_validated_and_serialise_as_claude_code_setti
         name: "org".to_owned(),
         source: ExternalMarketplaceSource::Github {
             repo: "acme/plugins".to_owned(),
+            reference: None,
         },
     }];
     assert!(m.validate("org").is_err(), "may not reuse the own id");
@@ -244,4 +252,171 @@ fn dependency_on_a_sibling_local_marketplace_needs_only_the_allowlist() {
     )
     .validate()
     .expect("a configured marketplace needs no external declaration");
+}
+
+#[test]
+fn external_marketplace_ref_round_trips_into_the_claude_code_source() {
+    let yaml = r#"
+name: b2c-developer-tooling
+source:
+  source: github
+  repo: SalesforceCommerceCloud/b2c-developer-tooling
+  ref: b2c-agent-plugins@1.10.0
+"#;
+    let external: ExternalMarketplace = serde_yaml::from_str(yaml).expect("ref is accepted");
+    assert_eq!(
+        external.source.reference(),
+        Some("b2c-agent-plugins@1.10.0")
+    );
+    assert_eq!(
+        serde_json::to_value(&external.source).unwrap(),
+        serde_json::json!({
+            "source": "github",
+            "repo": "SalesforceCommerceCloud/b2c-developer-tooling",
+            "ref": "b2c-agent-plugins@1.10.0"
+        })
+    );
+    let mut m = marketplace("org", &[]);
+    m.external_marketplaces = vec![external];
+    m.validate("org").expect("a tag ref is valid");
+
+    let git: ExternalMarketplace = serde_json::from_value(serde_json::json!({
+        "name": "vendor",
+        "source": { "source": "git", "url": "https://example.com/vendor.git", "ref": "main" }
+    }))
+    .expect("git takes ref too");
+    assert_eq!(git.source.reference(), Some("main"));
+}
+
+#[test]
+fn external_marketplace_source_refuses_a_sha() {
+    let err = serde_json::from_value::<ExternalMarketplace>(serde_json::json!({
+        "name": "vendor",
+        "source": { "source": "github", "repo": "acme/vendor", "sha": "abc" }
+    }))
+    .expect_err("a marketplace source has no sha");
+    assert!(err.to_string().contains("sha"), "{err}");
+}
+
+#[test]
+fn external_marketplace_ref_syntax_is_validated() {
+    let too_long = "a".repeat(129);
+    for bad in ["", "two words", "v1..v2", "-delete", too_long.as_str()] {
+        let mut m = marketplace("org", &[]);
+        m.external_marketplaces = vec![ExternalMarketplace {
+            name: "vendor".to_owned(),
+            source: ExternalMarketplaceSource::Github {
+                repo: "acme/vendor".to_owned(),
+                reference: Some(bad.to_owned()),
+            },
+        }];
+        assert!(m.validate("org").is_err(), "{bad:?} is refused");
+    }
+    let mut m = marketplace("org", &[]);
+    m.external_marketplaces = vec![ExternalMarketplace {
+        name: "vendor".to_owned(),
+        source: ExternalMarketplaceSource::Git {
+            url: "https://example.com/vendor.git".to_owned(),
+            reference: Some("a".repeat(128)),
+        },
+    }];
+    m.validate("org").expect("128 characters is the limit");
+}
+
+const SHA: &str = "74354ecc7a43da16d91a9bc54fa8db8283a3fcf5";
+
+fn playwright() -> ExternalPluginEntry {
+    serde_json::from_value(serde_json::json!({
+        "name": "playwright-cli",
+        "source": {
+            "source": "git-subdir",
+            "url": "microsoft/playwright-cli",
+            "path": "skills",
+            "ref": "v0.1.21",
+            "sha": SHA
+        },
+        "strict": false,
+        "skills": ["./"],
+        "version": "0.1.21"
+    }))
+    .expect("a pinned pass-through entry parses")
+}
+
+#[test]
+fn pass_through_plugin_round_trips_as_authored() {
+    let entry = playwright();
+    assert_eq!(entry.source.sha(), SHA);
+    assert_eq!(
+        entry.skills,
+        Some(ExternalPluginSkills::Paths(vec!["./".to_owned()]))
+    );
+    assert_eq!(
+        serde_json::to_value(&entry).unwrap(),
+        serde_json::json!({
+            "name": "playwright-cli",
+            "source": {
+                "source": "git-subdir",
+                "url": "microsoft/playwright-cli",
+                "path": "skills",
+                "ref": "v0.1.21",
+                "sha": SHA
+            },
+            "version": "0.1.21",
+            "strict": false,
+            "skills": ["./"]
+        })
+    );
+    let mut m = marketplace("org", &["app"]);
+    m.external_plugins = vec![entry];
+    m.validate("org").expect("a pinned entry is valid");
+}
+
+#[test]
+fn pass_through_plugin_requires_a_full_sha() {
+    let err = serde_json::from_value::<ExternalPluginEntry>(serde_json::json!({
+        "name": "playwright-cli",
+        "source": { "source": "github", "repo": "microsoft/playwright-cli", "ref": "v0.1.21" }
+    }))
+    .expect_err("an unpinned entry is refused");
+    assert!(err.to_string().contains("sha"), "{err}");
+
+    let mut entry = playwright();
+    entry.source = ExternalPluginSource::Github {
+        repo: "microsoft/playwright-cli".to_owned(),
+        reference: None,
+        sha: "v0.1.21".to_owned(),
+    };
+    let mut m = marketplace("org", &[]);
+    m.external_plugins = vec![entry];
+    let err = m.validate("org").expect_err("a tag is not a commit");
+    assert!(err.to_string().contains("playwright-cli"), "{err}");
+}
+
+#[test]
+fn pass_through_plugin_may_not_shadow_a_vendored_plugin_or_repeat() {
+    let mut m = marketplace("org", &["playwright-cli"]);
+    m.external_plugins = vec![playwright()];
+    let err = m
+        .validate("org")
+        .expect_err("name collides with a vendored plugin");
+    assert!(err.to_string().contains("vendors"), "{err}");
+
+    let mut m = marketplace("org", &[]);
+    m.external_plugins = vec![playwright(), playwright()];
+    let err = m.validate("org").expect_err("declared twice");
+    assert!(err.to_string().contains("twice"), "{err}");
+}
+
+#[test]
+fn bare_name_dependency_resolves_to_a_pass_through_plugin() {
+    let app = plugin("app", vec![dependency("playwright-cli", None, None)]);
+    let mut org = marketplace("org", &["app"]);
+    services(vec![app.clone()], vec![org.clone()])
+        .validate()
+        .expect_err("not carried without the pass-through entry");
+
+    org.external_plugins = vec![playwright()];
+    services(vec![app], vec![org])
+        .validate()
+        .expect("the pass-through entry carries it");
 }

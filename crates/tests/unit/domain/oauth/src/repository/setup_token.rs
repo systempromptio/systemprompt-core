@@ -8,7 +8,7 @@ use systemprompt_oauth::repository::{
     CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, TokenValidationResult,
 };
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -45,23 +45,20 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
     let user_id = unique_user_id("st");
     seed_user_row(&pool, &user_id, &format!("{}@st.invalid", user_id.as_str()))
         .await
         .expect("seed user");
-    Some(Ctx { repo, user_id })
+    Ctx { repo, user_id }
 }
 
 #[tokio::test]
 async fn store_then_validate_valid() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -89,9 +86,7 @@ async fn store_then_validate_valid() {
 
 #[tokio::test]
 async fn validate_not_found() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let result = ctx
         .repo
         .validate_setup_token(&format!("missing-{}", Uuid::new_v4()))
@@ -102,9 +97,7 @@ async fn validate_not_found() {
 
 #[tokio::test]
 async fn validate_expired() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -125,9 +118,7 @@ async fn validate_expired() {
 
 #[tokio::test]
 async fn consume_then_already_used() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -173,9 +164,7 @@ async fn consume_then_already_used() {
 
 #[tokio::test]
 async fn revoke_user_setup_tokens_marks_used() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let hash = format!("hash-{}", Uuid::new_v4());
     ctx.repo
         .store_setup_token(CreateSetupTokenParams {
@@ -203,9 +192,7 @@ async fn revoke_user_setup_tokens_marks_used() {
 
 #[tokio::test]
 async fn cleanup_expired_setup_tokens_runs() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // Just exercise the path; rows older than 24h are rare in a fresh DB.
     ctx.repo
         .cleanup_expired_setup_tokens()

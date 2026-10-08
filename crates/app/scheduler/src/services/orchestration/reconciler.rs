@@ -5,29 +5,37 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
-use std::sync::Arc;
+use std::time::Duration;
 
-use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
+use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, ChildKind};
 
-use super::process_cleanup::ProcessCleanup;
 use super::service_records::ServiceConfig;
-use super::state_types::ServiceAction;
+use super::state_types::{ServiceAction, ServiceType};
 use super::state_verifier::ServiceStateVerifier;
+use super::supervision::{stop_owned_port_holders, wait_for_port_free};
 use super::verified_state::VerifiedServiceState;
 use crate::error::SchedulerResult;
 
-const DELETE_SERVICE_BY_NAME: DatabaseQuery =
-    DatabaseQuery::new("DELETE FROM services WHERE name = $1");
-const UPDATE_SERVICE_TO_STOPPED: DatabaseQuery =
-    DatabaseQuery::new("UPDATE services SET status = 'stopped', pid = NULL WHERE name = $1");
+const STOP_GRACE: Duration = Duration::from_millis(100);
+const PORT_RELEASE: Duration = Duration::from_secs(1);
+
+const fn child_kind_of(service_type: ServiceType) -> Option<ChildKind> {
+    match service_type {
+        ServiceType::Agent => Some(ChildKind::Agent),
+        ServiceType::Mcp => Some(ChildKind::Mcp),
+        ServiceType::Api => None,
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct ReconciliationResult {
-    pub started: Vec<String>,
-    pub stopped: Vec<String>,
-    pub restarted: Vec<String>,
-    pub cleaned_up: Vec<String>,
-    pub failed: Vec<(String, String)>,
+    pub started: Vec<ServiceName>,
+    pub stopped: Vec<ServiceName>,
+    pub restarted: Vec<ServiceName>,
+    pub cleaned_up: Vec<ServiceName>,
+    pub failed: Vec<(ServiceName, String)>,
 }
 
 impl ReconciliationResult {
@@ -53,14 +61,14 @@ impl ReconciliationResult {
 #[derive(Debug)]
 pub struct ServiceReconciler {
     state_verifier: ServiceStateVerifier,
-    db_pool: DbPool,
+    services: ServiceRepository,
 }
 
 impl ServiceReconciler {
-    pub fn new(db_pool: DbPool, instance_id: systemprompt_identifiers::InstanceId) -> Self {
+    pub fn new(db_pool: DbPool, services: ServiceRepository) -> Self {
         Self {
-            state_verifier: ServiceStateVerifier::new(Arc::clone(&db_pool), instance_id),
-            db_pool,
+            state_verifier: ServiceStateVerifier::new(db_pool, services.instance_id().clone()),
+            services,
         }
     }
 
@@ -70,8 +78,8 @@ impl ServiceReconciler {
         start_service: F,
     ) -> SchedulerResult<ReconciliationResult>
     where
-        F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
+        Fut: Future<Output = SchedulerResult<()>> + Send,
     {
         let states = self.state_verifier.get_verified_states(configs).await?;
         let mut result = ReconciliationResult::new();
@@ -90,8 +98,8 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
+        Fut: Future<Output = SchedulerResult<()>> + Send,
     {
         match state.needs_action {
             ServiceAction::None => {},
@@ -119,8 +127,8 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
+        Fut: Future<Output = SchedulerResult<()>> + Send,
     {
         match start_service(state.name.clone(), state.port).await {
             Ok(()) => result.started.push(state.name),
@@ -141,8 +149,8 @@ impl ServiceReconciler {
         start_service: &F,
         result: &mut ReconciliationResult,
     ) where
-        F: Fn(String, u16) -> Fut + Send + Sync,
-        Fut: Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send,
+        F: Fn(ServiceName, u16) -> Fut + Send + Sync,
+        Fut: Future<Output = SchedulerResult<()>> + Send,
     {
         if let Err(e) = self.stop_service(&state).await {
             result.failed.push((state.name, e.to_string()));
@@ -170,7 +178,10 @@ impl ServiceReconciler {
         state: VerifiedServiceState,
         result: &mut ReconciliationResult,
     ) {
-        self.cleanup_process(&state).await;
+        if let Err(e) = self.cleanup_process(&state).await {
+            result.failed.push((state.name, e.to_string()));
+            return;
+        }
         match self.cleanup_db_entry(&state.name).await {
             Ok(()) => result.cleaned_up.push(state.name),
             Err(e) => result.failed.push((state.name, e.to_string())),
@@ -178,34 +189,29 @@ impl ServiceReconciler {
     }
 
     async fn stop_service(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
-        if let Some(pid) = state.pid {
-            ProcessCleanup::terminate_gracefully(pid, 100).await;
-            ProcessCleanup::kill_port(state.port, pid);
-        }
-        ProcessCleanup::wait_for_port_free(state.port, 5, 200).await?;
+        self.cleanup_process(state).await?;
+        wait_for_port_free(state.port, PORT_RELEASE).await?;
         self.update_service_stopped(&state.name).await
     }
 
-    async fn cleanup_process(&self, state: &VerifiedServiceState) {
+    async fn cleanup_process(&self, state: &VerifiedServiceState) -> SchedulerResult<()> {
+        let Some(kind) = child_kind_of(state.service_type) else {
+            return Ok(());
+        };
         if let Some(pid) = state.pid {
-            ProcessCleanup::terminate_gracefully(pid, 100).await;
-            ProcessCleanup::kill_port(state.port, pid);
+            subprocess::stop_owned(pid, kind, &state.name, STOP_GRACE).await?;
         }
-    }
-
-    async fn cleanup_db_entry(&self, name: &str) -> SchedulerResult<()> {
-        self.db_pool
-            .as_ref()
-            .execute(&DELETE_SERVICE_BY_NAME, &[&name])
-            .await?;
+        stop_owned_port_holders(state.port, kind, &state.name, STOP_GRACE).await?;
         Ok(())
     }
 
-    async fn update_service_stopped(&self, name: &str) -> SchedulerResult<()> {
-        self.db_pool
-            .as_ref()
-            .execute(&UPDATE_SERVICE_TO_STOPPED, &[&name])
-            .await?;
+    async fn cleanup_db_entry(&self, name: &ServiceName) -> SchedulerResult<()> {
+        self.services.delete_service(name).await?;
+        Ok(())
+    }
+
+    async fn update_service_stopped(&self, name: &ServiceName) -> SchedulerResult<()> {
+        self.services.update_service_stopped(name).await?;
         Ok(())
     }
 }

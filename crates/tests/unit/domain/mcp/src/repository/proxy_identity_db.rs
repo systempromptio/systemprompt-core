@@ -3,16 +3,13 @@
 use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::auth::{Permission, UserType};
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 
 // `auth_token` is sealed with the at-rest cipher on write, so the
 // `encryption_master_key` secret must resolve before the first upsert.
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
+async fn db() -> systemprompt_database::DbPool {
     ensure_test_secrets_bootstrap();
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
+    test_db_pool().await
 }
 
 fn session(prefix: &str) -> SessionId {
@@ -30,7 +27,7 @@ fn row(token: &str) -> ProxyIdentityRow {
 }
 
 async fn expire(db: &systemprompt_database::DbPool, id: &SessionId) {
-    let write = db.write_pool_arc().unwrap();
+    let write = db.write_pool();
     sqlx::query("UPDATE mcp_proxy_identities SET expires_at = NOW() - INTERVAL '1 hour' WHERE session_id = $1")
         .bind(id.as_str())
         .execute(write.as_ref())
@@ -40,8 +37,8 @@ async fn expire(db: &systemprompt_database::DbPool, id: &SessionId) {
 
 #[tokio::test]
 async fn upsert_then_find_round_trips_the_identity() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-rt");
     let identity = row("tok-1");
 
@@ -57,8 +54,8 @@ async fn upsert_then_find_round_trips_the_identity() {
 
 #[tokio::test]
 async fn upsert_replaces_the_identity_and_refreshes_expiry() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-up");
 
     repo.upsert(&id, &row("tok-old")).await.unwrap();
@@ -74,15 +71,15 @@ async fn upsert_replaces_the_identity_and_refreshes_expiry() {
 
 #[tokio::test]
 async fn find_unknown_session_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     assert!(repo.find(&session("pid-none")).await.unwrap().is_none());
 }
 
 #[tokio::test]
 async fn expired_identity_is_not_found() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-exp");
 
     repo.upsert(&id, &row("tok")).await.unwrap();
@@ -93,8 +90,8 @@ async fn expired_identity_is_not_found() {
 
 #[tokio::test]
 async fn delete_removes_the_identity() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let id = session("pid-del");
 
     repo.upsert(&id, &row("tok")).await.unwrap();
@@ -106,8 +103,8 @@ async fn delete_removes_the_identity() {
 
 #[tokio::test]
 async fn cleanup_expired_counts_only_expired_rows() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = McpProxyIdentityRepository::new(&db).unwrap();
+    let db = db().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let live = session("pid-live");
     let stale = session("pid-stale");
 

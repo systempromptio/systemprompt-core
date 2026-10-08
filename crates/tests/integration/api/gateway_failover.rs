@@ -2,11 +2,13 @@
 //! healthy provider after an upstream failure.
 
 use axum::body::to_bytes;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayService};
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{ApiSurface, WireProtocol};
+use systemprompt_manifest::services::RouteDeployment;
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -34,7 +36,7 @@ fn assert_recorded_status(error: DispatchError, status: u16) {
     };
     assert!(
         matches!(
-            error.downcast_ref::<UpstreamError>(),
+            error.upstream(),
             Some(UpstreamError::Status { status: actual, .. }) if *actual == status
         ),
         "expected recorded upstream status {status}, got {error:#}"
@@ -73,7 +75,10 @@ async fn gateway_rebinds_one_governed_request_to_its_fallback_after_primary_500(
     fallback_provider.endpoint = fallback.uri();
     registry.providers.push(fallback_provider);
     let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallback_provider = Some(ProviderId::new("anthropic-fallback"));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new("anthropic-fallback"),
+        upstream_model: None,
+    }];
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -102,7 +107,7 @@ async fn gateway_rebinds_one_governed_request_to_its_fallback_after_primary_500(
         1,
         "the fallback receives the re-bound request once"
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -140,7 +145,10 @@ async fn gateway_does_not_send_client_errors_to_a_configured_fallback() -> anyho
     fallback_provider.endpoint = fallback.uri();
     registry.providers.push(fallback_provider);
     let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallback_provider = Some(ProviderId::new("anthropic-client-error-fallback"));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new("anthropic-client-error-fallback"),
+        upstream_model: None,
+    }];
 
     let error = GatewayService::dispatch(
         &config,
@@ -190,7 +198,10 @@ async fn gateway_preserves_primary_failure_when_fallback_provider_cannot_be_boun
         ApiSurface::Anthropic,
     );
     let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallback_provider = Some(ProviderId::new("missing-fallback-provider"));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new("missing-fallback-provider"),
+        upstream_model: None,
+    }];
 
     let error = GatewayService::dispatch(
         &config,
@@ -238,7 +249,10 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
     fallback_provider.endpoint = fallback.uri();
     registry.providers.push(fallback_provider);
     let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallback_provider = Some(ProviderId::new("anthropic-both-fail-fallback"));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new("anthropic-both-fail-fallback"),
+        upstream_model: None,
+    }];
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -262,7 +276,7 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
             .len(),
         1
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -290,7 +304,7 @@ async fn gateway_without_a_fallback_records_primary_failure_once() -> anyhow::Re
         ApiSurface::Anthropic,
     );
     let config = gateway_config(PROVIDER);
-    assert!(config.routes[0].fallback_provider.is_none());
+    assert!(config.routes[0].fallbacks.is_empty());
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
 
@@ -308,7 +322,7 @@ async fn gateway_without_a_fallback_records_primary_failure_once() -> anyhow::Re
         "the primary uses its configured bounded retry budget"
     );
 
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let row: (String, Option<String>) =
         sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -337,7 +351,7 @@ async fn gateway_without_a_fallback_returns_and_attributes_primary_success() -> 
         ApiSurface::Anthropic,
     );
     let config = gateway_config(PROVIDER);
-    assert!(config.routes[0].fallback_provider.is_none());
+    assert!(config.routes[0].fallbacks.is_empty());
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
 
@@ -356,7 +370,7 @@ async fn gateway_without_a_fallback_returns_and_attributes_primary_success() -> 
         1
     );
 
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let identity: (String, Option<String>) =
         sqlx::query_as("SELECT provider, served_provider FROM ai_requests WHERE id = $1")
             .bind(request_id.as_str())
@@ -401,7 +415,10 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
     fallback_provider.endpoint = fallback.uri();
     registry.providers.push(fallback_provider);
     let mut config = gateway_config(&primary_name);
-    config.routes[0].fallback_provider = Some(ProviderId::new(&fallback_name));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new(&fallback_name),
+        upstream_model: None,
+    }];
 
     for _ in 0..5 {
         let response = GatewayService::dispatch(
@@ -442,7 +459,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
             .len(),
         6
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id=$1")
             .bind(request_id.as_str())
@@ -489,7 +506,10 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     training_provider.endpoint = training_fallback.uri();
     training_registry.providers.push(training_provider);
     let mut training_config = gateway_config(&failing_name);
-    training_config.routes[0].fallback_provider = Some(ProviderId::new(&training_name));
+    training_config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new(&training_name),
+        upstream_model: None,
+    }];
     for _ in 0..5 {
         let response = GatewayService::dispatch(
             &training_config,
@@ -522,7 +542,10 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     open_fallback.endpoint = failing.uri();
     registry.providers.push(open_fallback);
     let mut config = gateway_config(&healthy_name);
-    config.routes[0].fallback_provider = Some(ProviderId::new(&failing_name));
+    config.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new(&failing_name),
+        upstream_model: None,
+    }];
     let failing_before = failing
         .received_requests()
         .await
@@ -543,7 +566,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         failing_before,
         "an open fallback circuit is not contacted after a healthy primary response"
     );
-    let database = pool.pool_arc().expect("read pool");
+    let database = pool.pool();
     let served: Option<String> =
         sqlx::query_scalar("SELECT served_provider FROM ai_requests WHERE id=$1")
             .bind(request_id.as_str())
@@ -588,5 +611,211 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
             .as_deref()
             .is_some_and(|message| message.contains("500"))
     );
+    Ok(())
+}
+
+async fn mock_answering(status: u16, text: &str) -> MockServer {
+    let server = MockServer::start().await;
+    let template = if status == 200 {
+        ResponseTemplate::new(200).set_body_json(upstream_response(text))
+    } else {
+        ResponseTemplate::new(status).set_body_string(text.to_owned())
+    };
+    Mock::given(method("POST"))
+        .and(path("/messages"))
+        .respond_with(template)
+        .mount(&server)
+        .await;
+    server
+}
+
+fn chain_registry(
+    deployments: &[(&str, &MockServer)],
+) -> systemprompt_manifest::services::ProviderRegistry {
+    let (first, first_server) = deployments[0];
+    let mut registry = provider_registry(
+        &first_server.uri(),
+        first,
+        WireProtocol::Anthropic,
+        ApiSurface::Anthropic,
+    );
+    for (name, server) in &deployments[1..] {
+        let mut entry = registry.providers[0].clone();
+        entry.name = ProviderId::new(*name);
+        entry.endpoint = server.uri();
+        registry.providers.push(entry);
+    }
+    registry
+}
+
+fn unique(prefix: &str) -> String {
+    format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
+}
+
+async fn hits(server: &MockServer) -> usize {
+    server
+        .received_requests()
+        .await
+        .expect("request history")
+        .len()
+}
+
+async fn audit_identity(
+    pool: &systemprompt_database::DbPool,
+    id: &systemprompt_identifiers::AiRequestId,
+) -> anyhow::Result<(Option<String>, Option<String>)> {
+    Ok(
+        sqlx::query_as("SELECT served_provider, route_match FROM ai_requests WHERE id = $1")
+            .bind(id.as_str())
+            .fetch_one(pool.pool().as_ref())
+            .await?,
+    )
+}
+
+#[tokio::test]
+async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _) = setup_ctx().await?;
+    let credential = seed_admin_credential(&pool, "failover-chain@example.invalid").await?;
+    let first = mock_answering(429, "rate limited").await;
+    let second = mock_answering(500, "second down").await;
+    let third = mock_answering(200, "third served").await;
+    let (a, b, c) = (unique("chain-a"), unique("chain-b"), unique("chain-c"));
+    let registry = chain_registry(&[(&a, &first), (&b, &second), (&c, &third)]);
+    let mut config = gateway_config(&a);
+    config.routes[0].fallbacks = vec![
+        RouteDeployment {
+            provider: ProviderId::new(&b),
+            upstream_model: None,
+        },
+        RouteDeployment {
+            provider: ProviderId::new(&c),
+            upstream_model: None,
+        },
+    ];
+
+    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let request_id = dispatch.ctx.ai_request_id.clone();
+    let response = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch)
+        .await
+        .expect("the third deployment serves");
+    let body = to_bytes(response.into_body(), 1024 * 1024).await?;
+    assert!(String::from_utf8_lossy(&body).contains("third served"));
+    assert_eq!(
+        hits(&first).await,
+        4,
+        "429 spends the first deployment's retry budget"
+    );
+    assert_eq!(hits(&second).await, 1, "a 500 is not retried in place");
+    assert_eq!(hits(&third).await, 1);
+    let (served, route_match) = audit_identity(&pool, &request_id).await?;
+    assert_eq!(served.as_deref(), Some(c.as_str()));
+    let route_match = route_match.expect("a failover is described");
+    assert!(
+        route_match.contains(&format!("failover:{a}->{b}->{c}")),
+        "{route_match}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _) = setup_ctx().await?;
+    let credential = seed_admin_credential(&pool, "failover-tripped@example.invalid").await?;
+    let first = mock_answering(500, "first down").await;
+    let second = mock_answering(200, "second served").await;
+    let third = mock_answering(200, "third must not run").await;
+    let (a, b, c) = (unique("trip-a"), unique("trip-b"), unique("trip-c"));
+    let registry = chain_registry(&[(&a, &first), (&b, &second), (&c, &third)]);
+    let mut config = gateway_config(&a);
+    config.routes[0].fallbacks = [&b, &c]
+        .into_iter()
+        .map(|p| RouteDeployment {
+            provider: ProviderId::new(p),
+            upstream_model: None,
+        })
+        .collect();
+    for _ in 0..5 {
+        let response = GatewayService::dispatch(
+            &config,
+            &registry,
+            &pool,
+            &gw_repos(&pool),
+            inputs(&credential, canonical_request(MODEL, false), false),
+        )
+        .await?;
+        to_bytes(response.into_body(), 1024 * 1024).await?;
+    }
+    let first_before = hits(&first).await;
+    let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
+    let request_id = dispatch.ctx.ai_request_id.clone();
+    let response =
+        GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), dispatch).await?;
+    let body = to_bytes(response.into_body(), 1024 * 1024).await?;
+    assert!(String::from_utf8_lossy(&body).contains("second served"));
+    assert_eq!(
+        hits(&first).await,
+        first_before,
+        "an open breaker is not probed"
+    );
+    assert_eq!(
+        hits(&third).await,
+        0,
+        "the chain stops at the first healthy answer"
+    );
+    let (served, route_match) = audit_identity(&pool, &request_id).await?;
+    assert_eq!(served.as_deref(), Some(b.as_str()));
+    assert!(
+        route_match
+            .unwrap_or_default()
+            .contains(&format!("failover:{a}->{b}"))
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn anthropic_is_only_tried_when_listed() -> anyhow::Result<()> {
+    install_provider_api_key();
+    let (pool, _) = setup_ctx().await?;
+    let credential = seed_admin_credential(&pool, "failover-anthropic@example.invalid").await?;
+    let vertex = mock_answering(500, "vertex down").await;
+    let anthropic = mock_answering(200, "anthropic served").await;
+    let (vertex_name, anthropic_name) = (unique("vertex-eu"), unique("anthropic"));
+    let registry = chain_registry(&[(&vertex_name, &vertex), (&anthropic_name, &anthropic)]);
+
+    let unlisted = gateway_config(&vertex_name);
+    let error = GatewayService::dispatch(
+        &unlisted,
+        &registry,
+        &pool,
+        &gw_repos(&pool),
+        inputs(&credential, canonical_request(MODEL, false), false),
+    )
+    .await
+    .expect_err("a route without fallbacks keeps the vertex verdict");
+    assert_recorded_status(error, 500);
+    assert_eq!(
+        hits(&anthropic).await,
+        0,
+        "an unlisted provider is never tried"
+    );
+
+    let mut listed = gateway_config(&vertex_name);
+    listed.routes[0].fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new(&anthropic_name),
+        upstream_model: None,
+    }];
+    let response = GatewayService::dispatch(
+        &listed,
+        &registry,
+        &pool,
+        &gw_repos(&pool),
+        inputs(&credential, canonical_request(MODEL, false), false),
+    )
+    .await?;
+    let body = to_bytes(response.into_body(), 1024 * 1024).await?;
+    assert!(String::from_utf8_lossy(&body).contains("anthropic served"));
+    assert_eq!(hits(&anthropic).await, 1);
     Ok(())
 }

@@ -7,6 +7,13 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MdmError {
+    #[error(transparent)]
+    DesktopPolicy(#[from] systemprompt_models::bridge::desktop_policy::DesktopPolicyError),
+    #[error(transparent)]
+    Manifest(#[from] crate::gateway::manifest::ManifestError),
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    #[error(transparent)]
+    DesktopCatalog(#[from] crate::gateway::desktop_catalog::CatalogError),
     #[error("policy partially completed {completed:?}; {source}")]
     Partial {
         completed: super::MdmApplication,
@@ -15,6 +22,12 @@ pub enum MdmError {
     },
     #[error("invalid policy configuration: {key}: {detail}")]
     InvalidConfig { key: &'static str, detail: String },
+    #[error("invalid policy configuration: {key}: {source}")]
+    ConfigJson {
+        key: &'static str,
+        #[source]
+        source: serde_json::Error,
+    },
     #[error(transparent)]
     Egress(#[from] super::egress::EgressParseError),
     #[error("gateway url: {0}")]
@@ -27,6 +40,8 @@ pub enum MdmError {
     RemovalIncomplete { what: &'static str, detail: String },
     #[error("USER cannot identify a managed-preferences directory: {detail}")]
     ManagedPrefsUser { detail: String },
+    #[error("USER cannot identify a managed-preferences directory: {0}")]
+    ManagedPrefsUserUnset(#[source] std::env::VarError),
     #[error(transparent)]
     Config(#[from] crate::config::ConfigReadError),
     #[error(transparent)]
@@ -61,6 +76,19 @@ pub enum MdmError {
     #[error(transparent)]
     Elevation(#[from] crate::install::elevate::ElevationError),
     #[cfg(target_os = "windows")]
-    #[error("{0}")]
-    Windows(String),
+    #[error("org-plugins {context}: {source}")]
+    OrgPlugins {
+        context: &'static str,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+    #[cfg(target_os = "windows")]
+    #[error(
+        "{} is not provisioned; run install --apply as Administrator before using Cowork",
+        .path.display()
+    )]
+    OrgPluginsMissing { path: PathBuf },
+    #[cfg(target_os = "windows")]
+    #[error("policy writer: {0}")]
+    PolicyWriter(#[source] Box<crate::install::policy_writer::PolicyWriterError>),
 }

@@ -14,9 +14,9 @@ fn create_test_client_row() -> OAuthClientRow {
         application_type: "web".to_owned(),
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
-        is_active: Some(true),
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        is_active: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
         last_used_at: Some(Utc::now()),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     }
@@ -37,7 +37,7 @@ fn test_oauth_client_row_creation() {
     let row = create_test_client_row();
     assert_eq!(row.client_id.as_str(), "client_test123");
     assert_eq!(row.client_name, "Test Client");
-    assert!(row.is_active.unwrap());
+    assert!(row.is_active);
 }
 
 #[test]
@@ -51,16 +51,16 @@ fn test_oauth_client_row_with_none_values() {
         application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
-        is_active: None,
-        created_at: None,
-        updated_at: None,
+        is_active: false,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
         last_used_at: None,
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     };
 
     assert_eq!(row.client_id.as_str(), "client_minimal");
     assert!(row.client_secret_hash.is_none());
-    assert!(row.is_active.is_none());
+    assert!(row.last_used_at.is_none());
 }
 
 #[test]
@@ -91,16 +91,16 @@ fn test_oauth_client_row_deserialize() {
         "client_uri": null,
         "logo_uri": null,
         "is_active": true,
-        "created_at": null,
-        "updated_at": null,
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
         "last_used_at": null,
-        "owner_user_id": "test-user"
+        "owner_user_id": "00000000-0000-4000-8000-000000000001"
     }"#;
 
     let row: OAuthClientRow = serde_json::from_str(json).unwrap();
     assert_eq!(row.client_id.as_str(), "client_deser");
     assert_eq!(row.client_name, "Deserialized Client");
-    assert!(row.is_active.unwrap());
+    assert!(row.is_active);
 }
 
 #[test]

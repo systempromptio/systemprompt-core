@@ -4,15 +4,15 @@
 use systemprompt_analytics::AnalyticsEventsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
-use systemprompt_analytics::CreateSessionParams;
+use systemprompt_traits::session_store::CreateSessionParams;
 
 async fn seed_session(pool: &DbPool, session_id: &SessionId) {
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|repositories| repositories.sessions)
-        .expect("session repo");
+    let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
+        .map(|repositories| repositories.session_store)
+        .expect("session store");
     let params = CreateSessionParams {
         session_id,
         user_id: None,
@@ -40,11 +40,11 @@ async fn seed_session(pool: &DbPool, session_id: &SessionId) {
         is_ai_crawler: false,
         expires_at: chrono::Utc::now() + chrono::Duration::hours(1),
     };
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 }
 
 async fn cleanup(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())
@@ -59,13 +59,10 @@ async fn cleanup(pool: &DbPool, session_id: &SessionId) {
 
 #[tokio::test]
 async fn create_event_folds_content_metadata_into_event_data() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let sid = SessionId::new(format!("sess-evt-{}", Uuid::new_v4()));
@@ -97,7 +94,7 @@ async fn create_event_folds_content_metadata_into_event_data() {
     let (session_id, data): (Option<String>, Option<serde_json::Value>) =
         sqlx::query_as("SELECT session_id, event_data FROM analytics_events WHERE id = $1")
             .bind(&created.id)
-            .fetch_one(pool.pool_arc().expect("pool").as_ref())
+            .fetch_one(pool.pool().as_ref())
             .await
             .expect("stored event");
     assert_eq!(session_id.as_deref(), Some(sid.as_str()));

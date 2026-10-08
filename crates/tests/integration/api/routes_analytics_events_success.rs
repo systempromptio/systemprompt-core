@@ -47,8 +47,8 @@ async fn seed_session_ctx(db: &DbPool) -> anyhow::Result<RequestContext> {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(user)))
+        systemprompt_identifiers::Actor::user(user),
+    ))
 }
 
 async fn seed_content(db: &DbPool) -> anyhow::Result<(String, String)> {
@@ -56,7 +56,7 @@ async fn seed_content(db: &DbPool) -> anyhow::Result<(String, String)> {
     let slug = format!("post-{uniq}");
     let source = format!("src-{uniq}");
     let id = format!("mc-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

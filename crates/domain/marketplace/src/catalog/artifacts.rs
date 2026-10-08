@@ -16,9 +16,12 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
+use systemprompt_identifiers::LibraryArtifactId;
+use systemprompt_manifest::services::{
+    ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig,
+};
 use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::ArtifactEntry;
-use systemprompt_models::services::{ARTIFACT_CONFIG_FILENAME, DiskArtifactConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
 
@@ -72,10 +75,12 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
     }
 
     let mut entries: Vec<(String, std::path::PathBuf)> = Vec::new();
-    let read =
-        std::fs::read_dir(&artifacts_dir).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let read = std::fs::read_dir(&artifacts_dir)
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", artifacts_dir.display()), e))?;
     for entry in read {
-        let entry = entry.map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        let entry = entry.map_err(|e| {
+            MarketplaceError::catalog(format!("read {}", artifacts_dir.display()), e)
+        })?;
         let path = entry.path();
         if !path.is_dir() {
             continue;
@@ -92,17 +97,8 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
 
     let mut out = Vec::with_capacity(entries.len());
     for (_dir_name, artifact_dir) in entries {
-        match build_artifact_entry(&artifact_dir) {
-            Ok(Some(entry)) => out.push(entry),
-            Ok(None) => {},
-            Err(e) => {
-                tracing::error!(
-                    artifact_dir = %artifact_dir.display(),
-                    error = %e,
-                    "manifest: failed to build artifact entry"
-                );
-                return Err(e);
-            },
+        if let Some(entry) = build_artifact_entry(&artifact_dir)? {
+            out.push(entry);
         }
     }
     Ok(out)
@@ -111,9 +107,9 @@ pub fn load_artifacts(services_root: &Path) -> Result<Vec<ArtifactEntry>, Market
 fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, MarketplaceError> {
     let config_path = artifact_dir.join(ARTIFACT_CONFIG_FILENAME);
     let config_text = std::fs::read_to_string(&config_path)
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog(format!("read {}", config_path.display()), e))?;
     let config: DiskArtifactConfig = serde_yaml::from_str(&config_text)
-        .map_err(|e| MarketplaceError::Catalog(format!("parse {}: {e}", config_path.display())))?;
+        .map_err(|e| MarketplaceError::catalog(format!("parse {}", config_path.display()), e))?;
 
     if !config.enabled {
         return Ok(None);
@@ -122,7 +118,7 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
     let content_path = artifact_dir.join(config.content_file());
     let content = if content_path.exists() {
         std::fs::read_to_string(&content_path)
-            .map_err(|e| MarketplaceError::Catalog(e.to_string()))?
+            .map_err(|e| MarketplaceError::catalog(format!("read {}", content_path.display()), e))?
     } else {
         String::new()
     };
@@ -142,12 +138,7 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
         return Ok(None);
     }
 
-    let sha256 = artifact_digest(
-        config.id.as_str(),
-        &config.version,
-        &content,
-        &config.mcp_tools,
-    )?;
+    let sha256 = artifact_digest(&config.id, &config.version, &content, &config.mcp_tools)?;
 
     Ok(Some(ArtifactEntry {
         id: config.id,
@@ -163,13 +154,13 @@ fn build_artifact_entry(artifact_dir: &Path) -> Result<Option<ArtifactEntry>, Ma
 }
 
 fn artifact_digest(
-    id: &str,
+    id: &LibraryArtifactId,
     version: &str,
     content: &str,
     mcp_tools: &[String],
 ) -> Result<Sha256Digest, MarketplaceError> {
     let mut hasher = Sha256::new();
-    hasher.update(id.as_bytes());
+    hasher.update(id.as_str().as_bytes());
     hasher.update([0u8]);
     hasher.update(version.as_bytes());
     hasher.update([0u8]);
@@ -180,5 +171,5 @@ fn artifact_digest(
         hasher.update([0u8]);
     }
     Sha256Digest::try_new(hex::encode(hasher.finalize()))
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
+        .map_err(|e| MarketplaceError::catalog("artifact digest", e))
 }

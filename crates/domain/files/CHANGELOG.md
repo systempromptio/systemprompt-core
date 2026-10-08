@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `FilesError::Storage` and `FileUploadError::Config` are removed (never produced). Migrate by dropping the match arms.
+- Providers read host handles through the typed `Dependencies` map (`ctx.get::<T>()?`) instead of the removed `db_pool::<T>()`/`app_context::<T>()` accessors.
+
+### Added
+
+- `OwnerReassignment` over `files`, so an account merge moves file ownership in this crate's own transaction.
+
+### Changed
+
+- Identifiers are typed and errors keep their sources on the one `RepositoryError` model.
+
+### Fixed
+
+- File metadata is read through `tokio::fs` instead of blocking the async runtime, and a failed file-size read is logged rather than discarded.
+
 ## [0.59.0] - 2026-09-22
 
 ### Removed

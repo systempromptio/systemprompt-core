@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `ExtensionConfigOutcome.extension_id` is an `ExtensionId` and `copy_asset` takes `&ExtensionId`. Migrate by passing `ExtensionId::new(..)`.
+- `BuildError::ValidationFailed`, `ProcessError` and `ConfigError` are removed. Migrate by matching `MissingDist`, `MissingIndex`, `MissingSitemapPages` or `InvalidSitemapUrl`.
+- `prerender_content` takes the `ContentAnalyticsRepository` after the `ContentRepository` (popular-content ranking moved from `ContentRepository::get_popular_content_ids` to `ContentAnalyticsRepository::popular_content_ids`), and `PublishError` gains `Analytics`. `PublishError::GlobalConfig` wraps the renamed `GlobalConfigError`.
+- Prerender and job contexts read host handles through the typed `systemprompt_provider_contracts::Dependencies` map (`ctx.get::<T>()`) instead of `dyn Any` accessors.
+
+### Changed
+
+- Manifest, profile and path types are imported from `systemprompt-manifest`; error variants keep their source error instead of a string. No behavioural change.
+
 ## [0.59.0] - 2026-09-22
 
 ### Changed

@@ -8,7 +8,7 @@ use systemprompt_cli::core::files::{self, FilesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct ContentHarness {
@@ -34,11 +34,6 @@ fn parse_files(args: &[&str]) -> FilesCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -47,13 +42,13 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
 #[tokio::test]
 async fn content_read_commands_run_database_scoped() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     content::execute(parse_content(&["list", "--limit", "5"]), &ctx)
@@ -78,7 +73,7 @@ async fn content_read_commands_run_database_scoped() {
 
 #[tokio::test]
 async fn content_mutating_commands_require_full_profile() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     for args in [
@@ -100,7 +95,7 @@ async fn content_mutating_commands_require_full_profile() {
 
 #[tokio::test]
 async fn files_read_commands_run_database_scoped() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     files::execute(parse_files(&["list"]), &ctx).await.unwrap();
@@ -117,7 +112,7 @@ async fn files_read_commands_run_database_scoped() {
 
 #[tokio::test]
 async fn files_profile_commands_refuse_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     for args in [

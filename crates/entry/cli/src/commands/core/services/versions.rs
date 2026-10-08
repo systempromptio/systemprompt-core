@@ -14,7 +14,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use systemprompt_models::services::bundle::ServicesBundleManifest;
+use systemprompt_manifest::services::bundle::ServicesBundleManifest;
 
 pub const PLUGIN_CONFIG_FILE: &str = "config.yaml";
 

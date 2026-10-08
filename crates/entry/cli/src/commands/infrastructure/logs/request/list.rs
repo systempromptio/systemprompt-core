@@ -6,7 +6,9 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_runtime::{AiRequestFilter, RequestCursor, RequestCursorError, TraceQueryService};
+use systemprompt_runtime::{
+    AiRequestFilter, RequestCursor, RequestCursorError, TraceQueryService, TraceRepository,
+};
 
 use super::{RequestListRow, build_request_list};
 use crate::commands::infrastructure::logs::duration::{parse_since, parse_until};
@@ -84,7 +86,7 @@ async fn execute_with_pool_inner(
         filter = filter.with_user(user);
     }
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let rows = service.list_ai_requests(&filter).await?;
 
     let requests: Vec<RequestListRow> = rows
@@ -113,7 +115,7 @@ async fn execute_with_pool_inner(
             .to_string();
 
             RequestListRow {
-                request_id: r.id.as_str().to_owned(),
+                request_id: r.id,
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 cursor,
                 user_id: r.user_id,

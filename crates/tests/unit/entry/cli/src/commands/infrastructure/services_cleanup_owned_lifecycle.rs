@@ -12,10 +12,11 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat, ScriptedPrompter};
-use systemprompt_database::CreateServiceInput;
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::subprocess::{AGENT_NAME_ENV, SUBPROCESS_MARKER_ENV};
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str =
@@ -45,9 +46,7 @@ impl Drop for OwnedChild {
 #[tokio::test]
 #[ignore = "re-executed by dry_run_and_cancellation_preserve_owned_service_before_confirmed_cleanup"]
 async fn cleanup_owned_helper() {
-    let database = DisposableDb::installed("cli_services_cleanup_owned")
-        .await
-        .expect("private database");
+    let database = DisposableDb::with_schema("cli_services_cleanup_owned").await;
     // SAFETY: the ignored helper is process-isolated and configuration is not
     // initialized.
     unsafe {
@@ -81,27 +80,42 @@ async fn cleanup_owned_helper() {
     unsafe {
         std::env::set_var("PATH", std::env::join_paths(paths).expect("shim PATH"));
     }
-    let child = Command::new("sleep")
-        .arg("60")
+    // Why: macOS withholds the environment of hardened system binaries such as
+    // `/bin/sleep`, so the marked child is an ordinary interpreter, used only
+    // once it reports that it is the live image.
+    let mut child = Command::new("python3")
+        .args([
+            "-c",
+            "import time\nprint('ready', flush=True)\ntime.sleep(60)",
+        ])
         .env(SUBPROCESS_MARKER_ENV, "1")
         .env(AGENT_NAME_ENV, SERVICE)
+        .stdout(std::process::Stdio::piped())
         .spawn()
         .expect("owned marked child");
+    {
+        use std::io::BufRead;
+        let mut ready = String::new();
+        std::io::BufReader::new(child.stdout.take().expect("child stdout"))
+            .read_line(&mut ready)
+            .expect("owned child reports ready");
+    }
     let pid = child.id();
     let mut child = OwnedChild(Some(child));
-    let pool = database.pool().await.expect("private pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full app context");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let repo = app.service_repository().clone();
+    let service = ServiceName::new(SERVICE);
     repo.create_service(CreateServiceInput {
-        name: SERVICE,
-        module_name: "agent",
-        status: "running",
+        name: &service,
+        module_name: ServiceModule::Agent,
+        status: ServiceStatus::Running,
         port: 0,
         binary_mtime: None,
     })
     .await
     .expect("service row");
-    repo.update_service_pid(SERVICE, i32::try_from(pid).expect("PID range"))
+    repo.update_service_pid(&service, i32::try_from(pid).expect("PID range"))
         .await
         .expect("service PID");
     let base = CliConfig::new().with_output_format(OutputFormat::Json);
@@ -125,12 +139,12 @@ async fn cleanup_owned_helper() {
             .is_none()
     );
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after dry run")
             .expect("row")
             .status,
-        "running"
+        ServiceStatus::Running
     );
     let cancel = CommandContext::with_app_context(
         base.with_interactive(true).with_assume_terminal(true),
@@ -152,41 +166,30 @@ async fn cleanup_owned_helper() {
             .is_none()
     );
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after cancel")
             .expect("row")
             .status,
-        "running"
+        ServiceStatus::Running
     );
     println!("BEGIN_CONFIRMED");
     services::execute(parse(&["cleanup", "--yes"]), &dry)
         .await
         .expect("confirmed cleanup");
     println!("END_CONFIRMED");
-    let deadline = Instant::now() + Duration::from_secs(5);
-    loop {
-        if child
-            .0
-            .as_mut()
-            .expect("child")
-            .try_wait()
-            .expect("poll terminated")
-            .is_some()
-        {
-            break;
-        }
-        assert!(Instant::now() < deadline, "owned child not terminated");
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    assert!(
+        !systemprompt_loader::subprocess::is_running(pid).await,
+        "owned child not terminated"
+    );
     child.0.take();
     assert_eq!(
-        repo.find_service_by_name(SERVICE)
+        repo.find_service_by_name(&service)
             .await
             .expect("row after cleanup")
             .expect("row")
             .status,
-        "stopped"
+        ServiceStatus::Stopped
     );
     assert!(
         !pkill_log.exists(),
@@ -195,7 +198,7 @@ async fn cleanup_owned_helper() {
     drop(cancel);
     drop(dry);
     drop(repo);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

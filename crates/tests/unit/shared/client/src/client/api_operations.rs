@@ -1,4 +1,4 @@
-//! Tests for context, task, authorization, and admin API methods.
+//! Tests for context, task, and authorization API methods.
 
 use systemprompt_client::SystempromptClient;
 use systemprompt_identifiers::{ContextId, JwtToken, TaskId};
@@ -21,7 +21,7 @@ async fn test_list_contexts_success() {
         "data": [
             {
                 "context_id": "00000000-0000-4000-8000-000000000001",
-                "user_id": "user-456",
+                "user_id": "00000000-0000-4000-8000-000000000456",
                 "name": "Test Context",
                 "kind": "user",
                 "created_at": "2024-01-01T00:00:00Z",
@@ -151,96 +151,4 @@ async fn test_request_without_token_no_auth_header() {
         .list_agents()
         .await
         .expect("request without token should succeed");
-}
-
-#[tokio::test]
-async fn test_list_logs_success() {
-    let mock_server = MockServer::start().await;
-
-    let response_body = serde_json::json!([
-        {
-            "timestamp": "2024-01-01T00:00:00Z",
-            "level": "info",
-            "module": "test_module",
-            "message": "Test log"
-        }
-    ]);
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/logs"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let logs = client.list_logs(None).await;
-
-    logs.expect("list_logs should succeed");
-}
-
-#[tokio::test]
-async fn test_list_logs_with_limit() {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/logs"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let logs = client.list_logs(Some(10)).await;
-
-    logs.expect("list_logs with limit should succeed");
-}
-
-#[tokio::test]
-async fn test_list_users_success() {
-    let mock_server = MockServer::start().await;
-
-    let response_body = serde_json::json!([
-        {
-            "id": "user-1",
-            "name": "Test User",
-            "email": "test@example.com",
-            "active_sessions": 1,
-            "last_session_at": "2024-01-01T00:00:00Z",
-            "roles": ["user"]
-        }
-    ]);
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/users"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let users = client.list_users(None).await;
-
-    users.expect("list_users should succeed");
-}
-
-#[tokio::test]
-async fn test_get_analytics_success() {
-    let mock_server = MockServer::start().await;
-
-    let response_body = serde_json::json!({
-        "user_metrics": null,
-        "content_stats": [],
-        "recent_conversations": [],
-        "activity_trends": [],
-        "traffic": null
-    });
-
-    Mock::given(method("GET"))
-        .and(path("/api/v1/admin/analytics"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(&response_body))
-        .mount(&mock_server)
-        .await;
-
-    let client = SystempromptClient::new(&mock_server.uri()).unwrap();
-    let analytics = client.get_analytics().await;
-
-    analytics.expect("get_analytics should succeed");
 }

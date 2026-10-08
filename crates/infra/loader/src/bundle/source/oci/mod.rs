@@ -3,7 +3,7 @@
 //! Only the parts of the distribution spec a bundle needs are implemented:
 //! a manifest GET, the Bearer challenge dance, and a single blob pull whose
 //! `mediaType` is
-//! [`BUNDLE_MEDIA_TYPE`](systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE).
+//! [`BUNDLE_MEDIA_TYPE`](systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE).
 //! A manifest carrying zero or several
 //! such layers is refused rather than guessed at, because picking one would
 //! make which bytes an instance runs depend on registry ordering.
@@ -22,8 +22,8 @@ pub mod push;
 use std::path::Path;
 use std::str::FromStr;
 
+use systemprompt_manifest::profile::OciReference;
 use systemprompt_models::net::{trusted_http_hosts_from_env, validate_outbound_url_with_trust};
-use systemprompt_models::profile::OciReference;
 
 use super::{BundleFetcher, FetchedBundle, MAX_BUNDLE_BYTES, RemoteRef};
 use crate::bundle::error::{BundleError, BundleResult};
@@ -46,7 +46,7 @@ impl RegistryClient {
         client: reqwest::Client,
     ) -> BundleResult<Self> {
         let reference = OciReference::from_str(reference)
-            .map_err(|e| BundleError::policy(format!("source {name}: {e}")))?;
+            .map_err(|e| BundleError::policy_context(format!("source {name}"), e))?;
         Ok(Self {
             client,
             name: name.to_owned(),
@@ -65,7 +65,7 @@ impl RegistryClient {
         let scheme = if plain { "http" } else { "https" };
         let raw = format!("{scheme}://{host}/v2/{}{path}", self.reference.repository);
         validate_outbound_url_with_trust(&raw, &trusted)
-            .map_err(|e| BundleError::fetch(&self.name, e))
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))
     }
 
     #[must_use]
@@ -85,7 +85,7 @@ impl RegistryClient {
         let first = auth::apply_credential(build(&self.client), self.secret.as_deref())
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
 
         if first.status() != reqwest::StatusCode::UNAUTHORIZED {
             return Ok(first);
@@ -107,7 +107,7 @@ impl RegistryClient {
             .bearer_auth(token)
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&self.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&self.name, e))?;
         if retried.status() == reqwest::StatusCode::UNAUTHORIZED
             || retried.status() == reqwest::StatusCode::FORBIDDEN
         {

@@ -1,14 +1,14 @@
 //! Anthropic Messages wire-codec tests.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::{ModelLimits, ModelPricing};
-use systemprompt_models::wire::anthropic;
-use systemprompt_models::wire::anthropic::AnthropicStreamState;
-use systemprompt_models::wire::canonical::{
+use systemprompt_manifest::services::ai::ModelPricing;
+use systemprompt_wire::anthropic::AnthropicStreamState;
+use systemprompt_wire::canonical::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalEvent, CanonicalMessage,
     CanonicalToolChoice, ContentBlockKind, ImageSource, ResponseFormat, Role, SearchConfig,
     SystemBlock, ThinkingConfig,
 };
+use systemprompt_wire::{ModelLimits, anthropic};
 
 use super::{
     base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords, user_message,
@@ -583,7 +583,7 @@ fn non_credential_identity_headers_keep_their_value() {
 // relayed as a finished turn and the call is silently never run.
 #[test]
 fn anthropic_parse_reports_tool_use_even_though_the_upstream_says_end_turn() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let value: Value = json!({
         "id": "msg_1",
@@ -611,7 +611,7 @@ fn anthropic_parse_reports_tool_use_even_though_the_upstream_says_end_turn() {
 
 #[test]
 fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let value: Value = json!({
         "id": "msg_2",
@@ -695,7 +695,7 @@ fn anthropic_parse_reports_zero_reasoning_when_no_details_are_stated() {
 // earlier frame set.
 #[test]
 fn anthropic_stream_accumulates_adaptive_thinking_tokens_from_the_terminal_frame() {
-    use systemprompt_models::wire::canonical::CanonicalUsage;
+    use systemprompt_wire::canonical::CanonicalUsage;
 
     let mut codec = AnthropicStreamState::default();
     let mut usage = CanonicalUsage::default();
@@ -729,7 +729,7 @@ fn anthropic_stream_accumulates_adaptive_thinking_tokens_from_the_terminal_frame
 
 #[test]
 fn anthropic_stream_leaves_reasoning_at_zero_when_no_details_are_stated() {
-    use systemprompt_models::wire::canonical::CanonicalUsage;
+    use systemprompt_wire::canonical::CanonicalUsage;
 
     let mut codec = AnthropicStreamState::default();
     let mut usage = CanonicalUsage::default();
@@ -774,7 +774,7 @@ fn opus_pricing() -> ModelPricing {
 // why the streaming half has to be pinned separately.
 #[test]
 fn anthropic_stream_reports_tool_use_even_though_the_terminal_frame_says_end_turn() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let mut codec = AnthropicStreamState::new("msg_1");
     codec.events_from_sse(&json!({
@@ -805,7 +805,7 @@ fn anthropic_stream_reports_tool_use_even_though_the_terminal_frame_says_end_tur
 
 #[test]
 fn anthropic_stream_keeps_max_tokens_over_a_truncated_tool_use_block() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let mut codec = AnthropicStreamState::new("msg_1");
     codec.events_from_sse(&json!({
@@ -835,7 +835,7 @@ fn anthropic_stream_keeps_max_tokens_over_a_truncated_tool_use_block() {
 // for a call that was never made.
 #[test]
 fn anthropic_stream_tool_use_does_not_leak_into_a_later_message() {
-    use systemprompt_models::wire::canonical::CanonicalStopReason;
+    use systemprompt_wire::canonical::CanonicalStopReason;
 
     let mut codec = AnthropicStreamState::new("msg_1");
     codec.events_from_sse(&json!({

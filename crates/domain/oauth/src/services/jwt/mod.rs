@@ -8,7 +8,8 @@ pub mod authorization;
 
 use std::future::Future;
 
-use systemprompt_models::auth::{AuthError, AuthenticatedUser};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser};
 
 pub use authentication::AuthenticationService;
 pub use authorization::AuthorizationService;
@@ -17,25 +18,25 @@ pub trait TokenValidator: Send + Sync {
     fn validate_token(
         &self,
         token: &str,
-    ) -> impl Future<Output = Result<AuthenticatedUser, AuthError>> + Send;
+    ) -> impl Future<Output = Result<AuthenticatedUser, AuthRequestError>> + Send;
 }
 
-pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
+pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthRequestError> {
     systemprompt_security::TokenExtractor::standard()
         .extract(headers)
-        .map_err(|_e| AuthError::AuthenticationFailed {
+        .map_err(|_e| AuthRequestError::AuthenticationFailed {
             message: "Authorization header missing or invalid".to_owned(),
         })
 }
 
-pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
+pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthRequestError> {
     headers
         .get("cookie")
-        .ok_or_else(|| AuthError::AuthenticationFailed {
+        .ok_or_else(|| AuthRequestError::AuthenticationFailed {
             message: "Cookie header missing".to_owned(),
         })?
         .to_str()
-        .map_err(|_e| AuthError::InvalidTokenFormat)?
+        .map_err(|_e| AuthRequestError::InvalidTokenFormat)?
         .split(';')
         .find_map(|cookie| {
             let cookie = cookie.trim();
@@ -45,7 +46,7 @@ pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthErr
                 None
             }
         })
-        .ok_or_else(|| AuthError::AuthenticationFailed {
+        .ok_or_else(|| AuthRequestError::AuthenticationFailed {
             message: "Access token not found in cookies".to_owned(),
         })
 }
@@ -66,7 +67,7 @@ impl AuthService {
 
     pub fn authorize_service_access(
         headers: &http::HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthorizationService::authorize_service_access(headers, service_name)
     }

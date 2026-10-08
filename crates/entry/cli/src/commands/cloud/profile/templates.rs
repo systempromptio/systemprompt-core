@@ -11,8 +11,11 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use std::path::Path;
 use systemprompt_cloud::constants::container;
+use systemprompt_config::write_private_atomic;
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
-use systemprompt_models::{CliPaths, Profile};
+use systemprompt_manifest::Profile;
+use systemprompt_models::CliPaths;
 
 use crate::commands::cloud::init::templates::ai_config;
 
@@ -52,7 +55,7 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     crate::shared::profile::save_profile_yaml(profile, profile_path, Some(&header))
 }
 
-pub fn save_dockerfile(path: &Path, profile_name: &str, project_root: &Path) -> Result<()> {
+pub fn save_dockerfile(path: &Path, profile_name: &ProfileName, project_root: &Path) -> Result<()> {
     let content = DockerfileBuilder::new(project_root)
         .with_profile(profile_name)
         .build();
@@ -146,7 +149,7 @@ pub fn save_secrets(
     _is_cloud_tenant: bool,
 ) -> Result<()> {
     use serde_json::json;
-    use systemprompt_models::Profile;
+    use systemprompt_manifest::Profile;
 
     if Profile::is_masked_database_url(db_urls.external) {
         CliService::warning(
@@ -188,19 +191,8 @@ pub fn save_secrets(
     }
 
     let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
-
-    std::fs::write(secrets_path, content)
-        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(secrets_path, permissions)
-            .with_context(|| format!("Failed to set permissions on {}", secrets_path.display()))?;
-    }
-
-    Ok(())
+    write_private_atomic(secrets_path, content.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))
 }
 
 pub fn get_services_path() -> Result<String> {

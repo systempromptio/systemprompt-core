@@ -16,20 +16,33 @@ pub(super) type Result<T> = std::result::Result<T, BuildError>;
 
 #[derive(Error, Debug)]
 pub enum BuildError {
-    #[error("CSS organization failed: {0}")]
-    CssOrganizationFailed(String),
+    #[error("CSS organization failed: {context}: {source}")]
+    CssOrganizationFailed {
+        context: String,
+        #[source]
+        source: std::io::Error,
+    },
 
-    #[error("Validation failed: {0}")]
-    ValidationFailed(String),
+    #[error("Validation failed: dist directory not found at {}", path.display())]
+    MissingDist { path: PathBuf },
+
+    #[error("Validation failed: index.html not found at {}", path.display())]
+    MissingIndex { path: PathBuf },
+
+    #[error("Validation failed: {missing} URLs missing corresponding HTML files")]
+    MissingSitemapPages { missing: usize },
+
+    #[error("Validation failed: invalid sitemap URL format: {url}")]
+    InvalidSitemapUrl { url: String },
+
+    #[error("Validation failed: cannot read sitemap: {0}")]
+    SitemapRead(#[source] std::io::Error),
+
+    #[error("Validation failed: cannot parse sitemap XML: {0}")]
+    SitemapParse(#[source] quick_xml::DeError),
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-
-    #[error("Process execution error: {message}")]
-    ProcessError { message: String },
-
-    #[error("Configuration error: {message}")]
-    ConfigError { message: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

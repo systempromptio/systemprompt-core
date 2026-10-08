@@ -108,8 +108,6 @@ jobs:
           ref: ${{ github.sha }}
           path: ladder-tools
           sparse-checkout: scripts
-      - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: python3 ladder-tools/scripts/ci-strip-cargo-config.py
       - run: rustup show
       - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Build the current migrator

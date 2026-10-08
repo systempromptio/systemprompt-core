@@ -6,11 +6,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AgentListRow {
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub task_count: i64,
     pub completed_count: i64,
     pub avg_execution_time_ms: i64,

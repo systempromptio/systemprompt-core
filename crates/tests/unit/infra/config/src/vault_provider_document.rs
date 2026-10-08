@@ -53,10 +53,7 @@ fn a_document_missing_the_required_pepper_fails_to_become_secrets() {
 
     let err = document.into_secrets().unwrap_err();
 
-    assert!(matches!(
-        err,
-        SecretsBootstrapError::InvalidSecretsFile { .. }
-    ));
+    assert!(matches!(err, SecretsBootstrapError::InvalidSecretsFile(_)));
 }
 
 #[test]
@@ -68,7 +65,7 @@ fn a_document_whose_field_has_the_wrong_type_fails_to_become_secrets() {
 
     assert!(matches!(
         document.into_secrets().unwrap_err(),
-        SecretsBootstrapError::InvalidSecretsFile { .. }
+        SecretsBootstrapError::InvalidSecretsFile(_)
     ));
 }
 

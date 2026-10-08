@@ -13,13 +13,14 @@ use axum::http::{Request, StatusCode};
 use systemprompt_api::services::server::metrics::{
     install_recorder, metrics_router, serve_metrics_listener,
 };
+use systemprompt_identifiers::InstanceId;
 use systemprompt_test_fixtures::free_port_in_range;
 use tower::ServiceExt;
 
 #[tokio::test]
 async fn installing_the_recorder_twice_hands_back_the_first_handle() {
-    install_recorder("fixture-instance").expect("first install succeeds");
-    let second = install_recorder("a-different-instance")
+    install_recorder(&InstanceId::new("fixture-instance")).expect("first install succeeds");
+    let second = install_recorder(&InstanceId::new("a-different-instance"))
         .expect("a second install must not be a hard error — the recorder is a process global");
 
     metrics::counter!("second_install_probe_total").increment(1);
@@ -38,7 +39,7 @@ async fn installing_the_recorder_twice_hands_back_the_first_handle() {
 
 #[tokio::test]
 async fn the_metrics_route_renders_the_prometheus_exposition_format() {
-    let handle = install_recorder("fixture-instance").expect("recorder installs");
+    let handle = install_recorder(&InstanceId::new("fixture-instance")).expect("recorder installs");
     metrics::counter!("test_render_probe_total").increment(1);
 
     let response = metrics_router(handle)
@@ -76,11 +77,11 @@ async fn the_metrics_route_renders_the_prometheus_exposition_format() {
 // asserts that this address is actually served.
 #[tokio::test]
 async fn the_metrics_listener_binds_and_serves_its_own_address() {
-    let handle = install_recorder("fixture-instance").expect("recorder installs");
+    let handle = install_recorder(&InstanceId::new("fixture-instance")).expect("recorder installs");
     let port = free_port_in_range(19_400..19_500).expect("a free port");
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
 
-    serve_metrics_listener(addr, handle)
+    let listener = serve_metrics_listener(addr, handle)
         .await
         .expect("the listener binds");
 
@@ -89,11 +90,16 @@ async fn the_metrics_listener_binds_and_serves_its_own_address() {
         connected.is_ok(),
         "the metrics listener must accept connections on its own address: {connected:?}"
     );
+    drop(connected);
+    assert!(
+        listener.abort_and_join().await.is_none(),
+        "an aborted listener yields no value"
+    );
 }
 
 #[tokio::test]
 async fn a_port_already_held_is_reported_rather_than_silently_unserved() {
-    let handle = install_recorder("fixture-instance").expect("recorder installs");
+    let handle = install_recorder(&InstanceId::new("fixture-instance")).expect("recorder installs");
     let held = tokio::net::TcpListener::bind(("127.0.0.1", 0))
         .await
         .expect("bind a port to hold");

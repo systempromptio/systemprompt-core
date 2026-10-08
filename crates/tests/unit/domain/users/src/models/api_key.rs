@@ -15,6 +15,8 @@ fn make_api_key(revoked: bool, expires_at: Option<chrono::DateTime<Utc>>) -> Use
         last_used_at: None,
         expires_at,
         revoked_at: if revoked { Some(Utc::now()) } else { None },
+        limits: systemprompt_users::ApiKeyLimits::default(),
+        scopes: Vec::new(),
     }
 }
 

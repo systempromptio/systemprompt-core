@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -32,7 +33,7 @@ systemprompt-users = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
-axum = { workspace = true }
+systemprompt-events = { workspace = true }
 inventory = { workspace = true }
 
 [dev-dependencies]

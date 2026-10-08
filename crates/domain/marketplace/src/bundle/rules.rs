@@ -11,9 +11,10 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_models::bridge::ids::RuleId;
+use systemprompt_identifiers::MarketplaceRuleId;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::RuleEntry;
-use systemprompt_models::services::{ComponentSource, PluginConfig};
+use systemprompt_models::plugin::ComponentSource;
 
 use super::skills::targets_bundle_hosts;
 use super::{BundleContent, BundleFile, PluginBundle};
@@ -43,12 +44,12 @@ pub(super) fn append_rule_files(
 pub(crate) fn resolve_rule_ids(
     config: &PluginConfig,
     content: &BundleContent<'_>,
-) -> BTreeSet<RuleId> {
+) -> BTreeSet<MarketplaceRuleId> {
     let mut ids = BTreeSet::new();
     match config.rules.source {
         ComponentSource::Explicit => {
             for raw in &config.rules.include {
-                match RuleId::try_new(raw.as_str()) {
+                match MarketplaceRuleId::try_new(raw.as_str()) {
                     Ok(id) => {
                         ids.insert(id);
                     },

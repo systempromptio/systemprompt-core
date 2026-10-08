@@ -10,13 +10,13 @@ use systemprompt_traits::{Phase, StartupEvent};
 use tokio::time::sleep;
 
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 
 #[tokio::test]
 async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let mut config = fixture_config(&b.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
     let ctx = fixture_app_context_with_config(&pool, config)?;
@@ -188,8 +188,8 @@ mod agent_failure {
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
     use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
-        init_isolated_bootstrap,
+        TestBootstrap, fixture_app_context_with_config, fixture_config, init_isolated_bootstrap,
+        test_db_pool,
     };
 
     const AGENT: &str = "unstartable_fixture_agent";
@@ -227,7 +227,7 @@ settings:
     #[tokio::test]
     async fn run_server_fails_when_a_required_agent_cannot_start() -> anyhow::Result<()> {
         let b = boot();
-        let pool = fixture_db_pool(&b.database_url).await?;
+        let pool = test_db_pool().await;
         let mut config = fixture_config(&b.database_url);
         config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
         let ctx = fixture_app_context_with_config(&pool, config)?;
@@ -267,7 +267,7 @@ settings:
     async fn the_agent_failure_is_reported_through_the_startup_event_channel() -> anyhow::Result<()>
     {
         let b = boot();
-        let pool = fixture_db_pool(&b.database_url).await?;
+        let pool = test_db_pool().await;
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();
@@ -329,8 +329,8 @@ mod mcp_failure {
 
     use systemprompt_api::services::server::{bind_and_serve, run_server};
     use systemprompt_test_fixtures::{
-        TestBootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
-        init_isolated_bootstrap,
+        TestBootstrap, fixture_app_context_with_config, fixture_config, init_isolated_bootstrap,
+        test_db_pool,
     };
 
     const MCP_NAME: &str = "fixture_unstartable_mcp";
@@ -367,7 +367,7 @@ settings:
     #[tokio::test]
     async fn run_server_fails_when_a_required_mcp_server_cannot_start() -> anyhow::Result<()> {
         let b = boot();
-        let pool = fixture_db_pool(&b.database_url).await?;
+        let pool = test_db_pool().await;
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
         let early = bind_and_serve(
@@ -399,7 +399,7 @@ settings:
     #[tokio::test]
     async fn the_mcp_failure_is_announced_as_fatal_on_the_startup_channel() -> anyhow::Result<()> {
         let b = boot();
-        let pool = fixture_db_pool(&b.database_url).await?;
+        let pool = test_db_pool().await;
         let ctx = fixture_app_context_with_config(&pool, fixture_config(&b.database_url))?;
 
         let (tx, mut rx) = futures::channel::mpsc::unbounded();

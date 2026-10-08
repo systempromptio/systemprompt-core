@@ -4,11 +4,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub fn extract_code(pasted: &str) -> Result<String, String> {
+use super::error::PastedCodeError;
+
+pub fn extract_code(pasted: &str) -> Result<String, PastedCodeError> {
     let pasted = strip_terminal_noise(pasted);
     let pasted = pasted.trim();
     if pasted.is_empty() {
-        return Err("nothing pasted".into());
+        return Err(PastedCodeError::Empty);
     }
 
     if let Some(code) = code_after_flag(pasted) {
@@ -17,11 +19,7 @@ pub fn extract_code(pasted: &str) -> Result<String, String> {
 
     let Some((_, query)) = pasted.split_once('?') else {
         if pasted.split_whitespace().count() > 1 {
-            return Err(
-                "that looks like a command but carries no `--code` — paste just the code, or the \
-                 whole command the page displayed"
-                    .into(),
-            );
+            return Err(PastedCodeError::CommandWithoutCode);
         }
         return Ok(pasted.to_owned());
     };
@@ -33,10 +31,12 @@ pub fn extract_code(pasted: &str) -> Result<String, String> {
             }
         }
         if let Some(reason) = pair.strip_prefix("error=") {
-            return Err(format!("the sign-in was not approved ({reason})"));
+            return Err(PastedCodeError::NotApproved {
+                reason: reason.to_owned(),
+            });
         }
     }
-    Err("that URL carries no `code` parameter — paste the code the page displayed".into())
+    Err(PastedCodeError::UrlWithoutCode)
 }
 
 // Why: raw stdin retains terminal bracketed-paste escapes (ESC[200~ /

@@ -108,7 +108,8 @@ async fn init_errors_on_invalid_secrets_json() {
     let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
-        ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { message }) => {
+        ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile(source)) => {
+            let message = source.to_string();
             assert!(
                 message.contains("Failed to parse secrets JSON"),
                 "{message}"
@@ -130,7 +131,8 @@ async fn init_errors_on_short_pepper() {
     let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
-        ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { message }) => {
+        ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile(source)) => {
+            let message = source.to_string();
             assert!(message.contains("oauth_at_rest_pepper"), "{message}");
         },
         other => panic!("expected InvalidSecretsFile, got: {other:?}"),
@@ -148,7 +150,8 @@ async fn init_errors_on_invalid_manifest_seed() {
     let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
-        ConfigError::Secrets(SecretsBootstrapError::ManifestSeedInvalid { message }) => {
+        ConfigError::Secrets(SecretsBootstrapError::ManifestSeedInvalid(source)) => {
+            let message = source.to_string();
             assert!(message.contains("base64 decode failed"), "{message}");
         },
         other => panic!("expected ManifestSeedInvalid, got: {other:?}"),
@@ -280,7 +283,7 @@ async fn signing_key_pem_invalid_base64_errors() {
     let err = SecretsBootstrap::signing_key_pem().unwrap_err();
     assert!(matches!(
         err,
-        SecretsBootstrapError::SigningKeyPemInvalid { .. }
+        SecretsBootstrapError::SigningKeyPemInvalid(_)
     ));
 }
 
@@ -302,7 +305,8 @@ async fn signing_key_pem_invalid_utf8_errors() {
 
     let err = SecretsBootstrap::signing_key_pem().unwrap_err();
     match err {
-        SecretsBootstrapError::SigningKeyPemInvalid { message } => {
+        SecretsBootstrapError::SigningKeyPemInvalid(source) => {
+            let message = source.to_string();
             assert!(message.contains("utf-8"), "{message}");
         },
         other => panic!("expected SigningKeyPemInvalid, got: {other:?}"),
@@ -409,7 +413,8 @@ async fn init_errors_when_encryption_master_key_not_hex() {
     let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
-        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid { message }) => {
+        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid(source)) => {
+            let message = source.to_string();
             assert!(message.contains("hex decode failed"), "{message}");
         },
         other => panic!("expected EncryptionMasterKeyInvalid, got: {other:?}"),
@@ -430,7 +435,8 @@ async fn init_errors_when_encryption_master_key_wrong_length() {
     let err = SecretsBootstrap::init().await.unwrap_err();
 
     match err {
-        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid { message }) => {
+        ConfigError::Secrets(SecretsBootstrapError::EncryptionMasterKeyInvalid(source)) => {
+            let message = source.to_string();
             assert!(message.contains("got 2"), "{message}");
         },
         other => panic!("expected EncryptionMasterKeyInvalid, got: {other:?}"),

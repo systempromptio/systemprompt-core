@@ -14,12 +14,10 @@ pub mod setup_token;
 pub mod webauthn;
 pub mod webauthn_challenge;
 
-pub use bridge_host_prefs::BridgeHostPrefsRepository;
+pub use bridge_host_prefs::{BridgeHostPrefsRepository, EnabledHostPrefs};
 pub use bridge_session::{BridgeSessionRepository, BridgeSessionRow, UpsertBridgeSession};
 pub use cleanup::{OauthCleanupCounts, OauthCleanupRepository};
-pub use client::{
-    ClientRepository, ClientSummary, ClientUsageSummary, CreateClientParams, UpdateClientParams,
-};
+pub use client::{ClientRepository, CreateClientParams, UpdateClientParams};
 pub use exchange_code::CreateExchangeCodeParams;
 pub use oauth::{
     AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, MintAuthCodeParams,
@@ -34,7 +32,6 @@ pub use webauthn_challenge::{
     WebAuthnChallengeKind,
 };
 
-use crate::error::OauthResult;
 use systemprompt_database::DbPool;
 
 /// Bundle of the OAuth-domain repositories, constructed once at a composition
@@ -47,11 +44,11 @@ pub struct OAuthRepositories {
 }
 
 impl OAuthRepositories {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            oauth: OAuthRepository::new(db)?,
-            bridge_host_prefs: BridgeHostPrefsRepository::new(db)?,
-            bridge_sessions: BridgeSessionRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            oauth: OAuthRepository::new(db),
+            bridge_host_prefs: BridgeHostPrefsRepository::new(db),
+            bridge_sessions: BridgeSessionRepository::new(db),
+        }
     }
 }

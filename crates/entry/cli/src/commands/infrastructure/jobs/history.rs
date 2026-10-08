@@ -6,6 +6,7 @@
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 
 use super::types::{JobHistoryEntry, JobHistoryOutput};
@@ -14,8 +15,8 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct HistoryArgs {
-    #[arg(long, help = "Filter by job name")]
-    pub job: Option<String>,
+    #[arg(long, value_parser = crate::shared::parse_job_name, help = "Filter by job name")]
+    pub job: Option<JobName>,
 
     #[arg(
         long,
@@ -35,7 +36,7 @@ pub(super) async fn execute(args: HistoryArgs, ctx: &CommandContext) -> Result<C
 }
 
 pub async fn execute_with_pool(args: HistoryArgs, pool: &DbPool) -> Result<CommandOutput> {
-    let repo = JobRepository::new(pool)?;
+    let repo = JobRepository::new(pool);
 
     let entries: Vec<JobHistoryEntry> = if let Some(ref job_name) = args.job {
         match repo.find_job(job_name).await? {

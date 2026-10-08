@@ -11,7 +11,7 @@ use std::process::{Command, Output};
 use chrono::Utc;
 use systemprompt_bridge::feedback::credentials::Enrollment;
 use systemprompt_bridge::feedback::outbox::{Outbox, OutboxScope, PendingInstallation};
-use systemprompt_bridge::ids::{BearerToken, HostId, Sha256Digest};
+use systemprompt_bridge::ids::{BearerToken, Sha256Digest};
 use systemprompt_identifiers::{
     ConsumerInstallationId, DeviceId, InstallationReceiptId, ManagedResourceId, PublicationId,
     ResourceRevisionId, UserId,
@@ -28,21 +28,27 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn bridge_bin() -> Option<PathBuf> {
-    if let Ok(explicit) = std::env::var("SP_BRIDGE_BIN") {
-        let p = PathBuf::from(explicit);
-        return p.is_file().then_some(p);
+    let candidate = match std::env::var_os("SP_BRIDGE_BIN") {
+        Some(explicit) => PathBuf::from(explicit),
+        None => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(5)
+            .expect("the test crate sits five levels below the repository root")
+            .join("bin")
+            .join("bridge")
+            .join("target")
+            .join("debug")
+            .join("systemprompt-bridge"),
+    };
+    if candidate.is_file() {
+        return Some(candidate);
     }
-    let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(5)?
-        .to_path_buf();
-    let fallback = repo_root
-        .join("bin")
-        .join("bridge")
-        .join("target")
-        .join("debug")
-        .join("systemprompt-bridge");
-    fallback.is_file().then_some(fallback)
+    assert!(
+        std::env::var_os("CI").is_none(),
+        "bridge binary {} unavailable under CI; scripts/test-shard.sh must prebuild it",
+        candidate.display()
+    );
+    None
 }
 
 struct Sandbox {
@@ -175,8 +181,7 @@ macro_rules! require_bin {
         match $out {
             Some(o) => o,
             None => {
-                eprintln!("bridge binary not available; skipping");
-                return;
+                return; // skip-ok: no bridge binary built locally; bridge_bin panics under CI
             },
         }
     };
@@ -242,12 +247,9 @@ fn run_with_pat_emits_jwt_envelope() {
     let _ = &server;
 
     let sb = sandbox(Some(&uri));
-    let bin = match bridge_bin() {
-        Some(b) => b,
-        None => {
-            eprintln!("bridge binary not available; skipping");
-            return;
-        },
+    // skip-ok: no bridge binary built locally; bridge_bin panics under CI
+    let Some(bin) = bridge_bin() else {
+        return;
     };
     let mut cmd = Command::new(bin);
     cmd.arg("run");
@@ -317,12 +319,9 @@ fn credential_helper_get_emits_json_error_without_creds() {
 
 #[test]
 fn proxy_headless_starts_and_stops_on_sigint() {
-    let bin = match bridge_bin() {
-        Some(b) => b,
-        None => {
-            eprintln!("bridge binary not available; skipping");
-            return;
-        },
+    // skip-ok: no bridge binary built locally; bridge_bin panics under CI
+    let Some(bin) = bridge_bin() else {
+        return;
     };
     let sb = sandbox(None);
     let mut cmd = Command::new(bin);
@@ -535,7 +534,7 @@ fn device_enroll_persists_the_server_assigned_device_and_feedback_status_reads_i
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-from-gateway",
-                "consumer_id": "consumer-from-gateway",
+                "consumer_id": "00000000-0000-4000-8000-00000000c0a7",
             })))
             .mount(&server)
             .await;
@@ -576,7 +575,7 @@ fn feedback_status_summarizes_real_outbox_delivery_and_superseded_installations(
     let enrollment = Enrollment::new(
         "http://127.0.0.1:1",
         DeviceId::try_new("feedback-status-device").expect("valid fixture device"),
-        UserId::new("feedback-status-consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000fb5c"),
         BearerToken::new("sp_device_feedback_status"),
     )
     .expect("valid fixture enrollment");
@@ -654,8 +653,10 @@ fn credential_helper_emits_only_the_host_scoped_token_on_stdout() {
     let secret = with_sandbox_env(&sb, || {
         systemprompt_bridge::proxy::secret::proxy_init().expect("sandbox mints a loopback secret")
     });
-    let expected =
-        systemprompt_bridge::proxy::scoped_token::host_token(&secret, &HostId::new("codex-cli"));
+    let expected = systemprompt_bridge::proxy::scoped_token::host_token(
+        &secret,
+        systemprompt_models::bridge::host::HostKind::CodexCli,
+    );
 
     let output = require_bin!(run_bridge(
         &sb,
@@ -768,7 +769,7 @@ fn rejected_device_rotation_preserves_the_working_enrolment_and_a_retry_replaces
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-before-repair",
-                "consumer_id": "consumer-before-repair"
+                "consumer_id": "00000000-0000-4000-8000-00000000c0b1"
             })))
             .mount(&server)
             .await;
@@ -843,7 +844,7 @@ fn rejected_device_rotation_preserves_the_working_enrolment_and_a_retry_replaces
             .and(path("/api/v1/consumer-devices/enrollment"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "device_id": "device-after-repair",
-                "consumer_id": "consumer-after-repair"
+                "consumer_id": "00000000-0000-4000-8000-00000000c0a2"
             })))
             .mount(&server)
             .await;

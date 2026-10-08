@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 use systemprompt_traits::{AgentRegistryProvider, RegistryError};
 
 use super::a2a_server::a2a_helpers::agent_config;
@@ -33,7 +33,7 @@ async fn get_agent_projects_agent_info_with_oauth() {
     assert!(info.enabled);
     assert_eq!(
         info.oauth.required,
-        systemprompt_models::AgentOAuthConfig::default().required
+        systemprompt_manifest::AgentOAuthConfig::default().required
     );
 }
 
@@ -46,6 +46,7 @@ async fn get_agent_unknown_maps_to_not_found() {
 
 #[tokio::test]
 async fn list_enabled_agents_excludes_disabled() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let mut disabled = agent_config("rp_disabled");
     disabled.enabled = false;
     let provider = provider(vec![agent_config("rp_on"), disabled]);
@@ -57,6 +58,7 @@ async fn list_enabled_agents_excludes_disabled() {
 
 #[tokio::test]
 async fn default_agent_resolution_follows_default_flag() {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
     let provider_without = provider(vec![agent_config("rp_plain")]);
     let err = provider_without
         .get_default_agent()

@@ -4,9 +4,9 @@ use serde_json::json;
 use systemprompt_ai::models::ai::{AiMessage, SamplingParams};
 use systemprompt_ai::services::providers::gemini::GeminiProvider;
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
 };
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 fn provider(endpoint: String) -> GeminiProvider {
     GeminiProvider::with_target(mock_http::api_key_target(

@@ -136,7 +136,7 @@ Commands (plugin + MCP sync):
                                           `uninstall --host <id>`, which touches
                                           only that host and leaves the bridge
                                           installed.
-    [--print-mdm macos|windows|linux]     Print MDM snippet for target OS (default: current OS)
+    [--print-mdm macos|windows|linux]     Print the MDM snippet for that OS
     [--emit-schedule-template macos|windows|linux]
                                           Write an OS scheduler template to CWD
     [--apply-schedule]                    Register the periodic sync job with this

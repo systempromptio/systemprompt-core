@@ -6,9 +6,10 @@
 use systemprompt_identifiers::{DeviceCertId, UserId};
 
 use crate::error::Result;
-use crate::models::UserDeviceCert;
+use crate::models::{UserDeviceCert, UserDeviceCertRow};
 use crate::repository::UserRepository;
 
+#[derive(Debug)]
 pub struct EnrollDeviceCertParams<'a> {
     pub id: &'a DeviceCertId,
     pub user_id: &'a UserId,
@@ -22,7 +23,7 @@ impl UserRepository {
         params: EnrollDeviceCertParams<'_>,
     ) -> Result<UserDeviceCert> {
         let row = sqlx::query_as!(
-            UserDeviceCert,
+            UserDeviceCertRow,
             r#"
             INSERT INTO user_device_certs (id, user_id, fingerprint, label)
             VALUES ($1, $2, $3, $4)
@@ -34,7 +35,8 @@ impl UserRepository {
             params.label,
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await
+        .map(UserDeviceCert::from)?;
         Ok(row)
     }
 
@@ -43,7 +45,7 @@ impl UserRepository {
         fingerprint: &str,
     ) -> Result<Option<UserDeviceCert>> {
         let row = sqlx::query_as!(
-            UserDeviceCert,
+            UserDeviceCertRow,
             r#"
             SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
@@ -52,7 +54,8 @@ impl UserRepository {
             fingerprint,
         )
         .fetch_optional(&*self.write_pool)
-        .await?;
+        .await
+        .map(|row| row.map(UserDeviceCert::from))?;
         Ok(row)
     }
 
@@ -61,7 +64,7 @@ impl UserRepository {
         user_id: &UserId,
     ) -> Result<Vec<UserDeviceCert>> {
         let rows = sqlx::query_as!(
-            UserDeviceCert,
+            UserDeviceCertRow,
             r#"
             SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
@@ -71,7 +74,12 @@ impl UserRepository {
             user_id.as_str(),
         )
         .fetch_all(&*self.write_pool)
-        .await?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(UserDeviceCert::from)
+                .collect::<Vec<_>>()
+        })?;
         Ok(rows)
     }
 

@@ -15,16 +15,14 @@ use systemprompt_logging::CliService;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "Link ID")]
-    pub link_id: String,
+    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    pub link_id: LinkId,
 
     #[arg(short = 'y', long, help = "Skip confirmation")]
     pub yes: bool,
 }
 
 pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
-    let link_id = LinkId::new(args.link_id.clone());
-
     if ctx.cli.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete link: {}",
@@ -43,13 +41,16 @@ pub async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<CommandOu
         LinkGenerationService::new(ctx.app_context().await?.content_repositories().link.clone());
 
     service
-        .get_link_by_id(&link_id)
+        .find_link_by_id(&args.link_id)
         .await?
         .ok_or_else(|| anyhow!("Link not found: {}", args.link_id))?;
 
-    let deleted = service.delete_link(&link_id).await?;
+    let deleted = service.delete_link(&args.link_id).await?;
 
-    let output = LinkDeleteOutput { deleted, link_id };
+    let output = LinkDeleteOutput {
+        deleted,
+        link_id: args.link_id,
+    };
 
     Ok(CommandOutput::card_value("Link Deleted", &output))
 }

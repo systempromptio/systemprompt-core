@@ -1,9 +1,12 @@
-//! Shared OAuth runtime state.
+//! Shared OAuth runtime state. The `WebAuthn` service is built once by the
+//! composition root and carried here; nothing in the crate holds it globally.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::{OauthError, OauthResult};
 use crate::repository::OAuthRepository;
+use crate::services::webauthn::WebAuthnService;
 use std::sync::Arc;
 use systemprompt_traits::{
     AnalyticsProvider, FingerprintProvider, McpRegistryProvider, SessionProvider, UserProvider,
@@ -17,6 +20,7 @@ pub struct OAuthState {
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     mcp_registry: Option<Arc<dyn McpRegistryProvider>>,
+    webauthn: Option<Arc<WebAuthnService>>,
 }
 
 impl std::fmt::Debug for OAuthState {
@@ -34,6 +38,7 @@ impl std::fmt::Debug for OAuthState {
                 "mcp_registry",
                 &self.mcp_registry.as_ref().map(|_| "<registry>"),
             )
+            .field("webauthn", &self.webauthn.is_some())
             .finish()
     }
 }
@@ -53,7 +58,20 @@ impl OAuthState {
             user_provider,
             fingerprint_provider: None,
             mcp_registry: None,
+            webauthn: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_webauthn(mut self, service: Arc<WebAuthnService>) -> Self {
+        self.webauthn = Some(service);
+        self
+    }
+
+    pub fn webauthn(&self) -> OauthResult<&Arc<WebAuthnService>> {
+        self.webauthn
+            .as_ref()
+            .ok_or(OauthError::WebAuthnConfig("WebAuthn is not configured"))
     }
 
     #[must_use]

@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::PluginId;
+use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
 use systemprompt_marketplace::bundle::{
     BundleContent, NODE_LOCKFILES, NODE_PACKAGE_FILE, build_plugin_bundle, node_lockfile,
 };
 use systemprompt_models::bridge::plugin_bundle::{PLUGIN_MANIFEST_RELPATH, PluginManifest};
-use systemprompt_models::services::{
-    PluginAuthor, PluginComponentRef, PluginConfig, PluginDependency,
-};
+use systemprompt_models::plugin::{PluginComponentRef, PluginDependency};
 use tempfile::TempDir;
 
 static NO_DISABLED: BTreeSet<String> = BTreeSet::new();

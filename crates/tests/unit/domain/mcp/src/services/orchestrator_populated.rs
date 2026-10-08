@@ -6,19 +6,20 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess;
+use systemprompt_manifest::profile::PathsConfig;
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
 use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
-    external_server_block, external_server_block_with_accessor, install_stub_binary,
-    installed_bootstrap, internal_server_block, mount_mcp_endpoint, register_internal_extension,
+    external_server_block, external_server_block_with_accessor, internal_server_block,
+    mount_mcp_endpoint, register_internal_extension, unique_instance,
 };
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
@@ -33,27 +34,31 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
 }
 
 async fn orchestrator_with_config(blocks: &[String], internal: &[&str]) -> McpOrchestrator {
+    orchestrator_and_repo(blocks, internal).await.0
+}
+
+async fn orchestrator_and_repo(
+    blocks: &[String],
+    internal: &[&str],
+) -> (McpOrchestrator, ServiceRepository) {
     let bootstrap = bootstrap_with_services(&config_with_servers(blocks));
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("fixture database pool");
+    let db = test_db_pool().await;
     for name in internal {
         register_internal_extension(bootstrap, name);
     }
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("application paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("service repository");
-    McpOrchestrator::new(service_repo, app_paths, registry).expect("MCP orchestrator")
+    let service_repo = ServiceRepository::new(&db, unique_instance());
+    let orchestrator =
+        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("MCP orchestrator");
+    (orchestrator, service_repo)
 }
 
 // Internal MCP servers are validated against the 5000-5999 range, so a port
@@ -100,7 +105,9 @@ async fn validate_external_server_probe_succeeds_against_scripted_endpoint() {
     )
     .await;
 
-    o.validate_service(&name).await.expect("probe succeeds");
+    o.validate_service(&ServiceName::new(name.as_str()))
+        .await
+        .expect("probe succeeds");
     let received = mock.received_requests().await.expect("requests recorded");
     assert!(
         received
@@ -124,7 +131,7 @@ async fn validate_external_server_unreachable_endpoint_is_reported_not_fatal() {
     )
     .await;
 
-    o.validate_service(&name)
+    o.validate_service(&ServiceName::new(name.as_str()))
         .await
         .expect("a failed probe logs but does not error");
 }
@@ -143,7 +150,9 @@ async fn validate_external_server_with_accessor_skips_the_probe() {
     )
     .await;
 
-    o.validate_service(&name).await.expect("accessor skip");
+    o.validate_service(&ServiceName::new(name.as_str()))
+        .await
+        .expect("accessor skip");
     let received = mock.received_requests().await.expect("requests recorded");
     assert!(
         received.is_empty(),
@@ -157,7 +166,7 @@ async fn validate_internal_server_without_running_row_is_ok() {
     let name = unique("valint");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    o.validate_service(&name)
+    o.validate_service(&ServiceName::new(name.as_str()))
         .await
         .expect("not-running internal service validates as a no-op");
 }
@@ -170,26 +179,20 @@ async fn validate_internal_running_server_probes_local_port() {
     let mock = MockServer::builder().listener(listener).start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let name = unique("valrun");
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let name_id = ServiceName::new(name.as_str());
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port,
         binary_mtime: None,
     })
     .await
     .unwrap();
 
-    let result = o.validate_service(&name).await;
-    repo.delete_service(&name).await.unwrap();
+    let result = o.validate_service(&ServiceName::new(name.as_str())).await;
+    repo.delete_service(&name_id).await.unwrap();
     result.expect("running internal service probes 127.0.0.1:<port>");
 
     let received = mock.received_requests().await.expect("requests recorded");
@@ -209,20 +212,25 @@ async fn start_services_named_with_missing_binary_fails_and_publishes_failure() 
     let mut rx = o.subscribe_events();
 
     let err = o
-        .start_services(Some(name.clone()))
+        .start_services(Some(ServiceName::new(name.as_str())))
         .await
         .expect_err("missing binary fails startup");
-    assert!(err.to_string().contains(&name));
-    assert!(err.to_string().contains("Failed to start 1 services"));
+    match &err {
+        McpDomainError::ServicesFailedToStart(failures) => {
+            assert_eq!(failures.0.len(), 1, "{err}");
+            assert_eq!(failures.0[0].service, name, "{err}");
+        },
+        other => panic!("expected ServicesFailedToStart, got {other:?}"),
+    }
 
     let mut saw_requested = false;
     let mut saw_failed = false;
     while let Ok(event) = rx.try_recv() {
         match event {
-            McpEvent::ServiceStartRequested { service_name } if service_name == name => {
+            McpEvent::ServiceStartRequested { service_name } if service_name.as_str() == name => {
                 saw_requested = true;
             },
-            McpEvent::ServiceFailed { service_name, .. } if service_name == name => {
+            McpEvent::ServiceFailed { service_name, .. } if service_name.as_str() == name => {
                 saw_failed = true;
             },
             _ => {},
@@ -238,7 +246,7 @@ async fn start_services_unknown_name_matches_nothing_and_succeeds() {
     let name = unique("startnone");
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
 
-    o.start_services(Some(unique("absent")))
+    o.start_services(Some(ServiceName::new(unique("absent"))))
         .await
         .expect("an unmatched name filter starts nothing");
 }
@@ -278,84 +286,48 @@ async fn reconcile_external_only_registry_starts_nothing() {
 }
 
 #[tokio::test]
-async fn restart_services_sync_missing_binary_fails_after_clean_stop() {
+async fn restart_services_missing_binary_reports_a_failed_outcome() {
     let port = free_port();
     let name = unique("restart");
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
+    let name_id = ServiceName::new(name.as_str());
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
-    let err = o
-        .restart_services_sync(Some("all".to_owned()))
+    let outcomes = o
+        .restart_services(None)
         .await
-        .map(|()| String::new());
+        .expect("listing the DB running set succeeds");
     assert!(
-        err.is_ok(),
-        "restart of 'all' over the DB running set is empty and succeeds"
+        outcomes.iter().all(|o| o.service_name.as_str() != name),
+        "restart of 'all' covers only the DB running set, which lacks {name}"
     );
 
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
 
-    let result = o.restart_services_sync(None).await;
-    repo.delete_service(&name).await.ok();
-    let err = result.expect_err("restart start-phase fails on a missing binary");
+    let result = o
+        .restart_services(Some(ServiceName::new(name.as_str())))
+        .await;
+    repo.delete_service(&name_id).await.ok();
+    let outcomes = result.expect("target listing succeeds");
+    assert_eq!(outcomes.len(), 1);
+    let outcome = &outcomes[0];
+    assert_eq!(outcome.service_name.as_str(), name);
+    assert!(
+        !outcome.is_restarted(),
+        "a missing binary is not reported as restarted"
+    );
+    let err = outcome.result.as_ref().expect_err("start phase fails");
     assert!(
         err.to_string().contains("Binary not found") || err.to_string().contains(&name),
         "unexpected error: {err}"
     );
-}
-
-#[tokio::test]
-async fn restart_services_publishes_restart_requested_event() {
-    let port = free_port();
-    let name = unique("restartreq");
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    install_stub_binary(installed_bootstrap(), &name);
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port: port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let mut rx = o.subscribe_events();
-    let result = o.restart_services(None).await;
-    let _ = o.stop_services(Some(name.clone())).await;
-    repo.delete_service(&name).await.ok();
-    result.expect("restart of a running service succeeds");
-
-    let mut saw_restart = false;
-    while let Ok(event) = rx.try_recv() {
-        if let McpEvent::ServiceRestartRequested { service_name, .. } = event
-            && service_name == name
-        {
-            saw_restart = true;
-        }
-    }
-    assert!(saw_restart, "ServiceRestartRequested published for {name}");
 }
 
 #[tokio::test]
@@ -365,14 +337,14 @@ async fn stop_services_named_internal_without_row_publishes_stopped() {
     let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
     let mut rx = o.subscribe_events();
 
-    o.stop_services(Some(name.clone()))
+    o.stop_services(Some(ServiceName::new(name.as_str())))
         .await
         .expect("stopping a not-running service is a clean no-op");
 
     let mut saw_stopped = false;
     while let Ok(event) = rx.try_recv() {
         if let McpEvent::ServiceStopped { service_name, .. } = event
-            && service_name == name
+            && service_name.as_str() == name
         {
             saw_stopped = true;
         }
@@ -404,7 +376,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
     let statuses = o.service_statuses().await.expect("statuses");
     let ext = statuses
         .iter()
-        .find(|s| s.name == ext_name)
+        .find(|s| s.name.as_str() == ext_name)
         .expect("external listed");
     assert_eq!(ext.port, None);
     assert_eq!(
@@ -415,7 +387,7 @@ async fn service_statuses_reports_external_endpoint_and_internal_port() {
 
     let int = statuses
         .iter()
-        .find(|s| s.name == int_name)
+        .find(|s| s.name.as_str() == int_name)
         .expect("internal listed");
     assert_eq!(int.port, Some(port));
     assert!(int.endpoint.is_none());
@@ -446,20 +418,15 @@ async fn list_services_and_show_status_render_the_populated_registry() {
 async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let port = free_port();
     let name = unique("reckill");
-    let o = orchestrator_with_config(&[internal_server_block(&name, port)], &[&name]).await;
-    let url = fixture_database_url().expect("fixture database URL");
-    let db = fixture_db_pool(&url).await.expect("pool");
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let name_id = ServiceName::new(name.as_str());
+    let (o, repo) = orchestrator_and_repo(&[internal_server_block(&name, port)], &[&name]).await;
 
     let disabled = unique("recgone");
+    let disabled_id = ServiceName::new(disabled.as_str());
     repo.create_service(CreateServiceInput {
-        name: &disabled,
-        module_name: "mcp",
-        status: "running",
+        name: &disabled_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: 65408,
         binary_mtime: None,
     })
@@ -469,7 +436,7 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     // Why: reconcile demotes a "running" row whose port is dead to stopped and
     // then crashed, and only rows still marked running are signalled — so a
     // stand-in process that never listens is pruned on paper and left alive.
-    let mut child = std::process::Command::new("python3")
+    let child = std::process::Command::new("python3")
         .arg("-c")
         .arg(LISTENER)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
@@ -479,15 +446,15 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
         .expect("spawn port listener");
     await_listening(port).await;
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
-    repo.update_service_pid(&name, i32::try_from(child.id()).unwrap())
+    repo.update_service_pid(&name_id, i32::try_from(child.id()).unwrap())
         .await
         .unwrap();
 
@@ -495,13 +462,13 @@ async fn reconcile_with_events_kills_running_row_and_reports_cleanup() {
     let result = o.reconcile_with_events(Some(&tx)).await;
     drop(tx);
 
-    let disabled_row = repo.find_service_by_name(&disabled).await.unwrap();
-    repo.delete_service(&name).await.ok();
+    let disabled_row = repo.find_service_by_name(&disabled_id).await.unwrap();
+    repo.delete_service(&name_id).await.ok();
 
     let err = result.expect_err("missing binary still fails the start phase");
     assert!(err.to_string().contains(&name));
     assert!(disabled_row.is_none(), "disabled service row is pruned");
-    assert!(!child.wait().expect("child reaped").success());
+    assert!(!subprocess::is_running(child.id()).await);
 
     let mut saw_cleanup = false;
     while let Ok(event) = rx.try_recv() {

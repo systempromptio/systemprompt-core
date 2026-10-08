@@ -18,7 +18,7 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
 use crate::services::middleware::{
-    AnalyticsMiddleware, CorsMiddleware, PublicContextMiddleware, SessionMiddleware,
+    AnalyticsMiddleware, CorsMiddleware, LoadShed, PublicContextMiddleware, SessionMiddleware,
     inject_security_headers, inject_served_by, inject_trace_header, remove_trailing_slash,
 };
 
@@ -26,7 +26,12 @@ pub use super::discovery::*;
 pub use super::health::handle_health;
 
 pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<Router> {
-    super::state_dirs::ensure_writable(&[ctx.app_paths().storage().data()])?;
+    let profile = systemprompt_config::ProfileBootstrap::get()?;
+    let services_cache = systemprompt_loader::bundle::cache_root(profile);
+    systemprompt_config::ensure_state_dirs_writable(
+        &ctx.app_paths()
+            .writable_roots(ctx.config().role, &services_cache),
+    )?;
 
     let rate_config = &ctx.config().rate_limits;
 
@@ -45,20 +50,28 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
 // scanner registry; the composition root closes the loop here so every tool
 // result — from any vantage point — is scanned by the installation's policy.
 fn register_artifact_scanner(ctx: &AppContext) {
-    let resolver = crate::services::gateway::policy::PolicyResolver::from_repository(
+    let resolver = systemprompt_gateway::PolicyResolver::from_repository(
         ctx.ai_repositories().gateway_policies.clone(),
     );
     ctx.artifact_ingest().register_scanner(std::sync::Arc::new(
-        crate::services::gateway::GatewayArtifactScanner::new(resolver),
+        systemprompt_gateway::GatewayArtifactScanner::new(resolver),
     ));
 }
 
 fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     let mut router = router;
 
+    if let Some(max) = ctx.config().max_in_flight {
+        let shed = std::sync::Arc::new(LoadShed::new(max));
+        router = router.layer(axum::middleware::from_fn_with_state(
+            shed,
+            crate::services::middleware::load_shed::shed,
+        ));
+    }
+
     router = router.layer(DefaultBodyLimit::max(2 * 1024 * 1024));
 
-    let analytics_middleware = AnalyticsMiddleware::new(ctx)?;
+    let analytics_middleware = AnalyticsMiddleware::new(ctx);
     router = router.layer(axum::middleware::from_fn({
         let middleware = analytics_middleware;
         move |req, next| {

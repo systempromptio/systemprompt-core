@@ -1,12 +1,12 @@
 //! Unit tests for small model edges: protocol bindings, security schemes,
-//! path errors, service-error HTTP mapping, cloud claims, and process
-//! filtering.
+//! path errors, repository-error HTTP mapping, and cloud claims.
 
 use std::str::FromStr;
+use systemprompt_manifest::PathNotConfiguredError;
+use systemprompt_models::ApiError;
 use systemprompt_models::a2a::{ApiKeyLocation, ProtocolBinding, SecurityScheme};
 use systemprompt_models::auth::CloudAuthClaims;
-use systemprompt_models::repository::process_utils::filter_running_services;
-use systemprompt_models::{ApiError, PathNotConfiguredError, ServiceError};
+use systemprompt_traits::{ConstraintKind, RepositoryError};
 
 #[test]
 fn protocol_binding_round_trips_all_variants() {
@@ -63,15 +63,20 @@ fn path_not_configured_error_names_field_and_profile() {
 }
 
 #[test]
-fn service_error_maps_to_http_statuses() {
-    let cases: Vec<(ServiceError, u16)> = vec![
-        (ServiceError::Validation("v".into()), 400),
-        (ServiceError::BusinessLogic("b".into()), 400),
-        (ServiceError::NotFound("n".into()), 404),
-        (ServiceError::Conflict("c".into()), 409),
-        (ServiceError::Unauthorized("u".into()), 401),
-        (ServiceError::Forbidden("f".into()), 403),
-        (ServiceError::External("x".into()), 500),
+fn repository_error_variants_map_to_http_statuses() {
+    let cases: Vec<(RepositoryError, u16)> = vec![
+        (RepositoryError::not_found("row", "r1"), 404),
+        (
+            RepositoryError::conflict("task", "t1", "stale version"),
+            409,
+        ),
+        (RepositoryError::invalid_argument("state", "bad"), 400),
+        (RepositoryError::invalid_data("agent_name", "corrupt"), 500),
+        (RepositoryError::TransactionConsumed, 500),
+        (
+            RepositoryError::database(std::io::Error::other("down")),
+            500,
+        ),
     ];
     for (err, status) in cases {
         let api: ApiError = err.into();
@@ -80,17 +85,34 @@ fn service_error_maps_to_http_statuses() {
 }
 
 #[test]
-fn repository_error_variants_map_through_service_error() {
-    use systemprompt_traits::RepositoryError;
+fn a_constraint_violation_answers_conflict_without_the_constraint_name() {
+    let err = RepositoryError::Constraint {
+        kind: ConstraintKind::Unique,
+        constraint: "users_email_key".to_owned(),
+        source: Box::new(std::io::Error::other("duplicate key value")),
+    };
+    let api: ApiError = err.into();
+    assert_eq!(api.code.status_code(), 409);
+    assert_eq!(api.error_key.as_deref(), Some("unique_violation"));
+    let body = serde_json::to_string(&api).unwrap();
+    assert!(!body.contains("users_email_key"), "{body}");
+    assert!(!body.contains("duplicate key value"), "{body}");
+    assert!(api.source().is_some());
+}
 
-    let not_found: ApiError = ServiceError::from(RepositoryError::NotFound("row".into())).into();
-    assert_eq!(not_found.code.status_code(), 404);
+#[test]
+fn a_server_error_body_never_carries_internal_text() {
+    let api: ApiError =
+        RepositoryError::database(std::io::Error::other("relation \"secret_table\" missing"))
+            .into();
+    let body = serde_json::to_string(&api).unwrap();
+    assert!(!body.contains("secret_table"), "{body}");
+    assert!(api.source().is_some(), "the cause is kept for logging");
 
-    let invalid: ApiError = ServiceError::from(RepositoryError::InvalidData("bad".into())).into();
-    assert_eq!(invalid.code.status_code(), 400);
-
-    let internal: ApiError = ServiceError::from(RepositoryError::Internal("boom".into())).into();
-    assert_eq!(internal.code.status_code(), 500);
+    let raw = ApiError::internal_error("context").with_details("SELECT * FROM users");
+    let body = serde_json::to_value(&raw).unwrap();
+    assert_eq!(body["message"], "Internal server error");
+    assert!(body.get("details").is_none(), "{body}");
 }
 
 #[test]
@@ -111,29 +133,4 @@ fn cloud_claims_expiry_is_relative_to_now() {
         email: None,
     };
     assert!(stale.is_expired());
-}
-
-#[test]
-fn filter_running_services_drops_dead_and_untracked_pids() {
-    let services = vec![
-        ("a", Some(10)),
-        ("b", None),
-        ("c", Some(-5)),
-        ("d", Some(20)),
-    ];
-
-    let running = filter_running_services(services, |s| s.1, |pid| pid == 20);
-
-    assert_eq!(running.len(), 1);
-    assert_eq!(running[0].0, "d");
-}
-
-#[test]
-fn admin_log_level_display_is_uppercase() {
-    use systemprompt_models::admin::LogLevel;
-
-    assert_eq!(LogLevel::Trace.to_string(), "TRACE");
-    assert_eq!(LogLevel::Error.to_string(), "ERROR");
-    assert_eq!(serde_json::to_value(LogLevel::Warn).unwrap(), "warn");
-    assert_eq!(LogLevel::default(), LogLevel::Info);
 }

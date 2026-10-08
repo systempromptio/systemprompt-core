@@ -210,8 +210,8 @@ impl CliSession {
     }
 
     #[must_use]
-    pub fn is_valid_for_profile(&self, profile_name: &str) -> bool {
-        self.profile_name.as_str() == profile_name && !self.is_expired()
+    pub fn is_valid_for_profile(&self, profile_name: &ProfileName) -> bool {
+        self.profile_name == *profile_name && !self.is_expired()
     }
 
     #[must_use]

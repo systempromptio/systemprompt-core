@@ -12,7 +12,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
 
 use crate::context::CommandContext;
 
@@ -31,8 +31,8 @@ pub enum ToolsCommands {
 pub struct ToolExecutionRow {
     pub timestamp: String,
     pub trace_id: TraceId,
-    pub tool_name: String,
-    pub server: String,
+    pub tool_name: McpToolName,
+    pub server: Option<McpServerId>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i64>,

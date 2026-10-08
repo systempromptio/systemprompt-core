@@ -100,9 +100,9 @@ async fn analytics_router_batch() -> anyhow::Result<()> {
 #[tokio::test]
 async fn proxy_mcp_unknown_execution_returns_4xx() -> anyhow::Result<()> {
     let ctx = ctx().await?;
-    let app = routes::proxy::mcp::router(&ctx).layer(Extension(request_context("u")));
+    let app = routes::proxy::mcp::executions_router(&ctx).layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_missing")).await?;
-    assert!(resp.status().as_u16() >= 200);
+    assert_eq!(resp.status(), http::StatusCode::NOT_FOUND);
     Ok(())
 }
 

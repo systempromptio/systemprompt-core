@@ -1,10 +1,13 @@
-use systemprompt_identifiers::{AgentId, CallId, PluginId, PolicyId, SessionId, SkillId, UserId};
+use systemprompt_identifiers::{
+    AgentId, CallId, McpToolName, PluginId, PolicyId, SessionId, SkillId, UserId,
+};
 use systemprompt_security::authz::types::{Decision, EntityRef, MatchedBy};
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
     ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,
 };
+use systemprompt_test_fixtures::test_db_pool;
 
 fn sample_audit() -> DecisionAudit {
     DecisionAudit {
@@ -23,7 +26,7 @@ fn sample_audit() -> DecisionAudit {
             client_id: None,
         },
         target: AuditTarget {
-            tool_name: "read_file".to_owned(),
+            tool_name: McpToolName::new("read_file"),
             plugin_id: Some(PluginId::new("plug-1")),
             tool_use_id: None,
         },
@@ -104,16 +107,9 @@ fn act_chain_and_approver_are_omitted_when_empty() {
     assert!(!obj.contains_key("context_id"));
 }
 
-// record_decision derives the flat columns from the blob: `policy` is the first
-// failing chain entry for a deny (and "default_allow" for an allow), so a
-// mis-derivation would mislabel which policy actually refused a call.
-async fn pool_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 fn pg(pool: &systemprompt_database::DbPool) -> std::sync::Arc<sqlx::PgPool> {
-    pool.pool_arc().expect("fixture pool is connected")
+    pool.pool()
 }
 
 fn unique_audit() -> DecisionAudit {
@@ -159,12 +155,12 @@ async fn fetch(pool: &systemprompt_database::DbPool, id: &str) -> Row {
     }
 }
 
+// record_decision derives the flat columns from the blob: `policy` is the first
+// failing chain entry for a deny (and "default_allow" for an allow), so a
+// mis-derivation would mislabel which policy actually refused a call.
 #[tokio::test]
 async fn allow_decision_records_default_allow_policy_and_empty_reason() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let audit = unique_audit();
     record_decision(&pg(&pool), &audit)
         .await
@@ -189,10 +185,7 @@ async fn allow_decision_records_default_allow_policy_and_empty_reason() {
 
 #[tokio::test]
 async fn deny_decision_records_the_first_failing_policy() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let mut audit = unique_audit();
     audit.decision = Decision::Deny {
         reason: systemprompt_security::authz::types::DenyReason::NotAssigned {
@@ -240,10 +233,7 @@ async fn deny_decision_records_the_first_failing_policy() {
 
 #[tokio::test]
 async fn deny_without_a_failing_chain_entry_records_unknown() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let mut audit = unique_audit();
     audit.decision = Decision::Deny {
         reason: systemprompt_security::authz::types::DenyReason::NotAssigned {
@@ -273,10 +263,7 @@ async fn deny_without_a_failing_chain_entry_records_unknown() {
 
 #[tokio::test]
 async fn agentless_audit_records_a_user_actor() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let mut audit = unique_audit();
     audit.principal.agent_id = None;
     audit.target.plugin_id = None;
@@ -296,10 +283,7 @@ async fn agentless_audit_records_a_user_actor() {
 
 #[tokio::test]
 async fn an_approved_allow_names_the_policy_that_held_it() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     // Why this matters beyond tidiness: the demo's audit replay reads the flat
     // `policy` column. An allow that a human authorised, reported as
     // `default_allow`, is indistinguishable from one nothing enforced.
@@ -340,10 +324,7 @@ async fn an_approved_allow_names_the_policy_that_held_it() {
 
 #[tokio::test]
 async fn an_unapproved_allow_still_reports_default_allow() {
-    // skip-ok: no fixture database on this machine
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     // The new label must not leak into ordinary allows.
     let mut audit = unique_audit();
     audit.chain = vec![ChainEntryOutcome {

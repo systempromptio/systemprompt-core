@@ -6,13 +6,12 @@
 
 mod at_rest;
 mod auth_code;
-mod cleanup;
 mod id_jag_replay;
 mod jti_revocation;
+mod last_used;
 mod refresh_token;
 mod scopes;
 mod state_binding;
-mod user;
 
 pub use auth_code::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 pub use jti_revocation::JtiRevocationCache;
@@ -39,15 +38,15 @@ pub struct OAuthRepository {
 }
 
 impl OAuthRepository {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        let client_repo = ClientRepository::new(db)?;
-        Ok(Self {
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        let client_repo = ClientRepository::new(db);
+        Self {
             pool,
             write_pool,
             client_repo,
-        })
+        }
     }
 
     pub fn pool_ref(&self) -> &PgPool {
@@ -70,40 +69,27 @@ impl OAuthRepository {
         let scopes = params.scopes.clone();
         let redirect_uris = params.redirect_uris.clone();
 
-        match client_repo.create(params).await {
-            Ok(client) => {
-                let duration = start_time.elapsed();
+        let client = client_repo.create(params).await?;
+        let duration = start_time.elapsed();
 
-                tracing::info!(
-                    client_id = %client_id,
-                    client_name = %client_name,
-                    scopes = ?scopes,
-                    redirect_uris = ?redirect_uris,
-                    created_in_ms = duration.as_millis(),
-                    "OAuth client created"
-                );
+        tracing::info!(
+            client_id = %client_id,
+            client_name = %client_name,
+            scopes = ?scopes,
+            redirect_uris = ?redirect_uris,
+            created_in_ms = duration.as_millis(),
+            "OAuth client created"
+        );
 
-                if duration.as_millis() > 500 {
-                    tracing::warn!(
-                        client_id = %client_id,
-                        duration_ms = duration.as_millis(),
-                        "Slow OAuth client creation"
-                    );
-                }
-
-                Ok(client)
-            },
-            Err(e) => {
-                let duration = start_time.elapsed();
-                tracing::error!(
-                    error = %e,
-                    client_id = %client_id,
-                    duration_ms = duration.as_millis(),
-                    "OAuth client creation failed"
-                );
-                Err(e)
-            },
+        if duration.as_millis() > 500 {
+            tracing::warn!(
+                client_id = %client_id,
+                duration_ms = duration.as_millis(),
+                "Slow OAuth client creation"
+            );
         }
+
+        Ok(client)
     }
 
     pub async fn list_clients(&self) -> OauthResult<Vec<OAuthClient>> {
@@ -140,14 +126,6 @@ impl OAuthRepository {
         self.client_repo
             .find_registration_token_hash(client_id)
             .await
-    }
-
-    pub async fn find_client_by_redirect_uri(
-        &self,
-        redirect_uri: &str,
-    ) -> OauthResult<Option<OAuthClient>> {
-        let client_repo = &self.client_repo;
-        client_repo.find_by_redirect_uri(redirect_uri).await
     }
 
     pub async fn find_client_by_redirect_uri_with_scope(
@@ -219,25 +197,6 @@ impl OAuthRepository {
         self.client_repo
             .update_secret(client_id, client_secret_hash)
             .await
-    }
-
-    pub async fn update_client_full(&self, client: &OAuthClient) -> OauthResult<OAuthClient> {
-        let client_repo = &self.client_repo;
-        let params = UpdateClientParams {
-            client_id: client.client_id.clone(),
-            client_name: client.client_name.clone(),
-            redirect_uris: client.redirect_uris.clone(),
-            grant_types: Some(client.grant_types.clone()),
-            response_types: Some(client.response_types.clone()),
-            scopes: client.scopes.clone(),
-            token_endpoint_auth_method: Some(client.token_endpoint_auth_method.clone()),
-            client_uri: client.client_uri.clone(),
-            logo_uri: client.logo_uri.clone(),
-            contacts: client.contacts.clone(),
-        };
-        let updated = client_repo.update(params).await?;
-
-        updated.ok_or_else(|| OauthError::Validation("Client not found".to_owned()))
     }
 
     pub async fn delete_client(&self, client_id: &ClientId) -> OauthResult<bool> {

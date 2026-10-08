@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::require_org_plugins_provisioned;
+use super::org_plugins::require_org_plugins_provisioned;
 use crate::integration::host_app::ProfileInstalled;
 
 pub(super) fn install_through_writer(
@@ -43,15 +43,12 @@ pub(super) fn install_through_writer(
         loopback,
         &fragment,
         catalog,
-        policy_writer::facts_from_entries(entries),
+        policy_writer::facts_from_entries(entries)?,
         requester,
     );
     policy_writer::write_policy(&request)?;
-    let outcome = require_org_plugins_provisioned(false).map_err(|e| {
-        PolicyWriterError::Unavailable(format!(
-            "policy written through the elevated writer, but org-plugins is not usable: {e}"
-        ))
-    })?;
+    let outcome = require_org_plugins_provisioned(false)
+        .map_err(|e| PolicyWriterError::OrgPluginsUnusable(e.into()))?;
     tracing::info!(
         value_count = entries.len(),
         "Claude Desktop profile installed through the elevated policy writer"

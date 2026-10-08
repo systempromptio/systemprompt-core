@@ -1,13 +1,14 @@
 //! Integration-test database helpers.
 //!
-//! Tests that need a real Postgres connection use [`fixture_db_pool`] against
-//! the URL exposed via `DATABASE_URL`. The caller is responsible for ensuring
-//! the database itself exists and has been migrated (the
-//! `systemprompt-test-migrate` binary handles the latter).
-//!
-//! [`fixture_database_url`] is the tier's prerequisite gate: under `CI` a
-//! missing `DATABASE_URL` panics rather than returning an error, so a run with
-//! no Postgres cannot report the same green as a run that exercised one.
+//! A DB-backed test gets its database from [`test_database_url`],
+//! [`test_db_pool`] or [`test_pg_pool`]. All three panic when `DATABASE_URL`
+//! is unset or the server refuses the connection: a test whose database is
+//! missing fails, it does not skip. A skipped test reports the same green as
+//! one that ran, so an unprovisioned run would be indistinguishable from a
+//! passing one. Every supported entry point provides the database: CI sets
+//! `DATABASE_URL` for each shard and `just test-shard <group>` does the same
+//! locally. The caller is responsible for the database having been migrated
+//! (the `systemprompt-test-migrate` binary handles that).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,40 +16,26 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use systemprompt_database::{Database, DbPool, PoolConfig};
 
-pub fn fixture_database_url() -> Result<String> {
+const MISSING_DATABASE_URL: &str =
+    "DATABASE_URL is not set — run DB tests through `just test-shard <group>`";
+
+pub fn test_database_url() -> String {
     dotenvy::dotenv().ok();
-    let url = std::env::var("DATABASE_URL")
+    std::env::var("DATABASE_URL")
         .ok()
-        .filter(|u| !u.trim().is_empty());
-    match url {
-        Some(url) => Ok(url),
-        None => {
-            crate::skip::skip_or_panic("DATABASE_URL", "DB-backed tests need a live Postgres");
-            Err(anyhow::anyhow!(
-                "DATABASE_URL must be set for DB-backed integration tests"
-            ))
-        },
-    }
+        .filter(|u| !u.trim().is_empty())
+        .expect(MISSING_DATABASE_URL)
 }
 
-pub fn fixture_database_url_opt() -> Option<String> {
-    fixture_database_url().ok()
+pub async fn test_db_pool() -> DbPool {
+    let url = test_database_url();
+    connect(&url)
+        .await
+        .unwrap_or_else(|e| panic!("DATABASE_URL is set but unusable: {e:#}"))
 }
 
-// Why: the only sanctioned way for a DB-backed test to give up. The `return`
-// is unreachable under CI -- `fixture_database_url` panics first -- so the
-// early exit is a developer-machine convenience, not a hole in the tier.
-#[macro_export]
-macro_rules! db_pool_or_skip {
-    () => {{
-        let Some(url) = $crate::db::fixture_database_url_opt() else {
-            return; // skip-ok: fixture_database_url panics under CI
-        };
-        let pool = $crate::db::fixture_db_pool(&url)
-            .await
-            .expect("DATABASE_URL is set, so connecting to it must succeed");
-        (pool, url)
-    }};
+pub async fn test_pg_pool() -> sqlx::PgPool {
+    test_db_pool().await.write_pool().as_ref().clone()
 }
 
 // Connection ceiling for a single test's pool.
@@ -87,12 +74,12 @@ pub async fn closed_db_pool() -> DbPool {
     Arc::new(Database::from_pools(Arc::new(pool), None))
 }
 
-/// The pool belongs to the calling test: a sqlx connection registers its socket
-/// with the reactor of the runtime that opened it, so one shared across
-/// `#[tokio::test]` runtimes hands a later test a connection whose runtime is
-/// gone ("Tokio 1.x context ... is being shutdown"). Callers that need the same
-/// pool twice should clone the handle rather than call this again.
-pub async fn fixture_db_pool(url: &str) -> Result<DbPool> {
+// The pool belongs to the calling test: a sqlx connection registers its socket
+// with the reactor of the runtime that opened it, so one shared across
+// `#[tokio::test]` runtimes hands a later test a connection whose runtime is
+// gone ("Tokio 1.x context ... is being shutdown"). Callers that need the same
+// pool twice should clone the handle rather than call this again.
+pub(crate) async fn connect(url: &str) -> Result<DbPool> {
     let cfg = PoolConfig {
         max_connections: FIXTURE_POOL_MAX_CONNECTIONS,
         idle_timeout: FIXTURE_POOL_IDLE_TIMEOUT,

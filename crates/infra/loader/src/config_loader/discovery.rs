@@ -15,10 +15,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::services::{
-    MarketplaceConfigFile, PluginComponentRef, PluginConfigFile, ServicesConfig, SkillConfig,
+use systemprompt_identifiers::SkillId;
+use systemprompt_manifest::services::{
+    MarketplaceConfigFile, PluginConfigFile, ServicesConfig, SkillConfig,
 };
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_models::plugin::PluginComponentRef;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 
@@ -74,11 +76,17 @@ pub(super) fn discover_skills(
 
         let disk: DiskSkillConfig =
             serde_yaml::from_str(&content).map_err(|e| ConfigLoadError::Yaml {
+                path: config_path.clone(),
+                source: e,
+            })?;
+        let id = disk
+            .resolved_id(&entry.file_name().to_string_lossy())
+            .map_err(|e| ConfigLoadError::InvalidId {
                 path: config_path,
                 source: e,
             })?;
 
-        let key = disk.id.as_str().to_owned();
+        let key = id.as_str().to_owned();
         if !discovered.insert(key.clone()) {
             return Err(ConfigLoadError::DuplicateSkill(key));
         }
@@ -89,15 +97,15 @@ pub(super) fn discover_skills(
             );
             continue;
         }
-        merged.skills.skills.insert(key, skill_from_disk(disk));
+        merged.skills.skills.insert(key, skill_from_disk(id, disk));
     }
 
     Ok(())
 }
 
-fn skill_from_disk(disk: DiskSkillConfig) -> SkillConfig {
+fn skill_from_disk(id: SkillId, disk: DiskSkillConfig) -> SkillConfig {
     SkillConfig {
-        id: disk.id,
+        id,
         name: disk.name,
         description: disk.description,
         enabled: disk.enabled,

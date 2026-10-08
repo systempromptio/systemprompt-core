@@ -9,10 +9,10 @@
 mod tenant_store;
 
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 use validator::Validate;
 
-use crate::api_client::TenantInfo;
+use crate::api_client::CloudTenantInfo;
 
 pub use tenant_store::TenantStore;
 
@@ -20,7 +20,7 @@ pub use tenant_store::TenantStore;
 pub struct NewCloudTenantParams {
     pub id: TenantId,
     pub name: String,
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
     pub hostname: Option<String>,
     pub region: Option<String>,
     pub database_url: Option<String>,
@@ -44,7 +44,7 @@ pub struct StoredTenant {
     pub name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
@@ -139,9 +139,9 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn from_tenant_info(info: &TenantInfo) -> Self {
+    pub fn from_tenant_info(info: &CloudTenantInfo) -> Self {
         Self {
-            id: TenantId::new(info.id.clone()),
+            id: info.id.clone(),
             name: info.name.clone(),
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),
@@ -190,7 +190,7 @@ impl StoredTenant {
         matches!(self.tenant_type, TenantType::Local)
     }
 
-    pub fn update_from_tenant_info(&mut self, info: &TenantInfo) {
+    pub fn update_from_tenant_info(&mut self, info: &CloudTenantInfo) {
         self.name.clone_from(&info.name);
         self.app_id.clone_from(&info.app_id);
         self.hostname.clone_from(&info.hostname);

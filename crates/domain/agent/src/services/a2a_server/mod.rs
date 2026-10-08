@@ -21,4 +21,4 @@ pub use active_tasks::{ActiveTaskGuard, ActiveTasks};
 pub use handlers::AgentHandlerState;
 pub use server::Server;
 pub use standalone::run_standalone;
-pub use systemprompt_models::AgentConfig;
+pub use systemprompt_manifest::AgentConfig;

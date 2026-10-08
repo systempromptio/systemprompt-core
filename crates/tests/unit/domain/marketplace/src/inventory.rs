@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, UserId};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::inventory::{
     BaselineScope, InventoryService, LatestPublication, LatestPublicationStatus, PublishGuard,
     configured_identity, scan_configured_inventory,
@@ -9,8 +10,7 @@ use systemprompt_marketplace::managed::{
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
 use systemprompt_models::feedback::inventory::{InventoryAvailability, InventoryOrigin};
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 struct Fixture {
     repository: ManagedRepository,
@@ -19,16 +19,14 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Self {
-        let bootstrap = ensure_test_bootstrap();
-        let db = fixture_db_pool(&bootstrap.database_url)
-            .await
-            .expect("database");
+        ensure_test_bootstrap();
+        let db = test_db_pool().await;
         let owner = UserId::new(uuid::Uuid::new_v4().to_string());
         seed_user_row(&db, &owner, &format!("{owner}@inventory.invalid"))
             .await
             .expect("owner");
         Self {
-            repository: ManagedRepository::new(&db).expect("managed repository"),
+            repository: ManagedRepository::new(&db),
             owner,
             root: tempfile::tempdir().expect("services root"),
         }

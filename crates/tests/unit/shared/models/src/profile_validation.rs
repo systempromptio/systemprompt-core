@@ -1,14 +1,14 @@
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT, default_resource_audiences,
 };
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
@@ -37,7 +37,9 @@ fn server_config() -> ServerConfig {
         security_headers: SecurityHeadersConfig::default(),
         instance_id: None,
         metrics_port: None,
-        max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+        role: Default::default(),
+        max_in_flight: None,
         trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
     }
 }
@@ -54,7 +56,7 @@ fn security_config() -> SecurityConfig {
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 
@@ -80,7 +82,7 @@ fn cloud_paths() -> PathsConfig {
     }
 }
 
-fn valid_profile() -> Profile {
+pub(crate) fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
@@ -94,6 +96,7 @@ fn valid_profile() -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: server_config(),
@@ -115,7 +118,7 @@ fn valid_profile() -> Profile {
     }
 }
 
-fn errors_of(profile: &Profile) -> String {
+pub(crate) fn errors_of(profile: &Profile) -> String {
     profile
         .validate()
         .err()
@@ -124,14 +127,14 @@ fn errors_of(profile: &Profile) -> String {
 
 mod storage {
     use super::*;
-    use systemprompt_models::profile::{StorageBackend, StorageConfig};
+    use systemprompt_manifest::profile::{StorageBackend, StorageConfig};
 
     #[test]
     fn local_backend_requires_paths_storage() {
         let mut p = valid_profile();
         p.storage = StorageConfig {
             backend: StorageBackend::Local,
-            shared: false,
+            ..StorageConfig::default()
         };
         p.paths.storage = None;
         assert!(errors_of(&p).contains("paths.storage"));
@@ -153,9 +156,9 @@ mod storage {
     #[test]
     fn storage_section_rejects_unknown_backend_and_fields() {
         let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "s3"}"#)
-            .expect_err("s3 is not a backend yet");
+            .expect_err("s3 is not a backend");
         assert!(err.to_string().contains("s3"));
-        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "bucket": "x"}"#)
+        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "region": "x"}"#)
             .expect_err("unknown field must be rejected");
         let cfg: StorageConfig =
             serde_json::from_str(r#"{"shared": true}"#).expect("shared alone parses");
@@ -270,7 +273,7 @@ mod security_settings {
 
 mod database_pool {
     use super::*;
-    use systemprompt_models::profile::PoolConfig;
+    use systemprompt_manifest::profile::PoolConfig;
 
     #[test]
     fn absent_pool_passes() {

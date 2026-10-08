@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use comrak::{Options, markdown_to_html};
-use systemprompt_models::split_frontmatter;
+use systemprompt_manifest::split_frontmatter;
 
 fn strip_first_h1(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();

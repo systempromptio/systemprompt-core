@@ -18,12 +18,9 @@ use std::sync::Mutex;
 
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
-use systemprompt_database::DbPool;
 use systemprompt_generator::prerender_content;
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 // Serialises this module's tests so each one can write the shared
 // `web/config.yaml` + `content/config.yaml` and run the prerenderer without a
@@ -173,11 +170,6 @@ fn install_config(boot: &TestBootstrap) {
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).ok();
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 // Path the default-locale prerenderer would write for `slug`, mirroring
 // `write_rendered_page` with `url_pattern = "/blog/{slug}"` and no locale
 // prefix: `dist/blog/{slug}/index.html`.
@@ -206,11 +198,9 @@ async fn clean_source(repo: &ContentRepository, source_id: &SourceId) {
 async fn prerender_excludes_non_public_rows() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     clean_source(&repo, &source_id).await;
 
@@ -249,7 +239,13 @@ async fn prerender_excludes_non_public_rows() {
     // Rendering the public row needs an extension template registry that this
     // harness does not install, so the render itself may error; the public/
     // private partition and the private-slug cleanup run regardless.
-    let _ = prerender_content(db.clone(), content_repo(&db), &boot.app_paths).await;
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await;
 
     clean_source(&repo, &source_id).await;
 
@@ -267,11 +263,9 @@ async fn prerender_excludes_non_public_rows() {
 async fn prerender_removes_now_private_slug() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     clean_source(&repo, &source_id).await;
 
@@ -310,7 +304,13 @@ async fn prerender_removes_now_private_slug() {
     .await
     .expect("flip row to private");
 
-    let _ = prerender_content(db.clone(), content_repo(&db), &boot.app_paths).await;
+    let _ = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await;
 
     clean_source(&repo, &source_id).await;
 
@@ -321,5 +321,11 @@ async fn prerender_removes_now_private_slug() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
 }

@@ -16,8 +16,8 @@ use std::collections::HashMap;
 
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Subcommand};
-use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_models::services::{
+use systemprompt_identifiers::ProviderId;
+use systemprompt_manifest::services::{
     GatewayConfigSpec, GatewayRoute, GatewayState, ProviderRegistry,
 };
 
@@ -53,9 +53,10 @@ pub enum DefaultProviderCommands {
     Set {
         #[arg(
             long,
-            help = "Provider name declared in the services provider registry"
+            help = "Provider name declared in the services provider registry",
+            value_parser = crate::shared::parse_provider_id
         )]
-        provider: String,
+        provider: ProviderId,
     },
 
     #[command(about = "Clear the default provider")]
@@ -84,9 +85,10 @@ pub struct RouteAddArgs {
 
     #[arg(
         long,
-        help = "Provider name (must exist in the services provider registry)"
+        help = "Provider name (must exist in the services provider registry)",
+        value_parser = crate::shared::parse_provider_id
     )]
-    pub provider: String,
+    pub provider: ProviderId,
 
     #[arg(long, help = "Upstream model name the provider expects (optional)")]
     pub upstream_model: Option<String>,
@@ -153,18 +155,18 @@ pub fn set_enabled(file: &mut GatewayFile, enabled: bool) -> Result<String> {
 
 pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: args.model_pattern.clone(),
-        provider: ProviderId::new(&args.provider),
+        provider: args.provider.clone(),
         upstream_model: args.upstream_model.clone(),
         extra_headers: HashMap::new(),
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     let spec = spec_mut(file)?;
@@ -177,8 +179,8 @@ pub fn add_route(file: &mut GatewayFile, args: &RouteAddArgs) -> Result<String> 
     ))
 }
 
-pub fn set_default_provider(file: &mut GatewayFile, provider: &str) -> Result<String> {
-    spec_mut(file)?.default_provider = Some(ProviderId::new(provider));
+pub fn set_default_provider(file: &mut GatewayFile, provider: &ProviderId) -> Result<String> {
+    spec_mut(file)?.default_provider = Some(provider.clone());
     Ok(format!("Gateway default provider set to {}", provider))
 }
 

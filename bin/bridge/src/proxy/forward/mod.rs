@@ -31,7 +31,7 @@ mod route;
 
 use body::prepare_upstream_body;
 pub use body::{CHAT_COMPLETIONS_PATH, stamp_opencode_session};
-pub use error::{ForwardError, ForwardResult, is_client_disconnect};
+pub use error::{ForwardError, ForwardResult, HeaderBuildError, is_client_disconnect};
 use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_headers};
 use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
@@ -42,7 +42,6 @@ pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>
 
 pub const REFRESH_THRESHOLD_SECS: u64 = 300;
 
-use systemprompt_models::wire::BUFFERED_BODY_LIMIT_BYTES as BUFFERED_BODY_LIMIT;
 
 pub(crate) struct ForwardDeps<'a> {
     pub client: reqwest::Client,
@@ -104,7 +103,7 @@ pub(crate) async fn forward(
         },
         RouteResolution::Mcp(route) => (route, token.token.expose().to_owned()),
         RouteResolution::Hook { url, plugin_id } => {
-            require_hook_credential(&credential, plugin_id.as_str())?;
+            require_hook_credential(&credential, &plugin_id)?;
             let gw = crate::gateway::GatewayClient::new(gateway_base.clone(), gateway_http);
             let hook = crate::auth::plugin_oauth::mint_or_refresh_plugin_token(
                 &plugin_tokens,
@@ -113,7 +112,7 @@ pub(crate) async fn forward(
                 &plugin_id,
             )
             .await
-            .map_err(|e| ForwardError::Auth(format!("hook token mint for {plugin_id}: {e}")))?;
+            .map_err(|source| ForwardError::hook_token(&plugin_id, source))?;
             hook_plugin = Some(plugin_id);
             (
                 Route {

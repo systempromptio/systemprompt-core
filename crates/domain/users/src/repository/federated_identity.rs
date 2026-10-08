@@ -9,8 +9,8 @@ use sqlx::Acquire;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
 
-use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus, normalise_email};
+use crate::error::{Result, UserError};
+use crate::models::{User, UserRole, UserRow, UserStatus, normalise_email};
 use crate::repository::UserRepository;
 
 impl UserRepository {
@@ -45,7 +45,7 @@ impl UserRepository {
         .await?
         {
             let user = sqlx::query_as!(
-                User,
+                UserRow,
                 r#"
                 SELECT id, name, email, full_name, display_name, status,
                        email_verified, roles, avatar_url, is_bot, is_scanner,
@@ -55,7 +55,9 @@ impl UserRepository {
                 existing.user_id
             )
             .fetch_one(&mut *tx)
-            .await?;
+            .await
+            .map_err(UserError::from)
+            .and_then(User::try_from)?;
             tx.commit().await?;
             return Ok(user);
         }
@@ -70,7 +72,7 @@ impl UserRepository {
         let fields = NewFederatedUser::derive(issuer, external_sub, claims);
 
         let user = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -86,12 +88,14 @@ impl UserRepository {
             fields.email,
             fields.display_name.as_deref(),
             fields.display_name.as_deref(),
-            fields.status,
+            fields.status.as_str(),
             &fields.roles,
             fields.now,
         )
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(UserError::from)
+        .and_then(User::try_from)?;
 
         sqlx::query!(
             "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3)",
@@ -122,7 +126,7 @@ async fn link_by_verified_email(
     let email = normalise_email(addr);
     let deleted_status = UserStatus::Deleted.as_str();
     let Some(existing) = sqlx::query_as!(
-        User,
+        UserRow,
         r#"
         SELECT id, name, email, full_name, display_name, status,
                email_verified, roles, avatar_url, is_bot, is_scanner,
@@ -134,6 +138,8 @@ async fn link_by_verified_email(
     )
     .fetch_optional(&mut **tx)
     .await?
+    .map(User::try_from)
+    .transpose()?
     else {
         return Ok(None);
     };
@@ -154,7 +160,7 @@ struct NewFederatedUser {
     name: String,
     email: String,
     display_name: Option<String>,
-    status: &'static str,
+    status: UserStatus,
     roles: Vec<String>,
     now: chrono::DateTime<Utc>,
 }
@@ -189,11 +195,11 @@ impl NewFederatedUser {
         };
 
         Self {
-            id: UserId::new(uuid::Uuid::new_v4().to_string()),
+            id: UserId::generate(),
             name,
             email,
             display_name: claims.name.clone(),
-            status: UserStatus::Active.as_str(),
+            status: UserStatus::Active,
             roles: normalised_roles(&claims.roles),
             now: Utc::now(),
         }

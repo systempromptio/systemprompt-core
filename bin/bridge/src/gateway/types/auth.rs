@@ -7,6 +7,7 @@ use crate::ids::BearerToken;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+pub use systemprompt_models::bridge::gateway::DevicePatResponse;
 pub use systemprompt_models::bridge::profile::{
     BridgeProfileResponse as BridgeProfile, ProviderHealth,
 };
@@ -21,11 +22,6 @@ pub struct SessionPatRequest {
     pub code: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_name: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DevicePatResponse {
-    pub pat: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +57,16 @@ mod header_map_serde {
     use std::collections::HashMap;
     use std::fmt;
 
+    #[derive(Debug, thiserror::Error)]
+    enum HeaderMapError {
+        #[error("non-ascii header value: {0}")]
+        NonAscii(#[source] http::header::ToStrError),
+        #[error("invalid header name: {0}")]
+        Name(#[source] http::header::InvalidHeaderName),
+        #[error("invalid header value: {0}")]
+        Value(#[source] http::header::InvalidHeaderValue),
+    }
+
     pub(super) fn serialize<S: Serializer>(
         map: &HashMap<HeaderName, HeaderValue>,
         serializer: S,
@@ -69,7 +75,7 @@ mod header_map_serde {
         for (name, value) in map {
             let value_str = value
                 .to_str()
-                .map_err(|e| serde::ser::Error::custom(format!("non-ascii header value: {e}")))?;
+                .map_err(|e| serde::ser::Error::custom(HeaderMapError::NonAscii(e)))?;
             out.serialize_entry(name.as_str(), value_str)?;
         }
         out.end()
@@ -90,12 +96,12 @@ mod header_map_serde {
             fn visit_map<M: MapAccess<'de>>(self, mut access: M) -> Result<Self::Value, M::Error> {
                 let mut map = HashMap::new();
                 while let Some((key, value)) = access.next_entry::<String, String>()? {
-                    let name: HeaderName = key.parse().map_err(|e| {
-                        serde::de::Error::custom(format!("invalid header name: {e}"))
-                    })?;
-                    let value: HeaderValue = value.parse().map_err(|e| {
-                        serde::de::Error::custom(format!("invalid header value: {e}"))
-                    })?;
+                    let name: HeaderName = key
+                        .parse()
+                        .map_err(|e| serde::de::Error::custom(HeaderMapError::Name(e)))?;
+                    let value: HeaderValue = value
+                        .parse()
+                        .map_err(|e| serde::de::Error::custom(HeaderMapError::Value(e)))?;
                     map.insert(name, value);
                 }
                 Ok(map)

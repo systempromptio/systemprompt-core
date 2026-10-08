@@ -64,4 +64,5 @@ pub use organization_resolver::OrganizationSkillResolver;
 
 pub use source_sync::{
     CapturedGitSource, GitCaptureRequest, GitSourceCapture, GitSynchronizationService,
+    NativeGitSourceCapture,
 };

@@ -10,8 +10,6 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
 use super::super::responses::api_error_response;
-use super::is_valid_context_id;
-use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn delete_context(
@@ -19,19 +17,12 @@ pub async fn delete_context(
     State(ctx): State<AppContext>,
     Path(context_id_str): Path<String>,
 ) -> Response {
-    if !is_valid_context_id(&context_id_str) {
-        return api_error_response(ApiError::bad_request(
-            "Invalid context ID. Please select or create a valid conversation.",
-        ));
-    }
-
+    let context_id = match ContextId::try_new(context_id_str) {
+        Ok(id) => id,
+        Err(e) => return api_error_response(ApiError::from(e)),
+    };
     let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
-    let Ok(context_id) = ContextId::try_new(&context_id_str) else {
-        return api_error_response(ApiError::bad_request(
-            "Invalid context ID. Please select or create a valid conversation.",
-        ));
-    };
 
     match context_repo.delete_context(&context_id, user_id).await {
         Ok(()) => {
@@ -42,17 +33,13 @@ pub async fn delete_context(
             );
 
             let event = SystemEventBuilder::context_deleted(context_id);
-            EventRouter::route_system(user_id, event)
+            ctx.event_router()
+                .route_system(user_id, event)
                 .await
                 .into_local_logged();
 
             StatusCode::NO_CONTENT.into_response()
         },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to delete context");
-            api_error_response(ApiError::not_found(format!(
-                "Failed to delete context: {e}"
-            )))
-        },
+        Err(e) => api_error_response(ApiError::from(e)),
     }
 }

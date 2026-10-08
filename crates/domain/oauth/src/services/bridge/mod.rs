@@ -7,7 +7,7 @@ mod provisioning;
 
 pub use provisioning::{BridgeOAuthClient, provision_bridge_oauth_client};
 
-use crate::error::{OauthError, OauthResult as Result};
+use crate::error::OauthResult as Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use http::HeaderMap;
 use rand::Rng;
@@ -16,16 +16,17 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use systemprompt_identifiers::{
-    ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
+    AccessTokenId, ClientId, PolicyVersion, SessionId, SessionSource, TraceId, UserId, headers,
 };
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
-use systemprompt_traits::{AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider};
+use systemprompt_traits::{
+    AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
+};
 
 use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
-use crate::services::generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt,
-};
+use crate::services::authenticated_user::load_authenticated_user;
+use crate::services::generation::{JwtConfig, JwtSigningParams, generate_jwt};
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
 const EXCHANGE_CODE_BYTES: usize = 32;
@@ -98,9 +99,9 @@ async fn adopt_or_mint_session(
 }
 
 pub async fn issue_bridge_access(
-    repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
+    users: &dyn UserProvider,
     request: BridgeAccessRequest<'_>,
 ) -> Result<BridgeAuthResult> {
     let BridgeAccessRequest {
@@ -112,7 +113,7 @@ pub async fn issue_bridge_access(
         ttl_seconds,
     } = request;
 
-    let auth_user = repo.get_authenticated_user(user_id).await?;
+    let auth_user = load_authenticated_user(users, user_id).await?;
 
     let global_config = Config::get()?;
 
@@ -128,7 +129,7 @@ pub async fn issue_bridge_access(
     let token = generate_jwt(
         &auth_user,
         config,
-        generate_access_token_jti(),
+        AccessTokenId::generate(),
         &session_id,
         &signing,
     )?;
@@ -151,8 +152,7 @@ pub async fn issue_bridge_access(
             is_ai_crawler: false,
             expires_at,
         })
-        .await
-        .map_err(|e| OauthError::Session(e.to_string()))?;
+        .await?;
 
     let hdrs = build_bridge_headers(&BridgeHeaderParams {
         user_id,
@@ -246,6 +246,7 @@ pub async fn exchange_bridge_session_code(
     repo: &OAuthRepository,
     analytics: &dyn AnalyticsProvider,
     sessions: &dyn SessionProvider,
+    users: &dyn UserProvider,
     exchange: BridgeExchangeRequest<'_>,
 ) -> Result<Option<BridgeAuthResult>> {
     let BridgeExchangeRequest {
@@ -258,9 +259,9 @@ pub async fn exchange_bridge_session_code(
         return Ok(None);
     };
     let result = issue_bridge_access(
-        repo,
         analytics,
         sessions,
+        users,
         BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
     )
     .await?;

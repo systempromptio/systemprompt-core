@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use systemprompt_identifiers::MarketplaceId;
 
 use super::layout::{cache_install_dir, plugin_key};
-use super::marketplace::strip_marketplace_keys;
+use super::marketplace::{HostMarketplace, strip_marketplace_keys};
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::ApplyError;
 use crate::ids::PluginId;
@@ -22,14 +22,15 @@ use crate::integration::json_io::{
 pub(super) fn upsert_installed_plugins(
     plugins: &Path,
     manifest: &SignedManifest,
-    marketplace: &MarketplaceId,
+    host: &HostMarketplace,
     ids: &[&PluginId],
 ) -> Result<(), ApplyError> {
+    let marketplace = &host.id;
     let path = plugins.join("installed_plugins.json");
     let mut root = read_json_object(&path)?;
     root.entry("version").or_insert(json!(2));
     let map = object_entry(&mut root, &path, "plugins")?;
-    strip_marketplace_keys(map, marketplace, ids);
+    strip_marketplace_keys(map, marketplace, &host.retained(ids));
     for id in ids {
         map.insert(
             plugin_key(id, marketplace),
@@ -43,6 +44,7 @@ pub(super) fn upsert_installed_plugins(
     write_json(&path, &Value::Object(root))
 }
 
+// JSON: Claude Code `installed_plugins.json` entry — foreign file format.
 #[must_use]
 pub fn installed_entry(cache: &Path, version: &str, issued_at: &str) -> Value {
     json!([{

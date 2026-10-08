@@ -36,8 +36,9 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_extension::LoaderError;
-use systemprompt_models::Config;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserRateLimitBucketRepository;
 
@@ -61,14 +62,9 @@ impl RateLimitState {
         }
     }
 
-    pub fn from_context(ctx: &AppContext) -> Result<Self, LoaderError> {
-        let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool()).map_err(|e| {
-            LoaderError::InitializationFailed {
-                extension: "rate_limit".to_owned(),
-                message: e.to_string(),
-            }
-        })?;
-        Ok(Self::new(ctx.config(), buckets))
+    pub fn from_context(ctx: &AppContext) -> Self {
+        let buckets = crate::repository::user_rate_limit_buckets(ctx.db_pool());
+        Self::new(ctx.config(), buckets)
     }
 }
 
@@ -146,7 +142,7 @@ where
             .use_headers()
             .finish()
             .ok_or_else(|| LoaderError::InitializationFailed {
-                extension: "rate_limit".to_owned(),
+                extension: ExtensionId::new("rate_limit"),
                 message: format!(
                     "rate limit rejected for {per_second_clamped}/s with burst {burst_u32}"
                 ),

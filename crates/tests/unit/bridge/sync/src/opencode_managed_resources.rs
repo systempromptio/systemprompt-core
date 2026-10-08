@@ -8,7 +8,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -77,6 +77,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -95,13 +96,14 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
 fn mcp(name: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -111,8 +113,6 @@ fn mcp(name: &str) -> ManagedMcpServer {
 }
 
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -145,7 +145,6 @@ fn clear(root: &Path) -> Result<(), ApplyError> {
     let m = manifest_with(Vec::new(), Vec::new());
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest: &m,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -166,7 +165,6 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -181,6 +179,7 @@ fn apply(m: &SignedManifest, root: &Path) -> Result<(), ApplyError> {
         .build()
         .unwrap()
         .block_on(OpenCodeSync.apply(&ctx))
+        .map(|_| ())
 }
 
 fn read_json(path: &Path) -> serde_json::Value {
@@ -376,6 +375,8 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 plugin_ids: vec![],
                 allow_cross_marketplace_dependencies_on: vec![],
                 external_marketplaces: vec![],
+                external_plugins: vec![],
+                claude_code: None,
             },
             ManifestMarketplace {
                 id: systemprompt_identifiers::MarketplaceId::new("commerce"),
@@ -383,6 +384,8 @@ fn the_managed_sidecar_records_which_marketplaces_the_skills_came_from() {
                 plugin_ids: vec![],
                 allow_cross_marketplace_dependencies_on: vec![],
                 external_marketplaces: vec![],
+                external_plugins: vec![],
+                claude_code: None,
             },
         ];
         apply(&m, &sb.skills).unwrap();
@@ -403,7 +406,7 @@ fn governance_plugin(id: &str) -> PluginEntry {
         version: "1.0.0".into(),
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
         files: vec![],
-        hooks: systemprompt_models::services::PluginHooksRef {
+        hooks: systemprompt_models::plugin::PluginHooksRef {
             governance: true,
             comms: false,
             judge: false,
@@ -476,5 +479,16 @@ fn no_governance_owner_means_no_hook_plugin_and_clear_removes_it() {
         let without_owner = manifest_with(vec![skill("one", "1\n")], vec![]);
         apply(&without_owner, &sb.skills).unwrap();
         assert!(!sb.hook_plugin.exists());
+    });
+}
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_sandbox(|sb| {
+        let mut entry = skill("Deep_Tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(&manifest_with(vec![entry], vec![]), &sb.skills).unwrap();
+        let written = fs::read_to_string(sb.skills.join("deep-tooled").join("SKILL.md")).unwrap();
+        crate::skill_passthrough::assert_passthrough_block(&written, "deep-tooled");
     });
 }

@@ -33,6 +33,7 @@
 use std::path::Path;
 
 use serde_yaml::Value as YamlValue;
+use systemprompt_identifiers::PolicyId;
 use thiserror::Error;
 
 use super::builtin::SECRET_SCAN_ID;
@@ -44,7 +45,7 @@ pub enum GovernanceConfigError {
     Yaml(#[from] serde_yaml::Error),
     #[error("governance config has no `governance.policies` sequence")]
     MissingPolicies,
-    #[error("governance config policy entry {index} has no string `id`")]
+    #[error("governance config policy entry {index} has no non-empty string `id`")]
     MissingPolicyId { index: usize },
     #[error("governance config exists but could not be read: {0}")]
     Unreadable(#[from] std::io::Error),
@@ -118,7 +119,7 @@ fn read_mode(
 /// raw YAML mapping handed to the policy's factory as parameters.
 #[derive(Debug, Clone)]
 pub struct PolicyConfig {
-    pub id: String,
+    pub id: PolicyId,
     pub enabled: bool,
     pub mode: PolicyMode,
     pub params: YamlValue,
@@ -138,7 +139,7 @@ impl GovernanceConfig {
         let policies = ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
             .into_iter()
             .map(|id| PolicyConfig {
-                id: id.to_owned(),
+                id: PolicyId::new(id),
                 enabled: true,
                 mode: PolicyMode::Warn,
                 params: YamlValue::Null,
@@ -169,8 +170,8 @@ impl GovernanceConfig {
             let id = entry
                 .get("id")
                 .and_then(YamlValue::as_str)
-                .ok_or(GovernanceConfigError::MissingPolicyId { index })?
-                .to_owned();
+                .and_then(|raw| PolicyId::try_new(raw).ok())
+                .ok_or(GovernanceConfigError::MissingPolicyId { index })?;
             let enabled = entry
                 .get("enabled")
                 .and_then(YamlValue::as_bool)

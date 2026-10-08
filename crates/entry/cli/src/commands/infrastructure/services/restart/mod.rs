@@ -12,6 +12,7 @@
 
 mod batch;
 mod single;
+mod snapshots;
 
 use systemprompt_logging::CliService;
 

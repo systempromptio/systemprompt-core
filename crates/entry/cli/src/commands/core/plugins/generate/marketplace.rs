@@ -4,11 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
+use serde::Serialize;
 use std::path::Path;
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::{MarketplaceConfig, PluginConfig};
 use systemprompt_models::bridge::plugin_bundle::{ManifestAuthor, PluginManifest};
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::{MarketplaceConfig, PluginConfig};
 
 pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path) -> Result<()> {
     let services = match ConfigLoader::load() {
@@ -55,35 +57,64 @@ pub(super) fn generate_marketplace_json(_plugins_path: &Path, system_path: &Path
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneratedMarketplace {
+    pub name: String,
+    pub owner: GeneratedMarketplaceOwner,
+    pub metadata: GeneratedMarketplaceMetadata,
+    pub plugins: Vec<GeneratedMarketplacePlugin>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneratedMarketplaceOwner {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneratedMarketplaceMetadata {
+    pub description: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GeneratedMarketplacePlugin {
+    pub name: String,
+    pub source: String,
+    pub description: String,
+    pub version: String,
+}
+
 pub fn render_marketplace(
     id: &str,
     marketplace: &MarketplaceConfig,
     services: &ServicesConfig,
-) -> serde_json::Value {
-    let plugin_entries: Vec<serde_json::Value> = marketplace
+) -> GeneratedMarketplace {
+    let plugins = marketplace
         .plugins
         .include
         .iter()
         .map(|plugin_id| {
             let plugin = services.plugins.get(plugin_id);
-            serde_json::json!({
-                "name": plugin_id,
-                "source": format!("./storage/files/plugins/{plugin_id}"),
-                "description": plugin.map_or_else(String::new, |p| p.description.clone()),
-                "version": plugin.map_or_else(String::new, |p| p.version.clone()),
-            })
+            GeneratedMarketplacePlugin {
+                name: plugin_id.clone(),
+                source: format!("./storage/files/plugins/{plugin_id}"),
+                description: plugin.map_or_else(String::new, |p| p.description.clone()),
+                version: plugin.map_or_else(String::new, |p| p.version.clone()),
+            }
         })
         .collect();
 
-    serde_json::json!({
-        "name": id,
-        "owner": { "name": marketplace.author.name.clone() },
-        "metadata": {
-            "description": marketplace.description.clone(),
-            "version": marketplace.version.clone(),
+    GeneratedMarketplace {
+        name: id.to_owned(),
+        owner: GeneratedMarketplaceOwner {
+            name: marketplace.author.name.clone(),
         },
-        "plugins": plugin_entries,
-    })
+        metadata: GeneratedMarketplaceMetadata {
+            description: marketplace.description.clone(),
+            version: marketplace.version.clone(),
+        },
+        plugins,
+    }
 }
 
 pub fn generate_plugin_json(
@@ -119,7 +150,7 @@ pub fn generate_plugin_json(
 pub fn copy_scripts(
     plugin: &PluginConfig,
     plugins_path: &Path,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     output_dir: &Path,
     files_generated: &mut Vec<String>,
 ) -> Result<()> {
@@ -131,7 +162,7 @@ pub fn copy_scripts(
     std::fs::create_dir_all(&scripts_dir)?;
 
     for script in &plugin.scripts {
-        let source_path = plugins_path.join(plugin_id).join(&script.source);
+        let source_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
         let dest_path = scripts_dir.join(&script.name);
 
         if source_path.exists() {

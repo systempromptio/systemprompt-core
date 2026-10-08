@@ -8,11 +8,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
+use systemprompt_identifiers::{AccessTokenId, PluginId};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -22,8 +22,6 @@ use crate::shared::CommandOutput;
 pub struct IssuePluginTokenArgs {
     #[arg(
         long,
-        env = "SYSTEMPROMPT_ADMIN_EMAIL",
-        hide_env_values = true,
         help = "Admin email to mint the token for. Defaults to the active credentials profile."
     )]
     pub email: Option<String>,
@@ -31,9 +29,10 @@ pub struct IssuePluginTokenArgs {
     #[arg(
         long,
         default_value = "cowork-bundle",
+        value_parser = crate::shared::parse_plugin_id,
         help = "Plugin identifier to embed in the token's `plugin_id` claim."
     )]
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
 
     #[arg(
         long,
@@ -48,10 +47,10 @@ pub struct IssuePluginTokenArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct IssuePluginTokenOutput {
-    pub plugin_id: String,
+    pub plugin_id: PluginId,
     pub email: String,
     pub expires_in_days: u32,
-    pub jti: String,
+    pub jti: AccessTokenId,
     pub token: String,
 }
 
@@ -77,7 +76,7 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&db_pool)));
     let user = user_service
         .find_by_email(&email)
         .await
@@ -87,11 +86,8 @@ pub(super) async fn execute(args: IssuePluginTokenArgs) -> Result<CommandOutput>
         anyhow::bail!("User '{}' is not an admin — refusing to mint", email);
     }
 
-    let user_uuid = Uuid::parse_str(user.id.as_str())
-        .with_context(|| format!("User id '{}' is not a valid UUID", user.id))?;
-
     let subject = PluginTokenSubject {
-        id: user_uuid,
+        id: user.id.clone(),
         username: user.name,
         email: user.email,
     };

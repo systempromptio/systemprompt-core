@@ -12,8 +12,9 @@ use systemprompt_identifiers::TenantId;
 use validator::Validate;
 
 use super::StoredTenant;
-use crate::api_client::TenantInfo;
+use crate::api_client::CloudTenantInfo;
 use crate::error::{CloudError, CloudResult};
+use crate::private_dir::write_private_json;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct TenantStore {
@@ -33,7 +34,7 @@ impl TenantStore {
     }
 
     #[must_use]
-    pub fn from_tenant_infos(infos: &[TenantInfo]) -> Self {
+    pub fn from_tenant_infos(infos: &[CloudTenantInfo]) -> Self {
         let tenants = infos.iter().map(StoredTenant::from_tenant_info).collect();
         Self::new(tenants)
     }
@@ -51,7 +52,7 @@ impl TenantStore {
         store
             .validate()
             .map_err(|e| CloudError::TenantsStoreInvalid {
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
 
         Ok(store)
@@ -60,30 +61,10 @@ impl TenantStore {
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
         self.validate()
             .map_err(|e| CloudError::TenantsStoreInvalid {
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
 
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-
-            let gitignore_path = dir.join(".gitignore");
-            if !gitignore_path.exists() {
-                fs::write(&gitignore_path, "*\n")?;
-            }
-        }
-
-        let content = serde_json::to_string_pretty(self)?;
-        fs::write(path, content)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(path)?.permissions();
-            perms.set_mode(0o600);
-            fs::set_permissions(path, perms)?;
-        }
-
-        Ok(())
+        write_private_json(path, self)
     }
 
     #[must_use]

@@ -8,19 +8,22 @@
 //! advisory `x-inference-protocol` header.
 
 use std::collections::HashMap;
+use systemprompt_manifest::services::providers::surface_for;
 
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
+use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, TenantId};
-use systemprompt_models::bridge::profile::{
-    BridgeProfileParams, BridgeProfileResponse, build as profile_build,
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
+use systemprompt_manifest::bridge_profile::{BridgeProfileParams, build as profile_build};
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-    WireProtocol,
-};
+use systemprompt_models::api::ErrorCode;
+use systemprompt_models::bridge::profile::BridgeProfileResponse;
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
 
 fn build_profile(registry: &ProviderRegistry) -> BridgeProfileResponse {
     profile_build(
@@ -63,7 +66,7 @@ fn provider_with_secret(
     secret: &str,
     models: Vec<ProviderModel>,
 ) -> ProviderEntry {
-    provider_with_surface(name, wire, wire.surface(), secret, models)
+    provider_with_surface(name, wire, surface_for(wire), secret, models)
 }
 
 fn provider_with_surface(
@@ -294,8 +297,8 @@ fn header_helper_rejects_backend_and_garbage() {
     for bad in ["backend", "not-a-protocol"] {
         let mut headers = HeaderMap::new();
         headers.insert(INFERENCE_PROTOCOL, bad.parse().unwrap());
-        let (status, _) = surfaces_from_header(&headers).unwrap_err();
-        assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+        let err = ApiHttpError::from(surfaces_from_header(&headers).unwrap_err()).into_inner();
+        assert_eq!(err.code, ErrorCode::BadRequest, "{bad}");
     }
 }
 
@@ -464,7 +467,7 @@ fn two_provider_registry() -> ProviderRegistry {
 
 fn routed(pattern: &str, provider: &str) -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: pattern.to_owned(),
@@ -474,8 +477,8 @@ fn routed(pattern: &str, provider: &str) -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     GatewayConfig {

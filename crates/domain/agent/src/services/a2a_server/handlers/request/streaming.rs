@@ -38,7 +38,7 @@ pub(super) async fn handle_streaming_request(
     tracing::info!(request_type = %request_type, "handle_streaming_request called");
 
     let config = state.config.read().await;
-    let agent_name = config.name.clone();
+    let agent_name = systemprompt_identifiers::AgentName::new(config.name.clone());
     drop(config);
 
     if let A2aRequestParams::SendStreamingMessage(params) = request {

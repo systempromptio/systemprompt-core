@@ -21,7 +21,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::services::PluginDependency;
+use crate::plugin::PluginDependency;
 
 pub const PLUGIN_MANIFEST_RELPATH: &str = ".claude-plugin/plugin.json";
 

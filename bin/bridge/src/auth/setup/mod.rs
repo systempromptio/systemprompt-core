@@ -62,7 +62,7 @@ pub enum SetupError {
     ConfigParse {
         path: PathBuf,
         #[source]
-        source: toml_edit::TomlError,
+        source: Box<toml_edit::TomlError>,
     },
     #[error("{path}: gateway_url must be a nonempty string")]
     GatewayNotString { path: PathBuf },

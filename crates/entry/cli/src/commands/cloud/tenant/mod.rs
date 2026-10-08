@@ -29,11 +29,12 @@ pub use show::show_tenant;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
+use systemprompt_identifiers::TenantId;
 use systemprompt_logging::CliService;
 
 use crate::context::CommandContext;
 use crate::interactive::Prompter;
-use crate::shared::render_result;
+use crate::shared::{parse_tenant_id, render_result};
 use create_flow::tenant_create;
 
 #[derive(Debug, Subcommand)]
@@ -49,13 +50,19 @@ pub enum TenantCommands {
     List,
 
     #[command(about = "Show tenant details")]
-    Show { id: Option<String> },
+    Show {
+        #[arg(value_parser = parse_tenant_id)]
+        id: Option<TenantId>,
+    },
 
     #[command(about = "Delete a tenant")]
     Delete(TenantDeleteArgs),
 
     #[command(about = "Edit tenant configuration")]
-    Edit { id: Option<String> },
+    Edit {
+        #[arg(value_parser = parse_tenant_id)]
+        id: Option<TenantId>,
+    },
 
     #[command(about = "Rotate database credentials")]
     RotateCredentials(TenantRotateArgs),
@@ -63,7 +70,8 @@ pub enum TenantCommands {
 
 #[derive(Debug, Args)]
 pub struct TenantRotateArgs {
-    pub id: Option<String>,
+    #[arg(value_parser = parse_tenant_id)]
+    pub id: Option<TenantId>,
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
@@ -71,7 +79,8 @@ pub struct TenantRotateArgs {
 
 #[derive(Debug, Args)]
 pub struct TenantDeleteArgs {
-    pub id: Option<String>,
+    #[arg(value_parser = parse_tenant_id)]
+    pub id: Option<TenantId>,
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
@@ -174,9 +183,7 @@ pub fn choose_tenant_operation(
         1 => Some(TenantCommands::List),
         2 | 3 if !has_tenants => {
             CliService::warning("No tenants configured");
-            CliService::info(
-                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
-            );
+            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
             return Ok(Some(TenantCommands::List));
         },
         2 => Some(TenantCommands::Edit { id: None }),

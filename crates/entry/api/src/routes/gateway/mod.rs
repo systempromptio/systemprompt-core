@@ -2,13 +2,13 @@
 //!
 //! [`gateway_router`] assembles the bridge-facing surface: the `/messages`,
 //! `/responses`, and `/chat/completions` proxy endpoints (each bound to an
-//! [`InboundAdapter`](crate::services::gateway::protocol::InboundAdapter)), the
+//! [`InboundAdapter`](systemprompt_gateway::protocol::InboundAdapter)), the
 //! `/auth/bridge/*` credential-exchange routes ([`auth`]), the `/bridge/*`
 //! manifest and heartbeat routes, the credential-gated `/otel` ingest
-//! ([`otel`]), and `/models`. The router is gated on the availability of the
-//! analytics, user, and JTI-revocation providers; if any is missing it returns
-//! `None` and the gateway stays unmounted. `log_gateway_request` is the
-//! middleware that records every request to the logging repository.
+//! ([`otel`]), and `/models`. The router requires the session and user
+//! providers; if either is missing, building it fails and so does startup.
+//! `log_gateway_request` is the middleware that records every request to the
+//! logging repository.
 //!
 //! The surface is assembled in two halves so that the server can give each its
 //! own rate-limit budget: [`gateway_mount_router`] is what the server mounts,
@@ -31,6 +31,7 @@ pub mod auth;
 pub mod bridge;
 pub mod bridge_data;
 pub mod bridge_device;
+pub mod bridge_error;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
 pub mod bridge_plugin_file;
@@ -62,45 +63,39 @@ use crate::services::middleware::{
     JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
 };
 
-pub(crate) use self::access_log::{GatewayLogIdentity, TerminalOutcome, log_gateway_terminal};
+pub(crate) use self::access_log::GatewayLogIdentity;
 
-pub fn gateway_enabled(ctx: &AppContext) -> bool {
-    ctx.analytics_provider().is_some()
-        && ctx.session_provider().is_some()
-        && ctx.user_provider().is_some()
-}
-
-fn build_jwt_extractor(ctx: &AppContext) -> Option<Arc<JwtContextExtractor>> {
-    let Some(analytics) = ctx.session_provider() else {
-        tracing::warn!("Gateway router: analytics provider unavailable — gateway disabled");
-        return None;
-    };
-    let Some(user_provider) = ctx.user_provider() else {
-        tracing::warn!("Gateway router: user provider unavailable — gateway disabled");
-        return None;
-    };
+fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtractor>> {
+    let sessions = ctx
+        .session_provider()
+        .ok_or_else(|| anyhow::anyhow!("gateway requires a session provider"))?;
+    let user_provider = ctx
+        .user_provider()
+        .ok_or_else(|| anyhow::anyhow!("gateway requires a user provider"))?;
     let jti_revocation =
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
-    Some(Arc::new(JwtContextExtractor::new(
-        analytics,
+    Ok(Arc::new(JwtContextExtractor::new(
+        sessions,
         user_provider,
         jti_revocation,
+        ctx.config().jwt_issuer.clone(),
     )))
 }
 
 pub fn gateway_repositories(
     ctx: &AppContext,
-) -> anyhow::Result<crate::services::gateway::GatewayRepositories> {
-    let journal = crate::services::gateway::audit::journal::GatewayJournal::open(
+) -> anyhow::Result<systemprompt_gateway::GatewayRepositories> {
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         ctx.app_paths().storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
     let payload_cap_bytes = systemprompt_config::ProfileBootstrap::get()?.payload_cap_bytes();
-    Ok(crate::services::gateway::GatewayRepositories::new(
+    Ok(systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
-    )?
+        ctx.background_tasks().clone(),
+    )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())
     .with_payload_cap(payload_cap_bytes))
@@ -111,13 +106,11 @@ struct GatewayParts {
     bridge_auth: Router,
 }
 
-fn gateway_parts(ctx: &AppContext) -> anyhow::Result<Option<GatewayParts>> {
-    let Some(jwt_extractor) = build_jwt_extractor(ctx) else {
-        return Ok(None);
-    };
+fn gateway_parts(ctx: &AppContext) -> anyhow::Result<GatewayParts> {
+    let jwt_extractor = build_jwt_extractor(ctx)?;
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
-    Ok(Some(GatewayParts {
+    Ok(GatewayParts {
         traffic: Router::new()
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
@@ -127,20 +120,16 @@ fn gateway_parts(ctx: &AppContext) -> anyhow::Result<Option<GatewayParts>> {
             .route("/models", get(models::list))
             .route("/", get(models::root)),
         bridge_auth: bridge_auth_routes(ctx, &jwt_extractor),
-    }))
+    })
 }
 
-pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Option<Router>> {
-    Ok(gateway_parts(ctx)?.map(|parts| common_layers(ctx, parts.traffic.merge(parts.bridge_auth))))
+pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
+    let parts = gateway_parts(ctx)?;
+    Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
 }
 
-pub fn gateway_mount_router(
-    ctx: &AppContext,
-    limits: &RateLimitState,
-) -> anyhow::Result<Option<Router>> {
-    let Some(parts) = gateway_parts(ctx)? else {
-        return Ok(None);
-    };
+pub fn gateway_mount_router(ctx: &AppContext, limits: &RateLimitState) -> anyhow::Result<Router> {
+    let parts = gateway_parts(ctx)?;
     let rate_config = &ctx.config().rate_limits;
 
     let traffic =
@@ -153,7 +142,7 @@ pub fn gateway_mount_router(
         "bridge_auth",
     )?;
 
-    Ok(Some(common_layers(ctx, traffic.merge(bridge_auth))))
+    Ok(common_layers(ctx, traffic.merge(bridge_auth)))
 }
 
 fn common_layers(ctx: &AppContext, router: Router) -> Router {

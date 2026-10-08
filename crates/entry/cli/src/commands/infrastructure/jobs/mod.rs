@@ -1,16 +1,15 @@
 //! `jobs` CLI command group: list, inspect, run, and manage scheduled jobs.
 //!
 //! [`JobsCommands`] enumerates the subcommands; [`execute`] dispatches each to
-//! its submodule and renders the result. Includes manual job runs, history,
-//! enable/disable toggles, and the session/log cleanup helpers.
+//! its submodule and renders the result. Includes manual job runs, history and
+//! enable/disable toggles; one-off cleanups run as jobs (`infra jobs run`) or
+//! through `infra logs cleanup` / `admin users session cleanup`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod types;
 
-pub mod cleanup_logs;
-pub mod cleanup_sessions;
 mod disable;
 mod enable;
 mod helpers;
@@ -46,15 +45,6 @@ pub enum JobsCommands {
 
     #[command(about = "Disable a job")]
     Disable(disable::DisableArgs),
-
-    #[command(about = "Clean up inactive sessions")]
-    CleanupSessions(cleanup_sessions::CleanupSessionsArgs),
-
-    #[command(about = "Clean up old log entries")]
-    LogCleanup(cleanup_logs::LogCleanupArgs),
-
-    #[command(about = "Clean up inactive sessions (alias)", hide = true)]
-    SessionCleanup(cleanup_sessions::CleanupSessionsArgs),
 }
 
 pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
@@ -81,14 +71,6 @@ pub async fn execute(cmd: JobsCommands, ctx: &CommandContext) -> Result<()> {
         },
         JobsCommands::Disable(args) => {
             render_result(&disable::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::CleanupSessions(args) | JobsCommands::SessionCleanup(args) => {
-            render_result(&cleanup_sessions::execute(args, ctx).await?, &ctx.cli);
-            Ok(())
-        },
-        JobsCommands::LogCleanup(args) => {
-            render_result(&cleanup_logs::execute(args, ctx).await?, &ctx.cli);
             Ok(())
         },
     }

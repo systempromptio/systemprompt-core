@@ -18,12 +18,14 @@ use hmac::digest::KeyInit as _;
 use hmac::{Hmac, Mac as _};
 use sha2::{Digest as _, Sha256};
 
-use crate::ids::{HookToken, HostId, HostToken, LoopbackSecret, PluginId, ProxySecret};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::ids::{HookToken, HostToken, LoopbackSecret, PluginId, ProxySecret};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenScope {
     Hook(PluginId),
-    Host(HostId),
+    Host(HostKind),
 }
 
 impl TokenScope {
@@ -54,10 +56,10 @@ pub fn hook_token(secret: &LoopbackSecret, plugin: &PluginId) -> HookToken {
 }
 
 #[must_use]
-pub fn host_token(secret: &LoopbackSecret, host: &HostId) -> HostToken {
+pub fn host_token(secret: &LoopbackSecret, host: HostKind) -> HostToken {
     HostToken::new(derive_raw(
         secret.as_str().as_bytes(),
-        &TokenScope::Host(host.clone()),
+        &TokenScope::Host(host),
     ))
 }
 

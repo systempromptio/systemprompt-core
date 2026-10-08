@@ -13,8 +13,6 @@ use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -84,6 +82,7 @@ fn skill(id: &str, hosts: &[&str], instructions: &str) -> SkillEntry {
         instructions: instructions.to_owned(),
         hosts: hosts.iter().map(|h| (*h).to_owned()).collect(),
         plugins: vec![],
+        frontmatter: None,
     }
 }
 
@@ -99,7 +98,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-04-30T12:00:00+00:00")
             .expect("rfc3339")
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("test-user"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000beef"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -113,6 +112,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -139,7 +139,6 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
     let client = stub_client();
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: sb.org_plugins.as_path(),
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -149,7 +148,7 @@ fn apply<H: HostSync>(host: &H, m: &SignedManifest, sb: &Sandbox) -> Result<(), 
         mcp_registry: &EMPTY_REGISTRY,
         start_menu: &START_MENU,
     };
-    block_on(host.apply(&ctx))
+    block_on(host.apply(&ctx)).map(|_| ())
 }
 
 fn dirs_in(root: &Path) -> Vec<String> {
@@ -375,7 +374,6 @@ fn clearing_a_host_removes_the_managed_dirs_and_the_sidecar() {
         let client = stub_client();
         let ctx = HostSyncCtx {
             policy_store: &POLICY_STORE,
-            warnings: &HOST_WARNINGS,
             manifest: &m,
             org_plugins_root: sb.org_plugins.as_path(),
             plugin_mcp_servers: &plugin_mcp_servers,

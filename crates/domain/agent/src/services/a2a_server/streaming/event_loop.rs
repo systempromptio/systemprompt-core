@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::{AiToolCallId, ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, MessageId, TaskId};
 use systemprompt_models::{AgUiEventBuilder, CallToolResult, RequestContext, ToolCall};
 use tokio::sync::mpsc::Sender;
 
@@ -34,7 +34,7 @@ pub struct ProcessEventsParams {
     pub context_id: ContextId,
     pub message_id: MessageId,
     pub original_message: Message,
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub context: RequestContext,
     pub task_repo: TaskRepository,
     pub processor: Arc<MessageProcessor>,
@@ -140,7 +140,7 @@ struct EventLoopCtx<'a> {
     context_id: &'a ContextId,
     message_id: &'a MessageId,
     original_message: &'a Message,
-    agent_name: &'a str,
+    agent_name: &'a AgentName,
     context: &'a RequestContext,
     task_repo: &'a TaskRepository,
     processor: &'a Arc<MessageProcessor>,
@@ -151,23 +151,23 @@ async fn broadcast_tool_call_started(
     tool_call: &ToolCall,
     message_id: &MessageId,
 ) {
-    let tool_call_id = tool_call.ai_tool_call_id.as_str();
+    let tool_call_id = &tool_call.ai_tool_call_id;
     let start_event = AgUiEventBuilder::tool_call_start(
-        tool_call_id,
+        tool_call_id.clone(),
         &tool_call.name,
-        Some(message_id.to_string()),
+        Some(message_id.clone()),
     );
     if let Err(e) = webhook_context.broadcast_agui(start_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_START");
     }
 
     let args_json = serde_json::to_string(&tool_call.arguments).unwrap_or_else(|_| String::new());
-    let args_event = AgUiEventBuilder::tool_call_args(tool_call_id, &args_json);
+    let args_event = AgUiEventBuilder::tool_call_args(tool_call_id.clone(), &args_json);
     if let Err(e) = webhook_context.broadcast_agui(args_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_ARGS");
     }
 
-    let end_event = AgUiEventBuilder::tool_call_end(tool_call_id);
+    let end_event = AgUiEventBuilder::tool_call_end(tool_call_id.clone());
     if let Err(e) = webhook_context.broadcast_agui(end_event).await {
         tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_END");
     }
@@ -180,8 +180,8 @@ async fn broadcast_tool_result(
 ) {
     let result_value = serde_json::to_value(result).unwrap_or_else(|_| serde_json::Value::Null);
     let result_event = AgUiEventBuilder::tool_call_result(
-        uuid::Uuid::new_v4().to_string(),
-        ai_tool_call_id.as_str(),
+        MessageId::generate(),
+        ai_tool_call_id.clone(),
         result_value,
     );
     if let Err(e) = webhook_context.broadcast_agui(result_event).await {
@@ -208,14 +208,24 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
         artifacts,
         task_id: ctx.task_id,
         context_id: ctx.context_id,
-        id: ctx.message_id.as_str(),
+        id: ctx.message_id,
         original_message: ctx.original_message,
         agent_name: ctx.agent_name,
         context: ctx.context,
         processor: ctx.processor,
     };
     if let Err(failure) = handle_complete(complete_params).await {
-        tracing::error!(task_id = %ctx.task_id, error = %failure.message, "Failed to complete task");
+        match failure.source.as_deref() {
+            Some(cause) => tracing::error!(
+                task_id = %ctx.task_id,
+                error = %failure.message,
+                cause = %cause,
+                "Failed to complete task"
+            ),
+            None => {
+                tracing::error!(task_id = %ctx.task_id, error = %failure.message, "Failed to complete task");
+            },
+        }
         record_failure(ctx.task_repo, ctx.task_id, &failure.message).await;
         finish_failed(ctx, failure.message, failure.code).await;
     }

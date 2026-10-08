@@ -11,7 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::{SecurityConfig, TrustedIssuer, default_resource_audiences};
+use systemprompt_manifest::profile::{SecurityConfig, TrustedIssuer, default_resource_audiences};
 
 use crate::error::{ConfigError, ConfigResult};
 

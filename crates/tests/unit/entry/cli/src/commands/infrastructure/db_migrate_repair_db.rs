@@ -8,7 +8,7 @@ use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -22,11 +22,6 @@ fn parse(args: &[&str]) -> DbCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool, format: OutputFormat) -> CommandContext {
     CommandContext::with_database(
@@ -35,7 +30,7 @@ fn ctx(pool: &DbPool, format: OutputFormat) -> CommandContext {
             .with_output_format(format),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -44,7 +39,7 @@ async fn tamper_checksum(pool: &DbPool) -> Option<(String, i64, String)> {
         "SELECT extension_id, version::bigint, checksum FROM extension_migrations \
          ORDER BY extension_id, version LIMIT 1",
     )
-    .fetch_optional(pool.pool_arc().unwrap().as_ref())
+    .fetch_optional(pool.pool().as_ref())
     .await
     .unwrap();
     let (ext, version, original) = row?;
@@ -54,7 +49,7 @@ async fn tamper_checksum(pool: &DbPool) -> Option<(String, i64, String)> {
     )
     .bind(&ext)
     .bind(version)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     Some((ext, version, original))
@@ -68,14 +63,14 @@ async fn restore_checksum(pool: &DbPool, ext: &str, version: i64, checksum: &str
     .bind(ext)
     .bind(version)
     .bind(checksum)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }
 
 #[tokio::test]
 async fn repair_dry_run_reports_clean_state() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     db::execute(parse(&["migrate-repair"]), &ctx(&pool, OutputFormat::Table))
         .await
         .unwrap();
@@ -89,7 +84,7 @@ async fn repair_dry_run_reports_clean_state() {
 
 #[tokio::test]
 async fn repair_unknown_extension_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = db::execute(
         parse(&["migrate-repair", "no-such-extension"]),
         &ctx(&pool, OutputFormat::Json),
@@ -101,7 +96,7 @@ async fn repair_unknown_extension_errors() {
 
 #[tokio::test]
 async fn repair_dry_run_reports_tampered_checksum_drift() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     db::execute(
         parse(&["migrate-repair", "--apply"]),
@@ -135,7 +130,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
     )
     .bind(&ext)
     .bind(version)
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(checksum, original);
@@ -143,7 +138,7 @@ async fn repair_dry_run_reports_tampered_checksum_drift() {
 
 #[tokio::test]
 async fn reconcile_only_rewrites_checksum_in_place() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     // skip-ok: no database, so nothing to act on
     let Some((ext, version, original)) = tamper_checksum(&pool).await else {
@@ -173,7 +168,7 @@ async fn reconcile_only_rewrites_checksum_in_place() {
     )
     .bind(&ext)
     .bind(version)
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
 

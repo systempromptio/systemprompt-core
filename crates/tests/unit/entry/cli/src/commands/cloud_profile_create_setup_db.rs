@@ -12,12 +12,12 @@
 
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_database_url};
 
 #[tokio::test]
 async fn a_reachable_database_reaches_the_migrations_question() {
     let boot = ensure_test_bootstrap();
-    let url = fixture_database_url().expect("a test database url");
+    let url = test_database_url();
 
     // Nothing is scripted, so the prompt itself is the observable: the error
     // names it only if the connection probe reported the database as verified.

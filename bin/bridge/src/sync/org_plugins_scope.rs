@@ -13,8 +13,10 @@ pub(super) fn check_org_plugins_scope(
     manifest: &SignedManifest,
     location: &paths::OrgPluginsLocation,
 ) -> Result<(), SyncError> {
-    if manifest.enabled_hosts.iter().any(|h| h == "claude-desktop")
-        && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
+    if crate::gateway::manifest::enables_host(
+        manifest,
+        systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
+    ) && let paths::FallbackReason::SystemUnwritable { system_path } = &location.reason
     {
         return Err(SyncError::OrgPluginsNeedElevation {
             bin: crate::brand::brand().binary_name,

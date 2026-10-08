@@ -7,6 +7,7 @@ use crate::error::{OauthError, OauthResult as Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{TokenId, UserId};
+use systemprompt_traits::RepositoryError;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -22,7 +23,7 @@ pub struct SetupTokenPurposeParseError(pub String);
 
 impl From<SetupTokenPurposeParseError> for OauthError {
     fn from(err: SetupTokenPurposeParseError) -> Self {
-        Self::Validation(err.to_string())
+        Self::Repository(RepositoryError::decode("setup token purpose", err))
     }
 }
 

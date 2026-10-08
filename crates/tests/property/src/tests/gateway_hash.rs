@@ -1,5 +1,5 @@
 use proptest::prelude::*;
-use systemprompt_models::gateway_hash::{conversation_prefix_hash, fnv1a_segments};
+use systemprompt_identifiers::gateway_hash::{conversation_prefix_hash, fnv1a_segments};
 
 proptest! {
     // Determinism: identical inputs always yield identical hashes.

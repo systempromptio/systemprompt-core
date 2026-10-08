@@ -5,7 +5,7 @@
 use systemprompt_analytics::FlagReason;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{seed_session, unique_session_id};
@@ -15,7 +15,7 @@ fn unique_fingerprint() -> String {
 }
 
 async fn cleanup(pool: &DbPool, fingerprint: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM user_sessions WHERE fingerprint_hash = $1")
         .bind(fingerprint)
         .execute(p.as_ref())
@@ -30,11 +30,8 @@ async fn cleanup(pool: &DbPool, fingerprint: &str) {
 
 #[tokio::test]
 async fn upsert_fingerprint_inserts_then_accumulates() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
@@ -53,7 +50,7 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
         .await
         .expect("upsert");
     assert_eq!(second.total_session_count, 2);
-    assert_eq!(second.associated_user_ids, vec![user.as_str().to_owned()]);
+    assert_eq!(second.associated_user_ids, vec![user.clone()]);
     assert_eq!(second.last_ip_address.as_deref(), Some("10.0.0.1"));
 
     let third = repo
@@ -69,11 +66,8 @@ async fn upsert_fingerprint_inserts_then_accumulates() {
 
 #[tokio::test]
 async fn flag_and_request_counter_persist() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
 
     let fp = unique_fingerprint();
@@ -96,7 +90,7 @@ async fn flag_and_request_counter_persist() {
          FROM fingerprint_reputation WHERE fingerprint_hash = $1",
     )
     .bind(&fp)
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("row");
     assert!(is_flagged);
@@ -109,15 +103,12 @@ async fn flag_and_request_counter_persist() {
 
 #[tokio::test]
 async fn session_queries_count_and_reuse_active_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let repo = systemprompt_test_fixtures::fixture_fingerprint_repository(&pool).expect("repo");
     let sessions = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("session repo");
+        .map(|repositories| repositories.session_store)
+        .expect("session store");
 
     let fp = unique_fingerprint();
     assert_eq!(
@@ -132,7 +123,7 @@ async fn session_queries_count_and_reuse_active_sessions() {
     );
 
     let sid = unique_session_id();
-    seed_session(&sessions, &sid, &fp).await;
+    seed_session(&*sessions, &sid, &fp).await;
 
     assert_eq!(repo.count_active_sessions(&fp).await.expect("count"), 1);
     let reusable = repo

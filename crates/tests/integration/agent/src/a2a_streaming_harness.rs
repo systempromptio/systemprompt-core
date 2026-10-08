@@ -20,13 +20,16 @@ use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
-use systemprompt_identifiers::{AgentName, ContextId, MessageId, SessionId, TraceId};
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::{
-    AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentOAuthConfig as AgentConfigOAuth,
-    AiProvider, CapabilitiesConfig,
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, MessageId, SessionId, TraceId, UserId,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_manifest::{
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentOAuthConfig as AgentConfigOAuth,
+    CapabilitiesConfig,
+};
+use systemprompt_models::AiProvider;
+use systemprompt_models::execution::context::RequestContext;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
     AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
@@ -84,7 +87,7 @@ fn fixture_agent_config() -> AgentConfig {
 
 async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
     let bootstrap = ensure_test_bootstrap();
-    let db_pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let db_pool = test_db_pool().await;
 
     let global_config = Arc::new(systemprompt_test_fixtures::fixture_config(
         &bootstrap.database_url,
@@ -144,6 +147,7 @@ fn fixture_request_context() -> RequestContext {
         TraceId::new("trace-harness"),
         ContextId::generate(),
         AgentName::try_new("test_agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -152,7 +156,7 @@ async fn create_sse_stream_with_exhausted_semaphore_returns_rejected() -> anyhow
     let state = build_state(0).await?;
     let result = create_sse_stream(CreateSseStreamParams {
         message: user_message("hello"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(1),
         context: fixture_request_context(),
@@ -170,7 +174,7 @@ async fn create_sse_stream_with_available_permit_returns_receiver_stream() -> an
     let state = build_state(1).await?;
     let result = create_sse_stream(CreateSseStreamParams {
         message: user_message("hello"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(2),
         context: fixture_request_context(),
@@ -198,7 +202,7 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
 
     let stream = create_sse_stream(CreateSseStreamParams {
         message: user_message("first"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(10),
         context: fixture_request_context(),
@@ -213,7 +217,7 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
     // without rejection.
     let second = create_sse_stream(CreateSseStreamParams {
         message: user_message("second"),
-        agent_name: "test_agent".to_owned(),
+        agent_name: AgentName::new("test_agent"),
         state: Arc::clone(&state),
         request_id: NumberOrString::Number(11),
         context: fixture_request_context(),

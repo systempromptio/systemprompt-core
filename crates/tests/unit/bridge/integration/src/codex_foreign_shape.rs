@@ -2,6 +2,8 @@
 //! the install is refused with the key named and the file is left as found,
 //! never rewritten around the conflict.
 
+#![cfg(not(target_os = "macos"))]
+
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -39,9 +41,6 @@ fn inputs() -> ProfileGenInputs {
 
 #[test]
 fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -53,12 +52,21 @@ fn a_scalar_where_the_bridge_owns_a_table_refuses_the_install_and_keeps_the_file
         let seeded = "model_providers = \"not a table\"\nkeep = 1\n";
         fs::write(&target, seeded).unwrap();
 
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&inputs()).expect("generate");
         let err = host
             .install_profile(&profile.path)
             .expect_err("a foreign shape refuses the merge");
 
+        assert!(
+            matches!(
+                &err,
+                systemprompt_bridge::integration::HostAppError::ForeignShape(shape)
+                    if shape.key == "model_providers"
+            ),
+            "a foreign value is a typed foreign-shape refusal: {err:?}"
+        );
         let message = err.to_string();
         assert!(
             message.contains("model_providers") && message.contains("a table"),

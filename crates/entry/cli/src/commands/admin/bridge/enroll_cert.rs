@@ -7,7 +7,6 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_identifiers::UserId;
 use systemprompt_users::{DeviceCertService, EnrollDeviceCertServiceParams};
 
 use super::types::DeviceCertEnrolledOutput;
@@ -16,8 +15,12 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct EnrollCertArgs {
-    #[arg(long, help = "User id, email, or name to enroll the cert for")]
-    pub user_id: UserId,
+    #[arg(
+        long = "user-id",
+        value_name = "USER_ID",
+        help = "User id, email, or name to enroll the cert for"
+    )]
+    pub user_ref: String,
 
     #[arg(long, help = "SHA-256 fingerprint of the device certificate (hex)")]
     pub fingerprint: String,
@@ -34,7 +37,7 @@ pub(super) async fn execute(args: EnrollCertArgs, ctx: &CommandContext) -> Resul
     let app = ctx.app_context().await?;
     let service = DeviceCertService::new(Arc::clone(app.user_repository()));
 
-    let user_id = super::resolve_user_id(app.db_pool(), &args.user_id).await?;
+    let user_id = super::resolve_user_id(app.db_pool(), &args.user_ref).await?;
 
     let record = service
         .enroll(EnrollDeviceCertServiceParams {

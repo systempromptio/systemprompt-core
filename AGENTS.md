@@ -10,18 +10,18 @@ This is a library, not a framework. You compile it into your binary and extend i
 
 ## Crate Architecture
 
-34-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
+37-member Rust workspace, published to crates.io as `systemprompt` with feature flags:
 
 ```
-Shared (7)     identifiers, provider-contracts, traits, extension,
-               models, client, template-provider
+Shared (9)     identifiers, provider-contracts, traits, extension,
+               models, wire, manifest, client, template-provider
 
 Infra (8)      database, logging, config, events, security, cloud, loader, storage
 
-Domain (13)    users, oauth, files, analytics, content, mcp, ai, agent,
-               templates, marketplace, slack, teams, evaluation
+Domain (12)    users, oauth, files, analytics, content, mcp, ai, agent,
+               templates, marketplace, slack, teams
 
-App (3)        runtime, scheduler, generator
+App (5)        runtime, scheduler, generator, oauth-issuance, gateway
 
 Entry (2)      api, cli
 
@@ -33,10 +33,11 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.62", features = ["full"] }
+systemprompt = { version = "0.63", features = ["full"] }
 
-# Selective (pick what you need)
-systemprompt = { version = "0.62", features = ["core", "database", "mcp"] }
+# Selective (pick what you need; `mcp` adds `rmcp` only, the
+# `systemprompt::mcp` domain module comes with `full`)
+systemprompt = { version = "0.63", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -87,7 +88,7 @@ cd systemprompt-template
 just build && just setup-local <api-key> && just start
 ```
 
-Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read `src/` and the published docs at [docs.rs/systemprompt](https://docs.rs/systemprompt).
+Then walk through `/demo/` scripts to see the governance pipeline in action. For the crate API surface, read the facade in `systemprompt/src/`, the member crates under `crates/`, and the published docs at [docs.rs/systemprompt](https://docs.rs/systemprompt).
 
 ## Documentation standard
 

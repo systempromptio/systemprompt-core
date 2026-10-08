@@ -45,8 +45,8 @@ fn request_context_for(owner: &Owner) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("crud-agent").expect("valid AgentName"),
+        Actor::user(owner.user_id.clone()),
     )
-    .with_actor(Actor::user(owner.user_id.clone()))
 }
 
 fn foreign_request_context(user: &UserId) -> RequestContext {
@@ -55,13 +55,13 @@ fn foreign_request_context(user: &UserId) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("crud-agent").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 async fn seed_context(pool: &DbPool, owner: &Owner) -> anyhow::Result<ContextId> {
     let context_id = ContextId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",
     )
@@ -158,6 +158,9 @@ async fn get_context_invalid_id_returns_400() -> anyhow::Result<()> {
         .oneshot(empty_get("/undefined"))
         .await?;
     assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024).await?;
+    let json: serde_json::Value = serde_json::from_slice(&body)?;
+    assert_eq!(json["error_key"], "invalid_identifier", "{json}");
     Ok(())
 }
 
@@ -216,7 +219,7 @@ async fn seed_artifact(
     let context_id = ContextId::generate();
     let task_id = TaskId::generate();
     let artifact_id = ArtifactId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
 
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",

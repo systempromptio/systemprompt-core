@@ -5,8 +5,8 @@ use axum::Router;
 use axum::routing::get;
 use std::sync::Once;
 use systemprompt_api::routes::oauth::wellknown_routes;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use tower::ServiceExt;
@@ -23,9 +23,11 @@ fn ensure_config() {
 
 fn test_config() -> Config {
     Config {
-        instance_id: "test".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x".to_string(),
@@ -57,7 +59,7 @@ fn test_config() -> Config {
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,

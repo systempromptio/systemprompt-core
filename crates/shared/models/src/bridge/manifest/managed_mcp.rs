@@ -13,15 +13,15 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
-use systemprompt_identifiers::{McpServerId, ValidatedUrl};
+use crate::bridge::ids::ToolPolicy;
+use systemprompt_identifiers::{McpServerId, McpToolName, ValidatedUrl};
 
 /// An MCP server the bridge provisions into a managed client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(try_from = "ManagedMcpServerWire")]
+#[serde(from = "ManagedMcpServerWire")]
 pub struct ManagedMcpServer {
     pub id: McpServerId,
-    pub name: ManagedMcpServerName,
+    pub name: McpServerId,
     pub url: ValidatedUrl,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transport: Option<String>,
@@ -30,7 +30,7 @@ pub struct ManagedMcpServer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
+    pub tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
 }
 
 impl ManagedMcpServer {
@@ -58,7 +58,7 @@ impl ManagedMcpServer {
 struct ManagedMcpServerWire {
     #[serde(default)]
     id: Option<McpServerId>,
-    name: ManagedMcpServerName,
+    name: McpServerId,
     url: ValidatedUrl,
     #[serde(default)]
     transport: Option<String>,
@@ -67,25 +67,19 @@ struct ManagedMcpServerWire {
     #[serde(default)]
     oauth: Option<bool>,
     #[serde(default)]
-    tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>,
+    tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>,
 }
 
-impl TryFrom<ManagedMcpServerWire> for ManagedMcpServer {
-    type Error = systemprompt_identifiers::error::IdValidationError;
-
-    fn try_from(wire: ManagedMcpServerWire) -> Result<Self, Self::Error> {
-        let id = match wire.id {
-            Some(id) => id,
-            None => McpServerId::try_new(wire.name.as_str())?,
-        };
-        Ok(Self {
-            id,
+impl From<ManagedMcpServerWire> for ManagedMcpServer {
+    fn from(wire: ManagedMcpServerWire) -> Self {
+        Self {
+            id: wire.id.unwrap_or_else(|| wire.name.clone()),
             name: wire.name,
             url: wire.url,
             transport: wire.transport,
             headers: wire.headers,
             oauth: wire.oauth,
             tool_policy: wire.tool_policy,
-        })
+        }
     }
 }

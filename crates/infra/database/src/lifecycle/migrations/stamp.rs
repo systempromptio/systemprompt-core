@@ -28,6 +28,7 @@ use super::exec::execute_statements_transactional;
 use crate::services::SqlExecutor;
 use pg_query::NodeEnum;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ExtensionId;
 use tracing::{info, warn};
 
 /// One `extension_migrations` row recording a migration as applied without
@@ -57,7 +58,7 @@ impl FreshnessCheck {
 impl MigrationService<'_> {
     pub async fn assess_freshness(
         &self,
-        extension_id: &str,
+        extension_id: &ExtensionId,
         owned_tables: &[String],
     ) -> Result<FreshnessCheck, LoaderError> {
         self.ensure_migrations_table_exists().await?;
@@ -75,9 +76,10 @@ impl MigrationService<'_> {
                     &[&schema, &name],
                 )
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: extension_id.to_owned(),
-                    message: format!("Failed to check for existing table '{table}': {e}"),
+                .map_err(|e| LoaderError::MigrationStepFailed {
+                    extension: extension_id.clone(),
+                    context: format!("Failed to check for existing table '{table}'"),
+                    source: Box::new(e),
                 })?;
             if !result.rows.is_empty() {
                 tables_present += 1;
@@ -108,7 +110,7 @@ impl MigrationService<'_> {
         &self,
         extension: &dyn Extension,
     ) -> Result<usize, LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let mut ran = 0usize;
         for migration in extension
             .migrations()
@@ -116,12 +118,13 @@ impl MigrationService<'_> {
             .filter(|migration| !migration.tombstone && is_retirement(migration))
         {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse retirement migration {} ({}): {e}",
+                LoaderError::MigrationStepFailed {
+                    extension: ext_id.clone(),
+                    context: format!(
+                        "Failed to parse retirement migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 }
             })?;
             info!(
@@ -138,7 +141,7 @@ impl MigrationService<'_> {
 
     #[must_use]
     pub fn baseline_stamp_rows(extension: &dyn Extension) -> Vec<BaselineStamp> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         extension
             .migrations()
             .iter()

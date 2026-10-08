@@ -3,8 +3,9 @@ import type { ProxyProbeState } from "./ProxyProbeState";
 import type { StaleReason } from "./StaleReason";
 
 /**
- * Why the agent is in that state. Carries the arguments its message needs;
- * `CloudManaged` is routed through the gateway centrally with nothing to
- * install on this machine.
+ * Why the agent is in that state, with the arguments its message needs.
+ *
+ * `CloudManaged` is routed through the gateway centrally; `NotRouted` is a
+ * sync-only CLI whose settings do not send its inference to the gateway.
  */
-export type AgentReason = { "code": "governed", when_unix: bigint | null, } | { "code": "awaiting" } | { "code": "app-missing" } | { "code": "stale", cause: StaleReason, } | { "code": "partial", missing: string, } | { "code": "unverifiable", detail: string, } | { "code": "absent" } | { "code": "no-key", providers: string, } | { "code": "no-models" } | { "code": "proxy-down", probe: ProxyProbeState, } | { "code": "never-probed" } | { "code": "cloud-managed" };
+export type AgentReason = { "code": "governed", when_unix: bigint | null, } | { "code": "awaiting" } | { "code": "app-missing" } | { "code": "stale", cause: StaleReason, } | { "code": "partial", missing: string, } | { "code": "unverifiable", detail: string, } | { "code": "absent" } | { "code": "no-key", providers: string, } | { "code": "no-models" } | { "code": "proxy-down", probe: ProxyProbeState, } | { "code": "never-probed" } | { "code": "cloud-managed" } | { "code": "not-routed" };

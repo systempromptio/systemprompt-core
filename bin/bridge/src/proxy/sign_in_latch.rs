@@ -34,8 +34,8 @@ impl AuthState {
 pub type CredentialStamp = auth::cache::CredentialBinding;
 
 pub fn capture_stamp() -> ForwardResult<CredentialStamp> {
-    let cfg = config::load().map_err(|e| ForwardError::Auth(e.to_string()))?;
-    CredentialStamp::capture(&cfg).map_err(|e| ForwardError::Auth(e.to_string()))
+    let cfg = config::load().map_err(ForwardError::Config)?;
+    CredentialStamp::capture(&cfg).map_err(ForwardError::CredentialIdentity)
 }
 
 #[derive(Debug)]

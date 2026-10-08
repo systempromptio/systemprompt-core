@@ -186,7 +186,7 @@ pub(crate) fn on_update_install_finished(
     reply(app, reply_to, result, "update install");
 }
 
-pub(crate) fn on_update_restart_requested(app: &GuiApp, event_loop: &dyn ActiveEventLoop) {
+pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn ActiveEventLoop) {
     let installed = match update::installed_path() {
         Ok(p) => p,
         Err(e) => {
@@ -213,7 +213,7 @@ pub(crate) fn on_update_restart_requested(app: &GuiApp, event_loop: &dyn ActiveE
         ));
         return;
     }
-    crate::gui::handlers::quit::on_quit(event_loop);
+    crate::gui::handlers::quit::on_quit(app, event_loop);
 }
 
 async fn check(http: reqwest::Client) -> Result<UpdateUiState, GuiError> {
@@ -275,9 +275,8 @@ fn reply<T: serde::Serialize>(
         return;
     }
     let result = result.map_err(|err| {
-        let raw = format!("{err:#}");
-        tracing::warn!(error = %raw, operation = what, "update operation failed");
-        BridgeError::new(ErrorScope::Internal, ErrorCode::Internal, raw)
+        tracing::warn!(error = %err, operation = what, "update operation failed");
+        BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &*err)
     });
     emit::finish(app, reply_to, result);
 }

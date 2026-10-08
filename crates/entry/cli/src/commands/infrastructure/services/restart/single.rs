@@ -8,9 +8,11 @@ use crate::interactive::Prompter;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::ProcessCleanup;
+use systemprompt_scheduler::{ServiceManagementService, port_holders};
 
 use super::super::lifecycle;
 use super::super::types::RestartOutput;
@@ -23,12 +25,21 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
     }
 
     let port = super::get_api_port();
-    let Some(pid) = ProcessCleanup::check_port(port) else {
+    let Some(pid) = port_holders(port).await?.first().copied() else {
         if !quiet {
             CliService::warning("API server is not running");
             CliService::info("Starting API server...");
         }
-        super::super::serve::execute(prompter, true, false, config).await?;
+        super::super::serve::execute(
+            prompter,
+            super::super::serve::ServeFlags {
+                foreground: true,
+                kill_port_process: false,
+                skip_migrate: false,
+            },
+            config,
+        )
+        .await?;
         let output = RestartOutput {
             service_type: "api".to_owned(),
             service_name: None,
@@ -43,17 +54,34 @@ pub async fn execute_api(prompter: &dyn Prompter, config: &CliConfig) -> Result<
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
     }
 
-    ProcessCleanup::terminate_gracefully(pid, 100).await;
-    ProcessCleanup::kill_port(port, pid);
-
-    ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
+    let stops = ServiceManagementService::stop_api_by_port(port, false).await?;
+    if let Some(foreign) = stops
+        .iter()
+        .find(|stop| stop.outcome == StopOutcome::NotOurs)
+    {
+        anyhow::bail!(
+            "Port {port} is held by PID {}, which is not a verified systemprompt API server; it \
+             was not signalled. Stop it by hand, or use `infra services serve \
+             --kill-port-process`.",
+            foreign.pid
+        );
+    }
 
     if !quiet {
         CliService::success("API server stopped");
         CliService::info("Starting API server...");
     }
 
-    super::super::serve::execute(prompter, true, false, config).await?;
+    super::super::serve::execute(
+        prompter,
+        super::super::serve::ServeFlags {
+            foreground: true,
+            kill_port_process: false,
+            skip_migrate: false,
+        },
+        config,
+    )
+    .await?;
 
     let message = "API server restarted successfully".to_owned();
     if !quiet {
@@ -96,7 +124,7 @@ pub async fn execute_agent(
 
     let output = RestartOutput {
         service_type: "agent".to_owned(),
-        service_name: Some(agent.to_owned()),
+        service_name: Some(ServiceName::new(name)),
         restarted_count: 1,
         failed_count: 0,
         message,
@@ -107,7 +135,7 @@ pub async fn execute_agent(
 
 pub async fn execute_mcp(
     ctx: &Arc<AppContext>,
-    server_name: &str,
+    server_name: &McpServerId,
     build: bool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -125,13 +153,22 @@ pub async fn execute_mcp(
     let manager = lifecycle::mcp_orchestrator(ctx)?;
 
     if build {
-        manager
-            .build_and_restart_services(Some(server_name.to_owned()))
+        let restarted = manager
+            .build_and_restart_services(Some(ServiceName::new(server_name.as_str())))
             .await?;
+        if restarted == 0 {
+            anyhow::bail!("{server_name} is not a managed MCP server");
+        }
     } else {
-        manager
-            .restart_services_sync(Some(server_name.to_owned()))
+        let outcomes = manager
+            .restart_services(Some(ServiceName::new(server_name.as_str())))
             .await?;
+        if outcomes.is_empty() {
+            anyhow::bail!("{server_name} is not a managed MCP server");
+        }
+        for outcome in outcomes {
+            outcome.result?;
+        }
     }
 
     let message = format!("MCP server {} restarted successfully", server_name);
@@ -141,7 +178,7 @@ pub async fn execute_mcp(
 
     let output = RestartOutput {
         service_type: "mcp".to_owned(),
-        service_name: Some(server_name.to_owned()),
+        service_name: Some(ServiceName::new(server_name.as_str())),
         restarted_count: 1,
         failed_count: 0,
         message,

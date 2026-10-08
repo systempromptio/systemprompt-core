@@ -12,14 +12,15 @@
 mod merge;
 mod render;
 
-
 use serde_yaml::Value;
 
 use super::config;
 use crate::integration::generated_profile;
-use crate::integration::host_app::{GeneratedProfile, ProfileGenInputs, ProfileRemoval};
+use crate::integration::host_app::{
+    GeneratedProfile, HostAppError, ProfileGenInputs, ProfileRemoval,
+};
 
-pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = generated_profile::profile_uuids();
     let yaml_text = render::managed_yaml(inputs)?;
     let path = generated_profile::write("hermes-bridge-config", ".yaml", yaml_text.as_bytes())?;
@@ -31,15 +32,15 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(generated_path: &str) -> std::io::Result<()> {
+pub(super) fn install_profile(generated_path: &str) -> Result<(), HostAppError> {
     install_profile_into(generated_path, &config::hermes_home())?;
-    generated_profile::consume(generated_path)
+    Ok(generated_profile::consume(generated_path)?)
 }
 
 pub fn install_profile_into(
     generated_path: &str,
     hermes_home: &std::path::Path,
-) -> std::io::Result<()> {
+) -> Result<(), HostAppError> {
     let source_text = std::fs::read_to_string(generated_path)?;
     let mut source: Value = serde_yaml::from_str(&source_text)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
@@ -49,11 +50,7 @@ pub fn install_profile_into(
         write_env_key(&config::env_path_in(hermes_home), config::ENV_API_KEY, &key)?;
     }
 
-    let target = config::config_yaml_path_in(hermes_home);
-    if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    merge::install(&source, &target)
+    merge::install(&source, &config::config_yaml_path_in(hermes_home))
 }
 
 pub(super) fn remove_profile() -> std::io::Result<ProfileRemoval> {
@@ -114,12 +111,9 @@ fn write_env_key(path: &std::path::Path, key: &str, value: &str) -> std::io::Res
     if !replaced {
         lines.push(format!("{key}={value}"));
     }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let mut body = lines.join("\n");
     body.push('\n');
-    std::fs::write(path, body)
+    crate::fsutil::atomic_write_0600(path, body.as_bytes())
 }
 
 fn remove_env_key(path: &std::path::Path, key: &str) -> std::io::Result<bool> {
@@ -137,11 +131,11 @@ fn remove_env_key(path: &std::path::Path, key: &str) -> std::io::Result<bool> {
         return Ok(false);
     }
     if kept.iter().all(|l| l.trim().is_empty()) {
-        std::fs::remove_file(path)?;
+        crate::fsutil::remove_verified(path)?;
         return Ok(true);
     }
     let mut body = kept.join("\n");
     body.push('\n');
-    std::fs::write(path, body)?;
+    crate::fsutil::atomic_write_0600(path, body.as_bytes())?;
     Ok(true)
 }

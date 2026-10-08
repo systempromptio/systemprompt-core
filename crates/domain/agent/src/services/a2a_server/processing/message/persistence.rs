@@ -91,9 +91,7 @@ pub async fn persist_completed_task(
             trace_id: context.trace_id(),
         })
         .await
-        .map_err(|e| {
-            AgentServiceError::Internal(format!("Failed to update task and save messages: {e}"))
-        })?;
+        .map_err(|e| AgentServiceError::operation("Failed to update task and save messages", e))?;
 
     let mut undelivered_broadcasts = Vec::new();
     if !artifacts_already_published && let Some(artifacts) = &task.artifacts {
@@ -104,10 +102,10 @@ pub async fn persist_completed_task(
                 .publish_from_a2a(artifact, &task.id, context_id, context.user_id())
                 .await
                 .map_err(|e| {
-                    AgentServiceError::Internal(format!(
-                        "Failed to publish artifact {}: {e}",
-                        artifact.id
-                    ))
+                    AgentServiceError::operation(
+                        format!("Failed to publish artifact {}", artifact.id),
+                        e,
+                    )
                 })?;
 
             if let Err(e) =

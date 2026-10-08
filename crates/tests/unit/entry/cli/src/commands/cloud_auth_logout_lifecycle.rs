@@ -43,7 +43,7 @@ fn session(key: &SessionKey, label: &str) -> CliSession {
 
 #[tokio::test]
 async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_tenant_sessions() {
-    let root = tempfile::tempdir().expect("owned cloud project");
+    let root = systemprompt_test_fixtures::canonical_tempdir();
     std::fs::create_dir_all(root.path().join(".systemprompt")).expect("cloud directory");
     let prior = std::env::current_dir().expect("current directory");
     std::env::set_current_dir(root.path()).expect("enter owned project");
@@ -68,7 +68,7 @@ async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_te
     store.upsert_session(&local, session(&local, "local"));
     store.upsert_session(&tenant_a, session(&tenant_a, "tenant-a"));
     store.upsert_session(&tenant_b, session(&tenant_b, "tenant-b"));
-    store.set_active_with_profile(&tenant_a, "coverage");
+    store.set_active_with_profile(&tenant_a, &pname("coverage"));
     let local_before =
         serde_json::to_value(store.get_session(&local).expect("local session before"))
             .expect("serialize local session");
@@ -129,4 +129,8 @@ async fn cancellation_preserves_cloud_state_and_confirmed_logout_removes_only_te
     assert!(remaining.active_profile_name.is_none());
     assert!(remaining.get_session(&tenant_a).is_none());
     assert!(remaining.get_session(&tenant_b).is_none());
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

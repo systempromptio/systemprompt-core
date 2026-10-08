@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
     let locale = LocaleCode::english();
 
     let content = resolve_content(&repo, &args, &locale).await?;
@@ -86,7 +86,7 @@ async fn resolve_content(
     {
         let id = ContentId::new(args.identifier.clone());
         return repo
-            .get_by_id(&id)
+            .find_by_id(&id)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", args.identifier));
     }
@@ -94,7 +94,7 @@ async fn resolve_content(
     if let Some(source_id) = args.source.as_ref() {
         let source = SourceId::new(source_id.clone());
         return repo
-            .get_by_source_and_slug(&source, &args.identifier, locale)
+            .find_by_source_and_slug(&source, &args.identifier, locale)
             .await?
             .ok_or_else(|| {
                 anyhow!(
@@ -105,11 +105,11 @@ async fn resolve_content(
             });
     }
 
-    let sources = repo.find_sources_by_slug(&args.identifier, locale).await?;
+    let sources = repo.list_sources_by_slug(&args.identifier, locale).await?;
     match sources.as_slice() {
         [] => Err(anyhow!("No content with slug '{}' found", args.identifier)),
         [only] => repo
-            .get_by_source_and_slug(only, &args.identifier, locale)
+            .find_by_source_and_slug(only, &args.identifier, locale)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", args.identifier)),
         many => {

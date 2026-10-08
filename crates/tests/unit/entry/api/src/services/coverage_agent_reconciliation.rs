@@ -1,6 +1,7 @@
 use systemprompt_api::services::server::lifecycle::agents::reconcile_agents;
+use systemprompt_identifiers::AgentName;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
+    init_services_bootstrap, install_test_signing_key, test_app_context, test_db_pool,
 };
 
 fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
@@ -57,8 +58,8 @@ async fn coverage_required_agent_failure_is_retried_and_blocks_api_startup() {
     let name = format!("reconcile_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Required", true));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     let err = reconcile_agents(&ctx, None).await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("failed to start after retry"), "{message}");
@@ -76,8 +77,8 @@ async fn coverage_disabled_agent_does_not_block_api_startup_on_an_occupied_port(
     let name = format!("disabled_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Disabled", false));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).unwrap();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     assert_eq!(reconcile_agents(&ctx, None).await.unwrap(), 0);
     assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_ok());
 }
@@ -129,7 +130,7 @@ impl OwnedMarkedAgent {
             systemprompt_loader::subprocess::live_pid_is_subprocess(
                 owned.pid(),
                 systemprompt_models::subprocess::AGENT_NAME_ENV,
-                name,
+                &systemprompt_identifiers::ServiceName::new(name),
             ),
             "owned child carries the exact agent identity"
         );
@@ -138,21 +139,6 @@ impl OwnedMarkedAgent {
 
     fn pid(&self) -> u32 {
         self.child.id()
-    }
-
-    fn wait_for_production_termination(&mut self) -> std::process::ExitStatus {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(8);
-        loop {
-            if let Some(status) = self.child.try_wait().expect("poll owned agent child") {
-                return status;
-            }
-            assert!(
-                std::time::Instant::now() < deadline,
-                "reconciliation did not terminate owned agent {}",
-                self.name
-            );
-            std::thread::sleep(std::time::Duration::from_millis(20));
-        }
     }
 }
 
@@ -177,16 +163,13 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     let name = format!("reconcile_running_{}", uuid::Uuid::new_v4().simple());
     let boot = init_services_bootstrap(&agent_yaml(&name, port, "Running cleanup", true));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("agent reconciliation database fixture");
-    let ctx = fixture_app_context(&pool, &boot.database_url)
-        .expect("agent reconciliation application fixture");
-    let mut owned = OwnedMarkedAgent::spawn(&name);
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let owned = OwnedMarkedAgent::spawn(&name);
 
     ctx.a2a_repositories()
         .agent_services
-        .register_agent(&name, owned.pid(), port)
+        .register_agent(&AgentName::new(name.as_str()), owned.pid(), port)
         .await
         .expect("seed the owned agent as running");
 
@@ -198,19 +181,19 @@ async fn reconciliation_terminates_an_owned_running_agent_before_retrying_failed
     assert!(message.contains("failed to start after retry"), "{message}");
     assert!(message.contains(&name), "{message}");
 
-    let status = owned.wait_for_production_termination();
     assert!(
-        !status.success(),
-        "reconciliation must terminate the previous agent rather than let it exit normally"
+        !systemprompt_loader::subprocess::is_running(owned.pid()).await,
+        "reconciliation must have terminated the previous agent {} before retrying",
+        owned.name
     );
     let row = ctx
         .a2a_repositories()
         .agent_services
-        .get_agent_status(&name)
+        .find_agent_status(&AgentName::new(name.as_str()))
         .await
         .expect("read terminal agent service row")
         .expect("terminal agent service row persists");
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status.as_str(), "error");
     assert_eq!(row.pid, None);
 }
 
@@ -225,12 +208,10 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
     );
     install_test_signing_key();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("malformed_agent_registry_startup")
-            .await
-            .expect("private agent reconciliation database");
-    let pool = database.pool().await.expect("private agent pool");
-    let ctx = fixture_app_context(&pool, database.url())
-        .expect("agent reconciliation application fixture");
+        systemprompt_test_fixtures::DisposableDb::with_schema("malformed_agent_registry_startup")
+            .await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(&pool, database.url());
     let (events, mut receiver) = systemprompt_traits::startup_channel();
 
     let error = reconcile_agents(&ctx, Some(&events))
@@ -264,7 +245,7 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
         "event preserves the registry parse diagnosis: {message}"
     );
     let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM services WHERE module_name = 'agent'")
-        .fetch_one(pool.pool_arc().expect("agent pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("agent service count");
     assert_eq!(
@@ -272,6 +253,6 @@ async fn malformed_agent_registry_fails_startup_and_emits_correlated_fatal_event
         "registry failure starts and persists no agent services"
     );
     drop(ctx);
-    pool.write_pool_arc().expect("agent pool").close().await;
+    pool.write_pool().close().await;
     database.drop_now().await;
 }

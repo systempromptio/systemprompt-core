@@ -7,23 +7,15 @@
 //! next install calls the extension established and executes migration SQL
 //! the declarative schema has already superseded. Re-running never recovers.
 
-use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn leak_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -114,11 +106,11 @@ async fn table_exists(pool: &PgPool, table: &str) -> bool {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_failed_install_never_leaves_a_stamped_extension_unstamped() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = Uuid::new_v4().simple().to_string()[..12].to_string();
     let good_table: &'static str = leak_str(format!("interrupted_aaa_{suffix}"));

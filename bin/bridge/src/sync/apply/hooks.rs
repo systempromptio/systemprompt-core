@@ -102,8 +102,12 @@ fn build_hooks_file(
             );
             continue;
         };
-        let entry =
-            WireHookEntry::user_command(hook.command.clone(), hook.event.as_str(), hook.is_async);
+        let entry = WireHookEntry::user_command(
+            hook.command.clone(),
+            hook.event.as_str(),
+            hook.is_async,
+            hook.timeout,
+        );
         body.append_user_hook(hook.event.as_str().to_owned(), hook.matcher.clone(), entry);
     }
     Ok(body)

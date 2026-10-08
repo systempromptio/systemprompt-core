@@ -7,15 +7,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::jsonrpc::{
+    JSON_RPC_VERSION_2_0, JsonRpcError, JsonRpcResponse, NumberOrString,
+};
 use axum::http::StatusCode;
 use serde_json::{Value, json};
 use systemprompt_logging::LogLevel;
+
+pub type JsonRpcErrorResponse = JsonRpcResponse<()>;
 
 #[derive(Debug)]
 pub struct JsonRpcErrorBuilder {
     code: i32,
     message: String,
+    // JSON: JSON-RPC 2.0 error `data` — the spec allows any value.
     data: Option<Value>,
     log_message: Option<String>,
     log_level: LogLevel,
@@ -32,6 +37,7 @@ impl JsonRpcErrorBuilder {
         }
     }
 
+    // JSON: JSON-RPC 2.0 error `data` — the spec allows any value.
     pub fn with_data(mut self, data: Value) -> Self {
         self.data = Some(data);
         self
@@ -55,44 +61,47 @@ impl JsonRpcErrorBuilder {
         self
     }
 
-    pub fn build(self, request_id: &NumberOrString) -> Value {
+    pub fn build(self, request_id: &NumberOrString) -> JsonRpcErrorResponse {
+        self.build_as(request_id)
+    }
+
+    pub fn build_as<T>(self, request_id: &NumberOrString) -> JsonRpcResponse<T> {
         if let Some(log_msg) = self.log_message {
             match self.log_level {
                 LogLevel::Error => {
-                    tracing::error!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::error!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Warn => {
-                    tracing::warn!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::warn!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Info => {
-                    tracing::info!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::info!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Debug => {
-                    tracing::debug!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::debug!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
                 LogLevel::Trace => {
-                    tracing::trace!(topic = "a2a_jsonrpc", "{}", log_msg);
+                    tracing::trace!(topic = "a2a_jsonrpc", detail = %log_msg, "JSON-RPC error response");
                 },
             }
         }
 
-        let mut error = json!({
-            "code": self.code,
-            "message": self.message
-        });
-
-        if let Some(data) = self.data {
-            error["data"] = data;
+        JsonRpcResponse {
+            jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
+            result: None,
+            error: Some(JsonRpcError {
+                code: self.code,
+                message: self.message,
+                data: self.data,
+            }),
+            id: request_id.clone(),
         }
-
-        json!({
-            "jsonrpc": "2.0",
-            "error": error,
-            "id": request_id
-        })
     }
 
-    pub fn build_with_status(self, request_id: &NumberOrString) -> (StatusCode, Value) {
+    pub fn build_with_status(
+        self,
+        request_id: &NumberOrString,
+    ) -> (StatusCode, JsonRpcErrorResponse) {
         let status = match self.code {
             -32600 => StatusCode::BAD_REQUEST,
             -32601 => StatusCode::NOT_FOUND,
@@ -125,6 +134,10 @@ impl JsonRpcErrorBuilder {
         Self::new(-32700, "Parse error")
     }
 
+    pub fn unsupported_operation() -> Self {
+        Self::new(-32004, "This operation is not supported")
+    }
+
     pub fn unauthorized(reason: impl Into<String>) -> Self {
         Self::new(-32600, "Unauthorized").with_data(json!({
             "reason": reason.into()
@@ -141,7 +154,7 @@ impl JsonRpcErrorBuilder {
 pub fn unauthorized_response(
     reason: impl Into<String>,
     request_id: &NumberOrString,
-) -> (StatusCode, Value) {
+) -> (StatusCode, JsonRpcErrorResponse) {
     let reason_str = reason.into();
     (
         StatusCode::UNAUTHORIZED,
@@ -154,7 +167,7 @@ pub fn unauthorized_response(
 pub fn forbidden_response(
     reason: impl Into<String>,
     request_id: &NumberOrString,
-) -> (StatusCode, Value) {
+) -> (StatusCode, JsonRpcErrorResponse) {
     let reason_str = reason.into();
     (
         StatusCode::FORBIDDEN,

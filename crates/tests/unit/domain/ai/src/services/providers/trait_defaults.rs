@@ -1,24 +1,21 @@
-// Exercises the default method bodies on `AiProvider` through a stub that
-// implements only the required methods, plus the structured-output retry
-// driver.
+// Exercises the default method bodies on `ProviderClient` through a stub that
+// implements only the required methods.
 
 use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::json;
-use std::any::Any;
 use std::sync::Mutex;
-use systemprompt_ai::error::{AiError, Result};
+use systemprompt_ai::error::{AiError, ProviderCapability, Result};
 use systemprompt_ai::models::ai::{
-    AiMessage, AiResponse, MessageRole, ResponseFormat, SamplingParams, StructuredOutputOptions,
+    AiMessage, AiResponse, MessageRole, ResponseFormat, SamplingParams,
 };
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
-use systemprompt_ai::services::structured_output::StructuredOutputProcessor;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 
 #[derive(Default)]
 struct MinimalProvider {
@@ -27,7 +24,12 @@ struct MinimalProvider {
 
 impl MinimalProvider {
     fn response(text: &str) -> AiResponse {
-        let mut resp = AiResponse::default();
+        let mut resp = AiResponse::new(
+            AiRequestId::generate(),
+            String::new(),
+            String::new(),
+            String::new(),
+        );
         resp.content = text.to_owned();
         resp.provider = "minimal".to_owned();
         resp.model = "minimal-model".to_owned();
@@ -36,13 +38,9 @@ impl MinimalProvider {
 }
 
 #[async_trait]
-impl AiProvider for MinimalProvider {
+impl ProviderClient for MinimalProvider {
     fn name(&self) -> &str {
         "minimal"
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 
     fn capabilities(&self) -> ProviderCapabilities {
@@ -162,7 +160,11 @@ async fn default_generate_structured_delegates_to_generate() {
 async fn default_capability_flags_and_unsupported_operations() {
     let provider = MinimalProvider::default();
     assert!(!provider.supports_json_mode());
-    assert!(provider.supports_structured_output());
+    assert!(
+        !provider.supports_structured_output(),
+        "the default generate_structured drops the response format, so the default must not \
+         advertise structured output"
+    );
     assert!(!provider.supports_streaming());
     assert!(!provider.supports_google_search());
 
@@ -170,7 +172,13 @@ async fn default_capability_flags_and_unsupported_operations() {
     let stream = provider
         .generate_stream(GenerationParams::new(&msgs, "m", 64))
         .await;
-    assert!(matches!(stream, Err(AiError::Internal(msg)) if msg.contains("minimal")));
+    assert!(matches!(
+        stream,
+        Err(AiError::CapabilityUnsupported {
+            ref provider,
+            capability: ProviderCapability::Streaming,
+        }) if provider == "minimal"
+    ));
 
     let tool_stream = provider
         .generate_with_tools_stream(ToolGenerationParams::new(
@@ -178,96 +186,24 @@ async fn default_capability_flags_and_unsupported_operations() {
             Vec::new(),
         ))
         .await;
-    assert!(matches!(tool_stream, Err(AiError::Internal(_))));
+    assert!(matches!(
+        tool_stream,
+        Err(AiError::CapabilityUnsupported {
+            capability: ProviderCapability::ToolStreaming,
+            ..
+        })
+    ));
 
     let search = provider
         .generate_with_google_search(SearchGenerationParams::new(GenerationParams::new(
             &msgs, "m", 64,
         )))
         .await;
-    assert!(matches!(search, Err(AiError::Internal(msg)) if msg.contains("Google Search")));
-}
-
-fn options() -> StructuredOutputOptions {
-    StructuredOutputOptions {
-        max_retries: Some(2),
-        ..Default::default()
-    }
-}
-
-#[tokio::test]
-async fn retry_returns_first_valid_json() {
-    let calls = Mutex::new(0u32);
-    let result = StructuredOutputProcessor::generate_with_retry(
-        || {
-            *calls.lock().expect("lock") += 1;
-            async { Ok(r#"{"a": 1}"#.to_owned()) }
-        },
-        &ResponseFormat::JsonObject,
-        &options(),
-    )
-    .await
-    .expect("valid json");
-    assert_eq!(result["a"], 1);
-    assert_eq!(*calls.lock().expect("lock"), 1);
-}
-
-#[tokio::test]
-async fn retry_recovers_after_invalid_payload() {
-    let calls = Mutex::new(0u32);
-    let result = StructuredOutputProcessor::generate_with_retry(
-        || {
-            let n = {
-                let mut guard = calls.lock().expect("lock");
-                *guard += 1;
-                *guard
-            };
-            async move {
-                if n == 1 {
-                    Ok("not json at all".to_owned())
-                } else {
-                    Ok(r#"{"ok": true}"#.to_owned())
-                }
-            }
-        },
-        &ResponseFormat::JsonObject,
-        &options(),
-    )
-    .await
-    .expect("second attempt succeeds");
-    assert_eq!(result["ok"], true);
-    assert_eq!(*calls.lock().expect("lock"), 2);
-}
-
-#[tokio::test]
-async fn retry_exhaustion_surfaces_last_parse_error() {
-    let calls = Mutex::new(0u32);
-    let err = StructuredOutputProcessor::generate_with_retry(
-        || {
-            *calls.lock().expect("lock") += 1;
-            async { Ok("still not json".to_owned()) }
-        },
-        &ResponseFormat::JsonObject,
-        &options(),
-    )
-    .await
-    .expect_err("all attempts invalid");
-    assert!(!err.to_string().is_empty());
-    assert_eq!(
-        *calls.lock().expect("lock"),
-        3,
-        "max_retries=2 means 3 attempts"
-    );
-}
-
-#[tokio::test]
-async fn retry_exhaustion_surfaces_generator_error() {
-    let err = StructuredOutputProcessor::generate_with_retry(
-        || async { Err(AiError::Internal("provider down".to_owned())) },
-        &ResponseFormat::JsonObject,
-        &options(),
-    )
-    .await
-    .expect_err("generator always fails");
-    assert!(matches!(err, AiError::Internal(msg) if msg.contains("provider down")));
+    assert!(matches!(
+        search,
+        Err(AiError::CapabilityUnsupported {
+            capability: ProviderCapability::GoogleSearch,
+            ..
+        })
+    ));
 }

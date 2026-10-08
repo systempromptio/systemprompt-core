@@ -8,6 +8,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::shared::{parse_email, parse_profile_name};
+use systemprompt_identifiers::error::IdValidationError;
 
 #[test]
 fn test_parse_profile_name_valid_simple() {
@@ -89,11 +90,14 @@ fn test_parse_profile_name_valid_starts_with_hyphen() {
 }
 
 #[test]
-fn test_parse_profile_name_error_message_is_string() {
-    let result = parse_profile_name("");
-    result.as_ref().expect_err("result should fail");
-    let error = result.unwrap_err();
-    assert!(error.contains("ProfileName"));
+fn test_parse_profile_name_empty_is_typed_empty_error() {
+    let error = parse_profile_name("").expect_err("result should fail");
+    assert!(matches!(
+        error,
+        IdValidationError::Empty {
+            id_type: "ProfileName"
+        }
+    ));
 }
 
 #[test]
@@ -191,11 +195,9 @@ fn test_parse_email_invalid_no_tld() {
 }
 
 #[test]
-fn test_parse_email_error_message_is_string() {
-    let result = parse_email("invalid");
-    result.as_ref().expect_err("result should fail");
-    let error = result.unwrap_err();
-    assert!(error.contains('@'));
+fn test_parse_email_error_names_the_missing_at() {
+    let error = parse_email("invalid").expect_err("result should fail");
+    assert!(error.to_string().contains('@'));
 }
 
 #[test]

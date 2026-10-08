@@ -6,12 +6,17 @@
 //! binds every role including the one these tests connect as — so the assertion
 //! here is that an UPDATE is refused while INSERT and DELETE still work.
 
-use systemprompt_identifiers::{Actor, UserId};
+use std::sync::LazyLock;
+
+use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
+
+static SESSION: LazyLock<SessionId> = LazyLock::new(|| SessionId::new("sess-append-only"));
+static CONTEXT: LazyLock<ContextId> = LazyLock::new(|| ContextId::from_uuid(Uuid::from_u128(2)));
 
 fn record<'a>(
     id: &'a str,
@@ -21,7 +26,7 @@ fn record<'a>(
     GovernanceDecisionRecord {
         id,
         actor,
-        session_id: "sess-append-only",
+        session_id: Some(&SESSION),
         tool_name: "append-only-tool",
         agent_id: None,
         agent_scope: None,
@@ -31,7 +36,7 @@ fn record<'a>(
         evaluated_rules: evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_append_only",
+        context_id: &CONTEXT,
         task_id: None,
         trace_id: None,
         client_id: None,
@@ -41,13 +46,7 @@ fn record<'a>(
 
 #[tokio::test]
 async fn a_recorded_decision_cannot_be_rewritten() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool.clone());
 
     let id = Uuid::new_v4().to_string();

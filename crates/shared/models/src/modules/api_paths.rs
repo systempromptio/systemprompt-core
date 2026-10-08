@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AgentId, ClientId, TenantId};
+use systemprompt_identifiers::{AgentName, ClientId, TenantId};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ApiPaths;
@@ -77,9 +77,6 @@ impl ApiPaths {
     pub const TRACK_ENGAGEMENT: &'static str = "/track/engagement";
 
     pub const ADMIN_BASE: &'static str = "/api/v1/admin";
-    pub const ADMIN_LOGS: &'static str = "/api/v1/admin/logs";
-    pub const ADMIN_USERS: &'static str = "/api/v1/admin/users";
-    pub const ADMIN_ANALYTICS: &'static str = "/api/v1/admin/analytics";
 
     pub const MARKETPLACE_BASE: &'static str = "/api/v1/marketplace";
 
@@ -129,7 +126,7 @@ impl ApiPaths {
         format!("{}/{}", Self::WELLKNOWN_AGENT_CARDS, agent_name)
     }
 
-    pub fn agent_endpoint(agent_id: &AgentId) -> String {
-        format!("{}/{}/", Self::AGENTS_BASE, agent_id.as_str())
+    pub fn agent_endpoint(agent_name: &AgentName) -> String {
+        format!("{}/{}/", Self::AGENTS_BASE, agent_name.as_str())
     }
 }

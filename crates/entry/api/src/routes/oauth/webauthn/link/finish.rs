@@ -8,15 +8,12 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 use tracing::instrument;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 
-use crate::routes::oauth::OAuthHttpError;
-use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct FinishLinkRequest {
@@ -32,24 +29,17 @@ pub(super) struct FinishLinkResponse {
     pub message: String,
 }
 
-#[instrument(skip(state, oauth_repo, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
 pub async fn finish_link(
     State(state): State<OAuthState>,
-    OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishLinkRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let user_provider = Arc::clone(state.user_provider());
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(oauth_repo, user_provider).await?;
+    let webauthn_service = state.webauthn()?;
 
     let user_id = webauthn_service
-        .finish_registration_with_token(
-            request.challenge_id.as_str(),
-            &request.token,
-            &request.credential,
-        )
+        .finish_registration_with_token(&request.challenge_id, &request.token, &request.credential)
         .await
-        .map_err(|e| OAuthHttpError::link_failed(e.to_string()))?;
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::link_failed))?;
 
     tracing::info!(user_id = %user_id, "Credential linked successfully");
     Ok((

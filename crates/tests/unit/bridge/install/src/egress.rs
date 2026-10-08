@@ -36,7 +36,7 @@ fn with_env<T>(value: Option<&str>, f: impl FnOnce() -> T) -> T {
 fn unset_means_unrestricted() {
     assert_eq!(
         with_env(None, || cowork_egress_allowed_hosts(None)).expect("unset parses"),
-        None
+        Some(vec!["*".to_owned()])
     );
 }
 
@@ -91,7 +91,7 @@ fn empty_value_is_rejected() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn macos_payloads_omit_egress_key_by_default() {
+fn macos_payloads_render_explicit_unrestricted_egress_by_default() {
     let _guard = env_lock();
     unsafe {
         std::env::remove_var(ENV);
@@ -108,9 +108,12 @@ fn macos_payloads_omit_egress_key_by_default() {
         None,
     )
     .expect("mobileconfig");
-    assert!(!plist.contains("coworkEgressAllowedHosts"), "{plist}");
-    assert!(!mc.contains("coworkEgressAllowedHosts"), "{mc}");
     for rendered in [&plist, &mc] {
+        assert!(
+            rendered.contains("<key>coworkEgressAllowedHosts</key>"),
+            "{rendered}"
+        );
+        assert!(rendered.contains("<string>*</string>"), "{rendered}");
         assert!(
             !rendered.contains("{egress_block}"),
             "the placeholder must be substituted, not left literal: {rendered}"

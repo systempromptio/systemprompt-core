@@ -24,11 +24,12 @@ use systemprompt_api::services::middleware::{
     PublicContextMiddleware, RateLimitState, RouterExt, UserOnlyContextMiddleware,
 };
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
+use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_models::profile::RateLimitsConfig;
-use systemprompt_models::{Config, RequestContext};
-use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{fixture_config, test_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -62,9 +63,9 @@ fn context_for(user: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("router-ext").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
     .with_user_type(UserType::User)
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
 }
 
 fn context(kind: UserType) -> RequestContext {
@@ -73,11 +74,9 @@ fn context(kind: UserType) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("router-ext").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("router-ext-user")),
     )
     .with_user_type(kind)
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "router-ext-user",
-    )))
 }
 
 // The header-extracting flavours take a `ContextExtractor`; the trait itself is
@@ -119,19 +118,13 @@ fn config_with(rate_limits: RateLimitsConfig) -> Config {
     config
 }
 
-async fn buckets_or_skip() -> Option<Arc<UserRateLimitBucketRepository>> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    Some(Arc::new(
-        UserRateLimitBucketRepository::new(&db).expect("bucket repository"),
-    ))
+async fn buckets() -> Arc<UserRateLimitBucketRepository> {
+    let db = test_db_pool().await;
+    Arc::new(UserRateLimitBucketRepository::new(&db))
 }
 
-async fn limits_with_or_skip(rate_limits: RateLimitsConfig) -> Option<RateLimitState> {
-    Some(RateLimitState::new(
-        &config_with(rate_limits),
-        buckets_or_skip().await?,
-    ))
+async fn limits_with(rate_limits: RateLimitsConfig) -> RateLimitState {
+    RateLimitState::new(&config_with(rate_limits), buckets().await)
 }
 
 fn window_start(now: DateTime<Utc>) -> DateTime<Utc> {
@@ -141,14 +134,11 @@ fn window_start(now: DateTime<Utc>) -> DateTime<Utc> {
 
 #[tokio::test]
 async fn a_disabled_rate_limit_leaves_the_router_untouched() {
-    let Some(limits) = limits_with_or_skip(RateLimitsConfig {
+    let limits = limits_with(RateLimitsConfig {
         disabled: true,
         ..RateLimitsConfig::default()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a disabled limiter still builds");
@@ -164,9 +154,7 @@ async fn a_disabled_rate_limit_leaves_the_router_untouched() {
 
 #[tokio::test]
 async fn an_exhausted_burst_is_refused_rather_than_served() {
-    let Some(limits) = limits_with_or_skip(limited()).await else {
-        return;
-    };
+    let limits = limits_with(limited()).await;
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
@@ -195,9 +183,7 @@ async fn an_exhausted_burst_is_refused_rather_than_served() {
 
 #[tokio::test]
 async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
-    let Some(limits) = limits_with_or_skip(limited()).await else {
-        return;
-    };
+    let limits = limits_with(limited()).await;
 
     let app = ok_router()
         .with_rate_limit(&limits, 0, SCOPE)
@@ -223,14 +209,11 @@ async fn a_zero_rate_clamps_to_a_real_limit_instead_of_meaning_unlimited() {
 
 #[tokio::test]
 async fn a_burst_product_that_is_an_exact_multiple_of_u32_still_limits() {
-    let Some(limits) = limits_with_or_skip(RateLimitsConfig {
+    let limits = limits_with(RateLimitsConfig {
         burst_multiplier: 1 << 31,
         ..limited()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
 
     let app = ok_router()
         .with_rate_limit(&limits, 2, SCOPE)
@@ -269,9 +252,7 @@ async fn statuses_over(app: &Router, requests: Vec<Request<Body>>) -> Vec<Status
 
 #[tokio::test]
 async fn a_rotating_forwarded_for_header_does_not_mint_a_fresh_bucket() {
-    let Some(limits) = limits_with_or_skip(limited()).await else {
-        return;
-    };
+    let limits = limits_with(limited()).await;
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
@@ -290,9 +271,7 @@ async fn a_rotating_forwarded_for_header_does_not_mint_a_fresh_bucket() {
 
 #[tokio::test]
 async fn a_rotating_user_agent_does_not_mint_a_fresh_bucket() {
-    let Some(limits) = limits_with_or_skip(limited()).await else {
-        return;
-    };
+    let limits = limits_with(limited()).await;
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
@@ -311,9 +290,7 @@ async fn a_rotating_user_agent_does_not_mint_a_fresh_bucket() {
 
 #[tokio::test]
 async fn two_authenticated_callers_get_independent_buckets() {
-    let Some(limits) = limits_with_or_skip(limited()).await else {
-        return;
-    };
+    let limits = limits_with(limited()).await;
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
         .expect("a 1/s limiter must build");
@@ -338,9 +315,7 @@ async fn two_authenticated_callers_get_independent_buckets() {
 
 #[tokio::test]
 async fn a_spent_replica_shared_window_refuses_a_verified_identity_this_replica_never_saw() {
-    let Some(buckets) = buckets_or_skip().await else {
-        return;
-    };
+    let buckets = buckets().await;
     let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)
@@ -402,9 +377,7 @@ async fn a_spent_replica_shared_window_refuses_a_verified_identity_this_replica_
 
 #[tokio::test]
 async fn an_anonymous_caller_never_touches_the_replica_shared_window() {
-    let Some(buckets) = buckets_or_skip().await else {
-        return;
-    };
+    let buckets = buckets().await;
     let limits = RateLimitState::new(&config_with(limited()), Arc::clone(&buckets));
     let app = ok_router()
         .with_rate_limit(&limits, 1, SCOPE)

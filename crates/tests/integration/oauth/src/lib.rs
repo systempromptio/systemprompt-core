@@ -35,22 +35,19 @@ mod webauthn_tests;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{
-    ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_secrets_bootstrap, test_db_pool};
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
 
 pub async fn setup_test_db() -> DbPool {
     ensure_test_secrets_bootstrap();
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
+    let db = test_db_pool().await;
     seed_fixture_user(&db).await;
     db
 }
 
 async fn seed_fixture_user(db: &DbPool) {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(systemprompt_test_fixtures::fixture_user_id().as_str())
         .bind("test-user@example.invalid")
@@ -60,7 +57,7 @@ async fn seed_fixture_user(db: &DbPool) {
 }
 
 pub async fn create_test_user(db: &DbPool) -> UserId {
-    let repo = UserRepository::new(db).expect("Failed to create user repository");
+    let repo = UserRepository::new(db);
     let unique_id = Uuid::new_v4();
     let name = format!("test_user_{}", unique_id);
     let email = format!("test_{}@example.com", unique_id);
@@ -74,6 +71,6 @@ pub async fn create_test_user(db: &DbPool) -> UserId {
 }
 
 pub async fn cleanup_test_user(db: &DbPool, user_id: &UserId) {
-    let repo = UserRepository::new(db).expect("Failed to create user repository");
+    let repo = UserRepository::new(db);
     let _ = repo.delete(user_id).await;
 }

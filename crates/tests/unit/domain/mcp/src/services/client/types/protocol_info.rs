@@ -5,12 +5,12 @@ use systemprompt_mcp::services::client::{McpProtocolInfo, ValidationResult};
 #[test]
 fn test_mcp_protocol_info_creation() {
     let info = McpProtocolInfo {
-        server_name: "test-server".to_string(),
+        implementation_name: "test-server".to_string(),
         version: "1.0.0".to_string(),
         protocol_version: "2024-11-05".to_string(),
     };
 
-    assert_eq!(info.server_name, "test-server");
+    assert_eq!(info.implementation_name, "test-server");
     assert_eq!(info.version, "1.0.0");
     assert_eq!(info.protocol_version, "2024-11-05");
 }
@@ -19,7 +19,7 @@ fn test_mcp_protocol_info_creation() {
 #[test]
 fn test_mcp_protocol_info_debug() {
     let info = McpProtocolInfo {
-        server_name: "test-server".to_string(),
+        implementation_name: "test-server".to_string(),
         version: "1.0.0".to_string(),
         protocol_version: "2024-11-05".to_string(),
     };
@@ -32,7 +32,7 @@ fn test_mcp_protocol_info_debug() {
 #[test]
 fn test_mcp_protocol_info_serialize() {
     let info = McpProtocolInfo {
-        server_name: "test-server".to_string(),
+        implementation_name: "test-server".to_string(),
         version: "1.0.0".to_string(),
         protocol_version: "2024-11-05".to_string(),
     };

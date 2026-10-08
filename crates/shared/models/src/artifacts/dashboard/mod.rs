@@ -18,14 +18,14 @@ pub use section::DashboardSection;
 pub use section_data::*;
 pub use section_types::{LayoutWidth, SectionLayout, SectionType};
 
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::ArtifactProvenance;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 fn default_artifact_type() -> String {
     "dashboard".to_owned()
@@ -44,7 +44,7 @@ pub struct DashboardArtifact {
     pub hints: DashboardHints,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 impl DashboardArtifact {
@@ -57,12 +57,12 @@ impl DashboardArtifact {
             description: None,
             sections: Vec::new(),
             hints: DashboardHints::default(),
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -86,18 +86,13 @@ impl DashboardArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        self.metadata.execution_id = Some(id.into());
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
+        self.metadata.set_execution_id(id);
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: impl Into<SkillId>,
-        skill_name: impl Into<String>,
-    ) -> Self {
-        self.metadata.skill_id = Some(skill_id.into());
-        self.metadata.skill_name = Some(skill_name.into());
+    pub fn with_skill(mut self, skill_id: SkillId, skill_name: SkillName) -> Self {
+        self.metadata.set_skill(skill_id, skill_name);
         self
     }
 }

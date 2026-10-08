@@ -6,25 +6,15 @@
 //! edit, because it hashes only the SQL — so the recorded `name` is what
 //! distinguishes the two, and a `.tombstone` is what keeps the number claimed.
 
-use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row, query};
-use systemprompt_database::{
-    Database, MigrationConfig, MigrationService, install_extension_schemas,
-};
+use systemprompt_database::{Database, MigrationConfig, MigrationService};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn leak_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -130,10 +120,10 @@ struct Fixture {
 }
 
 async fn fixture() -> Fixture {
-    let db = Database::new_postgres(&database_url())
+    let db = Database::new_postgres(&test_database_url())
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("slot_test_{suffix}"));

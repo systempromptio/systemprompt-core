@@ -1,6 +1,7 @@
 use systemprompt_agent::services::skills::SkillMetadata;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::{DiskSkillConfig, IngestionReport, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_models::IngestionReport;
 
 #[test]
 fn test_strip_frontmatter_with_yaml_block() {
@@ -70,7 +71,7 @@ tags:
 category: content
 "#;
     let config: DiskSkillConfig = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(config.id, "my_skill");
+    assert_eq!(config.id.as_ref().map(SkillId::as_str), Some("my_skill"));
     assert_eq!(config.name, "My Skill");
     assert_eq!(config.description, "A test skill");
     assert!(config.enabled);
@@ -87,7 +88,7 @@ name: Minimal
 description: Bare minimum
 "#;
     let config: DiskSkillConfig = serde_yaml::from_str(yaml).unwrap();
-    assert_eq!(config.id, "minimal");
+    assert_eq!(config.id.as_ref().map(SkillId::as_str), Some("minimal"));
     assert!(config.enabled);
     assert!(config.file.is_empty());
     assert!(config.tags.is_empty());

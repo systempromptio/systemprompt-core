@@ -22,9 +22,12 @@ use systemprompt_events::{
     standard_keep_alive,
 };
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+
+use crate::error::ApiHttpError;
 
 pub mod contexts;
 
@@ -103,7 +106,10 @@ pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
 
     if !broadcaster.register(&user_id, &conn_id, tx.clone()).await {
         tracing::warn!(user_id = %user_id_str, stream = %stream_name, "SSE stream rejected: per-user connection cap reached");
-        return http::StatusCode::TOO_MANY_REQUESTS.into_response();
+        return ApiHttpError::from(ApiError::rate_limited(
+            "Per-user stream connection limit reached",
+        ))
+        .into_response();
     }
 
     let cleanup_guard = ConnectionGuard::new(broadcaster, user_id, conn_id);

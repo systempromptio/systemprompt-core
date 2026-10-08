@@ -20,8 +20,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
-    fixture_db_pool, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
+    test_database_url, test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -39,9 +39,9 @@ fn parse(args: &[&str]) -> DbCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -55,7 +55,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 
 async fn applied_migration_count(pool: &DbPool) -> i64 {
     sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM extension_migrations")
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count applied migrations")
 }
@@ -140,11 +140,9 @@ async fn the_profile_migration_dispatcher_reinstalls_idempotently() {
     // earlier run left behind is testing that leftover rather than the code.
     ensure_test_bootstrap();
     install_test_signing_key();
-    let disp = DisposableDb::installed("cov_cli_reinstall")
-        .await
-        .expect("a freshly installed disposable database");
-    let pool = disp.pool().await.expect("pool on the disposable database");
-    let app = fixture_app_context(&pool, disp.url()).expect("fixture app context");
+    let disp = DisposableDb::with_schema("cov_cli_reinstall").await;
+    let pool = disp.test_pool().await;
+    let app = test_app_context(&pool, disp.url());
 
     let before = applied_migration_count(&pool).await;
     assert!(
@@ -195,9 +193,10 @@ async fn the_profile_dispatcher_refuses_an_irreversible_down_migration() {
     let err = db::execute(parse(&["migrate-down", "logging", "1"]), &ctx(&app, false))
         .await
         .expect_err("no in-tree migration ships down SQL");
+    assert_eq!(err.to_string(), "Down migration failed");
     assert!(
-        err.to_string().contains("not reversible"),
-        "the refusal must say why, got {err}"
+        format!("{err:#}").contains("not reversible"),
+        "the refusal must keep why as its cause, got {err:#}"
     );
 
     assert_eq!(
@@ -253,7 +252,7 @@ async fn assign_admin_rejects_a_user_that_does_not_exist() {
 #[tokio::test]
 async fn assign_admin_promotes_a_real_user_and_is_idempotent() {
     let (pool, app) = app().await;
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     let user_id = format!("promote_{}", uuid::Uuid::new_v4().simple());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -365,7 +364,7 @@ async fn the_size_report_ranks_the_largest_tables() {
     let table_count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(

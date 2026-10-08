@@ -13,9 +13,9 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{CloudConfig, CloudValidationMode, ProfileType};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::{CloudConfig, CloudValidationMode, ProfileType};
 
 const ISSUER: &str = "https://routing-issuer.test";
 
@@ -72,6 +72,7 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
     let routed_tenant = TenantId::new("tenant_routed");
     let other_tenant = TenantId::new("tenant_other");
     profile.target = ProfileType::Cloud;
+    profile.server.instance_id = None;
     profile.paths.system = "/app".to_owned();
     profile.paths.services = "/app/services".to_owned();
     profile.paths.bin = "/app/bin".to_owned();

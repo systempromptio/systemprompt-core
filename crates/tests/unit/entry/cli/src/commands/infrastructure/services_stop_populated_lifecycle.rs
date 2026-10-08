@@ -9,9 +9,10 @@ use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::services::{self, ServicesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
-use systemprompt_database::CreateServiceInput;
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str =
@@ -44,31 +45,36 @@ fn section<'a>(card: &'a Value, heading: &str) -> &'a Value {
 async fn populated_stop_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_grouped_stop")
-        .await
-        .expect("private services database");
+    let database = DisposableDb::with_schema("cli_grouped_stop").await;
     let database_info_path =
         std::env::var_os("GROUPED_STOP_DATABASE_INFO").expect("private database info channel");
     std::fs::write(database_info_path, database.url()).expect("write private database info");
-    let pool = database.pool().await.expect("private services pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full fixture app context");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let repository = app.service_repository().clone();
     for (name, module, port) in [
-        ("owned-stop-agent", "agent", 9311),
-        ("owned-stop-mcp", "mcp", 9312),
-        ("owned-stop-control", "api-control", 9313),
+        ("owned-stop-agent", ServiceModule::Agent, 9311),
+        ("owned-stop-mcp", ServiceModule::Mcp, 9312),
     ] {
         repository
             .create_service(CreateServiceInput {
-                name,
+                name: &ServiceName::new(name),
                 module_name: module,
-                status: "running",
+                status: ServiceStatus::Running,
                 port,
                 binary_mtime: None,
             })
             .await
             .expect("seed scoped running service");
     }
+    sqlx::query(
+        "INSERT INTO services (instance_id, name, module_name, status, port) VALUES ($1, \
+         'owned-stop-control', 'api-control', 'running', 9313)",
+    )
+    .bind(repository.instance_id().as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("seed a row of a module the grouped stop does not select");
     let ctx = CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
@@ -83,7 +89,7 @@ async fn populated_stop_helper() {
         .expect("stop selected populated service groups");
     println!("END_STOP_ARTIFACT");
 
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let raw = pool.pool();
     let states: Vec<(String, String)> =
         sqlx::query_as("SELECT name, status FROM services WHERE name = ANY($1) ORDER BY name")
             .bind(vec![
@@ -102,7 +108,7 @@ async fn populated_stop_helper() {
     drop(raw);
     drop(ctx);
     drop(repository);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

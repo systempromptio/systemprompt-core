@@ -38,7 +38,12 @@ pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError
     );
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, Freshness::Fresh).await?;
     let synced = manifest::verify_and_decode(&fetch, false, allow_tofu).await?;
-    super::acceptance::accept(&synced, fetch.client.base_url(), false)?;
+    super::acceptance::accept(
+        &synced,
+        fetch.client.base_url(),
+        false,
+        super::acceptance::CurrentVersion::Accepted,
+    )?;
     let servers = apply::loopback::rewrite_loopback_urls(
         &synced.managed_mcp_servers,
         fetch.client.base_url(),

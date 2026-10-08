@@ -4,8 +4,8 @@ use serde_json::json;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::SESSION_ID;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_db_pool, init_services_bootstrap, install_test_signing_key,
-    seed_admin_credential, test_key,
+    init_services_bootstrap, install_test_signing_key, seed_admin_credential, test_app_context,
+    test_db_pool, test_key,
 };
 use tower::ServiceExt;
 use wiremock::matchers::{method, path};
@@ -59,11 +59,9 @@ gateway:
         upstream.uri()
     ));
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await?;
-    let ctx = fixture_app_context(&pool, &boot.database_url)?;
-    let app = gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway enabled");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let app = gateway_router(&ctx).expect("gateway router builds");
     let cred = seed_admin_credential(
         &pool,
         &format!("google-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -84,8 +82,12 @@ gateway:
             if matches!(outcome, Outcome::Unservable) {
                 assert_eq!(status, http::StatusCode::NOT_FOUND, "{body}");
                 assert!(
-                    body.contains("declares a Google service account but is malformed"),
+                    body.contains("The requested model is not served by this gateway"),
                     "{body}"
+                );
+                assert!(
+                    !body.contains("coverage_google_key"),
+                    "the secret name stays in the log, not the client body: {body}"
                 );
             } else {
                 assert!(status.is_server_error(), "{status}: {body}");

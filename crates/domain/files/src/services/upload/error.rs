@@ -6,6 +6,7 @@
 use thiserror::Error;
 
 use super::FileValidationError;
+use crate::error::FilesError;
 
 #[derive(Debug, Error)]
 pub enum FileUploadError {
@@ -25,10 +26,7 @@ pub enum FileUploadError {
     Storage(#[from] systemprompt_traits::FileStorageError),
 
     #[error("Database error: {0}")]
-    Database(String),
-
-    #[error("Configuration error: {0}")]
-    Config(String),
+    Database(#[source] FilesError),
 
     #[error("Base64 input too large: encoded size {encoded_size} bytes exceeds limit")]
     Base64TooLarge { encoded_size: usize },

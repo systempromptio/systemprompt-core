@@ -17,12 +17,14 @@ use crate::stdio::diag;
 use crate::{install, stdio};
 
 pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
-    let print_mdm = parse_opt_flag(args, "--print-mdm")
-        .as_deref()
-        .and_then(Os::parse);
-    let emit_sched = parse_opt_flag(args, "--emit-schedule-template")
-        .as_deref()
-        .and_then(Os::parse);
+    let print_mdm = match os_flag(args, "--print-mdm") {
+        Ok(os) => os,
+        Err(code) => return code,
+    };
+    let emit_sched = match os_flag(args, "--emit-schedule-template") {
+        Ok(os) => os,
+        Err(code) => return code,
+    };
     let gateway = match parse_opt_flag(args, "--gateway") {
         Some(raw) => match ValidatedUrl::try_new(raw.trim()) {
             Ok(url) => Some(url),
@@ -49,11 +51,33 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     };
     let host_selection = match parse_host_selection(args) {
         Ok(sel) => sel,
-        Err(msg) => {
-            diag(&msg);
+        Err(e) => {
+            diag(&e.to_string());
             return ExitCode::from(64);
         },
     };
+    if apply || apply_mobileconfig {
+        let cfg = match crate::config::load() {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                diag(&e.to_string());
+                return ExitCode::from(1);
+            },
+        };
+        if let Err(e) = ctx.block_on(
+            ctx.gateway_client(
+                gateway
+                    .clone()
+                    .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg)),
+            )
+            .fetch_bridge_profile(),
+        ) {
+            diag(&format!(
+                "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
+            ));
+            return ExitCode::from(1);
+        }
+    }
     match install::install(
         &install::InstallOptions {
             print_mdm,
@@ -89,17 +113,27 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     }
 }
 
-fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, String> {
+#[derive(Debug, thiserror::Error)]
+enum HostSelectionError {
+    #[error("--hosts takes only 'all'; name individual hosts with --host <id>")]
+    HostsNotAll,
+    #[error("pass either --hosts all or --host <id>, not both")]
+    Both,
+    #[error(transparent)]
+    Selection(#[from] enrol::SelectionError),
+}
+
+fn parse_host_selection(args: &[String]) -> Result<Option<Selection>, HostSelectionError> {
     let ids = parse_multi_flag(args, "--host");
     let all = parse_multi_flag(args, "--hosts");
     if !all.is_empty() && all.iter().any(|v| v != "all") {
-        return Err("--hosts takes only 'all'; name individual hosts with --host <id>".to_owned());
+        return Err(HostSelectionError::HostsNotAll);
     }
     match (ids.is_empty(), all.is_empty()) {
         (true, true) => Ok(None),
-        (false, true) => Ok(Some(Selection::Ids(ids))),
+        (false, true) => Ok(Some(Selection::parse_ids(&ids)?)),
         (true, false) => Ok(Some(Selection::All)),
-        (false, false) => Err("pass either --hosts all or --host <id>, not both".to_owned()),
+        (false, false) => Err(HostSelectionError::Both),
     }
 }
 
@@ -130,9 +164,21 @@ fn enrol_selected(ctx: &BridgeContext, selection: &Selection) -> ExitCode {
                 ExitCode::SUCCESS
             }
         },
-        Err(msg) => {
-            diag(&msg);
+        Err(e) => {
+            diag(&e.to_string());
             ExitCode::from(64)
         },
     }
+}
+
+fn os_flag(args: &[String], flag: &str) -> Result<Option<Os>, ExitCode> {
+    let Some(raw) = parse_opt_flag(args, flag) else {
+        return Ok(None);
+    };
+    Os::parse(&raw).map(Some).ok_or_else(|| {
+        diag(&format!(
+            "{flag}: expected macos, windows or linux, got {raw:?}"
+        ));
+        ExitCode::from(64)
+    })
 }

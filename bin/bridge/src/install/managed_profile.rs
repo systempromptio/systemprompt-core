@@ -89,10 +89,13 @@ fn remove_machine_claude_policy(
         remove_files: Vec::new(),
         private_dirs: Vec::new(),
     };
-    super::elevated_job::elevate_and_run(&stage_dir, &job)?.require(
-        "clear_policy",
-        std::path::Path::new(crate::cowork_compat::HKLM_POLICY_KEY),
-    )?;
+    super::elevated_job::elevate_and_run(&stage_dir, &job)
+        .map_err(std::io::Error::other)?
+        .require(
+            "clear_policy",
+            std::path::Path::new(crate::cowork_compat::HKLM_POLICY_KEY),
+        )
+        .map_err(std::io::Error::other)?;
     Ok(true)
 }
 

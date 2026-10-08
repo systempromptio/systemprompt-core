@@ -22,7 +22,7 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_traits::StartupEventSender;
 
 #[derive(Debug, Clone)]
-pub struct LifecycleOrchestrator {
+pub struct LifecycleService {
     process: ProcessService,
     network: NetworkService,
     database: DatabaseService,
@@ -30,7 +30,7 @@ pub struct LifecycleOrchestrator {
     app_paths: Arc<AppPaths>,
 }
 
-impl LifecycleOrchestrator {
+impl LifecycleService {
     pub const fn new(
         process: ProcessService,
         network: NetworkService,

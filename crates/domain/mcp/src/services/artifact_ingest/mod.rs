@@ -23,7 +23,9 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Utc};
 use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{AiToolCallId, ArtifactId, McpExecutionId, SkillId};
+use systemprompt_identifiers::{
+    AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName,
+};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::payload_digest;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
@@ -50,12 +52,12 @@ pub const PROXIMITY_WINDOW_SECONDS: i64 = 30;
 #[derive(Debug)]
 pub struct IngestRequest {
     pub result: CallToolResult,
-    pub tool_name: String,
-    pub server_name: Option<String>,
+    pub tool_name: McpToolName,
+    pub server_name: Option<McpServerId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub ctx: RequestContext,
-    pub skill: Option<(SkillId, String)>,
+    pub skill: Option<(SkillId, SkillName)>,
     pub source: ExecutionSource,
     pub started_at: Option<DateTime<Utc>>,
     // JSON: the tool's own arguments, when the vantage point had them.
@@ -106,7 +108,6 @@ impl std::fmt::Debug for ArtifactIngest {
     }
 }
 
-
 impl ArtifactIngest {
     #[must_use]
     pub fn new(repos: ArtifactIngestRepositories, secrets: Option<Arc<SecretScanner>>) -> Self {
@@ -123,8 +124,8 @@ impl ArtifactIngest {
     pub fn from_db(
         db: &systemprompt_database::DbPool,
         secrets: Option<Arc<SecretScanner>>,
-    ) -> McpDomainResult<Self> {
-        Ok(Self::new(ArtifactIngestRepositories::new(db)?, secrets))
+    ) -> Self {
+        Self::new(ArtifactIngestRepositories::new(db), secrets)
     }
 
     pub fn register_scanner(&self, scanner: Arc<dyn ArtifactScanner>) {
@@ -256,6 +257,7 @@ impl IngestOutcome {
         }
     }
 
+    // JSON: artifact ingest payload — redacted MCP structured content, schema-less.
     fn created(
         resolved: resolve::ResolvedExecution,
         artifact_id: ArtifactId,

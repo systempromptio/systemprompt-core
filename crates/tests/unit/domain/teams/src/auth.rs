@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, encode};
 use serde::Serialize;
+use systemprompt_identifiers::TeamsAppId;
 use systemprompt_teams::TeamsError;
 use systemprompt_teams::auth::validate_token;
 
@@ -25,6 +26,10 @@ struct Claims {
     aud: String,
     exp: u64,
     serviceurl: Option<String>,
+}
+
+fn audience() -> TeamsAppId {
+    TeamsAppId::new(AUDIENCE)
 }
 
 fn now() -> u64 {
@@ -57,7 +62,7 @@ fn valid_claims() -> Claims {
 #[test]
 fn accepts_a_well_formed_token() {
     let token = mint(&valid_claims());
-    let claims = validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL).unwrap();
+    let claims = validate_token(&token, &decoding_key(), &audience(), SERVICE_URL).unwrap();
     assert_eq!(claims.serviceurl.as_deref(), Some(SERVICE_URL));
 }
 
@@ -68,7 +73,7 @@ fn rejects_a_wrong_issuer() {
         ..valid_claims()
     });
     assert!(matches!(
-        validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL),
+        validate_token(&token, &decoding_key(), &audience(), SERVICE_URL),
         Err(TeamsError::IssuerMismatch(_))
     ));
 }
@@ -80,7 +85,7 @@ fn rejects_a_wrong_audience() {
         ..valid_claims()
     });
     assert!(matches!(
-        validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL),
+        validate_token(&token, &decoding_key(), &audience(), SERVICE_URL),
         Err(TeamsError::AudienceMismatch(_))
     ));
 }
@@ -92,7 +97,7 @@ fn rejects_an_expired_token() {
         ..valid_claims()
     });
     assert!(matches!(
-        validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL),
+        validate_token(&token, &decoding_key(), &audience(), SERVICE_URL),
         Err(TeamsError::StaleToken)
     ));
 }
@@ -104,8 +109,8 @@ fn rejects_a_service_url_mismatch() {
         ..valid_claims()
     });
     assert!(matches!(
-        validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL),
-        Err(TeamsError::TokenValidation(_))
+        validate_token(&token, &decoding_key(), &audience(), SERVICE_URL),
+        Err(TeamsError::ServiceUrlMismatch { .. })
     ));
 }
 
@@ -116,8 +121,8 @@ fn rejects_a_token_missing_the_serviceurl_claim() {
         ..valid_claims()
     });
     assert!(matches!(
-        validate_token(&token, &decoding_key(), AUDIENCE, SERVICE_URL),
-        Err(TeamsError::TokenValidation(_))
+        validate_token(&token, &decoding_key(), &audience(), SERVICE_URL),
+        Err(TeamsError::MissingServiceUrl)
     ));
 }
 
@@ -125,5 +130,5 @@ fn rejects_a_token_missing_the_serviceurl_claim() {
 fn rejects_a_signature_from_the_wrong_key() {
     // A garbage token that is not signed by our key at all.
     let bogus = "eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3Qta2lkIn0.eyJpc3MiOiJ4In0.AAAA";
-    assert!(validate_token(bogus, &decoding_key(), AUDIENCE, SERVICE_URL).is_err());
+    assert!(validate_token(bogus, &decoding_key(), &audience(), SERVICE_URL).is_err());
 }

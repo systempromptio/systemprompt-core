@@ -25,6 +25,7 @@ struct SampledRow {
     latency_ms: Option<i32>,
     cost_microdollars: i64,
     created_at: DateTime<Utc>,
+    // JSON: JSONB `offered_tools` — tool definitions as the client offered them.
     offered_tools: Option<serde_json::Value>,
     prepared_body_sha256: Option<String>,
 }
@@ -42,8 +43,8 @@ struct UsageRow {
     tool_calls: i64,
 }
 
-fn internal(error: &sqlx::Error) -> AiProviderError {
-    AiProviderError::Internal(error.to_string())
+fn internal(error: sqlx::Error) -> AiProviderError {
+    AiProviderError::Internal(Box::new(error))
 }
 
 async fn sample_requests(
@@ -86,7 +87,7 @@ async fn sample_requests(
     )
     .fetch_all(pool)
     .await
-    .map_err(|error| internal(&error))
+    .map_err(internal)
 }
 
 async fn sample_conversations(
@@ -139,7 +140,7 @@ async fn sample_conversations(
     )
     .fetch_all(pool)
     .await
-    .map_err(|error| internal(&error))
+    .map_err(internal)
 }
 
 async fn load_messages(
@@ -152,7 +153,7 @@ async fn load_messages(
     )
     .fetch_all(pool)
     .await
-    .map_err(|error| internal(&error))?;
+    .map_err(internal)?;
     let mut messages: Vec<TraceMessage> = rows
         .into_iter()
         .map(|row| TraceMessage {
@@ -179,7 +180,7 @@ fn usage_from_row(row: UsageRow) -> AiProviderResult<TraceRequestUsage> {
         input_tokens: row.input_tokens,
         output_tokens: row.output_tokens,
         tool_calls: u64::try_from(row.tool_calls)
-            .map_err(|_e| AiProviderError::Internal("Negative tool-call count".to_owned()))?,
+            .map_err(|e| AiProviderError::Internal(Box::new(e)))?,
     })
 }
 
@@ -245,7 +246,7 @@ impl AiRequestTrace for AiRequestRepository {
         )
         .fetch_all(self.write_pool())
         .await
-        .map_err(|error| internal(&error))?;
+        .map_err(internal)?;
         rows.into_iter().map(usage_from_row).collect()
     }
 }

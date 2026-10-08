@@ -5,6 +5,8 @@
 //! - Type serialization and deserialization
 //! - Default implementations
 
+#[cfg(unix)]
+mod admin_cli_disconnect;
 mod admin_services;
 mod admin_services_refresh;
 mod agent;
@@ -33,6 +35,7 @@ mod gateway_upstream_status_mapping;
 mod marketplace_yaml;
 mod oauth;
 mod proxy_mcp_metadata;
+mod role_table;
 mod sync_types;
 
 mod gateway_sessions_mint;

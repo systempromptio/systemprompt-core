@@ -4,19 +4,17 @@
 //! succeeds and the real client/render paths execute.
 
 use predicates::prelude::*;
-use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_mcp_server};
+use systemprompt_cli_integration_tests::full_bootstrap::{cli_command, fixture_mcp_server};
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 
-fn stub_command_or_skip() -> Option<assert_cmd::Command> {
-    stub_port()?;
-    command_or_skip()
+fn stub_command() -> assert_cmd::Command {
+    stub_port();
+    cli_command()
 }
 
 #[test]
 fn mcp_call_echo_succeeds() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args([
         "plugins",
         "mcp",
@@ -33,9 +31,7 @@ fn mcp_call_echo_succeeds() {
 
 #[test]
 fn mcp_call_echo_json_output() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args([
         "--json",
         "plugins",
@@ -54,9 +50,7 @@ fn mcp_call_echo_json_output() {
 
 #[test]
 fn mcp_call_without_args_payload() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "echo"]);
     cmd.assert()
         .success()
@@ -65,9 +59,7 @@ fn mcp_call_without_args_payload() {
 
 #[test]
 fn mcp_call_tool_error_maps_to_failure() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "boom"]);
     cmd.assert()
         .failure()
@@ -76,18 +68,14 @@ fn mcp_call_tool_error_maps_to_failure() {
 
 #[test]
 fn mcp_call_rejected_tool_maps_to_failure() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call", fixture_mcp_server(), "reject"]);
     cmd.assert().failure();
 }
 
 #[test]
 fn mcp_call_invalid_json_args_fails() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args([
         "plugins",
         "mcp",
@@ -104,9 +92,7 @@ fn mcp_call_invalid_json_args_fails() {
 
 #[test]
 fn mcp_call_unknown_server_fails() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call", "no_such_server", "echo"]);
     cmd.assert()
         .failure()
@@ -115,27 +101,21 @@ fn mcp_call_unknown_server_fails() {
 
 #[test]
 fn mcp_call_missing_server_non_interactive_fails() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call"]);
     cmd.assert().failure();
 }
 
 #[test]
 fn mcp_call_missing_tool_non_interactive_fails() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "call", fixture_mcp_server()]);
     cmd.assert().failure();
 }
 
 #[test]
 fn mcp_tools_lists_stub_tools() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "tools"]);
     cmd.assert()
         .success()
@@ -144,9 +124,7 @@ fn mcp_tools_lists_stub_tools() {
 
 #[test]
 fn mcp_tools_filtered_by_server_with_schema() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args([
         "plugins",
         "mcp",
@@ -162,9 +140,7 @@ fn mcp_tools_filtered_by_server_with_schema() {
 
 #[test]
 fn mcp_tools_json_detailed() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["--json", "plugins", "mcp", "tools", "--detailed"]);
     cmd.assert()
         .success()
@@ -173,9 +149,7 @@ fn mcp_tools_json_detailed() {
 
 #[test]
 fn mcp_tools_unknown_server_fails() {
-    let Some(mut cmd) = stub_command_or_skip() else {
-        return;
-    };
+    let mut cmd = stub_command();
     cmd.args(["plugins", "mcp", "tools", "--server", "no_such_server"]);
     cmd.assert()
         .failure()

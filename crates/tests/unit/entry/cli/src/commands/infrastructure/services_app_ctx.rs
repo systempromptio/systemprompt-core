@@ -18,8 +18,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
+    test_db_pool,
 };
 
 #[derive(Debug, Parser)]
@@ -37,9 +37,9 @@ fn parse(args: &[&str]) -> ServicesCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -58,7 +58,7 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 async fn service_row_exists(pool: &DbPool, name: &str) -> bool {
     sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM services WHERE name = $1)")
         .bind(name)
-        .fetch_one(pool.pool_arc().unwrap().as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("read the service table")
 }
@@ -128,12 +128,12 @@ async fn stopping_an_empty_fleet_renders_the_human_form_too() {
 async fn a_dry_run_cleanup_reports_without_stopping_anything() {
     let (pool, app) = app().await;
     let probe = format!("cleanup_probe_{}", uuid::Uuid::new_v4().simple());
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
     // A running row whose PID is this test process: `cleanup` classifies it as
     // live, so a dry run has to report it without removing it.
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, server_type, status, port, pid) \
-         VALUES ('fixture', $1, 'cli-tests', 'internal', 'running', 65000, $2)",
+         VALUES ('fixture', $1, 'mcp', 'internal', 'running', 65000, $2)",
     )
     .bind(&probe)
     .bind(std::process::id() as i32)

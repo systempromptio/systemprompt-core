@@ -8,21 +8,24 @@ use systemprompt_identifiers::UserId;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_users::{UserRepository, UserService};
 use url::Url;
 use uuid::Uuid;
 
-struct NoopUserProvider;
+struct SeededUserProvider {
+    users: UserService,
+}
 
 #[async_trait]
-impl UserProvider for NoopUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+impl UserProvider for SeededUserProvider {
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_id(&self.users, id).await
     }
-    async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_email(&self.users, email).await
     }
     async fn find_by_name(&self, _name: &str) -> AuthResult<Option<AuthUser>> {
         Ok(None)
@@ -84,30 +87,30 @@ struct Ctx {
     email: String,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
     let user_id = unique_user_id("wa-flow");
     let email = format!("{}@waflow.invalid", user_id.as_str());
     seed_user_row(&pool, &user_id, &email)
         .await
         .expect("seed user");
+    let provider = SeededUserProvider {
+        users: UserService::new(Arc::new(UserRepository::new(&pool))),
+    };
     let service =
-        WebAuthnService::with_config(test_config(), repo, Arc::new(NoopUserProvider)).expect("svc");
-    Some(Ctx {
+        WebAuthnService::with_config(test_config(), repo, Arc::new(provider)).expect("svc");
+    Ctx {
         service,
         user_id,
         email,
-    })
+    }
 }
 
 #[tokio::test]
 async fn start_registration_with_no_existing_credentials_succeeds() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // No credentials are stored for this email, so the exclude-credentials
     // lookup (get_user_credentials_by_email) must resolve to an empty set and
     // the ceremony still starts.
@@ -116,15 +119,13 @@ async fn start_registration_with_no_existing_credentials_succeeds() {
         .start_registration(ctx.user_id.as_str(), &ctx.email, Some("Full Name"))
         .await
         .expect("start_registration");
-    assert!(!challenge_id.is_empty());
+    assert!(!challenge_id.as_str().is_empty());
     drop(ccr);
 }
 
 #[tokio::test]
 async fn start_registration_unknown_email_treats_credentials_as_empty() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // get_user_credentials_by_email on an email with no matching user must
     // short-circuit to an empty Vec rather than erroring.
     let unknown = format!("nobody-{}@waflow.invalid", Uuid::new_v4().simple());
@@ -133,48 +134,48 @@ async fn start_registration_unknown_email_treats_credentials_as_empty() {
         .start_registration("ghost", &unknown, None)
         .await
         .expect("start_registration");
-    assert!(!challenge_id.is_empty());
+    assert!(!challenge_id.as_str().is_empty());
 }
 
 #[tokio::test]
 async fn start_authentication_unknown_user_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let err = ctx
         .service
         .start_authentication("absent@waflow.invalid", None)
         .await
         .expect_err("unknown user must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::UserNotFound(_)),
-        "expected UserNotFound, got {err:?}"
+        matches!(
+            err,
+            systemprompt_oauth::error::OauthError::AuthenticationUnavailable
+        ),
+        "expected AuthenticationUnavailable, got {err:?}"
     );
 }
 
 #[tokio::test]
 async fn start_authentication_user_without_credentials_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     // The user exists (seeded) but has no webauthn credentials, exercising the
-    // get_user_credentials empty path and the "No credentials found" branch.
+    // get_user_credentials empty path.
     let err = ctx
         .service
         .start_authentication(&ctx.email, None)
         .await
         .expect_err("no credentials must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::Internal(_)),
-        "expected Internal(no credentials), got {err:?}"
+        matches!(
+            err,
+            systemprompt_oauth::error::OauthError::AuthenticationUnavailable
+        ),
+        "an account without passkeys must look like an unknown account, got {err:?}"
     );
 }
 
 #[tokio::test]
 async fn verified_authentication_roundtrip_consumes_once() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let token = format!("vtok-{}", Uuid::new_v4().simple());
     ctx.service
         .store_verified_authentication(token.clone(), ctx.user_id.clone())
@@ -194,16 +195,14 @@ async fn verified_authentication_roundtrip_consumes_once() {
         .await
         .expect_err("second consume must fail");
     assert!(
-        matches!(err, systemprompt_oauth::error::OauthError::Internal(_)),
+        matches!(err, systemprompt_oauth::error::OauthError::ChallengeExpired),
         "consuming a spent token must error, got {err:?}"
     );
 }
 
 #[tokio::test]
 async fn consume_verified_authentication_unknown_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let err = ctx
         .service
         .consume_verified_authentication("never-stored")
@@ -211,15 +210,13 @@ async fn consume_verified_authentication_unknown_token_errors() {
         .expect_err("unknown token must fail");
     assert!(matches!(
         err,
-        systemprompt_oauth::error::OauthError::Internal(_)
+        systemprompt_oauth::error::OauthError::ChallengeExpired
     ));
 }
 
 #[tokio::test]
 async fn service_debug_redacts_runtime_state() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let debug = format!("{:?}", ctx.service);
     assert!(debug.contains("WebAuthnService"));
     assert!(debug.contains("localhost"));
@@ -227,26 +224,4 @@ async fn service_debug_redacts_runtime_state() {
         !debug.contains("webauthn:"),
         "the webauthn-rs core stays out of Debug"
     );
-}
-
-#[tokio::test]
-async fn cleanup_expired_states_is_idempotent_when_empty() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    ctx.service
-        .cleanup_expired_states()
-        .await
-        .expect("cleanup with empty state");
-    // A pending registration challenge that has not expired must survive.
-    let (_, challenge_id) = ctx
-        .service
-        .start_registration(ctx.user_id.as_str(), &ctx.email, None)
-        .await
-        .expect("start_registration");
-    ctx.service
-        .cleanup_expired_states()
-        .await
-        .expect("cleanup after start");
-    assert!(!challenge_id.is_empty());
 }

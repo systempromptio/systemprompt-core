@@ -1,7 +1,7 @@
 use systemprompt_loader::vertex_discovery::classify::{
     Classification, PublisherModel, classify, is_serverless,
 };
-use systemprompt_models::services::VertexRateCard;
+use systemprompt_manifest::services::VertexRateCard;
 
 fn model(json: serde_json::Value) -> PublisherModel {
     serde_json::from_value(json).expect("a listing entry deserializes")

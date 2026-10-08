@@ -7,7 +7,7 @@ use systemprompt_cli::infrastructure::db::{self, DbCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -23,11 +23,6 @@ fn try_parse(args: &[&str]) -> Result<Harness, clap::Error> {
     Harness::try_parse_from(std::iter::once("db").chain(args.iter().copied()))
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -36,13 +31,13 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
 #[tokio::test]
 async fn read_only_inspection_commands_run() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     db::execute(parse(&["status"]), &ctx).await.unwrap();
@@ -62,7 +57,7 @@ async fn read_only_inspection_commands_run() {
 
 #[tokio::test]
 async fn query_supports_limits_and_rejects_writes() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     db::execute(parse(&["query", "SELECT 1 AS one", "--limit", "5"]), &ctx)
@@ -75,10 +70,14 @@ async fn query_supports_limits_and_rejects_writes() {
 
 #[tokio::test]
 async fn execute_runs_write_statements() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     db::execute(
-        parse(&["execute", "DELETE FROM logs WHERE id = 'log_never_exists'"]),
+        parse(&[
+            "execute",
+            "DELETE FROM logs WHERE id = 'log_never_exists'",
+            "--yes",
+        ]),
         &ctx,
     )
     .await
@@ -87,7 +86,7 @@ async fn execute_runs_write_statements() {
 
 #[tokio::test]
 async fn migration_status_and_plan_report() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     db::execute(parse(&["migrations", "status"]), &ctx)
@@ -105,7 +104,7 @@ async fn migration_status_and_plan_report() {
 
 #[tokio::test]
 async fn migrations_history_requires_known_extension() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let result = db::execute(parse(&["migrations", "history", "logging"]), &ctx).await;
     assert!(result.is_ok() || !result.unwrap_err().to_string().is_empty());
@@ -113,7 +112,7 @@ async fn migrations_history_requires_known_extension() {
 
 #[tokio::test]
 async fn migrate_repair_dry_run_reports_no_drift() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     db::execute(parse(&["migrate-repair", "--json"]), &ctx)
         .await
@@ -123,7 +122,7 @@ async fn migrate_repair_dry_run_reports_no_drift() {
 
 #[tokio::test]
 async fn migrate_mark_applied_rejects_unknown_extension() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let result = db::execute(
         parse(&[
@@ -141,7 +140,7 @@ async fn migrate_mark_applied_rejects_unknown_extension() {
 
 #[tokio::test]
 async fn migrate_down_rejects_unknown_extension() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let result = db::execute(parse(&["migrate-down", "no-such-extension", "1"]), &ctx).await;
     assert!(result.is_err());
@@ -149,7 +148,7 @@ async fn migrate_down_rejects_unknown_extension() {
 
 #[tokio::test]
 async fn doctor_reconciles_schema_against_extension_declarations() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     db::execute(parse(&["doctor"]), &ctx)
         .await
@@ -166,7 +165,7 @@ fn validate_subcommand_is_gone() {
 
 #[tokio::test]
 async fn assign_admin_rejects_unknown_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let result = db::execute(parse(&["assign-admin", "no-such-user"]), &ctx).await;
     assert!(result.is_ok() || !result.unwrap_err().to_string().is_empty());

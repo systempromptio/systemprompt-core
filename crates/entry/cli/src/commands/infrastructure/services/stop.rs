@@ -8,7 +8,10 @@ use crate::context::CommandContext;
 use crate::shared::CommandOutput;
 use anyhow::Result;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
+use systemprompt_loader::subprocess::StopOutcome;
 use systemprompt_logging::CliService;
+use systemprompt_manifest::services::ServiceModule;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ServiceManagementService;
 
@@ -47,8 +50,7 @@ pub(super) async fn execute(
         if !config.is_json_output() {
             CliService::section("Stopping API Server");
         }
-        stop_api(force, config.is_json_output()).await?;
-        true
+        stop_api(force, config.is_json_output()).await?
     } else {
         false
     };
@@ -68,20 +70,34 @@ pub(super) async fn execute(
     Ok(CommandOutput::card_value("Stop Services", &output))
 }
 
-async fn stop_api(force: bool, quiet: bool) -> Result<()> {
+async fn stop_api(force: bool, quiet: bool) -> Result<bool> {
     let port = get_api_port();
 
-    let stopped_pid = ServiceManagementService::stop_api_by_port(port, force).await?;
-    if let Some(pid) = stopped_pid
-        && !quiet
-    {
-        CliService::info(&format!("Stopping API server (PID: {})...", pid));
+    let stops = ServiceManagementService::stop_api_by_port(port, force).await?;
+    let mut cleared = true;
+    for stop in &stops {
+        match stop.outcome {
+            StopOutcome::Stopped(_) => {
+                if !quiet {
+                    CliService::info(&format!("Stopped API server (PID: {})", stop.pid));
+                }
+            },
+            StopOutcome::NotOurs => {
+                cleared = false;
+                CliService::warning(&format!(
+                    "Left PID {} running on port {port}: it is not a verified systemprompt API \
+                     server. Stop it by hand, or use `infra services serve --kill-port-process`.",
+                    stop.pid
+                ));
+            },
+            StopOutcome::NotRunning => {},
+        }
     }
 
-    if !quiet {
+    if cleared && !quiet {
         CliService::success("API server stopped");
     }
-    Ok(())
+    Ok(cleared)
 }
 
 async fn stop_agents(
@@ -89,7 +105,9 @@ async fn stop_agents(
     force: bool,
     quiet: bool,
 ) -> Result<usize> {
-    let agents = service_mgmt.get_services_by_type("agent").await?;
+    let agents = service_mgmt
+        .get_services_by_type(ServiceModule::Agent)
+        .await?;
 
     if agents.is_empty() {
         if !quiet {
@@ -103,8 +121,13 @@ async fn stop_agents(
         if !quiet {
             CliService::info(&format!("Stopping {}...", agent.name));
         }
-        service_mgmt.stop_service(agent, force).await?;
-        stopped += 1;
+        if record_stop(
+            &agent.name,
+            service_mgmt.stop_service(agent, force).await?,
+            quiet,
+        ) {
+            stopped += 1;
+        }
     }
 
     if !quiet {
@@ -118,7 +141,9 @@ async fn stop_mcp_servers(
     force: bool,
     quiet: bool,
 ) -> Result<usize> {
-    let servers = service_mgmt.get_services_by_type("mcp").await?;
+    let servers = service_mgmt
+        .get_services_by_type(ServiceModule::Mcp)
+        .await?;
 
     if servers.is_empty() {
         if !quiet {
@@ -132,14 +157,33 @@ async fn stop_mcp_servers(
         if !quiet {
             CliService::info(&format!("Stopping {}...", server.name));
         }
-        service_mgmt.stop_service(server, force).await?;
-        stopped += 1;
+        if record_stop(
+            &server.name,
+            service_mgmt.stop_service(server, force).await?,
+            quiet,
+        ) {
+            stopped += 1;
+        }
     }
 
     if !quiet {
         CliService::success(&format!("Stopped {} MCP servers", stopped));
     }
     Ok(stopped)
+}
+
+fn record_stop(name: &ServiceName, outcome: StopOutcome, quiet: bool) -> bool {
+    match outcome {
+        StopOutcome::Stopped(_) | StopOutcome::NotRunning => true,
+        StopOutcome::NotOurs => {
+            if !quiet {
+                CliService::warning(&format!(
+                    "{name}: the recorded process is not this service's child; left it running"
+                ));
+            }
+            false
+        },
+    }
 }
 
 pub(super) async fn execute_individual_agent(
@@ -168,7 +212,7 @@ pub(super) async fn execute_individual_agent(
 
     let output = StopIndividualOutput {
         service_type: "agent".to_owned(),
-        service_name: agent.to_owned(),
+        service_name: ServiceName::new(name),
         stopped: true,
         message,
     };
@@ -178,7 +222,7 @@ pub(super) async fn execute_individual_agent(
 
 pub(super) async fn execute_individual_mcp(
     ctx: &Arc<AppContext>,
-    server_name: &str,
+    server_name: &McpServerId,
     _force: bool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
@@ -187,7 +231,9 @@ pub(super) async fn execute_individual_mcp(
     }
 
     let manager = lifecycle::mcp_orchestrator(ctx)?;
-    manager.stop_services(Some(server_name.to_owned())).await?;
+    manager
+        .stop_services(Some(ServiceName::new(server_name.as_str())))
+        .await?;
 
     let message = format!("MCP server {} stopped successfully", server_name);
     if !config.is_json_output() {
@@ -196,7 +242,7 @@ pub(super) async fn execute_individual_mcp(
 
     let output = StopIndividualOutput {
         service_type: "mcp".to_owned(),
-        service_name: server_name.to_owned(),
+        service_name: ServiceName::new(server_name.as_str()),
         stopped: true,
         message,
     };

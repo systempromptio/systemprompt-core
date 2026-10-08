@@ -4,7 +4,7 @@ import { bridge } from "/assets/js/bridge.js";
 import { isInstalled, isSetUp } from "/assets/js/utils/verdict.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
-import { repairHost } from "/assets/js/utils/host-actions.js";
+import { repairHost, hostInstallMessage } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 
 // A card is one of three things: still being probed (no control — a button
@@ -30,7 +30,7 @@ function cardControl(host, state) {
   };
   const installed = state === "installed";
   const cls = installed ? "sp-btn-ghost" : "sp-btn-primary";
-  return `<button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(labels[state])}</button>`;
+  return `${host.id === "claude-desktop" && !installed ? '<p role="note">On macOS, approve the downloaded profile in System Settings → General → Device Management, then quit and relaunch Claude Desktop.</p>' : ""}<button type="button" class="${cls}" ${installed ? "disabled" : ""} data-action="install-host" data-host-id="${escapeHtml(host.id)}" data-host-name="${escapeHtml(host.display_name)}">${escapeHtml(labels[state])}</button>`;
 }
 
 export class SpSetupAgents extends SpElement {
@@ -45,8 +45,8 @@ export class SpSetupAgents extends SpElement {
       const name = trigger.dataset.hostName || id;
       try {
         const path = await repairHost(id);
-        notifyOk(t("toast-agent-added", { name, path: path || "" })
-          || `${name} added — wrote ${path || ""}. Restart ${name} to pick it up.`);
+        notifyOk(hostInstallMessage(id, t("toast-agent-added", { name, path: path || "" })
+          || `${name} added — wrote ${path || ""}. Restart ${name} to pick it up.`));
       } catch (e) {
         // The stage is the one thing the wizard knows that the drawer does not:
         // generating a profile and installing it fail for different reasons.

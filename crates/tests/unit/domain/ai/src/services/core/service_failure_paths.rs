@@ -8,10 +8,11 @@ use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
+use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 
 use super::{
-    ai_config, noop_session_provider, pool_or_skip, registry_with_endpoint, seeded_context, service,
+    ai_config, bootstrapped_pool, noop_session_provider, registry_with_endpoint, seeded_context,
+    service,
 };
 use crate::services::providers::mock_http;
 
@@ -27,7 +28,7 @@ async fn failed_request_count(pool: &DbPool, user_id: &UserId) -> i64 {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user_id.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("count failed requests")
     .unwrap_or(0)
@@ -35,9 +36,7 @@ async fn failed_request_count(pool: &DbPool, user_id: &UserId) -> i64 {
 
 #[tokio::test]
 async fn a_failed_tooled_request_is_audited_as_failed_with_its_error_message() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
@@ -66,7 +65,7 @@ async fn a_failed_tooled_request_is_audited_as_failed_with_its_error_message() {
         "SELECT error_message FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(
@@ -77,9 +76,7 @@ async fn a_failed_tooled_request_is_audited_as_failed_with_its_error_message() {
 
 #[tokio::test]
 async fn a_failed_single_turn_request_is_audited_as_failed() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_error(503, serde_json::json!({"error":{"message":"down"}}))
             .await;
@@ -99,9 +96,7 @@ async fn a_failed_single_turn_request_is_audited_as_failed() {
 
 #[tokio::test]
 async fn a_request_naming_an_unconfigured_provider_is_rejected_by_name() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
@@ -128,9 +123,7 @@ async fn a_request_naming_an_unconfigured_provider_is_rejected_by_name() {
 
 #[tokio::test]
 async fn a_disabled_provider_entry_is_not_built() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let registry = registry_with_endpoint(ANTHROPIC, server.uri());
@@ -145,14 +138,13 @@ async fn a_disabled_provider_entry_is_not_built() {
     );
 
     let svc = AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("a disabled entry must not stop the service building");
 
@@ -166,9 +158,7 @@ async fn a_disabled_provider_entry_is_not_built() {
 
 #[tokio::test]
 async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
 
@@ -187,14 +177,13 @@ async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal
     );
 
     let svc = AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("an unknown provider name must be skipped, not abort construction");
 
@@ -207,9 +196,7 @@ async fn an_enabled_provider_with_no_registry_entry_is_skipped_rather_than_fatal
 
 #[tokio::test]
 async fn a_default_provider_that_was_never_built_fails_construction() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let registry = registry_with_endpoint(ANTHROPIC, server.uri());
@@ -223,14 +210,13 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
         ..AiConfig::default()
     };
     let err = AiService::new(
-        &pool,
         &registry,
         &empty,
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect_err("a service with no enabled provider cannot serve anything");
     assert!(
@@ -243,14 +229,13 @@ async fn a_default_provider_that_was_never_built_fails_construction() {
     let mut mismatched = ai_config(ANTHROPIC);
     mismatched.default_provider = "phantom-provider".to_owned();
     let err = AiService::new(
-        &pool,
         &registry,
         &mismatched,
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect_err("a default naming an unbuilt provider must fail construction");
     assert!(
@@ -274,9 +259,7 @@ async fn the_default_registry_seed_is_usable_without_endpoint_overrides() {
 
 #[tokio::test]
 async fn a_failed_planning_request_is_audited_as_failed() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_error(502, serde_json::json!({"error":{"message":"gw"}}))
             .await;
@@ -296,9 +279,7 @@ async fn a_failed_planning_request_is_audited_as_failed() {
 
 #[tokio::test]
 async fn a_failed_response_synthesis_surfaces_rather_than_returning_empty_text() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
@@ -324,9 +305,7 @@ async fn a_failed_response_synthesis_surfaces_rather_than_returning_empty_text()
 
 #[tokio::test]
 async fn a_completed_request_records_a_nonzero_cost_from_the_provider_pricing() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("priced")).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
@@ -338,7 +317,7 @@ async fn a_completed_request_records_a_nonzero_cost_from_the_provider_pricing() 
         "SELECT cost_microdollars FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert!(

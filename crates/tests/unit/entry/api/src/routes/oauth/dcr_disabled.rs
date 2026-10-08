@@ -10,12 +10,12 @@ use axum::Extension;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
+    ensure_test_bootstrap, test_app_context, test_database_url, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -24,10 +24,10 @@ use crate::middleware::security_trace_served_by::ensure_config;
 
 async fn ctx() -> std::sync::Arc<systemprompt_runtime::AppContext> {
     ensure_config();
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("test database");
-    fixture_app_context(&pool, &url).expect("app context")
+    let pool = test_db_pool().await;
+    test_app_context(&pool, &url)
 }
 
 #[tokio::test]
@@ -44,6 +44,7 @@ async fn register_is_forbidden_when_dcr_is_closed() {
         TraceId::new("dcr-disabled"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let app = public_router().with_state(state).layer(Extension(req_ctx));
     let body = serde_json::json!({

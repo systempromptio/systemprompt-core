@@ -11,11 +11,12 @@ use serde_json::json;
 use systemprompt_ai::models::ai::AiMessage;
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::openai::OpenAiProvider;
-use systemprompt_ai::services::providers::provider_trait::{AiProvider, GenerationParams};
+use systemprompt_ai::services::providers::provider_trait::{GenerationParams, ProviderClient};
 use systemprompt_ai::{UpstreamTarget, UpstreamTargetError};
 use systemprompt_identifiers::SecretName;
-use systemprompt_models::services::{Hosting, ProviderEntry, ProviderRegistry, WireProtocol};
+use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
 use systemprompt_test_fixtures::keys::test_key;
+use systemprompt_wire::{Hosting, WireProtocol};
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

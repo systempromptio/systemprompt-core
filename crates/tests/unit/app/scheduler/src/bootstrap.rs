@@ -1,3 +1,4 @@
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, unknown_job_names};
 use systemprompt_traits::Job;
 
@@ -6,7 +7,7 @@ fn default_bootstrap_jobs_match_built_in_inventory_names() {
     let cfg = SchedulerConfig::with_system_admin();
     assert_eq!(
         cfg.bootstrap_jobs,
-        vec!["cleanup_inactive_sessions".to_string()],
+        vec!["cleanup_inactive_sessions"],
         "bootstrap_jobs default must not include an irreversible deleter — database_cleanup runs \
          from its cron entry only",
     );
@@ -37,15 +38,13 @@ fn unknown_job_names_is_empty_for_the_built_in_config() {
 #[test]
 fn unknown_job_names_reports_every_unregistered_name() {
     let mut cfg = SchedulerConfig::with_system_admin();
-    cfg.jobs.push(JobConfig::new("access_control_sync"));
-    cfg.jobs.push(JobConfig::new("content_sync"));
+    cfg.jobs
+        .push(JobConfig::new(JobName::new("access_control_sync")));
+    cfg.jobs.push(JobConfig::new(JobName::new("content_sync")));
 
     assert_eq!(
         unknown_job_names(&cfg),
-        vec![
-            "access_control_sync".to_string(),
-            "content_sync".to_string()
-        ],
+        vec!["access_control_sync", "content_sync"],
         "one bad name must not mask the others; the boot error names them all",
     );
 }
@@ -53,19 +52,17 @@ fn unknown_job_names_reports_every_unregistered_name() {
 #[test]
 fn unknown_job_names_covers_bootstrap_jobs() {
     let mut cfg = SchedulerConfig::with_system_admin();
-    cfg.bootstrap_jobs.push("publish_pipeline_typo".to_owned());
+    cfg.bootstrap_jobs
+        .push(JobName::new("publish_pipeline_typo"));
 
-    assert_eq!(
-        unknown_job_names(&cfg),
-        vec!["publish_pipeline_typo".to_string()]
-    );
+    assert_eq!(unknown_job_names(&cfg), vec!["publish_pipeline_typo"]);
 }
 
 #[test]
 fn unknown_job_names_dedupes_a_name_in_both_lists() {
     let mut cfg = SchedulerConfig::with_system_admin();
-    cfg.jobs.push(JobConfig::new("phantom_job"));
-    cfg.bootstrap_jobs.push("phantom_job".to_owned());
+    cfg.jobs.push(JobConfig::new(JobName::new("phantom_job")));
+    cfg.bootstrap_jobs.push(JobName::new("phantom_job"));
 
-    assert_eq!(unknown_job_names(&cfg), vec!["phantom_job".to_string()]);
+    assert_eq!(unknown_job_names(&cfg), vec!["phantom_job"]);
 }

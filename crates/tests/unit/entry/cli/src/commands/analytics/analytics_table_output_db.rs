@@ -14,7 +14,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -30,18 +30,13 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn table_ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -60,7 +55,7 @@ async fn seed(pool: &DbPool) {
          request_count = 5, started_at = NOW() - INTERVAL '2 minutes' WHERE session_id = $1",
     )
     .bind(session_id.as_str())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 
@@ -74,7 +69,7 @@ async fn seed(pool: &DbPool) {
     .bind(&server)
     .bind(user_id.as_str())
     .bind(Uuid::new_v4().to_string())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 
@@ -87,13 +82,13 @@ async fn seed(pool: &DbPool) {
     .bind(Uuid::new_v4().to_string())
     .bind(Uuid::new_v4().to_string())
     .bind(user_id.as_str())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }
 
 async fn run_all(args: &[Vec<&str>]) {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed(&pool).await;
     let ctx = table_ctx(&pool);
 

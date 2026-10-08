@@ -8,12 +8,13 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_identifiers::{ContextId, ProfileName, SessionId, TenantId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionInfo {
     pub key: String,
-    pub profile_name: String,
+    #[schemars(with = "Option<String>")]
+    pub profile_name: Option<ProfileName>,
     pub user_email: String,
     pub session_id: Option<SessionId>,
     pub context_id: Option<ContextId>,
@@ -25,10 +26,11 @@ pub struct SessionInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RoutingInfo {
-    pub profile_name: String,
+    #[schemars(with = "Option<String>")]
+    pub profile_name: Option<ProfileName>,
     pub target: String,
     #[serde(rename = "tenant_id")]
-    pub tenant: Option<String>,
+    pub tenant: Option<TenantId>,
     pub hostname: Option<String>,
 }
 
@@ -38,7 +40,7 @@ pub struct SessionShowOutput {
     pub routing: Option<RoutingInfo>,
 }
 
-pub use systemprompt_models::profile::ProfileInfo;
+pub use systemprompt_manifest::profile::ProfileInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProfileListOutput {
@@ -54,10 +56,12 @@ pub struct LogoutOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SwitchOutput {
-    pub previous_profile: Option<String>,
-    pub new_profile: String,
+    #[schemars(with = "Option<String>")]
+    pub previous_profile: Option<ProfileName>,
+    #[schemars(with = "String")]
+    pub new_profile: ProfileName,
     pub session_key: String,
     #[serde(rename = "tenant_id")]
-    pub tenant: Option<String>,
+    pub tenant: Option<TenantId>,
     pub message: String,
 }

@@ -5,6 +5,7 @@
 
 use chrono::{TimeZone, Utc};
 use systemprompt_identifiers::AiRequestId;
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::{
     AiRequestFilter, LogSearchFilter, RequestCursor, RequestCursorError, ToolExecutionFilter,
     TraceListFilter,
@@ -194,8 +195,8 @@ mod log_search_filter {
 
     #[test]
     fn with_level_sets_value() {
-        let f = LogSearchFilter::new("panic".to_owned(), 10).with_level("ERROR".to_owned());
-        assert_eq!(f.level.as_deref(), Some("ERROR"));
+        let f = LogSearchFilter::new("panic".to_owned(), 10).with_level(LogLevel::Error);
+        assert_eq!(f.level, Some(LogLevel::Error));
     }
 
     #[test]

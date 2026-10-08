@@ -32,7 +32,7 @@ fn isolated_command(database_url: &str) -> Command {
 }
 
 async fn full_profile(database: &DisposableDb) -> FullBootstrap {
-    let pool = database.pool().await.expect("open profile database");
+    let pool = database.test_pool().await;
     let admin_id = UserId::new(format!("cli-admin-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row_with_roles(
         &pool,
@@ -42,7 +42,7 @@ async fn full_profile(database: &DisposableDb) -> FullBootstrap {
     )
     .await
     .expect("seed configured profile administrator");
-    let raw = pool.pool_arc().expect("raw profile database pool");
+    let raw = pool.pool();
     sqlx::query("UPDATE users SET name = 'testadmin' WHERE id = $1")
         .bind(admin_id.as_str())
         .execute(raw.as_ref())
@@ -140,17 +140,8 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 }
 
 async fn seeded_logs_database(prefix: &str) -> (DisposableDb, sqlx::PgPool, String, String) {
-    let database = DisposableDb::installed(prefix)
-        .await
-        .expect("install isolated log database");
-    let pool = database
-        .pool()
-        .await
-        .expect("open isolated log database")
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone();
+    let database = DisposableDb::with_schema(prefix).await;
+    let pool = database.test_pool().await.pool().as_ref().clone();
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let owner = format!("log_owner_{suffix}");
     let module = format!("coverage.logs.{suffix}");
@@ -329,9 +320,7 @@ async fn logs_cleanup_dry_run_reports_candidate_without_deleting_it() {
 #[tokio::test]
 async fn jobs_list_and_show_expose_registered_metadata_and_missing_job_fails() {
     let _scheduler_extension = systemprompt_scheduler::SchedulerExtension;
-    let database = DisposableDb::installed("cli_jobs_output")
-        .await
-        .expect("install isolated jobs database");
+    let database = DisposableDb::with_schema("cli_jobs_output").await;
 
     let fixture = full_profile(&database).await;
     let listed = profiled_json_success(database.url(), &fixture, &["infra", "jobs", "list"]);
@@ -459,17 +448,8 @@ async fn logs_summary_reports_exact_isolated_level_and_module_counts() {
 #[tokio::test]
 async fn jobs_history_filters_seeded_status_and_job_name() {
     let _scheduler_extension = systemprompt_scheduler::SchedulerExtension;
-    let database = DisposableDb::installed("cli_jobs_history")
-        .await
-        .expect("install isolated jobs history database");
-    let pool = database
-        .pool()
-        .await
-        .expect("open jobs history database")
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone();
+    let database = DisposableDb::with_schema("cli_jobs_history").await;
+    let pool = database.test_pool().await.pool().as_ref().clone();
     for (name, status, error) in [
         ("coverage_success", "success", None),
         ("coverage_failure", "failed", Some("owned failure")),
@@ -516,9 +496,7 @@ async fn jobs_history_filters_seeded_status_and_job_name() {
 
 #[tokio::test]
 async fn db_query_and_describe_return_live_schema_values() {
-    let database = DisposableDb::installed("cli_db_query_output")
-        .await
-        .expect("install isolated query database");
+    let database = DisposableDb::with_schema("cli_db_query_output").await;
     let query = json_success(
         database.url(),
         &["infra", "db", "query", "SELECT 7::int AS fixture_value"],

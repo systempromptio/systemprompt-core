@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use systemprompt_models::profile::{Profile, ProfileError};
+use systemprompt_manifest::profile::{Profile, ProfileError};
 
 use crate::error::ConfigResult;
 
@@ -31,12 +31,6 @@ pub enum ProfileBootstrapError {
 
     #[error("Profile path not set. Set SYSTEMPROMPT_PROFILE environment variable")]
     PathNotSet,
-
-    #[error("Profile validation failed: {0}")]
-    ValidationFailed(String),
-
-    #[error("Failed to load profile: {0}")]
-    LoadFailed(String),
 }
 
 impl ProfileBootstrap {

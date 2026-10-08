@@ -12,13 +12,7 @@ use systemprompt_content::{Content, ContentRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 
 fn card_title(out: &systemprompt_cli::shared::CommandOutput) -> String {
@@ -54,7 +48,7 @@ fn slug() -> String {
 }
 
 async fn seed_content(pool: &DbPool, source: &str, slug: &str) -> Content {
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         slug.to_owned(),
         format!("Title for {slug}"),
@@ -72,7 +66,7 @@ fn db_ctx(pool: &DbPool, config: CliConfig) -> CommandContext {
         config,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -90,7 +84,7 @@ fn edit_args(identifier: Option<String>) -> edit::EditArgs {
 
 #[tokio::test]
 async fn edit_requires_identifier_in_non_interactive_mode() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
     let err = edit::execute_with_pool(edit_args(None), &prompter, &pool, &cfg())
         .await
@@ -100,7 +94,7 @@ async fn edit_requires_identifier_in_non_interactive_mode() {
 
 #[tokio::test]
 async fn edit_unknown_content_id_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
     let args = edit_args(Some(format!("content_{}", uuid::Uuid::new_v4())));
     let err = edit::execute_with_pool(args, &prompter, &pool, &cfg())
@@ -111,7 +105,7 @@ async fn edit_unknown_content_id_errors() {
 
 #[tokio::test]
 async fn edit_slug_without_source_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
     let err = edit::execute_with_pool(
         edit_args(Some("some-slug".to_owned())),
@@ -126,7 +120,7 @@ async fn edit_slug_without_source_errors() {
 
 #[tokio::test]
 async fn edit_without_changes_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
@@ -143,7 +137,7 @@ async fn edit_without_changes_errors() {
 
 #[tokio::test]
 async fn edit_sets_scalar_fields() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let mut args = edit_args(Some(content.id.as_str().to_owned()));
@@ -161,8 +155,8 @@ async fn edit_sets_scalar_fields() {
         .unwrap();
     assert_eq!(card_title(&out), "Content Updated");
 
-    let repo = ContentRepository::new(&pool).unwrap();
-    let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
+    let repo = ContentRepository::new(&pool);
+    let updated = repo.find_by_id(&content.id).await.unwrap().unwrap();
     assert_eq!(updated.title, "New Title");
     assert_eq!(updated.description, "New Desc");
     assert_eq!(updated.keywords, "x,y");
@@ -173,7 +167,7 @@ async fn edit_sets_scalar_fields() {
 
 #[tokio::test]
 async fn edit_by_slug_with_source_and_flags() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let slug = slug();
     seed_content(&pool, &source, &slug).await;
@@ -186,9 +180,9 @@ async fn edit_by_slug_with_source_and_flags() {
         .await
         .unwrap();
 
-    let repo = ContentRepository::new(&pool).unwrap();
+    let repo = ContentRepository::new(&pool);
     let updated = repo
-        .get_by_source_and_slug(
+        .find_by_source_and_slug(
             &SourceId::new(source),
             &slug,
             &systemprompt_identifiers::LocaleCode::english(),
@@ -202,7 +196,7 @@ async fn edit_by_slug_with_source_and_flags() {
 
 #[tokio::test]
 async fn edit_rejects_malformed_and_unknown_set_values() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let prompter = ScriptedPrompter::new(Vec::<String>::new());
@@ -225,7 +219,7 @@ async fn edit_rejects_malformed_and_unknown_set_values() {
 
 #[tokio::test]
 async fn edit_clears_image_and_category() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let mut args = edit_args(Some(content.id.as_str().to_owned()));
@@ -235,15 +229,15 @@ async fn edit_clears_image_and_category() {
         .await
         .unwrap();
 
-    let repo = ContentRepository::new(&pool).unwrap();
-    let updated = repo.get_by_id(&content.id).await.unwrap().unwrap();
+    let repo = ContentRepository::new(&pool);
+    let updated = repo.find_by_id(&content.id).await.unwrap().unwrap();
     assert!(updated.image.is_none());
     assert!(updated.category_id.is_none());
 }
 
 #[tokio::test]
 async fn edit_assigns_an_existing_category_and_persists_it() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let category = unique("category");
@@ -251,7 +245,7 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
         .bind(&category)
         .bind(format!("Category {category}"))
         .bind(format!("slug-{category}"))
-        .execute(pool.pool_arc().expect("read pool").as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .expect("seed category");
 
@@ -267,8 +261,7 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
     .expect("assign an existing category");
 
     let updated = ContentRepository::new(&pool)
-        .unwrap()
-        .get_by_id(&content.id)
+        .find_by_id(&content.id)
         .await
         .unwrap()
         .expect("updated content");
@@ -280,7 +273,7 @@ async fn edit_assigns_an_existing_category_and_persists_it() {
 
 #[tokio::test]
 async fn show_finds_content_by_id_and_slug() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let slug = slug();
     let content = seed_content(&pool, &source, &slug).await;
@@ -311,7 +304,7 @@ async fn show_finds_content_by_id_and_slug() {
 
 #[tokio::test]
 async fn show_resolves_a_unique_slug_without_requiring_its_source() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let slug = slug();
     let first_source = unique("src");
     let first = seed_content(&pool, &first_source, &slug).await;
@@ -331,7 +324,7 @@ async fn show_resolves_a_unique_slug_without_requiring_its_source() {
 
 #[tokio::test]
 async fn show_missing_content_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = show::execute_with_pool(
         show::ShowArgs {
             identifier: unique("missing-slug"),
@@ -347,7 +340,7 @@ async fn show_missing_content_errors() {
 
 #[tokio::test]
 async fn list_filters_by_source() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     seed_content(&pool, &source, &slug()).await;
     seed_content(&pool, &source, &slug()).await;
@@ -377,7 +370,7 @@ async fn list_filters_by_source() {
 
 #[tokio::test]
 async fn search_runs_with_and_without_filters() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     seed_content(&pool, &source, &slug()).await;
 
@@ -410,7 +403,7 @@ async fn search_runs_with_and_without_filters() {
 
 #[tokio::test]
 async fn status_reports_prerender_health() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     seed_content(&pool, &source, &slug()).await;
     let dist = tempfile::tempdir().unwrap();
@@ -445,7 +438,7 @@ async fn status_reports_prerender_health() {
 
 #[tokio::test]
 async fn popular_parses_duration_and_lists() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     seed_content(&pool, &source, &slug()).await;
 
@@ -477,7 +470,7 @@ async fn popular_parses_duration_and_lists() {
 
 #[tokio::test]
 async fn delete_dry_run_keeps_content() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let ctx = db_ctx(&pool, cfg());
@@ -495,13 +488,13 @@ async fn delete_dry_run_keeps_content() {
     .unwrap();
     assert_eq!(card_title(&out), "Content Delete (Dry Run)");
 
-    let repo = ContentRepository::new(&pool).unwrap();
-    assert!(repo.get_by_id(&content.id).await.unwrap().is_some());
+    let repo = ContentRepository::new(&pool);
+    assert!(repo.find_by_id(&content.id).await.unwrap().is_some());
 }
 
 #[tokio::test]
 async fn delete_requires_yes_in_non_interactive_mode() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let content = seed_content(&pool, &source, &slug()).await;
     let ctx = db_ctx(&pool, cfg());
@@ -522,7 +515,7 @@ async fn delete_requires_yes_in_non_interactive_mode() {
 
 #[tokio::test]
 async fn delete_with_yes_removes_content() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let slug = slug();
     let content = seed_content(&pool, &source, &slug).await;
@@ -541,13 +534,13 @@ async fn delete_with_yes_removes_content() {
     .unwrap();
     assert_eq!(card_title(&out), "Content Deleted");
 
-    let repo = ContentRepository::new(&pool).unwrap();
-    assert!(repo.get_by_id(&content.id).await.unwrap().is_none());
+    let repo = ContentRepository::new(&pool);
+    assert!(repo.find_by_id(&content.id).await.unwrap().is_none());
 }
 
 #[tokio::test]
 async fn verify_reports_database_and_prerender_state() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let slug = slug();
     let content = seed_content(&pool, &source, &slug).await;
@@ -588,7 +581,7 @@ async fn verify_reports_the_prerendered_path_and_owned_http_status() {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let source = unique("src");
     let slug = slug();
     let content = seed_content(&pool, &source, &slug).await;
@@ -630,7 +623,7 @@ async fn verify_reports_the_prerendered_path_and_owned_http_status() {
 
 #[tokio::test]
 async fn link_list_requires_a_filter_flag() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = db_ctx(&pool, cfg());
     let err = link::list::execute(
         link::list::ListArgs {

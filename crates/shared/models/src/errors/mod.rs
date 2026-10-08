@@ -9,14 +9,15 @@
 //!
 //! Public re-exports:
 //!
-//! - [`ParseEnumError`], [`ConfigError`] — string parsing failures.
-//! - [`ConfigValidationError`] — services / agents / plugins validation.
-//! - [`RowParseError`] — JSON-row deserialization failures.
+//! - [`ParseEnumError`], [`GlobalConfigError`] — string parsing failures.
+//! - [`ServicesValidationError`] — services / agents / plugins validation.
 //! - [`MetadataError`] — MCP `_meta` payload decoding.
 //! - [`SecretsError`] — on-disk secrets document.
-//! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the
-//!   dyn-dispatched provider seams.
-//! - [`ServiceError`] — application-tier umbrella enum.
+//! - [`AiInferenceError`] / [`McpRegistryError`] — the typed errors of the AI
+//!   provider and MCP registry seams.
+//! - [`RepositoryError`] — the workspace's single repository error, defined in
+//!   `systemprompt-traits`; it renders over HTTP through
+//!   [`crate::api::ApiError`]'s `From` impl.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,15 +28,11 @@ pub mod macros;
 mod metadata;
 mod parse;
 mod provider;
-mod row;
 mod secrets;
-mod service;
 mod validation;
 
 pub use metadata::MetadataError;
-pub use parse::{ConfigError, ParseEnumError};
+pub use parse::{GlobalConfigError, ParseEnumError};
 pub use provider::{AiInferenceError, AiInferenceResult, McpRegistryError, McpRegistryResult};
-pub use row::RowParseError;
 pub use secrets::SecretsError;
-pub use service::ServiceError;
-pub use validation::ConfigValidationError;
+pub use validation::ServicesValidationError;

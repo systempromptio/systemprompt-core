@@ -27,8 +27,6 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `infra jobs history` | View job execution history | `Table` |
 | `infra jobs enable <name>` | Enable a job | `Text` |
 | `infra jobs disable <name>` | Disable a job | `Text` |
-| `infra jobs cleanup-sessions` | Clean up inactive sessions | `Text` |
-| `infra jobs log-cleanup` | Clean up old log entries | `Text` |
 
 ---
 
@@ -208,70 +206,6 @@ sp infra jobs disable behavioral_analysis
 
 ---
 
-### jobs cleanup-sessions
-
-Clean up inactive user sessions.
-
-```bash
-sp infra jobs cleanup-sessions
-sp infra jobs cleanup-sessions --hours 2
-sp infra jobs cleanup-sessions --dry-run
-```
-
-**Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--hours` | `1` | Sessions inactive for more than N hours |
-| `--dry-run` | | Preview without executing |
-
-**Output Structure:**
-```json
-{
-  "data": {
-    "job_name": "session_cleanup",
-    "sessions_cleaned": 15,
-    "hours_threshold": 1,
-    "message": "Cleaned up 15 inactive session(s)"
-  },
-  "artifact_type": "text",
-  "title": "Session Cleanup"
-}
-```
-
----
-
-### jobs log-cleanup
-
-Clean up old log entries.
-
-```bash
-sp infra jobs log-cleanup
-sp infra jobs log-cleanup --days 7
-sp infra jobs log-cleanup --days 7 --dry-run
-```
-
-**Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--days` | `30` | Delete logs older than N days |
-| `--dry-run` | | Preview without executing |
-
-**Output Structure:**
-```json
-{
-  "data": {
-    "job_name": "log_cleanup",
-    "entries_deleted": 5000,
-    "days_threshold": 30,
-    "message": "Deleted 5000 log entries older than 30 days"
-  },
-  "artifact_type": "text",
-  "title": "Log Cleanup"
-}
-```
-
----
-
 ## Creating a New Job
 
 Jobs are registered at compile-time using the `inventory` crate. To create a new job:
@@ -325,10 +259,7 @@ impl Job for MyCustomJob {
         let start = std::time::Instant::now();
 
         // Extract database pool from context
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
-        );
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         info!("my_custom_job started");
 
@@ -486,10 +417,7 @@ impl Job for BlogContentIngestionJob {
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
         let start = std::time::Instant::now();
-        let db_pool = Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
-        );
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         // Ingest blog content...
         let posts_ingested = ingest_blog_posts(&db_pool).await?;
@@ -515,10 +443,6 @@ sp --json infra jobs list | jq '.data.jobs[].name'
 
 # Check job details before running
 sp infra jobs show content_ingestion
-
-# Preview cleanup without executing
-sp infra jobs cleanup-sessions --dry-run
-sp infra jobs log-cleanup --days 7 --dry-run
 
 # Run the job
 sp infra jobs run content_ingestion
@@ -574,18 +498,3 @@ CREATE TABLE scheduled_jobs (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
-
----
-
-## Compliance Checklist
-
-- [x] Group dispatch accepts `ctx: &CommandContext`; leaf `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `render_result()`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Cleanup commands support `--dry-run`
-
-
----

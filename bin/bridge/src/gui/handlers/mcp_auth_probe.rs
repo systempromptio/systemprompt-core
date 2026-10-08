@@ -8,12 +8,13 @@ use serde_json::json;
 use crate::gui::events::{McpProbeResults, ReplyId, UiEvent};
 use crate::gui::notify::Signal;
 use crate::gui::{GuiApp, emit};
+use crate::ids::McpServerId;
 use crate::proxy::mcp_probe;
 
 #[tracing::instrument(level = "info", skip(app))]
 pub(crate) fn on_mcp_auth_probe_requested(
     app: &mut GuiApp,
-    server_id: Option<String>,
+    server_id: Option<McpServerId>,
     reply_to: ReplyId,
 ) {
     if !app.state.mark_mcp_auth_probing() {
@@ -25,15 +26,15 @@ pub(crate) fn on_mcp_auth_probe_requested(
     spawn_probe(app, server_id, reply_to);
 }
 
-fn spawn_probe(app: &GuiApp, server_id: Option<String>, reply_to: ReplyId) {
+fn spawn_probe(app: &GuiApp, server_id: Option<McpServerId>, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let loopback = app.ctx.proxy.loopback().clone();
     let registry = app.ctx.mcp_registry();
     app.ctx.spawn(async move {
         let results = match server_id {
-            Some(slug) => {
-                McpProbeResults::One(mcp_probe::probe_slug(&loopback, &registry, &slug).await)
-            },
+            Some(slug) => McpProbeResults::One(
+                mcp_probe::probe_slug(&loopback, &registry, slug.as_str()).await,
+            ),
             None => McpProbeResults::All(mcp_probe::probe_all(&loopback, &registry).await),
         };
         proxy.send_event(UiEvent::McpAuthProbeFinished { results, reply_to });
@@ -100,11 +101,18 @@ pub(crate) fn on_mcp_auth_probe_finished(
 // Why: the desktop tool policy is written from this same tool list; every
 // probe that reaches a server keeps the catalog current between syncs.
 fn remember_tools(app: &GuiApp, results: &[mcp_probe::McpServerAuth]) {
-    if let Err(e) = crate::install::mdm::tool_catalog::record(results) {
-        tracing::warn!(error = %e, "mcp tool catalog not updated from probe");
-        app.append_log_warn(format!(
-            "tool catalog not updated from the probe ({e}); the desktop tool policy keeps its \
-             last names"
-        ));
+    let Err(e) = crate::install::mdm::tool_catalog::record(results) else {
+        return;
+    };
+    tracing::warn!(error = %e, "mcp tool catalog not updated from probe");
+    match crate::install::mdm::tool_catalog::invalidate() {
+        Ok(()) => app.append_log_warn(format!(
+            "tool catalog not updated from the probe ({e}); connectors with a wildcard tool \
+             policy are withheld from the desktop policy until the next sync refreshes it"
+        )),
+        Err(cleared) => app.append_log_error(format!(
+            "tool catalog not updated from the probe ({e}) and could not be cleared ({cleared}); \
+             run sync before repairing Claude Desktop"
+        )),
     }
 }

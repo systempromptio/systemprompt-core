@@ -1,87 +1,88 @@
 //! Unit tests for MCP events
 
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::orchestrator::McpEvent;
 
 #[test]
 fn test_mcp_event_service_start_requested_service_name() {
     let event = McpEvent::ServiceStartRequested {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
     };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_service_start_completed_service_name() {
     let event = McpEvent::ServiceStartCompleted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         success: true,
         pid: Some(1234),
         port: Some(8080),
         error: None,
         duration_ms: 100,
     };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_service_started_service_name() {
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_service_failed_service_name() {
     let event = McpEvent::ServiceFailed {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         error: "Connection failed".to_string(),
     };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_service_stopped_service_name() {
     let event = McpEvent::ServiceStopped {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         exit_code: Some(0),
     };
-    assert_eq!(event.service_name(), "test-service");
-}
-
-#[test]
-fn test_mcp_event_health_check_failed_service_name() {
-    let event = McpEvent::HealthCheckFailed {
-        service_name: "test-service".to_string(),
-        reason: "Timeout".to_string(),
-    };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_schema_updated_service_name() {
     let event = McpEvent::SchemaUpdated {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         tool_count: 5,
     };
-    assert_eq!(event.service_name(), "test-service");
-}
-
-#[test]
-fn test_mcp_event_service_restart_requested_service_name() {
-    let event = McpEvent::ServiceRestartRequested {
-        service_name: "test-service".to_string(),
-        reason: "Manual restart".to_string(),
-    };
-    assert_eq!(event.service_name(), "test-service");
+    assert_eq!(
+        event.service_name().map(ServiceName::as_str),
+        Some("test-service")
+    );
 }
 
 #[test]
 fn test_mcp_event_reconciliation_started_service_name_empty() {
     let event = McpEvent::ReconciliationStarted { service_count: 5 };
-    assert_eq!(event.service_name(), "");
+    assert_eq!(event.service_name(), None);
 }
 
 #[test]
@@ -91,13 +92,13 @@ fn test_mcp_event_reconciliation_completed_service_name_empty() {
         failed: 1,
         duration_ms: 1000,
     };
-    assert_eq!(event.service_name(), "");
+    assert_eq!(event.service_name(), None);
 }
 
 #[test]
 fn test_mcp_event_service_start_requested_event_type() {
     let event = McpEvent::ServiceStartRequested {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
     };
     assert_eq!(event.event_type(), "service_start_requested");
 }
@@ -105,7 +106,7 @@ fn test_mcp_event_service_start_requested_event_type() {
 #[test]
 fn test_mcp_event_service_start_completed_event_type() {
     let event = McpEvent::ServiceStartCompleted {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
         success: true,
         pid: Some(1234),
         port: Some(8080),
@@ -118,7 +119,7 @@ fn test_mcp_event_service_start_completed_event_type() {
 #[test]
 fn test_mcp_event_service_started_event_type() {
     let event = McpEvent::ServiceStarted {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
         process_id: Some(1234),
         port: 8080,
     };
@@ -128,7 +129,7 @@ fn test_mcp_event_service_started_event_type() {
 #[test]
 fn test_mcp_event_service_failed_event_type() {
     let event = McpEvent::ServiceFailed {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
         error: "Error".to_string(),
     };
     assert_eq!(event.event_type(), "service_failed");
@@ -137,37 +138,19 @@ fn test_mcp_event_service_failed_event_type() {
 #[test]
 fn test_mcp_event_service_stopped_event_type() {
     let event = McpEvent::ServiceStopped {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
         exit_code: None,
     };
     assert_eq!(event.event_type(), "service_stopped");
 }
 
 #[test]
-fn test_mcp_event_health_check_failed_event_type() {
-    let event = McpEvent::HealthCheckFailed {
-        service_name: "test".to_string(),
-        reason: "Timeout".to_string(),
-    };
-    assert_eq!(event.event_type(), "health_check_failed");
-}
-
-#[test]
 fn test_mcp_event_schema_updated_event_type() {
     let event = McpEvent::SchemaUpdated {
-        service_name: "test".to_string(),
+        service_name: ServiceName::new("test"),
         tool_count: 5,
     };
     assert_eq!(event.event_type(), "schema_updated");
-}
-
-#[test]
-fn test_mcp_event_service_restart_requested_event_type() {
-    let event = McpEvent::ServiceRestartRequested {
-        service_name: "test".to_string(),
-        reason: "Manual".to_string(),
-    };
-    assert_eq!(event.event_type(), "service_restart_requested");
 }
 
 #[test]
@@ -188,7 +171,8 @@ fn test_mcp_event_reconciliation_completed_event_type() {
 
 #[test]
 fn test_mcp_event_start_completed_success() {
-    let event = McpEvent::start_completed_success("test-service".to_string(), 1234, 8080, 100);
+    let event =
+        McpEvent::start_completed_success(ServiceName::new("test-service"), 1234, 8080, 100);
 
     match event {
         McpEvent::ServiceStartCompleted {
@@ -213,7 +197,7 @@ fn test_mcp_event_start_completed_success() {
 #[test]
 fn test_mcp_event_start_completed_failure() {
     let event = McpEvent::start_completed_failure(
-        "test-service".to_string(),
+        ServiceName::new("test-service"),
         "Connection failed".to_string(),
         200,
     );
@@ -241,7 +225,7 @@ fn test_mcp_event_start_completed_failure() {
 #[test]
 fn test_mcp_event_debug() {
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };
@@ -254,7 +238,7 @@ fn test_mcp_event_debug() {
 #[test]
 fn test_mcp_event_serialize_service_started() {
     let event = McpEvent::ServiceStarted {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         process_id: Some(1234),
         port: 8080,
     };
@@ -269,7 +253,7 @@ fn test_mcp_event_serialize_service_started() {
 #[test]
 fn test_mcp_event_serialize_service_failed() {
     let event = McpEvent::ServiceFailed {
-        service_name: "test-service".to_string(),
+        service_name: ServiceName::new("test-service"),
         error: "Connection refused".to_string(),
     };
 

@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::client::{validate_connection, validate_connection_by_url};
@@ -67,7 +68,7 @@ async fn validate_connection_by_url_against_live_server_lists_tools() {
     ensure_test_bootstrap();
     let server = start_echo_mcp_server("echo").await;
 
-    let result = validate_connection_by_url("live-echo", &server.url)
+    let result = validate_connection_by_url(&ServiceName::new("live-echo"), &server.url)
         .await
         .expect("validation must not error");
 
@@ -79,7 +80,7 @@ async fn validate_connection_by_url_against_live_server_lists_tools() {
     );
     assert_eq!(result.validation_type, "mcp_validated");
     let info = result.server_info.expect("peer info present");
-    assert_eq!(info.server_name, "echo-mcp-test-server");
+    assert_eq!(info.implementation_name, "echo-mcp-test-server");
     assert_eq!(info.version, "9.9.9");
 }
 
@@ -87,7 +88,7 @@ async fn validate_connection_by_url_against_live_server_lists_tools() {
 async fn validate_connection_by_url_unreachable_reports_failure() {
     ensure_test_bootstrap();
 
-    let result = validate_connection_by_url("dead", "http://127.0.0.1:1/mcp")
+    let result = validate_connection_by_url(&ServiceName::new("dead"), "http://127.0.0.1:1/mcp")
         .await
         .expect("validation wraps connection errors, does not panic");
 
@@ -107,11 +108,12 @@ async fn validate_connection_host_port_against_live_server() {
     ensure_test_bootstrap();
     let server = start_echo_mcp_server("echo").await;
 
-    let result = validate_connection("live-echo", &server.host, server.port).await;
+    let result =
+        validate_connection(&ServiceName::new("live-echo"), &server.host, server.port).await;
 
     match result {
         Ok(r) => {
-            assert!(!r.service_name.is_empty());
+            assert_eq!(r.service_name, "live-echo");
         },
         Err(e) => panic!("validate_connection errored: {e}"),
     }

@@ -9,7 +9,6 @@ use axum::response::Response;
 
 use super::super::responses::{api_error_response, single_response_created};
 use systemprompt_agent::models::context::{ContextKind, CreateContextRequest};
-use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, ApiErrorExt, SystemEventBuilder};
 use systemprompt_runtime::AppContext;
 
@@ -54,7 +53,8 @@ pub async fn create_context(
                         context.context_id.clone(),
                         context.name.clone(),
                     );
-                    EventRouter::route_system(user_id, event)
+                    ctx.event_router()
+                        .route_system(user_id, event)
                         .await
                         .into_local_logged();
 
@@ -63,11 +63,8 @@ pub async fn create_context(
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to retrieve created context");
                     api_error_response(
-                        ApiError::internal_error(format!(
-                            "Context created but failed to retrieve: {}",
-                            e
-                        ))
-                        .with_request_context(&req_ctx),
+                        ApiError::internal_error("Context created but failed to retrieve")
+                            .with_request_context(&req_ctx),
                     )
                 },
             }
@@ -75,8 +72,7 @@ pub async fn create_context(
         Err(e) => {
             tracing::error!(error = %e, "Failed to create context");
             api_error_response(
-                ApiError::internal_error(format!("Failed to create context: {e}"))
-                    .with_request_context(&req_ctx),
+                ApiError::internal_error("Failed to create context").with_request_context(&req_ctx),
             )
         },
     }

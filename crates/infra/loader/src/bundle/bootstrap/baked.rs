@@ -14,7 +14,7 @@ use std::fs;
 use std::path::Path;
 
 use chrono::Utc;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_MANIFEST_FILE, BundleSourceInfo, BundleSourceState,
     ServicesBundleManifest, SignedBundleManifest,
 };
@@ -76,12 +76,12 @@ pub(super) fn stage_baked_base(
             }
         }
         let raw = serde_json::to_vec_pretty(&signed)
-            .map_err(|e| BundleError::policy(format!("baked base manifest: {e}")))?;
+            .map_err(|e| BundleError::policy_context("baked base manifest", e))?;
         fs::write(staging.join(BUNDLE_MANIFEST_FILE), raw)?;
         if let Err(e) = fs::rename(&staging, &target) {
             discard_staging(&staging);
             if !target.is_dir() {
-                return Err(BundleError::extract(&target, e));
+                return Err(BundleError::extract_cause(&target, e));
             }
         }
     }

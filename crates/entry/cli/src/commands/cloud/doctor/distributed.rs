@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use sha2::{Digest, Sha256};
 use systemprompt_database::{PostgresProvider, replica_status};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::CheckResult;
 
@@ -57,32 +57,26 @@ pub fn check_identity_fingerprints<S: BuildHasher>(
 }
 
 pub fn check_instance_id(profile: &Profile) -> CheckResult {
-    profile
-        .server
-        .instance_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-        .map_or_else(
-            || {
-                // Why: Fly does not automatically export HOSTNAME to application processes.
-                if profile.target.is_cloud() {
-                    CheckResult::fail(
-                        "instance-id",
-                        "server.instance_id is not set on a cloud profile; the boot refuses \
+    profile.server.instance_id.as_ref().map_or_else(
+        || {
+            // Why: Fly does not automatically export HOSTNAME to application processes.
+            if profile.target.is_cloud() {
+                CheckResult::fail(
+                    "instance-id",
+                    "server.instance_id is not set on a cloud profile; the boot refuses \
                          unless the platform exports HOSTNAME to the gateway and to every \
                          MCP subprocess — set it",
-                    )
-                } else {
-                    CheckResult::warn(
-                        "instance-id",
-                        "server.instance_id is not set; the replica falls back to HOSTNAME, \
+                )
+            } else {
+                CheckResult::warn(
+                    "instance-id",
+                    "server.instance_id is not set; the replica falls back to HOSTNAME, \
                          which must be stable across restarts on this platform",
-                    )
-                }
-            },
-            |id| CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
-        )
+                )
+            }
+        },
+        |id| CheckResult::pass("instance-id", format!("server.instance_id = {id}")),
+    )
 }
 
 pub fn check_trusted_proxies(profile: &Profile) -> CheckResult {

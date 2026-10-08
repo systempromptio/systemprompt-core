@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::OauthResult as Result;
+use crate::error::{OauthError, OauthResult as Result};
 use crate::models::cimd::CimdMetadata;
 use reqwest::Client;
 use systemprompt_client::{GuardedClientConfig, guarded_client};
@@ -22,9 +22,7 @@ impl CimdFetcher {
                 .with_timeout(HTTP_AUTH_VERIFY_TIMEOUT)
                 .with_user_agent(concat!("systemprompt.io-OS/", env!("CARGO_PKG_VERSION"))),
         )
-        .map_err(|e| {
-            crate::error::OauthError::CimdFetch(format!("Failed to build HTTP client: {e}"))
-        })?;
+        .map_err(OauthError::CimdHttpClient)?;
 
         Ok(Self { client })
     }
@@ -32,7 +30,7 @@ impl CimdFetcher {
     pub async fn fetch_metadata(&self, client_id: &ClientId) -> Result<CimdMetadata> {
         let client_id_str = client_id.as_str();
         if !client_id_str.starts_with("https://") {
-            return Err(crate::error::OauthError::InvalidClientMetadata(
+            return Err(OauthError::InvalidClientMetadata(
                 "CIMD client_id must be HTTPS URL".to_owned(),
             ));
         }
@@ -43,28 +41,29 @@ impl CimdFetcher {
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|e| {
-                crate::error::OauthError::CimdFetch(format!(
-                    "Failed to fetch CIMD metadata from {client_id_str}: {e}"
-                ))
+            .map_err(|source| OauthError::CimdFetch {
+                url: client_id_str.to_owned(),
+                source,
             })?;
 
         if !response.status().is_success() {
-            return Err(crate::error::OauthError::CimdFetch(format!(
-                "Failed to fetch CIMD metadata: HTTP {} from {}",
-                response.status(),
-                client_id_str
-            )));
+            return Err(OauthError::CimdStatus {
+                url: client_id_str.to_owned(),
+                status: response.status().as_u16(),
+            });
         }
 
-        let metadata: CimdMetadata = response.json().await.map_err(|e| {
-            crate::error::OauthError::CimdFetch(format!(
-                "Invalid CIMD metadata JSON from {client_id_str}: {e}"
-            ))
-        })?;
+        let metadata: CimdMetadata =
+            response
+                .json()
+                .await
+                .map_err(|source| OauthError::CimdDecode {
+                    url: client_id_str.to_owned(),
+                    source,
+                })?;
 
         if metadata.client_id.as_str() != client_id_str {
-            return Err(crate::error::OauthError::InvalidClientMetadata(format!(
+            return Err(OauthError::InvalidClientMetadata(format!(
                 "CIMD metadata client_id mismatch: expected '{}', got '{}'",
                 client_id_str, metadata.client_id
             )));

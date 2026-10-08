@@ -12,13 +12,13 @@ use systemprompt_cli::session::resolution::helpers::{
 };
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
-use systemprompt_models::auth::UserType;
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::UserType;
 
 fn make_profile() -> Profile {
     Profile {
@@ -34,6 +34,7 @@ fn make_profile() -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: ServerConfig {
@@ -48,7 +49,9 @@ fn make_profile() -> Profile {
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
             metrics_port: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            role: Default::default(),
+            max_in_flight: None,
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
@@ -70,7 +73,7 @@ fn make_profile() -> Profile {
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         },
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),
@@ -94,7 +97,7 @@ fn remote_env() -> EnvOverrides {
     env.session.session_id = Some(SessionId::generate());
     env.session.context_id = Some(ContextId::generate());
     env.session.user_id = Some(UserId::new("user-remote-cli"));
-    env.session.auth_token = Some("tok-123".to_string());
+    env.session.auth_token = Some(SessionToken::new("tok-123"));
     env
 }
 
@@ -162,7 +165,7 @@ fn extract_profile_name_uses_parent_dir_name() {
         "/home/user/.systemprompt/profiles/dev/profile.yaml",
     ))
     .unwrap();
-    assert_eq!(name, "dev");
+    assert_eq!(name.as_str(), "dev");
 }
 
 #[test]
@@ -172,9 +175,16 @@ fn extract_profile_name_rejects_rootless_path() {
 }
 
 #[test]
+fn extract_profile_name_rejects_a_directory_that_is_not_a_profile_name() {
+    let err =
+        extract_profile_name(Path::new("/home/user/profiles/my profile/profile.yaml")).unwrap_err();
+    assert!(err.to_string().contains("is not a valid profile name"));
+}
+
+#[test]
 fn resolve_profile_path_from_session_rejects_profile_mismatch() {
     let s = session("alpha");
-    let err = resolve_profile_path_from_session(&s, Some("beta")).unwrap_err();
+    let err = resolve_profile_path_from_session(&s, Some(&pname("beta"))).unwrap_err();
     assert!(
         err.to_string()
             .contains("No session for active profile 'beta'")
@@ -190,7 +200,7 @@ fn resolve_profile_path_from_session_returns_existing_path_only() {
     let mut s = session("alpha");
     s.update_profile_path(profile_yaml.clone());
     assert_eq!(
-        resolve_profile_path_from_session(&s, Some("alpha")).unwrap(),
+        resolve_profile_path_from_session(&s, Some(&pname("alpha"))).unwrap(),
         Some(profile_yaml)
     );
 
@@ -237,4 +247,8 @@ fn resolve_profile_path_without_session_returns_stored_existing_path() {
     let resolved =
         resolve_profile_path_without_session(&paths, &store, &SessionKey::Local, None).unwrap();
     assert_eq!(resolved, profile_yaml);
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

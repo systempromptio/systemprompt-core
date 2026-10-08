@@ -10,7 +10,9 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use std::time::Duration;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, McpServerId, SessionId, SessionToken, TraceId, UserId,
+};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::SpawnTarget;
 use systemprompt_mcp::services::client::HttpClientWithContext;
@@ -18,12 +20,13 @@ use systemprompt_models::execution::context::RequestContext;
 use tokio::time::timeout;
 use tracing::debug;
 
-fn probe_context(server_name: &str) -> RequestContext {
+fn probe_context(server_name: &McpServerId) -> RequestContext {
     RequestContext::new(
         SessionId::new(format!("cli-{server_name}")),
         TraceId::generate(),
         ContextId::derived_from_cli_probe(server_name),
         AgentName::system(),
+        Actor::anonymous(UserId::generate()),
     )
 }
 
@@ -46,7 +49,7 @@ pub fn direct_url(server: &McpServerConfig) -> Result<String> {
 }
 
 pub async fn list_tools_unauthenticated(
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
@@ -87,14 +90,14 @@ pub async fn list_tools_unauthenticated(
 }
 
 pub async fn list_tools_authenticated(
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
     let config =
         StreamableHttpClientTransportConfig::with_uri(url).auth_header(token.as_str().to_owned());
-    let context = probe_context(server_name).with_auth_token(token.as_str());
+    let context = probe_context(server_name).with_auth_token(JwtToken::new(token.as_str()));
     let transport =
         StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
 

@@ -7,13 +7,15 @@
 use std::fs;
 use std::path::Path;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use super::ApplyError;
 use super::hooks_schema::HooksFile;
 use crate::fsutil::atomic_write_0644;
 
 // Why: a missing file is not an error — plugins without hooks have nothing to
 // stamp.
-pub fn stamp_hooks_file(path: &Path, host: &str) -> Result<(), ApplyError> {
+pub fn stamp_hooks_file(path: &Path, host: HostKind) -> Result<(), ApplyError> {
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),

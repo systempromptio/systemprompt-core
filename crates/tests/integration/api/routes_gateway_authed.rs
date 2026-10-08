@@ -23,9 +23,7 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let router = gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router available");
+    let router = gateway_router(&ctx).expect("gateway router builds");
     Ok((router, pool))
 }
 
@@ -57,7 +55,7 @@ async fn heartbeat_rejects_a_session_claimed_by_another_token_without_recording_
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     let body = read_text(response).await?;
     assert!(body.contains("session_id must match"), "{body}");
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     assert!(
@@ -93,7 +91,7 @@ async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompat
     let body = read_body(response).await?;
     assert_eq!(body["compatible"], false);
     assert_eq!(body["min_bridge_version"], "0.28.0");
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     let persisted = active
@@ -112,15 +110,13 @@ async fn incompatible_heartbeat_is_recorded_with_its_usage_and_reported_incompat
 async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
 -> anyhow::Result<()> {
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("heartbeat_persistence_recovery")
-            .await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("heartbeat_persistence_recovery")
+            .await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let ctx = systemprompt_test_fixtures::fixture_app_context(&pool, database.url())?;
+    let ctx = systemprompt_test_fixtures::test_app_context(&pool, database.url());
     install_test_signing_key();
-    let app = gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router available");
+    let app = gateway_router(&ctx).expect("gateway router builds");
     let credential = seed_bridge_credential(&pool, "heartbeat-retry@example.invalid").await?;
     let payload = serde_json::json!({
         "session_id": credential.session_id.as_str(),
@@ -151,10 +147,10 @@ async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
     let failed = failed?;
     assert_eq!(failed.status(), StatusCode::INTERNAL_SERVER_ERROR);
     let body = read_text(failed).await?;
-    assert!(
-        body.starts_with("bridge heartbeat upsert failed:"),
-        "{body}"
-    );
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["code"], "internal_error", "{body}");
+    assert_eq!(json["message"], "Internal server error", "{body}");
+    assert!(!body.contains("bridge_sessions"), "{body}");
 
     let recovered = app
         .oneshot(authed_post(
@@ -164,7 +160,7 @@ async fn heartbeat_storage_failure_is_reported_and_a_retry_records_the_session()
         ))
         .await?;
     assert_eq!(recovered.status(), StatusCode::OK);
-    let active = BridgeSessionRepository::new(&pool)?
+    let active = BridgeSessionRepository::new(&pool)
         .list_active_for_user(&credential.user_id, Duration::from_secs(60))
         .await?;
     let persisted = active
@@ -208,7 +204,7 @@ async fn device_fingerprint_cannot_move_between_users_and_the_owner_can_still_ro
     assert_eq!(first["consumer_id"], owner.user_id.as_str());
     let device_id = first["device_id"].clone();
     let first_credential = first["credential"].as_str().unwrap().to_owned();
-    let repository = ManagedRepository::new(&pool)?;
+    let repository = ManagedRepository::new(&pool);
     let first_identity = repository
         .authenticate_consumer_device(&first_credential)
         .await?;

@@ -6,13 +6,8 @@
 use chrono::Utc;
 use systemprompt_content::models::{CategoryIdUpdate, CreateContentParams, UpdateContentParams};
 use systemprompt_content::repository::ContentRepository;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
-
-async fn try_db_or_skip() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn unique_source_id() -> SourceId {
     SourceId::new(format!("src-{}", uuid::Uuid::new_v4()))
@@ -37,26 +32,15 @@ fn sample_params(source_id: SourceId, slug: String) -> CreateContentParams {
         category_id: None,
         source_id,
         version_hash: "deadbeef".to_owned(),
-        links: serde_json::json!([]),
+        links: Vec::new(),
         public: true,
     }
 }
 
 #[tokio::test]
-async fn repository_new_succeeds_against_real_pool() {
-    let Some(db) = try_db_or_skip().await else {
-        eprintln!("Skipping (DATABASE_URL not set)");
-        return;
-    };
-    drop(ContentRepository::new(&db).expect("ContentRepository::new should succeed"));
-}
-
-#[tokio::test]
 async fn create_then_get_by_id_round_trips() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let params = sample_params(source.clone(), slug.clone());
@@ -67,9 +51,9 @@ async fn create_then_get_by_id_round_trips() {
     assert!(created.public);
 
     let fetched = repo
-        .get_by_id(&created.id)
+        .find_by_id(&created.id)
         .await
-        .expect("get_by_id")
+        .expect("find_by_id")
         .expect("content row");
     assert_eq!(fetched.id, created.id);
     assert_eq!(fetched.slug, slug);
@@ -80,10 +64,8 @@ async fn create_then_get_by_id_round_trips() {
 
 #[tokio::test]
 async fn get_by_slug_and_locale_finds_existing_row() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let params = sample_params(source.clone(), slug.clone());
@@ -91,14 +73,14 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 
     let locale = LocaleCode::english();
     let fetched = repo
-        .get_by_slug(&slug, &locale)
+        .find_by_slug(&slug, &locale)
         .await
         .expect("query")
         .expect("row");
     assert_eq!(fetched.id, created.id);
 
     let by_src = repo
-        .get_by_source_and_slug(&source, &slug, &locale)
+        .find_by_source_and_slug(&source, &slug, &locale)
         .await
         .expect("query by source+slug")
         .expect("row");
@@ -109,21 +91,17 @@ async fn get_by_slug_and_locale_finds_existing_row() {
 
 #[tokio::test]
 async fn get_by_id_returns_none_for_unknown_id() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
-    let missing = ContentId::new(uuid::Uuid::new_v4().to_string());
-    let result = repo.get_by_id(&missing).await.expect("query unknown id");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
+    let missing = ContentId::generate();
+    let result = repo.find_by_id(&missing).await.expect("query unknown id");
     assert!(result.is_none());
 }
 
 #[tokio::test]
 async fn list_by_source_returns_inserted_rows() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug_a = unique_slug();
     let slug_b = unique_slug();
@@ -158,10 +136,8 @@ async fn list_by_source_returns_inserted_rows() {
 
 #[tokio::test]
 async fn list_paginates_with_limit_and_offset() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let first_page = repo.list(5, 0).await.expect("list page");
     assert!(first_page.len() <= 5);
 
@@ -171,10 +147,8 @@ async fn list_paginates_with_limit_and_offset() {
 
 #[tokio::test]
 async fn category_exists_returns_false_for_unknown_category() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let missing = systemprompt_identifiers::CategoryId::new(uuid::Uuid::new_v4().to_string());
     let exists = repo.category_exists(&missing).await.expect("query");
     assert!(!exists, "fresh-UUID category must not exist");
@@ -182,10 +156,8 @@ async fn category_exists_returns_false_for_unknown_category() {
 
 #[tokio::test]
 async fn update_changes_title_and_description() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let created = repo
@@ -216,10 +188,8 @@ async fn update_changes_title_and_description() {
 
 #[tokio::test]
 async fn delete_by_source_removes_all_rows_for_source() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let _a = repo
         .create(&sample_params(source.clone(), unique_slug()))
@@ -249,10 +219,8 @@ async fn delete_by_source_removes_all_rows_for_source() {
 
 #[tokio::test]
 async fn find_sources_by_slug_returns_distinct_sources() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let slug = unique_slug();
     let source_a = unique_source_id();
     let source_b = unique_source_id();
@@ -271,7 +239,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     );
 
     let sources_en = repo
-        .find_sources_by_slug(&slug, &LocaleCode::english())
+        .list_sources_by_slug(&slug, &LocaleCode::english())
         .await
         .expect("find by slug en");
     assert!(sources_en.iter().any(|s| s == &source_a));
@@ -281,7 +249,7 @@ async fn find_sources_by_slug_returns_distinct_sources() {
     );
 
     let sources_fr = repo
-        .find_sources_by_slug(&slug, &b_locale)
+        .list_sources_by_slug(&slug, &b_locale)
         .await
         .expect("find by slug fr");
     assert!(sources_fr.iter().any(|s| s == &source_b));
@@ -292,10 +260,8 @@ async fn find_sources_by_slug_returns_distinct_sources() {
 
 #[tokio::test]
 async fn list_slugs_with_locales_by_source_lists_inserted() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = ContentRepository::new(&db);
     let source = unique_source_id();
     let slug = unique_slug();
     let _ = repo
@@ -313,18 +279,4 @@ async fn list_slugs_with_locales_by_source_lists_inserted() {
     );
 
     repo.delete_by_source(&source).await.ok();
-}
-
-#[tokio::test]
-async fn get_popular_content_ids_runs_without_error_when_no_metrics() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let repo = ContentRepository::new(&db).expect("repo");
-    let source = unique_source_id();
-    let ids = repo
-        .get_popular_content_ids(&source, 30, 5)
-        .await
-        .expect("popular");
-    assert!(ids.is_empty());
 }

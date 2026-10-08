@@ -15,7 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -31,11 +31,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -44,7 +39,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -74,7 +69,7 @@ async fn seed_tool_server(pool: &DbPool) -> String {
         .bind(status)
         .bind(user_id.as_str())
         .bind(Uuid::new_v4().to_string())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -101,7 +96,7 @@ async fn seed_ai_requests(pool: &DbPool) -> String {
         .bind(tokens)
         .bind(cost)
         .bind(latency)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -129,7 +124,7 @@ async fn seed_engagement(pool: &DbPool) {
         .bind(format!("/cov/{content_id}"))
         .bind(&content_id)
         .bind(depth)
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     }
@@ -137,7 +132,7 @@ async fn seed_engagement(pool: &DbPool) {
 
 #[tokio::test]
 async fn tools_list_scoped_to_a_server_renders_every_sort_order() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let server = seed_tool_server(&pool).await;
     let ctx = ctx(&pool);
 
@@ -153,7 +148,7 @@ async fn tools_list_scoped_to_a_server_renders_every_sort_order() {
 
 #[tokio::test]
 async fn tools_list_export_contains_only_the_seeded_server_rows() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let server = seed_tool_server(&pool).await;
     let ctx = ctx(&pool);
 
@@ -182,7 +177,7 @@ async fn tools_list_export_contains_only_the_seeded_server_rows() {
 
 #[tokio::test]
 async fn tools_list_limit_is_applied_server_side() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let server = seed_tool_server(&pool).await;
     let ctx = ctx(&pool);
 
@@ -211,7 +206,7 @@ async fn tools_list_limit_is_applied_server_side() {
 
 #[tokio::test]
 async fn tools_list_for_an_unseeded_server_reports_nothing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
 
     let dir = tempfile::tempdir().unwrap();
@@ -236,7 +231,7 @@ async fn tools_list_for_an_unseeded_server_reports_nothing() {
 
 #[tokio::test]
 async fn requests_views_render_with_seeded_ai_requests() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let model = seed_ai_requests(&pool).await;
     let ctx = ctx(&pool);
 
@@ -274,7 +269,7 @@ async fn requests_views_render_with_seeded_ai_requests() {
 
 #[tokio::test]
 async fn content_views_render_with_seeded_engagement_events() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_engagement(&pool).await;
     let ctx = ctx(&pool);
 
@@ -322,7 +317,7 @@ async fn seed_aged_ai_request(pool: &DbPool, age_days: i32, cost: i64) {
     .bind(user_id.as_str())
     .bind(cost)
     .bind(age_days.to_string())
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
 }
@@ -338,7 +333,7 @@ async fn costs_summary_csv(ctx: &CommandContext, extra: &[&str]) -> String {
 
 #[tokio::test]
 async fn costs_summary_widens_past_an_empty_default_window() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_aged_ai_request(&pool, 3, 4_000).await;
     let ctx = ctx(&pool);
 

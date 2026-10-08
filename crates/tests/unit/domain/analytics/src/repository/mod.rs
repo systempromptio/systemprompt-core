@@ -9,7 +9,6 @@ mod per_user_cost_boundaries;
 mod reasoning_reporting_db;
 mod session_behavioral_queries;
 mod session_geo_backfill;
-mod session_lifecycle_forwarding;
 mod session_support;
 mod tools_queries;
 mod traffic;

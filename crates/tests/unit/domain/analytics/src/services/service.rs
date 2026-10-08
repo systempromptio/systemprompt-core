@@ -2,25 +2,20 @@
 
 use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_analytics::SessionAnalyticsBuilder;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 mod analytics_service_instance_tests {
     use axum::body::Body;
     use axum::extract::Request;
     use axum::http::HeaderValue;
     use systemprompt_analytics::AnalyticsService;
-    use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    };
+    use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
     use systemprompt_traits::ExtractSignals;
 
     #[tokio::test]
     async fn debug_reports_type_erased_fields() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = AnalyticsService::new(
             None,
             None,
@@ -33,16 +28,13 @@ mod analytics_service_instance_tests {
         // geoip_reader is rendered as its presence flag, not the reader itself.
         assert!(debug.contains("geoip_reader: false"));
         assert!(debug.contains("content_routing: false"));
-        assert!(debug.contains("SessionRepository"));
+        assert!(debug.contains("session_store"));
     }
 
     #[tokio::test]
     async fn extract_analytics_reads_headers_and_uri() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let service = AnalyticsService::new(
             None,
             None,
@@ -271,7 +263,7 @@ mod create_analytics_session_input_tests {
         };
 
         input.user_id.expect("expected Some value");
-        assert_eq!(input.user_id.unwrap().as_str(), "test-user");
+        assert_eq!(input.user_id.unwrap().as_str(), FIXTURE_USER_ID);
     }
 
     #[test]

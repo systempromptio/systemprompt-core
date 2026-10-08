@@ -17,6 +17,18 @@ mod routes_gateway_auth;
 mod server_mount_gateway_and_mcp_scope;
 
 #[cfg(test)]
+#[path = "routes_role_gateway.rs"]
+mod routes_role_gateway;
+
+#[cfg(test)]
+#[path = "gateway_overhead_metrics.rs"]
+mod gateway_overhead_metrics;
+
+#[cfg(test)]
+#[path = "server_load_shed.rs"]
+mod server_load_shed;
+
+#[cfg(test)]
 #[path = "routes_mcp_registry.rs"]
 mod routes_mcp_registry;
 
@@ -280,6 +292,18 @@ mod gateway_failover;
 mod gateway_tool_result_artifacts;
 
 #[cfg(test)]
+#[path = "gateway_safety_scanner_failure.rs"]
+mod gateway_safety_scanner_failure;
+
+#[cfg(test)]
+#[path = "gateway_safety_scanner_config.rs"]
+mod gateway_safety_scanner_config;
+
+#[cfg(test)]
+#[path = "gateway_safety_redaction.rs"]
+mod gateway_safety_redaction;
+
+#[cfg(test)]
 #[path = "gateway_matrix.rs"]
 mod gateway_matrix;
 
@@ -540,3 +564,23 @@ mod gateway_malformed_tool_choice;
 
 #[cfg(test)]
 mod gateway_google_credentials;
+
+#[cfg(test)]
+#[path = "api_error_redaction.rs"]
+mod api_error_redaction;
+
+#[cfg(test)]
+#[path = "gateway_attribution.rs"]
+mod gateway_attribution;
+
+#[cfg(test)]
+#[path = "gateway_quota_reservation.rs"]
+mod gateway_quota_reservation;
+
+#[cfg(test)]
+#[path = "gateway_scope_routing.rs"]
+mod gateway_scope_routing;
+
+#[cfg(test)]
+#[path = "gateway_api_key_limits.rs"]
+mod gateway_api_key_limits;

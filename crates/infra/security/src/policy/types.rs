@@ -137,9 +137,7 @@ impl FromStr for AccessScope {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
             "unknown" | "" => Ok(Self::Unknown),
-            other => Err(AuthzError::Validation(format!(
-                "unknown access scope: {other}"
-            ))),
+            other => Err(AuthzError::UnknownAccessScope(other.to_owned())),
         }
     }
 }

@@ -19,7 +19,7 @@ pub struct DemoteArgs {
 
 pub(super) async fn execute(args: DemoteArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service);
 
     match admin_service.demote_from_admin(&args.identifier).await? {

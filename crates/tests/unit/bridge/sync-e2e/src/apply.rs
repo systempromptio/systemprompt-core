@@ -26,12 +26,12 @@ use systemprompt_bridge::gateway::manifest::{
     PluginEntry, PluginFile, SignedManifest, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_identifiers::HookId;
-use systemprompt_models::services::PluginHooksRef;
-use systemprompt_models::services::hooks::{HookCategory, HookEvent};
+use systemprompt_models::hooks::{HookCategory, HookEvent};
+use systemprompt_models::plugin::PluginHooksRef;
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{header, method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -59,6 +59,7 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -92,6 +93,7 @@ fn hook() -> HookEntry {
         matcher: "*".into(),
         command: "echo hi".into(),
         is_async: false,
+        timeout: None,
         category: HookCategory::Custom,
         tags: vec![],
         sha256: Sha256Digest::try_new("0".repeat(64)).unwrap(),
@@ -101,7 +103,7 @@ fn hook() -> HookEntry {
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -347,6 +349,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
@@ -513,6 +516,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
@@ -577,6 +581,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: Default::default(),
             diagnostics: Vec::new(),
             marketplaces: Vec::new(),
@@ -638,6 +643,7 @@ fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> 
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -814,6 +820,7 @@ fn manifest_of(plugins: Vec<PluginEntry>, hooks: Vec<HookEntry>) -> SignedManife
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -874,7 +881,41 @@ fn an_included_hook_is_materialised_as_a_user_command_entry() {
     assert_eq!(entry["type"], "command");
     assert_eq!(entry["command"], "echo hi");
     assert_eq!(entry["event"], "PreToolUse");
+    assert!(
+        entry.get("timeout").is_none(),
+        "no authored timeout leaves Claude Code's per-event default: {hooks}"
+    );
     assert_eq!(group[0]["matcher"], "*");
+    let _ = (&b.server, &b.pat_dir);
+}
+
+#[test]
+fn an_authored_hook_timeout_reaches_the_written_hooks_json() {
+    let m = manifest_of(
+        vec![plugin_with_include(
+            "acme-plugin",
+            vec!["hook-1".to_owned()],
+        )],
+        vec![HookEntry {
+            timeout: Some(30),
+            ..hook()
+        }],
+    );
+    let b = serve_plugins(
+        &m,
+        &[(
+            "acme-plugin",
+            ".claude-plugin/plugin.json",
+            PLUGIN_FILE_BODY,
+        )],
+        "pat-include-timeout",
+    );
+    run_sync(&b.dirs).expect("sync applies");
+
+    let hooks = hooks_json_of(&b.dirs, "acme-plugin");
+    let entry = &hooks["hooks"]["PreToolUse"][0]["hooks"][0];
+    assert_eq!(entry["type"], "command", "{hooks}");
+    assert_eq!(entry["timeout"], 30, "{hooks}");
     let _ = (&b.server, &b.pat_dir);
 }
 
@@ -1328,6 +1369,7 @@ fn empty_manifest() -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),

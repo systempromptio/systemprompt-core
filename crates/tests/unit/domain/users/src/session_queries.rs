@@ -4,9 +4,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 use systemprompt_traits::session_store::CreateSessionParams;
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
@@ -49,12 +47,9 @@ fn params_for_user<'a>(
 
 #[tokio::test]
 async fn find_by_fingerprint_returns_active_session_for_user() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let user = UserId::new(format!("user-{}", Uuid::new_v4()));
     seed_user_row(&pool, &user, &format!("{}@t.test", user.as_str()))
@@ -95,12 +90,9 @@ async fn find_by_fingerprint_returns_active_session_for_user() {
 
 #[tokio::test]
 async fn list_active_by_user_returns_only_open_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let user = UserId::new(format!("user-{}", Uuid::new_v4()));
     seed_user_row(&pool, &user, &format!("{}@t.test", user.as_str()))

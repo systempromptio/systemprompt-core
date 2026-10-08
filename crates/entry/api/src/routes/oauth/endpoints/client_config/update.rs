@@ -6,11 +6,11 @@
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use super::validation::authenticate_client_configuration;
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
@@ -24,24 +24,24 @@ pub async fn update_client_configuration(
     headers: HeaderMap,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> Result<Response, OAuthHttpError> {
-    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
+    let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
     let (existing_client, registration_token) =
         authenticate_client_configuration(&repository, &headers, &client_id).await?;
 
     let client_name = request
         .get_client_name()
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+        .map_err(internal::client_metadata_error)?;
     let mut redirect_uris = request
         .get_redirect_uris()
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+        .map_err(internal::client_metadata_error)?;
     redirect_uris.sort();
     redirect_uris.dedup();
     validate_registration_redirect_uris(&existing_client.application_type, &redirect_uris)
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+        .map_err(internal::client_metadata_error)?;
     validate_client_metadata_uri("client_uri", request.client_uri.as_deref())
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+        .map_err(internal::client_metadata_error)?;
     validate_client_metadata_uri("logo_uri", request.logo_uri.as_deref())
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(e.to_string()))?;
+        .map_err(internal::client_metadata_error)?;
 
     repository
         .update_client(
@@ -51,9 +51,7 @@ pub async fn update_client_configuration(
             Some(&existing_client.scopes),
         )
         .await
-        .map_err(|e| {
-            OAuthHttpError::invalid_client_metadata(format!("Failed to update client: {e}"))
-        })?;
+        .map_err(internal::client_metadata_error)?;
 
     let base_url = Config::get()?.api_server_url.clone();
 

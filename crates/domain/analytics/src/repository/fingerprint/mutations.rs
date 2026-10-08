@@ -59,7 +59,7 @@ impl FingerprintRepository {
                 last_abuse_at,
                 last_ip_address,
                 last_user_agent,
-                associated_user_ids,
+                associated_user_ids as "associated_user_ids: Vec<UserId>",
                 updated_at
             "#,
             fingerprint_hash,

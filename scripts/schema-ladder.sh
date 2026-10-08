@@ -46,7 +46,6 @@ step "build the $RUNG migrator"
 git -C "$ROOT" worktree add --detach "$WORK/rung" "$RUNG" >/dev/null
 (
     cd "$WORK/rung"
-    python3 "$SCRIPTS/ci-strip-cargo-config.py"
     rustup show >/dev/null
     SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
         -p systemprompt-test-migrate --target-dir "$WORK/target"

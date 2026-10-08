@@ -95,34 +95,8 @@ jobs:
           df -h / /mnt
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
-        run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
-          done
-
-      - name: Strip [unstable] and [profile.dev] from cargo configs
-        run: |
-          python3 - <<'PY'
-          import re, pathlib
-          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
-              p = pathlib.Path(path)
-              if not p.exists():
-                  continue
-              s = p.read_text()
-              # Drop sections that trigger the unstable `codegen-backend` feature
-              # and anything forcing sccache. CI uses stable LLVM default.
-              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-              p.write_text(s)
-              print(f"--- {path} ---")
-              print(p.read_text())
-          PY
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
 
       - run: rustup show
 

@@ -10,8 +10,9 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentName;
+pub use systemprompt_manifest::services::{AgentSummary, McpServerSummary};
 use systemprompt_models::a2a::Task;
-pub use systemprompt_models::services::{AgentSummary, McpServerSummary};
 
 use crate::commands::plugins::mcp::types::McpToolEntry;
 
@@ -58,14 +59,14 @@ pub struct AgentCreateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentEditOutput {
-    pub name: String,
+    pub name: AgentName,
     pub message: String,
     pub changes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentDeleteOutput {
-    pub deleted: Vec<String>,
+    pub deleted: Vec<AgentName>,
     pub message: String,
 }
 

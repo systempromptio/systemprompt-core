@@ -17,19 +17,34 @@
 //! ```ignore
 //! use systemprompt_identifiers::{TaskId, UserId};
 //!
-//! // Known string value (literal, parsed input, DB row).
-//! let user = UserId::new("user_abc");
+//! // A value already known to be valid (a decoded DB row).
+//! let task = TaskId::new("task_abc");
+//!
+//! // A value from outside (header, path segment, JWT claim): validate it.
+//! let user = UserId::try_new(raw_sub)?;
 //!
 //! // Mint a fresh UUID-backed identifier.
-//! let task = TaskId::generate();
+//! let fresh = UserId::generate();
 //! ```
 //!
-//! Validated identifiers (`McpServerId`, `ContextId`, `Email`, `ProfileName`,
-//! `ValidatedUrl`, `ValidatedFilePath`, `AgentName`, ...) expose **only** the
-//! fallible `try_new` constructor returning [`error::IdValidationError`];
-//! there is no infallible `new` that could panic on runtime input. Values
+//! Validated identifiers (`ContextId`, `Email`, `ProfileName`, `ValidatedUrl`,
+//! `ValidatedFilePath`, `RoleId`, ...) expose **only** the fallible `try_new`
+//! constructor returning [`error::IdValidationError`]; there is no
+//! infallible `new` that could panic on runtime input. Values
 //! minted by the platform itself (`ContextId::generate`, `AgentName::system`)
 //! come from dedicated constructors.
+//!
+//! Checked identifiers (`UserId`, `ServiceName`, `AgentName`, `McpServerId`,
+//! `McpToolName`, `PluginId`, `SkillId`, ...) have both: `try_new` validates
+//! input from outside, `new` accepts a value already known valid (a decoded
+//! row, a configuration key validated at load). They implement no
+//! `From<String>`, and their `Deserialize`/`FromStr` validate.
+//!
+//! "Absent" is `Option<Id>`, never a sentinel value such as `"unset"`,
+//! `"unknown"` or the empty string.
+//!
+//! [`gateway_hash`] is the deterministic prefix hash that mints a
+//! [`GatewayConversationId`] identically on both sides of the bridge boundary.
 //!
 //! # Feature flags
 //!
@@ -49,6 +64,7 @@ mod actor;
 mod agent;
 mod ai;
 mod auth;
+mod bridge;
 mod client;
 mod client_session;
 mod cloud;
@@ -59,6 +75,7 @@ mod email;
 mod engagement;
 mod events;
 mod execution;
+mod extension;
 mod gateway_boot;
 mod gateway_conversation;
 mod hook;
@@ -76,7 +93,9 @@ mod policy;
 mod profile;
 mod provider_request;
 mod roles;
+mod scope;
 mod section;
+mod service;
 mod session;
 mod slack;
 mod task;
@@ -88,6 +107,7 @@ mod user;
 mod webhook;
 
 pub mod error;
+pub mod gateway_hash;
 pub mod headers;
 pub mod macros;
 
@@ -99,16 +119,20 @@ pub use ai::{
 pub use auth::{
     ApiKeyId, ApiKeySecret, CloudAuthToken, DeviceCertId, DeviceId, JwtToken, SessionToken,
 };
+pub use bridge::{
+    CommsMessageId, DeploymentOrganizationUuid, ElevatedJobId, HookSessionId, McpSessionId,
+};
 pub use client::{ClientId, ClientType};
 pub use client_session::ClientSessionId;
-pub use cloud::PriceId;
+pub use cloud::{CloudAppId, CloudUserId, PriceId};
 pub use connection::ConnectionId;
-pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
+pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use engagement::EngagementEventId;
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
+pub use extension::ExtensionId;
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
@@ -121,7 +145,7 @@ pub use managed::{
     InventoryEntryId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, NativeSessionId,
     PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
-pub use marketplace::MarketplaceId;
+pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleName};
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
 pub use path::ValidatedFilePath;
@@ -130,11 +154,13 @@ pub use policy::{CallId, PolicyId, PolicyVersion, SecretPatternId};
 pub use profile::ProfileName;
 pub use provider_request::ProviderRequestId;
 pub use roles::RoleId;
+pub use scope::{ScopeDimension, validate_scope_dimension};
 pub use section::SectionId;
+pub use service::ServiceName;
 pub use session::{SessionId, SessionSource};
 pub use slack::{SlackChannelId, SlackUserId, SlackWorkspaceId};
 pub use task::TaskId;
-pub use teams::{TeamsConversationId, TeamsTenantId, TeamsUserId};
+pub use teams::{TeamsAppId, TeamsConversationId, TeamsTenantId, TeamsUserId};
 pub use tenant::TenantId;
 pub use trace::TraceId;
 pub use url::ValidatedUrl;

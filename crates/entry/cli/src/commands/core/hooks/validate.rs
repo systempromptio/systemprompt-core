@@ -9,8 +9,9 @@ use std::path::Path;
 
 use crate::CliConfig;
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::HookId;
 use systemprompt_loader::ServicesRootBootstrap;
-use systemprompt_models::{DiskHookConfig, HOOK_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskHookConfig, HOOK_CONFIG_FILENAME};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
 
@@ -19,17 +20,19 @@ const PLUGIN_ROOT_VAR: &str = "${CLAUDE_PLUGIN_ROOT}";
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs;
 
-pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(_args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
 
     let results = validate_all_hooks(&hooks_path)?;
+    let valid = results.iter().all(|entry| entry.valid);
     let output = HookValidateOutput { results };
 
-    Ok(
+    Ok((
         CommandOutput::table_of(vec!["plugin_id", "valid", "errors"], &output.results)
             .with_title("Hook Validation Results"),
-    )
+        valid,
+    ))
 }
 
 pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
@@ -56,15 +59,23 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
             continue;
         }
 
-        let Ok(content) = std::fs::read_to_string(&config_path) else {
-            continue;
+        let content = match std::fs::read_to_string(&config_path) {
+            Ok(content) => content,
+            Err(e) => {
+                results.push(HookValidateEntry {
+                    hook_id: HookId::new(dir_name),
+                    valid: false,
+                    errors: vec![format!("Failed to read {HOOK_CONFIG_FILENAME}: {e}")],
+                });
+                continue;
+            },
         };
 
         let config: DiskHookConfig = match serde_yaml::from_str(&content) {
             Ok(c) => c,
             Err(e) => {
                 results.push(HookValidateEntry {
-                    plugin_id: dir_name,
+                    hook_id: HookId::new(dir_name),
                     valid: false,
                     errors: vec![format!("Failed to parse {HOOK_CONFIG_FILENAME}: {e}")],
                 });
@@ -73,11 +84,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         };
 
         let mut errors = Vec::new();
-        let id_str = if config.id.as_str().is_empty() {
-            dir_name.clone()
-        } else {
-            config.id.as_str().to_owned()
-        };
+        let hook_id = config.id.clone().unwrap_or_else(|| HookId::new(dir_name));
 
         if config.command.is_empty() {
             errors.push("command must not be empty".to_owned());
@@ -86,7 +93,7 @@ pub fn validate_all_hooks(hooks_path: &Path) -> Result<Vec<HookValidateEntry>> {
         }
 
         results.push(HookValidateEntry {
-            plugin_id: id_str,
+            hook_id,
             valid: errors.is_empty(),
             errors,
         });

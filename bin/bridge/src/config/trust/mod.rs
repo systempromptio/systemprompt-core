@@ -2,8 +2,9 @@
 //!
 //! Trust is a [`TrustRecord`]: the normalized gateway identity, a validated
 //! Ed25519 key and where it came from. A managed policy supplies it as
-//! `manifestTrust` (or the `<PREFIX>_POLICY_TRUST` environment override); an
-//! operator pin lives under `[sync.trust]` in the config file. A key that is
+//! `manifestTrust` in the brand's policy store, which only an administrator can
+//! write and which no user-controlled input can outrank; an operator pin lives
+//! under `[sync.trust]` in the config file. A key that is
 //! not bound to a gateway never pins: a record for another gateway is stale
 //! when it came from policy and simply not in effect when it is an operator
 //! pin.
@@ -19,6 +20,7 @@ use crate::ids::PinnedPubKey;
 mod policy;
 mod record;
 
+pub use policy::parse_policy_trust;
 use policy::policy_trust;
 pub use record::{GatewayIdentity, PinSource, PinnedPubkeyState, SyncConfig, TrustRecord};
 
@@ -45,7 +47,11 @@ pub enum TrustError {
     #[error(
         "managed signing trust is invalid: {0}; configure manifestTrust with gateway, key and source"
     )]
-    InvalidPolicy(String),
+    InvalidPolicy(#[source] serde_json::Error),
+    #[error("signing trust gateway is not a valid URL: {0}")]
+    GatewayInvalid(#[source] systemprompt_identifiers::error::IdValidationError),
+    #[error("signing trust record cannot be encoded: {0}")]
+    RecordEncode(#[source] serde_json::Error),
 }
 
 pub fn pinned_pubkey_state() -> Result<PinnedPubkeyState, TrustError> {
@@ -57,10 +63,18 @@ pub fn pinned_pubkey_state_for(
     cfg: &Config,
     gateway: &ValidatedUrl,
 ) -> Result<PinnedPubkeyState, TrustError> {
-    let current = GatewayIdentity::new(gateway)?;
     let policy = policy_trust()?;
     let operator = cfg.sync.as_ref().and_then(|s| s.trust.as_ref());
-    let Some(record) = policy.as_ref().or(operator) else {
+    resolve_pinned_pubkey_state(policy.as_ref(), operator, gateway)
+}
+
+pub fn resolve_pinned_pubkey_state(
+    policy: Option<&TrustRecord>,
+    operator: Option<&TrustRecord>,
+    gateway: &ValidatedUrl,
+) -> Result<PinnedPubkeyState, TrustError> {
+    let current = GatewayIdentity::new(gateway)?;
+    let Some(record) = policy.or(operator) else {
         return Ok(PinnedPubkeyState::Unpinned);
     };
     // Why: a record for another gateway is stale whatever its key looks
@@ -104,16 +118,6 @@ pub fn pinned_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
     })
 }
 
-pub fn policy_pubkey() -> Result<Option<PinnedPubKey>, TrustError> {
-    policy_trust()?
-        .map(|record| {
-            let gateway = ValidatedUrl::try_new(record.gateway.as_str())
-                .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
-            Ok(TrustRecord::new(&gateway, record.key.as_str(), PinSource::Policy)?.key)
-        })
-        .transpose()
-}
-
 pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(), TrustError> {
     let record = TrustRecord::new(gateway, pubkey, PinSource::Operator)?;
     write::edit(|doc| {
@@ -121,13 +125,17 @@ pub fn persist_pinned_pubkey(gateway: &ValidatedUrl, pubkey: &str) -> Result<(),
             || crate::brand::brand().default_gateway_url,
             |item| item.as_str().unwrap_or(""),
         );
-        let configured = GatewayIdentity::parse(configured)
-            .map_err(|e| ConfigWriteError::GatewayChanged(e.to_string()))?;
+        let configured = GatewayIdentity::parse(configured).map_err(|source| {
+            ConfigWriteError::GatewayUnparseable {
+                configured: configured.to_owned(),
+                source: Box::new(source),
+            }
+        })?;
         if configured != record.gateway {
-            return Err(ConfigWriteError::GatewayChanged(format!(
-                "expected {}, configured {}",
-                record.gateway, configured
-            )));
+            return Err(ConfigWriteError::GatewayChanged {
+                expected: record.gateway.to_string(),
+                configured: configured.to_string(),
+            });
         }
         write::set(doc, &["sync", "trust", "gateway"], record.gateway.as_str())?;
         write::set(doc, &["sync", "trust", "key"], record.key.as_str())?;

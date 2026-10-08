@@ -7,9 +7,9 @@ use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
 use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
+use systemprompt_identifiers::{ServiceName, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;
-use uuid::Uuid;
 
 #[derive(Debug, Copy, Clone)]
 pub struct AuthorizationService;
@@ -17,7 +17,7 @@ pub struct AuthorizationService;
 impl AuthorizationService {
     pub fn authorize_service_access(
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<AuthenticatedUser, StatusCode> {
         let Ok(token) = TokenExtractor::standard().extract(headers) else {
             tracing::warn!(
@@ -29,7 +29,7 @@ impl AuthorizationService {
             return Err(StatusCode::UNAUTHORIZED);
         };
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let Ok(claims) =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -61,7 +61,7 @@ impl AuthorizationService {
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -85,7 +85,7 @@ impl AuthorizationService {
             .extract(headers)
             .map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let config =
-            systemprompt_models::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
+            systemprompt_manifest::Config::get().map_err(|_e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let claims =
             jwt_validation::validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
@@ -95,9 +95,8 @@ impl AuthorizationService {
             .iter()
             .filter_map(|s| {
                 JwtAudience::from_str(s)
-                    .map_err(|e| {
+                    .inspect_err(|e| {
                         tracing::warn!(audience = %s, error = %e, "Invalid audience in configuration");
-                        e
                     })
                     .ok()
             })
@@ -113,7 +112,8 @@ impl AuthorizationService {
     fn create_authenticated_user_from_claims(
         claims: JwtClaims,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let user_id = Uuid::parse_str(&claims.sub).map_err(|_e| StatusCode::UNAUTHORIZED)?;
+        let user_id =
+            UserId::try_new(claims.sub.as_str()).map_err(|_e| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();
 

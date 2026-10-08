@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use systemprompt_models::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
+use systemprompt_manifest::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
 
 pub const PEPPER: &str = "vault_test_oauth_at_rest_pepper_value_32";
 pub const SEED: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";

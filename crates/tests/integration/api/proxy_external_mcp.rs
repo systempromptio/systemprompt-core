@@ -16,11 +16,14 @@ use axum::body::{Body, to_bytes};
 use super::common::assert_forwarded_with_execution_stamp;
 use axum::http::Request;
 use http::StatusCode;
-use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_database::{
+    CreateServiceInput, DbPool, ServiceModule, ServiceRepository, ServiceStatus,
+};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::RequestContext;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
+use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 use uuid::Uuid;
 use wiremock::matchers::{header, method, path};
@@ -106,7 +109,7 @@ async fn harness_with_governance(governance_yaml: Option<&str>) -> anyhow::Resul
 }
 
 async fn private_harness(label: &str) -> anyhow::Result<Harness> {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     harness_with_database(None, Some(database), None).await
 }
 
@@ -154,9 +157,9 @@ async fn harness_with_database(
         systemprompt_test_fixtures::DisposableDb::url,
     );
     let pool = if let Some(database) = &database {
-        database.pool().await?
+        database.test_pool().await
     } else {
-        systemprompt_test_fixtures::fixture_db_pool(database_url).await?
+        systemprompt_test_fixtures::test_db_pool().await
     };
     let paths = PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
@@ -192,9 +195,9 @@ fn caller_context(user: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
-    .with_auth_token(CALLER_JWT)
+    .with_auth_token(JwtToken::new(CALLER_JWT))
 }
 
 fn tool_call_body(tool: &str) -> String {
@@ -231,22 +234,22 @@ async fn mount_accessor(server: &MockServer) {
         .await;
 }
 
-async fn wait_for_execution_row(pool: &DbPool, tool: &str) -> Option<(String, String)> {
-    let p = pool.pool_arc().expect("read pool");
-    for _ in 0..100 {
-        let row: Option<(String, String)> = sqlx::query_as(
-            "SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1",
-        )
+async fn drained_execution_row(
+    ctx: &AppContext,
+    pool: &DbPool,
+    tool: &str,
+) -> Option<(String, String)> {
+    assert_eq!(
+        ctx.background_tasks()
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        DrainOutcome::Drained
+    );
+    sqlx::query_as("SELECT status, server_name FROM mcp_tool_executions WHERE tool_name = $1")
         .bind(tool)
-        .fetch_optional(p.as_ref())
+        .fetch_optional(pool.pool().as_ref())
         .await
-        .expect("query executions");
-        if row.is_some() {
-            return row;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    None
+        .expect("query executions")
 }
 
 #[tokio::test]
@@ -312,7 +315,7 @@ async fn external_tools_call_mints_bearer_forwards_and_audits() -> anyhow::Resul
         "the systemprompt JWT must be replaced by the provider bearer"
     );
 
-    let (exec_status, server_name) = wait_for_execution_row(&h.pool, &tool)
+    let (exec_status, server_name) = drained_execution_row(&h.ctx, &h.pool, &tool)
         .await
         .expect("tools/call audited under the external server");
     assert_eq!(server_name, h.ext_name);
@@ -359,7 +362,7 @@ async fn external_non_tool_call_passes_through_without_audit() -> anyhow::Result
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     assert_eq!(String::from_utf8_lossy(&bytes), upstream_body);
 
-    let p = h.pool.pool_arc().expect("read pool");
+    let p = h.pool.pool();
     let audited: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM mcp_tool_executions WHERE server_name = $1")
             .bind(&h.ext_name)
@@ -373,7 +376,7 @@ async fn external_non_tool_call_passes_through_without_audit() -> anyhow::Result
 }
 
 #[tokio::test]
-async fn external_accessor_without_banked_token_is_service_unavailable() -> anyhow::Result<()> {
+async fn external_accessor_without_banked_token_asks_the_user_to_connect() -> anyhow::Result<()> {
     let h = harness().await?;
     Mock::given(method("GET"))
         .and(path("/ext-token"))
@@ -389,10 +392,14 @@ async fn external_accessor_without_banked_token_is_service_unavailable() -> anyh
             Some(caller_context("ext-user-3")),
         ))
         .await?;
-    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    assert!(body.contains("connect the provider account"), "{body}");
+    assert!(body.contains("provider_not_connected"), "{body}");
+    assert!(
+        body.contains(&format!("Connect your account for '{}'", h.ext_name)),
+        "the user is told which account to connect: {body}"
+    );
     Ok(())
 }
 
@@ -415,6 +422,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let resp = h
         .app
@@ -435,14 +443,15 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
     let repo = ServiceRepository::new(
         h.ctx.db_pool(),
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
     // Why: the row carries a port from an earlier run under another offset;
     // the resolver must trust the port this instance spawns, not the row.
     let stale_port = 5321;
+    let int_name = systemprompt_identifiers::ServiceName::new(h.int_name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &h.int_name,
-        module_name: "mcp",
-        status: "running",
+        name: &int_name,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: stale_port,
         binary_mtime: None,
     })
@@ -506,7 +515,7 @@ async fn internal_registry_server_forwards_to_backend_with_context_headers() -> 
          substitute the callee server's name for it"
     );
     let row = repo
-        .find_service_by_name(&h.int_name)
+        .find_service_by_name(&int_name)
         .await?
         .expect("service row");
     assert_eq!(
@@ -589,6 +598,36 @@ async fn external_malformed_tool_call_is_not_forwarded() -> anyhow::Result<()> {
             .await?;
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
+    Ok(())
+}
+
+#[tokio::test]
+async fn external_blank_tool_name_is_refused_and_the_refusal_is_audited() -> anyhow::Result<()> {
+    let h = harness().await?;
+    mount_accessor(&h.server).await;
+    Mock::given(method("POST"))
+        .and(path("/provider/mcp"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&h.server)
+        .await;
+    let ctx = caller_context("blank-tool-user");
+    let session_id = ctx.session_id().clone();
+    let response = h
+        .app
+        .clone()
+        .oneshot(proxied_post(&h.ext_name, tool_call_body("  "), Some(ctx)))
+        .await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let row: Option<(String, String)> = sqlx::query_as(
+        "SELECT tool_name, decision::text FROM governance_decisions WHERE session_id = $1",
+    )
+    .bind(session_id.as_str())
+    .fetch_optional(h.pool.pool().as_ref())
+    .await?;
+    let (tool_name, decision) = row.expect("the refused tools/call leaves a decision row");
+    assert_eq!(tool_name, format!("mcp__{}__", h.ext_name));
+    assert_eq!(decision, "deny");
     Ok(())
 }
 
@@ -699,7 +738,7 @@ async fn external_session_insert_failure_is_fail_closed_and_retry_persists_one_b
         )
         .mount(&h.server)
         .await;
-    let write = h.pool.write_pool_arc()?;
+    let write = h.pool.write_pool();
     sqlx::raw_sql(
         "CREATE FUNCTION reject_external_session_insert() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'owned external session fault'; END $$; \
@@ -794,9 +833,9 @@ fn caller_context_with_token(user: &str, token: &str) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("proxy-test-agent").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new(user)),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(user)))
-    .with_auth_token(token)
+    .with_auth_token(JwtToken::new(token))
 }
 
 async fn mount_accessor_token(server: &MockServer, caller: &str, provider: &str) {
@@ -842,7 +881,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     )
     .bind(&h.ext_name)
     .bind("credential-bound-session")
-    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .fetch_one(h.pool.pool().as_ref())
     .await?;
     assert_eq!(binding_before.0, "stable-owner");
     assert_eq!(binding_before.1.len(), 32);
@@ -899,7 +938,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     )
     .bind(&h.ext_name)
     .bind("credential-bound-session")
-    .fetch_one(h.pool.pool_arc()?.as_ref())
+    .fetch_one(h.pool.pool().as_ref())
     .await?;
     assert_eq!(binding_after.0, binding_before.0);
     assert_eq!(
@@ -914,7 +953,7 @@ async fn external_session_is_bound_to_provider_credential_and_rotation_does_not_
     Ok(())
 }
 async fn private_harness_with_provider(label: &str, provider_url: &str) -> anyhow::Result<Harness> {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
     harness_with_database(None, Some(database), Some(provider_url)).await
 }
 
@@ -949,10 +988,7 @@ async fn raw_session_provider() -> anyhow::Result<(String, RawProviderTask)> {
     let task = tokio::spawn(async move {
         let body = br#"{"jsonrpc":"2.0","id":1,"result":{}}"#;
         for attempt in 0..2 {
-            let (mut stream, _) =
-                tokio::time::timeout(std::time::Duration::from_secs(10), listener.accept())
-                    .await
-                    .map_err(|_| anyhow::anyhow!("provider accept timed out"))??;
+            let (mut stream, _) = listener.accept().await?;
             let mut request = Vec::new();
             let (header_end, content_length) = loop {
                 let mut chunk = [0_u8; 1024];
@@ -1040,8 +1076,15 @@ async fn invalid_external_session_header_is_fail_closed_and_valid_retry_binds() 
     )
     .await
     .map_err(|_| anyhow::anyhow!("invalid-header request timed out"))??;
-    assert_eq!(invalid.status(), StatusCode::FORBIDDEN);
-    let write = h.pool.write_pool_arc()?;
+    let invalid_status = invalid.status();
+    let invalid_body = axum::body::to_bytes(invalid.into_body(), usize::MAX).await?;
+    assert_eq!(
+        invalid_status,
+        StatusCode::FORBIDDEN,
+        "{}",
+        String::from_utf8_lossy(&invalid_body)
+    );
+    let write = h.pool.write_pool();
     let count: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM mcp_external_sessions WHERE server_name = $1")
             .bind(&h.ext_name)

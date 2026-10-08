@@ -112,6 +112,7 @@ impl CommandOutput {
     }
 
     #[must_use]
+    // JSON: Table rows are the tool's own row objects.
     pub fn table(columns: Vec<impl Into<String>>, rows: Vec<JsonValue>) -> Self {
         let cols: Vec<Column> = columns
             .into_iter()
@@ -172,6 +173,7 @@ impl From<CliArtifact> for CommandOutput {
     }
 }
 
+// JSON: card body from any serialisable value; top-level keys become sections.
 fn sections_from_value(value: &JsonValue) -> Vec<CardSection> {
     match value {
         JsonValue::Object(map) => map

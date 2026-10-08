@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AiRequestId;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ImageMetadata {
@@ -42,7 +43,7 @@ pub struct ImageGenerationInfo {
     pub cost_estimate: Option<f32>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request_id: Option<String>,
+    pub request_id: Option<AiRequestId>,
 }
 
 impl ImageMetadata {
@@ -116,8 +117,8 @@ impl ImageGenerationInfo {
         self
     }
 
-    pub fn with_request_id(mut self, request_id: impl Into<String>) -> Self {
-        self.request_id = Some(request_id.into());
+    pub fn with_request_id(mut self, request_id: AiRequestId) -> Self {
+        self.request_id = Some(request_id);
         self
     }
 }

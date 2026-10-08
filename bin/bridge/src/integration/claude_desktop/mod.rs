@@ -8,6 +8,8 @@ mod shared;
 
 #[cfg(target_os = "macos")]
 mod macos;
+#[cfg(target_os = "macos")]
+mod macos_read;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -26,6 +28,9 @@ pub(crate) fn policy_summary() -> Vec<String> {
         "source: {}",
         read.source_path.as_deref().unwrap_or("<no managed policy>")
     )];
+    if let Some(error) = read.probe_error.as_deref() {
+        lines.push(format!("read error: {error}"));
+    }
     if let Some(fp) = read.api_key_fp.as_deref() {
         lines.push(format!("api key fingerprint: {fp}"));
     }
@@ -40,9 +45,13 @@ pub(crate) fn policy_summary() -> Vec<String> {
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+use systemprompt_models::bridge::host::HostKind;
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, HostKind,
-    HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval, ProfileState,
+    ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
+    HostConfigSchema, HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval,
+    ProfileState,
 };
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -54,8 +63,8 @@ pub static CLAUDE_DESKTOP_HOST: ClaudeDesktopHost = ClaudeDesktopHost;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 impl HostApp for ClaudeDesktopHost {
-    fn id(&self) -> &'static str {
-        shared::HOST_ID
+    fn id(&self) -> HostKind {
+        HostKind::ClaudeDesktop
     }
 
     fn display_name(&self) -> &'static str {
@@ -105,24 +114,29 @@ impl HostApp for ClaudeDesktopHost {
         }
     }
 
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         os::write_profile(inputs)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         os::install_profile(path)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         os::install_profile_unattended(path)
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
         os::remove_profile()
     }
 
-    fn open(&self) -> std::io::Result<()> {
-        crate::integration::app_launch::open_app(&locator(&claude_app_candidates()))
+    fn open(&self) -> Result<(), HostAppError> {
+        Ok(crate::integration::app_launch::open_app(&locator(
+            &claude_app_candidates(),
+        ))?)
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -133,17 +147,13 @@ impl HostApp for ClaudeDesktopHost {
         }
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::DesktopApp
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {
         "Anthropic's official desktop client for Claude. Routes inference through the systemprompt \
          gateway via managed policy."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "claude-desktop"
     }
 
     fn profile_carries_managed_servers(&self) -> bool {
@@ -167,8 +177,8 @@ impl HostApp for ClaudeDesktopHost {
     // because the gateway transcodes every inbound wire to every provider wire.
     // Claude Desktop is the exception: it rejects non-Claude ids in
     // `inferenceModels` outright, so advertising them breaks the app.
-    fn accepted_surfaces(&self) -> &'static [systemprompt_models::services::ApiSurface] {
-        &[systemprompt_models::services::ApiSurface::Anthropic]
+    fn accepted_surfaces(&self) -> &'static [systemprompt_models::providers::ApiSurface] {
+        &[systemprompt_models::providers::ApiSurface::Anthropic]
     }
 }
 

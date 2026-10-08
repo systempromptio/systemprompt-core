@@ -23,6 +23,7 @@ pub struct SessionParams<'a> {
     pub user_type: UserType,
     pub permissions: Vec<Permission>,
     pub roles: Vec<String>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub rate_limit_tier: RateLimitTier,
 }
@@ -66,10 +67,10 @@ impl SessionGenerator {
             act: None,
         };
 
-        let kid = authority::active_kid().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let kid = authority::active_kid().map_err(JwtError::Signing)?;
         let mut header = Header::new(Algorithm::RS256);
         header.kid = Some(kid.to_owned());
-        let key = authority::encoding_key().map_err(|e| JwtError::Signing(e.to_string()))?;
+        let key = authority::encoding_key().map_err(JwtError::Signing)?;
         let token = encode(&header, &claims, key).map_err(JwtError::from)?;
 
         Ok(SessionToken::new(token))

@@ -4,7 +4,7 @@
 //! identity, [`Permission`] parsing, base role definitions, and the
 //! OAuth/PKCE enums (`ResponseType`, `PkceMethod`). `GrantType` lives
 //! in `systemprompt_oauth` since it carries RFC 8693 token-exchange.
-//! Public functions return [`AuthError`].
+//! Public functions return [`AuthRequestError`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,5 +22,5 @@ pub use enums::*;
 pub use permission::{
     Permission, parse_permissions, parse_roles, permissions_to_string, roles_to_string,
 };
-pub use roles::{BaseRole, BaseRoles};
-pub use types::{AuthError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};
+pub use roles::BaseRoles;
+pub use types::{AuthRequestError, AuthenticatedUser, BEARER_PREFIX, PkceMethod, ResponseType};

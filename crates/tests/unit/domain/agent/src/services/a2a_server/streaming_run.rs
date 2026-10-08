@@ -16,18 +16,19 @@ use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, create_sse_stream_with_registry,
 };
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::ServicesConfig;
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
+use systemprompt_manifest::ServicesConfig;
 
 use super::a2a_helpers::{StubAiProvider, agent_config, make_handler_state, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
     sqlx::query_scalar::<_, Option<String>>(
         "SELECT error_message FROM agent_tasks WHERE task_id = $1",
     )
     .bind(task_id.as_str())
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("task error query")
     .expect("failed task error")
@@ -77,7 +78,7 @@ async fn wait_for_state(
     expected: TaskState,
 ) -> bool {
     for _ in 0..100 {
-        if let Ok(Some(task)) = repos_handle.tasks.get_task(task_id).await
+        if let Ok(Some(task)) = repos_handle.tasks.find_task(task_id).await
             && task.status.state == expected
         {
             return true;
@@ -89,9 +90,7 @@ async fn wait_for_state(
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -106,7 +105,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(11),
             context,
@@ -129,7 +128,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("completed task lookup")
         .expect("completed task persisted");
@@ -156,9 +155,7 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
 
 #[tokio::test]
 async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -172,12 +169,14 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(12),
             context,
         },
-        Err(AgentError::Init("injected registry failure".to_owned())),
+        Err(AgentError::Io(std::io::Error::other(
+            "injected registry failure",
+        ))),
     )
     .await
     .map_err(|_| ())
@@ -197,7 +196,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("failed task lookup")
         .expect("failed task persisted");
@@ -215,9 +214,7 @@ async fn run_stream_with_injected_registry_failure_fails_task_and_emits_error() 
 
 #[tokio::test]
 async fn run_stream_with_failing_model_stream_fails_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos_handle = repos(&pool);
@@ -232,7 +229,7 @@ async fn run_stream_with_failing_model_stream_fails_task() {
     let stream = create_sse_stream_with_registry(
         CreateSseStreamParams {
             message: message(&ctx, &task_id, "run"),
-            agent_name: "test_agent".to_owned(),
+            agent_name: AgentName::new("test_agent"),
             state,
             request_id: RequestId::Number(13),
             context,
@@ -251,7 +248,7 @@ async fn run_stream_with_failing_model_stream_fails_task() {
     );
     let stored = repos_handle
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("failed task lookup")
         .expect("failed task persisted");

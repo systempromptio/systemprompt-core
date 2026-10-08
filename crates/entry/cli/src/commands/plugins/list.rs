@@ -101,7 +101,7 @@ fn compiled_summary(ext: &dyn Extension) -> ExtensionSummary {
     };
 
     ExtensionSummary {
-        id: systemprompt_identifiers::PluginId::new(ext.id()),
+        id: systemprompt_identifiers::ExtensionId::new(ext.id()),
         name: ext.name().to_owned(),
         version: ext.version().to_owned(),
         priority: ext.priority(),
@@ -138,7 +138,7 @@ fn collect_manifest(args: &ListArgs) -> Vec<ExtensionSummary> {
         }
 
         summaries.push(ExtensionSummary {
-            id: systemprompt_identifiers::PluginId::new(ext.manifest.extension.name.clone()),
+            id: systemprompt_identifiers::ExtensionId::new(ext.manifest.extension.name.clone()),
             name: ext.manifest.extension.name.clone(),
             version: "manifest".to_owned(),
             priority: 100,

@@ -10,9 +10,9 @@ use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
 use systemprompt_generator::generate_feed_with_providers;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_provider_contracts::{
     ProviderResult, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec,
 };
@@ -22,9 +22,11 @@ static CONFIG_INIT: Once = Once::new();
 fn install_test_config() {
     CONFIG_INIT.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test-instance".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
             metrics_port: None,
             max_concurrent_streams: 256,
+            role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: String::new(),
@@ -56,7 +58,7 @@ fn install_test_config() {
             signing_key_path: PathBuf::new(),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: Vec::new(),
             trusted_proxies: Vec::new(),
             is_cloud: false,

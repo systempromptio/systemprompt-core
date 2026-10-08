@@ -3,27 +3,23 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Instant;
-use systemprompt_identifiers::AgentId;
+use std::time::{Duration, Instant};
+use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome};
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use super::AgentLifecycle;
-use crate::services::agent_orchestration::events::AgentEvent;
-use crate::services::agent_orchestration::{
-    AgentStatus, OrchestrationError, OrchestrationResult, process,
-};
+use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, OrchestrationResult};
+
+const STOP_GRACE: Duration = Duration::from_secs(5);
 
 impl AgentLifecycle {
     pub async fn start_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         let start = Instant::now();
-
-        self.publish_event(AgentEvent::AgentStartRequested {
-            agent_id: AgentId::new(agent_name),
-        });
 
         let agent_config = self.db_service.get_agent_config(agent_name).await?;
 
@@ -36,7 +32,7 @@ impl AgentLifecycle {
             match current_status {
                 AgentStatus::Running { .. } => {
                     return Err(OrchestrationError::AgentAlreadyRunning(
-                        agent_name.to_owned(),
+                        agent_name.to_string(),
                     ));
                 },
                 AgentStatus::Failed { .. } => {
@@ -44,26 +40,22 @@ impl AgentLifecycle {
                 },
             }
 
-            self.validate_prerequisites(agent_config.port).await?;
-
-            let pid = self
-                .spawn_detached_process(agent_name, agent_config.port)?;
-
-            self.db_service
-                .register_agent_starting(&agent_config.name, pid, agent_config.port)
+            self.validate_prerequisites(agent_name, agent_config.port)
                 .await?;
 
-            self.verify_startup(agent_name, agent_config.port).await?;
+            let pid = self
+                .spawn_detached_process(agent_name, agent_config.port)
+                .await?;
 
-            self.db_service.mark_running(agent_name).await?;
+            if let Err(e) = self
+                .confirm_spawned(agent_name, pid, agent_config.port)
+                .await
+            {
+                self.reap_failed_spawn(agent_name, pid).await;
+                return Err(e);
+            }
 
             tracing::debug!(agent = %agent_config.name, port = agent_config.port, "agent started");
-
-            self.publish_event(AgentEvent::AgentStarted {
-                agent_id: AgentId::new(agent_name),
-                pid,
-                port: agent_config.port,
-            });
 
             if let Some(tx) = events {
                 tx.agent_ready(&agent_config.name, agent_config.port, start.elapsed());
@@ -74,11 +66,6 @@ impl AgentLifecycle {
         .await;
 
         if let Err(ref e) = result {
-            self.publish_event(AgentEvent::AgentFailed {
-                agent_id: AgentId::new(agent_name),
-                error: e.to_string(),
-            });
-
             if let Some(tx) = events {
                 tx.agent_failed(&agent_config.name, e.to_string());
             }
@@ -89,28 +76,17 @@ impl AgentLifecycle {
         result
     }
 
-    pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn disable_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         tracing::debug!(agent_name = %agent_name, "disabling agent");
 
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status {
-            if process::kill_process_verified(pid, agent_name) {
-                tracing::debug!(agent_name = %agent_name, pid = %pid, "Killed process");
-                self.publish_event(AgentEvent::AgentStopped {
-                    agent_id: AgentId::new(agent_name),
-                    exit_code: None,
-                });
-            } else {
-                tracing::warn!(agent_name = %agent_name, pid = %pid, "Failed to kill process");
-            }
+            let outcome = stop_agent_process(agent_name, pid).await?;
+            tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process");
         }
 
         self.db_service.remove_agent_service(agent_name).await?;
-
-        self.publish_event(AgentEvent::AgentDisabled {
-            agent_id: AgentId::new(agent_name),
-        });
 
         tracing::debug!(agent_name = %agent_name, "agent disabled");
         Ok(())
@@ -118,7 +94,7 @@ impl AgentLifecycle {
 
     pub async fn enable_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         tracing::debug!(agent_name = %agent_name, "enabling agent");
@@ -127,31 +103,15 @@ impl AgentLifecycle {
 
     pub async fn restart_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         tracing::debug!(agent_name = %agent_name, "Restarting agent");
 
-        self.publish_event(AgentEvent::AgentRestartRequested {
-            agent_id: AgentId::new(agent_name),
-            reason: "User requested restart".to_owned(),
-        });
-
         let status = self.db_service.get_status(agent_name).await?;
         if let AgentStatus::Running { pid, .. } = status {
-            match process::terminate_gracefully_verified(pid, agent_name, 5).await {
-                Ok(()) => {
-                    tracing::debug!(agent_name = %agent_name, pid = %pid, "Gracefully terminated process");
-                },
-                Err(e) => {
-                    tracing::warn!(agent_name = %agent_name, pid = %pid, error = %e, "Failed to gracefully terminate");
-                },
-            }
-
-            self.publish_event(AgentEvent::AgentStopped {
-                agent_id: AgentId::new(agent_name),
-                exit_code: None,
-            });
+            let outcome = stop_agent_process(agent_name, pid).await?;
+            tracing::debug!(agent_name = %agent_name, pid = %pid, outcome = ?outcome, "Stopped agent process before restart");
 
             self.db_service.update_agent_stopped(agent_name).await?;
         }
@@ -159,11 +119,46 @@ impl AgentLifecycle {
         self.start_agent(agent_name, events).await
     }
 
-    pub async fn cleanup_crashed_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    async fn confirm_spawned(
+        &self,
+        agent_name: &AgentName,
+        pid: u32,
+        port: u16,
+    ) -> OrchestrationResult<()> {
+        self.db_service
+            .register_agent_starting(agent_name, pid, port)
+            .await?;
+        self.verify_startup(agent_name, port).await?;
+        self.db_service.mark_running(agent_name).await
+    }
+
+    async fn reap_failed_spawn(&self, agent_name: &AgentName, pid: u32) {
+        match stop_agent_process(agent_name, pid).await {
+            Ok(_) => {
+                if let Err(e) = self.db_service.mark_failed(agent_name).await {
+                    tracing::error!(
+                        agent_name = %agent_name,
+                        error = %e,
+                        "Spawned agent was stopped but its row could not be marked failed"
+                    );
+                }
+            },
+            Err(e) => {
+                tracing::error!(
+                    agent_name = %agent_name,
+                    pid,
+                    error = %e,
+                    "Spawned agent failed readiness and could not be stopped; PID kept"
+                );
+            },
+        }
+    }
+
+    pub async fn cleanup_crashed_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         let status = self.db_service.get_status(agent_name).await?;
 
         if let AgentStatus::Running { pid, .. } = status
-            && !process::process_exists(pid)
+            && !subprocess::is_running(pid).await
         {
             self.db_service.mark_failed(agent_name).await?;
             tracing::info!(agent_name = %agent_name, "Marked crashed agent as failed in database");
@@ -171,4 +166,22 @@ impl AgentLifecycle {
 
         Ok(())
     }
+}
+
+async fn stop_agent_process(agent_name: &AgentName, pid: u32) -> OrchestrationResult<StopOutcome> {
+    let outcome = subprocess::stop_owned(
+        pid,
+        ChildKind::Agent,
+        &ServiceName::of_agent(agent_name),
+        STOP_GRACE,
+    )
+    .await?;
+    if outcome == StopOutcome::NotOurs {
+        tracing::warn!(
+            agent_name = %agent_name,
+            pid,
+            "Recorded pid is not this agent's process; it was left running and the row is cleared"
+        );
+    }
+    Ok(outcome)
 }

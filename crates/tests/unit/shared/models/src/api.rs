@@ -325,8 +325,12 @@ fn api_error_with_path() {
 
 #[test]
 fn api_error_with_trace_id() {
-    let error = ApiError::internal_error("Oops").with_trace_id("trace-abc-123");
-    assert_eq!(error.trace_id.as_deref(), Some("trace-abc-123"));
+    let error = ApiError::internal_error("Oops")
+        .with_trace_id(systemprompt_identifiers::TraceId::new("trace-abc-123"));
+    assert_eq!(
+        error.trace_id.as_ref().map(|id| id.as_str()),
+        Some("trace-abc-123")
+    );
 }
 
 #[test]

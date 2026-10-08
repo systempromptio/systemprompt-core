@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::{Value, json};
+use systemprompt_bridge::gateway::manifest::UserId;
 use systemprompt_bridge::ids::McpSessionId;
 use systemprompt_bridge::proxy::mcp_probe::{McpAuthState, McpServerAuth, McpTool};
 use systemprompt_bridge::update::UpdateUiState;
@@ -321,9 +322,10 @@ fn gateway_status_carries_latency_and_reason_when_they_exist() {
 
 #[test]
 fn verified_identity_keeps_null_claims_so_the_gui_can_tell_them_apart() {
+    let user = UserId::new("u-1");
     let payload = VerifiedIdentityPayload {
         email: Some("a@example.invalid"),
-        user_id: Some("u-1"),
+        user_id: Some(&user),
         tenant_id: None,
         exp_unix: Some(1_800_000_000),
         verified_at_unix: 1_700_000_000,

@@ -31,7 +31,7 @@ use crate::fsutil::{FileReceipt, atomic_write_0644};
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
 use crate::host_sync::{self, HostSyncCtx};
-use crate::ids::{BearerToken, HostId};
+use crate::ids::BearerToken;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
@@ -110,10 +110,8 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
     let registry = bridge.mcp_registry();
 
     let plugin_mcp_servers = report.mcp_servers_by_plugin.clone();
-    let warnings = host_sync::HostWarnings::new();
     let ctx = HostSyncCtx {
         policy_store: &bridge.policy_store,
-        warnings: &warnings,
         manifest: &manifest_for_write,
         org_plugins_root: root,
         plugin_mcp_servers: &plugin_mcp_servers,
@@ -123,6 +121,14 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         mcp_registry: &registry,
         start_menu: &bridge.start_menu,
     };
+    for (skill, host) in crate::gateway::manifest::unknown_skill_hosts(&manifest_for_write) {
+        tracing::warn!(
+            target: "bridge::sync::host",
+            skill,
+            host,
+            "skill targets a host id this bridge does not know; no host receives it under that id"
+        );
+    }
     let emitters = host_sync::registry();
     for (index, emitter) in emitters.iter().enumerate() {
         let host_id = emitter.host_id();
@@ -130,31 +136,37 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             .sync_progress
             .report(&crate::progress::SyncProgress::new(
                 "hosts",
-                host_id.to_owned(),
+                host_id.as_str().to_owned(),
                 index + 1,
                 emitters.len(),
             ));
-        let enabled = manifest_for_write
-            .enabled_hosts
-            .iter()
-            .any(|h| h == host_id);
+        let enabled = crate::gateway::manifest::enables_host(&manifest_for_write, host_id);
         let outcome = if enabled {
             emitter.apply(&ctx).await
         } else {
-            emitter.clear(&ctx)
+            emitter
+                .clear(&ctx)
+                .map(|()| host_sync::HostSyncReport::ok())
         };
-        if let Err(e) = &outcome {
-            report.host_failures.push(HostFailure {
-                host_id: HostId::new(host_id),
-                emitter: emitter.emitter_id().to_owned(),
-                error: format!("{e:#}"),
-                needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
-            });
+        match outcome {
+            Ok(emitted) => {
+                report.host_warnings.extend(emitted.warnings);
+                host_sync::log_outcome(*emitter, enabled, Ok(()));
+            },
+            Err(e) => {
+                host_sync::log_outcome(*emitter, enabled, Err(&e));
+                report.host_failures.push(HostFailure {
+                    host_id,
+                    emitter: emitter.emitter_id().to_owned(),
+                    error: format!("{e:#}"),
+                    needs_elevation: matches!(e, ApplyError::ElevationRequired { .. }),
+                });
+            },
         }
-        host_sync::log_outcome(*emitter, enabled, outcome);
     }
-    evidence::capture(emitters, &manifest_for_write, &ctx, &warnings, &mut report).await;
-    report.host_warnings.extend(warnings.drain());
+    let evidence_warnings =
+        evidence::capture(emitters, &manifest_for_write, &ctx, &mut report).await;
+    report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
 }

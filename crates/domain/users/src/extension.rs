@@ -44,7 +44,18 @@ impl Extension for UsersExtension {
                     "user_id".into(),
                     "key_prefix".into(),
                     "key_hash".into(),
+                    "model_allowlist".into(),
+                    "request_window_seconds".into(),
                 ]),
+            SchemaDefinition::new(
+                "user_api_key_scopes",
+                include_str!("../schema/user_api_key_scopes.sql"),
+            )
+            .with_required_columns(vec![
+                "key_id".into(),
+                "dimension".into(),
+                "value".into(),
+            ]),
             SchemaDefinition::new(
                 "user_device_certs",
                 include_str!("../schema/user_device_certs.sql"),

@@ -9,7 +9,9 @@ use serde_json::json;
 
 use crate::models::a2a::{Message, MessageRole, Part, TextPart};
 use crate::repository::task::{PersistMessagesTxParams, TaskRepository};
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    ContextId, McpToolName, MessageId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::RequestContext;
 
 #[derive(Debug)]
@@ -26,7 +28,8 @@ pub struct PersistMessagesParams<'a> {
 pub struct CreateToolExecutionMessageParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_args: &'a serde_json::Value,
     pub request_context: &'a RequestContext,
 }

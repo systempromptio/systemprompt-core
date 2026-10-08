@@ -39,6 +39,7 @@ pub fn execute(args: &ImportArgs) -> Result<CommandOutput> {
     let opts = ImportOptions {
         strict: args.strict,
         dry_run: args.dry_run,
+        scratch_root: std::env::temp_dir(),
     };
     let report = import_anthropic_tree(&args.from, &args.into, &opts).with_context(|| {
         format!(
@@ -75,6 +76,7 @@ fn report_rows(report: &ImportReport) -> Vec<ImportRow> {
         row("rules", &report.rules),
         row("hooks", &report.hooks),
         row("base_dirs", &report.copied_base_dirs),
+        row("upstream", &report.upstream),
         row("warnings", &warnings),
     ]
 }

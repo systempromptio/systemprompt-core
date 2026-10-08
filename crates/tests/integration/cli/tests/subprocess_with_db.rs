@@ -20,7 +20,7 @@ use assert_cmd::Command;
 use predicates::str::contains;
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    fixture_db_pool, seed_user_row, seed_user_session, unique_user_id,
+    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
 };
 
 fn systemprompt_bin() -> std::path::PathBuf {
@@ -45,34 +45,22 @@ fn systemprompt_bin() -> std::path::PathBuf {
     panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
 }
 
-fn database_url_or_skip() -> Option<String> {
-    if let Ok(url) = std::env::var("DATABASE_URL")
-        && !url.is_empty()
-    {
-        return Some(url);
-    }
-    None
-}
-
-fn sp_db_or_skip() -> Option<Command> {
-    let url = database_url_or_skip()?;
+fn sp_db() -> Command {
+    let url = test_database_url();
     let mut c = Command::new(systemprompt_bin());
     c.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     c.env_remove("RUST_LOG");
     c.arg("--database-url").arg(url);
-    Some(c)
+    c
 }
 
 // Reports read the source tables, so seeded conversation and session
 // evidence only has to commit before the binary runs.
 fn seed_reporting_evidence() {
-    let Some(url) = database_url_or_skip() else {
-        return;
-    };
     tokio::runtime::Runtime::new()
         .expect("tokio runtime")
         .block_on(async {
-            let db = fixture_db_pool(&url).await.expect("fixture pool");
+            let db = test_db_pool().await;
             let user_id = unique_user_id("subprocess-analytics");
             let email = format!("{}@subprocess.invalid", user_id.as_str());
             seed_user_row(&db, &user_id, &email)
@@ -87,16 +75,14 @@ fn seed_reporting_evidence() {
             )
             .bind(uuid::Uuid::new_v4().to_string())
             .bind(user_id.as_str())
-            .execute(db.pool_arc().expect("pool").as_ref())
+            .execute(db.pool().as_ref())
             .await
             .expect("seed context");
         });
 }
 
 fn run_db(args: &[&str]) {
-    let Some(mut cmd) = sp_db_or_skip() else {
-        return;
-    };
+    let mut cmd = sp_db();
     cmd.args(args);
     let _ = cmd.assert();
 }
@@ -108,9 +94,7 @@ fn run_db_with_format(args: &[&str]) {
 
 fn drive_formats(args: &[&str]) {
     for fmt in ["--json", "--yaml"] {
-        let Some(mut cmd) = sp_db_or_skip() else {
-            return;
-        };
+        let mut cmd = sp_db();
         let mut full: Vec<&str> = vec![fmt];
         full.extend_from_slice(args);
         cmd.args(&full);
@@ -119,17 +103,13 @@ fn drive_formats(args: &[&str]) {
 }
 
 fn db_stderr(args: &[&str], needle: &str) {
-    let Some(mut cmd) = sp_db_or_skip() else {
-        return;
-    };
+    let mut cmd = sp_db();
     cmd.args(args);
     cmd.assert().success().stderr(contains(needle));
 }
 
 fn db_stdout(args: &[&str], needle: &str) {
-    let Some(mut cmd) = sp_db_or_skip() else {
-        return;
-    };
+    let mut cmd = sp_db();
     cmd.args(args);
     cmd.assert().success().stdout(contains(needle));
 }
@@ -145,9 +125,7 @@ fn db_stdout_fmt(args: &[&str], needle: &str) {
 }
 
 fn db_fails(args: &[&str], needle: &str) {
-    let Some(mut cmd) = sp_db_or_skip() else {
-        return;
-    };
+    let mut cmd = sp_db();
     cmd.args(args);
     cmd.assert().failure().stderr(contains(needle));
 }
@@ -403,7 +381,7 @@ fn db_query_reject_write() {
 
 #[test]
 fn db_execute_noop() {
-    run_db(&["infra", "db", "execute", "SELECT 1"]);
+    run_db(&["infra", "db", "execute", "SELECT 1", "--yes"]);
 }
 
 #[test]
@@ -414,6 +392,7 @@ fn db_execute_invalid_sql() {
             "db",
             "execute",
             "DELETE FROM nonexistent_table_xyz",
+            "--yes",
         ],
         "does not exist",
     );
@@ -421,7 +400,9 @@ fn db_execute_invalid_sql() {
 
 #[test]
 fn db_execute_with_format() {
-    run_db(&["infra", "db", "execute", "SELECT 1", "--format", "json"]);
+    run_db(&[
+        "infra", "db", "execute", "SELECT 1", "--yes", "--format", "json",
+    ]);
 }
 
 // ============================================================================
@@ -615,11 +596,6 @@ fn analytics_content_trends() {
 #[test]
 fn analytics_content_top() {
     run_db_with_format(&["analytics", "content", "top"]);
-}
-
-#[test]
-fn analytics_content_popular_alias() {
-    run_db_with_format(&["analytics", "content", "popular"]);
 }
 
 // ============================================================================
@@ -841,7 +817,7 @@ fn cloud_non_db_requires_profile() {
 
 #[test]
 fn db_url_no_subcommand_fails() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.assert();
 }
 
@@ -1036,35 +1012,35 @@ fn core_files_stats() {
 
 #[test]
 fn db_url_with_verbose() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     c.args(["--verbose", "infra", "db", "status"]);
     let _ = c.assert();
 }
 
 #[test]
 fn db_url_with_debug() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     c.args(["--debug", "infra", "db", "status"]);
     let _ = c.assert();
 }
 
 #[test]
 fn db_url_with_quiet() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     c.args(["--quiet", "infra", "db", "status"]);
     let _ = c.assert();
 }
 
 #[test]
 fn db_url_with_no_color() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     c.args(["--no-color", "infra", "db", "tables"]);
     let _ = c.assert();
 }
 
 #[test]
 fn db_url_with_non_interactive() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     c.args(["--non-interactive", "infra", "db", "tables"]);
     let _ = c.assert();
 }
@@ -1128,19 +1104,19 @@ fn cloud_auth_no_profile() {
 
 #[test]
 fn db_status_verbose() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--verbose", "infra", "db", "status"]).assert();
 }
 
 #[test]
 fn db_status_debug() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--debug", "infra", "db", "status"]).assert();
 }
 
 #[test]
 fn db_tables_verbose_json() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c
         .args(["--verbose", "--json", "infra", "db", "tables"])
         .assert();
@@ -1148,7 +1124,7 @@ fn db_tables_verbose_json() {
 
 #[test]
 fn db_query_no_color() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c
         .args(["--no-color", "infra", "db", "query", "SELECT 1"])
         .assert();
@@ -1156,24 +1132,24 @@ fn db_query_no_color() {
 
 #[test]
 fn analytics_overview_verbose() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--verbose", "analytics", "overview"]).assert();
 }
 
 #[test]
 fn admin_users_list_quiet() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--quiet", "admin", "users", "list"]).assert();
 }
 
 #[test]
 fn db_indexes_yaml() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--yaml", "infra", "db", "indexes"]).assert();
 }
 
 #[test]
 fn analytics_costs_yaml() {
-    let Some(mut c) = sp_db_or_skip() else { return };
+    let mut c = sp_db();
     let _ = c.args(["--yaml", "analytics", "costs", "summary"]).assert();
 }

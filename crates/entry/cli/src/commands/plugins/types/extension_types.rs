@@ -5,7 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::ExtensionId;
 
 use super::capability_types::CapabilitySummary;
 
@@ -18,7 +18,7 @@ pub enum ExtensionSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionSummary {
-    pub id: PluginId,
+    pub id: ExtensionId,
     pub name: String,
     pub version: String,
     pub priority: u32,
@@ -74,7 +74,7 @@ pub struct RoleInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionDetailOutput {
-    pub id: PluginId,
+    pub id: ExtensionId,
     pub name: String,
     pub version: String,
     pub priority: u32,
@@ -92,15 +92,16 @@ pub struct ExtensionDetailOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigOutput {
-    pub extension_id: PluginId,
+    pub extension_id: ExtensionId,
     pub config_prefix: Option<String>,
+    // JSON: JSON Schema document for the extension's config block.
     pub config_schema: Option<serde_json::Value>,
     pub has_config: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExtensionConfigSummary {
-    pub extension_id: PluginId,
+    pub extension_id: ExtensionId,
     pub config_prefix: Option<String>,
     pub has_config: bool,
 }

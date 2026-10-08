@@ -14,20 +14,20 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{
+use systemprompt_identifiers::{Actor, AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::ID_JAG_TOKEN_TYPE;
 use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, install_test_signing_key,
-    seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, install_test_signing_key, seed_oauth_client,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -40,9 +40,11 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
+            role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
@@ -74,7 +76,7 @@ fn ensure_config() {
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,
@@ -99,6 +101,7 @@ fn fixture_request_context() -> RequestContext {
         TraceId::new("test-trace"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -123,10 +126,10 @@ async fn token_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(format!("tx-owner-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))
@@ -175,7 +178,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
     install_test_signing_key();
     let issuer = Config::get().expect("config").jwt_issuer.clone();
     let user = AuthenticatedUser::new_with_roles(
-        Uuid::new_v4(),
+        systemprompt_identifiers::UserId::generate(),
         "tx-subject".to_owned(),
         "tx-subject@tx.invalid".to_owned(),
         scopes.clone(),
@@ -193,7 +196,7 @@ fn mint_self_issued_subject(scopes: Vec<Permission>) -> String {
     generate_jwt(
         &user,
         config,
-        Uuid::new_v4().to_string(),
+        systemprompt_identifiers::AccessTokenId::generate(),
         &SessionId::generate(),
         &signing,
     )
@@ -401,10 +404,10 @@ const ID_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id_token";
 // exchange only completes for a UUID owner; the shared [`seeded_client`] uses
 // a prefixed id that only the error-path tests reach.
 async fn seeded_client_uuid_owner() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))
@@ -578,10 +581,10 @@ async fn id_jag_issue_from_untrusted_issuer_is_rejected() -> anyhow::Result<()> 
 // Seed a client whose owner id we keep, so the EMA assertions can prove the
 // issued token names the ID-JAG's employee rather than that owner.
 async fn seeded_client_with_owner() -> anyhow::Result<(OAuthClientFixture, UserId)> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx.invalid", user.as_str()))

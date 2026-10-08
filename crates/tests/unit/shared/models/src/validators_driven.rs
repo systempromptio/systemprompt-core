@@ -1,8 +1,9 @@
-use systemprompt_models::validators::{
+use systemprompt_manifest::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw, WebConfigValidator,
 };
-use systemprompt_models::{Config, ContentConfigRaw, ServicesConfig};
+use systemprompt_manifest::{Config, ServicesConfig};
+use systemprompt_models::ContentConfigRaw;
 use systemprompt_test_fixtures::fixture_config;
 use systemprompt_traits::DomainConfig;
 
@@ -154,7 +155,7 @@ mod rate_limits_validator {
     use super::*;
 
     fn config_with_rate_limits(
-        f: impl FnOnce(&mut systemprompt_models::profile::RateLimitsConfig),
+        f: impl FnOnce(&mut systemprompt_manifest::profile::RateLimitsConfig),
     ) -> Config {
         let mut config = base_config();
         config.rate_limits.disabled = false;

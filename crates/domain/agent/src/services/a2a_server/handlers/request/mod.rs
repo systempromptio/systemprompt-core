@@ -23,6 +23,7 @@ use systemprompt_models::a2a::methods;
 
 use super::state::AgentHandlerState;
 use crate::models::a2a::A2aRequestParams;
+use crate::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, JsonRpcResponse};
 use crate::services::a2a_server::auth::validate_oauth_for_request;
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
@@ -125,11 +126,11 @@ fn parse_json_rpc_body(
     };
 
     serde_json::from_value::<crate::models::a2a::A2aJsonRpcRequest>(payload).map_err(|e| {
+        tracing::warn!(topic = "a2a_jsonrpc", error = %e, "Invalid JSON-RPC request");
         let error_response = JsonRpcErrorBuilder::invalid_request()
             .with_data(json!(
                 "Request must be valid JSON-RPC 2.0 with jsonrpc, method, params, and id"
             ))
-            .log_error(format!("Invalid JSON-RPC request: {e}"))
             .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
         Box::new((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
     })
@@ -161,18 +162,13 @@ async fn enforce_oauth(
 fn build_json_rpc_response(
     response_result: Result<crate::models::a2a::Task, non_streaming::RequestFailure>,
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
-) -> serde_json::Value {
+) -> JsonRpcResponse<crate::models::a2a::Task> {
     match response_result {
-        Ok(task) => match serde_json::to_value(task) {
-            Ok(task_value) => json!({
-                "jsonrpc": "2.0",
-                "result": task_value,
-                "id": request_id
-            }),
-            Err(e) => JsonRpcErrorBuilder::internal_error()
-                .with_data(json!("Task serialization failed"))
-                .log_error(format!("Failed to serialize task response: {e}"))
-                .build(request_id),
+        Ok(task) => JsonRpcResponse {
+            jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
+            result: Some(task),
+            error: None,
+            id: request_id.clone(),
         },
         Err(failure) => failure.into_jsonrpc(request_id),
     }

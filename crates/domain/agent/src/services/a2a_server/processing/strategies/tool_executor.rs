@@ -6,7 +6,7 @@
 use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use serde_json::Value;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 use super::ExecutionContext;
@@ -19,16 +19,18 @@ pub struct ContextToolExecutor {
 
 #[async_trait]
 impl ToolExecutorTrait for ContextToolExecutor {
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     async fn execute_tool(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
     ) -> Result<ToolOutcome> {
         let tool_call = ToolCall {
             ai_tool_call_id: AiToolCallId::new(format!("call_{}", tool_name)),
-            name: tool_name.to_owned(),
+            name: tool_name.to_string(),
             arguments,
         };
 
@@ -43,9 +45,13 @@ impl ToolExecutorTrait for ContextToolExecutor {
             )
             .await;
 
-        let result = results.into_iter().next().ok_or_else(|| {
-            AgentServiceError::Internal(format!("Tool {} returned no result", tool_name))
-        })?;
+        let result =
+            results
+                .into_iter()
+                .next()
+                .ok_or_else(|| AgentServiceError::ToolReturnedNoResult {
+                    tool_name: tool_name.clone(),
+                })?;
 
         if result.is_error.unwrap_or(false) {
             let error_msg = result
@@ -60,20 +66,24 @@ impl ToolExecutorTrait for ContextToolExecutor {
                     }
                 })
                 .unwrap_or_else(|| "Unknown error".to_owned());
-            return Err(AgentServiceError::Internal(format!(
-                "Tool {tool_name} failed: {error_msg}"
-            )));
+            return Err(AgentServiceError::ToolFailed {
+                tool_name: tool_name.clone(),
+                message: error_msg,
+            });
         }
 
         let output = result.structured_content.ok_or_else(|| {
-            AgentServiceError::Internal(format!("Tool {tool_name} returned no structured_content"))
+            AgentServiceError::ToolReturnedNoStructuredContent {
+                tool_name: tool_name.clone(),
+            }
         })?;
         Ok(ToolOutcome {
             output,
-            meta: result
-                .meta
-                .as_ref()
-                .and_then(|m| serde_json::to_value(m).ok()),
+            meta: result.meta.as_ref().and_then(|m| {
+                serde_json::to_value(m)
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize tool meta"))
+                    .ok()
+            }),
         })
     }
 }

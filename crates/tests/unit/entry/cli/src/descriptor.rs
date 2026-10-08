@@ -10,7 +10,8 @@ use systemprompt_cli::infrastructure::services::ServicesCommands;
 #[test]
 fn session_switch_needs_no_profile_context() {
     let desc = SessionCommands::Switch {
-        profile_name: "production".to_owned(),
+        profile_name: systemprompt_identifiers::ProfileName::try_new("production")
+            .expect("valid ProfileName"),
     }
     .descriptor();
     assert!(
@@ -218,6 +219,7 @@ fn only_the_server_commands_install_the_registry_through_model_discovery() {
     let serve = Commands::Infra(InfraCommands::Services(ServicesCommands::Serve {
         foreground: true,
         kill_port_process: false,
+        skip_migrate: false,
     }))
     .descriptor();
     assert!(serve.discovers_models());

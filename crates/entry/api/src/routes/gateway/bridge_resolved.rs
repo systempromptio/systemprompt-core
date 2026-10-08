@@ -17,11 +17,11 @@ use axum::http::HeaderMap;
 use axum::http::header::CACHE_CONTROL;
 
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::{
     AssembleRequest, ManifestService, MarketplaceError, NoopTrace, ResolvedCatalog, ResolvedKey,
 };
-use systemprompt_models::Profile;
-use systemprompt_models::services::ServicesConfig;
 use systemprompt_runtime::AppContext;
 
 /// Whether a resolution may be served from the per-user memo.

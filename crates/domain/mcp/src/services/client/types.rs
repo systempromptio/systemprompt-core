@@ -4,10 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpConnectionResult {
-    pub service_name: String,
+    pub service_name: ServiceName,
     pub success: bool,
     pub error_message: Option<String>,
     pub connection_time_ms: u32,
@@ -18,7 +19,8 @@ pub struct McpConnectionResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpProtocolInfo {
-    pub server_name: String,
+    #[serde(rename = "server_name")]
+    pub implementation_name: String,
     pub version: String,
     pub protocol_version: String,
 }

@@ -14,9 +14,9 @@ fn create_test_client_row() -> OAuthClientRow {
         application_type: "web".to_owned(),
         client_uri: Some("https://example.com".to_string()),
         logo_uri: Some("https://example.com/logo.png".to_string()),
-        is_active: Some(true),
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        is_active: true,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
         last_used_at: Some(Utc::now()),
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     }
@@ -59,9 +59,9 @@ fn test_oauth_client_from_row_with_default_values() {
         application_type: "web".to_owned(),
         client_uri: None,
         logo_uri: None,
-        is_active: None,
-        created_at: None,
-        updated_at: None,
+        is_active: false,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
         last_used_at: None,
         owner_user_id: systemprompt_test_fixtures::fixture_user_id(),
     };
@@ -70,7 +70,10 @@ fn test_oauth_client_from_row_with_default_values() {
     let client = OAuthClient::from_row_with_relations(row, relations);
 
     assert_eq!(client.token_endpoint_auth_method, "client_secret_post");
-    assert!(client.is_active);
+    assert!(
+        !client.is_active,
+        "the stored is_active flag is carried through"
+    );
 }
 
 #[test]

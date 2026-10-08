@@ -32,14 +32,14 @@ pub(super) fn build_data_plane(
 
 pub(super) async fn ensure_legacy_context(
     repositories: &RepositoryBundles,
-    system_admin: &systemprompt_models::services::SystemAdmin,
+    system_admin: &systemprompt_manifest::services::SystemAdmin,
 ) -> RuntimeResult<()> {
     repositories
         .a2a
         .contexts
         .ensure_legacy_context(system_admin.id())
-        .await
-        .map_err(|e| crate::error::RuntimeError::Internal(e.to_string()))
+        .await?;
+    Ok(())
 }
 
 pub(super) struct RepositoryBundles {
@@ -79,19 +79,20 @@ pub(super) fn build_repositories(
     database: &systemprompt_database::DbPool,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     instance_id: systemprompt_identifiers::InstanceId,
-) -> RuntimeResult<RepositoryBundles> {
-    let session_usage: systemprompt_traits::DynSessionUsageCounters = analytics.sessions.owner();
+) -> RepositoryBundles {
+    let session_store = Arc::clone(&analytics.session_store);
+    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
     let managed = Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
         database,
-    )?);
-    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database)?);
+    ));
+    let ai = Arc::new(systemprompt_ai::repository::AiRepositories::new(database));
     let tool_executions: systemprompt_traits::DynToolExecutionLookup = Arc::new(
-        systemprompt_mcp::repository::ToolUsageRepository::new(database)?,
+        systemprompt_mcp::repository::ToolUsageRepository::new(database),
     );
     let managed_resolver: systemprompt_traits::DynManagedSkillResolver = Arc::new(
         systemprompt_marketplace::managed::ManagedResourceResolver::new(managed.as_ref().clone()),
     );
-    Ok(RepositoryBundles {
+    RepositoryBundles {
         a2a: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
             database,
             systemprompt_agent::repository::A2aDependencies {
@@ -100,24 +101,48 @@ pub(super) fn build_repositories(
                 managed_skills: managed_resolver,
                 tool_executions,
             },
-        )?),
+        )),
         content: Arc::new(systemprompt_content::repository::ContentRepositories::new(
             database,
-        )?),
+        )),
         oauth: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
             database,
-        )?),
-        users: Arc::new(systemprompt_users::UserRepository::new(database)?),
+        )),
+        users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
             database,
             instance_id,
-        )?),
+        )),
         ai,
         analytics,
-        files: Arc::new(systemprompt_files::FileRepository::new(database)?),
+        files: Arc::new(systemprompt_files::FileRepository::new(database)),
         mcp_sessions: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
             database,
-        )?),
+        )),
         managed,
-    })
+    }
+}
+
+pub fn owner_reassignments(
+    database: &systemprompt_database::DbPool,
+) -> Vec<systemprompt_traits::DynOwnerReassignment> {
+    let logging = systemprompt_logging::LoggingOwnerReassignment::new(database);
+    let events =
+        systemprompt_events::EventsOwnerReassignment::new(database.write_pool().as_ref().clone());
+    vec![
+        Arc::new(systemprompt_agent::repository::AgentOwnerReassignment::new(
+            database,
+        )),
+        Arc::new(systemprompt_mcp::repository::McpOwnerReassignment::new(
+            database,
+        )),
+        Arc::new(systemprompt_ai::repository::AiOwnerReassignment::new(
+            database,
+        )),
+        Arc::new(systemprompt_analytics::repository::AnalyticsOwnerReassignment::new(database)),
+        Arc::new(systemprompt_files::FilesOwnerReassignment::new(database)),
+        Arc::new(systemprompt_content::repository::ContentOwnerReassignment::new(database)),
+        Arc::new(logging),
+        Arc::new(events),
+    ]
 }

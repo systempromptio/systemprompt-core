@@ -21,7 +21,7 @@ impl ParseEnumError {
 }
 
 #[derive(Debug, Clone, Copy, thiserror::Error)]
-pub enum ConfigError {
+pub enum GlobalConfigError {
     #[error("Config not initialized. Call Config::init() first.")]
     NotInitialized,
 

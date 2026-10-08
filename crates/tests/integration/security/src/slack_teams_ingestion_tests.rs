@@ -7,15 +7,16 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use systemprompt_identifiers::TeamsAppId;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId, TeamsTenantId};
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     SlackAppConfig, SlackAuthzConfig, TeamsAppConfig, TeamsAuthzConfig,
 };
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 struct Fixture {
@@ -24,9 +25,8 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
-    let pg = db.pool_arc().expect("read pool");
+    let db = test_db_pool().await;
+    let pg = db.pool();
     Fixture { db, pg }
 }
 
@@ -71,7 +71,7 @@ fn slack_app(workspace: &str, roles: &[&str], enabled: bool) -> SlackAppConfig {
 fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
     TeamsAppConfig {
         tenant_id: TeamsTenantId::new(tenant),
-        app_id: "app-test".to_owned(),
+        app_id: TeamsAppId::new("app-test"),
         app_password_ref: SecretName::new("teams_app_password"),
         enabled,
         default_agent: Some(AgentName::try_new("test_agent").expect("valid AgentName")),
@@ -79,7 +79,7 @@ fn teams_app(tenant: &str, roles: &[&str], enabled: bool) -> TeamsAppConfig {
         authz: TeamsAuthzConfig {
             allowed_roles: roles.iter().map(|r| (*r).to_owned()).collect(),
         },
-        endpoints: systemprompt_models::services::teams::TeamsEndpoints::default(),
+        endpoints: systemprompt_manifest::services::teams::TeamsEndpoints::default(),
     }
 }
 
@@ -111,7 +111,7 @@ async fn role_values(pg: &PgPool, entity_type: &str, id: &str) -> Vec<String> {
 async fn slack_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_slack_apps(
@@ -160,7 +160,7 @@ async fn slack_happy_path_projects_entity_and_rules() {
 async fn teams_happy_path_projects_entity_and_rules() {
     let f = setup().await;
     let id = teams_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_teams_apps(
@@ -180,7 +180,7 @@ async fn disabled_and_empty_role_apps_produce_no_rows() {
     let f = setup().await;
     let disabled = slack_id();
     let empty = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let mut apps = HashMap::new();
     apps.insert(
@@ -215,7 +215,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
     let f = setup().await;
     let kept = slack_id();
     let swept = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     // First pass seeds both workspaces.
     let mut both = HashMap::new();
@@ -258,7 +258,7 @@ async fn delete_orphans_is_scoped_to_the_ingested_ids() {
 async fn re_ingest_without_override_is_idempotent() {
     let f = setup().await;
     let id = slack_id();
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_slack_apps(

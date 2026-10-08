@@ -12,25 +12,25 @@ use std::process::{Child, Command, Stdio};
 use std::sync::OnceLock;
 
 use systemprompt_models::subprocess::MCP_SERVICE_ID_ENV;
+use systemprompt_test_fixtures::test_database_url;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::full_bootstrap::{
-    database_url_or_skip, fixture_instance_id, fixture_mcp_server, fixture_or_skip,
-    rewrite_services_config,
+    fixture_instance_id, fixture_mcp_server, full_fixture, rewrite_services_config,
 };
 
-static STUB: OnceLock<Option<u16>> = OnceLock::new();
+static STUB: OnceLock<u16> = OnceLock::new();
 static IDENTITY_HOLDER: OnceLock<Child> = OnceLock::new();
 
-pub fn stub_port() -> Option<u16> {
+pub fn stub_port() -> u16 {
     *STUB.get_or_init(|| {
-        let fixture = fixture_or_skip()?;
-        let url = database_url_or_skip()?;
+        let fixture = full_fixture();
+        let url = test_database_url();
         let port = start_stub_server();
         rewrite_services_config(fixture, port);
         register_running_service(&url, port);
-        Some(port)
+        port
     })
 }
 

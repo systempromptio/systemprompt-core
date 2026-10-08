@@ -1,10 +1,11 @@
 //! Unit tests for error types, FileUploadRequest builder, and UploadedFile
 
 use systemprompt_files::{
-    FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileValidationError, UploadedFile,
+    FileUploadError, FileUploadRequest, FileUploadRequestBuilder, FileValidationError, FilesError,
+    UploadedFile,
 };
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
 const TEST_CONTEXT_ID_B: &str = "00000000-0000-4000-8000-000000000002";
@@ -75,14 +76,9 @@ fn test_file_upload_error_display_validation() {
 
 #[test]
 fn test_file_upload_error_display_database() {
-    let err = FileUploadError::Database("connection failed".to_string());
-    assert_eq!(format!("{}", err), "Database error: connection failed");
-}
-
-#[test]
-fn test_file_upload_error_display_config() {
-    let err = FileUploadError::Config("missing path".to_string());
-    assert_eq!(format!("{}", err), "Configuration error: missing path");
+    let err = FileUploadError::Database(FilesError::NotFound("file row".to_string()));
+    assert_eq!(format!("{}", err), "Database error: not found: file row");
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
@@ -136,7 +132,7 @@ fn test_file_upload_request_builder_with_user_id() {
         .build();
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
@@ -187,7 +183,7 @@ fn test_file_upload_request_builder_full_chain() {
     assert_eq!(request.bytes_base64, "pdfdata==");
     assert_eq!(request.context_id.as_str(), TEST_CONTEXT_ID_A);
     assert_eq!(request.name, Some("document.pdf".to_string()));
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
     assert_eq!(request.session_id.as_ref().unwrap().as_str(), "sess_xyz");
     assert_eq!(request.trace_id.as_ref().unwrap().as_str(), "trace_def");
 }
@@ -214,7 +210,7 @@ fn test_file_upload_request_debug() {
 
 #[test]
 fn test_uploaded_file_struct() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let uploaded = UploadedFile {
         file_id: file_id.clone(),
         path: "/storage/uploads/test.png".to_string(),
@@ -231,7 +227,7 @@ fn test_uploaded_file_struct() {
 
 #[test]
 fn test_uploaded_file_debug() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let uploaded = UploadedFile {
         file_id,
         path: "/storage/test.png".to_string(),

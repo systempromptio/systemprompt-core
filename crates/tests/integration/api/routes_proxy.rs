@@ -2,10 +2,12 @@
 //! to forward to, so every request returns an error; the test still
 //! exercises the proxy dispatch, registry lookup, and error mapping.
 
+use axum::Extension;
+use http::StatusCode;
 use systemprompt_api::routes::proxy::{agents, mcp};
 use tower::ServiceExt;
 
-use super::common::{empty_get, setup_ctx};
+use super::common::{empty_get, request_context, setup_ctx};
 
 #[tokio::test]
 async fn agents_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
@@ -35,11 +37,11 @@ async fn mcp_proxy_unknown_service_returns_error() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn mcp_proxy_get_execution_unknown_returns_error() -> anyhow::Result<()> {
+async fn mcp_get_execution_unknown_is_not_found() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
-    let app = mcp::router(&ctx);
+    let app = mcp::executions_router(&ctx).layer(Extension(request_context("u")));
     let resp = app.oneshot(empty_get("/executions/exec_unknown")).await?;
-    assert!(resp.status().as_u16() >= 400);
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     Ok(())
 }
 

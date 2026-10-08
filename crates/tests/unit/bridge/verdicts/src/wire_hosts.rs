@@ -11,15 +11,18 @@ use systemprompt_bridge::integration::agent_fleet::AgentFleets;
 use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentReason, AgentState, AgentSurface, AgentVerdict,
 };
-use systemprompt_bridge::integration::host_app::{AppInstallState, ConfigFormat, HostKind};
+use systemprompt_bridge::integration::host_app::{AppInstallState, ConfigFormat, HostAppKind};
 use systemprompt_bridge::integration::profile_state::{ProfileState, StaleReason};
 use systemprompt_bridge::integration::{GeneratedProfile, HostAppSnapshot};
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
 use systemprompt_bridge::verdict::Tone;
-use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
+use systemprompt_bridge::wire::first_run::{
+    FirstRunHostPayload, FirstRunPayload, FirstRunPhase, StepStatus,
+};
 use systemprompt_bridge::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
+use systemprompt_models::bridge::host::HostKind;
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
     serde_json::to_value(v).expect("payload serialises")
@@ -27,7 +30,7 @@ fn json_of<T: serde::Serialize>(v: &T) -> Value {
 
 fn snapshot(profile_state: ProfileState, keys: BTreeMap<String, String>) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: "claude_code",
+        host_id: HostKind::ClaudeCode,
         display_name: "Claude Code",
         profile_state,
         profile_source: Some("/etc/managed.json".to_owned()),
@@ -167,9 +170,9 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
         profile_uuid: "profile-uuid".to_owned(),
     };
     let entry = HostEntryPayload {
-        id: "claude_code",
+        id: HostKind::ClaudeCode,
         display_name: "Claude Code",
-        kind: HostKind::CliTool,
+        kind: HostAppKind::CliTool,
         description: "the CLI",
         icon: "claude",
         config_format: ConfigFormat::Json,
@@ -195,7 +198,7 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
     };
     let v = json_of(&entry);
 
-    assert_eq!(v["id"], json!("claude_code"));
+    assert_eq!(v["id"], json!("claude-code"));
     assert_eq!(v["kind"], json!("cli-tool"));
     assert_eq!(v["config_format"], json!("json"));
     assert_eq!(v["surface"], json!("local-profile"));
@@ -217,9 +220,9 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
 #[test]
 fn an_unprobed_host_ships_null_health_rather_than_omitting_it() {
     let entry = HostEntryPayload {
-        id: "codex",
+        id: HostKind::CodexCli,
         display_name: "Codex",
-        kind: HostKind::DesktopApp,
+        kind: HostAppKind::DesktopApp,
         description: "",
         icon: "",
         config_format: ConfigFormat::Toml,
@@ -285,6 +288,42 @@ fn hosts_payload_fails_closed_before_the_first_manifest_sync() {
     assert_eq!(v["agent_fleet"]["all"]["total"], json!(0));
 }
 
+// First run enrols the Claude Code CLI alongside the desktop hosts and
+// reports it as one more row, so the wizard shows its outcome — including a
+// failed settings merge — the same way it shows a host's.
+#[test]
+fn first_run_reports_claude_code_as_a_row_like_the_hosts() {
+    let payload = FirstRunPayload {
+        active: true,
+        done: false,
+        phase: FirstRunPhase::Installing,
+        sync: StepStatus::Pending,
+        error: None,
+        hosts: vec![
+            FirstRunHostPayload {
+                host_id: HostKind::ClaudeDesktop,
+                display_name: "Claude Desktop",
+                status: StepStatus::Generating,
+                error: None,
+            },
+            FirstRunHostPayload {
+                host_id: HostKind::ClaudeCode,
+                display_name: "Claude Code",
+                status: StepStatus::Failed,
+                error: Some("settings.json is not valid JSON"),
+            },
+        ],
+    };
+    let v = json_of(&payload);
+    assert_eq!(v["hosts"][1]["host_id"], json!("claude-code"), "{v}");
+    assert_eq!(v["hosts"][1]["status"], json!("failed"));
+    assert_eq!(
+        v["hosts"][1]["error"],
+        json!("settings.json is not valid JSON")
+    );
+    assert_eq!(v["hosts"][0]["status"], json!("generating"));
+}
+
 #[test]
 fn the_fleet_summary_is_folded_from_the_very_verdicts_the_rows_carry() {
     let fleets = AgentFleets::fold(&[verdict(), verdict()]);
@@ -320,9 +359,9 @@ fn fixture_paths() -> Vec<std::path::PathBuf> {
 
 fn host_entry_keys() -> Vec<String> {
     let entry = HostEntryPayload {
-        id: "claude-code",
+        id: HostKind::ClaudeCode,
         display_name: "Claude Code",
-        kind: HostKind::CliTool,
+        kind: HostAppKind::CliTool,
         description: "",
         icon: "claude-code",
         config_format: ConfigFormat::Json,
@@ -406,9 +445,7 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 // `no-models.json` and `proxy-down.json` had quietly dropped `codex-cli`.
 #[test]
 fn every_fixture_lists_exactly_the_known_hosts() {
-    use systemprompt_models::bridge::profile::KNOWN_HOSTS;
-
-    let mut expected: Vec<&str> = KNOWN_HOSTS.to_vec();
+    let mut expected: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     expected.sort_unstable();
     let mut checked = 0_usize;
 
@@ -426,7 +463,7 @@ fn every_fixture_lists_exactly_the_known_hosts() {
         ids.sort_unstable();
         assert_eq!(
             ids, expected,
-            "{name}: fixture host ids have drifted from KNOWN_HOSTS"
+            "{name}: fixture host ids have drifted from HostKind::ALL"
         );
         checked += 1;
     }

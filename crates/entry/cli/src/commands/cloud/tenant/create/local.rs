@@ -10,6 +10,7 @@
 
 use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
 use crate::cloud::init::ensure_project_scaffolding;
@@ -113,7 +114,8 @@ async fn setup_local_profile(
     prompter: &dyn Prompter,
 ) -> Result<()> {
     CliService::section("Profile Setup");
-    let profile_name = prompter.input_with_default("Profile name", name)?;
+    let profile_name = ProfileName::try_new(prompter.input_with_default("Profile name", name)?)
+        .context("Invalid profile name")?;
 
     CliService::section("API Keys");
     let api_keys = collect_api_keys(prompter)?;
@@ -124,7 +126,7 @@ async fn setup_local_profile(
     let ctx = ProjectContext::discover();
     ensure_project_scaffolding(ctx.root())?;
 
-    let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
+    let profile_path = ctx.profile_dir(profile.name.as_str()).join("profile.yaml");
     handle_local_tenant_setup(prompter, database_url, name, &profile_path).await?;
 
     Ok(())

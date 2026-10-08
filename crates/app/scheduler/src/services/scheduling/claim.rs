@@ -9,14 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_identifiers::{InstanceId, JobName};
 use systemprompt_traits::{Job as JobTrait, JobScope};
 use tracing::{debug, error};
 
-use super::lock::{JobLockGuard, try_acquire_job_lock};
 use crate::models::{JobConfig, SchedulerConfig};
-use crate::repository::SchedulerRepository;
+use crate::repository::{JobLockGuard, SchedulerRepository};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum ClaimPolicy {
@@ -54,14 +52,14 @@ pub(super) enum Claim {
 const TICK_DEDUPE_WINDOW_MS: i64 = 900;
 
 async fn ran_within_dedupe_window(
-    job_name: &str,
+    job_name: &JobName,
     repository: &SchedulerRepository,
     same_instance: Option<&InstanceId>,
 ) -> bool {
     match repository.find_job(job_name).await {
         Ok(Some(job)) => {
             let instance_matches =
-                same_instance.is_none_or(|id| job.last_instance_id.as_deref() == Some(id.as_str()));
+                same_instance.is_none_or(|id| job.last_instance_id.as_ref() == Some(id));
             job.last_run.is_some_and(|last_run| {
                 instance_matches
                     && chrono::Utc::now().signed_duration_since(last_run)
@@ -77,7 +75,7 @@ async fn ran_within_dedupe_window(
 }
 
 pub(super) async fn acquire_node_claim(
-    job_name: &str,
+    job_name: &JobName,
     instance_id: &InstanceId,
     repository: &SchedulerRepository,
 ) -> Claim {
@@ -89,19 +87,10 @@ pub(super) async fn acquire_node_claim(
 }
 
 pub(super) async fn acquire_cluster_claim(
-    job_name: &str,
-    db_pool: &DbPool,
+    job_name: &JobName,
     repository: &SchedulerRepository,
 ) -> Claim {
-    let write_pool = match db_pool.write_pool_arc() {
-        Ok(pool) => pool,
-        Err(e) => {
-            error!(job_name = %job_name, error = %e, "Failed to resolve write pool for job lock");
-            return Claim::Skip;
-        },
-    };
-
-    let guard = match try_acquire_job_lock(&write_pool, job_name).await {
+    let guard = match repository.try_acquire_job_lock(job_name).await {
         Ok(Some(guard)) => guard,
         Ok(None) => {
             skipped_by_lock(job_name);
@@ -122,7 +111,7 @@ pub(super) async fn acquire_cluster_claim(
     Claim::Held(guard)
 }
 
-fn skipped_by_lock(job_name: &str) {
+fn skipped_by_lock(job_name: &JobName) {
     debug!(
         monotonic_counter.scheduler_job_skipped_by_lock = 1u64,
         job_name = %job_name,

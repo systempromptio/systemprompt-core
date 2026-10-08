@@ -54,3 +54,12 @@ export function isTextInput(target) {
   if (!target) { return false; }
   return target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
 }
+
+export function activateRailTab(name, options) {
+  const rail = document.querySelector("sp-rail");
+  if (rail && typeof rail.activateTab === "function") {
+    rail.activateTab(name, options);
+    return true;
+  }
+  return false;
+}

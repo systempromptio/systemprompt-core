@@ -7,6 +7,7 @@
 //! lookup succeeds and the router can actually be built and driven.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use axum::body::Body;
 use axum::http::Request;
@@ -15,7 +16,7 @@ use systemprompt_agent::services::a2a_server::Server;
 use systemprompt_database::DbPool;
 use systemprompt_models::ai::AiProvider;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_config, fixture_db_pool, init_services_bootstrap,
+    TestBootstrap, fixture_config, init_services_bootstrap, test_db_pool,
 };
 use systemprompt_test_mocks::MockAiProvider;
 use systemprompt_traits::{
@@ -76,9 +77,7 @@ fn boot() -> &'static TestBootstrap {
 
 async fn state() -> (Arc<AgentState>, DbPool) {
     let b = boot();
-    let pool = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the a2a server tests need a reachable test database");
+    let pool = test_db_pool().await;
     let config = Arc::new(fixture_config(&b.database_url));
     let repos = systemprompt_test_fixtures::a2a_repositories(&pool);
     let state = AgentState::new(
@@ -95,23 +94,6 @@ fn ai() -> Arc<dyn AiProvider> {
     Arc::new(MockAiProvider::builder().build())
 }
 
-// Why: the agent name selects the config the server serves — its card, its
-// scopes, its identity. Starting without one would leave a server answering as
-// nothing in particular, so it is refused before any state is built.
-#[tokio::test]
-async fn a_server_without_an_agent_name_is_refused() {
-    let (agent_state, pool) = state().await;
-
-    let err = Server::new(pool, agent_state, ai(), None, 0)
-        .await
-        .expect_err("a server with no agent name must not start");
-
-    assert!(
-        format!("{err}").to_lowercase().contains("agent name"),
-        "the refusal should name what was missing: {err}"
-    );
-}
-
 // Why: an unregistered name must fail rather than fall back to a default. A
 // server that quietly served some other agent's card would answer for an
 // identity nobody asked it to hold.
@@ -123,7 +105,7 @@ async fn a_server_for_an_agent_that_is_not_registered_is_refused() {
         pool,
         agent_state,
         ai(),
-        Some("agent-that-does-not-exist".to_owned()),
+        &AgentName::new("agent-that-does-not-exist"),
         0,
     )
     .await
@@ -145,7 +127,7 @@ async fn the_router_answers_only_the_paths_it_declares() {
         pool,
         agent_state,
         ai(),
-        Some("a2a_fixture_agent".to_owned()),
+        &AgentName::new("a2a_fixture_agent"),
         0,
     )
     .await
@@ -177,7 +159,7 @@ async fn the_debug_impl_redacts_every_handle_it_holds() {
         pool,
         agent_state,
         ai(),
-        Some("a2a_fixture_agent".to_owned()),
+        &AgentName::new("a2a_fixture_agent"),
         4711,
     )
     .await
@@ -194,7 +176,7 @@ async fn the_debug_impl_redacts_every_handle_it_holds() {
         "Arc<RwLock<AgentConfig>>",
         "Arc<AgentOAuthState>",
         "Arc<AgentState>",
-        "<Arc<dyn AiProvider>>",
+        "<DynAiProvider>",
     ] {
         assert!(
             rendered.contains(placeholder),

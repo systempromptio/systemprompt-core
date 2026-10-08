@@ -12,13 +12,13 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use systemprompt_api::services::server::{discovery_router, signal_ready, signal_shutdown};
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use tower::ServiceExt;
 
 async fn ctx() -> AppContext {
-    let url = fixture_database_url().expect("DATABASE_URL must be set for the probe tests");
-    let pool = fixture_db_pool(&url).await.expect("fixture pool");
-    (*fixture_app_context(&pool, &url).expect("fixture AppContext")).clone()
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    (*test_app_context(&pool, &url)).clone()
 }
 
 async fn probe(ctx: &AppContext, path: &str) -> (StatusCode, serde_json::Value) {
@@ -41,7 +41,7 @@ async fn probe(ctx: &AppContext, path: &str) -> (StatusCode, serde_json::Value) 
 #[tokio::test]
 async fn livez_answers_alive_and_names_the_replica_that_answered() {
     let ctx = ctx().await;
-    let expected = ctx.config().instance_id.clone();
+    let expected = ctx.config().instance_id.as_str().to_owned();
 
     let (status, body) = probe(&ctx, "/livez").await;
 
@@ -81,7 +81,11 @@ async fn readyz_admits_the_node_once_it_is_ready_and_the_database_answers() {
 
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["status"], "ready");
-    assert_eq!(body["instance"], ctx.config().instance_id, "{body}");
+    assert_eq!(
+        body["instance"],
+        ctx.config().instance_id.as_str(),
+        "{body}"
+    );
 }
 
 #[tokio::test]

@@ -6,7 +6,7 @@
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_files::FilesConfig;
-use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
+use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
 
 fn profile_yaml(system: &std::path::Path, storage: &std::path::Path) -> String {
     let services = system.join("services");
@@ -107,7 +107,7 @@ fn ensure_storage_structure_reports_uncreatable_root() {
     let profile = ProfileBootstrap::init_from_path(&profile_path).expect("init profile");
     let paths = AppPaths::from_profile(
         &profile.paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");

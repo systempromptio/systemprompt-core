@@ -5,9 +5,9 @@
 
 use std::collections::HashMap;
 
-use systemprompt_models::paths::constants::env_vars;
-use systemprompt_models::read_env_optional;
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::paths::constants::env_vars;
+use systemprompt_manifest::read_env_optional;
+use systemprompt_manifest::secrets::Secrets;
 
 use crate::bootstrap::secrets::SecretsBootstrapError;
 use crate::error::ConfigResult;

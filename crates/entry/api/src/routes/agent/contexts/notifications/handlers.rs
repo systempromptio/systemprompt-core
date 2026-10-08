@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
+use serde::Deserialize;
 use serde_json::json;
 use systemprompt_agent::repository::context::ContextNotificationRepository;
 use systemprompt_events::EventRouter;
@@ -13,6 +14,21 @@ use systemprompt_runtime::AppContext;
 
 use super::A2aNotification;
 use super::error::NotificationError;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TaskStatusUpdateParams {
+    task_id: TaskId,
+    status: TaskStatusUpdate,
+}
+
+#[derive(Debug, Deserialize)]
+struct TaskStatusUpdate {
+    state: String,
+    // JSON: the timestamp arrives in any encoding `parse_database_datetime` accepts.
+    #[serde(default)]
+    timestamp: Option<serde_json::Value>,
+}
 
 pub(super) async fn persist_notification(
     repo: &ContextNotificationRepository,
@@ -38,31 +54,20 @@ pub(super) async fn process_notification(
 ) -> Result<(), NotificationError> {
     match notification.method.as_str() {
         "notifications/taskStatusUpdate" => {
-            let task_id = notification
-                .params
-                .get("taskId")
-                .and_then(|v| v.as_str())
-                .ok_or(NotificationError::MissingField("taskId"))?;
+            let params = TaskStatusUpdateParams::deserialize(&notification.params)
+                .map_err(NotificationError::InvalidParams)?;
 
-            let status = notification
-                .params
-                .get("status")
-                .ok_or(NotificationError::MissingField("status"))?;
-
-            let state = status
-                .get("state")
-                .and_then(|v| v.as_str())
-                .ok_or(NotificationError::MissingField("status.state"))?;
-
-            let timestamp = status
-                .get("timestamp")
+            let timestamp = params
+                .status
+                .timestamp
+                .as_ref()
                 .and_then(systemprompt_database::parse_database_datetime)
                 .unwrap_or_else(Utc::now);
 
             app_context
                 .a2a_repositories()
                 .tasks
-                .apply_notification_status(&TaskId::new(task_id), state, &timestamp)
+                .apply_notification_status(&params.task_id, &params.status.state, &timestamp)
                 .await?;
 
             Ok(())
@@ -72,6 +77,7 @@ pub(super) async fn process_notification(
 }
 
 pub(super) async fn broadcast_notification(
+    router: &EventRouter,
     context: &str,
     user_id: &UserId,
     notification: &A2aNotification,
@@ -90,9 +96,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/artifactCreated" => {
@@ -105,9 +109,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         "notifications/messageAdded" => {
@@ -120,9 +122,7 @@ pub(super) async fn broadcast_notification(
                 }),
             }));
 
-            let (agui, ctx) = EventRouter::route_agui(user_id, event)
-                .await
-                .into_local_logged();
+            let (agui, ctx) = router.route_agui(user_id, event).await.into_local_logged();
             total_broadcasts += agui + ctx;
         },
         _ => {},

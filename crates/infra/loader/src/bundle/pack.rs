@@ -16,7 +16,7 @@ use chrono::Utc;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BundleOwnership,
     BundleSourceInfo, FileEntry, ServicesBundleManifest, SignedBundleManifest,
 };
@@ -150,7 +150,7 @@ pub fn build_manifest(
 
 pub fn write_tarball(root: &Path, signed: &SignedBundleManifest, out: &Path) -> BundleResult<()> {
     let manifest_json = serde_json::to_vec_pretty(signed)
-        .map_err(|e| BundleError::policy(format!("manifest is not serialisable: {e}")))?;
+        .map_err(|e| BundleError::policy_context("manifest is not serialisable", e))?;
 
     if let Some(parent) = out.parent() {
         fs::create_dir_all(parent)?;
@@ -164,15 +164,16 @@ pub fn write_tarball(root: &Path, signed: &SignedBundleManifest, out: &Path) -> 
         header.set_mode(0o644);
         header.set_cksum();
         tar.append_data(&mut header, BUNDLE_MANIFEST_FILE, manifest_json.as_slice())
-            .map_err(|e| BundleError::extract(out, e))?;
+            .map_err(|e| BundleError::extract_cause(out, e))?;
 
         for entry in &signed.manifest.files {
             let full = root.join(&entry.path);
             let name = format!("{BUNDLE_TREE_PREFIX}/{}", entry.path);
             tar.append_path_with_name(&full, &name)
-                .map_err(|e| BundleError::extract(&full, e))?;
+                .map_err(|e| BundleError::extract_cause(&full, e))?;
         }
-        tar.finish().map_err(|e| BundleError::extract(out, e))?;
+        tar.finish()
+            .map_err(|e| BundleError::extract_cause(out, e))?;
     }
     encoder.finish()?;
     Ok(())
@@ -185,9 +186,10 @@ pub fn create_tarball_bytes(root: &Path, files: &[FileEntry]) -> BundleResult<Ve
         for entry in files {
             let full = root.join(&entry.path);
             tar.append_path_with_name(&full, &entry.path)
-                .map_err(|e| BundleError::extract(&full, e))?;
+                .map_err(|e| BundleError::extract_cause(&full, e))?;
         }
-        tar.finish().map_err(|e| BundleError::extract(root, e))?;
+        tar.finish()
+            .map_err(|e| BundleError::extract_cause(root, e))?;
     }
     Ok(encoder.finish()?)
 }

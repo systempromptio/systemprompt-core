@@ -7,12 +7,11 @@
 
 use std::time::Instant;
 
-use systemprompt_models::wire::canonical::{CanonicalContent, CanonicalResponse};
-use uuid::Uuid;
+use systemprompt_wire::canonical::{CanonicalContent, CanonicalResponse};
 
 use crate::models::ai::{AiResponse, SearchGroundedResponse, WebSource};
 use crate::models::tools::ToolCall;
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiRequestId, AiToolCallId};
 
 #[derive(Debug, Clone)]
 pub struct CodeExecutionResponse {
@@ -58,7 +57,7 @@ pub fn tool_calls(response: &CanonicalResponse) -> Vec<ToolCall> {
 pub fn to_ai_response(
     provider: &str,
     model: &str,
-    request_id: Uuid,
+    request_id: AiRequestId,
     start: Instant,
     response: &CanonicalResponse,
 ) -> AiResponse {

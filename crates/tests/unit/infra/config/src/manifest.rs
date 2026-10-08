@@ -1,6 +1,7 @@
 use base64::Engine;
 use systemprompt_config::bootstrap::{
-    MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed,
+    KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, SecretsBootstrapError, decode_seed,
+    generate_seed, persist_seed,
 };
 
 #[test]
@@ -32,7 +33,16 @@ fn decode_seed_trims_surrounding_whitespace() {
 fn decode_seed_rejects_wrong_length() {
     let short = base64::engine::general_purpose::STANDARD.encode([0u8; 16]);
     let err = decode_seed(&short).unwrap_err();
-    assert!(format!("{err}").contains("byte seed"));
+    assert!(
+        matches!(
+            err,
+            SecretsBootstrapError::ManifestSeedInvalid(KeyMaterialError::Length {
+                expected: MANIFEST_SIGNING_SEED_BYTES,
+                actual: 16,
+            })
+        ),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -91,4 +101,37 @@ fn persist_seed_errors_when_file_missing() {
     let path = tmp.path().join("missing.json");
     let err = persist_seed(&path, &generate_seed()).unwrap_err();
     assert!(!format!("{err}").is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn persist_seed_keeps_the_secrets_file_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("secrets.json");
+    std::fs::write(&path, br#"{"oauth_at_rest_pepper": "abc"}"#).unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    persist_seed(&path, &generate_seed()).unwrap();
+
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600, "rewritten secrets file must be owner-only");
+}
+
+#[cfg(unix)]
+#[test]
+fn write_private_atomic_creates_owner_only_and_leaves_no_staging_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("token.json");
+    systemprompt_config::write_private_atomic(&path, b"first").unwrap();
+    systemprompt_config::write_private_atomic(&path, b"second").unwrap();
+
+    assert_eq!(std::fs::read(&path).unwrap(), b"second");
+    let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o600);
+    let entries: Vec<_> = std::fs::read_dir(tmp.path()).unwrap().collect();
+    assert_eq!(entries.len(), 1, "staging files must not be left behind");
 }

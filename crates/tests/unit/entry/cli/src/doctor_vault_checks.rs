@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use serde_json::json;
 use systemprompt_cli::cloud::doctor::CheckStatus;
 use systemprompt_cli::cloud::doctor::vault_checks::{check_vault_address, check_vault_document};
-use systemprompt_models::profile::{VaultAuth, VaultSecretsConfig};
+use systemprompt_manifest::profile::{VaultAuth, VaultSecretsConfig};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

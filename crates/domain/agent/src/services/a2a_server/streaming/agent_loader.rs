@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::Event;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{AgentName, TaskId};
 use tokio::sync::mpsc::Sender;
 
 use crate::error::AgentResult;
@@ -17,7 +17,7 @@ use super::initialization::create_jsonrpc_error_event;
 
 pub(super) struct LoadAgentRuntimeParams<'a> {
     pub registry: AgentResult<AgentRegistry>,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub task_id: &'a TaskId,
     pub task_repo: &'a TaskRepository,
     pub tx: &'a Sender<Event>,
@@ -58,7 +58,7 @@ pub(super) async fn load_agent_runtime(
         },
     };
 
-    match registry.get_agent(agent_name).await {
+    match registry.get_agent(agent_name.as_str()).await {
         Ok(agent_config) => Ok(agent_config.into()),
         Err(e) => {
             let error_msg = format!("Failed to load agent '{}': {}", agent_name, e);

@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
 use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
@@ -60,13 +60,15 @@ impl DomainConfig for SkillConfigValidator {
             return Ok(report);
         }
 
-        let entries = std::fs::read_dir(skills_dir).map_err(|e| DomainConfigError::LoadError {
-            message: format!("Cannot read skills directory: {e}"),
+        let entries = std::fs::read_dir(skills_dir).map_err(|source| DomainConfigError::Io {
+            context: "Cannot read skills directory".to_owned(),
+            source,
         })?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| DomainConfigError::LoadError {
-                message: format!("Cannot read directory entry: {e}"),
+            let entry = entry.map_err(|source| DomainConfigError::Io {
+                context: "Cannot read directory entry".to_owned(),
+                source,
             })?;
             validate_skill_entry(&entry, &mut report);
         }
@@ -123,6 +125,16 @@ fn validate_skill_entry(entry: &std::fs::DirEntry, report: &mut ValidationReport
             return;
         },
     };
+
+    if let Err(unknown) = config.host_kinds() {
+        report.add_error(
+            ValidationIssue::new(format!("skills.{dir_name}.hosts"), unknown.to_string())
+                .with_path(&config_path)
+                .with_suggestion(
+                    "Use only claude-code, claude-desktop, codex-cli, hermes or opencode",
+                ),
+        );
+    }
 
     let content_file = config.content_file();
     let content_path = entry.path().join(content_file);

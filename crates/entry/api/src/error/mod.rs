@@ -13,6 +13,10 @@
 //! `into_response` delegates to `ApiError`, which logs exactly once by status
 //! class.
 //!
+//! A 5xx never carries the underlying error's text: [`ApiError`] serialises the
+//! fixed public message of its code for every 5xx and logs the attached
+//! source chain once, so 5xx paths are built with `ApiError::internal(ctx, e)`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -41,8 +45,12 @@ impl ApiHttpError {
         Self(ApiError::forbidden(message))
     }
 
-    pub fn internal_error(message: impl Into<String>) -> Self {
-        Self(ApiError::internal_error(message))
+    pub fn internal_error(context: &'static str) -> Self {
+        Self(ApiError::internal_error(context))
+    }
+
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self(ApiError::conflict(message))
     }
 
     pub fn into_inner(self) -> ApiError {

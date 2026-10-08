@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::AgentError;
+use systemprompt_models::api::ApiError;
 use systemprompt_traits::RepositoryError;
 
 use crate::error::ApiHttpError;
@@ -16,8 +17,8 @@ pub(super) enum NotificationError {
     Repository(#[from] RepositoryError),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
-    #[error("Missing {0} in notification")]
-    MissingField(&'static str),
+    #[error("Invalid task status notification params: {0}")]
+    InvalidParams(#[source] serde_json::Error),
 }
 
 impl From<NotificationError> for ApiHttpError {
@@ -25,8 +26,10 @@ impl From<NotificationError> for ApiHttpError {
         match err {
             NotificationError::Agent(e) => Self::from(e),
             NotificationError::Repository(e) => Self::from(e),
-            NotificationError::Serde(e) => Self::internal_error(e.to_string()),
-            e @ NotificationError::MissingField(_) => Self::bad_request(e.to_string()),
+            NotificationError::Serde(e) => {
+                ApiError::internal("Invalid notification payload", e).into()
+            },
+            e @ NotificationError::InvalidParams(_) => Self::bad_request(e.to_string()),
         }
     }
 }

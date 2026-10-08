@@ -14,13 +14,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
@@ -31,7 +32,7 @@ use super::types::{MigrateRepairOutput, MigrationDriftInfo};
 
 #[derive(Clone, Copy)]
 pub(super) struct RepairArgs<'a> {
-    pub extension: Option<&'a str>,
+    pub extension: Option<&'a ExtensionId>,
     pub apply: bool,
     pub reconcile_only: bool,
     pub json: bool,
@@ -96,13 +97,13 @@ async fn run_migrate_repair(
             let result = migration_service
                 .reconcile_drift(ext.as_ref())
                 .await
-                .map_err(|e| anyhow!("Failed to reconcile migration checksums: {}", e))?;
+                .context("Failed to reconcile migration checksums")?;
             result.repaired
         } else if apply {
             let result = migration_service
                 .repair_drift(ext.as_ref())
                 .await
-                .map_err(|e| anyhow!("Failed to repair migrations: {}", e))?;
+                .context("Failed to repair migrations")?;
             migrations_run += result.migrations_run;
             reapplied += result.reapplied;
             result.repaired
@@ -110,14 +111,14 @@ async fn run_migrate_repair(
             let status = migration_service
                 .status(ext.as_ref())
                 .await
-                .map_err(|e| anyhow!("Failed to get migration status: {}", e))?;
+                .context("Failed to get migration status")?;
             MigrationService::refuse_slot_collisions(&status)
-                .map_err(|e| anyhow!("Cannot repair migrations: {}", e))?;
+                .context("Cannot repair migrations")?;
             status.drift
         };
         for d in drift {
             drift_rows.push(MigrationDriftInfo {
-                extension_id: d.extension_id,
+                extension_id: ExtensionId::new(d.extension_id),
                 version: d.version,
                 name: d.name,
                 stored_checksum: d.stored_checksum,

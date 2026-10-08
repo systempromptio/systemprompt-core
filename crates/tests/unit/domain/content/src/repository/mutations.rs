@@ -8,14 +8,11 @@ use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SourceId};
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn cleanup(pool: &DbPool, source: &SourceId) {
     ContentRepository::new(pool)
-        .expect("repo")
         .delete_by_source(source)
         .await
         .expect("cleanup");
@@ -23,12 +20,9 @@ async fn cleanup(pool: &DbPool, source: &SourceId) {
 
 #[tokio::test]
 async fn update_sets_category_and_preserves_unspecified_kind() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ContentRepository::new(&pool);
     let source = SourceId::new(format!("mut-{}", Uuid::new_v4()));
     let slug = format!("m-{}", Uuid::new_v4().simple());
 
@@ -75,12 +69,9 @@ async fn update_sets_category_and_preserves_unspecified_kind() {
 
 #[tokio::test]
 async fn update_missing_row_resolves_defaults_then_reports_not_found() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ContentRepository::new(&pool);
 
     // No row exists for this id, so `ResolvedUpdate::resolve` sees `current =
     // None`; with `kind` also unspecified it must fall back to the
@@ -103,7 +94,7 @@ async fn update_missing_row_resolves_defaults_then_reports_not_found() {
 #[tokio::test]
 async fn update_on_closed_pool_propagates_error() {
     let pool = closed_db_pool().await;
-    let repo = ContentRepository::new(&pool).expect("repo");
+    let repo = ContentRepository::new(&pool);
 
     let result = repo
         .update(&UpdateContentParams::new(

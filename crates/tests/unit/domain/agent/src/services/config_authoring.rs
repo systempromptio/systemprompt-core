@@ -7,10 +7,10 @@ use std::path::Path;
 use systemprompt_agent::services::config_authoring::{
     AgentConfigAuthoringService, AgentCreateRequest, AgentEditRequest, ConfigAuthoringError,
 };
-use systemprompt_identifiers::AgentId;
-use systemprompt_models::AgentConfig;
+use systemprompt_identifiers::AgentName;
+use systemprompt_manifest::AgentConfig;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::services::ServicesConfig;
 
 fn create_request(name: &str, port: u16) -> AgentCreateRequest {
     AgentCreateRequest {
@@ -179,7 +179,7 @@ fn create_writes_agent_yaml_with_defaults() {
     assert!(agent.enabled);
     assert_eq!(
         agent.endpoint,
-        ApiPaths::agent_endpoint(&AgentId::new("demo_agent"))
+        ApiPaths::agent_endpoint(&AgentName::new("demo_agent"))
     );
     assert_eq!(
         agent.card.protocol_version,
@@ -234,7 +234,10 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
         .create(request)
         .expect_err("no provider and no services config to default from");
     assert!(
-        matches!(err, ConfigAuthoringError::ServicesConfig(_)),
+        matches!(
+            err,
+            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::ProviderCatalog(_)
+        ),
         "{err}"
     );
     assert!(
@@ -325,7 +328,9 @@ fn delete_removes_agent_file_and_include_entry() {
         .expect("create agent");
     assert!(path.exists());
 
-    service.delete("gone_agent").expect("delete agent");
+    service
+        .delete(&AgentName::new("gone_agent"))
+        .expect("delete agent");
 
     assert!(!path.exists());
     let config_text = fs::read_to_string(config_dir.join("config.yaml")).expect("read config.yaml");
@@ -337,7 +342,9 @@ fn delete_missing_agent_errors() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
 
-    let err = service.delete("ghost_agent").expect_err("missing agent");
+    let err = service
+        .delete(&AgentName::new("ghost_agent"))
+        .expect_err("missing agent");
     assert_eq!(
         err.to_string(),
         "Agent 'ghost_agent' not found in any configuration file"

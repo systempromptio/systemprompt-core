@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entities;
+pub(crate) mod ingestion;
 mod rules;
 
 pub use rules::ChainFingerprint;
@@ -24,7 +25,6 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 
-use super::error::{AuthzError, AuthzResult};
 use super::types::{Access, EntityKind, RuleType};
 
 #[derive(Debug, Clone)]
@@ -55,14 +55,10 @@ pub struct AccessControlRepository {
 }
 
 impl AccessControlRepository {
-    pub fn new(db: &DbPool) -> AuthzResult<Self> {
-        let pool = db
-            .pool_arc()
-            .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub fn from_pool(pool: Arc<PgPool>) -> Self {

@@ -16,7 +16,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{
-    AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId, UserId,
+    AgentName, ArtifactId, ContextId, McpExecutionId, McpToolName, SessionId, SkillId, SkillName,
+    TaskId, TraceId, UserId,
 };
 
 use crate::execution::context::RequestContext;
@@ -48,35 +49,19 @@ pub struct ExecutionMetadata {
     pub task_id: Option<TaskId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
+    #[schemars(with = "Option<String>")]
+    pub tool_name: Option<McpToolName>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(with = "Option<String>")]
     pub skill_id: Option<SkillId>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_name: Option<String>,
+    #[schemars(with = "Option<String>")]
+    pub skill_name: Option<SkillName>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
-}
-
-impl Default for ExecutionMetadata {
-    fn default() -> Self {
-        Self {
-            context_id: ContextId::legacy(),
-            trace_id: TraceId::new("unset"),
-            session_id: SessionId::new("unset"),
-            user_id: UserId::new("unset"),
-            agent_name: AgentName::unset(),
-            timestamp: Utc::now(),
-            task_id: None,
-            tool_name: None,
-            skill_id: None,
-            skill_name: None,
-            execution_id: None,
-        }
-    }
+    pub execution_id: Option<McpExecutionId>,
 }
 
 #[derive(Debug)]
@@ -88,10 +73,10 @@ pub struct ExecutionMetadataBuilder {
     agent_name: AgentName,
     timestamp: DateTime<Utc>,
     task_id: Option<TaskId>,
-    tool_name: Option<String>,
+    tool_name: Option<McpToolName>,
     skill_id: Option<SkillId>,
-    skill_name: Option<String>,
-    execution_id: Option<String>,
+    skill_name: Option<SkillName>,
+    execution_id: Option<McpExecutionId>,
 }
 
 impl ExecutionMetadataBuilder {
@@ -111,19 +96,19 @@ impl ExecutionMetadataBuilder {
         }
     }
 
-    pub fn with_tool(mut self, name: impl Into<String>) -> Self {
-        self.tool_name = Some(name.into());
+    pub fn with_tool(mut self, name: McpToolName) -> Self {
+        self.tool_name = Some(name);
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(id.into());
-        self.skill_name = Some(name.into());
+    pub fn with_skill(mut self, id: SkillId, name: SkillName) -> Self {
+        self.skill_id = Some(id);
+        self.skill_name = Some(name);
         self
     }
 
-    pub fn with_execution(mut self, id: impl Into<String>) -> Self {
-        self.execution_id = Some(id.into());
+    pub fn with_execution(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id);
         self
     }
 
@@ -153,19 +138,19 @@ impl ExecutionMetadata {
         Self::builder(ctx).build()
     }
 
-    pub fn with_tool(mut self, name: impl Into<String>) -> Self {
-        self.tool_name = Some(name.into());
+    pub fn with_tool(mut self, name: McpToolName) -> Self {
+        self.tool_name = Some(name);
         self
     }
 
-    pub fn with_skill(mut self, id: impl Into<SkillId>, name: impl Into<String>) -> Self {
-        self.skill_id = Some(id.into());
-        self.skill_name = Some(name.into());
+    pub fn with_skill(mut self, id: SkillId, name: SkillName) -> Self {
+        self.skill_id = Some(id);
+        self.skill_name = Some(name);
         self
     }
 
-    pub fn with_execution(mut self, id: impl Into<String>) -> Self {
-        self.execution_id = Some(id.into());
+    pub fn with_execution(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id);
         self
     }
 
@@ -181,14 +166,56 @@ impl ExecutionMetadata {
     }
 
     // JSON: A2A `Artifact.metadata` map.
-    pub fn to_object(&self) -> Option<serde_json::Map<String, JsonValue>> {
-        serde_json::to_value(self)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "ExecutionMetadata serialization failed");
-                e
-            })
-            .ok()
-            .and_then(|v| v.as_object().cloned())
+    pub fn to_object(&self) -> Result<serde_json::Map<String, JsonValue>, serde_json::Error> {
+        serde_json::from_value(serde_json::to_value(self)?)
+    }
+}
+
+/// Provenance an artifact accumulates while it is built: the request it ran
+/// under (absent until `with_request` is called) and the execution and skill
+/// that produced it.
+#[derive(Debug, Clone, Default)]
+pub struct ArtifactProvenance {
+    request: Option<ExecutionMetadata>,
+    execution_id: Option<McpExecutionId>,
+    skill: Option<(SkillId, SkillName)>,
+}
+
+impl ArtifactProvenance {
+    pub fn set_request(&mut self, ctx: &RequestContext) {
+        self.request = Some(ExecutionMetadata::with_request(ctx));
+    }
+
+    pub fn set_metadata(&mut self, metadata: ExecutionMetadata) {
+        self.request = Some(metadata);
+    }
+
+    pub fn set_execution_id(&mut self, id: McpExecutionId) {
+        self.execution_id = Some(id);
+    }
+
+    pub fn set_skill(&mut self, id: SkillId, name: SkillName) {
+        self.skill = Some((id, name));
+    }
+
+    pub fn execution_id(&self) -> Option<&McpExecutionId> {
+        self.execution_id.as_ref().or_else(|| {
+            self.request
+                .as_ref()
+                .and_then(|metadata| metadata.execution_id.as_ref())
+        })
+    }
+
+    pub fn metadata(&self) -> Option<ExecutionMetadata> {
+        let mut metadata = self.request.clone()?;
+        if let Some(id) = &self.execution_id {
+            metadata.execution_id = Some(id.clone());
+        }
+        if let Some((id, name)) = &self.skill {
+            metadata.skill_id = Some(id.clone());
+            metadata.skill_name = Some(name.clone());
+        }
+        Some(metadata)
     }
 }
 

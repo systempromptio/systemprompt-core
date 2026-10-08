@@ -42,7 +42,7 @@ async fn delete_cloud_tenant_table_output() {
 
     cloud::execute(
         tenant_cmd(TenantCommands::Delete(TenantDeleteArgs {
-            id: Some(TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
             yes: true,
         })),
         &table_ctx(),
@@ -57,7 +57,7 @@ async fn delete_cancelled_by_confirmation() {
     let ctx = interactive_ctx(["n"]);
     cloud::execute(
         tenant_cmd(TenantCommands::Delete(TenantDeleteArgs {
-            id: Some(OTHER_TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
             yes: false,
         })),
         &ctx,

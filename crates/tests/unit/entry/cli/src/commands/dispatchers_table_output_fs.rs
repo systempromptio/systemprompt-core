@@ -210,20 +210,28 @@ async fn agent_config_commands_render_through_the_terminal_renderer() {
     services_root();
     let ctx = table_ctx();
 
+    let agents = |args: &[&str]| {
+        AgentsHarness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
+            .unwrap()
+            .cmd
+    };
     for args in [
         vec!["list"],
         vec!["list", "--enabled"],
         vec!["show", "covtable"],
-        vec!["validate"],
     ] {
-        let cmd =
-            AgentsHarness::try_parse_from(std::iter::once("agents").chain(args.iter().copied()))
-                .unwrap()
-                .cmd;
-        systemprompt_cli::admin::agents::execute(cmd, &ctx)
+        systemprompt_cli::admin::agents::execute(agents(&args), &ctx)
             .await
             .unwrap();
     }
+
+    let err = systemprompt_cli::admin::agents::execute(agents(&["validate"]), &ctx)
+        .await
+        .expect_err("the fixture agent names a provider absent from ai.providers");
+    assert!(
+        format!("{err:#}").contains("Agent validation failed"),
+        "{err:#}"
+    );
 }
 
 #[test]

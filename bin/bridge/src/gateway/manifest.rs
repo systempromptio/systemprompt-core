@@ -10,17 +10,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use base64::Engine;
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
-    ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
+    ManifestClaudeCode, ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
     SignedManifestEnvelope, SkillEntry, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
-pub use systemprompt_models::services::{AutoUpdatePolicy, PluginComponentRef};
+pub use systemprompt_models::bridge::update_policy::AutoUpdatePolicy;
+pub use systemprompt_models::plugin::PluginComponentRef;
 
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
+
+pub use super::manifest_hosts::{enables_host, skill_targets_host, unknown_skill_hosts};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -79,7 +82,7 @@ pub fn verify_envelope(
         .map_err(|_len| ManifestError::SignatureLengthMismatch)?;
     let signature = Signature::from_bytes(&sig_arr);
 
-    key.verify(envelope.payload.as_bytes(), &signature)
+    key.verify_strict(envelope.payload.as_bytes(), &signature)
         .map_err(ManifestError::Verify)
 }
 
@@ -133,6 +136,7 @@ pub struct SignedManifestBuilder {
     host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
     allow_claude_ai_connectors: bool,
+    desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
     auto_update: AutoUpdatePolicy,
     marketplaces: Vec<ManifestMarketplace>,
 }
@@ -143,13 +147,13 @@ impl SignedManifestBuilder {
         manifest_version: ManifestVersion,
         issued_at: chrono::DateTime<chrono::Utc>,
         not_before: chrono::DateTime<chrono::Utc>,
-        user_id: impl Into<UserId>,
+        user_id: UserId,
     ) -> Self {
         Self {
             manifest_version,
             issued_at,
             not_before,
-            user_id: user_id.into(),
+            user_id,
             tenant_id: None,
             user: None,
             plugins: Vec::new(),
@@ -163,6 +167,7 @@ impl SignedManifestBuilder {
             host_model_protocols: std::collections::BTreeMap::new(),
             artifacts: Vec::new(),
             allow_claude_ai_connectors: false,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
             auto_update: AutoUpdatePolicy::default(),
             marketplaces: Vec::new(),
         }
@@ -196,8 +201,8 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
-    pub fn with_tenant_id(mut self, tenant_id: impl Into<TenantId>) -> Self {
-        self.tenant_id = Some(tenant_id.into());
+    pub fn with_tenant_id(mut self, tenant_id: TenantId) -> Self {
+        self.tenant_id = Some(tenant_id);
         self
     }
 
@@ -283,6 +288,7 @@ impl SignedManifestBuilder {
             host_model_protocols: self.host_model_protocols,
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
+            desktop_policy: self.desktop_policy,
             auto_update: self.auto_update,
             diagnostics: Vec::new(),
             marketplaces: self.marketplaces,

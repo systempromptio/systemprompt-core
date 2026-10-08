@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `capture_skills` takes `&[SkillId]`, and `CapturedSkills::skills()` and `ImportedSkills.revisions` are keyed by `SkillId`; `render_marketplace_json` takes `&MarketplaceId`; `MarketplaceFilterError::{UnknownUser, Policy}` and `MarketplaceError::Validation` are removed; `MarketplacePluginEntry.author` is `Option<PluginEntryAuthor>` (use `author_name()`/`author_email()`). Catalog-entry YAML with a wrong-typed `enabled`, `id` or `file` is now an error.
+- `ManagedSkill` gains `frontmatter: Option<serde_yaml::Mapping>`; a struct literal must name it (`frontmatter: None` keeps the old behaviour).
+- `NativeGitSourceCapture` is built with `NativeGitSourceCapture::new(scratch_root)` and is now public; `ManagedRepository::sync_git_source_with_credential` and `GitSourceOrchestrator::new` take the scratch root; `ImportOptions` gains `scratch_root` and is no longer `Copy` or `Default` (use `ImportOptions::new(scratch_root)`). `import_anthropic_tree_with` takes the `GitSourceCapture` to fetch with.
+- Manifest types are imported from `systemprompt-manifest`.
+
+### Added
+
+- Authored `SKILL.md` frontmatter beyond the platform-owned keys is kept by `core marketplace import` under `frontmatter` in the skill's `config.yaml`, carried on the manifest and written into the disk bundle and consumer installation plans; a skill's `sha256` covers it.
+- `DevFileFilter` (`dev_files`): skill `README.md`, `tests/`, `test/`, `fixtures/`, `__tests__/` and `*.test.*`/`*.spec.*` files are excluded by default, extendable with a kit-root `.systempromptignore`. Captured file sets shrink, so bundle and revision digests change once on upgrade. Adds a `globset` dependency.
+- Plugin entries naming a `github`, `url` or `git-subdir` source are vendored at import from the commit named by `sha` (unpinned is `ImportWarning::RemotePluginUnpinned`); the import report gains an `upstream` row.
+- `"mode": "pass_through"` entries become `MarketplaceConfig.external_plugins` and must pin a full commit `sha`.
+- `marketplace.claude_code.skill_listing_budget_chars` and `ref` on external marketplace `github`/`git` sources.
+- A kit's hook `timeout` is carried into the hook's `config.yaml`.
+- An unknown host in a skill's `hosts` list is a validation error.
+
+### Changed
+
+- Git checkouts and import staging use `{paths.storage}/data/scratch` instead of the system temp directory.
+- Managed and inventory SQL live in repository modules; inventory records are compared as typed values; git output readers use scoped threads; errors propagate without log-and-propagate.
+
+### Fixed
+
+- `MarketplacePluginEntry::local_path` no longer reads the `path` of a `git-subdir` source as a local folder; `plugin_source` reads `source` into `PluginSource::{Default, Local, Remote, Unsupported}`.
+- A `SKILL.md` whose authored frontmatter does not parse fails the consumer plan as `Integrity`.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

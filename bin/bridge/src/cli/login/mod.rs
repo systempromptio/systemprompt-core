@@ -9,8 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 mod pasted_code;
 
+pub use error::{LoginError, PastedCodeError};
 pub use pasted_code::{code_after_flag, extract_code, strip_terminal_noise};
 
 use std::io::IsTerminal;
@@ -66,14 +68,17 @@ pub fn cmd_login(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     finish_login(ctx, &token, gateway.as_deref(), args)
 }
 
-fn pat_from_stdin() -> Result<crate::ids::PatToken, String> {
+fn pat_from_stdin() -> Result<crate::ids::PatToken, LoginError> {
     let mut line = String::new();
     std::io::stdin()
         .read_line(&mut line)
-        .map_err(|e| format!("could not read the PAT from stdin: {e}"))?;
+        .map_err(|source| LoginError::Stdin {
+            what: "the PAT",
+            source,
+        })?;
     let token = line.trim();
     if token.is_empty() {
-        return Err("stdin carried no PAT".to_owned());
+        return Err(LoginError::EmptyStdin);
     }
     Ok(crate::ids::PatToken::new(token))
 }
@@ -106,26 +111,21 @@ fn sso_code(
     ctx: &BridgeContext,
     gateway: Option<&str>,
     no_browser: bool,
-) -> Result<String, String> {
+) -> Result<String, LoginError> {
     if !std::io::stdin().is_terminal() {
-        return Err(format!(
-            "signing in interactively needs a terminal. Unattended, redeem an \
-             administrator-issued code with `{bin} login --code <exchange-code>`, or \
-             pipe a PAT into `{bin} login --stdin`",
-            bin = crate::brand::brand().binary_name
-        ));
+        return Err(LoginError::NotATerminal {
+            bin: crate::brand::brand().binary_name,
+        });
     }
 
     let base_url = resolve_gateway(gateway)?;
 
     if !no_browser {
         return ctx.block_on(async move {
-            let server = LoopbackServer::bind()
-                .await
-                .map_err(|e| format!("could not bind the loopback callback listener: {e}"))?;
+            let server = LoopbackServer::bind().await.map_err(LoginError::Loopback)?;
             capture_on(server, &base_url)
                 .await
-                .map_err(|e| e.to_string())
+                .map_err(|e| LoginError::SignIn(Box::new(e)))
         });
     }
 
@@ -140,18 +140,21 @@ fn sso_code(
     let mut line = String::new();
     std::io::stdin()
         .read_line(&mut line)
-        .map_err(|e| format!("could not read the pasted code: {e}"))?;
-    extract_code(line.trim())
+        .map_err(|source| LoginError::Stdin {
+            what: "the pasted code",
+            source,
+        })?;
+    Ok(extract_code(line.trim())?)
 }
 
-pub fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, String> {
+pub fn resolve_gateway(gateway: Option<&str>) -> Result<ValidatedUrl, LoginError> {
     gateway.map_or_else(
         || {
             crate::config::load()
                 .map(|cfg| crate::config::gateway_url_or_default(&cfg))
-                .map_err(|e| e.to_string())
+                .map_err(LoginError::Config)
         },
-        |raw| ValidatedUrl::try_new(raw.trim()).map_err(|e| format!("--gateway: {e}")),
+        |raw| ValidatedUrl::try_new(raw.trim()).map_err(LoginError::GatewayFlag),
     )
 }
 
@@ -160,7 +163,7 @@ fn redeem_code(
     code: &str,
     gateway: Option<&str>,
     device_name: Option<String>,
-) -> Result<crate::ids::PatToken, String> {
+) -> Result<crate::ids::PatToken, LoginError> {
     let base_url = resolve_gateway(gateway)?;
     let req = SessionPatRequest {
         code: code.trim().to_owned(),
@@ -172,7 +175,7 @@ fn redeem_code(
             .session_pat_exchange(&req, &SessionId::generate())
             .await
     })
-    .map_err(|e| e.to_string())
+    .map_err(|e| LoginError::Gateway(Box::new(e)))
 }
 
 pub fn default_device_name() -> Option<String> {
@@ -182,23 +185,24 @@ pub fn default_device_name() -> Option<String> {
 // Why: attribution is best-effort — a login that stored a working PAT must
 // succeed even when the gateway cannot enrol this device right now.
 fn enroll_device_after_login(ctx: &BridgeContext, gateway: Option<&str>) {
-    let result = (|| -> Result<systemprompt_identifiers::DeviceId, String> {
-        let cfg = crate::config::load().map_err(|e| e.to_string())?;
+    let result = (|| -> Result<systemprompt_identifiers::DeviceId, LoginError> {
+        let cfg = crate::config::load().map_err(LoginError::Config)?;
         let base_url = resolve_gateway(gateway)?;
         let client = ctx.gateway_client(base_url);
         let http = ctx.http.clone();
-        let install_id = ctx.install_id().clone();
+        let install_id = ctx
+            .durable_install_id()
+            .cloned()
+            .ok_or(LoginError::InstallIdUnreadable)?;
         ctx.block_on(async move {
             let live = crate::auth::obtain_live_token(&cfg, &SessionId::generate(), &http)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| LoginError::Credential(Box::new(e)))?;
             let whoami = client
                 .fetch_whoami(&live.token)
                 .await
-                .map_err(|e| e.to_string())?;
-            let user_id = whoami
-                .user_id
-                .ok_or_else(|| "whoami carried no user id".to_owned())?;
+                .map_err(|e| LoginError::Gateway(Box::new(e)))?;
+            let user_id = whoami.user_id.ok_or(LoginError::NoUserId)?;
             let enrolment = crate::feedback::enrol::SelfEnrolment {
                 install_id: install_id.as_str(),
                 user_id: &user_id,
@@ -208,7 +212,7 @@ fn enroll_device_after_login(ctx: &BridgeContext, gateway: Option<&str>) {
             crate::feedback::enrol::ensure_self_enrolled(&client, &live.token, &enrolment)
                 .await
                 .map(|enrollment| enrollment.device_id)
-                .map_err(|e| e.to_string())
+                .map_err(|e| LoginError::Enrolment(Box::new(e)))
         })
     })();
     match result {

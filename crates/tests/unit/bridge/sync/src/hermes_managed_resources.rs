@@ -7,7 +7,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -62,6 +62,7 @@ fn manifest_with(
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -80,13 +81,14 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -104,7 +106,6 @@ fn ctx<'a>(
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers,
@@ -117,8 +118,6 @@ fn ctx<'a>(
 }
 
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -179,6 +178,7 @@ fn try_apply(
     let client = stub_client();
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     block_on(HermesSync.apply(&ctx(m, home, &client, &EMPTY_BEARER, &plugin_mcp_servers)))
+        .map(|_| ())
 }
 
 fn skills_dir(home: &Path) -> PathBuf {
@@ -539,5 +539,19 @@ fn an_empty_manifest_writes_no_skills_and_no_config_blocks() {
                 "no blocks for an empty manifest: {cfg}"
             );
         }
+    });
+}
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_hermes_home(|home| {
+        let mut entry = skill("tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(
+            &manifest_with(vec![entry], vec![], vec!["hermes".into()]),
+            home,
+        );
+        let written = fs::read_to_string(skill_md(home, "tooled")).unwrap();
+        crate::skill_passthrough::assert_passthrough_block(&written, "tooled");
     });
 }

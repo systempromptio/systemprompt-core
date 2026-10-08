@@ -5,20 +5,13 @@
 use systemprompt_content::models::{LinkType, UtmParams};
 use systemprompt_content::repository::LinkRepository;
 use systemprompt_content::services::link::{GenerateLinkParams, LinkGenerationService};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::CampaignId;
-
-async fn try_db_or_skip() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn generate_link_with_minimal_params_creates_row() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
+    let db = test_db_pool().await;
+    let svc = LinkGenerationService::new(LinkRepository::new(&db));
     let params = GenerateLinkParams {
         target_url: "https://example.com/landing".to_owned(),
         link_type: LinkType::Redirect,
@@ -40,10 +33,8 @@ async fn generate_link_with_minimal_params_creates_row() {
 
 #[tokio::test]
 async fn generate_link_with_utm_persists_utm_json() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
+    let db = test_db_pool().await;
+    let svc = LinkGenerationService::new(LinkRepository::new(&db));
     let utm = UtmParams {
         source: Some("twitter".to_owned()),
         medium: Some("social".to_owned()),
@@ -77,17 +68,15 @@ async fn generate_link_with_utm_persists_utm_json() {
 
 #[tokio::test]
 async fn generate_social_media_link_round_trips_through_get_by_short_code() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
+    let db = test_db_pool().await;
+    let svc = LinkGenerationService::new(LinkRepository::new(&db));
     let link = svc
         .generate_social_media_link("https://example.com/post", "linkedin", "release-week", None)
         .await
         .expect("social link");
 
     let fetched = svc
-        .get_link_by_short_code(&link.short_code)
+        .find_link_by_short_code(&link.short_code)
         .await
         .expect("query")
         .expect("present");
@@ -98,10 +87,8 @@ async fn generate_social_media_link_round_trips_through_get_by_short_code() {
 
 #[tokio::test]
 async fn delete_link_via_service_removes_row() {
-    let Some(db) = try_db_or_skip().await else {
-        return;
-    };
-    let svc = LinkGenerationService::new(LinkRepository::new(&db).expect("repo"));
+    let db = test_db_pool().await;
+    let svc = LinkGenerationService::new(LinkRepository::new(&db));
     let link = svc
         .generate_social_media_link("https://example.com/x", "x", "campaign-x", None)
         .await
@@ -110,7 +97,7 @@ async fn delete_link_via_service_removes_row() {
     assert!(removed);
 
     let fetched = svc
-        .get_link_by_short_code(&link.short_code)
+        .find_link_by_short_code(&link.short_code)
         .await
         .expect("query");
     assert!(fetched.is_none());

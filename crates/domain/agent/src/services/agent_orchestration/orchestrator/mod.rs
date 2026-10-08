@@ -5,63 +5,41 @@
 //! [`AppPaths`], runs startup reconciliation, and exposes the operator-facing
 //! verbs (start/stop/restart, status, health checks, bulk start/disable) by
 //! delegating to the owned lifecycle, monitor, and reconciler services. The
-//! `cleanup`, `daemon`, and `status` submodules carry orphan-process cleanup,
-//! the background monitoring loop, and status aggregation respectively.
+//! `cleanup`, `reconciliation`, and `status` submodules carry agent deletion,
+//! startup reconciliation, and status aggregation respectively.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod cleanup;
-mod daemon;
+mod reconciliation;
 mod status;
 
-use crate::services::shared::Result;
 use std::sync::Arc;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
 
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::event_bus::AgentEventBus;
-use crate::services::agent_orchestration::events::AgentEvent;
 use crate::services::agent_orchestration::lifecycle::AgentLifecycle;
 use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::AgentName;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
-    pub id: AgentId,
-    pub name: String,
+    pub name: AgentName,
     pub status: AgentStatus,
     pub port: u16,
 }
 
+#[derive(Debug)]
 pub struct AgentOrchestrator {
     pub(super) db_service: AgentDatabaseService,
     pub(super) lifecycle: AgentLifecycle,
     pub(super) reconciler: AgentReconciler,
     monitor: AgentMonitor,
-    pub(super) monitoring_handle: Option<JoinHandle<Result<()>>>,
-    pub(super) agent_state: Arc<AgentState>,
-    event_bus: Arc<AgentEventBus>,
-}
-
-impl std::fmt::Debug for AgentOrchestrator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AgentOrchestrator")
-            .field("db_service", &self.db_service)
-            .field("lifecycle", &self.lifecycle)
-            .field("reconciler", &self.reconciler)
-            .field("monitor", &self.monitor)
-            .field("monitoring_handle", &self.monitoring_handle.is_some())
-            .field("agent_state", &"<AgentState>")
-            .field("event_bus", &self.event_bus)
-            .finish()
-    }
 }
 
 impl AgentOrchestrator {
@@ -74,14 +52,8 @@ impl AgentOrchestrator {
 
         let agent_repo = agent_state.repositories().agent_services.clone();
 
-        let event_bus = Arc::new(AgentEventBus::new(100));
-
         let db_service = AgentDatabaseService::new(agent_repo.clone())?;
-        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths)
-            .map_err(|e| {
-                crate::services::agent_orchestration::OrchestrationError::Generic(e.to_string())
-            })?
-            .with_event_bus(Arc::clone(&event_bus));
+        let lifecycle = AgentLifecycle::new(agent_repo.clone(), app_paths)?;
         let reconciler = AgentReconciler::new(agent_repo.clone())?;
         let monitor = AgentMonitor::new(agent_repo)?;
 
@@ -90,19 +62,12 @@ impl AgentOrchestrator {
             lifecycle,
             reconciler,
             monitor,
-            monitoring_handle: None,
-            agent_state,
-            event_bus,
         };
 
         orchestrator.startup_reconciliation(events).await?;
 
         tracing::debug!("Agent Orchestrator initialized");
         Ok(orchestrator)
-    }
-
-    pub fn subscribe_events(&self) -> broadcast::Receiver<AgentEvent> {
-        self.event_bus.subscribe()
     }
 
     pub fn set_registry(&mut self, registry: crate::services::registry::AgentRegistry) {
@@ -112,7 +77,7 @@ impl AgentOrchestrator {
 
     pub async fn start_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.start_agent(agent_name, events).await
@@ -120,39 +85,35 @@ impl AgentOrchestrator {
 
     pub async fn enable_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.enable_agent(agent_name, events).await
     }
 
-    pub async fn disable_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn disable_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.lifecycle.disable_agent(agent_name).await
     }
 
     pub async fn restart_agent(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
         self.lifecycle.restart_agent(agent_name, events).await
     }
 
-    pub async fn get_status(&self, agent_name: &str) -> OrchestrationResult<AgentStatus> {
+    pub async fn get_status(&self, agent_name: &AgentName) -> OrchestrationResult<AgentStatus> {
         self.db_service.get_status(agent_name).await
     }
 
-    pub async fn list_agents(&self) -> OrchestrationResult<Vec<(String, AgentStatus)>> {
+    pub async fn list_agents(&self) -> OrchestrationResult<Vec<(AgentName, AgentStatus)>> {
         self.db_service.list_all_agents().await
-    }
-
-    pub async fn cleanup_crashed_agents(&self) -> OrchestrationResult<u64> {
-        self.db_service.cleanup_orphaned_services().await
     }
 
     pub async fn health_check(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> OrchestrationResult<monitor::HealthCheckResult> {
         self.monitor.comprehensive_health_check(agent_name).await
     }
@@ -160,9 +121,9 @@ impl AgentOrchestrator {
     pub async fn disable_all(&self) -> OrchestrationResult<()> {
         let agents = self.db_service.list_all_agents().await?;
 
-        for (agent_id, _) in agents {
-            if let Err(e) = self.disable_agent(&agent_id).await {
-                tracing::error!(agent_id = %agent_id, error = %e, "Failed to disable agent");
+        for (agent_name, _) in agents {
+            if let Err(e) = self.disable_agent(&agent_name).await {
+                tracing::error!(agent_name = %agent_name, error = %e, "Failed to disable agent");
             }
         }
 
@@ -198,7 +159,7 @@ impl AgentOrchestrator {
 
     pub async fn update_agent_running(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         pid: u32,
         port: u16,
     ) -> OrchestrationResult<()> {
@@ -207,15 +168,7 @@ impl AgentOrchestrator {
             .await
     }
 
-    pub async fn update_agent_stopped(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn update_agent_stopped(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         self.db_service.update_agent_stopped(agent_name).await
-    }
-}
-
-impl Drop for AgentOrchestrator {
-    fn drop(&mut self) {
-        if let Some(handle) = self.monitoring_handle.take() {
-            handle.abort();
-        }
     }
 }

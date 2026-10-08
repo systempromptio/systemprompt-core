@@ -14,7 +14,7 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
-use crate::models::{CreateEngagementEventInput, EngagementEvent};
+use crate::models::{CreateEngagementEventInput, EngagementEvent, EngagementEventRow};
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -23,10 +23,10 @@ pub struct EngagementRepository {
 }
 
 impl EngagementRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn create_engagement(
@@ -88,7 +88,7 @@ impl EngagementRepository {
 
     pub async fn find_by_id(&self, id: &EngagementEventId) -> Result<Option<EngagementEvent>> {
         let event = sqlx::query_as!(
-            EngagementEvent,
+            EngagementEventRow,
             r#"
             SELECT
                 id as "id: EngagementEventId", session_id, user_id, page_url,
@@ -110,14 +110,15 @@ impl EngagementRepository {
             id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await
+        .map(|row| row.map(EngagementEvent::from))?;
 
         Ok(event)
     }
 
     pub async fn list_by_user(&self, user_id: &UserId, limit: i64) -> Result<Vec<EngagementEvent>> {
         let events = sqlx::query_as!(
-            EngagementEvent,
+            EngagementEventRow,
             r#"
             SELECT
                 id as "id: EngagementEventId", session_id, user_id, page_url,
@@ -142,7 +143,7 @@ impl EngagementRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await.map(|rows| rows.into_iter().map(EngagementEvent::from).collect::<Vec<_>>())?;
 
         Ok(events)
     }

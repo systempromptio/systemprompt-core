@@ -44,6 +44,7 @@ pub mod repository;
 pub mod resolver;
 pub mod rule_based;
 pub mod runtime;
+pub mod scope_binding;
 pub mod subject;
 pub mod subject_directory;
 pub mod types;
@@ -73,10 +74,12 @@ pub use registry::{AuthzHookContext, AuthzHookRegistration, discover_authz_hook}
 pub use repository::{AccessControlRepository, ChainFingerprint, UpsertRuleParams};
 pub use rule_based::RuleBasedHook;
 pub use runtime::build_authz_hook;
+pub use scope_binding::ScopeBindingError;
 pub use subject::{
     NO_SUBJECT_ATTRIBUTES, ROLE_PRECEDENCE, SharedSubjectAttributeProvider,
     SubjectAttributeProvider, SubjectAttributes, SubjectDimension, SubjectProviderRegistration,
-    USER_PRECEDENCE, dimensions_of, discover_subject_providers, gather_subject_attributes,
+    SubjectProviderSet, USER_PRECEDENCE, dimensions_of, discover_subject_providers,
+    gather_subject_attributes,
 };
 pub use subject_directory::{
     RoleDirectory, RoleDirectoryRegistration, SharedRoleDirectory, discover_role_directory,

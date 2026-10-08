@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 use tokio::sync::Mutex;
 
-use super::types::ApiError;
+use super::types::CloudApiError;
 use crate::error::{CloudError, CloudResult};
 
 pub(super) type TenantTokenCache = Arc<Mutex<Option<(String, Instant)>>>;
@@ -92,13 +92,15 @@ pub(super) async fn parse_error_response(
         },
     };
 
-    serde_json::from_str::<ApiError>(&error_text).map_or_else(
+    serde_json::from_str::<CloudApiError>(&error_text).map_or_else(
         |_| CloudError::HttpStatus {
             status: status.as_u16(),
             body: error_text.chars().take(500).collect(),
         },
         |parsed| CloudError::ApiError {
-            message: format!("{}: {}", parsed.error.code, parsed.error.message),
+            status: status.as_u16(),
+            code: parsed.error.code,
+            message: parsed.error.message,
         },
     )
 }

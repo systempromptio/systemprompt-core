@@ -64,13 +64,7 @@ pub struct DisplayOpts {
 
 #[derive(Debug, clap::Args)]
 pub struct DatabaseOpts {
-    #[arg(
-        long,
-        global = true,
-        env = "SYSTEMPROMPT_DATABASE_URL",
-        hide_env_values = true,
-        help = "Direct database URL (bypasses profile)"
-    )]
+    #[arg(long, global = true, help = "Direct database URL (bypasses profile)")]
     pub database_url: Option<String>,
 }
 
@@ -164,6 +158,21 @@ pub enum Commands {
 
 impl DescribeCommand for Commands {
     fn descriptor(&self) -> CommandDescriptor {
+        self.bootstrap_descriptor()
+            .with_data_impact(self.data_impact())
+    }
+}
+
+impl Commands {
+    #[must_use]
+    pub const fn serves_api(&self) -> bool {
+        match self {
+            Self::Infra(infrastructure::InfraCommands::Services(cmd)) => cmd.serves_api(),
+            _ => false,
+        }
+    }
+
+    fn bootstrap_descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Cloud(cmd) => cmd.descriptor(),
             Self::Plugins(cmd) => cmd.descriptor(),
@@ -221,7 +230,6 @@ impl DescribeCommand for Commands {
 // silent no-op on every boot.
 const fn infra_descriptor(cmd: &infrastructure::InfraCommands) -> CommandDescriptor {
     use infrastructure::InfraCommands;
-    use infrastructure::db::DbCommands;
     use infrastructure::jobs::JobsCommands;
     use infrastructure::logs::LogsCommands;
     use infrastructure::services::ServicesCommands;
@@ -231,20 +239,11 @@ const fn infra_descriptor(cmd: &infrastructure::InfraCommands) -> CommandDescrip
             ServicesCommands::Serve { .. } | ServicesCommands::Start { .. },
         ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS.with_model_discovery(),
         InfraCommands::Services(_) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
-        InfraCommands::Jobs(JobsCommands::Run(_)) => CommandDescriptor::FULL
-            .with_skip_validation()
-            .with_explicit_cloud_profile(),
-        InfraCommands::Jobs(JobsCommands::List) => CommandDescriptor::FULL.with_skip_validation(),
-        InfraCommands::Db(
-            DbCommands::Migrate { .. }
-            | DbCommands::MigrateDown { .. }
-            | DbCommands::MigrateRepair { .. }
-            | DbCommands::MigrateMarkApplied { .. }
-            | DbCommands::Execute { .. }
-            | DbCommands::AssignAdmin { .. },
-        )
-        | InfraCommands::Logs(LogsCommands::Delete(_) | LogsCommands::Cleanup(_)) => {
-            CommandDescriptor::FULL.with_explicit_cloud_profile()
+        InfraCommands::Jobs(JobsCommands::Run(_) | JobsCommands::List) => {
+            CommandDescriptor::FULL.with_skip_validation()
+        },
+        InfraCommands::Logs(LogsCommands::Delete(_) | LogsCommands::Cleanup(_)) => {
+            CommandDescriptor::FULL
         },
         InfraCommands::Logs(_) => CommandDescriptor::FULL.with_read_only(),
         _ => CommandDescriptor::FULL,
@@ -252,6 +251,7 @@ const fn infra_descriptor(cmd: &infrastructure::InfraCommands) -> CommandDescrip
 }
 
 mod assemble;
+mod impact;
 
 pub use assemble::{
     build_cli_config, has_local_export_flag, has_local_export_flag_in, reconstruct_args,

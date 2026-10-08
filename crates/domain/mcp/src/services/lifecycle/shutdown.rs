@@ -3,62 +3,82 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::LifecycleOrchestrator;
+use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::database::ServiceLifecycleStatus;
+use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_loader::subprocess::StopOutcome;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn stop_server(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<()> {
     tracing::info!(service = %config.name, "Stopping MCP service");
 
-    let Some(pid) = find_running_process(manager, config).await? else {
+    let Some(pid) = find_running_process(lifecycle, config).await? else {
         tracing::debug!(service = %config.name, "Service is already stopped");
-        cleanup_stale_state(manager, config).await?;
+        cleanup_stale_state(lifecycle, config).await?;
         return Ok(());
     };
 
-    manager
+    lifecycle
         .database()
-        .update_service_status(&config.name, ServiceLifecycleStatus::Stopping)
+        .update_service_status(&config.service_name(), ServiceStatus::Stopping)
         .await?;
 
-    perform_graceful_shutdown(manager, config, pid).await?;
+    perform_graceful_shutdown(lifecycle, config, pid).await?;
 
-    finalize_shutdown(manager, config).await?;
+    finalize_shutdown(lifecycle, config).await?;
 
     tracing::info!(service = %config.name, "Service stopped successfully");
     Ok(())
 }
 
 async fn find_running_process(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<Option<u32>> {
-    if let Some(db_service) = manager.database().get_service_by_name(&config.name).await?
-        && let Some(db_pid) = db_service.pid
-        && ProcessService::is_running(db_pid as u32)
+    if let Some(db_service) = lifecycle
+        .database()
+        .get_service_by_name(&config.service_name())
+        .await?
+        && let Some(db_pid) = stored_pid(db_service.pid)
+        && ProcessService::is_running(db_pid).await
     {
-        return Ok(Some(db_pid as u32));
+        return Ok(Some(db_pid));
     }
 
-    ProcessService::find_pid_by_port(config.spawn_port()?)
+    Ok(
+        ProcessService::owned_port_holders(config.spawn_port()?, &config.service_name())
+            .await?
+            .into_iter()
+            .next(),
+    )
 }
 
 async fn perform_graceful_shutdown(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
     pid: u32,
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, pid = pid, "Performing graceful shutdown");
 
-    ProcessService::terminate_gracefully_verified(pid, &config.name).await?;
+    match ProcessService::stop(pid, &config.service_name()).await? {
+        StopOutcome::NotRunning | StopOutcome::Stopped(_) => {},
+        StopOutcome::NotOurs => {
+            tracing::warn!(
+                service = %config.name,
+                pid,
+                "Recorded pid belongs to another process; clearing the row without signalling it"
+            );
+            return Ok(());
+        },
+    }
 
-    manager
+    lifecycle
         .network()
         .wait_for_port_release(config.spawn_port()?)
         .await?;
@@ -67,26 +87,36 @@ async fn perform_graceful_shutdown(
 }
 
 async fn finalize_shutdown(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<()> {
-    manager
+    lifecycle
         .database()
-        .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)
+        .update_service_status(&config.service_name(), ServiceStatus::Stopped)
         .await?;
-    manager.database().clear_service_pid(&config.name).await?;
+    lifecycle
+        .database()
+        .clear_service_pid(&config.service_name())
+        .await?;
 
     Ok(())
 }
 
 async fn cleanup_stale_state(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<()> {
     tracing::debug!(service = %config.name, "Cleaning up stale database entries");
 
-    if let Some(service) = manager.database().get_service_by_name(&config.name).await? {
-        manager.database().unregister_service(&service.name).await?;
+    if let Some(service) = lifecycle
+        .database()
+        .get_service_by_name(&config.service_name())
+        .await?
+    {
+        lifecycle
+            .database()
+            .unregister_service(&service.name)
+            .await?;
         tracing::debug!(service = %config.name, "Cleaned up stale entry");
     }
 

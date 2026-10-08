@@ -1,20 +1,21 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use systemprompt_identifiers::{MarketplaceId, PluginId};
+use systemprompt_identifiers::{
+    MarketplaceId, MarketplaceRuleId, PluginId, RuleName, SkillId, SkillName,
+};
 use systemprompt_loader::ConfigLoader;
+use systemprompt_manifest::services::marketplace::{
+    MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceVisibility,
+};
+use systemprompt_manifest::services::plugin::{PluginAuthor, PluginConfig};
 use systemprompt_marketplace::catalog::load_rules;
 use systemprompt_marketplace::{
     BundleContent, ImportOptions, build_plugin_bundle, import_anthropic_tree,
 };
-use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest, SkillId, SkillName};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{RuleEntry, SkillEntry};
-use systemprompt_models::services::marketplace::{
-    MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceVisibility,
-};
-use systemprompt_models::services::plugin::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-};
+use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 use tempfile::TempDir;
 
 use crate::import_tree::fixture;
@@ -52,7 +53,7 @@ fn original_plugin() -> PluginConfig {
         mcp_servers: explicit(&["knowledge-bank"]),
         content_sources: PluginComponentRef::default(),
         artifacts: PluginComponentRef::default(),
-        hooks: systemprompt_models::services::plugin::PluginHooksRef::default(),
+        hooks: systemprompt_models::plugin::PluginHooksRef::default(),
         scripts: Vec::new(),
         dependencies: vec![],
     }
@@ -79,7 +80,7 @@ fn original_marketplace() -> MarketplaceConfig {
             rules: vec![MarketplaceAccessRule {
                 rule_type: "group".to_owned(),
                 values: vec!["field".to_owned()],
-                access: systemprompt_models::services::marketplace::MarketplaceRuleAccess::Allow,
+                access: systemprompt_manifest::services::marketplace::MarketplaceRuleAccess::Allow,
                 justification: Some("Field delivery group tooling".to_owned()),
             }],
             attributes: Default::default(),
@@ -87,6 +88,8 @@ fn original_marketplace() -> MarketplaceConfig {
         },
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -105,12 +108,13 @@ fn skill_entry(id: &str, description: &str) -> SkillEntry {
         instructions: format!("Instructions for {id}."),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
 fn rule_entry(id: &str, body: &str) -> RuleEntry {
     RuleEntry {
-        id: RuleId::try_new(id).expect("rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("rule id"),
         name: RuleName::try_new(id).expect("rule name"),
         description: format!("{id} description"),
         file_path: format!("/nonexistent/rules/{id}/index.md"),
@@ -236,8 +240,12 @@ fn a_generated_tree_imports_back_to_the_configuration_it_came_from() {
     write_anthropic_tree(source.path(), &plugin, &marketplace);
 
     let dest = TempDir::new().expect("tempdir");
-    import_anthropic_tree(source.path(), dest.path(), &ImportOptions::default())
-        .expect("import succeeds");
+    import_anthropic_tree(
+        source.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect("import succeeds");
 
     let services = ConfigLoader::load_from_path(&dest.path().join("config/config.yaml"))
         .expect("imported tree loads");

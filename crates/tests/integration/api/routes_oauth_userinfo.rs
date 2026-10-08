@@ -16,7 +16,7 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use systemprompt_api::routes::oauth::{public_router, wellknown_routes};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
 use systemprompt_traits::AppContext as _;

@@ -1,16 +1,12 @@
 //! DB-backed tests for `services::database::state` helpers.
 
+use crate::harness::unique_instance;
 use std::path::PathBuf;
 use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::database::state::{
     get_binary_mtime, get_service_by_name, unregister_service,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
 fn get_binary_mtime_missing_file_returns_none() {
@@ -26,27 +22,31 @@ fn get_binary_mtime_existing_file_returns_some() {
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
+    let db = test_db_pool().await;
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
+    let r = get_service_by_name(
+        &svc_repo,
+        &systemprompt_identifiers::ServiceName::new(format!(
+            "svc-{}",
+            uuid::Uuid::new_v4().simple()
+        )),
     )
+    .await
     .unwrap();
-    let r = get_service_by_name(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
-        .await
-        .unwrap();
     assert!(r.is_none());
 }
 
 #[tokio::test]
 async fn unregister_service_missing_no_panic() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
+    let db = test_db_pool().await;
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
+    unregister_service(
+        &svc_repo,
+        &systemprompt_identifiers::ServiceName::new(format!(
+            "svc-{}",
+            uuid::Uuid::new_v4().simple()
+        )),
     )
+    .await
     .unwrap();
-    unregister_service(&svc_repo, &format!("svc-{}", uuid::Uuid::new_v4().simple()))
-        .await
-        .unwrap();
 }

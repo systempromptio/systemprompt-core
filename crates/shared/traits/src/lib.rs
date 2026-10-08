@@ -5,7 +5,9 @@
 //! This crate defines the abstractions every other layer (infra, domain,
 //! app, entry) implements or consumes: configuration, database handle,
 //! analytics, authentication, JWT, file storage, repositories, and the
-//! cross-cutting [`ExtensionError`] contract.
+//! cross-cutting [`ExtensionError`] contract. It also hosts the one
+//! concrete runtime primitive every layer shares: the [`BackgroundTasks`]
+//! owner for work that outlives its caller.
 //!
 //! ## Layering
 //!
@@ -33,13 +35,16 @@
 //!
 //! ## Feature flags
 //!
-//! This crate exposes no Cargo features.
+//! - `sqlx` — `From<sqlx::Error>` for [`RepositoryError`], classifying a
+//!   database error by SQLSTATE. Enabled by `systemprompt-database`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod ai_providers;
 pub mod analytics;
+pub mod background_tasks;
+pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;
@@ -60,9 +65,10 @@ pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    Job, JobContext, JobResult, JobScope, ProviderError, ProviderResult, ServerListingFailure,
-    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
-    ToolProvider, ToolProviderError, ToolProviderResult, submit_job,
+    Dependencies, Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError,
+    ProviderResult, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent,
+    ToolContext, ToolDefinition, ToolInventory, ToolProvider, ToolProviderError,
+    ToolProviderResult, submit_job,
 };
 
 pub use context::{
@@ -74,10 +80,12 @@ pub use systemprompt_identifiers::{
     DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime,
 };
 
-pub use repository::RepositoryError;
+pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
 
 pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
-pub use tool_executions::{DynToolExecutionLookup, ToolExecutionLookup};
+pub use tool_executions::{
+    DynToolCallIntentClaims, DynToolExecutionLookup, ToolCallIntentClaims, ToolExecutionLookup,
+};
 
 pub use log_service::LogService;
 
@@ -88,20 +96,20 @@ pub use managed_resources::{
 
 pub use context_provider::{
     ContextMaterializer, ContextProvider, ContextProviderError, ContextStats, ContextWithStats,
-    DynContextMaterializer, DynContextProvider, EnsureContextParams,
+    DynContextMaterializer, EnsureContextParams,
 };
 
 pub use validation::{MetadataValidation, MetadataValidationError, Validate, ValidationResult};
 
 pub use analytics::{
     ActiveSession, AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
-    CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, DynSessionUsageCounters,
-    ExtractSignals, FingerprintProvider, SessionAnalytics, SessionUsageCounters,
+    CreateSessionInput, DynSessionUsageCounters, ExtractSignals, FingerprintProvider,
+    SessionAnalytics, SessionUsageCounters,
 };
 
 pub use auth::{
-    AuthProviderError, AuthResult, AuthUser, DynRoleProvider, DynUserProvider,
-    FederatedIdentityClaims, RoleProvider, SenderIdentity, UserProvider,
+    AuthProviderError, AuthResult, AuthUser, FederatedIdentityClaims, RoleProvider, SenderIdentity,
+    UserProvider,
 };
 
 pub use storage::{
@@ -110,18 +118,17 @@ pub use storage::{
 
 pub use ai_providers::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
-    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiRequestTrace,
-    DynAiSessionProvider, ImageGenerationInfo, ImageMetadata, ImageStorageConfig,
-    InsertAiFileParams, TraceMessage, TraceRequestStatus, TraceRequestUsage, TraceSample,
-    TraceSampleFilter, TraceSampleMode,
+    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
+    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, TraceMessage,
+    TraceRequestStatus, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
 };
 
 pub use registry::{
-    AgentInfo, AgentRegistryProvider, DynAgentRegistryProvider, DynMcpRegistryProvider,
-    McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig,
+    AgentInfo, AgentRegistryProvider, McpRegistryProvider, McpServerInfo, RegistryError,
+    ServiceOAuthConfig,
 };
 
-pub use extension_error::{ExtensionApiError, ExtensionError, McpErrorData};
+pub use extension_error::{ExtensionError, McpErrorData};
 
 pub use domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
 
@@ -138,6 +145,6 @@ mod startup_events;
 pub use startup_events::*;
 
 pub mod session_store;
-pub use analytics::{DynSessionProvider, SessionProvider};
+pub use analytics::SessionProvider;
 pub use analytics_events::{AnalyticsEventRecord, AnalyticsEventStore, DynAnalyticsEventStore};
 pub use session_store::{DynSessionStore, SessionStore};

@@ -1,7 +1,7 @@
 //! Dispatch-failure classification for the gateway `/messages` handler.
 //!
-//! `classify_dispatch_error` picks the client-facing status by downcasting the
-//! opaque `anyhow::Error` the gateway service returns; `map_dispatch_error`
+//! `classify_dispatch_error` picks the client-facing status by matching the
+//! typed `GatewayError` the gateway service returns; `map_dispatch_error`
 //! wraps it, and decides both whether a quota failure becomes a rendered 429
 //! (rather than a rejection) and whether the rejection gets persisted for
 //! audit. These are the only places the caller's status is decided, so every
@@ -12,11 +12,16 @@ use systemprompt_ai::UpstreamTargetError;
 use systemprompt_api::routes::gateway::messages::dispatch::errors::{
     classify_dispatch_error, map_dispatch_error,
 };
-use systemprompt_api::services::gateway::pricing::MissingPricing;
-use systemprompt_api::services::gateway::protocol::outbound::UpstreamError;
-use systemprompt_api::services::gateway::service::{
-    DispatchError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded, SafetyBlocked,
+use systemprompt_api::routes::gateway::messages::error::{
+    GATEWAY_SERVER_ERROR_MESSAGE, RejectionError,
 };
+use systemprompt_gateway::pricing::MissingPricing;
+use systemprompt_gateway::protocol::outbound::UpstreamError;
+use systemprompt_gateway::service::{
+    DispatchError, GatewayError, GovernanceDenied, GuardForbidden, PolicyDenied, QuotaExceeded,
+    SafetyBlocked,
+};
+use systemprompt_identifiers::ProviderRequestId;
 
 fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
     let err = map_dispatch_error(e).expect_err("this error must not render a response");
@@ -25,7 +30,9 @@ fn rejection(e: DispatchError) -> (StatusCode, String, bool) {
 
 #[test]
 fn a_policy_denial_is_a_400_carrying_the_policy_reason() {
-    let (status, message) = classify_dispatch_error(&anyhow::Error::new(PolicyDenied(
+    let RejectionError {
+        status, message, ..
+    } = classify_dispatch_error(GatewayError::from(PolicyDenied(
         "model not allowed".to_owned(),
     )));
 
@@ -40,7 +47,9 @@ fn a_policy_denial_is_a_400_carrying_the_policy_reason() {
 
 #[test]
 fn a_safety_block_is_a_400_carrying_the_scanner_message() {
-    let (status, message) = classify_dispatch_error(&anyhow::Error::new(SafetyBlocked {
+    let RejectionError {
+        status, message, ..
+    } = classify_dispatch_error(GatewayError::from(SafetyBlocked {
         category: "self-harm".to_owned(),
         message: "blocked by safety scanner".to_owned(),
     }));
@@ -54,11 +63,13 @@ fn a_safety_block_is_a_400_carrying_the_scanner_message() {
 
 #[test]
 fn an_upstream_status_is_delegated_to_the_upstream_mapping() {
-    let (status, message) = classify_dispatch_error(&anyhow::Error::new(UpstreamError::Status {
+    let RejectionError {
+        status, message, ..
+    } = classify_dispatch_error(GatewayError::from(UpstreamError::Status {
         provider: "anthropic".to_owned(),
         status: 429,
         message: "slow down".to_owned(),
-        body: bytes::Bytes::new(),
+        body: Box::new(bytes::Bytes::new()),
         retry_after: None,
         request_id: None,
     }));
@@ -68,44 +79,64 @@ fn an_upstream_status_is_delegated_to_the_upstream_mapping() {
 }
 
 #[test]
-fn an_unrecognised_error_collapses_to_502() {
-    let (status, message) = classify_dispatch_error(&anyhow::anyhow!("connection reset"));
+fn an_internal_failure_is_a_502_that_never_renders_its_cause() {
+    let rejection = classify_dispatch_error(GatewayError::internal(
+        "outbound request failed",
+        std::io::Error::other("connection reset by 10.0.0.7"),
+    ));
 
-    assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert_eq!(message, "connection reset");
+    assert_eq!(rejection.status, StatusCode::BAD_GATEWAY);
+    assert_eq!(rejection.public_message(), GATEWAY_SERVER_ERROR_MESSAGE);
+    assert!(!rejection.public_message().contains("10.0.0.7"));
+    assert!(!rejection.message.contains("10.0.0.7"));
+    assert!(
+        rejection.cause.is_some(),
+        "the cause is kept for the log rather than discarded"
+    );
 }
 
 #[test]
 fn an_unconfigured_provider_secret_is_a_non_retryable_404() {
-    let (status, message) =
-        classify_dispatch_error(&anyhow::Error::new(UpstreamTargetError::MissingSecret {
-            provider: "vertex-maas".to_owned(),
-            secret: "vertex_maas".to_owned(),
-        }));
+    let RejectionError {
+        status,
+        message,
+        cause,
+        ..
+    } = classify_dispatch_error(GatewayError::from(UpstreamTargetError::MissingSecret {
+        provider: "vertex-maas".to_owned(),
+        secret: "vertex_maas".to_owned(),
+    }));
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(!status.is_server_error());
-    assert_eq!(
-        message,
-        "provider 'vertex-maas' secret 'vertex_maas' is not configured"
+    assert_eq!(message, "The requested model is not served by this gateway");
+    assert!(
+        !message.contains("vertex_maas"),
+        "the secret name is deployment detail and must not reach the client"
+    );
+    assert!(
+        cause.is_some_and(|cause| cause.to_string().contains("vertex_maas")),
+        "the operator still learns which secret is missing from the logged cause"
     );
 }
 
 #[test]
 fn a_model_without_pricing_is_a_non_retryable_404() {
-    let (status, message) = classify_dispatch_error(&anyhow::Error::new(MissingPricing {
+    let RejectionError {
+        status, message, ..
+    } = classify_dispatch_error(GatewayError::from(MissingPricing {
         provider: "gemini".to_owned(),
         models: vec!["gemini-2.5-flash".to_owned()],
     }));
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(message.contains("No configured pricing for provider gemini"));
+    assert_eq!(message, "The requested model is not served by this gateway");
 }
 
 #[test]
 fn a_secrets_store_outage_stays_a_502() {
-    let (status, _) = classify_dispatch_error(&anyhow::Error::new(
-        UpstreamTargetError::SecretsUnavailable("store offline".to_owned()),
+    let RejectionError { status, .. } = classify_dispatch_error(GatewayError::from(
+        UpstreamTargetError::SecretsUnavailable("store offline".into()),
     ));
 
     assert_eq!(status, StatusCode::BAD_GATEWAY);
@@ -113,7 +144,7 @@ fn a_secrets_store_outage_stays_a_502() {
 
 #[test]
 fn an_unservable_model_is_still_persisted_for_audit() {
-    let (status, _, persist) = rejection(DispatchError::PreAudit(anyhow::Error::new(
+    let (status, _, persist) = rejection(DispatchError::PreAudit(GatewayError::from(
         UpstreamTargetError::MissingSecret {
             provider: "vertex-maas".to_owned(),
             secret: "vertex_maas".to_owned(),
@@ -126,9 +157,10 @@ fn an_unservable_model_is_still_persisted_for_audit() {
 
 #[test]
 fn a_quota_failure_renders_a_429_response_with_retry_after() {
-    let response = map_dispatch_error(DispatchError::PreAudit(anyhow::Error::new(QuotaExceeded {
+    let response = map_dispatch_error(DispatchError::PreAudit(GatewayError::from(QuotaExceeded {
         message: "monthly budget exhausted".to_owned(),
         retry_after_seconds: 90,
+        detail: None,
     })))
     .expect("a quota failure renders a response rather than a rejection");
 
@@ -144,7 +176,7 @@ fn a_quota_failure_renders_a_429_response_with_retry_after() {
 
 #[test]
 fn a_guard_forbidden_renders_a_403_response_without_retry_after() {
-    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+    let response = map_dispatch_error(DispatchError::Recorded(GatewayError::from(
         GuardForbidden {
             message: "your plan does not include this model".to_owned(),
         },
@@ -160,8 +192,14 @@ fn a_guard_forbidden_renders_a_403_response_without_retry_after() {
 
 #[test]
 fn a_pre_audit_failure_is_persisted_but_a_recorded_one_is_not() {
-    let (_, _, pre_audit_persists) = rejection(DispatchError::PreAudit(anyhow::anyhow!("boom")));
-    let (_, _, recorded_persists) = rejection(DispatchError::Recorded(anyhow::anyhow!("boom")));
+    let (_, _, pre_audit_persists) = rejection(DispatchError::PreAudit(GatewayError::internal(
+        "test failure",
+        std::io::Error::other("boom"),
+    )));
+    let (_, _, recorded_persists) = rejection(DispatchError::Recorded(GatewayError::internal(
+        "test failure",
+        std::io::Error::other("boom"),
+    )));
 
     assert!(
         pre_audit_persists,
@@ -175,7 +213,7 @@ fn a_pre_audit_failure_is_persisted_but_a_recorded_one_is_not() {
 
 #[test]
 fn map_dispatch_error_preserves_the_classified_status() {
-    let (status, message, _) = rejection(DispatchError::Recorded(anyhow::Error::new(
+    let (status, message, _) = rejection(DispatchError::Recorded(GatewayError::from(
         PolicyDenied("denied".to_owned()),
     )));
 
@@ -185,7 +223,7 @@ fn map_dispatch_error_preserves_the_classified_status() {
 
 #[tokio::test]
 async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operator() {
-    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+    let response = map_dispatch_error(DispatchError::Recorded(GatewayError::from(
         GovernanceDenied {
             policy: "tool_blocklist".to_owned(),
             message: "tool blocked: send_email".to_owned(),
@@ -219,7 +257,7 @@ async fn a_governance_denial_renders_an_envelope_the_client_will_show_the_operat
 
 #[tokio::test]
 async fn a_secret_scan_governance_denial_is_not_promoted_to_repair_guidance() {
-    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+    let response = map_dispatch_error(DispatchError::Recorded(GatewayError::from(
         GovernanceDenied {
             policy: "secret_scan".to_owned(),
             message: "secret detected: High-entropy token at prompt.text".to_owned(),
@@ -237,7 +275,7 @@ async fn a_secret_scan_governance_denial_is_not_promoted_to_repair_guidance() {
 
 #[test]
 fn a_guard_rejection_stays_a_403_because_re_authenticating_can_fix_it() {
-    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+    let response = map_dispatch_error(DispatchError::Recorded(GatewayError::from(
         GuardForbidden {
             message: "no gateway scope".to_owned(),
         },
@@ -264,14 +302,15 @@ fn upstream(
         provider: "anthropic".to_owned(),
         status,
         message: "upstream said no".to_owned(),
-        body: bytes::Bytes::from(body.to_owned()),
+        body: Box::new(bytes::Bytes::from(body.to_owned())),
         retry_after: retry_after.map(ToOwned::to_owned),
-        request_id: request_id.map(ToOwned::to_owned),
+        request_id: request_id
+            .map(|id| ProviderRequestId::try_new(id).expect("valid provider request id")),
     }
 }
 
 fn relayed(e: UpstreamError) -> axum::response::Response<axum::body::Body> {
-    map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(e)))
+    map_dispatch_error(DispatchError::Recorded(GatewayError::from(e)))
         .expect("an upstream rejection with a body must be relayed, not re-wrapped")
 }
 
@@ -375,7 +414,7 @@ async fn absent_upstream_headers_are_not_invented() {
 // the branch every other test in this file happens to take.
 #[test]
 fn an_upstream_rejection_with_no_body_falls_through_to_classification() {
-    let (status, message, _) = rejection(DispatchError::Recorded(anyhow::Error::new(upstream(
+    let (status, message, _) = rejection(DispatchError::Recorded(GatewayError::from(upstream(
         429, "", None, None,
     ))));
 
@@ -394,7 +433,7 @@ fn an_upstream_rejection_with_no_body_falls_through_to_classification() {
 // Only a value HTTP cannot express reaches this branch.
 #[test]
 fn an_upstream_status_outside_the_http_range_falls_through_to_classification() {
-    let (status, _, _) = rejection(DispatchError::Recorded(anyhow::Error::new(upstream(
+    let (status, _, _) = rejection(DispatchError::Recorded(GatewayError::from(upstream(
         1000,
         r#"{"error":"nonsense"}"#,
         None,
@@ -442,48 +481,51 @@ async fn coverage_gateway_error_envelopes_round_trip_control_characters_and_unic
 
 #[tokio::test]
 async fn coverage_image_fetch_errors_distinguish_caller_and_upstream_faults() {
-    use systemprompt_api::services::gateway::image_fetch::ImageFetchFailed;
-    for caller_fault in [true, false] {
-        let response = map_dispatch_error(DispatchError::PreAudit(anyhow::Error::new(
-            ImageFetchFailed {
-                url: "https://images.example/photo".into(),
-                message: "unsupported image\nformat".into(),
-                caller_fault,
-            },
-        )))
+    use systemprompt_gateway::image_fetch::{ImageFetchFailed, ImageFetchFault};
+    let cases = [
+        (
+            ImageFetchFault::UnsupportedType("image/tiff".to_owned()),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            ImageFetchFault::Timeout(std::time::Duration::from_secs(10)),
+            StatusCode::BAD_GATEWAY,
+        ),
+    ];
+    for (fault, expected) in cases {
+        let response = map_dispatch_error(DispatchError::pre_audit(ImageFetchFailed {
+            url: "https://images.example/photo".into(),
+            fault,
+        }))
         .unwrap();
-        assert_eq!(
-            response.status(),
-            if caller_fault {
-                StatusCode::BAD_REQUEST
-            } else {
-                StatusCode::BAD_GATEWAY
-            }
-        );
+        assert_eq!(response.status(), expected);
         let body = axum::body::to_bytes(response.into_body(), 4096)
             .await
             .unwrap();
         let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
-        assert!(
-            parsed["error"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("unsupported image")
-        );
+        let message = parsed["error"]["message"].as_str().unwrap();
+        if expected.is_client_error() {
+            assert!(message.contains("image/tiff"), "{message}");
+        } else {
+            assert!(!message.contains("exceeded"), "{message}");
+            assert!(!message.contains("images.example"), "{message}");
+        }
     }
 }
 
 #[tokio::test]
 async fn coverage_upstream_passthrough_preserves_body_and_retry_correlation_headers() {
     let body = bytes::Bytes::from_static(br#"{"error":{"message":"retry without thinking"}}"#);
-    let response = map_dispatch_error(DispatchError::Recorded(anyhow::Error::new(
+    let response = map_dispatch_error(DispatchError::Recorded(GatewayError::from(
         UpstreamError::Status {
             provider: "fixture".into(),
             status: 429,
             message: "rate limited".into(),
-            body: body.clone(),
+            body: Box::new(body.clone()),
             retry_after: Some("15".into()),
-            request_id: Some("upstream-123".into()),
+            request_id: Some(
+                ProviderRequestId::try_new("upstream-123").expect("valid provider request id"),
+            ),
         },
     )))
     .unwrap();
@@ -505,14 +547,15 @@ fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
         (429, Some("bad\nheader"), None),
         (400, None, Some("bad\rheader")),
     ] {
-        let rejection = map_dispatch_error(DispatchError::PreAudit(anyhow::Error::new(
+        let rejection = map_dispatch_error(DispatchError::PreAudit(GatewayError::from(
             UpstreamError::Status {
                 provider: "fixture".into(),
                 status,
                 message: "safe reason".into(),
-                body: bytes::Bytes::from_static(b"{}"),
+                body: Box::new(bytes::Bytes::from_static(b"{}")),
                 retry_after: retry_after.map(str::to_owned),
-                request_id: request_id.map(str::to_owned),
+                request_id: request_id
+                    .map(|id| ProviderRequestId::try_new(id).expect("valid provider request id")),
             },
         )))
         .unwrap_err();
@@ -524,7 +567,7 @@ fn coverage_invalid_upstream_headers_fall_back_to_a_classified_rejection() {
 
 #[tokio::test]
 async fn prompt_repair_error_reports_the_affected_provider_field() {
-    let error = systemprompt_api::services::gateway::service::PromptRepairRequired {
+    let error = systemprompt_gateway::service::PromptRepairRequired {
         message: "Secret content could not be safely sanitized".to_owned(),
         locations: vec!["forwarded.$.messages[0].id".to_owned()],
     };

@@ -9,11 +9,13 @@ use std::sync::Arc;
 use serde::Serialize;
 use serde_json::Value;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::auth::secret::Secret;
 use crate::gui::error::GuiError;
 use crate::gui::hosts::events::HostUiEvent;
 use crate::gui::state::{CancelScope, GatewayProbeOutcome};
-use crate::ids::HostId;
+use crate::ids::McpServerId;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::sync::SyncSummary;
 use crate::update::UpdateUiState;
@@ -97,7 +99,7 @@ pub enum UiEvent {
         reply_to: ReplyId,
     },
     McpAuthProbeRequested {
-        server_id: Option<String>,
+        server_id: Option<McpServerId>,
         reply_to: ReplyId,
     },
     Quit,
@@ -180,15 +182,15 @@ pub enum UiEvent {
     },
 
     AgentUninstall {
-        host_id: HostId,
+        host_id: HostKind,
         reply_to: ReplyId,
     },
     AgentOpenConfig {
-        host_id: HostId,
+        host_id: HostKind,
         reply_to: ReplyId,
     },
     AgentOpen {
-        host_id: HostId,
+        host_id: HostKind,
         reply_to: ReplyId,
     },
     SetupComplete,

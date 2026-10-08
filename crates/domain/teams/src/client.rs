@@ -15,7 +15,7 @@
 //!
 //! Token acquisition is a separate path on a separate client. Its URL is
 //! operator-configured —
-//! [`BOT_FRAMEWORK_TOKEN_URL`](systemprompt_models::services::teams::BOT_FRAMEWORK_TOKEN_URL)
+//! [`BOT_FRAMEWORK_TOKEN_URL`](systemprompt_manifest::services::teams::BOT_FRAMEWORK_TOKEN_URL)
 //! or an explicit override
 //! via [`TeamsClient::with_endpoints`] — never caller-supplied, so it stays on
 //! the plain client the caller injects.
@@ -25,7 +25,7 @@
 
 use serde_json::{Value, json};
 use systemprompt_client::{GuardedClientConfig, guarded_client};
-use systemprompt_identifiers::TeamsConversationId;
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId};
 use systemprompt_models::net::validate_outbound_url;
 
 use crate::error::{TeamsError, TeamsResult};
@@ -45,11 +45,7 @@ fn reply_client() -> Option<reqwest::Client> {
 
 impl TeamsClient {
     #[must_use]
-    pub fn new(
-        http: reqwest::Client,
-        app_id: impl Into<String>,
-        app_password: impl Into<String>,
-    ) -> Self {
+    pub fn new(http: reqwest::Client, app_id: TeamsAppId, app_password: impl Into<String>) -> Self {
         let tokens = TokenProvider::new(http, app_id, app_password);
         Self {
             reply_http: reply_client(),
@@ -60,7 +56,7 @@ impl TeamsClient {
     #[must_use]
     pub fn with_endpoints(
         http: reqwest::Client,
-        app_id: impl Into<String>,
+        app_id: TeamsAppId,
         app_password: impl Into<String>,
         token_url: impl Into<String>,
     ) -> Self {
@@ -71,6 +67,7 @@ impl TeamsClient {
         }
     }
 
+    // JSON: Bot Framework `attachments` — Adaptive Card JSON is the vendor schema.
     pub async fn reply(
         &self,
         service_url: &str,
@@ -79,7 +76,7 @@ impl TeamsClient {
         now_unix: i64,
     ) -> TeamsResult<()> {
         let url = reply_url(service_url, conversation_id);
-        validate_outbound_url(&url).map_err(|e| TeamsError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(&url)?;
         let http = self
             .reply_http
             .as_ref()
@@ -100,7 +97,10 @@ impl TeamsClient {
             .text()
             .await
             .unwrap_or_else(|e| format!("<unreadable body: {e}>"));
-        Err(TeamsError::Outbound(format!("{status}: {detail}")))
+        Err(TeamsError::Outbound {
+            status,
+            body: detail,
+        })
     }
 }
 

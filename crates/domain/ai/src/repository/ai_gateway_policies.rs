@@ -3,12 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiGatewayPolicyId;
+use systemprompt_traits::RepositoryError;
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -21,20 +21,17 @@ pub struct AiGatewayPolicyRepository {
 pub struct GatewayPolicyRow {
     pub id: AiGatewayPolicyId,
     pub name: String,
+    // JSON: JSONB `spec` column — decoded into the policy spec by the gateway service.
     pub spec: Value,
     pub enabled: bool,
     pub priority: i32,
 }
 
 impl AiGatewayPolicyRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn list_for_global(&self) -> Result<Vec<GatewayPolicyRow>, RepositoryError> {
@@ -61,6 +58,7 @@ impl AiGatewayPolicyRepository {
             .collect())
     }
 
+    // JSON: JSONB `spec` column — the serialised policy spec, stored as written.
     pub async fn upsert(
         &self,
         name: &str,

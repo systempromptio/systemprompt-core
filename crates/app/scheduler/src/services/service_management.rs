@@ -1,39 +1,48 @@
 //! High-level service-management orchestration: start/stop/cleanup wrappers
-//! around `systemprompt_database::ServiceRepository` and the platform's
-//! [`ProcessCleanup`] primitive.
+//! around `systemprompt_database::ServiceRepository` and the marker-verified
+//! stops in [`super::orchestration::supervision`].
 //!
-//! Stored PIDs are signalled only after
-//! [`systemprompt_loader::subprocess::live_pid_is_subprocess`] confirms the
-//! live process still carries this installation's spawn markers — registry
-//! PIDs outlive the processes that minted them and are recycled by the
-//! kernel, so an unverified PID is cleared without signalling. Port-derived
-//! PIDs ([`ServiceManagementService::stop_api_by_port`], the API sweep in
-//! [`ServiceManagementService::cleanup_all_orphans`]) carry no service
-//! identity and stay unverified by design.
+//! A recorded pid is signalled only through
+//! [`systemprompt_loader::subprocess::stop_owned`], which confirms the live
+//! process still carries this service's spawn marker — registry pids outlive
+//! the processes that minted them and are recycled by the kernel, so an
+//! unverified pid is cleared without signalling and reported as
+//! [`StopOutcome::NotOurs`]. A port holder is stopped on a service's behalf
+//! only when it carries the same marker. The API port stops
+//! ([`ServiceManagementService::stop_api_by_port`], the API sweep in
+//! [`ServiceManagementService::cleanup_all_orphans`]) signal only a listener
+//! carrying the API server marker; any other listener is reported as
+//! [`StopOutcome::NotOurs`] and left running.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::time::Duration;
+
 use systemprompt_database::{ServiceConfig, ServiceRepository};
-use systemprompt_loader::subprocess::live_pid_is_subprocess;
-use systemprompt_models::subprocess::{AGENT_NAME_ENV, MCP_SERVICE_ID_ENV};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, StopOutcome};
+use systemprompt_manifest::services::ServiceModule;
 use tracing::warn;
 
-use super::orchestration::ProcessCleanup;
+use super::orchestration::{
+    ApiListenerStop, child_kind, stop_api_listeners, stop_owned_port_holders, wait_for_port_free,
+};
 use crate::error::{SchedulerError, SchedulerResult};
 
-const STOP_GRACE_MS: u64 = 100;
-const API_SERVE_PATTERN: &str = "systemprompt serve api";
+const STOP_GRACE: Duration = Duration::from_millis(100);
+const API_PORT_RELEASE: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrphanDisposition {
     StaleEntry,
     Stopped,
+    NotOurs,
 }
 
 #[derive(Debug, Clone)]
 pub struct OrphanOutcome {
-    pub name: String,
+    pub name: ServiceName,
     pub pid: i32,
     pub port: i32,
     pub disposition: OrphanDisposition,
@@ -42,14 +51,26 @@ pub struct OrphanOutcome {
 #[derive(Debug, Clone, Default)]
 pub struct OrphanCleanupReport {
     pub outcomes: Vec<OrphanOutcome>,
-    pub api_stopped: bool,
+    pub api: Vec<ApiListenerStop>,
     pub stale_entries_removed: u64,
 }
 
 impl OrphanCleanupReport {
     #[must_use]
     pub fn services_cleaned(&self) -> usize {
-        self.outcomes.len() + usize::from(self.api_stopped)
+        self.outcomes.len() + self.api_stopped().count()
+    }
+
+    pub fn api_stopped(&self) -> impl Iterator<Item = &ApiListenerStop> {
+        self.api
+            .iter()
+            .filter(|stop| matches!(stop.outcome, StopOutcome::Stopped(_)))
+    }
+
+    pub fn api_not_ours(&self) -> impl Iterator<Item = &ApiListenerStop> {
+        self.api
+            .iter()
+            .filter(|stop| stop.outcome == StopOutcome::NotOurs)
     }
 }
 
@@ -65,7 +86,7 @@ impl ServiceManagementService {
 
     pub async fn get_services_by_type(
         &self,
-        module_name: &str,
+        module_name: ServiceModule,
     ) -> SchedulerResult<Vec<ServiceConfig>> {
         self.service_repo
             .list_services_by_type(module_name)
@@ -80,7 +101,7 @@ impl ServiceManagementService {
             .map_err(SchedulerError::from)
     }
 
-    pub async fn mark_service_stopped(&self, service_name: &str) -> SchedulerResult<()> {
+    pub async fn mark_service_stopped(&self, service_name: &ServiceName) -> SchedulerResult<()> {
         self.service_repo
             .update_service_stopped(service_name)
             .await
@@ -94,60 +115,28 @@ impl ServiceManagementService {
             .map_err(SchedulerError::from)
     }
 
-    pub async fn stop_service(&self, service: &ServiceConfig, force: bool) -> SchedulerResult<()> {
-        if let Some(pid) = stored_pid(service)
-            && ProcessCleanup::process_exists(pid)
-            && pid_is_our_service(pid, service)
-        {
-            if force {
-                ProcessCleanup::kill_process(pid);
-            } else {
-                ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
-            }
-            ProcessCleanup::kill_port(service.port as u16, pid);
-        }
-
-        if let Err(e) = self.mark_service_stopped(&service.name).await {
-            warn!(service = %service.name, error = %e, "Failed to mark service stopped");
-        }
-        Ok(())
+    pub async fn stop_service(
+        &self,
+        service: &ServiceConfig,
+        force: bool,
+    ) -> SchedulerResult<StopOutcome> {
+        self.stop_recorded(service, stop_grace(force)).await
     }
 
-    pub async fn cleanup_orphaned_service(&self, service: &ServiceConfig) -> SchedulerResult<bool> {
-        let Some(pid) = stored_pid(service) else {
-            return Ok(false);
-        };
-
-        if !ProcessCleanup::process_exists(pid) {
-            if let Err(e) = self.mark_service_stopped(&service.name).await {
-                warn!(service = %service.name, error = %e, "Failed to mark orphaned service stopped");
-            }
-            return Ok(true);
+    pub async fn cleanup_orphaned_service(
+        &self,
+        service: &ServiceConfig,
+    ) -> SchedulerResult<Option<StopOutcome>> {
+        if stored_pid(service).is_none() {
+            return Ok(None);
         }
-
-        if pid_is_our_service(pid, service) {
-            ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
-            ProcessCleanup::kill_port(service.port as u16, pid);
-        }
-        if let Err(e) = self.mark_service_stopped(&service.name).await {
-            warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
-        }
-        Ok(true)
+        self.stop_recorded(service, STOP_GRACE).await.map(Some)
     }
 
-    pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Option<u32>> {
-        let listener = ProcessCleanup::check_port(port);
-        if let Some(pid) = listener {
-            if force {
-                ProcessCleanup::kill_process(pid);
-            } else {
-                ProcessCleanup::terminate_gracefully(pid, STOP_GRACE_MS).await;
-            }
-            ProcessCleanup::kill_port(port, pid);
-        }
-
-        ProcessCleanup::wait_for_port_free(port, 5, 200).await?;
-        Ok(listener)
+    pub async fn stop_api_by_port(port: u16, force: bool) -> SchedulerResult<Vec<ApiListenerStop>> {
+        let stops = stop_api_listeners(port, stop_grace(force)).await?;
+        await_api_port_release(port, &stops).await?;
+        Ok(stops)
     }
 
     pub async fn cleanup_all_orphans(&self, api_port: u16) -> SchedulerResult<OrphanCleanupReport> {
@@ -157,14 +146,10 @@ impl ServiceManagementService {
         for service in &running_services {
             let Some(pid) = service.pid else { continue };
 
-            let disposition = if stored_pid(service).is_some_and(ProcessCleanup::process_exists) {
-                self.cleanup_orphaned_service(service).await?;
-                OrphanDisposition::Stopped
-            } else {
-                if let Err(e) = self.mark_service_stopped(&service.name).await {
-                    warn!(service = %service.name, error = %e, "mark_service_stopped failed");
-                }
-                OrphanDisposition::StaleEntry
+            let disposition = match self.stop_recorded(service, STOP_GRACE).await? {
+                StopOutcome::Stopped(_) => OrphanDisposition::Stopped,
+                StopOutcome::NotOurs => OrphanDisposition::NotOurs,
+                StopOutcome::NotRunning => OrphanDisposition::StaleEntry,
             };
             outcomes.push(OrphanOutcome {
                 name: service.name.clone(),
@@ -174,7 +159,8 @@ impl ServiceManagementService {
             });
         }
 
-        let api_stopped = sweep_api_port(api_port).await?;
+        let api = stop_api_listeners(api_port, STOP_GRACE).await?;
+        await_api_port_release(api_port, &api).await?;
 
         let stale_entries_removed = match self.cleanup_stale_entries().await {
             Ok(removed) => removed,
@@ -186,50 +172,51 @@ impl ServiceManagementService {
 
         Ok(OrphanCleanupReport {
             outcomes,
-            api_stopped,
+            api,
             stale_entries_removed,
         })
     }
+
+    async fn stop_recorded(
+        &self,
+        service: &ServiceConfig,
+        grace: Duration,
+    ) -> SchedulerResult<StopOutcome> {
+        let kind = child_kind(service.module_name);
+        let outcome = match stored_pid(service) {
+            Some(pid) => subprocess::stop_owned(pid, kind, &service.name, grace).await?,
+            None => StopOutcome::NotRunning,
+        };
+        if let Some(port) = service_port(service) {
+            stop_owned_port_holders(port, kind, &service.name, grace).await?;
+        }
+
+        if let Err(e) = self.mark_service_stopped(&service.name).await {
+            warn!(service = %service.name, error = %e, "Failed to mark service stopped");
+        }
+        Ok(outcome)
+    }
 }
 
-async fn sweep_api_port(api_port: u16) -> SchedulerResult<bool> {
-    let killed = ProcessCleanup::check_port(api_port)
-        .map_or_else(Vec::new, |pid| ProcessCleanup::kill_port(api_port, pid));
-    ProcessCleanup::kill_by_pattern(API_SERVE_PATTERN);
-    ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
-    Ok(!killed.is_empty())
+async fn await_api_port_release(port: u16, stops: &[ApiListenerStop]) -> SchedulerResult<()> {
+    if stops
+        .iter()
+        .any(|stop| stop.outcome == StopOutcome::NotOurs)
+    {
+        return Ok(());
+    }
+    wait_for_port_free(port, API_PORT_RELEASE).await
 }
+
+const fn stop_grace(force: bool) -> Duration {
+    if force { Duration::ZERO } else { STOP_GRACE }
+}
+
 
 fn stored_pid(service: &ServiceConfig) -> Option<u32> {
     service.pid.and_then(|pid| u32::try_from(pid).ok())
 }
 
-fn pid_is_our_service(pid: u32, service: &ServiceConfig) -> bool {
-    let Some(name_key) = subprocess_name_key(&service.module_name) else {
-        warn!(
-            service = %service.name,
-            module = %service.module_name,
-            pid,
-            "No subprocess identity marker for this module type; refusing to signal stored PID"
-        );
-        return false;
-    };
-
-    if live_pid_is_subprocess(pid, name_key, &service.name) {
-        return true;
-    }
-    warn!(
-        service = %service.name,
-        pid,
-        "Recorded PID is alive but is not our child (recycled/stale); skipping signal"
-    );
-    false
-}
-
-fn subprocess_name_key(module_name: &str) -> Option<&'static str> {
-    match module_name {
-        "agent" => Some(AGENT_NAME_ENV),
-        "mcp" => Some(MCP_SERVICE_ID_ENV),
-        _ => None,
-    }
+fn service_port(service: &ServiceConfig) -> Option<u16> {
+    u16::try_from(service.port).ok().filter(|port| *port != 0)
 }

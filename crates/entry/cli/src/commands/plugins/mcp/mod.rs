@@ -15,8 +15,9 @@ mod tools;
 mod tools_schema;
 pub mod types;
 pub mod validate;
+mod validate_output;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 
 use crate::context::CommandContext;
@@ -62,10 +63,13 @@ pub async fn execute(command: McpCommands, ctx: &CommandContext) -> Result<()> {
             Ok(())
         },
         McpCommands::Validate(args) => {
-            let result = validate::execute(args, ctx)
+            let (result, valid) = validate::execute(args, ctx)
                 .await
                 .context("Failed to validate MCP server")?;
             render_result(&result, config);
+            if !valid {
+                bail!("MCP server validation failed");
+            }
             Ok(())
         },
         McpCommands::Logs(args) => {

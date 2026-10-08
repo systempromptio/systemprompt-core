@@ -36,6 +36,8 @@ use crate::services::DatabaseProvider;
 use pg_query::Context;
 use systemprompt_extension::{Migration, TriggerPolicy, cost};
 
+use super::step_error::MigrationStepError;
+
 const ENABLED_USER_TRIGGERS: &str = "SELECT t.tgname::text AS name FROM pg_trigger t WHERE \
                                      t.tgrelid = to_regclass($1) AND NOT t.tgisinternal AND \
                                      t.tgenabled <> 'D' ORDER BY t.tgname";
@@ -94,8 +96,8 @@ pub(super) fn triggers_live(migration: &Migration) -> bool {
     )
 }
 
-fn written_tables(sql: &str) -> Result<BTreeSet<String>, String> {
-    let parsed = pg_query::parse(sql).map_err(|e| e.to_string())?;
+fn written_tables(sql: &str) -> Result<BTreeSet<String>, pg_query::Error> {
+    let parsed = pg_query::parse(sql)?;
     Ok(parsed
         .tables
         .iter()
@@ -119,22 +121,25 @@ fn quote_table(table: &str) -> String {
 pub(super) async fn suspend(
     target: &mut Target<'_>,
     migration: &Migration,
-) -> Result<Suspended, String> {
+) -> Result<Suspended, MigrationStepError> {
     if triggers_live(migration) {
         return Ok(Suspended::default());
     }
-    let tables = written_tables(migration.sql).map_err(|e| {
-        format!(
-            "Failed to parse migration {} ({}) for trigger suspension: {e}",
-            migration.version, migration.name
-        )
+    let tables = written_tables(migration.sql).map_err(|source| MigrationStepError::Parse {
+        version: migration.version,
+        name: migration.name.clone(),
+        purpose: "trigger suspension",
+        source,
     })?;
     let mut suspended = Suspended::default();
     for table in tables {
         let rows = target
             .fetch_all(ENABLED_USER_TRIGGERS, &[&table])
             .await
-            .map_err(|e| format!("Failed to list triggers on {table}: {e}"))?;
+            .map_err(|source| MigrationStepError::ListTriggers {
+                table: table.clone(),
+                source,
+            })?;
         for row in rows {
             let Some(name) = row.get("name").and_then(|v| v.as_str()) else {
                 continue;
@@ -147,7 +152,12 @@ pub(super) async fn suspend(
             target
                 .execute(&sql)
                 .await
-                .map_err(|e| format!("Failed to suspend trigger {name} on {table}: {e}"))?;
+                .map_err(|source| MigrationStepError::Trigger {
+                    action: "suspend",
+                    trigger: name.to_owned(),
+                    table: table.clone(),
+                    source,
+                })?;
             suspended.triggers.push((table.clone(), name.to_owned()));
         }
     }
@@ -167,14 +177,19 @@ impl Suspended {
             .join(", ")
     }
 
-    pub(super) async fn restore(self, target: &mut Target<'_>) -> Result<(), String> {
+    pub(super) async fn restore(self, target: &mut Target<'_>) -> Result<(), MigrationStepError> {
         for (table, name) in &self.triggers {
             // Why: a migration may drop a trigger it just had suspended;
             // restoring one that is gone is not a failure.
             let present = target
                 .fetch_optional(TRIGGER_PRESENT, &[table, name])
                 .await
-                .map_err(|e| format!("Failed to check trigger {name} on {table}: {e}"))?;
+                .map_err(|source| MigrationStepError::Trigger {
+                    action: "check",
+                    trigger: name.clone(),
+                    table: table.clone(),
+                    source,
+                })?;
             if present.is_none() {
                 continue;
             }
@@ -186,7 +201,12 @@ impl Suspended {
             target
                 .execute(&sql)
                 .await
-                .map_err(|e| format!("Failed to restore trigger {name} on {table}: {e}"))?;
+                .map_err(|source| MigrationStepError::Trigger {
+                    action: "restore",
+                    trigger: name.clone(),
+                    table: table.clone(),
+                    source,
+                })?;
         }
         Ok(())
     }

@@ -17,20 +17,21 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReade
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
-use systemprompt_events::EventBridgeHandle;
+use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_marketplace::inventory::PublishGuard;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_marketplace::{MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::services::SystemAdmin;
-use systemprompt_models::{Config, ContentConfigRaw, ContentRouting, RouteClassifier};
+use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{BackgroundTasks, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
@@ -43,7 +44,6 @@ pub use shutdown::ShutdownRequest;
 
 use crate::builder::AppContextBuilder;
 use crate::error::RuntimeResult;
-use crate::registry::ModuleApiRegistry;
 
 /// Database pool and the data-access services layered on it.
 ///
@@ -78,7 +78,6 @@ pub struct ConfigPlane {
 #[derive(Clone)]
 pub struct Plugins {
     pub extension_registry: Arc<ExtensionRegistry>,
-    pub api_registry: Arc<ModuleApiRegistry>,
     pub mcp_registry: RegistryService,
     pub marketplace_filter: Arc<dyn MarketplaceFilter>,
     pub marketplace_cache: Arc<MarketplaceCache>,
@@ -93,9 +92,11 @@ pub struct Subsystems {
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
     pub schema_install: Arc<SchemaInstallReport>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
+    pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
     pub file_storage: Arc<dyn FileStorage>,
     pub shutdown: ShutdownRequest,
+    pub background_tasks: BackgroundTasks,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
 }
 
@@ -175,10 +176,6 @@ impl AppContext {
         &self.data.database
     }
 
-    pub fn api_registry(&self) -> &ModuleApiRegistry {
-        &self.plugins.api_registry
-    }
-
     pub fn extension_registry(&self) -> &ExtensionRegistry {
         &self.plugins.extension_registry
     }
@@ -201,12 +198,12 @@ impl AppContext {
 
     #[must_use]
     pub fn session_usage(&self) -> systemprompt_traits::DynSessionUsageCounters {
-        self.data.analytics_repositories.sessions.owner()
+        self.session_store()
     }
 
     #[must_use]
     pub fn session_store(&self) -> systemprompt_traits::DynSessionStore {
-        self.data.analytics_repositories.sessions.owner()
+        Arc::clone(&self.data.analytics_repositories.session_store)
     }
 
     pub fn context_materializer(&self) -> systemprompt_traits::DynContextMaterializer {
@@ -239,6 +236,10 @@ impl AppContext {
         &self.subsystems.event_bridge
     }
 
+    pub const fn event_router(&self) -> &EventRouter {
+        &self.subsystems.event_router
+    }
+
     // Why: the guard memoises per-entry tree digests across passes; the
     // scheduled job and the manual route share it so neither re-captures a
     // tree the other already published.
@@ -265,6 +266,10 @@ impl AppContext {
 
     pub const fn shutdown_request(&self) -> &ShutdownRequest {
         &self.subsystems.shutdown
+    }
+
+    pub const fn background_tasks(&self) -> &BackgroundTasks {
+        &self.subsystems.background_tasks
     }
 
     pub fn request_restart(&self, reason: &str) {

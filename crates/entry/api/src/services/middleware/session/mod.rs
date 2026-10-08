@@ -55,6 +55,7 @@ pub struct SessionMiddleware {
     analytics_service: Arc<AnalyticsService>,
     session_creation_service: Arc<SessionCreationService>,
     trusted_proxies: Arc<Vec<IpNet>>,
+    jwt_issuer: Arc<str>,
     ignored_forwarded_warn: Arc<systemprompt_logging::LogThrottle>,
     degraded_warn: Arc<systemprompt_logging::LogThrottle>,
 }
@@ -65,7 +66,7 @@ const DEGRADED_WARN_INTERVAL_SECS: u64 = 60;
 impl SessionMiddleware {
     pub fn new(ctx: &AppContext) -> Self {
         let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-        let concrete = ctx.analytics_repositories().sessions.owner();
+        let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
         let analytics: Arc<dyn SessionProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
@@ -76,6 +77,7 @@ impl SessionMiddleware {
             analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
             trusted_proxies: Arc::new(ctx.config().trusted_proxies.clone()),
+            jwt_issuer: Arc::from(ctx.config().jwt_issuer.as_str()),
             ignored_forwarded_warn: Arc::new(systemprompt_logging::LogThrottle::new(
                 IGNORED_FORWARDED_WARN_INTERVAL_SECS,
             )),

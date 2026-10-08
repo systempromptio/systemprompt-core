@@ -4,7 +4,41 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::html::html_escape;
+use super::typed::{lenient, lenient_vec};
+use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
+
+#[derive(Debug, Deserialize)]
+pub(super) struct FormFieldSpec {
+    #[serde(default, deserialize_with = "lenient")]
+    name: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    label: Option<String>,
+    #[serde(default, rename = "type", deserialize_with = "lenient")]
+    field_type: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    required: Option<bool>,
+    #[serde(default, deserialize_with = "lenient")]
+    placeholder: Option<String>,
+    // JSON: form artifact field default — any JSON scalar the producer supplies.
+    #[serde(default, deserialize_with = "present")]
+    default: Option<JsonValue>,
+    #[serde(default, deserialize_with = "lenient_vec")]
+    options: Vec<FormOptionSpec>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FormOptionSpec {
+    #[serde(default, deserialize_with = "lenient")]
+    value: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    label: Option<String>,
+}
+
+// JSON: form artifact field default — an explicit `null` is kept, not dropped.
+fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<JsonValue>, D::Error> {
+    JsonValue::deserialize(deserializer).map(Some)
+}
 
 #[derive(Debug)]
 pub(super) struct FormField {
@@ -13,6 +47,7 @@ pub(super) struct FormField {
     pub field_type: String,
     pub required: bool,
     pub placeholder: Option<String>,
+    // JSON: form artifact field default — any JSON scalar the producer supplies.
     pub default_value: Option<JsonValue>,
     pub options: Vec<FormOption>,
 }
@@ -24,46 +59,27 @@ pub(super) struct FormOption {
 }
 
 impl FormField {
-    pub(super) fn from_json(value: &JsonValue) -> Option<Self> {
-        let name = value.get("name").and_then(JsonValue::as_str)?.to_owned();
+    pub(super) fn from_spec(spec: FormFieldSpec) -> Option<Self> {
+        let name = spec.name?;
 
         Some(Self {
-            name: name.clone(),
-            label: value
-                .get("label")
-                .and_then(JsonValue::as_str)
-                .unwrap_or(&name)
-                .to_owned(),
-            field_type: value
-                .get("type")
-                .and_then(JsonValue::as_str)
-                .unwrap_or("text")
-                .to_owned(),
-            required: value
-                .get("required")
-                .and_then(JsonValue::as_bool)
-                .unwrap_or(false),
-            placeholder: value
-                .get("placeholder")
-                .and_then(JsonValue::as_str)
-                .map(String::from),
-            default_value: value.get("default").cloned(),
-            options: value
-                .get("options")
-                .and_then(JsonValue::as_array)
-                .map_or_else(Vec::new, |arr| {
-                    arr.iter()
-                        .filter_map(|o| {
-                            let value = o.get("value").and_then(JsonValue::as_str)?.to_owned();
-                            let label = o
-                                .get("label")
-                                .and_then(JsonValue::as_str)
-                                .unwrap_or(&value)
-                                .to_owned();
-                            Some(FormOption { value, label })
-                        })
-                        .collect()
-                }),
+            label: spec.label.unwrap_or_else(|| name.clone()),
+            name,
+            field_type: spec.field_type.unwrap_or_else(|| "text".to_owned()),
+            required: spec.required.unwrap_or(false),
+            placeholder: spec.placeholder,
+            default_value: spec.default,
+            options: spec
+                .options
+                .into_iter()
+                .filter_map(|o| {
+                    let value = o.value?;
+                    Some(FormOption {
+                        label: o.label.unwrap_or_else(|| value.clone()),
+                        value,
+                    })
+                })
+                .collect(),
         })
     }
 

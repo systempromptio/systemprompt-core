@@ -10,10 +10,16 @@
 //!
 //! Config and secrets resolve on demand (the MCP-registry pattern): the app is
 //! looked up by tenant id, and the app password is read from the profile secret
-//! store. No `AppContext` wiring, no registry struct, no DB.
+//! store. The router state ([`TeamsState`]) holds the one outbound HTTP client
+//! and a verifier per app, so JWKS fetches are cached rather than repeated on
+//! every activity.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+mod state;
+
+pub use state::TeamsState;
 
 use anyhow::Context as _;
 use axum::Router;
@@ -24,27 +30,28 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_identifiers::{TeamsConversationId, TeamsTenantId};
+use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::services::TeamsAppConfig;
+use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::EntityRef;
 use systemprompt_teams::activities::Activity;
-use systemprompt_teams::auth::ActivityTokenVerifier;
 use systemprompt_teams::client::TeamsClient;
 
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, http_client,
+    DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
 };
 
 const ISSUER: &str = "https://api.botframework.com";
 
-pub fn teams_router() -> Router<AppContext> {
-    Router::new().route("/messages", post(handle_messages))
+pub fn teams_router(ctx: &AppContext) -> Result<Router, reqwest::Error> {
+    Ok(Router::new()
+        .route("/messages", post(handle_messages))
+        .with_state(TeamsState::new(ctx)?))
 }
 
 async fn handle_messages(
-    State(ctx): State<AppContext>,
+    State(state): State<TeamsState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -69,8 +76,8 @@ async fn handle_messages(
     let Some(token) = bearer(&headers) else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    let verifier = activity_verifier(&app);
-    if verifier
+    if state
+        .verifier(&app)
         .verify(
             token,
             &normalized.service_url,
@@ -98,11 +105,12 @@ async fn handle_messages(
     };
 
     let inbound = MessagingInbound {
-        platform: "teams",
         issuer: ISSUER.to_owned(),
-        org_id: normalized.tenant_id.as_str().to_owned(),
-        channel_id: normalized.conversation_id.as_str().to_owned(),
-        external_user_id: normalized.teams_user_id.as_str().to_owned(),
+        conversation: MessagingConversation::Teams {
+            tenant_id: normalized.tenant_id.clone(),
+            conversation_id: normalized.conversation_id.clone(),
+            user_id: normalized.teams_user_id,
+        },
         text: normalized.text,
         agent_name: agent,
         entity: EntityRef::TeamsTenant(normalized.tenant_id),
@@ -118,30 +126,36 @@ async fn handle_messages(
         app_password,
         token_url: app.endpoints.token_url,
     };
-    spawn_reply(ctx, inbound, reply);
+    spawn_reply(state, inbound, reply);
     StatusCode::OK.into_response()
 }
 
 struct TeamsReply {
     service_url: String,
     conversation_id: TeamsConversationId,
-    app_id: String,
+    app_id: TeamsAppId,
     app_password: String,
     token_url: String,
 }
 
-fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, reply: TeamsReply) {
-    tokio::spawn(async move {
-        let text = match dispatch_messaging(&ctx, inbound).await {
+fn spawn_reply(state: TeamsState, inbound: MessagingInbound, reply: TeamsReply) {
+    let background = state.ctx.background_tasks().clone();
+    background.spawn("teams_reply", async move {
+        let text = match dispatch_messaging(&state.ctx, inbound).await {
             Ok(DispatchOutcome::Replied(reply)) => non_empty(reply),
             Ok(DispatchOutcome::Denied(reason)) => format!("⛔ {reason}"),
             Err(err) => {
-                tracing::error!(error = %err, "teams dispatch failed");
+                tracing::error!(error = ?err, "teams dispatch failed");
                 err.user_message()
             },
         };
         let attachments = systemprompt_teams::cards::render_card(&text);
-        let client = teams_client(reply.app_id, reply.app_password, reply.token_url);
+        let client = TeamsClient::with_endpoints(
+            state.http.clone(),
+            reply.app_id,
+            reply.app_password,
+            reply.token_url,
+        );
         if let Err(err) = client
             .reply(
                 &reply.service_url,
@@ -185,16 +199,4 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .get(AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
-}
-
-fn activity_verifier(app: &TeamsAppConfig) -> ActivityTokenVerifier {
-    ActivityTokenVerifier::with_openid_url(
-        http_client(),
-        app.app_id.clone(),
-        app.endpoints.openid_config_url.clone(),
-    )
-}
-
-fn teams_client(app_id: String, app_password: String, token_url: String) -> TeamsClient {
-    TeamsClient::with_endpoints(http_client(), app_id, app_password, token_url)
 }

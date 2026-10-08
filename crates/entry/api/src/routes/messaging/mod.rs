@@ -11,38 +11,36 @@
 //! The pipeline is **synchronous, spawned**: the route acks the platform within
 //! its timeout, then a spawned task runs this blocking dispatch and posts the
 //! reply. There is no responder job and no dispatch-state table — a stable
-//! [`ContextId`] (derived from the conversation) ties multi-turn history
-//! together instead.
+//! [`ContextId`](systemprompt_identifiers::ContextId) (derived from the
+//! conversation) ties multi-turn history together instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod a2a;
+pub mod conversation;
 pub mod identity;
 
 use std::sync::LazyLock;
 
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, SessionId, TraceId};
+use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_traits::SenderIdentity;
+use systemprompt_users::UserError;
 
+use crate::services::proxy::ProxyError;
 use a2a::{authenticated_user, build_a2a_request, mint_a2a_token, run_agent};
+pub use conversation::MessagingConversation;
 use identity::resolve_or_link_user;
-
-static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(reqwest::Client::new);
 
 static GUARDED_CLIENT: LazyLock<Option<reqwest::Client>> = LazyLock::new(|| {
     systemprompt_client::guarded_client(&systemprompt_client::GuardedClientConfig::default())
         .inspect_err(|e| tracing::error!(error = %e, "Guarded outbound http client unavailable"))
         .ok()
 });
-
-#[must_use]
-pub fn http_client() -> reqwest::Client {
-    CLIENT.clone()
-}
 
 // Why: Slack replies target a caller-supplied `response_url`, so they must go
 // through the connect-time SSRF guard rather than the plain client the
@@ -63,11 +61,8 @@ pub enum ReplyTarget {
 /// Slack- or Teams-specific type.
 #[derive(Debug, Clone)]
 pub struct MessagingInbound {
-    pub platform: &'static str,
     pub issuer: String,
-    pub org_id: String,
-    pub channel_id: String,
-    pub external_user_id: String,
+    pub conversation: MessagingConversation,
     pub text: String,
     pub agent_name: AgentName,
     pub entity: EntityRef,
@@ -85,14 +80,22 @@ pub enum DispatchOutcome {
 /// messages are deliberately descriptive for operator debugging.
 #[derive(Debug, thiserror::Error)]
 pub enum MessagingError {
-    #[error("identity resolution failed: {0}")]
-    Identity(String),
-    #[error("token minting failed: {0}")]
-    Token(String),
-    #[error("agent dispatch failed: {0}")]
-    Dispatch(String),
-    #[error("malformed agent response: {0}")]
-    Response(String),
+    #[error("identity resolution failed")]
+    Identity(#[source] UserError),
+    #[error("token minting failed")]
+    Token(#[source] OauthError),
+    #[error("could not encode the agent request")]
+    Encode(#[source] serde_json::Error),
+    #[error("could not build the agent request")]
+    Request(#[source] http::Error),
+    #[error("agent dispatch failed")]
+    Dispatch(#[source] ProxyError),
+    #[error("agent returned JSON-RPC error {code}: {message}")]
+    AgentRejected { code: i32, message: String },
+    #[error("agent response body could not be read")]
+    ResponseBody(#[source] axum::Error),
+    #[error("malformed agent response")]
+    Response(#[source] serde_json::Error),
 }
 
 impl MessagingError {
@@ -113,14 +116,13 @@ pub async fn dispatch_messaging(
     let user = resolve_or_link_user(
         ctx,
         &inbound.issuer,
-        &inbound.external_user_id,
+        inbound.conversation.sender_wire_id(),
         &inbound.sender.claims(),
     )
     .await?;
-    let authed = authenticated_user(&user)?;
+    let authed = authenticated_user(&user);
 
-    let context_id =
-        ContextId::derived_from_messaging(inbound.platform, &inbound.org_id, &inbound.channel_id);
+    let context_id = inbound.conversation.context_id();
 
     let authz = AuthzRequest {
         entity: inbound.entity.clone(),
@@ -133,8 +135,8 @@ pub async fn dispatch_messaging(
         trace_id: TraceId::generate(),
         session_id: None,
         context: AuthzContext::extension(
-            format!("{}.message", inbound.platform),
-            json!({ "channel": inbound.channel_id }),
+            format!("{}.message", inbound.conversation.platform()),
+            json!({ "channel": inbound.conversation.channel_key() }),
         ),
         context_id: Some(context_id.clone()),
         task_id: None,
@@ -148,6 +150,6 @@ pub async fn dispatch_messaging(
     let token = mint_a2a_token(ctx, &authed, &session_id)?;
 
     let request = build_a2a_request(&inbound, &authed, &session_id, &token, &context_id)?;
-    let reply = run_agent(ctx, inbound.agent_name.as_str(), request).await?;
+    let reply = run_agent(ctx, &inbound.agent_name, request).await?;
     Ok(DispatchOutcome::Replied(reply))
 }

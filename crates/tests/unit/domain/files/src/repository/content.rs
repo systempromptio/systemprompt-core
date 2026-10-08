@@ -7,17 +7,12 @@
 //! ids and removes them on completion so parallel runs do not collide.
 
 use systemprompt_database::DbPool;
-use systemprompt_files::{FileRepository, FileRole, InsertFileRequest};
+use systemprompt_files::{FileRepository, FileRole, FilesError, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, ContextId, FileId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn new_file_id() -> FileId {
-    FileId::new(uuid::Uuid::new_v4().to_string())
+    FileId::generate()
 }
 
 fn new_content_id() -> ContentId {
@@ -37,7 +32,7 @@ async fn seed_file(repo: &FileRepository, id: &FileId) {
 }
 
 async fn seed_content(pool: &DbPool, id: &ContentId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         r#"
         INSERT INTO markdown_content
@@ -54,7 +49,7 @@ async fn seed_content(pool: &DbPool, id: &ContentId) {
 }
 
 async fn cleanup_content(pool: &DbPool, id: &ContentId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM markdown_content WHERE id = $1")
         .bind(id.as_str())
         .execute(p.as_ref())
@@ -68,8 +63,8 @@ async fn cleanup_file(repo: &FileRepository, id: &FileId) {
 
 #[tokio::test]
 async fn link_to_content_persists_association() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let file_id = new_file_id();
     seed_content(&db, &content_id).await;
@@ -90,8 +85,8 @@ async fn link_to_content_persists_association() {
 
 #[tokio::test]
 async fn link_to_content_upserts_display_order_on_conflict() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let file_id = new_file_id();
     seed_content(&db, &content_id).await;
@@ -116,21 +111,24 @@ async fn link_to_content_upserts_display_order_on_conflict() {
 
 #[tokio::test]
 async fn link_to_content_rejects_non_uuid_file_id() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let bad = FileId::new("not-a-uuid");
     let err = repo
         .link_to_content(&content_id, &bad, FileRole::Attachment, 0)
         .await
         .expect_err("non-uuid file id must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn unlink_removes_association() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let file_id = new_file_id();
     seed_content(&db, &content_id).await;
@@ -152,21 +150,24 @@ async fn unlink_removes_association() {
 
 #[tokio::test]
 async fn unlink_rejects_non_uuid_file_id() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let bad = FileId::new("xyz");
     let err = repo
         .unlink_from_content(&content_id, &bad)
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn list_files_by_content_returns_ordered_joined_rows() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let first = new_file_id();
     let second = new_file_id();
@@ -204,8 +205,8 @@ async fn list_files_by_content_returns_ordered_joined_rows() {
 
 #[tokio::test]
 async fn list_files_by_content_empty_for_unknown_content() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let rows = repo.list_files_by_content(&content_id).await.expect("list");
     assert!(rows.is_empty());
@@ -213,8 +214,8 @@ async fn list_files_by_content_empty_for_unknown_content() {
 
 #[tokio::test]
 async fn find_featured_image_returns_only_featured() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let attachment = new_file_id();
     let featured = new_file_id();
@@ -243,8 +244,8 @@ async fn find_featured_image_returns_only_featured() {
 
 #[tokio::test]
 async fn find_featured_image_none_when_only_attachments() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let attachment = new_file_id();
     seed_content(&db, &content_id).await;
@@ -265,8 +266,8 @@ async fn find_featured_image_none_when_only_attachments() {
 
 #[tokio::test]
 async fn set_featured_demotes_existing_and_promotes_target() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let old_featured = new_file_id();
     let new_featured = new_file_id();
@@ -313,8 +314,8 @@ async fn set_featured_demotes_existing_and_promotes_target() {
 
 #[tokio::test]
 async fn set_featured_errors_when_file_not_linked() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let unlinked = new_file_id();
     seed_content(&db, &content_id).await;
@@ -332,20 +333,23 @@ async fn set_featured_errors_when_file_not_linked() {
 
 #[tokio::test]
 async fn set_featured_rejects_non_uuid_file_id() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_id = new_content_id();
     let err = repo
         .set_featured(&FileId::new("bad"), &content_id)
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn list_content_by_file_returns_links() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let content_a = new_content_id();
     let content_b = new_content_id();
     let file_id = new_file_id();
@@ -362,11 +366,7 @@ async fn list_content_by_file_returns_links() {
 
     let links = repo.list_content_by_file(&file_id).await.expect("list");
     assert_eq!(links.len(), 2);
-    assert!(
-        links
-            .iter()
-            .all(|l| l.file_id.to_string() == file_id.as_str())
-    );
+    assert!(links.iter().all(|l| l.file_id == file_id));
 
     cleanup_file(&repo, &file_id).await;
     cleanup_content(&db, &content_a).await;
@@ -375,19 +375,22 @@ async fn list_content_by_file_returns_links() {
 
 #[tokio::test]
 async fn list_content_by_file_rejects_non_uuid() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let err = repo
         .list_content_by_file(&FileId::new("nope"))
         .await
         .expect_err("non-uuid must fail");
-    assert!(err.to_string().contains("Invalid UUID"));
+    assert!(
+        matches!(err, FilesError::InvalidFileId { .. }),
+        "expected InvalidFileId, got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn list_content_by_file_empty_for_unknown_file() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let file_id = new_file_id();
     let links = repo.list_content_by_file(&file_id).await.expect("list");
     assert!(links.is_empty());

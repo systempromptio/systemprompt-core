@@ -6,8 +6,8 @@
 use chrono::Utc;
 use systemprompt_identifiers::UserId;
 
-use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus, normalise_email};
+use crate::error::{Result, UserError};
+use crate::models::{User, UserRole, UserRow, UserStatus, normalise_email};
 use crate::repository::UserRepository;
 
 #[derive(Debug)]
@@ -27,14 +27,14 @@ impl UserRepository {
         display_name: Option<&str>,
     ) -> Result<User> {
         let now = Utc::now();
-        let id = UserId::new(uuid::Uuid::new_v4().to_string());
+        let id = UserId::generate();
         let display_name_val = display_name.or(full_name);
         let status = UserStatus::Active.as_str();
         let role = UserRole::User.as_str();
         let email = normalise_email(email);
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -55,7 +55,9 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await
+        .map_err(UserError::from)
+        .and_then(User::try_from)?;
 
         Ok(row)
     }
@@ -68,14 +70,14 @@ impl UserRepository {
         display_name: Option<&str>,
     ) -> Result<Option<User>> {
         let now = Utc::now();
-        let id = UserId::new(uuid::Uuid::new_v4().to_string());
+        let id = UserId::generate();
         let display_name_val = display_name.or(full_name);
         let status = UserStatus::Active.as_str();
         let role = UserRole::User.as_str();
         let email = normalise_email(email);
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, full_name, display_name,
@@ -97,7 +99,9 @@ impl UserRepository {
             now
         )
         .fetch_optional(&*self.write_pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -106,7 +110,7 @@ impl UserRepository {
         let email = normalise_email(&format!("{}@anonymous.local", fingerprint));
 
         if let Some(existing) = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -117,19 +121,20 @@ impl UserRepository {
         )
         .fetch_optional(&*self.pool)
         .await?
+        .map(User::try_from)
+        .transpose()?
         {
             return Ok(existing);
         }
 
-        let user_id = uuid::Uuid::new_v4();
-        let id = UserId::new(user_id.to_string());
-        let name = format!("anonymous_{}", &user_id.to_string()[..8]);
+        let id = UserId::generate();
+        let name = format!("anonymous_{}", &id.as_str()[..8]);
         let now = Utc::now();
         let status = UserStatus::Active.as_str();
         let role = UserRole::Anonymous.as_str();
 
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             INSERT INTO users (
                 id, name, email, status, email_verified, roles,
@@ -148,7 +153,9 @@ impl UserRepository {
             now
         )
         .fetch_one(&*self.write_pool)
-        .await?;
+        .await
+        .map_err(UserError::from)
+        .and_then(User::try_from)?;
 
         Ok(row)
     }

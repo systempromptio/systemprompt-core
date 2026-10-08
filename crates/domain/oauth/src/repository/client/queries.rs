@@ -5,14 +5,14 @@
 
 use super::ClientRepository;
 use crate::error::OauthResult as Result;
-use crate::models::{OAuthClient, OAuthClientRow};
+use crate::models::{OAuthClient, OAuthClientDbRow, OAuthClientRow};
 use systemprompt_identifiers::ClientId;
 
 impl ClientRepository {
     pub async fn find_by_client_id(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
-            OAuthClientRow,
+            OAuthClientDbRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id
@@ -20,7 +20,8 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {
@@ -34,7 +35,7 @@ impl ClientRepository {
     pub async fn find_by_client_id_any(&self, client_id: &ClientId) -> Result<Option<OAuthClient>> {
         let client_id_str = client_id.as_str();
         let row = sqlx::query_as!(
-            OAuthClientRow,
+            OAuthClientDbRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id
@@ -42,7 +43,8 @@ impl ClientRepository {
             client_id_str
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {
@@ -55,14 +57,19 @@ impl ClientRepository {
 
     pub async fn list(&self) -> Result<Vec<OAuthClient>> {
         let rows = sqlx::query_as!(
-            OAuthClientRow,
+            OAuthClientDbRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id
              FROM oauth_clients WHERE is_active = true ORDER BY created_at DESC"
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(OAuthClientRow::from)
+                .collect::<Vec<_>>()
+        })?;
 
         self.load_clients_with_relations_batch(rows).await
     }
@@ -71,7 +78,7 @@ impl ClientRepository {
         let limit_i64 = i64::from(limit);
         let offset_i64 = i64::from(offset);
         let rows = sqlx::query_as!(
-            OAuthClientRow,
+            OAuthClientDbRow,
             "SELECT client_id, client_secret_hash, client_name, name, token_endpoint_auth_method,
                     application_type, client_uri, logo_uri, is_active, created_at, updated_at, \
              last_used_at, owner_user_id
@@ -81,7 +88,12 @@ impl ClientRepository {
             offset_i64
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(OAuthClientRow::from)
+                .collect::<Vec<_>>()
+        })?;
 
         self.load_clients_with_relations_batch(rows).await
     }
@@ -96,7 +108,7 @@ impl ClientRepository {
 
     pub async fn find_by_redirect_uri(&self, redirect_uri: &str) -> Result<Option<OAuthClient>> {
         let row = sqlx::query_as!(
-            OAuthClientRow,
+            OAuthClientDbRow,
             r#"SELECT c.client_id, c.client_secret_hash, c.client_name, c.name,
                       c.token_endpoint_auth_method, c.application_type, c.client_uri, c.logo_uri,
                       c.is_active, c.created_at, c.updated_at, c.last_used_at, c.owner_user_id
@@ -107,7 +119,8 @@ impl ClientRepository {
             redirect_uri
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await
+        .map(|row| row.map(OAuthClientRow::from))?;
 
         match row {
             Some(row) => {

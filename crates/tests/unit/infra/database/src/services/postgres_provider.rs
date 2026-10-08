@@ -1,18 +1,16 @@
 //! DB-backed tests for `PostgresProvider`: the `DatabaseProvider` trait
-//! surface, `PostgresTransaction`, and the typed `DatabaseProviderExt`
-//! fetch helpers. Each test uses a uniquely-named temp table.
+//! surface and `PostgresTransaction`. Each test uses a uniquely-named temp
+//! table.
 
 
-use super::db_helper::pool_or_skip;
-use systemprompt_database::{
-    DatabaseProvider, DatabaseProviderExt, DatabaseResult, FromDatabaseRow, PostgresProvider,
-};
-use systemprompt_test_fixtures::fixture_database_url;
+use super::db_helper::test_pool;
+use systemprompt_database::{DatabaseProvider, PostgresProvider};
+use systemprompt_test_fixtures::test_database_url;
 
-async fn provider_or_skip() -> Option<PostgresProvider> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some(PostgresProvider::from_pool(pg))
+async fn test_provider() -> PostgresProvider {
+    let db = test_pool().await;
+    let pg = db.write_pool();
+    PostgresProvider::from_pool(pg)
 }
 
 fn unique_table() -> String {
@@ -32,9 +30,7 @@ async fn drop_table(provider: &PostgresProvider, table: &str) {
 
 #[tokio::test]
 async fn execute_binds_params_and_reports_rows_affected() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
 
@@ -57,9 +53,7 @@ async fn execute_binds_params_and_reports_rows_affected() {
 
 #[tokio::test]
 async fn fetch_one_all_and_optional_round_trip_rows() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
     let insert = format!(
@@ -99,9 +93,7 @@ async fn fetch_one_all_and_optional_round_trip_rows() {
 
 #[tokio::test]
 async fn query_raw_and_query_raw_with_report_columns_and_counts() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
 
     let result = provider
         .query_raw(&"SELECT generate_series(1, 3) AS n")
@@ -128,9 +120,7 @@ async fn query_raw_and_query_raw_with_report_columns_and_counts() {
 
 #[tokio::test]
 async fn execute_batch_runs_each_statement() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     let table = unique_table();
 
     let batch = format!(
@@ -150,18 +140,14 @@ async fn execute_batch_runs_each_statement() {
 
 #[tokio::test]
 async fn test_connection_succeeds_and_pool_accessors_expose_postgres() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     provider.test_connection().await.expect("connection probe");
     assert!(!provider.get_postgres_pool().is_closed());
 }
 
 #[tokio::test]
 async fn transaction_commit_persists_and_rollback_discards() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
     let insert = format!("INSERT INTO \"{table}\" (id, name) VALUES ($1, $2)");
@@ -197,9 +183,7 @@ async fn transaction_commit_persists_and_rollback_discards() {
 
 #[tokio::test]
 async fn transaction_fetch_variants_see_uncommitted_rows() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
+    let provider = test_provider().await;
     let table = unique_table();
     create_table(&provider, &table).await;
 
@@ -234,69 +218,9 @@ async fn transaction_fetch_variants_see_uncommitted_rows() {
     drop_table(&provider, &table).await;
 }
 
-struct NamedRow {
-    id: i64,
-    name: Option<String>,
-}
-
-impl FromDatabaseRow for NamedRow {
-    fn from_postgres_row(row: &sqlx::postgres::PgRow) -> DatabaseResult<Self> {
-        use sqlx::Row;
-        Ok(Self {
-            id: row.try_get("id")?,
-            name: row.try_get("name")?,
-        })
-    }
-}
-
-#[tokio::test]
-async fn typed_fetch_helpers_decode_rows() {
-    let Some(provider) = provider_or_skip().await else {
-        return;
-    };
-    let table = unique_table();
-    create_table(&provider, &table).await;
-    let insert = format!("INSERT INTO \"{table}\" (id, name) VALUES (1, 'a'), (2, NULL)");
-    provider.execute_raw(&insert).await.expect("seed");
-
-    let by_id = format!("SELECT id, name FROM \"{table}\" WHERE id = $1");
-    let one: NamedRow = provider
-        .fetch_typed_one(&by_id, &[&1_i64])
-        .await
-        .expect("typed one");
-    assert_eq!(one.id, 1);
-    assert_eq!(one.name.as_deref(), Some("a"));
-
-    let some: Option<NamedRow> = provider
-        .fetch_typed_optional(&by_id, &[&2_i64])
-        .await
-        .expect("typed optional some");
-    assert!(some.is_some_and(|r| r.name.is_none()));
-
-    let none: Option<NamedRow> = provider
-        .fetch_typed_optional(&by_id, &[&9_i64])
-        .await
-        .expect("typed optional none");
-    assert!(none.is_none());
-
-    let all: Vec<NamedRow> = provider
-        .fetch_typed_all(
-            &format!("SELECT id, name FROM \"{table}\" ORDER BY id"),
-            &[],
-        )
-        .await
-        .expect("typed all");
-    assert_eq!(all.len(), 2);
-    assert_eq!(all[1].id, 2);
-
-    drop_table(&provider, &table).await;
-}
-
 #[tokio::test]
 async fn new_connects_with_explicit_sslmode_disable() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
+    let url = test_database_url();
     let url = if url.contains('?') {
         format!("{url}&sslmode=disable")
     } else {

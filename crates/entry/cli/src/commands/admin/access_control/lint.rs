@@ -16,8 +16,7 @@ use crate::CliConfig;
 
 pub(super) async fn run(_args: LintArgs, _config: &CliConfig) -> Result<(String, bool)> {
     let ctx = AppContext::new().await?;
-    let repo =
-        AccessControlRepository::new(ctx.db_pool()).map_err(|e| anyhow!("acquire repo: {e}"))?;
+    let repo = AccessControlRepository::new(ctx.db_pool());
 
     let mut report = String::new();
     let mut unknown_total = 0usize;

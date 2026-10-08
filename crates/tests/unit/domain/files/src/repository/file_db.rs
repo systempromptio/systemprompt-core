@@ -2,20 +2,14 @@
 //! propagation of every optional field, and the global AI-image counters.
 
 use chrono::Utc;
-use systemprompt_database::DbPool;
 use systemprompt_files::{File, FileMetadata, FileRepository, FilesError, InsertFileRequest};
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn ai_file(id: uuid::Uuid, user: &UserId) -> File {
     let now = Utc::now();
     File {
-        id,
+        id: FileId::from_uuid(id),
         path: format!("/storage/ai-count/{id}.png"),
         public_url: format!("/files/ai-count/{id}.png"),
         mime_type: "image/png".to_owned(),
@@ -34,8 +28,8 @@ fn ai_file(id: uuid::Uuid, user: &UserId) -> File {
 
 #[tokio::test]
 async fn insert_rejects_non_uuid_file_id() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
 
     let request = InsertFileRequest::new(
         FileId::new("not-a-uuid"),
@@ -46,20 +40,15 @@ async fn insert_rejects_non_uuid_file_id() {
 
     let err = repo.insert(request).await.expect_err("invalid uuid");
     match err {
-        FilesError::Validation(message) => {
-            assert!(
-                message.contains("Invalid UUID for file id not-a-uuid"),
-                "unexpected message: {message}"
-            );
-        },
-        other => panic!("expected Validation, got {other:?}"),
+        FilesError::InvalidFileId { id, .. } => assert_eq!(id.as_str(), "not-a-uuid"),
+        other => panic!("expected InvalidFileId, got {other:?}"),
     }
 }
 
 #[tokio::test]
 async fn insert_file_round_trips_all_optional_fields() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let id = uuid::Uuid::new_v4();
     let user = UserId::new(format!("u-{}", id.simple()));
     let file = ai_file(id, &user);
@@ -97,8 +86,8 @@ async fn insert_file_round_trips_all_optional_fields() {
 
 #[tokio::test]
 async fn count_ai_images_reflects_inserted_rows() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = FileRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let repo = FileRepository::new(&db);
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
 
     assert_eq!(

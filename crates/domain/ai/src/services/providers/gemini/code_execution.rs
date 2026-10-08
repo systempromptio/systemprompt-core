@@ -8,7 +8,7 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use systemprompt_models::wire::gemini;
+use systemprompt_wire::gemini;
 
 use crate::error::Result;
 use crate::models::ai::{AiMessage, SamplingParams};

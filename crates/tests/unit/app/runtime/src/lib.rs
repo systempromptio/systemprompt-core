@@ -2,8 +2,6 @@
 //!
 //! Tests cover:
 //! - AppContext and AppContextBuilder initialization and accessors
-//! - ModuleApiRegistry registration, lookup, and categorization
-//! - WellKnownMetadata creation and lookup
 //! - Request span creation with various context configurations
 //! - Module installation path resolution
 //! - Database path validation
@@ -47,11 +45,7 @@ mod files_validator_tests;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]
-mod module_type_serde;
-#[cfg(test)]
-mod registry;
-#[cfg(test)]
-mod registry_populated;
+mod schema_behind_error;
 #[cfg(test)]
 mod services_reconcile_decision;
 #[cfg(test)]
@@ -68,8 +62,6 @@ mod validate_database_path;
 mod validation;
 #[cfg(test)]
 mod validation_report_extended;
-#[cfg(test)]
-mod wellknown;
 
 
 #[cfg(test)]

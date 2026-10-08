@@ -9,15 +9,14 @@
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
 
 async fn live_pool() -> DbPool {
-    let boot = ensure_test_bootstrap();
-    fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database")
+    ensure_test_bootstrap();
+    test_db_pool().await
 }
 
 fn unique_name(prefix: &str) -> String {
@@ -28,10 +27,10 @@ fn unique_name(prefix: &str) -> String {
 }
 
 async fn seed_service(pool: &DbPool, name: &str, status: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
-         VALUES ('test-instance', $1, 'mcp_server', $2, 0, $3)
+         VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
          ON CONFLICT (instance_id, name) DO UPDATE SET status = $2",
     )
     .bind(name)
@@ -43,7 +42,7 @@ async fn seed_service(pool: &DbPool, name: &str, status: &str) {
 }
 
 async fn delete_service(pool: &DbPool, name: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query("DELETE FROM services WHERE name = $1")
         .bind(name)
         .execute(inner.as_ref())
@@ -55,9 +54,9 @@ async fn delete_service(pool: &DbPool, name: &str) {
 async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_service() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
-    let error = ServiceResolver::resolve("anything", &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new("anything"), &ctx)
         .await
         .map(|_| ())
         .expect_err("a closed pool cannot resolve a service");
@@ -72,9 +71,9 @@ async fn an_unreachable_database_is_reported_as_a_database_error_not_a_missing_s
 async fn a_service_no_row_names_is_reported_as_not_found() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
-    let error = ServiceResolver::resolve(&unique_name("absent"), &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new(unique_name("absent")), &ctx)
         .await
         .map(|_| ())
         .expect_err("an unregistered service cannot resolve");
@@ -89,11 +88,11 @@ async fn a_service_no_row_names_is_reported_as_not_found() {
 async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("stopped");
     seed_service(&pool, &name, "stopped").await;
 
-    let error = ServiceResolver::resolve(&name, &ctx)
+    let error = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
         .await
         .map(|_| ())
         .expect_err("a stopped service cannot be proxied to");
@@ -115,7 +114,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 // Why: this is the regression test for a defect that killed the API process.
 // `start_services` reports Ok when it started nothing — an unregistered name
 // filters to an empty target list — so the old code recursed on that Ok alone
-// and spun forever on a row that never leaves `crashed`, exhausting the stack.
+// and spun forever on a row that never leaves `error`, exhausting the stack.
 // The timeout is part of the assertion: a reintroduced recursion aborts the
 // binary on stack overflow, and anything that merely hangs fails here rather
 // than wedging the suite.
@@ -123,13 +122,13 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
 async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retried_forever() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_unregistered");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate; retrying a restart that starts nothing never converges");
@@ -142,7 +141,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
         ProxyError::ServiceNotRunning { service, status } => {
             assert_eq!(service, name);
             assert_eq!(
-                status, "crashed",
+                status, "error",
                 "the refusal must report the status the row still holds, so the operator sees the \
                  service never came back"
             );
@@ -161,9 +160,9 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
 async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_recovers");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let flipper = {
         let pool = pool.clone();
@@ -176,7 +175,7 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 
     let resolved = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate")
@@ -184,9 +183,10 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 
     flipper.await.expect("the flipping task does not panic");
 
-    assert_eq!(resolved.name, name);
+    assert_eq!(resolved.name.as_str(), name);
     assert_eq!(
-        resolved.status, "running",
+        resolved.status,
+        systemprompt_database::ServiceStatus::Running,
         "the re-read must hand back the recovered row, not the stale crashed one"
     );
 
@@ -201,23 +201,21 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
 async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_then_outage");
-    seed_service(&pool, &name, "crashed").await;
+    seed_service(&pool, &name, "error").await;
 
     let closer = {
         let pool = pool.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-            if let Ok(inner) = pool.pool_arc() {
-                inner.close().await;
-            }
+            pool.pool().close().await;
         })
     };
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
-        ServiceResolver::resolve(&name, &ctx),
+        ServiceResolver::resolve(&ServiceName::new(&name), &ctx),
     )
     .await
     .expect("resolve must terminate");

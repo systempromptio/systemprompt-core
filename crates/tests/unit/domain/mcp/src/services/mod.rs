@@ -27,7 +27,6 @@ mod orchestrator_smoke;
 mod orchestrator_start_live;
 mod process;
 mod process_monitor_live;
-mod process_pid_live;
 mod process_spawn_live;
 mod process_spawner;
 mod proxy_health;

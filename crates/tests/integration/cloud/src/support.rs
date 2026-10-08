@@ -9,7 +9,7 @@ use systemprompt_cloud::cli_session::{
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
 use systemprompt_cloud::{CloudCredentials, SessionBinding};
 use systemprompt_identifiers::{
-    CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
+    CloudAppId, CloudAuthToken, ContextId, Email, ProfileName, SessionId, SessionToken, TenantId,
 };
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -42,7 +42,7 @@ impl TenantFixture {
             StoredTenant::new_cloud(NewCloudTenantParams {
                 id: tenant_a.clone(),
                 name: "Tenant A".to_string(),
-                app_id: Some("app-a".to_string()),
+                app_id: Some(CloudAppId::new("app-a")),
                 hostname: Some("a.systemprompt.test".to_string()),
                 region: Some("iad".to_string()),
                 database_url: Some("postgres://a.example/a".to_string()),
@@ -52,7 +52,7 @@ impl TenantFixture {
             StoredTenant::new_cloud(NewCloudTenantParams {
                 id: tenant_b.clone(),
                 name: "Tenant B".to_string(),
-                app_id: Some("app-b".to_string()),
+                app_id: Some(CloudAppId::new("app-b")),
                 hostname: Some("b.systemprompt.test".to_string()),
                 region: Some("lhr".to_string()),
                 database_url: Some("postgres://b.example/b".to_string()),

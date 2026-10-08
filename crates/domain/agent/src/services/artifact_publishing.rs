@@ -17,7 +17,7 @@ use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
 use crate::repository::A2ARepositories;
 use crate::repository::content::ArtifactRepository;
 use crate::services::{MessageService, SkillService};
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, McpToolName, MessageId, TaskId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 use systemprompt_traits::DynToolExecutionLookup;
@@ -27,7 +27,8 @@ pub struct PublishFromMcpParams<'a> {
     pub artifact: &'a Artifact,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub tool_args: &'a serde_json::Value,
     pub request_context: &'a RequestContext,
     pub call_source: CallSource,
@@ -65,15 +66,16 @@ impl ArtifactPublishingService {
         let mut validated = artifact.clone();
 
         if let Some(exec_id) = &validated.metadata.mcp_execution_id {
-            let exec_id = McpExecutionId::new(exec_id);
+            let exec_id = exec_id.clone();
             let exists = self
                 .tool_executions
                 .execution_exists(&exec_id)
                 .await
                 .map_err(|e| {
-                    AgentServiceError::Internal(format!(
-                        "Failed to check mcp_execution_id {exec_id}: {e}"
-                    ))
+                    AgentServiceError::operation(
+                        format!("Failed to check mcp_execution_id {exec_id}"),
+                        e,
+                    )
                 })?;
             if !exists {
                 tracing::warn!(
@@ -133,7 +135,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(task_id, context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
+            .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,
@@ -163,7 +165,7 @@ impl ArtifactPublishingService {
         self.artifact_repo
             .create_artifact(params.task_id, params.context_id, &validated_artifact)
             .await
-            .map_err(|e| AgentServiceError::Internal(format!("Failed to persist artifact: {e}")))?;
+            .map_err(|e| AgentServiceError::operation("Failed to persist artifact", e))?;
 
         tracing::info!(
             artifact_id = %validated_artifact.id,

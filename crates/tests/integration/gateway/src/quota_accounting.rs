@@ -6,43 +6,60 @@
 //! spend is visible.
 
 use bytes::Bytes;
-use systemprompt_api::services::gateway::policy::QuotaWindow;
-use systemprompt_api::services::gateway::quota::{
-    AccountingOutcome, PostUpdateParams, post_update_tokens,
-};
-use systemprompt_api::services::gateway::service::finalize::record_accounting_outcome;
-use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_database::DbPool;
+use systemprompt_gateway::quota::{AccountingOutcome, QuotaReservation, ReservedWindow};
+use systemprompt_gateway::service::finalize::record_accounting_outcome;
+use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
-use systemprompt_models::services::QuotaFaultMode;
+use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_security::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
-        systemprompt_test_fixtures::ensure_test_bootstrap()
-            .app_paths
-            .storage()
-            .data(),
+fn shared_journal_dir() -> std::path::PathBuf {
+    systemprompt_test_fixtures::ensure_test_bootstrap()
+        .app_paths
+        .storage()
+        .data()
+        .to_path_buf()
+}
+
+// Why: `journal::recover` settles every receipt in the journal it is handed,
+// and the bootstrap's journal is shared by every test in the process; a test
+// that asserts recovery counts owns a journal no other test writes to.
+fn private_journal_dir() -> std::path::PathBuf {
+    shared_journal_dir().join(format!("recovery-{}", uuid::Uuid::new_v4().simple()))
+}
+
+fn gateway_journal(
+    state_dir: &std::path::Path,
+) -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
+        state_dir,
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("gateway journal opens")
 }
 
+fn gateway_repos(db: &DbPool) -> systemprompt_gateway::GatewayRepositories {
+    gateway_repos_in(db, &shared_journal_dir())
+}
 
-fn gateway_repos(db: &DbPool) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gateway_repos_in(
+    db: &DbPool,
+    state_dir: &std::path::Path,
+) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
-        gateway_journal(),
+        gateway_journal(state_dir),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("gateway repositories")
 }
 
 fn dead_pool() -> DbPool {
@@ -79,12 +96,14 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
             ClientAttestation::None,
         ),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }
 
 async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query_scalar("SELECT status FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_one(pool.as_ref())
@@ -92,14 +111,38 @@ async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
         .expect("status")
 }
 
+fn reservation_for(user_id: &UserId) -> QuotaReservation {
+    QuotaReservation {
+        windows: vec![ReservedWindow {
+            subject_kind: "user".to_owned(),
+            subject_id: user_id.as_str().to_owned(),
+            window_seconds: 60,
+            window_start: sqlx::types::chrono::Utc::now(),
+            delta: systemprompt_ai::repository::QuotaBucketDelta {
+                requests: 1,
+                input_tokens: 0,
+                output_tokens: 0,
+                cost_microdollars: 0,
+            },
+        }],
+    }
+}
+
+fn usage() -> systemprompt_gateway::protocol::canonical::CanonicalUsage {
+    systemprompt_gateway::protocol::canonical::CanonicalUsage {
+        input_tokens: 10,
+        output_tokens: 20,
+        ..Default::default()
+    }
+}
+
 async fn record_a_failed_accounting_write(mode: QuotaFaultMode) -> String {
     let db = setup_db().await;
     let user_id = seed_user(&db).await;
     let ai_request_id = AiRequestId::generate();
-    let audit = GatewayAudit::new(
-        &gateway_repos(&db),
-        request_ctx(user_id.clone(), ai_request_id.clone()),
-    );
+    let mut repos = gateway_repos(&db);
+    repos.quota_buckets = systemprompt_ai::repository::AiQuotaBucketRepository::new(&dead_pool());
+    let audit = GatewayAudit::new(&repos, request_ctx(user_id.clone(), ai_request_id.clone()));
     audit
         .open(
             &minimal_request(Some("accounting"), "one turn"),
@@ -108,23 +151,8 @@ async fn record_a_failed_accounting_write(mode: QuotaFaultMode) -> String {
         .await
         .expect("open");
 
-    let windows = vec![QuotaWindow {
-        window_seconds: 60,
-        ..QuotaWindow::default()
-    }];
-    let outcome = post_update_tokens(
-        &dead_pool(),
-        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&dead_pool())
-            .expect("quota repo"),
-        PostUpdateParams {
-            user_id: &user_id,
-            windows: &windows,
-            input_tokens: 10,
-            output_tokens: 20,
-            cost_microdollars: 5,
-        },
-    )
-    .await;
+    audit.set_quota_reservation(reservation_for(&user_id));
+    let outcome = audit.settle_quota(&usage(), 5).await;
     assert!(
         matches!(outcome, AccountingOutcome::Faulted { .. }),
         "an unreachable database must not report the spend as counted"
@@ -152,36 +180,42 @@ async fn a_failed_accounting_write_marks_the_request_failed_when_closed() {
 async fn a_successful_accounting_write_is_counted() {
     let db = setup_db().await;
     let user_id = seed_user(&db).await;
-    let windows = vec![QuotaWindow {
-        window_seconds: 60,
-        ..QuotaWindow::default()
-    }];
-    let outcome = post_update_tokens(
-        &db,
-        &systemprompt_ai::repository::AiQuotaBucketRepository::new(&db).expect("quota repo"),
-        PostUpdateParams {
-            user_id: &user_id,
-            windows: &windows,
-            input_tokens: 10,
-            output_tokens: 20,
-            cost_microdollars: 5,
-        },
+    let audit = GatewayAudit::new(
+        &gateway_repos(&db),
+        request_ctx(user_id.clone(), AiRequestId::generate()),
+    );
+    audit.set_quota_reservation(reservation_for(&user_id));
+    assert!(matches!(
+        audit.settle_quota(&usage(), 5).await,
+        AccountingOutcome::Counted
+    ));
+    assert!(
+        matches!(
+            audit.settle_quota(&usage(), 5).await,
+            AccountingOutcome::Counted
+        ),
+        "a second settlement finds no reservation and writes nothing"
+    );
+    let (input, output, cost): (i64, i64, i64) = sqlx::query_as(
+        "SELECT input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
+         WHERE subject_kind = 'user' AND subject_id = $1",
     )
-    .await;
-    assert!(matches!(outcome, AccountingOutcome::Counted));
+    .bind(user_id.as_str())
+    .fetch_one(db.pool().as_ref())
+    .await
+    .expect("bucket");
+    assert_eq!((input, output, cost), (10, 20, 5), "settled exactly once");
 }
 
 #[tokio::test]
 async fn accounting_failure_recovers_durably_before_and_after_provider_completion() {
-    use systemprompt_api::services::gateway::protocol::CanonicalContent;
-    use systemprompt_api::services::gateway::protocol::canonical_response::{
-        CanonicalResponse, CanonicalUsage,
-    };
+    use systemprompt_gateway::protocol::CanonicalContent;
+    use systemprompt_gateway::protocol::canonical::{CanonicalResponse, CanonicalUsage};
     for before_completion in [false, true] {
         let db = setup_db().await;
         let owner = seed_user(&db).await;
         let id = AiRequestId::generate();
-        let repos = gateway_repos(&db);
+        let repos = gateway_repos_in(&db, &private_journal_dir());
         let context = request_ctx(owner.clone(), id.clone());
         let audit = GatewayAudit::new(&repos, context.clone());
         audit
@@ -192,7 +226,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
             .await
             .expect("open");
         audit
-            .pin_pricing(systemprompt_models::services::ModelPricing {
+            .pin_pricing(systemprompt_manifest::services::ModelPricing {
                 input_per_million: 1.0,
                 output_per_million: 2.0,
                 ..Default::default()
@@ -222,10 +256,8 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
         }
         let dead = dead_pool();
         let mut unavailable = repos.clone();
-        unavailable.requests = std::sync::Arc::new(
-            systemprompt_ai::repository::AiRequestRepository::new(&dead)
-                .expect("unavailable repository"),
-        );
+        unavailable.requests =
+            std::sync::Arc::new(systemprompt_ai::repository::AiRequestRepository::new(&dead));
         let faulted = GatewayAudit::new(&unavailable, context);
         assert!(
             faulted
@@ -235,7 +267,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
             "database failure must leave encrypted fault receipt pending"
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("recovery"),
             1
@@ -258,18 +290,18 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
                 .is_err()
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("identical recovery"),
             1
         );
         assert_eq!(
-            systemprompt_api::services::gateway::audit::journal::recover(&repos.settlement())
+            systemprompt_gateway::audit::journal::recover(&repos.settlement())
                 .await
                 .expect("empty recovery"),
             0
         );
-        let pg = db.pool_arc().expect("pool");
+        let pg = db.pool();
         let row:(String,Option<i32>,Option<i32>,i64,Option<String>)=sqlx::query_as("SELECT status,input_tokens,output_tokens,cost_microdollars,accounting_error FROM ai_requests WHERE id=$1").bind(id.as_str()).fetch_one(pg.as_ref()).await.expect("persisted fault");
         assert_eq!(
             row,

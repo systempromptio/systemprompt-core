@@ -92,10 +92,10 @@ fn pending_requests(layout: &Layout) -> Vec<PathBuf> {
 
 fn process(layout: &Layout, request_path: &Path) -> Result<(), PolicyWriterError> {
     let request = super::request::read_request(request_path)?;
-    let result_path = layout.result_path(request.job_id);
+    let result_path = layout.result_path(&request.job_id);
     let mut result = ElevatedResult {
         version: PROTOCOL_VERSION,
-        job_id: request.job_id,
+        job_id: request.job_id.clone(),
         outcome: ElevatedState::Started,
     };
     write_result(&result_path, &result, &request.requester_sid)?;

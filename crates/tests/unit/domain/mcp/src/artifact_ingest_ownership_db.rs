@@ -4,22 +4,17 @@
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject};
 use serde_json::json;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiToolCallId, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AiToolCallId, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
 };
 use systemprompt_mcp::{ArtifactIngest, IngestRequest};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 const OWNER: &str = "11111111-1111-4111-8111-111111111abc";
 const STRANGER: &str = "22222222-2222-4222-8222-222222222abc";
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -32,6 +27,7 @@ fn ctx(user: Option<&str>) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("ownership-tests").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     match user {
         Some(user) => ctx
@@ -49,8 +45,8 @@ fn request(
 ) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "Read".to_owned(),
-        server_name: Some("tests".to_owned()),
+        tool_name: McpToolName::new("Read"),
+        server_name: Some(McpServerId::new("tests")),
         ai_tool_call_id: call.cloned(),
         mcp_execution_id: None,
         ctx,
@@ -74,8 +70,8 @@ fn with_meta(text: &str, execution_id: &str) -> CallToolResult {
 
 #[tokio::test]
 async fn another_users_tool_call_id_does_not_join_their_execution() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let call = AiToolCallId::new(unique("toolu"));
 
     let owned = ingest
@@ -136,8 +132,8 @@ async fn another_users_tool_call_id_does_not_join_their_execution() {
 
 #[tokio::test]
 async fn another_users_execution_id_in_meta_does_not_join_and_anonymous_never_does() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
 
     let owned = ingest
         .ingest(request(

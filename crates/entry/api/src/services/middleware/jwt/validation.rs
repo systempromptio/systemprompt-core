@@ -76,7 +76,8 @@ pub async fn validate_user_exists(
         .find_by_id(&jwt_context.user_id)
         .await
         .map_err(|e| ContextExtractionError::DatabaseError {
-            message: format!("Failed to check user existence: {e}"),
+            context: "Failed to check user existence".to_owned(),
+            source: e.into(),
         })?
         .ok_or_else(|| {
             tracing::info!(
@@ -134,9 +135,10 @@ pub(super) async fn validate_session_exists(
     )
     .await
     .map_err(|e| match e {
-        SessionAttestationError::Lookup(message) => ContextExtractionError::DatabaseError {
-            message: format!("Failed to check session: {message}"),
+        SessionAttestationError::Lookup(source) => ContextExtractionError::DatabaseError {
+            context: "Failed to check session".to_owned(),
+            source: Box::new(source),
         },
-        other => ContextExtractionError::InvalidToken(other.to_string()),
+        other => ContextExtractionError::InvalidToken(other.into()),
     })
 }

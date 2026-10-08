@@ -1,16 +1,16 @@
 # Profile Configuration Reference
 
-Complete schema for the `profile.yaml` document that configures a systemprompt-core deployment. Every key, type, default, and constraint below is defined in `crates/shared/models/src/profile/*` and `crates/shared/models/src/services/system_admin.rs`.
+Complete schema for the `profile.yaml` document that configures a systemprompt-core deployment. Every key, type, default, and constraint below is defined in `crates/shared/manifest/src/profile/*` and `crates/shared/manifest/src/services/system_admin.rs`.
 
 A profile lives at `.systemprompt/profiles/<name>/profile.yaml`. It is the single source of truth for configuration; there are no environment-variable fallbacks for profile keys (environment variables are used only for `${VAR}` interpolation and the secrets envelope, documented below).
 
 ## Strictness
 
-The top-level `Profile` struct and every nested config struct in this document carry `#[serde(deny_unknown_fields)]` (`crates/shared/models/src/profile/mod.rs:109`). An unrecognized key anywhere in `profile.yaml` is a hard parse error. Do not add keys that are not listed here. The two exceptions that do **not** deny unknown fields are `ProfileInfo` (a runtime status projection, not part of `profile.yaml`) and the secrets document (a JSON file, see [Secrets envelope](#secrets-envelope)).
+The top-level `Profile` struct and every nested config struct in this document carry `#[serde(deny_unknown_fields)]` (`crates/shared/manifest/src/profile/mod.rs:109`). An unrecognized key anywhere in `profile.yaml` is a hard parse error. Do not add keys that are not listed here. The two exceptions that do **not** deny unknown fields are `ProfileInfo` (a runtime status projection, not part of `profile.yaml`) and the secrets document (a JSON file, see [Secrets envelope](#secrets-envelope)).
 
 ## Top-level keys
 
-`crates/shared/models/src/profile/mod.rs:108-149`
+`crates/shared/manifest/src/profile/mod.rs:108-149`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -40,7 +40,7 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 
 ## `site`
 
-`crates/shared/models/src/profile/site.rs`
+`crates/shared/manifest/src/profile/site.rs`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -49,7 +49,7 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 
 ## `database`
 
-`crates/shared/models/src/profile/database.rs`
+`crates/shared/manifest/src/profile/database.rs`
 
 | Key | YAML key | Type | Required | Default | Meaning |
 |-----|----------|------|----------|---------|---------|
@@ -60,7 +60,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ## `server`
 
-`crates/shared/models/src/profile/server.rs`
+`crates/shared/manifest/src/profile/server.rs`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -80,7 +80,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ### `server.content_negotiation`
 
-`crates/shared/models/src/profile/server.rs:54`
+`crates/shared/manifest/src/profile/server.rs:54`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -89,7 +89,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ### `server.security_headers`
 
-`crates/shared/models/src/profile/server.rs:77`. Defaults apply when the `security_headers` block is omitted (the struct `Default` sets `enabled: true`).
+`crates/shared/manifest/src/profile/server.rs:77`. Defaults apply when the `security_headers` block is omitted (the struct `Default` sets `enabled: true`).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -103,7 +103,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ## `paths`
 
-`crates/shared/models/src/profile/paths.rs`. Relative paths are resolved against the profile directory at load time (`profile/mod.rs:173`). Required-vs-optional and `/app`-rooting rules differ by `target` (`profile/validation.rs:31-89`).
+`crates/shared/manifest/src/profile/paths.rs`. Relative paths are resolved against the profile directory at load time (`profile/mod.rs:173`). Required-vs-optional and `/app`-rooting rules differ by `target` (`profile/validation.rs:31-89`).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -116,7 +116,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ## `storage`
 
-`crates/shared/models/src/profile/storage.rs`. Optional; the section may be omitted. Unknown keys and unknown backends are rejected.
+`crates/shared/manifest/src/profile/storage.rs`. Optional; the section may be omitted. Unknown keys and unknown backends are rejected.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -127,7 +127,7 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 
 ## `security`
 
-`crates/shared/models/src/profile/security.rs`. The JWT plane is RS256-only; these keys do not select an algorithm.
+`crates/shared/manifest/src/profile/security.rs`. The JWT plane is RS256-only; these keys do not select an algorithm.
 
 | Key | YAML key | Type | Required | Default | Meaning |
 |-----|----------|------|----------|---------|---------|
@@ -145,7 +145,7 @@ Audience validation requires a nonempty policy. The first-party session policy a
 
 ### `security.trusted_issuers[]`
 
-`crates/shared/models/src/profile/security.rs:42`
+`crates/shared/manifest/src/profile/security.rs:42`
 
 | Key | Type | Required | Meaning |
 |-----|------|----------|---------|
@@ -155,7 +155,7 @@ Audience validation requires a nonempty policy. The first-party session policy a
 
 ## `rate_limits`
 
-`crates/shared/models/src/profile/rate_limits.rs`. Values are requests per second per route group; `burst_multiplier` scales the burst allowance. All keys default, so the block may be `{}`.
+`crates/shared/manifest/src/profile/rate_limits.rs`. Values are requests per second per route group; `burst_multiplier` scales the burst allowance. All keys default, so the block may be `{}`.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -183,7 +183,7 @@ replica count.
 
 ## `system_admin`
 
-`crates/shared/models/src/services/system_admin.rs:19`
+`crates/shared/manifest/src/services/system_admin.rs:19`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -191,7 +191,7 @@ replica count.
 
 ## `runtime`
 
-`crates/shared/models/src/profile/runtime.rs`. Whole block defaults; may be omitted.
+`crates/shared/manifest/src/profile/runtime.rs`. Whole block defaults; may be omitted.
 
 | Key | Type | Required | Default | Allowed values | Meaning |
 |-----|------|----------|---------|----------------|---------|
@@ -203,7 +203,7 @@ replica count.
 
 ## `cloud`
 
-`crates/shared/models/src/profile/cloud.rs`. Optional; absent means a local (non-cloud) deployment.
+`crates/shared/manifest/src/profile/cloud.rs`. Optional; absent means a local (non-cloud) deployment.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -212,7 +212,7 @@ replica count.
 
 ## `secrets`
 
-`crates/shared/models/src/profile/secrets.rs`. Points the bootstrap at the secrets document; it does not contain secret values.
+`crates/shared/manifest/src/profile/secrets.rs`. Points the bootstrap at the secrets document; it does not contain secret values.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -223,7 +223,7 @@ replica count.
 
 ### `secrets.vault`
 
-`crates/shared/models/src/profile/vault.rs`. See [`guides/vault-secrets.md`](../guides/vault-secrets.md) for the task-oriented version.
+`crates/shared/manifest/src/profile/vault.rs`. See [`guides/vault-secrets.md`](../guides/vault-secrets.md) for the task-oriented version.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -251,7 +251,7 @@ The token is never a profile key. Writing `${VAULT_TOKEN}` into `profile.yaml` i
 
 ## `services`
 
-`crates/shared/models/src/profile/services.rs`. Where the services tree comes from. An absent block, or one with no `sources`, serves the tree at `paths.services` — the default. See [`guides/services-bundles.md`](../guides/services-bundles.md).
+`crates/shared/manifest/src/profile/services.rs`. Where the services tree comes from. An absent block, or one with no `sources`, serves the tree at `paths.services` — the default. See [`guides/services-bundles.md`](../guides/services-bundles.md).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -287,7 +287,7 @@ Only the first source may be a base bundle. Every later source must own nothing 
 
 ## `extensions`
 
-`crates/shared/models/src/profile/mod.rs:58`
+`crates/shared/manifest/src/profile/mod.rs:58`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -299,7 +299,7 @@ See [`concepts/extensions.md`](../concepts/extensions.md) for the extension mode
 
 `providers:` and `gateway:` are no longer profile sections. A profile that still carries either
 key fails to parse with `ProfileError::MovedToServices`, which names the key and the file it
-belongs in (`crates/shared/models/src/profile/mod.rs`). The reason is what the two sections
+belongs in (`crates/shared/manifest/src/profile/mod.rs`). The reason is what the two sections
 are: a model catalog (providers, models, pricing, capabilities, limits) and the routes onto it
 change only when the product changes, carry no credential, and are identical across every
 environment — implementation configuration, like agents and MCP servers, not deployment
@@ -311,8 +311,8 @@ loader (`crates/infra/loader/src/config_loader/`):
 
 | Services key | Conventional file | Type | Meaning |
 |--------------|-------------------|------|---------|
-| `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/models/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
-| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/models/src/services/gateway/`). First file to declare it wins across includes. |
+| `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/manifest/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
+| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
 
 Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
 `systemprompt admin setup` writes them from the embedded seed catalog when absent and appends
@@ -321,7 +321,7 @@ result against the merged registry, and never touch the profile.
 
 ### `gateway.routes[]`
 
-`crates/shared/models/src/services/gateway/route.rs`
+`crates/shared/manifest/src/services/gateway/route.rs`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -334,8 +334,8 @@ result against the merged registry, and never touch the profile.
 | `pricing` | object | no | absent | Route-level pricing override; otherwise the matching `providers[].models[].pricing` applies. |
 | `when` | object | no | absent | Request-type match (`RouteMatch`). |
 | `requires` | object | no | absent | Governance requirements the resolved model must satisfy (`RouteRequirements`). |
-| `fallback_provider` | string | no | absent | Provider to re-bind the request to when the primary exhausts its 429/503 retry budget, answers any other 5xx, or is unreachable. Must be declared in `providers` and differ from `provider`; validated against the route's pricing and `requires` like the primary. A per-provider circuit breaker (the provider's `resilience:` settings) skips a primary that keeps failing. The audit row records `served_provider`; cost is the serving provider's catalog rate. |
-| `fallback_upstream_model` | string | no | requested model | Model name sent to the fallback provider. Requires `fallback_provider`. |
+| `fallbacks` | list of `{provider, upstream_model}` | no | `[]` | Deployments tried in order after `provider` when a deployment exhausts its 429/503 retry budget, answers any other 5xx, or is unreachable. Each `provider` must be declared in `providers` and appear once per chain; each deployment is validated against the route's pricing and `requires` as the route it will serve. Each deployment sits behind its provider's circuit breaker (`resilience:`): tripped deployments are skipped while a healthy one remains, and when none is healthy all are tried in order. A provider (such as the Anthropic API) is only used when listed. The audit row records `served_provider` and `route_match` carries `failover:a->b->c`; cost is the serving deployment's catalog rate; `gateway_upstream_failovers_total{from,to,reason}` counts every hop. `upstream_model` defaults to the requested model. |
+| `by_scope` | object | no | absent | Per-scope chains keyed by the value a request is attributed to in one scope dimension: `dimension` (a registered scope dimension, e.g. `project`), `chains` (`{<value>: {provider, upstream_model, fallbacks}}`, at least one, no empty key) and `unmapped` (`deny`, the default, or `shared`). A request with no value for the dimension uses the route's own chain; a mapped value uses its chain; an unmapped value is refused before any upstream call unless `unmapped: shared` sends it down the route's chain. `route_match` records `scope:<dimension>=<value>`. |
 
 Every provider endpoint is validated through the shared outbound-URL guard
 (`validate_outbound_url`, `crates/shared/models/src/net/mod.rs`), which rejects loopback,
@@ -354,7 +354,7 @@ its `providers[]` entries into `providers` and expresses each `models[]` entry a
 
 ## `governance`
 
-`crates/shared/models/src/profile/governance.rs`. Configures the authorization hook for the gateway and MCP planes. The hook is fail-closed: an absent `governance` block, absent `authz`, or unparseable config installs a deny-all hook.
+`crates/shared/manifest/src/profile/governance.rs`. Configures the authorization hook for the gateway and MCP planes. The hook is fail-closed: an absent `governance` block, absent `authz`, or unparseable config installs a deny-all hook.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -362,7 +362,7 @@ its `providers[]` entries into `providers` and expresses each `models[]` entry a
 
 ### `governance.authz.hook`
 
-`crates/shared/models/src/profile/governance.rs:53`
+`crates/shared/manifest/src/profile/governance.rs:53`
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -382,7 +382,7 @@ governance:
 
 ## `observability`
 
-`crates/shared/models/src/profile/observability.rs`. The gateway *ingests* OTLP at `POST /otel`; this block is the other direction. When `otlp` is set, the `otlp_export` scheduler job tails the audit tables and posts every completed AI request as a span — with a child span for each tool call in `tool_call_ledger` and each `governance_decisions` row under its trace — and every `logs` row as a log record, to the collector named here. Metrics are not exported; they stay on the Prometheus `/metrics` listener. Operating notes, including the `otlp_export_state` progress table: [operate.md §5](../guides/operate.md#5-ingest-and-export-opentelemetry-otlp).
+`crates/shared/manifest/src/profile/observability.rs`. The gateway *ingests* OTLP at `POST /otel`; this block is the other direction. When `otlp` is set, the `otlp_export` scheduler job tails the audit tables and posts every completed AI request as a span — with a child span for each tool call in `tool_call_ledger` and each `governance_decisions` row under its trace — and every `logs` row as a log record, to the collector named here. Each request span carries the request's [scope attribution](./http-api.md#scope-attribution) as `systemprompt.scope.<dimension>` (the value) and `systemprompt.scope.<dimension>.source` (`header`, `api_key` or `default`), and the authenticating key as `systemprompt.api_key.id`, so spend can be grouped by any tenant dimension in the collector. Metrics are not exported; they stay on the Prometheus `/metrics` listener. Operating notes, including the `otlp_export_state` progress table: [operate.md §5](../guides/operate.md#5-ingest-and-export-opentelemetry-otlp).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
@@ -421,7 +421,7 @@ server:
 
 ## Secrets envelope
 
-Secret values are never stored in `profile.yaml`. They live in a separate JSON document referenced by the [`secrets`](#secrets) section, loaded by `SecretsBootstrap`. The envelope is customer-owned; the binary never holds a master key. Schema in `crates/shared/models/src/secrets.rs`.
+Secret values are never stored in `profile.yaml`. They live in a separate JSON document referenced by the [`secrets`](#secrets) section, loaded by `SecretsBootstrap`. The envelope is customer-owned; the binary never holds a master key. Schema in `crates/shared/manifest/src/secrets.rs`.
 
 | Field | JSON key | Type | Required | Notes |
 |-------|----------|------|----------|-------|

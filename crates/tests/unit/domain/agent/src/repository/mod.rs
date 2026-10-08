@@ -1,7 +1,5 @@
 // DB-backed tests for the agent repository layer. Each module covers one
 // sub-repository (agent_service, context, message, task, artifact, execution).
-// Every test early-returns when DATABASE_URL is unset so the suite still
-// compiles and passes in environments without a migrated Postgres.
 
 mod agent_service;
 mod artifact;
@@ -13,17 +11,12 @@ mod execution;
 mod execution_mutation_faults;
 mod message;
 mod task;
+mod task_corruption;
 
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
-
-// Returns a live pool, or None when no test database is configured.
-pub(crate) async fn try_pool_or_skip() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 
 pub(crate) fn repos(pool: &DbPool) -> A2ARepositories {
     systemprompt_test_fixtures::a2a_repositories(pool)
@@ -66,7 +59,7 @@ pub(crate) async fn seed_context_and_task(
             user_id,
             session_id,
             trace_id: &trace_id,
-            agent_name: "test-agent",
+            agent_name: &AgentName::new("test-agent"),
         })
         .await
         .expect("create task");

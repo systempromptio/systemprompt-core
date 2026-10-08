@@ -36,7 +36,7 @@ pub async fn execute_with_pool(
     config: &crate::cli_settings::CliConfig,
     prompter: &dyn crate::interactive::Prompter,
 ) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool)?;
+    let repo = ContextRepository::new(pool);
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
 
@@ -52,7 +52,11 @@ pub async fn execute_with_pool(
         .await
         .context("Failed to fetch context details")?;
 
-    if !args.yes && config.is_interactive() {
+    if !args.yes && !config.is_interactive() {
+        bail!("--yes is required in non-interactive mode");
+    }
+
+    if !args.yes {
         CliService::warning(&format!(
             "You are about to delete context '{}' ({})",
             context.name,

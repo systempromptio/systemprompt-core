@@ -19,8 +19,8 @@ use systemprompt_logging::services::cli::{
     BrandColors, render_phase_success, render_phase_warning,
 };
 use systemprompt_logging::{CliService, is_startup_mode};
-use systemprompt_models::Config;
-use systemprompt_models::validators::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
 };

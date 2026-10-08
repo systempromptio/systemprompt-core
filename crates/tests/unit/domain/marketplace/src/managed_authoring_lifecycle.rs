@@ -19,9 +19,7 @@ fn human_review() -> ComparisonEvidence {
 
 #[tokio::test]
 async fn text_candidate_preserves_baseline_metadata_and_publication_while_inventory_advances() {
-    let f = fixture()
-        .await
-        .expect("managed lifecycle database required");
+    let f = fixture().await;
     publish(&f).await;
     let before = f
         .repository
@@ -150,9 +148,7 @@ async fn text_candidate_preserves_baseline_metadata_and_publication_while_invent
 
 #[tokio::test]
 async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
-    let f = fixture()
-        .await
-        .expect("managed lifecycle database required");
+    let f = fixture().await;
     for (path, content) in [
         ("missing.md", "new".to_owned()),
         ("index.md", "# managed instructions\n".to_owned()),
@@ -321,9 +317,7 @@ async fn invalid_text_edits_and_foreign_comparisons_do_not_create_revisions() {
 
 #[tokio::test]
 async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinned_content() {
-    let f = fixture()
-        .await
-        .expect("managed lifecycle database required");
+    let f = fixture().await;
     publish(&f).await;
     let initial = f
         .repository
@@ -458,9 +452,7 @@ async fn withdrawal_and_rollback_keep_bounded_review_history_and_generation_pinn
 
 #[tokio::test]
 async fn resource_listing_reports_has_more_across_the_page_boundary() {
-    let f = fixture()
-        .await
-        .expect("managed authoring fixture requires the test database");
+    let f = fixture().await;
     let source = f
         .repository
         .list_resources(&f.owner, 0)

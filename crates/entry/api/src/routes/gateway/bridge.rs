@@ -6,54 +6,52 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::IntoResponse;
+use axum::extract::rejection::JsonRejection;
+use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{JwtToken, TenantId};
+use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::bridge::profile as bridge_profile;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_manifest::bridge_profile;
+use systemprompt_models::providers::ApiSurface;
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
 
-pub use systemprompt_models::bridge::profile::{
-    BridgeProfileResponse, ProviderHealth, provider_health,
-};
+pub use systemprompt_manifest::bridge_profile::provider_health;
+pub use systemprompt_models::bridge::profile::{BridgeProfileResponse, ProviderHealth};
 
 use super::bridge_data;
-use super::messages::extract_credential;
+use super::bridge_error::{BridgeError, authenticate_bridge};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
-pub(super) use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+use systemprompt_models::bridge::host::HostKind;
 
 pub fn instance_enabled_hosts(
-    services: &systemprompt_models::services::ServicesConfig,
-) -> Vec<String> {
-    KNOWN_HOSTS
-        .iter()
+    services: &systemprompt_manifest::services::ServicesConfig,
+) -> Vec<HostKind> {
+    HostKind::ALL
+        .into_iter()
         .filter(|host| {
             services
                 .external_agents
                 .iter()
-                .find(|(id, _)| id.as_str().replace('_', "-") == **host)
+                .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
                 .is_none_or(|(_, agent)| agent.enabled)
         })
-        .map(|s| (*s).to_owned())
         .collect()
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub struct EnabledHostsRequest {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub enabled: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct SetHostPrefResponse {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub enabled: bool,
 }
 
@@ -61,40 +59,22 @@ pub async fn set_enabled_host(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
-    Json(body): Json<EnabledHostsRequest>,
-) -> Result<Json<SetHostPrefResponse>, (StatusCode, String)> {
-    let credential = extract_credential(&headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    let (claims, _user) = jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-
-    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("unknown host: {}", body.host_id),
-        ));
-    }
+    body: Result<Json<EnabledHostsRequest>, JsonRejection>,
+) -> Result<Json<SetHostPrefResponse>, ApiHttpError> {
+    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     if body.enabled {
         let services = bridge_data::load_services_config()
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}")))?;
+            .map_err(|e| BridgeError::internal("services config load failed", e))?;
         if !instance_enabled_hosts(&services).contains(&body.host_id) {
-            return Err((
-                StatusCode::UNPROCESSABLE_ENTITY,
-                format!("host '{}' is disabled on this installation", body.host_id),
-            ));
+            return Err(BridgeError::HostDisabled(body.host_id).into());
         }
     }
 
-    bridge_data::upsert_host_pref(&ctx, &claims.user_id, &body.host_id, body.enabled)
+    bridge_data::upsert_host_pref(&ctx, &claims.user_id, body.host_id, body.enabled)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(BridgeError::from)?;
 
     Ok(Json(SetHostPrefResponse {
         host_id: body.host_id,
@@ -104,14 +84,14 @@ pub async fn set_enabled_host(
 
 #[derive(Debug, Deserialize)]
 pub struct HostModelFilterRequest {
-    pub host_id: String,
+    pub host_id: HostKind,
     #[serde(default)]
     pub model_protocols: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct HostModelFilterResponse {
-    pub host_id: String,
+    pub host_id: HostKind,
     pub model_protocols: Option<Vec<String>>,
 }
 
@@ -119,25 +99,10 @@ pub async fn set_host_model_filter(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
-    Json(body): Json<HostModelFilterRequest>,
-) -> Result<Json<HostModelFilterResponse>, (StatusCode, String)> {
-    let credential = extract_credential(&headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    let (claims, _user) = jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-
-    if !KNOWN_HOSTS.iter().any(|h| *h == body.host_id) {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            format!("unknown host: {}", body.host_id),
-        ));
-    }
+    body: Result<Json<HostModelFilterRequest>, JsonRejection>,
+) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
+    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
     let normalized = body
         .model_protocols
@@ -147,12 +112,7 @@ pub async fn set_host_model_filter(
                 .map(|tag| {
                     ApiSurface::from_tag(tag)
                         .map(|s| s.as_tag().to_owned())
-                        .ok_or_else(|| {
-                            (
-                                StatusCode::BAD_REQUEST,
-                                format!("unknown API surface: {tag}"),
-                            )
-                        })
+                        .ok_or_else(|| BridgeError::UnknownSurface(tag.clone()))
                 })
                 .collect::<Result<Vec<String>, _>>()
         })
@@ -161,11 +121,11 @@ pub async fn set_host_model_filter(
     bridge_data::set_host_model_protocols(
         &ctx,
         &claims.user_id,
-        &body.host_id,
+        body.host_id,
         normalized.as_deref(),
     )
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(BridgeError::from)?;
 
     Ok(Json(HostModelFilterResponse {
         host_id: body.host_id,
@@ -173,35 +133,26 @@ pub async fn set_host_model_filter(
     }))
 }
 
-pub async fn pubkey() -> impl IntoResponse {
-    match manifest_signing::pubkey_b64() {
-        Ok(b64) => (StatusCode::OK, Json(json!({ "pubkey": b64 }))).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": e.to_string() })),
-        )
-            .into_response(),
-    }
+#[derive(Debug, Serialize)]
+pub struct PubkeyResponse {
+    pub pubkey: String,
 }
 
-pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, String)> {
-    let profile = ProfileBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Profile not ready: {e}"),
-        )
-    })?;
+pub async fn pubkey() -> Result<Json<PubkeyResponse>, ApiHttpError> {
+    let pubkey = manifest_signing::pubkey_b64()
+        .map_err(|e| BridgeError::internal("manifest signing key unavailable", e))?;
+    Ok(Json(PubkeyResponse { pubkey }))
+}
 
-    let services = ServicesBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Services config not ready: {e}"),
-        )
-    })?;
+pub async fn profile() -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
+    let profile =
+        ProfileBootstrap::get().map_err(|e| BridgeError::unavailable("profile not ready", e))?;
+    let services = ServicesBootstrap::get()
+        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
     let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
+        .ok_or(BridgeError::GatewayDisabled)?;
 
     let base = profile.server.api_external_url.trim_end_matches('/');
     let prefix = gateway.inference_path_prefix.trim_end_matches('/');
@@ -213,12 +164,8 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, (StatusCode, Strin
         .and_then(|cloud| cloud.tenant_id.as_ref())
         .map(canonicalize_org_uuid);
 
-    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Secrets not ready: {e}"),
-        )
-    })?;
+    let secrets = systemprompt_config::SecretsBootstrap::get()
+        .map_err(|e| BridgeError::unavailable("secrets not ready", e))?;
     let response = bridge_profile::build(
         bridge_profile::BridgeProfileParams {
             inference_gateway_base_url,

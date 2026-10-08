@@ -57,21 +57,12 @@ fn card_field<'a>(card: &'a Value, heading: &str) -> &'a Value {
 }
 
 async fn raw_pool(database: &DisposableDb) -> sqlx::PgPool {
-    database
-        .pool()
-        .await
-        .expect("open isolated database")
-        .pool_arc()
-        .expect("raw PostgreSQL pool")
-        .as_ref()
-        .clone()
+    database.test_pool().await.pool().as_ref().clone()
 }
 
 #[tokio::test]
 async fn request_show_preserves_complete_client_evidence() {
-    let database = DisposableDb::installed("cli_request_client_evidence")
-        .await
-        .expect("install isolated request database");
+    let database = DisposableDb::with_schema("cli_request_client_evidence").await;
     let pool = raw_pool(&database).await;
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let user = format!("evidence_user_{suffix}");

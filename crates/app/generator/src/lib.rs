@@ -17,14 +17,6 @@
 //! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs registered
 //!   with the systemprompt scheduler via the `inventory` crate.
 //!
-//! # Feature flags
-//!
-//! | Feature             | Effect                                                                 |
-//! | ------------------- | ---------------------------------------------------------------------- |
-//! | `image-processing`  | Pulls in the `image` crate to enable WebP conversion in asset jobs.    |
-//!
-//! All features are off by default.
-//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 

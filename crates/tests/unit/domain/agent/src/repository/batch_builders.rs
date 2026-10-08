@@ -16,6 +16,7 @@ use systemprompt_identifiers::{
     ArtifactId, ContextId, ExecutionStepId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::{StepContent, StepStatus};
+use systemprompt_traits::RepositoryError;
 
 fn step_row(task_id: &TaskId, status: &str, content: serde_json::Value) -> ExecutionStepBatchRow {
     ExecutionStepBatchRow {
@@ -136,7 +137,10 @@ fn build_execution_steps_rejects_a_malformed_row_instead_of_skipping_it() {
     let rows = vec![&good, &bad_status];
 
     let err = build_execution_steps(Some(&rows)).expect_err("a malformed status row is an error");
-    assert!(err.to_string().contains("invalid status"), "{err}");
+    assert!(
+        matches!(&err, RepositoryError::Decode { context, .. } if context.ends_with("status")),
+        "{err:?}"
+    );
 
     let bad_content = step_row(
         &task_id,
@@ -145,7 +149,10 @@ fn build_execution_steps_rejects_a_malformed_row_instead_of_skipping_it() {
     );
     let rows = vec![&bad_content];
     let err = build_execution_steps(Some(&rows)).expect_err("malformed content is an error");
-    assert!(err.to_string().contains("invalid content"), "{err}");
+    assert!(
+        matches!(&err, RepositoryError::Decode { context, .. } if context.ends_with("content")),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -249,7 +256,7 @@ fn build_artifacts_rejects_an_unknown_part_kind() {
     let rows = vec![&row];
 
     let err = build_artifacts(Some(&rows), &parts).expect_err("unknown part kind is malformed");
-    assert!(err.to_string().contains("Unknown part kind"), "{err}");
+    assert!(err.to_string().contains("unknown part kind"), "{err}");
 }
 
 #[test]

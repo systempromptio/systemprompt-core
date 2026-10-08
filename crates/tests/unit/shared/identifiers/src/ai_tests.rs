@@ -1,5 +1,8 @@
 use std::collections::HashSet;
-use systemprompt_identifiers::{AiRequestId, ConfigId, DbValue, MessageId, ToDbValue};
+use systemprompt_identifiers::{
+    AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, DbValue,
+    MessageId, ToDbValue,
+};
 
 #[test]
 fn ai_request_id_generate_uuid_format() {
@@ -81,7 +84,35 @@ fn config_id_generate_unique() {
 
 #[test]
 fn config_id_serde_transparent_json() {
-    let id = ConfigId::new("cfg-123");
+    let id = ConfigId::generate();
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"cfg-123\"");
+    assert_eq!(json, format!("\"{id}\""));
+    let back: ConfigId = serde_json::from_str(&json).unwrap();
+    assert_eq!(back, id);
+}
+
+#[test]
+fn config_id_rejects_non_uuid() {
+    assert!(ConfigId::try_new("cfg-123").is_err());
+    assert!(serde_json::from_str::<ConfigId>("\"cfg-123\"").is_err());
+}
+
+#[test]
+fn uuid_arm_ai_ids_round_trip_through_uuid() {
+    let finding = AiSafetyFindingId::generate();
+    let bucket = AiQuotaBucketId::generate();
+    let policy = AiGatewayPolicyId::generate();
+    assert_eq!(
+        AiSafetyFindingId::from_uuid(finding.to_uuid().unwrap()),
+        finding
+    );
+    assert_eq!(
+        AiQuotaBucketId::from_uuid(bucket.to_uuid().unwrap()),
+        bucket
+    );
+    assert_eq!(
+        AiGatewayPolicyId::from_uuid(policy.to_uuid().unwrap()),
+        policy
+    );
+    assert!(AiGatewayPolicyId::try_new("policy-1").is_err());
 }

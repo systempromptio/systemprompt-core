@@ -1,6 +1,6 @@
 use systemprompt_bridge::gateway::model_view::{HostModelView, host_model_view};
 use systemprompt_bridge::gateway::types::ProviderHealth;
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 
 fn ph(name: &str, surface: ApiSurface, configured: bool, models: &[&str]) -> ProviderHealth {
     ProviderHealth {
@@ -69,7 +69,7 @@ fn available_only_counts_matching_surface() {
 
     let view = host_model_view(&health, &[ApiSurface::Anthropic]);
     assert!(!view.available);
-    assert_eq!(view.compatible_models, vec!["claude-sonnet-4-6".to_owned()]);
+    assert!(view.compatible_models.is_empty());
 }
 
 #[test]

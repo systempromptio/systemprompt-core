@@ -14,6 +14,7 @@ mod create_setup;
 pub mod create_tenant;
 pub(super) mod delete;
 mod edit;
+pub mod edit_document;
 mod edit_secrets;
 pub mod edit_settings;
 mod list;
@@ -22,6 +23,7 @@ mod show;
 pub mod show_display;
 pub mod show_types;
 pub mod templates;
+pub mod tenant_credentials;
 
 pub use api_keys::{ApiKeys, collect_api_keys};
 pub use args::{CreateArgs, DeleteArgs, EditArgs, ProfileCommands, ShowFilter, TenantTypeArg};
@@ -118,7 +120,7 @@ fn select_operation(prompter: &dyn Prompter) -> Result<Option<ProfileCommands>> 
         1 | 2 if !has_profiles => {
             CliService::warning("No profiles found");
             CliService::info(
-                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create a tenant \
+                "Run 'systemprompt cloud tenant create' to create a tenant \
                  with a profile.",
             );
             return Ok(Some(ProfileCommands::List));

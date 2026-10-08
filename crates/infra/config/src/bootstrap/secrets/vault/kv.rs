@@ -17,6 +17,7 @@ struct KvReadResponse {
 
 #[derive(Deserialize)]
 struct KvReadData {
+    // JSON: Vault KV v2 `data` — operator-defined secret keys.
     data: serde_json::Map<String, serde_json::Value>,
 
     #[serde(default)]
@@ -30,6 +31,7 @@ struct KvMetadata {
 }
 
 pub(super) struct KvEntry {
+    // JSON: Vault KV v2 `data` — operator-defined secret keys.
     pub(super) fields: serde_json::Map<String, serde_json::Value>,
     pub(super) version: u64,
 }
@@ -54,9 +56,7 @@ pub(super) async fn read_entry(
         .await?;
 
     let status = response.status();
-    let text = response.text().await.map_err(|e| VaultError::Body {
-        message: e.to_string(),
-    })?;
+    let text = response.text().await.map_err(VaultError::Body)?;
     let detail = truncate_detail(&super::auth::vault_errors(&text));
 
     match status {
@@ -85,8 +85,9 @@ pub(super) async fn read_entry(
     }
 
     let parsed: KvReadResponse =
-        serde_json::from_str(&text).map_err(|e| VaultError::Malformed {
-            message: format!("{mount}/{path}: {e}"),
+        serde_json::from_str(&text).map_err(|source| VaultError::Malformed {
+            context: format!("{mount}/{path}"),
+            source,
         })?;
 
     Ok(KvEntry {

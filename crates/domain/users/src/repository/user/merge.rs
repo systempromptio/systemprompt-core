@@ -1,10 +1,19 @@
-//! Anonymous-to-identified user merge operations.
+//! The users-owned half of an account merge.
+//!
+//! Every other domain's rows are moved by its own
+//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment) before this
+//! runs; what is left is this crate's own: the source's sessions move to the
+//! target, the merge is recorded as a governance decision, and the source user
+//! is deleted — in one transaction, so a failure leaves the source in place
+//! for a rerun.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::{Acquire, Postgres, Transaction};
-use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
+use systemprompt_security::authz::types::DecisionTag;
+use systemprompt_security::authz::{GovernanceDecisionRecord, insert_governance_decision};
 
 use crate::error::Result;
 use crate::repository::UserRepository;
@@ -34,76 +43,28 @@ pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
 ];
 
 impl UserRepository {
-    pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
+    pub async fn complete_merge(&self, source_id: &UserId, target_id: &UserId) -> Result<u64> {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
-        let source = source_id.as_str();
-        let target = target_id.as_str();
 
-        let sessions = transfer_sessions(&mut tx, source, target).await?;
-        let tasks = transfer_tasks(&mut tx, source, target).await?;
-        let mut total_rows = sessions + tasks;
-        total_rows += transfer_audit_rows(&mut tx, source, target).await?;
-        total_rows += transfer_content_rows(&mut tx, source, target).await?;
-        record_merge_attribution(&mut tx, source, target).await?;
-
-        sqlx::query!(
-            "UPDATE fingerprint_reputation SET associated_user_ids = \
-             array_replace(associated_user_ids, $2, $1) WHERE $2 = ANY(associated_user_ids)",
-            target,
-            source
+        let sessions = sqlx::query!(
+            "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",
+            target_id.as_str(),
+            source_id.as_str()
         )
         .execute(&mut *tx)
-        .await?;
+        .await?
+        .rows_affected();
 
-        sqlx::query!(
-            "DELETE FROM ai_quota_buckets WHERE subject_kind = 'user' AND subject_id = $1",
-            source
-        )
-        .execute(&mut *tx)
-        .await?;
+        record_merge_attribution(&mut tx, source_id, target_id).await?;
 
-        sqlx::query!("DELETE FROM users WHERE id = $1", source)
+        sqlx::query!("DELETE FROM users WHERE id = $1", source_id.as_str())
             .execute(&mut *tx)
             .await?;
 
         tx.commit().await?;
-        Ok(MergeResult {
-            sessions,
-            tasks,
-            total_rows,
-        })
+        Ok(sessions)
     }
-}
-
-async fn transfer_sessions(
-    tx: &mut Transaction<'_, Postgres>,
-    source: &str,
-    target: &str,
-) -> Result<u64> {
-    let result = sqlx::query!(
-        "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(result.rows_affected())
-}
-
-async fn transfer_tasks(
-    tx: &mut Transaction<'_, Postgres>,
-    source: &str,
-    target: &str,
-) -> Result<u64> {
-    let result = sqlx::query!(
-        "UPDATE agent_tasks SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(result.rows_affected())
 }
 
 // Why: governance_decisions is append-only — a decision is evidence of what was
@@ -112,141 +73,34 @@ async fn transfer_tasks(
 // reader following the target's trail finds this row and the source id in it.
 async fn record_merge_attribution(
     tx: &mut Transaction<'_, Postgres>,
-    source: &str,
-    target: &str,
+    source_id: &UserId,
+    target_id: &UserId,
 ) -> Result<()> {
     let id = uuid::Uuid::new_v4().to_string();
-    let context_id = ContextId::derived_from_session(&SessionId::new(id.clone()));
-    sqlx::query!(
-        "INSERT INTO governance_decisions (id, user_id, session_id, tool_name, decision, policy, \
-         reason, actor_kind, actor_id, context_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, \
-         $10)",
-        id,
-        target,
-        id,
-        MERGE_TOOL_NAME,
-        "allow",
-        MERGE_POLICY,
-        format!("account merge: {source} merged into {target}"),
-        "system",
-        target,
-        context_id.as_str(),
-    )
-    .execute(&mut **tx)
-    .await?;
+    let session_id = SessionId::new(id.clone());
+    let context_id = ContextId::derived_from_session(&session_id);
+    let actor = Actor::system(target_id.clone());
+    let reason = format!("account merge: {source_id} merged into {target_id}");
+    let evaluated_rules = serde_json::json!([]);
+    let record = GovernanceDecisionRecord {
+        id: &id,
+        actor: &actor,
+        session_id: Some(&session_id),
+        tool_name: MERGE_TOOL_NAME,
+        agent_id: None,
+        agent_scope: None,
+        decision: DecisionTag::Allow,
+        policy: MERGE_POLICY,
+        reason: &reason,
+        evaluated_rules: &evaluated_rules,
+        plugin_id: None,
+        act_chain: &[],
+        context_id: &context_id,
+        task_id: None,
+        trace_id: None,
+        client_id: None,
+        tool_use_id: None,
+    };
+    insert_governance_decision(&mut **tx, &record).await?;
     Ok(())
-}
-
-async fn transfer_audit_rows(
-    tx: &mut Transaction<'_, Postgres>,
-    source: &str,
-    target: &str,
-) -> Result<u64> {
-    let mut moved = 0;
-    moved += sqlx::query!(
-        "UPDATE task_messages SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE user_contexts SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE mcp_tool_executions SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE mcp_artifacts SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE mcp_sessions SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE logs SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    Ok(moved)
-}
-
-async fn transfer_content_rows(
-    tx: &mut Transaction<'_, Postgres>,
-    source: &str,
-    target: &str,
-) -> Result<u64> {
-    let mut moved = 0;
-    moved += sqlx::query!(
-        "UPDATE ai_requests SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE engagement_events SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE analytics_events SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE event_outbox SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE files SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    moved += sqlx::query!(
-        "UPDATE link_clicks SET user_id = $1 WHERE user_id = $2",
-        target,
-        source
-    )
-    .execute(&mut **tx)
-    .await?
-    .rows_affected();
-    Ok(moved)
 }

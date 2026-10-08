@@ -14,25 +14,30 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{ApiKeyId, DeviceCertId, SessionId, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 
 pub use systemprompt_models::auth::{UserRole, UserStatus};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+mod rows;
+pub(crate) use rows::{
+    UserActivityRow, UserApiKeyRow, UserDeviceCertRow, UserRow, UserWithSessionsRow,
+};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
-    #[sqlx(try_from = "String")]
     pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
     pub display_name: Option<String>,
-    pub status: Option<String>,
-    pub email_verified: Option<bool>,
+    pub status: UserStatus,
+    pub email_verified: bool,
     pub roles: Vec<String>,
     pub avatar_url: Option<String>,
     pub is_bot: bool,
     pub is_scanner: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[must_use]
@@ -41,16 +46,16 @@ pub fn normalise_email(email: &str) -> String {
 }
 
 impl User {
-    pub fn is_active(&self) -> bool {
-        self.status.as_deref() == Some(UserStatus::Active.as_str())
+    pub const fn is_active(&self) -> bool {
+        self.status.is_active()
     }
 
     pub fn is_admin(&self) -> bool {
-        self.roles.contains(&UserRole::Admin.as_str().to_owned())
+        self.has_role(UserRole::Admin)
     }
 
     pub fn has_role(&self, role: UserRole) -> bool {
-        self.roles.contains(&role.as_str().to_owned())
+        self.roles.iter().any(|held| held == role.as_str())
     }
 }
 
@@ -64,16 +69,15 @@ pub struct UserActivity {
     pub message_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserWithSessions {
-    #[sqlx(try_from = "String")]
     pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
-    pub status: Option<String>,
+    pub status: UserStatus,
     pub roles: Vec<String>,
-    pub created_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
     pub active_sessions: i64,
     pub last_session_at: Option<DateTime<Utc>>,
 }
@@ -119,20 +123,37 @@ pub struct UserExport {
     pub email: String,
     pub full_name: Option<String>,
     pub display_name: Option<String>,
-    pub status: Option<String>,
-    pub email_verified: Option<bool>,
+    pub status: UserStatus,
+    pub email_verified: bool,
     pub roles: Vec<String>,
     pub is_bot: bool,
     pub is_scanner: bool,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+/// The limits an API key carries: an optional model allowlist, and a spend
+/// budget and request ceiling counted over `request_window_seconds`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiKeyLimits {
+    pub model_allowlist: Option<Vec<String>>,
+    pub budget_microdollars: Option<i64>,
+    pub max_requests: Option<i32>,
+    pub request_window_seconds: Option<i32>,
+}
+
+impl ApiKeyLimits {
+    #[must_use]
+    pub fn allows_model(&self, model: &str) -> bool {
+        self.model_allowlist
+            .as_ref()
+            .is_none_or(|allowed| allowed.iter().any(|m| m == model))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserApiKey {
-    #[sqlx(try_from = "String")]
     pub id: ApiKeyId,
-    #[sqlx(try_from = "String")]
     pub user_id: UserId,
     pub name: String,
     pub key_prefix: String,
@@ -141,6 +162,8 @@ pub struct UserApiKey {
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
     pub revoked_at: Option<DateTime<Utc>>,
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
 }
 
 impl UserApiKey {

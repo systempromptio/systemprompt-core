@@ -1,13 +1,13 @@
 //! Tests for OAuth parameter validation
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::AuthError;
+use systemprompt_models::AuthRequestError;
 use systemprompt_oauth::services::validation::{
     CsrfToken, ValidatedClientRegistration, get_audit_user, optional_param, required_param,
     scope_param,
 };
 use systemprompt_oauth::{GrantType, ResponseType};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 #[test]
 fn test_required_param_success() {
@@ -19,7 +19,7 @@ fn test_required_param_success() {
 fn test_required_param_none() {
     let result = required_param(None, "client_id");
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("client_id"));
             assert!(reason.contains("required"));
         },
@@ -31,7 +31,7 @@ fn test_required_param_none() {
 fn test_required_param_empty_string() {
     let result = required_param(Some(""), "scope");
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
         },
@@ -112,7 +112,7 @@ fn test_scope_param_extra_whitespace() {
 fn test_scope_param_none() {
     let result = scope_param(None);
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
         },
@@ -130,7 +130,7 @@ fn test_scope_param_empty_string() {
 fn test_scope_param_whitespace_only() {
     let result = scope_param(Some("   "));
     match result.unwrap_err() {
-        AuthError::InvalidScope { scope } => {
+        AuthRequestError::InvalidScope { scope } => {
             assert_eq!(scope.trim(), "");
         },
         _ => panic!("Expected InvalidScope error"),
@@ -148,14 +148,14 @@ fn test_scope_param_tabs_and_newlines() {
 fn test_get_audit_user_success() {
     let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "test-user");
+    assert_eq!(result.expect("should succeed").as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
 fn test_get_audit_user_none() {
     let result = get_audit_user(None);
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
         },
         _ => panic!("Expected InvalidRequest error"),
@@ -167,7 +167,7 @@ fn test_get_audit_user_empty() {
     let user = UserId::new("");
     let result = get_audit_user(Some(&user));
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
         },
         _ => panic!("Expected InvalidRequest error"),
@@ -178,7 +178,7 @@ fn test_get_audit_user_empty() {
 fn test_get_audit_user_uuid_format() {
     let user = fixture_user_id();
     let result = get_audit_user(Some(&user));
-    assert_eq!(result.expect("should succeed").as_str(), "test-user");
+    assert_eq!(result.expect("should succeed").as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
@@ -205,14 +205,17 @@ fn test_csrf_token_into_string() {
 #[test]
 fn test_csrf_token_empty() {
     let result = CsrfToken::new("");
-    assert!(matches!(result.unwrap_err(), AuthError::MissingState));
+    assert!(matches!(
+        result.unwrap_err(),
+        AuthRequestError::MissingState
+    ));
 }
 
 #[test]
 fn test_csrf_token_too_short() {
     let result = CsrfToken::new("short");
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("32 characters"));
         },
         _ => panic!("Expected InvalidRequest error for short state"),
@@ -249,7 +252,7 @@ fn test_csrf_token_special_chars_valid() {
 fn test_csrf_token_control_chars_invalid() {
     let result = CsrfToken::new("state_with_\x00_null_abcdef0123456789ab");
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("printable ASCII"));
         },
         _ => panic!("Expected InvalidRequest error"),

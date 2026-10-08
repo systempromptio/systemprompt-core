@@ -30,7 +30,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         .tenants
         .iter()
         .map(|t| TenantSummary {
-            id: t.id.as_str().to_owned(),
+            id: t.id.clone(),
             name: t.name.clone(),
             tenant_type: format!("{:?}", t.tenant_type).to_lowercase(),
             has_database: t.has_database_url(),
@@ -46,9 +46,7 @@ pub async fn list_tenants(prompter: &dyn Prompter, config: &CliConfig) -> Result
         if !config.is_json_output() {
             CliService::section("Tenants");
             CliService::info("No tenants configured.");
-            CliService::info(
-                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
-            );
+            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
         }
         return Ok(CommandOutput::table_of(
             vec!["id", "name", "tenant_type", "has_database"],
@@ -129,7 +127,7 @@ fn display_tenant_details(tenant: &StoredTenant) {
     CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
     if let Some(ref app_id) = tenant.app_id {
-        CliService::key_value("App ID", app_id);
+        CliService::key_value("App ID", app_id.as_str());
     }
 
     if let Some(ref hostname) = tenant.hostname {

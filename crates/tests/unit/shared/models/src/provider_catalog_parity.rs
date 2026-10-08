@@ -6,7 +6,7 @@
 //! of that knowledge, so an accidental edit to `default_catalog.yaml` (a wrong
 //! price, a dropped model, a renamed default) must fail here.
 
-use systemprompt_models::services::ProviderRegistry;
+use systemprompt_manifest::services::ProviderRegistry;
 
 fn seed() -> ProviderRegistry {
     ProviderRegistry::default_seed().expect("embedded default catalog parses")
@@ -67,7 +67,7 @@ fn anthropic_pricing_baseline() {
 fn anthropic_advertises_current_lineup_and_keeps_active_legacy_routable() {
     let registry = seed();
     assert_eq!(
-        registry.advertised_model_ids(&[systemprompt_models::services::ApiSurface::Anthropic]),
+        registry.advertised_model_ids(&[systemprompt_models::providers::ApiSurface::Anthropic]),
         vec![
             "claude-sonnet-5".to_owned(),
             "claude-opus-5-5".to_owned(),

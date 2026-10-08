@@ -6,8 +6,12 @@ use crate::import_tree::fixture;
 #[test]
 fn a_forbidden_sidecar_key_names_the_key_and_where_it_comes_from() {
     let dest = TempDir::new().expect("tempdir");
-    let err = import_anthropic_tree(&fixture("bad"), dest.path(), &ImportOptions::default())
-        .expect_err("forbidden key must be refused");
+    let err = import_anthropic_tree(
+        &fixture("bad"),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("forbidden key must be refused");
     let message = err.to_string();
 
     assert!(message.contains("marketplace.version"), "{message}");
@@ -22,8 +26,12 @@ fn inline_mcp_servers_warn_by_default_and_fail_under_strict() {
         .expect("drop the bad sidecar");
 
     let lenient = TempDir::new().expect("tempdir");
-    let report = import_anthropic_tree(source.path(), lenient.path(), &ImportOptions::default())
-        .expect("lenient import succeeds");
+    let report = import_anthropic_tree(
+        source.path(),
+        lenient.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect("lenient import succeeds");
     assert!(report.warnings.contains(&ImportWarning::InlineMcpServers {
         plugin: "gamma".to_owned()
     }));
@@ -35,6 +43,7 @@ fn inline_mcp_servers_warn_by_default_and_fail_under_strict() {
         &ImportOptions {
             strict: true,
             dry_run: false,
+            scratch_root: std::env::temp_dir(),
         },
     )
     .expect_err("strict import must refuse inline mcp servers");
@@ -49,7 +58,7 @@ fn a_non_empty_destination_is_refused() {
     let err = import_anthropic_tree(
         &fixture("anthropic"),
         dest.path(),
-        &ImportOptions::default(),
+        &ImportOptions::new(std::env::temp_dir()),
     )
     .expect_err("non-empty destination must be refused");
     assert!(err.to_string().contains("not empty"), "{err}");
@@ -66,6 +75,7 @@ fn a_dry_run_reports_everything_and_writes_nothing() {
         &ImportOptions {
             strict: false,
             dry_run: true,
+            scratch_root: std::env::temp_dir(),
         },
     )
     .expect("dry run ignores a non-empty destination");
@@ -93,6 +103,7 @@ fn a_missing_marketplace_manifest_is_a_strict_error() {
         &ImportOptions {
             strict: true,
             dry_run: false,
+            scratch_root: std::env::temp_dir(),
         },
     )
     .expect_err("strict import needs a marketplace manifest");
@@ -111,4 +122,31 @@ fn copy_tree(src: &std::path::Path, dest: &std::path::Path) {
             std::fs::copy(&path, &target).expect("copy");
         }
     }
+}
+
+#[test]
+fn a_pass_through_entry_named_like_a_vendored_plugin_is_refused() {
+    let source = TempDir::new().expect("tempdir");
+    let manifest = source.path().join(".claude-plugin/marketplace.json");
+    std::fs::create_dir_all(manifest.parent().expect("parent")).expect("mkdir");
+    std::fs::write(
+        &manifest,
+        r#"{"name":"acme","owner":{"name":"Acme"},"plugins":[
+            {"name":"tools","source":"./plugins/tools"},
+            {"name":"tools","mode":"pass_through","source":{"source":"github","repo":"acme/tools","sha":"74354ecc7a43da16d91a9bc54fa8db8283a3fcf5"}}
+        ]}"#,
+    )
+    .expect("write manifest");
+
+    let dest = TempDir::new().expect("tempdir");
+    let err = import_anthropic_tree(
+        source.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("name collision refused");
+
+    let text = err.to_string();
+    assert!(text.contains("external plugin 'tools'"), "{text}");
+    assert!(text.contains("vendors"), "{text}");
 }

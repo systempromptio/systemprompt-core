@@ -5,17 +5,12 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_files::FileIngestionJob;
 use systemprompt_identifiers::{Actor, UserId};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 use crate::bootstrap::test_env;
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn write_png_at(path: &std::path::Path) {
     let parent = path.parent().expect("png path has parent");
@@ -41,10 +36,7 @@ async fn file_ingestion_job_metadata_surface() {
 
 #[tokio::test]
 async fn file_ingestion_executes_against_real_pool() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let env = test_env();
 
     let unique = format!("test_{}.png", uuid::Uuid::new_v4().simple());
@@ -53,11 +45,12 @@ async fn file_ingestion_executes_against_real_pool() {
 
     let job = FileIngestionJob::new();
     let actor = Actor::system(UserId::new("test-system"));
-    let db_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db);
-    let app_paths_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(env.app_paths.clone());
-    let app_ctx_arc: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-
-    let ctx = JobContext::new(actor, db_arc, app_ctx_arc, app_paths_arc);
+    let ctx = JobContext::new(
+        actor,
+        Dependencies::new()
+            .with(db)
+            .with(Arc::new(env.app_paths.clone())),
+    );
 
     let result = job.execute(&ctx).await.expect("job should execute");
     assert!(result.success, "ingestion job reports success");

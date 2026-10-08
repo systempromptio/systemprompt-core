@@ -1,14 +1,57 @@
 //! CLI value parsers for fail-fast validation at command line boundaries.
 //!
+//! Each parser is a clap `value_parser`: a malformed identifier is rejected
+//! while the arguments are parsed, so it surfaces as a usage error instead of
+//! reaching a command body.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{Email, ProfileName};
+use systemprompt_identifiers::error::IdValidationError;
+use systemprompt_identifiers::{
+    AgentName, AiRequestId, ApiKeyId, CampaignId, CategoryId, Email, ExtensionId, JobName,
+    LinkClickId, LinkId, McpServerId, McpToolName, ModelId, PluginId, ProfileName, ProviderId,
+    SecretName, ServiceName, SkillId, TenantId, TraceId,
+};
 
-pub fn parse_profile_name(s: &str) -> Result<ProfileName, String> {
-    ProfileName::try_new(s).map_err(|e| e.to_string())
+macro_rules! id_parsers {
+    ($($fn_name:ident => $ty:ident),* $(,)?) => {
+        $(
+            pub fn $fn_name(s: &str) -> Result<$ty, IdValidationError> {
+                $ty::try_new(s)
+            }
+        )*
+    };
 }
 
-pub fn parse_email(s: &str) -> Result<Email, String> {
-    Email::try_new(s).map_err(|e| e.to_string())
+id_parsers! {
+    parse_profile_name => ProfileName,
+    parse_email => Email,
+    parse_extension_id => ExtensionId,
+    parse_agent_name => AgentName,
+    parse_ai_request_id => AiRequestId,
+    parse_api_key_id => ApiKeyId,
+    parse_campaign_id => CampaignId,
+    parse_category_id => CategoryId,
+    parse_job_name => JobName,
+    parse_link_click_id => LinkClickId,
+    parse_link_id => LinkId,
+    parse_mcp_server_id => McpServerId,
+    parse_mcp_tool_name => McpToolName,
+    parse_plugin_id => PluginId,
+    parse_service_name => ServiceName,
+    parse_tenant_id => TenantId,
+    parse_trace_id => TraceId,
+    parse_provider_id => ProviderId,
+    parse_model_id => ModelId,
+    parse_secret_name => SecretName,
+    parse_skill_id => SkillId,
+}
+
+// Why: clap stores a subcommand `--profile` and the global `--profile` in one
+// value slot under the shared id, and the global flag reads that slot as a
+// `String`; a subcommand flag must therefore store a `String` too. This parser
+// still rejects anything that is not a valid profile name.
+pub fn parse_profile_name_arg(s: &str) -> Result<String, IdValidationError> {
+    ProfileName::try_new(s).map(|name| name.as_str().to_owned())
 }

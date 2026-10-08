@@ -18,12 +18,13 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::bridge::manifest::{SignedManifest, SignedManifestEnvelope};
-use uuid::Uuid;
 
 use super::elevated_protocol::CompletedStep;
 use super::mdm::MdmError;
 use super::mdm::tool_catalog::ToolCatalog;
-use crate::ids::HostToken;
+use crate::ids::{ElevatedJobId, HostToken};
+
+pub use self::request::facts_from_entries;
 
 #[cfg(target_os = "windows")]
 pub(crate) use self::child::perform_task;
@@ -43,7 +44,7 @@ pub const RESULT_TIMEOUT_SECS: u64 = 60;
 #[serde(deny_unknown_fields)]
 pub struct PolicyWriteRequest {
     pub version: u32,
-    pub job_id: Uuid,
+    pub job_id: ElevatedJobId,
     pub requester_sid: String,
     pub gateway: String,
     pub envelope: SignedManifestEnvelope,
@@ -92,12 +93,12 @@ impl Layout {
     }
 
     #[must_use]
-    pub fn request_path(&self, job_id: Uuid) -> PathBuf {
+    pub fn request_path(&self, job_id: &ElevatedJobId) -> PathBuf {
         self.inbox.join(format!("request-{job_id}.json"))
     }
 
     #[must_use]
-    pub fn result_path(&self, job_id: Uuid) -> PathBuf {
+    pub fn result_path(&self, job_id: &ElevatedJobId) -> PathBuf {
         self.outbox.join(format!("result-{job_id}.json"))
     }
 }
@@ -176,6 +177,8 @@ pub enum PolicyWriterError {
     NotRegistered,
     #[error("the policy writer task is registered but {0}")]
     Unavailable(String),
+    #[error("policy written through the elevated writer, but org-plugins is not usable: {0}")]
+    OrgPluginsUnusable(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error("the policy writer did not answer within {RESULT_TIMEOUT_SECS}s")]
     Timeout,
     #[error("policy writer result: {0}")]
@@ -190,15 +193,18 @@ pub fn derive_policy(
     let loopback = crate::proxy::LoopbackEndpoint::new(request.loopback_port, None);
     let registry = crate::mcp_registry::from_servers(&manifest.managed_mcp_servers);
     let servers = super::mdm::policy::mcp_entries_with(&loopback, &registry, &request.tool_catalog);
-    let policy = super::mdm::policy::claude_desktop_policy(&super::mdm::policy::PolicyInputs {
-        base_url: &loopback.origin(),
-        host_token: &request.host_token,
-        models: request.models.clone().or(existing_models),
-        headers: &request.headers,
-        egress_allowed_hosts: None,
-        org_uuid: request.org_uuid.as_deref(),
-        mcp_servers: servers.as_deref(),
-    })?;
+    let policy = super::mdm::policy::claude_desktop_policy_with(
+        &super::mdm::policy::PolicyInputs {
+            base_url: &loopback.origin(),
+            host_token: &request.host_token,
+            models: request.models.clone().or(existing_models),
+            headers: &request.headers,
+            egress_allowed_hosts: None,
+            org_uuid: request.org_uuid.as_deref(),
+            mcp_servers: servers.as_deref(),
+        },
+        &manifest.desktop_policy,
+    )?;
     Ok(super::mdm::policy::reg_values(&policy))
 }
 
@@ -206,10 +212,8 @@ pub fn verify_against_anchor(
     request: &PolicyWriteRequest,
     anchor: &crate::config::TrustRecord,
 ) -> Result<SignedManifest, PolicyWriterError> {
-    let requested =
-        systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway).map_err(|e| {
-            PolicyWriterError::Anchor(crate::config::TrustError::InvalidPolicy(e.to_string()))
-        })?;
+    let requested = systemprompt_identifiers::ValidatedUrl::try_new(&request.gateway)
+        .map_err(|e| PolicyWriterError::Anchor(crate::config::TrustError::GatewayInvalid(e)))?;
     let requested = crate::config::GatewayIdentity::new(&requested)?;
     if requested != anchor.gateway {
         return Err(PolicyWriterError::GatewayMismatch {
@@ -231,7 +235,7 @@ pub fn build_request(
 ) -> PolicyWriteRequest {
     PolicyWriteRequest {
         version: REQUEST_VERSION,
-        job_id: Uuid::new_v4(),
+        job_id: ElevatedJobId::generate(),
         requester_sid,
         gateway: fragment.gateway.as_str().to_owned(),
         envelope: fragment.envelope.clone(),
@@ -279,20 +283,9 @@ impl Loopback {
     }
 }
 
-fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
+pub(super) fn entry_value(entries: &[(String, String)], name: &str) -> Option<String> {
     entries
         .iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.clone())
-}
-
-#[must_use]
-pub fn facts_from_entries(entries: &[(String, String)]) -> RequestFacts {
-    RequestFacts {
-        headers: entry_value(entries, "inferenceCustomHeaders")
-            .and_then(|raw| serde_json::from_str(&raw).ok())
-            .unwrap_or_default(),
-        models: entry_value(entries, "inferenceModels"),
-        org_uuid: entry_value(entries, "deploymentOrganizationUuid"),
-    }
 }

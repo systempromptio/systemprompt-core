@@ -48,9 +48,9 @@ impl ManagedSkillResolver for ScriptedSkills {
         match self {
             Self::Published(skill) => Ok(SkillResolution::Published(skill.clone())),
             Self::Withheld(reason) => Ok(SkillResolution::Withheld(*reason)),
-            Self::Unavailable => Err(ManagedSkillResolverError::Unavailable(format!(
-                "scripted outage resolving {key}"
-            ))),
+            Self::Unavailable => Err(ManagedSkillResolverError::Unavailable(
+                format!("scripted outage resolving {key}").into(),
+            )),
         }
     }
 }
@@ -92,8 +92,7 @@ pub fn a2a_dependencies(pool: &DbPool) -> A2aDependencies {
     A2aDependencies {
         session_usage: crate::fixture_analytics_repositories(pool)
             .expect("analytics repositories")
-            .sessions
-            .owner(),
+            .session_store,
         instance_id: InstanceId::new("test-instance"),
         managed_skills: not_managed_skills(),
         tool_executions: tool_execution_ledger(ToolExecutionLedger::Exists),
@@ -101,5 +100,5 @@ pub fn a2a_dependencies(pool: &DbPool) -> A2aDependencies {
 }
 
 pub fn a2a_repositories(pool: &DbPool) -> A2ARepositories {
-    A2ARepositories::new(pool, a2a_dependencies(pool)).expect("a2a repositories")
+    A2ARepositories::new(pool, a2a_dependencies(pool))
 }

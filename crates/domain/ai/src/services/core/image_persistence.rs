@@ -43,7 +43,7 @@ async fn persist_ai_request(
     response: &ImageGenerationResponse,
 ) -> Result<()> {
     let context_id = request.session_id.as_ref().map_or_else(
-        systemprompt_identifiers::ContextId::legacy,
+        systemprompt_identifiers::ContextId::generate,
         systemprompt_identifiers::ContextId::derived_from_session,
     );
     let mut builder = AiRequestRecordBuilder::new(
@@ -76,9 +76,7 @@ async fn persist_ai_request(
         .insert(&record)
         .await
         .map(|_| ())
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 async fn persist_file_record(
@@ -93,7 +91,7 @@ async fn persist_file_record(
             .with_resolution(response.resolution.as_str())
             .with_aspect_ratio(response.aspect_ratio.as_str())
             .with_generation_time(response.generation_time_ms as i32)
-            .with_request_id(&response.request_id);
+            .with_request_id(response.request_id.clone());
 
     let generation_info = match response.cost_estimate {
         Some(cost) => generation_info.with_cost_estimate(cost),
@@ -104,8 +102,8 @@ async fn persist_file_record(
     let metadata = serde_json::to_value(image_metadata).map_err(AiError::SerializationError)?;
 
     let file_id = Uuid::parse_str(response.id.as_str())
-        .map(|uuid| FileId::new(uuid.to_string()))
-        .map_err(|e| AiError::InvalidInput(format!("Invalid UUID: {e}")))?;
+        .map(FileId::from_uuid)
+        .map_err(AiError::InvalidFileId)?;
 
     let params =
         InsertAiFileParams::new(file_id, file_path, public_url, response.mime_type.clone())
@@ -118,21 +116,17 @@ async fn persist_file_record(
     file_provider
         .insert_file(params)
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn find_generated_image(
     file_provider: &dyn AiFilePersistenceProvider,
-    uuid: &str,
+    file_id: &FileId,
 ) -> Result<Option<AiGeneratedFile>> {
     file_provider
-        .find_by_id(&FileId::new(uuid))
+        .find_by_id(file_id)
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn list_user_images(
@@ -146,23 +140,15 @@ pub(super) async fn list_user_images(
     file_provider
         .list_by_user(user_id, limit, offset)
         .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })
+        .map_err(AiError::from)
 }
 
 pub(super) async fn delete_image(
     file_provider: &dyn AiFilePersistenceProvider,
     storage: &crate::services::storage::ImageStorage,
-    uuid: &str,
+    file_id: &FileId,
 ) -> Result<()> {
-    let file_id = FileId::new(uuid);
-    let file = file_provider
-        .find_by_id(&file_id)
-        .await
-        .map_err(|e| AiError::DatabaseError {
-            message: e.to_string(),
-        })?;
+    let file = file_provider.find_by_id(file_id).await?;
 
     if let Some(file_record) = file {
         storage
@@ -170,12 +156,7 @@ pub(super) async fn delete_image(
                 file_record.path.clone(),
             ))
             .await?;
-        file_provider
-            .delete(&file_id)
-            .await
-            .map_err(|e| AiError::DatabaseError {
-                message: e.to_string(),
-            })?;
+        file_provider.delete(file_id).await?;
     }
 
     Ok(())

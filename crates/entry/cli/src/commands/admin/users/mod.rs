@@ -27,10 +27,12 @@ mod update;
 mod webauthn;
 
 use crate::context::CommandContext;
+use crate::descriptor::DataImpact;
 use crate::shared::{CommandOutput, render_result};
 use anyhow::{Result, bail};
 use clap::Subcommand;
 
+pub use apikey::{ApiKeyCommands, IssueArgs as ApiKeyIssueArgs};
 pub use types::*;
 
 #[derive(Debug, Subcommand)]
@@ -85,7 +87,7 @@ pub enum UsersCommands {
         name = "api-key",
         about = "Personal access token (sp-live-) management"
     )]
-    ApiKey(apikey::ApiKeyCommands),
+    ApiKey(ApiKeyCommands),
 }
 
 pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
@@ -139,5 +141,41 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
             "internal: a users subgroup reached the rendering dispatch, which only serves \
              commands that produce a single output"
         ),
+    }
+}
+
+impl UsersCommands {
+    pub const fn data_impact(&self) -> DataImpact {
+        match self {
+            Self::Delete(_)
+            | Self::Merge(_)
+            | Self::Bulk(bulk::BulkCommands::Delete(_) | bulk::BulkCommands::Update(_))
+            | Self::Role(
+                role::RoleCommands::Assign(_)
+                | role::RoleCommands::Promote(_)
+                | role::RoleCommands::Demote(_),
+            )
+            | Self::Session(session::SessionCommands::Cleanup(_))
+            | Self::Ban(ban::BanCommands::Cleanup(_)) => DataImpact::Destructive,
+            Self::List(_)
+            | Self::Show(_)
+            | Self::Search(_)
+            | Self::Create(_)
+            | Self::Update(_)
+            | Self::Count(_)
+            | Self::Export(_)
+            | Self::Stats
+            | Self::Session(session::SessionCommands::List(_) | session::SessionCommands::End(_))
+            | Self::Ban(
+                ban::BanCommands::List(_)
+                | ban::BanCommands::Add(_)
+                | ban::BanCommands::Remove(_)
+                | ban::BanCommands::Check(_),
+            )
+            | Self::Webauthn(webauthn::WebauthnCommands::GenerateSetupToken(_))
+            | Self::ApiKey(
+                ApiKeyCommands::Issue(_) | ApiKeyCommands::List(_) | ApiKeyCommands::Revoke(_),
+            ) => DataImpact::Preserving,
+        }
     }
 }

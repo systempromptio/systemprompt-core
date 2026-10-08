@@ -9,9 +9,14 @@ default:
 # BUILD & TEST
 # =============================================================================
 
-# Lint: enforce typed identifiers (no raw String/&str for known ID field names)
+# Lint: typed identifiers. Names derive from crates/shared/identifiers; fields
+# and fn arguments typed String/&str/Uuid fail unless listed as boundary values.
 lint-raw-ids:
     ./scripts/lint-raw-ids.sh
+
+# Per-crate and per-name counts for lint-raw-ids (always exits 0).
+lint-raw-ids-report:
+    ./scripts/lint-raw-ids.sh --report
 
 # Security-critical lookups read the primary, never a lagging replica.
 lint-authoritative-reads:
@@ -81,9 +86,9 @@ sqlx-prepare:
 # Prepare per-crate SQLx caches for publishing (requires a running database).
 #
 # Each published crate ships its own `.sqlx/` so crates.io can build it offline.
-# The crate set is derived from `cargo metadata`; `entry/api` is excluded there
-# because it issues no SQL via `query!` macros (confirmed by
-# `sqlx-verify-offline`). Every crate is cleaned before it is prepared so the
+# The crate set is derived from `cargo metadata` and narrowed to crates whose
+# src/ invokes a `query!`-family macro; `entry/api` is excluded because it
+# issues none. Every crate is cleaned before it is prepared so the
 # result does not depend on target/ state, and a cache that shrinks is rejected
 # unless PREPARE_ALLOW_PRUNE=1. `sqlx-verify-offline` is the correctness gate.
 sqlx-prepare-publish:
@@ -102,31 +107,19 @@ sqlx-audit-caches:
 # against. `cargo package` cannot be used here: pre-publish, the workspace's
 # own path dependencies do not yet exist at the new version on the index, so
 # it fails on resolution for reasons unrelated to the SQLx cache.
+# The crate set is the one `sqlx-prepare-publish` prepares (`sqlx-prepare.sh list`).
 sqlx-verify-offline:
     #!/usr/bin/env bash
-    set -e
-    echo "Verifying offline compilation for all SQLx crates..."
+    set -euo pipefail
+    mapfile -t crates < <(scripts/sqlx-prepare.sh list)
+    echo "Verifying offline compilation for ${#crates[@]} SQLx crates..."
     echo ""
-    for crate in crates/infra/database crates/infra/events crates/infra/logging crates/infra/security \
-                 crates/domain/analytics crates/domain/agent crates/domain/oauth crates/domain/users \
-                 crates/domain/content crates/domain/files crates/domain/ai \
-                 crates/domain/mcp crates/app/scheduler \
-                 crates/entry/cli crates/entry/api; do
+    for crate in "${crates[@]}"; do
         echo "  Checking $crate..."
         (cd "$crate" && SQLX_OFFLINE=true cargo check --all-features)
     done
     echo ""
     echo "All crates verified for offline compilation!"
-
-# Prepare the release bump commit on `next`: bump → sync pins/snippets → amend.
-# Tagging, publishing, and main all happen later, via `just gate` → `just promote`
-# → merge → tag → publish (canonical flow: internal/release-flow.md). The script
-# itself is gitignored; this recipe is the discoverable entry point.
-release BUMP="patch":
-    @[ "{{BUMP}}" = "patch" ] || [ "{{BUMP}}" = "minor" ] || [ "{{BUMP}}" = "major" ] || \
-        { echo "usage: just release [patch|minor|major]"; exit 2; }
-    @[ -x scripts/release.sh ] || { echo "scripts/release.sh missing — see internal/release-flow.md"; exit 1; }
-    ./scripts/release.sh {{BUMP}}
 
 # Reject imperative SQL in declarative schema files
 lint-schema:
@@ -188,8 +181,28 @@ lint-field-copy-from:
 # too. `check-release-tag`, `check-crate-changelogs`, `machete` and
 # `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
 # bridge build) and stay CI-only by design.
-check-gates: check-version-strings check-lockfile-registry lint-field-copy-from lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-tracing-messages lint-async-trait lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size
+check-gates: check-version-strings check-lockfile-registry lint-field-copy-from lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-stringly-errors lint-tracing-messages lint-async-trait lint-owned-tasks lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size lint-repo-hygiene
     cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
+
+# A public, code-only repository: a tracked prose file outside the sanctioned set
+# (README/CHANGELOG, root AGENTS/CLAUDE/SECURITY, documentation/, the scripts/
+# allowlists, test fixtures and the vendored A2A spec) is a status/plan/report
+# doc that leaked in, as is a status/plan/report/summary/progress/findings-named
+# prose file anywhere.
+lint-repo-hygiene:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    prose='\.(md|txt|org|rst|adoc|pdf|docx)$'
+    sanctioned='^(documentation/|crates/tests/|scripts/[^/]+\.txt$|(AGENTS|CLAUDE|SECURITY)\.md$|crates/domain/agent/docs/a2aspec\.txt$)|(^|/)(README|CHANGELOG)\.md$'
+    hits=$( { git ls-files | grep -E "$prose" | grep -vE "$sanctioned" || true
+              git ls-files | grep -iE "(status|plan|report|summary|progress|findings)[^/]*${prose}" || true
+            } | sort -u)
+    if [ -n "$hits" ]; then
+        echo "✗ prose files outside the sanctioned set (CLAUDE.md § Repository Hygiene):" >&2
+        echo "$hits" | sed 's/^/    /' >&2
+        exit 1
+    fi
+    echo "✓ no stray status/plan/report docs tracked"
 
 # Every source gate, then a workspace check
 check: check-gates
@@ -214,22 +227,21 @@ format-check:
     cargo fmt --manifest-path bin/bridge/Cargo.toml --all -- --check
 
 # Build rustdoc with warnings as errors (main + test workspace).
-# `--workspace` stops at the manifest it is invoked from, so the 86 test
+# `--workspace` stops at the manifest it is invoked from, so the test
 # crates need their own pass — without it their `//!` heads go unchecked and
 # intra-doc links rot silently.
-# Local-only, like `just style-check`: the test workspace ships no `.sqlx`
-# cache, so its `query!` fixtures need the live database that
-# `crates/tests/.cargo/config.toml` points at. CI's docs job runs offline and
-# covers the main workspace alone.
+# The test-workspace pass is local-only: the test workspace ships no `.sqlx`
+# cache, so its `query!` fixtures need DATABASE_URL at a migrated database.
+# CI's docs job runs offline and covers the main and bridge workspaces.
 doc-check:
     RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
     RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
     cd crates/tests && RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
 # Run clippy linter with strict settings (main workspace).
-# The separate `crates/tests` workspace is clippied by `just style-check` (it
-# needs a live database for its `query!` fixtures, which CI's lint job lacks);
-# CI compiles it in the dedicated Test job instead.
+# The separate `crates/tests` workspace is clippied by `just style-check`
+# locally and by quality.yml's `lint-tests` job, which migrates a disposable
+# database for its `query!` fixtures.
 # `--keep-going` mirrors CI: a compile error in one crate must not hide the
 # clippy findings in every crate behind it (0.51.0 lost a gate round that way).
 lint: lint-bridge lint-bridge-native-tests
@@ -384,7 +396,7 @@ lint-no-untyped-admin:
         | grep -v 'crates/shared/identifiers/src/user.rs' \
         | grep -v 'crates/entry/cli/src/commands/admin/bootstrap.rs' \
         | grep -v 'crates/entry/cli/src/commands/infrastructure/jobs/run.rs' \
-        | grep -v 'crates/shared/models/src/services/scheduler.rs' \
+        | grep -v 'crates/shared/manifest/src/services/scheduler.rs' \
         | grep -v 'crates/domain/mcp/src/services/registry/manager.rs' \
         | grep -v 'crates/infra/logging/src/models/log_entry.rs' \
         || true)
@@ -398,7 +410,7 @@ lint-no-untyped-admin:
 # from the root workspace, so a bare root-level scan silently skips them — which is
 # how a 7.5-high advisory sat unnoticed in the bridge lockfile. Keep this list in
 # sync with the tracked Cargo.lock files (`git ls-files '*Cargo.lock'`).
-workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz crates/tests/loadtest crates/tests/mock-inference"
+workspaces := ". bin/bridge crates/tests crates/tests/bench crates/tests/fuzz crates/tests/loadtest crates/tests/mock-inference scripts/rust-contracts"
 
 # Run cargo-deny across every workspace: licenses, advisories, bans, sources.
 # All workspaces share the root deny.toml so the ignore rationales live in one file.
@@ -466,11 +478,7 @@ file-size:
 check-headers:
     ./scripts/check-file-headers.sh
 
-# Run custom style validators
-validate:
-    ./scripts/check-sqlx.sh
-
-# Run all style checks (format + lint + validate)
+# Run all style checks (format, clippy, sqlx allowlist, HTTP errors, test workspace, rustdoc)
 style-check:
     #!/usr/bin/env bash
     set -e
@@ -498,7 +506,9 @@ style-check:
     echo ""
     echo "✅ All style checks passed!"
 
-# Run unit tests (separate test workspace, no database required)
+# Run the test workspace with cargo test. DB-backed tests and the sqlx macros
+# in their fixtures need DATABASE_URL at a migrated database; `just test-shard`
+# sets that up and matches CI.
 unit-test *ARGS:
     cargo test --manifest-path crates/tests/Cargo.toml --workspace {{ARGS}}
 
@@ -670,17 +680,16 @@ coverage:
     # it those tests early-return and produce no coverage.
     #
     # It must point at a disposable, freshly-migrated database, exactly as
-    # coverage.yml does. Pointed at the shared dev `systemprompt-web` DB — the
-    # default until 2026-08-03 — its web-project triggers fail core tests en
-    # masse and the run under-reports by ~6 points (the 82.75% of the
-    # 2026-07-21 baseline against the same tree that measures 88.91% here).
+    # coverage.yml does; the shared dev `systemprompt-web` DB carries
+    # web-project triggers that fail core tests. The default URL carries no
+    # password: psql and sqlx read it from PGPASSWORD or ~/.pgpass.
     #
     # %m%c (continuous mode, no %p): with per-PID files, PID reuse across the
     # ~18k nextest processes silently overwrites earlier profraws — tests
     # covered only by a single low-frequency process read as uncovered. One
     # mmap-shared file per module signature makes counter updates atomic and
     # mirrors coverage.yml.
-    : "${DATABASE_URL:=postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_coverage}"
+    : "${DATABASE_URL:=postgres://systemprompt_admin@localhost:5432/systemprompt_coverage}"
     cov_base="${DATABASE_URL%/*}"
     cov_name="${DATABASE_URL##*/}"
     cov_db_prefix="${cov_name}_cov"
@@ -853,203 +862,22 @@ clean:
     cargo clean
 
 # =============================================================================
-# SERVICES
-# =============================================================================
-
-# Start API server (checks if already running)
-[unix]
-api:
-    #!/usr/bin/env bash
-    if lsof -ti :8080 >/dev/null 2>&1; then
-        echo "✅ Server already running on port 8080"
-        echo ""
-        echo "💡 To restart with latest code: just api-rebuild"
-        exit 0
-    fi
-    echo "🚀 Starting API server..."
-    ./target/debug/systemprompt serve api --foreground
-
-[windows]
-api:
-    #!powershell
-    $port = netstat -ano | Select-String ":8080.*LISTENING"
-    if ($port) {
-        Write-Host "✅ Server already running on port 8080"
-        Write-Host ""
-        Write-Host "💡 To restart with latest code: just api-rebuild"
-        exit 0
-    }
-    Write-Host "🚀 Starting API server..."
-    .\target\debug\systemprompt.exe serve api --foreground
-
-# Rebuild and restart entire system (API + agents + MCP)
-[unix]
-api-rebuild:
-    #!/usr/bin/env bash
-    set -e
-    echo "🔨 Building..."
-    cargo build --bin systemprompt
-    echo "🧹 Cleaning up services..."
-    ./target/debug/systemprompt cleanup-services
-    echo "✅ Starting fresh API server..."
-    ./target/debug/systemprompt serve api --foreground
-
-[windows]
-api-rebuild:
-    #!powershell
-    $ErrorActionPreference = "Stop"
-    Write-Host "🔨 Building..."
-    cargo build --bin systemprompt
-    Write-Host "🧹 Cleaning up services..."
-    .\target\debug\systemprompt.exe cleanup-services
-    Write-Host "✅ Starting fresh API server..."
-    .\target\debug\systemprompt.exe serve api --foreground
-
-# Convenient alias for api-rebuild
-restart:
-    just api-rebuild
-
-# Build and start API server with TEST database (for integration tests)
-[unix]
-api-test-rebuild:
-    #!/usr/bin/env bash
-    set -e
-    echo "🔨 Building..."
-    cargo build --bin systemprompt
-    echo "🧹 Cleaning up services..."
-    ./target/debug/systemprompt cleanup-services
-
-    echo "✅ Starting fresh API server with TEST database..."
-    export DATABASE_URL="database/test.db"
-    ./target/debug/systemprompt serve api --foreground
-
-[windows]
-api-test-rebuild:
-    #!powershell
-    $ErrorActionPreference = "Stop"
-    Write-Host "🔨 Building..."
-    cargo build --bin systemprompt
-    Write-Host "🧹 Cleaning up services..."
-    .\target\debug\systemprompt.exe cleanup-services
-    Write-Host "✅ Starting fresh API server with TEST database..."
-    $env:DATABASE_URL = "database/test.db"
-    .\target\debug\systemprompt.exe serve api --foreground
-
-# Reload agents with latest binary (keeps API server running)
-[unix]
-agents-reload:
-    #!/usr/bin/env bash
-    set +e  # Don't exit on errors
-
-    echo "🔨 Building latest binary..."
-    cargo build --bin systemprompt
-
-    echo "🧹 Stopping old agent processes..."
-
-    # Kill agent processes on known ports
-    for port in 9000 9001 9002 9003; do
-        lsof -ti :$port 2>/dev/null | xargs -r kill -9 2>/dev/null || true
-    done
-
-    # Kill all agent processes by name
-    pkill -9 -f "systemprompt admin agents run" 2>/dev/null || true
-    pkill -9 -f "systemprompt-admin" 2>/dev/null || true
-    pkill -9 -f "systemprompt-introduction" 2>/dev/null || true
-    pkill -9 -f "systemprompt-helper" 2>/dev/null || true
-
-    echo "⏳ Waiting for processes to terminate..."
-    sleep 2
-
-    echo "🚀 Starting agents with new binary via API reconciliation..."
-
-    # Trigger API to restart all enabled agents
-    ./target/debug/systemprompt admin agents restart --all 2>/dev/null || echo "Note: Agents will auto-start with API"
-
-    echo "✅ Agents reloaded with latest binary"
-    echo ""
-    echo "💡 Check status: just agents"
-
-[windows]
-agents-reload:
-    #!powershell
-    Write-Host "🔨 Building latest binary..."
-    cargo build --bin systemprompt
-    Write-Host "🧹 Stopping old agent processes..."
-    # Kill agent processes on known ports
-    foreach ($port in 9000, 9001, 9002, 9003) {
-        $pids = netstat -ano | Select-String ":$port.*LISTENING" | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique
-        foreach ($pid in $pids) {
-            if ($pid -and $pid -ne "0") { taskkill /PID $pid /F 2>$null }
-        }
-    }
-    # Kill agent processes by name pattern
-    taskkill /IM "systemprompt*" /F 2>$null
-    Write-Host "⏳ Waiting for processes to terminate..."
-    Start-Sleep -Seconds 2
-    Write-Host "🚀 Starting agents with new binary via API reconciliation..."
-    & .\target\debug\systemprompt.exe admin agents restart --all 2>$null
-    if (-not $?) { Write-Host "Note: Agents will auto-start with API" }
-    Write-Host "✅ Agents reloaded with latest binary"
-    Write-Host ""
-    Write-Host "💡 Check status: just agents"
-
-# Nuclear option: kill everything and reset (API, agents, MCP servers, database)
-[unix]
-api-nuke:
-    #!/usr/bin/env bash
-    set +e
-    echo "🔨 Building..."
-    cargo build --bin systemprompt
-    echo "💥 NUKING ALL PROCESSES..."
-    for port in 8080 9000 9001 9002 9003 5000 5001 5002 5003 5004 5005; do
-        lsof -ti :$port 2>/dev/null | xargs -r kill -9 2>/dev/null || true
-    done
-    pkill -9 -f "systemprompt serve api" 2>/dev/null || true
-    pkill -9 -f "systemprompt admin agents run" 2>/dev/null || true
-    pkill -9 -f "systemprompt-admin" 2>/dev/null || true
-    pkill -9 -f "systemprompt-introduction" 2>/dev/null || true
-    pkill -9 -f "systemprompt-helper" 2>/dev/null || true
-    pkill -9 -f "systemprompt" 2>/dev/null || true
-    sleep 1
-    ./target/debug/systemprompt infra db execute "DELETE FROM services" 2>/dev/null || true
-    echo "✅ Nuclear cleanup complete, starting fresh API server..."
-    ./target/debug/systemprompt serve api --foreground
-
-[windows]
-api-nuke:
-    #!powershell
-    Write-Host "🔨 Building..."
-    cargo build --bin systemprompt
-    Write-Host "💥 NUKING ALL PROCESSES..."
-    # Kill processes on service ports
-    foreach ($port in 8080, 9000, 9001, 9002, 9003, 5000, 5001, 5002, 5003, 5004, 5005) {
-        $pids = netstat -ano | Select-String ":$port.*LISTENING" | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique
-        foreach ($pid in $pids) {
-            if ($pid -and $pid -ne "0") { taskkill /PID $pid /F 2>$null }
-        }
-    }
-    # Kill all systemprompt processes
-    taskkill /IM "systemprompt*" /F 2>$null
-    Start-Sleep -Seconds 1
-    # Clean up services database
-    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM services" 2>$null
-    Write-Host "✅ Nuclear cleanup complete, starting fresh API server..."
-    .\target\debug\systemprompt.exe serve api --foreground
-
-# =============================================================================
 # TESTING
 # =============================================================================
 
-# Run the Rust test workspace (crates/tests) end to end against a fresh database.
-# Mirrors the CI `test` job: drop+recreate the target DB, apply every extension
-# schema with the migrate tool built OFFLINE (the schema does not exist yet, so
-# live query verification of its core-crate deps would fail), then run the suite
-# LIVE against the migrated schema. Override the target with TEST_DATABASE_URL;
-# the default points at a dedicated `systemprompt_test` DB on the local server.
+# Run the library unit tests of the test workspace (crates/tests) against a
+# fresh database: drop+recreate the target DB, apply every extension schema with
+# the migrate tool built OFFLINE (the schema does not exist yet, so live query
+# verification of its core-crate deps would fail), then `cargo test --lib` LIVE
+# against the migrated schema. Integration-test targets do not run here; CI's
+# sharded nextest run is `just test-shard` / `just test-all-shards`. Override
+# the target with TEST_DATABASE_URL; the default is a disposable
+# `systemprompt_test` DB on the local server. The default URL carries no
+# password: psql and sqlx read it from PGPASSWORD or ~/.pgpass.
 test-rust *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"
@@ -1076,8 +904,9 @@ install-nextest:
 # Mirrors the CI `test` job exactly: the shard group→crate mapping and the
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
 # drops+recreates the target DB so cross-run pollution can't occur. Override the
-# DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`.
-# Groups: shared infra domain app-runtime app-scheduler app-generator entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
+# DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
+# whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
+# Groups: shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1085,7 +914,7 @@ test-shard GROUP *args:
         echo "cargo-nextest not found — run 'just install-nextest' first" >&2
         exit 1
     }
-    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt_test}"
+    db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
     echo "▶ resetting test database: ${name}"
@@ -1107,681 +936,6 @@ test-all-shards:
         echo "═══ shard: ${g} ═══"
         just test-shard "${g}"
     done
-
-# Initialize test database (REQUIRED before running tests)
-test-setup:
-    #!/usr/bin/env bash
-    set -e
-    echo "🧪 Initializing test database..."
-    echo ""
-    tests/integration/scripts/setup-test-db.sh
-
-# Run integration tests with test database (AUTOMATED)
-test-run:
-    #!/usr/bin/env bash
-    set -e
-    echo "🧪 Running integration tests..."
-    echo ""
-    echo "⚠️  MAKE SURE API IS RUNNING IN ANOTHER TERMINAL:"
-    echo "   In another terminal, run: just api-test"
-    echo ""
-    echo "Press Enter to continue or Ctrl+C to abort..."
-    read
-    cd tests/integration
-    export DATABASE_URL="database/test.db"
-    npm test
-
-# Start API server with test database (for integration tests)
-[unix]
-api-test:
-    #!/usr/bin/env bash
-    echo "🧪 Starting API server with TEST database..."
-    echo "📝 Database: database/test.db"
-    echo ""
-    export DATABASE_URL="database/test.db"
-    ./target/debug/systemprompt serve api --foreground
-
-[windows]
-api-test:
-    #!powershell
-    Write-Host "🧪 Starting API server with TEST database..."
-    Write-Host "📝 Database: database/test.db"
-    Write-Host ""
-    $env:DATABASE_URL = "database/test.db"
-    .\target\debug\systemprompt.exe serve api --foreground
-
-# Run full test workflow: setup DB → start API → run tests
-[unix]
-test-full:
-    #!/usr/bin/env bash
-    set -e
-    echo "🧪 FULL TEST WORKFLOW"
-    echo "═══════════════════════════════════════════════════════════"
-    echo ""
-
-    echo "Step 1️⃣  Initializing test database..."
-    tests/integration/scripts/setup-test-db.sh
-    echo ""
-
-    echo "Step 2️⃣  Building project..."
-    cargo build --bin systemprompt
-    echo ""
-
-    echo "⚠️  Step 3️⃣  Starting API in background with test database..."
-    export DATABASE_URL="database/test.db"
-    ./target/debug/systemprompt serve api --foreground &
-    API_PID=$!
-
-    # Give API time to start
-    echo "   Waiting for API to start..."
-    sleep 3
-
-    # Check if API is running
-    if ! lsof -ti :8080 >/dev/null 2>&1; then
-        echo "❌ API failed to start!"
-        exit 1
-    fi
-    echo "✅ API started (PID: $API_PID)"
-    echo ""
-
-    # Run tests
-    echo "Step 4️⃣  Running tests..."
-    cd tests/integration
-    export DATABASE_URL="database/test.db"
-    if npm test; then
-        TEST_EXIT=0
-    else
-        TEST_EXIT=$?
-    fi
-
-    # Cleanup
-    echo ""
-    echo "🧹 Cleaning up..."
-    kill $API_PID 2>/dev/null || true
-    wait $API_PID 2>/dev/null || true
-    sleep 1
-
-    echo "═══════════════════════════════════════════════════════════"
-    if [ $TEST_EXIT -eq 0 ]; then
-        echo "✅ All tests passed!"
-        exit 0
-    else
-        echo "❌ Tests failed!"
-        exit $TEST_EXIT
-    fi
-
-[windows]
-test-full:
-    #!powershell
-    $ErrorActionPreference = "Stop"
-    Write-Host "🧪 FULL TEST WORKFLOW"
-    Write-Host "═══════════════════════════════════════════════════════════"
-    Write-Host ""
-    Write-Host "Step 1️⃣  Building project..."
-    cargo build --bin systemprompt
-    Write-Host ""
-    Write-Host "⚠️  Step 2️⃣  Starting API in background with test database..."
-    $env:DATABASE_URL = "database/test.db"
-    $apiJob = Start-Job -ScriptBlock { & .\target\debug\systemprompt.exe serve api --foreground }
-    Write-Host "   Waiting for API to start..."
-    Start-Sleep -Seconds 3
-    $port = netstat -ano | Select-String ":8080.*LISTENING"
-    if (-not $port) {
-        Write-Host "❌ API failed to start!"
-        Stop-Job $apiJob -ErrorAction SilentlyContinue
-        exit 1
-    }
-    Write-Host "✅ API started"
-    Write-Host ""
-    Write-Host "Step 3️⃣  Running tests..."
-    Push-Location tests/integration
-    $env:DATABASE_URL = "database/test.db"
-    $testResult = 0
-    try { npm test } catch { $testResult = 1 }
-    Pop-Location
-    Write-Host ""
-    Write-Host "🧹 Cleaning up..."
-    Stop-Job $apiJob -ErrorAction SilentlyContinue
-    Remove-Job $apiJob -ErrorAction SilentlyContinue
-    Start-Sleep -Seconds 1
-    Write-Host "═══════════════════════════════════════════════════════════"
-    if ($testResult -eq 0) {
-        Write-Host "✅ All tests passed!"
-        exit 0
-    } else {
-        Write-Host "❌ Tests failed!"
-        exit 1
-    }
-
-# Clean test database (remove test data)
-[unix]
-test-clean:
-    #!/usr/bin/env bash
-    echo "🧹 Cleaning test database..."
-    echo ""
-    export DATABASE_URL="database/test.db"
-    ./target/debug/systemprompt infra db execute "DELETE FROM task_artifacts WHERE artifact_id LIKE 'test-%' OR created_by LIKE 'test-%'"
-    ./target/debug/systemprompt infra db execute "DELETE FROM user_contexts WHERE context_id LIKE 'test-%'"
-    ./target/debug/systemprompt infra db execute "DELETE FROM user_sessions WHERE session_id LIKE 'test-%'"
-    ./target/debug/systemprompt infra db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
-    echo "✅ Test data cleaned!"
-
-[windows]
-test-clean:
-    #!powershell
-    Write-Host "🧹 Cleaning test database..."
-    Write-Host ""
-    $env:DATABASE_URL = "database/test.db"
-    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM task_artifacts WHERE artifact_id LIKE 'test-%' OR created_by LIKE 'test-%'"
-    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM user_contexts WHERE context_id LIKE 'test-%'"
-    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM user_sessions WHERE session_id LIKE 'test-%'"
-    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
-    Write-Host "✅ Test data cleaned!"
-
-# Reset test database completely (use with caution!)
-[unix]
-test-reset:
-    #!/usr/bin/env bash
-    echo "🧹 Resetting test database completely..."
-    echo "⚠️  This will delete ALL data from test database!"
-    echo "Press Enter to continue or Ctrl+C to abort..."
-    read
-    rm -f database/test.db
-    just test-setup
-
-[windows]
-test-reset:
-    #!powershell
-    Write-Host "🧹 Resetting test database completely..."
-    Write-Host "⚠️  This will delete ALL data from test database!"
-    Write-Host "Press Enter to continue or Ctrl+C to abort..."
-    Read-Host
-    Remove-Item -Path database/test.db -ErrorAction SilentlyContinue
-    just test-setup
-
-# Show test database info
-test-info:
-    #!/usr/bin/env bash
-    export DATABASE_URL="database/test.db"
-    echo "📊 Test Database Information:"
-    echo ""
-    ./target/debug/systemprompt infra db info --verbose || echo "Database not initialized. Run: just test-setup"
-
-# Stream logs from test database (newest logs at bottom, chronological order)
-test-logs:
-    #!/usr/bin/env bash
-    export DATABASE_URL="database/test.db"
-    echo "📋 Streaming logs from test database (chronological order, newest at bottom)..."
-    echo "════════════════════════════════════════════════════════════"
-    echo ""
-    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No logs found in test database"
-
-# Stream only errors and warnings from test database
-test-logs-errors:
-    #!/usr/bin/env bash
-    export DATABASE_URL="database/test.db"
-    echo "📋 Streaming ERROR and WARN logs from test database..."
-    echo "════════════════════════════════════════════════════════════"
-    echo ""
-    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level IN ('ERROR', 'WARN') ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No errors/warnings found in test database"
-
-# Stream debug logs from test database
-test-logs-debug:
-    #!/usr/bin/env bash
-    export DATABASE_URL="database/test.db"
-    echo "📋 Streaming DEBUG logs from test database..."
-    echo "════════════════════════════════════════════════════════════"
-    echo ""
-    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level = 'DEBUG' ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No debug logs found in test database"
-
-# =============================================================================
-# OPERATIONS
-# =============================================================================
-
-# List agents (use --json, --verbose flags as needed)
-agents:
-    ./target/debug/systemprompt admin agents list
-
-# Agent orchestrator operations (alias for agents command)
-a2a *ARGS:
-    ./target/debug/systemprompt admin agents {{ARGS}}
-
-# MCP server operations
-mcp *ARGS:
-    ./target/debug/systemprompt plugins mcp {{ARGS}}
-
-# Tenant management (create, list, show, edit, delete)
-tenant *ARGS:
-    ./target/debug/systemprompt cloud tenant {{ARGS}}
-
-# Profile management (create, list, show, edit, delete)
-profile *ARGS:
-    ./target/debug/systemprompt cloud profile {{ARGS}}
-
-# Database operations (pass subcommand, e.g., 'just db migrate' or 'just db tables')
-# IMPORTANT: For queries with commas/spaces, use 'just query "SQL"' instead of 'just db query "SQL"'
-# Use --test flag to operate on test database: just db migrate --test
-db *ARGS:
-    #!/usr/bin/env bash
-    set -- {{ARGS}}  # Convert justfile args to bash positional params
-
-    # Check if trying to use 'db query' with complex SQL
-    if [[ "$1" == "query" ]] && [[ "$#" -gt 2 ]]; then
-        echo "⚠️  ERROR: Use 'just query \"SQL\"' for queries with commas/spaces"
-        echo "   Current: just db query {{ARGS}}"
-        echo "   Correct: just query \"YOUR_SQL_HERE\""
-        exit 1
-    fi
-
-    if [[ " $* " =~ " --test " ]]; then
-        # Remove --test flag from args and set DATABASE_URL for test db
-        ARGS_WITHOUT_TEST=()
-        for arg in "$@"; do
-            [[ "$arg" != "--test" ]] && ARGS_WITHOUT_TEST+=("$arg")
-        done
-        echo "📝 Using test database: database/test.db"
-        DATABASE_URL="database/test.db" ./target/debug/systemprompt infra db "${ARGS_WITHOUT_TEST[@]}"
-    else
-        ./target/debug/systemprompt infra db "$@"
-    fi
-
-# Execute database query (supports table, json, or csv format)
-query SQL FORMAT="table":
-    #!/usr/bin/env bash
-    if [[ "{{FORMAT}}" == "json" ]]; then
-        ./target/debug/systemprompt infra db query "{{SQL}}" --format json
-    elif [[ "{{FORMAT}}" == "csv" ]]; then
-        ./target/debug/systemprompt infra db query "{{SQL}}" --format csv
-    else
-        ./target/debug/systemprompt infra db query "{{SQL}}"
-    fi
-
-# Sync skills to Claude Code
-skills:
-    ./target/debug/systemprompt core skills
-
-# Stream logs (use --level, --module flags to filter)
-logs *ARGS:
-    ./target/debug/systemprompt infra logs --stream {{ARGS}}
-
-# Stream logs (alias for logs)
-log *ARGS:
-    ./target/debug/systemprompt infra logs --stream {{ARGS}}
-
-# Trace a request flow by trace_id (shows execution steps, logs, artifacts)
-trace TRACE_ID:
-    #!/usr/bin/env bash
-    echo "============================================================"
-    echo "TRACE: {{TRACE_ID}}"
-    echo "============================================================"
-    echo ""
-
-    # Get task info first
-    echo "📋 TASK INFO"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT task_id, context_id, agent_name, status, execution_time_ms, created_at FROM agent_tasks WHERE trace_id = '{{TRACE_ID}}'" || echo "No task found"
-    echo ""
-
-    # Execution steps with lifecycle transitions
-    echo "🔄 EXECUTION STEPS"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT s.step_type, s.title, s.subtitle, s.status, s.duration_ms, s.tool_name, s.started_at FROM task_execution_steps s JOIN agent_tasks t ON s.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY s.started_at" || echo "No execution steps found"
-    echo ""
-
-    # Logs (INFO and above, skip DEBUG)
-    echo "📝 LOGS (INFO+)"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message FROM logs WHERE trace_id = '{{TRACE_ID}}' AND level != 'DEBUG' ORDER BY timestamp" || echo "No logs found"
-    echo ""
-
-    # Artifacts
-    echo "📦 ARTIFACTS"
-    echo "------------------------------------------------------------"
-    ./target/debug/systemprompt infra db query "SELECT ta.artifact_id, ta.name, ta.artifact_type, ta.skill_name, ta.created_at FROM task_artifacts ta JOIN agent_tasks t ON ta.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY ta.created_at" || echo "No artifacts found"
-    echo ""
-    echo "============================================================"
-
-# Generate admin token
-token:
-    ./target/debug/systemprompt login admin
-
-# Generate admin token (alias for token)
-admin-token:
-    ./target/debug/systemprompt login admin
-
-# Assign admin role to a user (by username or email)
-assign-admin USER:
-    ./target/debug/systemprompt infra db assign-admin {{USER}}
-
-# =============================================================================
-# POSTGRESQL (Docker Database)
-# =============================================================================
-
-# Start PostgreSQL test/development container (port 5433)
-postgres-start:
-    #!/usr/bin/env bash
-    if docker ps -a --format '{{{{.Names}}' | grep -q '^systemprompt-postgres-test$'; then
-        if docker ps --format '{{{{.Names}}' | grep -q '^systemprompt-postgres-test$'; then
-            echo "✅ PostgreSQL test container already running on port 5433"
-        else
-            echo "🚀 Starting existing PostgreSQL test container..."
-            docker start systemprompt-postgres-test
-            sleep 2
-            echo "✅ PostgreSQL test container started on port 5433"
-        fi
-    else
-        echo "🚀 Creating and starting PostgreSQL test container..."
-        docker compose up -d postgres-test
-        sleep 3
-        echo "✅ PostgreSQL test container started on port 5433"
-    fi
-    echo ""
-    echo "📝 Connection: postgresql://systemprompt_test:systemprompt_test_password@127.0.0.1:5433/systemprompt_test"
-
-# Start PostgreSQL production container (port 5432)
-postgres-start-prod:
-    #!/usr/bin/env bash
-    if docker ps -a --format '{{{{.Names}}' | grep -q '^systemprompt-postgres-prod$'; then
-        if docker ps --format '{{{{.Names}}' | grep -q '^systemprompt-postgres-prod$'; then
-            echo "✅ PostgreSQL prod container already running on port 5432"
-        else
-            echo "🚀 Starting existing PostgreSQL prod container..."
-            docker start systemprompt-postgres-prod
-            sleep 2
-            echo "✅ PostgreSQL prod container started on port 5432"
-        fi
-    else
-        echo "🚀 Creating and starting PostgreSQL prod container..."
-        docker compose up -d postgres-prod
-        sleep 3
-        echo "✅ PostgreSQL prod container started on port 5432"
-    fi
-    echo ""
-    echo "📝 Connection: postgresql://systemprompt:systemprompt_prod_password@127.0.0.1:5432/systemprompt_production"
-
-# Stop all PostgreSQL containers
-postgres-stop:
-    #!/usr/bin/env bash
-    echo "🛑 Stopping PostgreSQL containers..."
-    docker stop systemprompt-postgres-test 2>/dev/null || echo "Test container not running"
-    docker stop systemprompt-postgres-prod 2>/dev/null || echo "Prod container not running"
-    echo "✅ PostgreSQL containers stopped"
-
-# View PostgreSQL logs
-postgres-logs SERVICE="test":
-    #!/usr/bin/env bash
-    if [ "{{SERVICE}}" = "prod" ]; then
-        docker logs -f systemprompt-postgres-prod
-    else
-        docker logs -f systemprompt-postgres-test
-    fi
-
-# Connect to PostgreSQL CLI (test database)
-postgres-psql:
-    #!/usr/bin/env bash
-    echo "🔗 Connecting to PostgreSQL test database..."
-    PGPASSWORD=systemprompt_test_password psql -h 127.0.0.1 -p 5433 -U systemprompt_test -d systemprompt_test
-
-# Connect to PostgreSQL CLI (production database)
-postgres-psql-prod:
-    #!/usr/bin/env bash
-    echo "🔗 Connecting to PostgreSQL production database..."
-    PGPASSWORD=systemprompt_prod_password psql -h 127.0.0.1 -p 5432 -U systemprompt -d systemprompt_production
-
-# Check PostgreSQL container status
-postgres-status:
-    #!/usr/bin/env bash
-    echo "📊 PostgreSQL Container Status:"
-    echo ""
-    docker ps -a --filter "name=systemprompt-postgres" --format "table {{{{.Names}}\t{{{{.Status}}\t{{{{.Ports}}"
-
-# =============================================================================
-# REMOTE POSTGRESQL (Deployed on GCP)
-# =============================================================================
-
-# Connect to remote PostgreSQL via psql
-db-connect:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        echo "Create .env.remote with DATABASE_URL from systemprompt-db deployment"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL"
-
-# Run migrations on remote PostgreSQL
-migrate:
-    #!/usr/bin/env bash
-    if [ ! -f "../.env.remote" ]; then
-        echo "❌ .env.remote not found"
-        echo "Create ../.env.remote with DATABASE_URL from systemprompt-db deployment"
-        exit 1
-    fi
-    source ../.env.remote
-    echo "Running migrations on remote database..."
-    ./target/debug/systemprompt infra db migrate
-
-# Create new site database on remote
-db-create-site SITENAME:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    echo "Creating database for site: {{SITENAME}}"
-    psql "$DATABASE_URL" -c "CREATE DATABASE {{SITENAME}} OWNER app;"
-    echo "✅ Database {{SITENAME}} created!"
-
-# List all databases
-db-list:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL" -c "\l"
-
-# Show database connection statistics
-db-stats:
-    #!/usr/bin/env bash
-    if [ ! -f ".env.remote" ]; then
-        echo "❌ .env.remote not found"
-        exit 1
-    fi
-    source .env.remote
-    psql "$DATABASE_URL" -c "SELECT datname, count(*) FROM pg_stat_activity GROUP BY datname;"
-
-# =============================================================================
-# INFRASTRUCTURE (Docker & Config)
-# =============================================================================
-
-# Generate .env from YAML configs
-config ENV="docker":
-    ./infrastructure/scripts/generate-env.sh --environment {{ENV}}
-
-# Validate configuration
-config-validate ENV="docker":
-    ./infrastructure/scripts/generate-env.sh --environment {{ENV}} --validate
-
-# Build Docker images from source (cli, mcp, or all)
-docker-build TARGET="all":
-    ./infrastructure/scripts/build.sh {{TARGET}}
-
-# Build Docker images from pre-built release binaries (fast!)
-docker-build-prebuilt:
-    cd infrastructure/compose && docker compose -f docker-compose.prebuilt.yml build
-
-# Start Docker services (full build)
-docker-up:
-    cd infrastructure/compose && docker compose up -d
-
-# Start Docker services (pre-built binaries)
-docker-up-prebuilt:
-    cd infrastructure/compose && docker compose -f docker-compose.prebuilt.yml up -d
-
-# Stop Docker services
-docker-down:
-    cd infrastructure/compose && docker compose down
-    cd infrastructure/compose && docker compose -f docker-compose.prebuilt.yml down
-
-# View Docker logs (full build)
-docker-logs:
-    cd infrastructure/compose && docker compose logs -f
-
-# View Docker logs (prebuilt)
-docker-logs-prebuilt:
-    cd infrastructure/compose && docker compose -f docker-compose.prebuilt.yml logs -f
-
-# Restart Docker services
-docker-restart:
-    cd infrastructure/compose && docker compose restart
-
-# Full Docker setup from source (config + build + start)
-docker-setup ENV="docker":
-    just config {{ENV}}
-    just docker-build all
-    just docker-up
-
-# =============================================================================
-# BLOG & CONTENT MANAGEMENT
-# =============================================================================
-
-# Ingest markdown files into blog system
-ingest-markdown path:
-    #!/usr/bin/env bash
-    set -e
-    if [ ! -d "{{ path }}" ]; then
-        echo "❌ Directory not found: {{ path }}"
-        exit 1
-    fi
-    echo "📚 Ingesting markdown files from: {{ path }}"
-    cargo run --bin ingest -p systemprompt-core-content -- --path "{{ path }}"
-
-# Quick test: create sample content and ingest
-ingest-test:
-    bash scripts/rag-ingest-test.sh
-
-# =============================================================================
-# WORKFLOWS
-# =============================================================================
-
-# Build and start API
-dev:
-    cargo build --bin systemprompt
-    ./target/debug/systemprompt serve api --foreground
-
-# Full system status (unified view of all services)
-status:
-    ./target/debug/systemprompt status
-
-# Restart failed services
-restart-failed:
-    ./target/debug/systemprompt restart --failed
-
-# Health check
-health:
-    ./target/debug/systemprompt admin agents health --all
-
-# =============================================================================
-# WEB & BLOG
-# =============================================================================
-# Web builds are now fully static - no API server required!
-# Blog posts are bundled at build time from markdown files
-
-# Build web frontend (static blog + React app)
-web-build:
-    #!/usr/bin/env bash
-    set -e
-    echo "🔨 Building web frontend..."
-    echo ""
-
-    # Check API is running (needed for blog pre-rendering)
-    echo "🔍 Checking if API server is running..."
-    if ! curl -s http://localhost:8080/api/v1/content/blog/json >/dev/null 2>&1; then
-        echo "❌ ERROR: API server not running on port 8080"
-        echo ""
-        echo "💡 FIX: Start API server first:"
-        echo "   In another terminal: just api"
-        echo "   Then run: just web-build"
-        exit 1
-    fi
-    echo "✅ API server is running"
-
-    # Build
-    cd web && npm run build
-    echo ""
-    echo "✅ Web build complete:"
-    echo "   - React app: /dist/index.html"
-    echo "   - Static blog: /dist/blog/**/index.html"
-    echo "   - Sitemap: /dist/sitemap.xml"
-
-# Run web dev server
-web-dev:
-    cd web && npm run dev
-
-# Generate sitemap (fully static, no API required)
-# For local development - uses localhost URLs
-web-sitemap:
-    #!/usr/bin/env bash
-    set -e
-    echo "📄 Generating sitemap for local development..."
-    cd web && VITE_API_URL=http://localhost:8080 npm run sitemap:generate
-    echo "✅ Sitemap generated with localhost URLs (no API required!)"
-
-# Generate sitemap for production deployment
-web-sitemap-prod:
-    #!/usr/bin/env bash
-    set -e
-    echo "📄 Generating sitemap for production..."
-    cd web && SITEMAP_BASE_URL=https://tyingshoelaces.com npm run sitemap:generate
-    echo "✅ Sitemap generated with production URLs (https://tyingshoelaces.com)"
-
-# Ingest all blog content from config (production-ready)
-ingest-content:
-    #!/usr/bin/env bash
-    set -e
-    echo "📚 Ingesting content from config.yml..."
-    ./target/debug/ingest --config crates/services/content/config.yml
-
-# Ingest specific content source (blog, web, personal, etc.)
-ingest-source SOURCE:
-    #!/usr/bin/env bash
-    set -e
-    echo "📚 Ingesting {{ SOURCE }} content..."
-    ./target/debug/ingest --config crates/services/content/config.yml --source {{ SOURCE }}
-
-# Seed database from markdown (one-time operation, never updates existing)
-seed-content:
-    #!/usr/bin/env bash
-    set -e
-    echo "🌱 Seeding database from markdown files..."
-    ./target/debug/ingest --config crates/services/content/config.yml --seed-only
-    echo "✨ Seeding complete. Database is now source of truth."
-
-# Ingest all content sources from config
-ingest-all: ingest-content
-
-# Sync database content to markdown files (DB → markdown, overwrites)
-sync-content:
-    #!/usr/bin/env bash
-    set -e
-    echo "📤 Syncing database content to markdown files..."
-    ./target/debug/export --config crates/services/content/config.yml
-    echo "✨ Sync complete. Markdown files updated from database."
-
-# =============================================================================
-# TIPS
-# =============================================================================
-# Use the CLI directly with global flags for variations:
-#   systemprompt --json agents list
-#   systemprompt --verbose db tables
-#   systemprompt --debug mcp status
-#   systemprompt agents enable my-agent
-#   systemprompt db describe agents
-#   systemprompt logs --level ERROR --stream
 
 # =============================================================================
 # WEBAUTHN
@@ -1854,6 +1008,10 @@ lint-tracing-messages:
 lint-async-trait:
     ./scripts/lint-async-trait.sh
 
+# Every task and thread has an owner (BackgroundTasks / OwnedTask); no detached spawns.
+lint-owned-tasks:
+    ./scripts/lint-owned-tasks.sh
+
 # serde_json::Value in a signature is a protocol boundary with a `// JSON:` line.
 lint-json-value:
     ./scripts/lint-json-value.sh
@@ -1874,6 +1032,13 @@ lint-fail-open:
 # it saw: the closure names the error or logs it.
 lint-swallowed-errors:
     ./scripts/lint-swallowed-errors.sh
+
+# An error turned into a String (`map_err(|e| e.to_string())`,
+# `Result<_, String>`, a `Foo(String)` variant built from Display) loses its
+# source and classification. Part of check-gates.
+# `just lint-stringly-errors --report [PATH...]` prints per-crate counts.
+lint-stringly-errors *ARGS:
+    ./scripts/lint-stringly-errors.sh {{ARGS}}
 
 # Bridge control flow decides on a host warning's `kind`, never its text.
 lint-bridge-typed-warnings:

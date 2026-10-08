@@ -5,12 +5,12 @@
 
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{ImageGenerationRequest, ImageResolution};
-use crate::models::providers::gemini::{
-    GeminiContent, GeminiGenerationConfig, GeminiImageConfig, GeminiInlineData, GeminiPart,
-    GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch,
-};
 use std::collections::HashMap;
-use systemprompt_models::services::ModelDefinition;
+use systemprompt_manifest::services::ModelDefinition;
+use systemprompt_wire::gemini::{
+    GeminiContent, GeminiEmpty, GeminiGenerationConfig, GeminiImageConfig, GeminiInlineData,
+    GeminiPart, GeminiRequest, GeminiResponse, GeminiTool,
+};
 
 pub(super) fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
     match resolution {
@@ -34,9 +34,7 @@ pub(super) fn build_image_request(
     model: &str,
     model_definitions: &HashMap<String, ModelDefinition>,
 ) -> GeminiRequest {
-    let mut parts = vec![GeminiPart::Text {
-        text: request.prompt.clone(),
-    }];
+    let mut parts = vec![text_part(request.prompt.clone())];
 
     for ref_image in &request.reference_images {
         parts.push(GeminiPart::InlineData {
@@ -46,7 +44,7 @@ pub(super) fn build_image_request(
             },
         });
         if let Some(desc) = &ref_image.description {
-            parts.push(GeminiPart::Text { text: desc.clone() });
+            parts.push(text_part(desc.clone()));
         }
     }
 
@@ -59,32 +57,34 @@ pub(super) fn build_image_request(
         .then(|| map_resolution_to_gemini_size(&request.resolution));
 
     let generation_config = GeminiGenerationConfig {
-        temperature: None,
-        top_p: None,
-        top_k: None,
-        max_output_tokens: None,
-        stop_sequences: None,
-        response_mime_type: None,
-        response_schema: None,
         response_modalities: Some(vec!["IMAGE".to_owned()]),
         image_config: Some(GeminiImageConfig {
             aspect_ratio: request.aspect_ratio.as_str().to_owned(),
             image_size,
         }),
+        ..GeminiGenerationConfig::default()
     };
 
-    let tools = if request.enable_search_grounding {
-        Some(vec![GeminiTool {
-            google_search: Some(GoogleSearch::default()),
-        }])
-    } else {
-        None
-    };
+    let tools = request.enable_search_grounding.then(|| {
+        vec![GeminiTool::GoogleSearch {
+            google_search: GeminiEmpty {},
+        }]
+    });
 
     GeminiRequest {
         contents,
+        system_instruction: None,
         generation_config: Some(generation_config),
         tools,
+        tool_config: None,
+    }
+}
+
+const fn text_part(text: String) -> GeminiPart {
+    GeminiPart::Text {
+        text,
+        thought: None,
+        thought_signature: None,
     }
 }
 

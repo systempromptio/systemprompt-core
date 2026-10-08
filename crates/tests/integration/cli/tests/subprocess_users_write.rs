@@ -2,28 +2,22 @@
 //! (create, update, merge, bulk, ban, session end, webauthn) plus the
 //! `admin keys` and `admin access-control` trees.
 
-use systemprompt_cli_integration_tests::full_bootstrap::{command_or_skip, fixture_or_skip};
+use systemprompt_cli_integration_tests::full_bootstrap::{cli_command, full_fixture};
 
 fn run_ok(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     cmd.assert().success();
 }
 
 fn run_any(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     let _ = cmd.assert();
 }
 
 fn run_err(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     cmd.assert().failure();
 }
@@ -33,16 +27,16 @@ fn unique(name: &str) -> String {
     format!("{name}_{}", std::process::id())
 }
 
-fn user_id_by_name_or_skip(name: &str) -> Option<String> {
-    let mut cmd = command_or_skip()?;
+fn user_id_by_name(name: &str) -> Option<String> {
+    let mut cmd = cli_command();
     cmd.args(["--json", "admin", "users", "search", name]);
     let output = cmd.assert().success();
     let raw = String::from_utf8_lossy(&output.get_output().stdout).into_owned();
-    let value: serde_json::Value = serde_json::from_str(raw.trim()).ok()?;
-    let rows = value
-        .get("data")
-        .and_then(|d| d.as_array().cloned())
-        .or_else(|| value.as_array().cloned())?;
+    let value: serde_json::Value =
+        serde_json::from_str(raw.trim()).expect("`admin users search --json` emits JSON");
+    let rows = value["items"]
+        .as_array()
+        .expect("`admin users search --json` emits a table with `items`");
     rows.iter()
         .find(|r| r.get("name").and_then(|n| n.as_str()) == Some(name))
         .and_then(|r| r.get("id").and_then(|i| i.as_str()).map(str::to_owned))
@@ -50,9 +44,7 @@ fn user_id_by_name_or_skip(name: &str) -> Option<String> {
 
 #[test]
 fn user_create_update_show_delete_cycle() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let name = unique("covuser_cycle");
     let email = format!("{name}@example.com");
     run_ok(&[
@@ -82,9 +74,7 @@ fn user_create_update_show_delete_cycle() {
         "admin", "users", "create", "--name", &name, "--email", &email,
     ]);
 
-    let Some(id) = user_id_by_name_or_skip(&name) else {
-        return;
-    };
+    let id = user_id_by_name(&name).expect("the created user is found by name");
     run_ok(&["admin", "users", "show", &id]);
     run_ok(&["--json", "admin", "users", "show", &id]);
     run_ok(&[
@@ -113,9 +103,7 @@ fn user_create_update_show_delete_cycle() {
 
 #[test]
 fn user_merge_flow() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let src_name = unique("covmerge_src");
     let dst_name = unique("covmerge_dst");
     let src_email = format!("{src_name}@example.com");
@@ -126,13 +114,9 @@ fn user_merge_flow() {
     run_ok(&[
         "admin", "users", "create", "--name", &dst_name, "--email", &dst_email,
     ]);
-    let (Some(src), Some(dst)) = (
-        user_id_by_name_or_skip(&src_name),
-        user_id_by_name_or_skip(&dst_name),
-    ) else {
-        return;
-    };
-    run_any(&[
+    let src = user_id_by_name(&src_name).expect("the source user is found by name");
+    let dst = user_id_by_name(&dst_name).expect("the target user is found by name");
+    run_ok(&[
         "admin", "users", "merge", "--source", &src, "--target", &dst, "-y",
     ]);
     run_err(&[
@@ -150,9 +134,7 @@ fn user_merge_flow() {
 
 #[test]
 fn bulk_update_and_delete() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_any(&[
         "admin",
         "users",
@@ -206,9 +188,7 @@ fn bulk_update_and_delete() {
 
 #[test]
 fn ban_lifecycle() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_ok(&[
         "admin",
         "users",
@@ -241,9 +221,7 @@ fn ban_lifecycle() {
 
 #[test]
 fn webauthn_setup_token() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_any(&[
         "admin",
         "users",
@@ -266,9 +244,7 @@ fn webauthn_setup_token() {
 
 #[test]
 fn keys_issue_plugin_token() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_any(&[
         "admin",
         "keys",
@@ -301,9 +277,7 @@ fn keys_issue_plugin_token() {
 
 #[test]
 fn access_control_export_and_lint() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     run_any(&["admin", "access-control", "export-yaml"]);
     run_any(&["--json", "admin", "access-control", "export-yaml"]);
     run_any(&["admin", "access-control", "lint"]);

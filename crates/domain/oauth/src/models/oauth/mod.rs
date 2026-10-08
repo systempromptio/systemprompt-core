@@ -11,7 +11,6 @@ use std::fmt;
 use std::str::FromStr;
 
 pub use systemprompt_models::auth::JwtClaims;
-pub use systemprompt_models::oauth::OAuthServerConfig as OAuthConfig;
 
 macro_rules! impl_str_enum {
     ($enum_name:ident, $error_variant:ident, { $($variant:ident => $str:expr),+ $(,)? }) => {

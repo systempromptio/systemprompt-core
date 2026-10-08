@@ -15,10 +15,15 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use super::ApplyError;
+use crate::ids::PluginId;
 
 const DISPLACED_SUFFIX: &str = ".old";
 
-pub fn promote_staged(stage: &Path, target: &Path, plugin_id: &str) -> Result<bool, ApplyError> {
+pub fn promote_staged(
+    stage: &Path,
+    target: &Path,
+    plugin_id: &PluginId,
+) -> Result<bool, ApplyError> {
     let displaced = displaced_path(target);
     remove_dir_if_present(&displaced).map_err(|source| ApplyError::Io {
         context: format!("remove leftover {}", displaced.display()),
@@ -63,14 +68,14 @@ pub fn promote_staged(stage: &Path, target: &Path, plugin_id: &str) -> Result<bo
     Ok(was_present)
 }
 
-fn restore(displaced: &Path, target: &Path, plugin_id: &str) {
+fn restore(displaced: &Path, target: &Path, plugin_id: &PluginId) {
     match fs::rename(displaced, target) {
         Ok(()) => tracing::warn!(
-            plugin_id,
+            plugin_id = %plugin_id,
             "promotion failed; the installed plugin was restored"
         ),
         Err(error) => tracing::error!(
-            plugin_id,
+            plugin_id = %plugin_id,
             error = %error,
             displaced = %displaced.display(),
             "promotion failed and the installed plugin could not be moved back"

@@ -800,19 +800,3 @@ sp --json admin users list | jq '.users[] | select(.status == "active")'
 sp --json admin users list | jq '.users[] | select(.roles | contains(["admin"]))'
 sp --json admin users session list johndoe | jq '.sessions[] | select(.is_active == true)'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All destructive commands require `--yes` / `-y` flag
-- [x] All output types derive `Serialize`, `Deserialize`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with proper error handling
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing required flags
-- [x] All user identifiers accept username, email, or UUID
-
-
----

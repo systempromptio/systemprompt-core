@@ -15,10 +15,11 @@
 
 use std::borrow::Cow;
 
+use serde::Deserialize;
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
 
-use super::super::registry::PolicyRegistration;
+use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
@@ -30,26 +31,31 @@ struct ScopeCheck {
     admin_only_prefixes: Vec<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct ScopeCheckYaml {
+    #[serde(default)]
+    admin_only_prefixes: Vec<String>,
+}
+
 impl ScopeCheck {
-    fn from_yaml(v: &YamlValue) -> Self {
-        let prefixes = v
-            .get("admin_only_prefixes")
-            .and_then(|s| s.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|p| p.as_str().map(str::to_owned))
-                    .collect::<Vec<_>>()
-            })
-            .filter(|v: &Vec<String>| !v.is_empty())
-            .unwrap_or_else(|| {
-                DEFAULT_ADMIN_ONLY_PREFIXES
-                    .iter()
-                    .map(|s| (*s).to_owned())
-                    .collect()
-            });
-        Self {
-            admin_only_prefixes: prefixes,
-        }
+    fn from_yaml(v: &YamlValue) -> Result<Self, PolicyConfigurationError> {
+        let cfg = serde_yaml::from_value::<Option<ScopeCheckYaml>>(v.clone())
+            .map_err(|source| PolicyConfigurationError::Yaml {
+                context: "malformed scope_check policy entry",
+                source,
+            })?
+            .unwrap_or_default();
+        let admin_only_prefixes = if cfg.admin_only_prefixes.is_empty() {
+            DEFAULT_ADMIN_ONLY_PREFIXES
+                .iter()
+                .map(|s| (*s).to_owned())
+                .collect()
+        } else {
+            cfg.admin_only_prefixes
+        };
+        Ok(Self {
+            admin_only_prefixes,
+        })
     }
 }
 
@@ -115,6 +121,6 @@ impl GovernancePolicy for ScopeCheck {
 inventory::submit! {
     PolicyRegistration {
         id: ID,
-        factory: |v| Ok(Box::new(ScopeCheck::from_yaml(v))),
+        factory: |v| Ok(Box::new(ScopeCheck::from_yaml(v)?)),
     }
 }

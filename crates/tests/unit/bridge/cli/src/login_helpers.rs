@@ -2,7 +2,8 @@
 //! the gateway and device name a redeemed token is bound to.
 
 use systemprompt_bridge::cli::login::{
-    code_after_flag, default_device_name, extract_code, resolve_gateway, strip_terminal_noise,
+    LoginError, PastedCodeError, code_after_flag, default_device_name, extract_code,
+    resolve_gateway, strip_terminal_noise,
 };
 use tempfile::TempDir;
 
@@ -39,8 +40,9 @@ fn surrounding_whitespace_is_trimmed_off_a_pasted_code() {
 #[test]
 fn pasting_nothing_at_all_is_reported_rather_than_accepted_as_an_empty_code() {
     let err = extract_code("   ").expect_err("blank input");
-    assert_eq!(err, "nothing pasted");
-    assert_eq!(extract_code("").expect_err("empty input"), "nothing pasted");
+    assert!(matches!(err, PastedCodeError::Empty), "{err:?}");
+    let err = extract_code("").expect_err("empty input");
+    assert!(matches!(err, PastedCodeError::Empty), "{err:?}");
 }
 
 #[test]
@@ -69,8 +71,10 @@ fn the_code_flag_wins_over_a_gateway_url_in_the_same_pasted_command() {
 #[test]
 fn a_command_with_no_code_flag_is_reported_as_a_command_rather_than_used_as_a_code() {
     let err = extract_code("systemprompt-bridge login --no-browser").expect_err("no code present");
-    assert!(err.contains("--code"), "{err}");
-    assert!(err.contains("paste just the code"), "{err}");
+    assert!(
+        matches!(err, PastedCodeError::CommandWithoutCode),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -97,20 +101,22 @@ fn a_fragment_after_the_code_is_dropped_rather_than_treated_as_part_of_it() {
 fn a_callback_url_carrying_an_error_reports_that_the_sign_in_was_refused() {
     let err = extract_code("https://gw.invalid/cb?error=access_denied")
         .expect_err("an error param is a refusal");
-    assert!(err.contains("not approved"), "{err}");
-    assert!(err.contains("access_denied"), "{err}");
+    match err {
+        PastedCodeError::NotApproved { reason } => assert_eq!(reason, "access_denied"),
+        other => panic!("expected NotApproved, got {other:?}"),
+    }
 }
 
 #[test]
 fn a_url_with_a_query_but_no_code_says_so_rather_than_using_the_url_as_a_code() {
     let err = extract_code("https://gw.invalid/cb?state=abc").expect_err("no code parameter");
-    assert!(err.contains("no `code` parameter"), "{err}");
+    assert!(matches!(err, PastedCodeError::UrlWithoutCode), "{err:?}");
 }
 
 #[test]
 fn an_empty_code_parameter_is_not_accepted_as_a_code() {
     let err = extract_code("https://gw.invalid/cb?code=").expect_err("empty code param");
-    assert!(err.contains("no `code` parameter"), "{err}");
+    assert!(matches!(err, PastedCodeError::UrlWithoutCode), "{err:?}");
 }
 
 #[test]
@@ -197,7 +203,7 @@ fn surrounding_whitespace_on_a_gateway_override_is_trimmed_before_validation() {
 fn a_gateway_override_that_is_not_a_url_is_refused_and_the_error_names_the_flag() {
     let err = with_config(None, || resolve_gateway(Some("not a url")))
         .expect_err("a malformed override is refused");
-    assert!(err.starts_with("--gateway: "), "got {err}");
+    assert!(matches!(err, LoginError::GatewayFlag(_)), "got {err:?}");
 }
 
 #[test]
@@ -207,7 +213,7 @@ fn an_empty_gateway_override_is_refused_rather_than_falling_back_to_the_config()
         || resolve_gateway(Some("   ")),
     )
     .expect_err("an empty override is refused, not ignored");
-    assert!(err.starts_with("--gateway: "), "got {err}");
+    assert!(matches!(err, LoginError::GatewayFlag(_)), "got {err:?}");
 }
 
 #[test]

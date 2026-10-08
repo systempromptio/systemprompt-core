@@ -4,27 +4,22 @@
 //! the per-track Postgres database to exercise the read-only branches and the
 //! `list_tool_stats` aggregator.
 
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId};
+use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::ToolExecutionLookup;
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = db_or_skip().await else { return };
-    drop(ToolUsageRepository::new(&db).expect("ctor"));
+    let db = test_db_pool().await;
+    drop(ToolUsageRepository::new(&db));
 }
 
 #[tokio::test]
 async fn find_by_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = ToolUsageRepository::new(&db);
     let id = McpExecutionId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_id(&id).await.unwrap();
     assert!(r.is_none());
@@ -32,8 +27,8 @@ async fn find_by_id_random_returns_none() {
 
 #[tokio::test]
 async fn find_by_ai_call_id_random_returns_none() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = ToolUsageRepository::new(&db);
     let id = AiToolCallId::new(format!("none-{}", uuid::Uuid::new_v4().simple()));
     let r = repo.find_by_ai_call_id(&id).await.unwrap();
     assert!(r.is_none());
@@ -47,8 +42,8 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = ToolUsageRepository::new(&db);
 
     let tool_name = format!("stats-tool-{}", uuid::Uuid::new_v4().simple());
     let server_name = format!("stats-srv-{}", uuid::Uuid::new_v4().simple());
@@ -57,15 +52,13 @@ async fn execution_exists_answers_through_the_shared_lookup_seam() {
         TraceId::new("stats-t"),
         ContextId::generate(),
         AgentName::try_new("stats-agent").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "stats-u",
-    )));
+        systemprompt_identifiers::Actor::user(UserId::new("stats-u")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: tool_name.clone(),
-        server_name: server_name.clone(),
+        tool_name: McpToolName::new(tool_name.as_str()),
+        server_name: McpServerId::new(server_name.as_str()),
         input: json!({}),
         started_at,
         context: ctx,
@@ -101,22 +94,20 @@ async fn start_and_complete_execution_roundtrip() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = ToolUsageRepository::new(&db);
     let ctx = RequestContext::new(
         SessionId::new("s1"),
         TraceId::new("t1"),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "test-user",
-    )));
+        systemprompt_identifiers::Actor::user(UserId::new("test-user")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: "tool-x".to_owned(),
-        server_name: "srv-x".to_owned(),
+        tool_name: McpToolName::new("tool-x"),
+        server_name: McpServerId::new("srv-x"),
         input: json!({"a":1}),
         started_at,
         context: ctx,
@@ -167,7 +158,7 @@ async fn start_and_complete_execution_roundtrip() {
          FROM mcp_tool_executions WHERE mcp_execution_id = $1",
     )
     .bind(exec_id.as_str())
-    .fetch_one(&*db.write_pool_arc().unwrap())
+    .fetch_one(&*db.write_pool())
     .await
     .unwrap();
     assert_eq!(actor_kind.as_deref(), Some("user"));
@@ -184,20 +175,20 @@ async fn log_execution_sync_writes_row() {
     use systemprompt_mcp::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
     use systemprompt_models::RequestContext;
 
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ToolUsageRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = ToolUsageRepository::new(&db);
     let ctx = RequestContext::new(
         SessionId::new("s2"),
         TraceId::new("t2"),
         ContextId::generate(),
         AgentName::try_new("agent-sync").expect("valid AgentName"),
-    )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new("u2")));
+        systemprompt_identifiers::Actor::user(UserId::new("u2")),
+    );
 
     let started_at = Utc::now();
     let request = ToolExecutionRequest {
-        tool_name: "sync-tool".to_owned(),
-        server_name: "sync-srv".to_owned(),
+        tool_name: McpToolName::new("sync-tool"),
+        server_name: McpServerId::new("sync-srv"),
         input: json!({}),
         started_at,
         context: ctx,

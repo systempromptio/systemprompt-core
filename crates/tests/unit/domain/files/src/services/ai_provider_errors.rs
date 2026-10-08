@@ -26,7 +26,7 @@ fn params(metadata: serde_json::Value) -> InsertAiFileParams {
 #[tokio::test]
 async fn insert_file_rejects_non_object_metadata() {
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+        systemprompt_files::FileRepository::new(&closed_db_pool().await),
     );
 
     let err = provider
@@ -34,10 +34,11 @@ async fn insert_file_rejects_non_object_metadata() {
         .await
         .expect_err("invalid metadata");
     match err {
-        AiProviderError::Internal(message) => {
+        AiProviderError::Internal(cause) => {
             assert!(
-                message.contains("Invalid file metadata"),
-                "unexpected message: {message}"
+                std::error::Error::source(cause.as_ref())
+                    .is_some_and(|source| source.is::<serde_json::Error>()),
+                "the metadata failure keeps its JSON cause: {cause}"
             );
         },
         other => panic!("expected Internal, got {other:?}"),
@@ -47,9 +48,9 @@ async fn insert_file_rejects_non_object_metadata() {
 #[tokio::test]
 async fn closed_pool_maps_every_method_to_internal() {
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+        systemprompt_files::FileRepository::new(&closed_db_pool().await),
     );
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let user = UserId::new("ai-closed-pool-user");
 
     let insert_err = provider
@@ -81,7 +82,7 @@ async fn closed_pool_maps_every_method_to_internal() {
 async fn storage_config_reflects_initialised_files_config() {
     let b = ensure_test_bootstrap();
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+        systemprompt_files::FileRepository::new(&closed_db_pool().await),
     );
 
     let config = provider.storage_config().expect("storage config");
@@ -98,7 +99,7 @@ async fn storage_config_reflects_initialised_files_config() {
 async fn storage_config_without_global_config_is_configuration_error() {
     // No bootstrap: the process-global FilesConfig is uninitialised.
     let provider = FilesAiPersistenceProvider::from_repository(
-        systemprompt_files::FileRepository::new(&closed_db_pool().await).expect("file repository"),
+        systemprompt_files::FileRepository::new(&closed_db_pool().await),
     );
 
     let err = provider.storage_config().expect_err("config missing");

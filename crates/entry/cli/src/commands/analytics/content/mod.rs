@@ -27,9 +27,6 @@ pub enum ContentCommands {
     #[command(about = "Top performing content")]
     Top(top::TopArgs),
 
-    #[command(about = "Top performing content", hide = true)]
-    Popular(top::TopArgs),
-
     #[command(about = "Content trends over time")]
     Trends(trends::TrendsArgs),
 }
@@ -85,7 +82,7 @@ pub async fn execute(command: ContentCommands, ctx: &CommandContext) -> Result<(
             render_result(&result, &ctx.cli);
             Ok(())
         },
-        ContentCommands::Top(args) | ContentCommands::Popular(args) => {
+        ContentCommands::Top(args) => {
             let result = top::execute_with_pool(args, &db_ctx, &ctx.cli).await?;
             render_result(&result, &ctx.cli);
             Ok(())

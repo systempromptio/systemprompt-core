@@ -7,9 +7,9 @@
 //! with an unknown session and no fingerprint (the early-return / fallback
 //! paths).
 
-use std::sync::Arc;
-
-use systemprompt_api::services::middleware::analytics::detection::collect_analysis_input;
+use systemprompt_api::services::middleware::analytics::detection::{
+    DetectionSubject, collect_analysis_input,
+};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session};
 
@@ -18,10 +18,7 @@ use super::common::setup_ctx;
 #[tokio::test]
 async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<()> {
     let (db, ctx) = setup_ctx().await?;
-    let repo = Arc::new(
-        systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())
-            .map(|repositories| repositories.sessions)?,
-    );
+    let repositories = systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())?;
 
     let user = UserId::new(format!("bd-{}", uuid::Uuid::new_v4()));
     let session = SessionId::generate();
@@ -29,11 +26,14 @@ async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<(
     seed_user_session(&db, &user, &session).await?;
 
     let input = collect_analysis_input(
-        &repo,
-        session.clone(),
-        Some(format!("fp-{}", uuid::Uuid::new_v4())),
-        Some("Mozilla/5.0 test".to_owned()),
-        7,
+        &*repositories.session_store,
+        &repositories.session_signals,
+        DetectionSubject {
+            session_id: session.clone(),
+            fingerprint_hash: Some(format!("fp-{}", uuid::Uuid::new_v4())),
+            user_agent: Some("Mozilla/5.0 test".to_owned()),
+            request_count: 7,
+        },
     )
     .await;
 
@@ -45,13 +45,20 @@ async fn collect_input_with_seeded_session_and_fingerprint() -> anyhow::Result<(
 #[tokio::test]
 async fn collect_input_unknown_session_no_fingerprint_uses_fallbacks() -> anyhow::Result<()> {
     let (_db, ctx) = setup_ctx().await?;
-    let repo = Arc::new(
-        systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())
-            .map(|repositories| repositories.sessions)?,
-    );
+    let repositories = systemprompt_test_fixtures::fixture_analytics_repositories(ctx.db_pool())?;
 
     let session = SessionId::generate();
-    let input = collect_analysis_input(&repo, session.clone(), None, None, 3).await;
+    let input = collect_analysis_input(
+        &*repositories.session_store,
+        &repositories.session_signals,
+        DetectionSubject {
+            session_id: session.clone(),
+            fingerprint_hash: None,
+            user_agent: None,
+            request_count: 3,
+        },
+    )
+    .await;
 
     assert_eq!(input.session_id, session);
     assert!(input.fingerprint_hash.is_none());

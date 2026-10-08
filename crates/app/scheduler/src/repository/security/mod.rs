@@ -25,9 +25,9 @@ pub struct IpSessionRecord {
 }
 
 impl SecurityRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        let pool = db.pool_arc()?;
-        Ok(Self { pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        Self { pool }
     }
 
     pub async fn find_high_volume_ips(

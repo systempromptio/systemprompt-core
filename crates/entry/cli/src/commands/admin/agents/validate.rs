@@ -11,9 +11,9 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 use systemprompt_config::SecretsBootstrap;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::secrets::Secrets;
-use systemprompt_models::services::ProviderRegistry;
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::secrets::Secrets;
+use systemprompt_manifest::services::ProviderRegistry;
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -28,7 +28,7 @@ pub struct ValidationSources<'a> {
     pub secrets: Option<&'a Secrets>,
 }
 
-pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let registry = &services_config.providers;
     let secrets = SecretsBootstrap::get().context("secrets are not initialised")?;
@@ -60,14 +60,18 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<Comman
         check_mcp_references(name, agent, &services_config, &mut errors);
     }
 
+    let valid = errors.is_empty();
     let output = ValidationOutput {
-        valid: errors.is_empty(),
+        valid,
         items_checked: agents_checked,
         errors,
         warnings,
     };
 
-    Ok(CommandOutput::card_value("Validation Results", &output))
+    Ok((
+        CommandOutput::card_value("Validation Results", &output),
+        valid,
+    ))
 }
 
 pub fn check_basics(

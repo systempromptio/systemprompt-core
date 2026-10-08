@@ -19,12 +19,7 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router available"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -38,7 +33,7 @@ fn authed_get(uri: &str, token: &str) -> Request<Body> {
 #[tokio::test]
 async fn whoami_for_unseeded_bridge_user_is_unauthorized() -> anyhow::Result<()> {
     let (app, _pool) = router_and_pool().await?;
-    let user = UserId::new(format!("bridge-missing-{}", uuid::Uuid::new_v4()));
+    let user = UserId::generate();
     let jwt = mint_bridge_jwt(&user, "missing@example.invalid", "https://issuer.test");
     let resp = app
         .oneshot(authed_get("/bridge/whoami", jwt.as_str()))

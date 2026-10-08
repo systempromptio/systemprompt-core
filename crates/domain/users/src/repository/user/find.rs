@@ -6,14 +6,14 @@
 use systemprompt_identifiers::UserId;
 
 use crate::error::Result;
-use crate::models::{User, UserRole, UserStatus};
+use crate::models::{User, UserRole, UserRow, UserStatus};
 use crate::repository::UserRepository;
 
 impl UserRepository {
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -24,7 +24,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -33,7 +35,7 @@ impl UserRepository {
         let email = crate::models::normalise_email(email);
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -44,7 +46,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -52,7 +56,7 @@ impl UserRepository {
     pub async fn find_by_name(&self, name: &str) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -65,15 +69,17 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
 
-    pub async fn find_by_role(&self, role: UserRole) -> Result<Vec<User>> {
+    pub async fn list_by_role(&self, role: UserRole) -> Result<Vec<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -85,7 +91,10 @@ impl UserRepository {
             deleted_status
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -93,7 +102,7 @@ impl UserRepository {
     pub async fn find_first_user(&self) -> Result<Option<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -105,7 +114,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -114,7 +125,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let admin_role = UserRole::Admin.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -127,7 +138,9 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }
@@ -135,7 +148,7 @@ impl UserRepository {
     pub async fn find_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
         let active_status = UserStatus::Active.as_str();
         let row = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -146,7 +159,9 @@ impl UserRepository {
             active_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(User::try_from)
+        .transpose()?;
 
         Ok(row)
     }

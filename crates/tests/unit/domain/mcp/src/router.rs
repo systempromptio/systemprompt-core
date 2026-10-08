@@ -3,7 +3,7 @@
 
 use axum::body::Body;
 use systemprompt_mcp::{MAX_REQUEST_BODY_BYTES, McpHttpConfig, SessionTimeouts, create_router};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use tower::ServiceExt;
 
 #[derive(Debug, Clone)]
@@ -25,19 +25,11 @@ fn default_http_config_allows_local_hosts() {
 #[tokio::test]
 async fn router_serves_mcp_requests_with_logging_layers() {
     let _ = ensure_test_bootstrap();
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
     );
 
@@ -85,12 +77,7 @@ async fn router_serves_mcp_requests_with_logging_layers() {
 #[tokio::test]
 async fn router_honours_disabled_host_allow_list() {
     let _ = ensure_test_bootstrap();
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let config = McpHttpConfig {
         allowed_hosts: None,
@@ -100,10 +87,7 @@ async fn router_honours_disabled_host_allow_list() {
     };
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         config,
     );
 
@@ -126,19 +110,11 @@ async fn router_honours_disabled_host_allow_list() {
 #[tokio::test]
 async fn router_rejects_bodies_over_the_request_ceiling() {
     let _ = ensure_test_bootstrap();
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let router = create_router(
         NullHandler,
-        std::sync::Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&db)
-                .expect("mcp session repository"),
-        ),
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db)),
         McpHttpConfig::default(),
     );
 

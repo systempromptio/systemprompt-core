@@ -12,22 +12,16 @@ impl std::fmt::Debug for PrivacyFixture {
 }
 
 impl PrivacyFixture {
-    pub async fn new() -> Option<Self> {
-        systemprompt_test_fixtures::fixture_database_url().ok()?;
+    pub async fn new() -> Self {
         systemprompt_test_fixtures::ensure_test_bootstrap();
-        let database = systemprompt_test_fixtures::DisposableDb::installed("users_privacy_test")
-            .await
-            .expect("installed private user fixture");
-        let pool = database.pool().await.expect("private pool");
-        Some(Self { pool, database })
+        let database =
+            systemprompt_test_fixtures::DisposableDb::with_schema("users_privacy_test").await;
+        let pool = database.test_pool().await;
+        Self { pool, database }
     }
 
     pub async fn finish(self) {
-        self.pool
-            .write_pool_arc()
-            .expect("write pool")
-            .close()
-            .await;
+        self.pool.write_pool().close().await;
         self.database.drop_now().await;
     }
 }

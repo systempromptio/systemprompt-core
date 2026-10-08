@@ -21,6 +21,8 @@ pub struct SettingsReport {
     pub already: bool,
 }
 
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn parse_settings(bytes: &[u8]) -> Result<Map<String, Value>, CoworkPluginsError> {
     let bytes = bytes.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(bytes);
     if bytes.iter().all(u8::is_ascii_whitespace) {
@@ -32,10 +34,14 @@ pub fn parse_settings(bytes: &[u8]) -> Result<Map<String, Value>, CoworkPluginsE
     }
 }
 
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn render_settings(root: &Map<String, Value>) -> Result<Vec<u8>, CoworkPluginsError> {
     serde_json::to_vec_pretty(&Value::Object(root.clone())).map_err(CoworkPluginsError::JsonParse)
 }
 
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn enable_plugin(
     root: &mut Map<String, Value>,
     plugin: &str,
@@ -53,6 +59,8 @@ pub fn enable_plugin(
     Ok(report)
 }
 
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn reconcile_marketplace(
     root: &mut Map<String, Value>,
     plugins: &[&str],
@@ -87,6 +95,8 @@ pub fn reconcile_marketplace(
     clippy::unnecessary_wraps,
     reason = "Result-returning parity with enable_plugin for the symmetric enable/disable API"
 )]
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 pub fn disable_plugin(
     root: &mut Map<String, Value>,
     plugin: &str,
@@ -99,6 +109,8 @@ pub fn disable_plugin(
     Ok(map.remove(&key).is_some())
 }
 
+// JSON: Cowork `cowork_settings.json` — foreign config, unknown keys must be
+// preserved.
 fn ensure_enabled_map(
     root: &mut Map<String, Value>,
 ) -> Result<&mut Map<String, Value>, CoworkPluginsError> {

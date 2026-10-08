@@ -18,10 +18,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use crate::SchedulerError;
+use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
 use systemprompt_marketplace::inventory::configured_inventory_fingerprint;
 use systemprompt_runtime::AppContext;
@@ -55,9 +56,7 @@ impl Job for InventoryRefreshJob {
         JobScope::Node
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
-        let app = ctx
-            .app_context::<Arc<AppContext>>()
-            .ok_or_else(|| SchedulerError::missing_context("AppContext"))?;
+        let app = job_app_context(ctx)?;
         let owner = app.system_admin().id();
         let published = match catalog_fingerprint(app) {
             Some(fingerprint) if unchanged(&fingerprint) => 0,
@@ -70,7 +69,7 @@ impl Job for InventoryRefreshJob {
                     &ctx.actor().user_id,
                 )
                 .await
-                .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+                .map_err(SchedulerError::from)?;
                 if let Some(fingerprint) = fingerprint {
                     remember(fingerprint);
                 }
@@ -85,7 +84,7 @@ impl Job for InventoryRefreshJob {
             .managed_repository()
             .refresh_installation_coverage(owner)
             .await
-            .map_err(|error| SchedulerError::config_error(error.to_string()))?;
+            .map_err(SchedulerError::from)?;
         Ok(JobResult::success().with_stats(published + coverage_changed, 0))
     }
 }
@@ -93,7 +92,11 @@ impl Job for InventoryRefreshJob {
 // Why: a configuration that does not load has no fingerprint; the refresh
 // then runs and records the failure against the inventory, as before.
 fn catalog_fingerprint(app: &AppContext) -> Option<[u8; 32]> {
-    let services = systemprompt_loader::ConfigLoader::load().ok()?;
+    let services = systemprompt_loader::ConfigLoader::load()
+        .inspect_err(
+            |error| tracing::warn!(%error, "Inventory fingerprint: services config unavailable"),
+        )
+        .ok()?;
     configured_inventory_fingerprint(app.app_paths().system().services(), &services)
         .inspect_err(|error| tracing::debug!(%error, "Inventory fingerprint unavailable"))
         .ok()

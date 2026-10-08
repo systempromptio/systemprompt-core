@@ -18,11 +18,17 @@
 //!   producer/consumer.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
+//! - [`gateway`] — the whoami, device self-enrolment, session PAT and release
+//!   feed bodies.
+//! - [`host`] — [`host::HostKind`], the closed set of host applications the
+//!   bridge integrates with.
 //! - [`ids`] — typed newtypes for manifest-scoped identifiers (plugin id,
 //!   sha256 digest, signature, tool policy, …) so wire fields carry their
 //!   semantics through every layer.
 //! - [`profile`] — the `/v1/bridge/profile` payload (gateway base url, auth
-//!   scheme, advertised models, per-provider health) and its single builder.
+//!   scheme, advertised models, per-provider health).
+//! - [`update_policy`] — [`update_policy::AutoUpdatePolicy`], the self-update
+//!   rule carried in the manifest.
 //!
 //! Signing, signature verification, and manifest construction
 //! (builders) deliberately live in the bridge crate alongside the
@@ -33,8 +39,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod cowork_artifact;
+pub mod gateway;
+pub mod host;
 pub mod ids;
 pub mod manifest;
 pub mod manifest_version;
 pub mod plugin_bundle;
 pub mod profile;
+pub mod update_policy;
+
+pub mod desktop_policy;

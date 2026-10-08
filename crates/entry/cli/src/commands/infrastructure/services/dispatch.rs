@@ -74,7 +74,19 @@ pub async fn execute(command: ServicesCommands, ctx: &CommandContext) -> Result<
         ServicesCommands::Serve {
             foreground,
             kill_port_process,
-        } => super::serve::execute(ctx.prompter(), foreground, kill_port_process, config).await,
+            skip_migrate,
+        } => {
+            super::serve::execute(
+                ctx.prompter(),
+                super::serve::ServeFlags {
+                    foreground,
+                    kill_port_process,
+                    skip_migrate,
+                },
+                config,
+            )
+            .await
+        },
     }
 }
 

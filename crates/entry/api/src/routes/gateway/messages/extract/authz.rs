@@ -17,6 +17,7 @@ use systemprompt_security::authz::{
 };
 
 use super::super::auth::AuthedPrincipal;
+use super::super::error::RejectionError;
 
 /// The inputs to a pre-dispatch gateway authorization decision.
 ///
@@ -28,6 +29,7 @@ use super::super::auth::AuthedPrincipal;
 pub struct GatewayAuthzRequestInput {
     pub user_id: UserId,
     pub roles: Vec<String>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
     pub trace_id: TraceId,
@@ -71,19 +73,12 @@ pub fn build_gateway_authz_request(input: GatewayAuthzRequestInput) -> AuthzRequ
 
 pub async fn enforce_authz_pre_dispatch(
     principal: &AuthedPrincipal,
-    route: &systemprompt_models::services::GatewayRoute,
+    route: &systemprompt_manifest::services::GatewayRoute,
     model: &str,
     context_id: &ContextId,
     hook: &SharedAuthzHook,
-) -> Result<(), (StatusCode, String)> {
-    let route_id = if route.id.as_str().trim().is_empty() {
-        systemprompt_models::services::synthesize_route_id(
-            &route.model_pattern,
-            route.provider.as_str(),
-        )
-    } else {
-        route.id.clone()
-    };
+) -> Result<(), RejectionError> {
+    let route_id = route.effective_id();
     let (roles, attributes, act_chain) = principal.authz_attributes();
     let req = build_gateway_authz_request(GatewayAuthzRequestInput {
         user_id: principal.user_id().clone(),
@@ -99,7 +94,7 @@ pub async fn enforce_authz_pre_dispatch(
     });
     match hook.evaluate(req).await {
         AuthzDecision::Allow => Ok(()),
-        AuthzDecision::Deny { reason, policy } => Err((
+        AuthzDecision::Deny { reason, policy } => Err(RejectionError::client(
             StatusCode::FORBIDDEN,
             format!("authz denied [{policy}]: {reason}"),
         )),

@@ -38,7 +38,8 @@ fn codex_inputs() -> ProfileGenInputs {
 #[test]
 fn generated_managed_toml_contains_required_keys() {
     with_codex_home(|_home| {
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         assert!(!profile.path.is_empty());
         assert!(profile.bytes > 0);
@@ -63,7 +64,8 @@ fn generated_managed_toml_contains_required_keys() {
 #[test]
 fn generated_managed_toml_includes_organization_tenant_header() {
     with_codex_home(|_home| {
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         let raw = fs::read_to_string(&profile.path).expect("read");
         let toml_text = if profile.path.ends_with(".mobileconfig") {
@@ -79,12 +81,11 @@ fn generated_managed_toml_includes_organization_tenant_header() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_merges_into_codex_system_config() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         host.install_profile(&profile.path).expect("install");
 
@@ -107,10 +108,8 @@ fn install_merges_into_codex_system_config() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_preserves_existing_unrelated_keys_in_target() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -124,7 +123,8 @@ fn install_preserves_existing_unrelated_keys_in_target() {
         )
         .unwrap();
 
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         host.install_profile(&profile.path).expect("install");
 
@@ -151,10 +151,8 @@ fn install_preserves_existing_unrelated_keys_in_target() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_overwrites_stale_systemprompt_provider_entry() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -168,7 +166,8 @@ fn install_overwrites_stale_systemprompt_provider_entry() {
         )
         .unwrap();
 
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         host.install_profile(&profile.path).expect("install");
 
@@ -236,10 +235,8 @@ fn base64_decode(input: &str) -> Vec<u8> {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn install_round_trips_future_profile_value_types_while_preserving_operator_config() {
-    if cfg!(target_os = "macos") {
-        return;
-    }
     with_codex_home(|home| {
         let target = if cfg!(target_os = "windows") {
             home.join("managed_config.toml")
@@ -248,7 +245,8 @@ fn install_round_trips_future_profile_value_types_while_preserving_operator_conf
         };
         fs::write(&target, "operator_key = \"retain\"\n").unwrap();
 
-        let host = find_host_by_id("codex-cli").expect("codex host registered");
+        let host = find_host_by_id(systemprompt_bridge::integration::HostKind::CodexCli)
+            .expect("codex host registered");
         let profile = host.generate_profile(&codex_inputs()).expect("generate");
         let mut generated: toml::Value =
             toml::from_str(&fs::read_to_string(&profile.path).expect("generated TOML")).unwrap();

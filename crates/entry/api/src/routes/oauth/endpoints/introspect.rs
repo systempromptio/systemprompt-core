@@ -58,12 +58,7 @@ pub async fn handle_introspect(
         .ok_or_else(|| OAuthHttpError::invalid_client("Client authentication required"))?;
     let client_id = ClientId::new(client_id_str);
 
-    if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-        .await
-        .is_err()
-    {
-        return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
-    }
+    validate_client_credentials(&repo, &client_id, request.client_secret.as_deref()).await?;
 
     let response = match introspect_token(&repo, &request.token)? {
         Some(full) => {
@@ -89,7 +84,7 @@ fn introspect_token(
     _repo: &OAuthRepository,
     token: &str,
 ) -> Result<Option<IntrospectResponse>, OAuthHttpError> {
-    let config = systemprompt_models::Config::get()?;
+    let config = systemprompt_manifest::Config::get()?;
     match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
         Ok(claims) => Ok(Some(IntrospectResponse {
             active: true,

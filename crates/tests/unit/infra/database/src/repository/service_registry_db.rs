@@ -4,28 +4,28 @@
 //! register the same service name and must never see, alter or reap each
 //! other's rows. Only the heartbeat reaper crosses instances.
 
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
-use systemprompt_identifiers::InstanceId;
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::{InstanceId, ServiceName};
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
 }
 
-async fn two_repos_or_skip() -> Option<(ServiceRepository, ServiceRepository, sqlx::PgPool)> {
-    let db = pool_or_skip().await?;
-    let pg = (*db.write_pool_arc().ok()?).clone();
-    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a"))).ok()?;
-    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b"))).ok()?;
-    Some((a, b, pg))
+async fn two_repos() -> (ServiceRepository, ServiceRepository, sqlx::PgPool) {
+    let db = test_pool().await;
+    let pg = (*db.write_pool()).clone();
+    let a = ServiceRepository::new(&db, InstanceId::new(unique("node_a")));
+    let b = ServiceRepository::new(&db, InstanceId::new(unique("node_b")));
+    (a, b, pg)
 }
 
-async fn register(repo: &ServiceRepository, name: &str, pid: i32) {
+async fn register(repo: &ServiceRepository, name: &ServiceName, pid: i32) {
     repo.create_service(CreateServiceInput {
         name,
-        module_name: "mcp",
-        status: "running",
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: 5555,
         binary_mtime: None,
     })
@@ -48,10 +48,8 @@ async fn age_heartbeat(pg: &sqlx::PgPool, instance_id: &InstanceId, secs: i64) {
 
 #[tokio::test]
 async fn same_name_on_two_instances_is_two_rows() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
-    let name = unique("svc");
+    let (a, b, _pg) = two_repos().await;
+    let name = ServiceName::new(unique("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -73,10 +71,8 @@ async fn same_name_on_two_instances_is_two_rows() {
 
 #[tokio::test]
 async fn delete_and_stale_cleanup_never_touch_other_instances() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
-    let name = unique("svc");
+    let (a, b, _pg) = two_repos().await;
+    let name = ServiceName::new(unique("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -97,28 +93,30 @@ async fn delete_and_stale_cleanup_never_touch_other_instances() {
 
 #[tokio::test]
 async fn status_and_count_are_per_instance() {
-    let Some((a, b, _pg)) = two_repos_or_skip().await else {
-        return;
-    };
-    let name = unique("svc");
+    let (a, b, _pg) = two_repos().await;
+    let name = ServiceName::new(unique("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
     a.update_service_stopped(&name).await.unwrap();
-    assert_eq!(a.count_running_services("mcp").await.unwrap(), 0);
-    assert_eq!(b.count_running_services("mcp").await.unwrap(), 1);
+    assert_eq!(
+        a.count_running_services(ServiceModule::Mcp).await.unwrap(),
+        0
+    );
+    assert_eq!(
+        b.count_running_services(ServiceModule::Mcp).await.unwrap(),
+        1
+    );
     assert_eq!(
         b.find_service_by_name(&name).await.unwrap().unwrap().status,
-        "running"
+        ServiceStatus::Running
     );
 }
 
 #[tokio::test]
 async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
-    let Some((a, b, pg)) = two_repos_or_skip().await else {
-        return;
-    };
-    let name = unique("svc");
+    let (a, b, pg) = two_repos().await;
+    let name = ServiceName::new(unique("svc"));
     register(&a, &name, 111).await;
     register(&b, &name, 222).await;
 
@@ -135,5 +133,31 @@ async fn heartbeat_touches_own_rows_and_reaper_crosses_instances() {
     assert!(
         b.find_service_by_name(&name).await.unwrap().is_none(),
         "b stopped heartbeating, so any instance may reap it"
+    );
+}
+
+#[tokio::test]
+async fn reaper_skips_an_instance_that_holds_its_claim() {
+    let db = test_pool().await;
+    let pg = (*db.write_pool()).clone();
+    let claimed = ServiceRepository::new(&db, InstanceId::new(unique("alive")));
+    let reaper = ServiceRepository::new(&db, InstanceId::new(unique("reaper")));
+    let name = ServiceName::new(unique("svc"));
+
+    let claim = claimed.claim_instance().await.expect("claim");
+    register(&claimed, &name, 444).await;
+    age_heartbeat(&pg, claimed.instance_id(), 600).await;
+
+    reaper.delete_dead_instances(1).await.expect("reap");
+    assert!(
+        claimed.find_service_by_name(&name).await.unwrap().is_some(),
+        "a claimed replica with a stalled heartbeat must not be reaped"
+    );
+
+    claim.release().await;
+    reaper.delete_dead_instances(1).await.expect("reap");
+    assert!(
+        claimed.find_service_by_name(&name).await.unwrap().is_none(),
+        "an unclaimed replica with a stale heartbeat is reaped"
     );
 }

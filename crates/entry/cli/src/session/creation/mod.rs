@@ -13,7 +13,7 @@ pub mod helpers;
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::api::create_local_session_row;
 use super::resolution::ProfileContext;
@@ -39,7 +39,7 @@ pub(super) async fn create_local_session(
 
     if config.is_interactive() {
         CliService::info("Creating local CLI session...");
-        CliService::key_value("Profile", profile_ctx.name);
+        CliService::key_value("Profile", profile_ctx.name.as_str());
     }
 
     let db_pool = connect_database(&secrets).await?;
@@ -116,7 +116,7 @@ pub(super) async fn create_session_for_tenant(
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
-        CliService::key_value("Profile", profile_ctx.name);
+        CliService::key_value("Profile", profile_ctx.name.as_str());
         CliService::key_value("User", user_email);
     }
 

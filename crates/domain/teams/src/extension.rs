@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value as JsonValue;
 use systemprompt_extension::prelude::*;
-use systemprompt_models::services::TeamsAppConfig;
+use systemprompt_manifest::services::TeamsAppConfig;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TeamsExtension;
@@ -26,18 +26,22 @@ impl Extension for TeamsExtension {
         Some("teams")
     }
 
+    // JSON: JSON Schema document for the extension's config block.
     fn config_schema(&self) -> Option<JsonValue> {
-        serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>)).ok()
+        serde_json::to_value(schemars::schema_for!(BTreeMap<String, TeamsAppConfig>))
+            .inspect_err(|e| tracing::warn!(error = %e, "Failed to serialize Teams config schema"))
+            .ok()
     }
 
+    // JSON: Extension config block from the profile YAML; the extension owns it.
     fn validate_config(&self, config: &JsonValue) -> Result<(), ExtensionConfigError> {
         let apps: BTreeMap<String, TeamsAppConfig> = serde_json::from_value(config.clone())
             .map_err(|e| ExtensionConfigError::ParseError {
-                message: e.to_string(),
+                source: Box::new(e),
             })?;
         for (name, app) in &apps {
             app.validate(name)
-                .map_err(|e| ExtensionConfigError::SchemaValidation(e.to_string()))?;
+                .map_err(|e| ExtensionConfigError::SchemaValidation(Box::new(e)))?;
         }
         Ok(())
     }

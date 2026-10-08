@@ -51,10 +51,10 @@ pub struct BridgeSessionRow {
 }
 
 impl BridgeSessionRepository {
-    pub fn new(db: &DbPool) -> OauthResult<Self> {
-        Ok(Self {
-            write_pool: db.write_pool_arc()?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            write_pool: db.write_pool(),
+        }
     }
 
     pub async fn upsert(&self, params: UpsertBridgeSession) -> OauthResult<()> {

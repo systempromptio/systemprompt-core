@@ -12,11 +12,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{McpServerId, ServiceName, SessionId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
-use uuid::Uuid;
 
 fn session_id_header(headers: &HeaderMap) -> Option<SessionId> {
     headers
@@ -35,7 +34,7 @@ pub async fn enrich_with_cached_identity(
     identities: &McpProxyIdentityRepository,
     request_headers: &HeaderMap,
     req_context: RequestContext,
-    service_name: &str,
+    service_name: &ServiceName,
 ) -> RequestContext {
     let Some(session_id) = session_id_header(request_headers) else {
         return req_context;
@@ -62,16 +61,6 @@ pub async fn enrich_with_cached_identity(
         },
     };
 
-    let Ok(user_uuid) = Uuid::parse_str(identity.user_id.as_str()) else {
-        tracing::warn!(
-            service = %service_name,
-            session_id = %session_id,
-            user_id = %identity.user_id,
-            "Stored proxy session identity has a non-UUID user id"
-        );
-        return req_context;
-    };
-
     tracing::info!(
         service = %service_name,
         session_id = %session_id,
@@ -79,11 +68,13 @@ pub async fn enrich_with_cached_identity(
         "Enriching session-only request with stored identity"
     );
     req_context
-        .with_actor(systemprompt_identifiers::Actor::user(identity.user_id))
+        .with_actor(systemprompt_identifiers::Actor::user(
+            identity.user_id.clone(),
+        ))
         .with_user_type(identity.user_type)
-        .with_auth_token(identity.auth_token.as_str().to_owned())
+        .with_auth_token(identity.auth_token)
         .with_user(AuthenticatedUser::new_with_roles(
-            user_uuid,
+            identity.user_id,
             String::new(),
             String::new(),
             identity.permissions,
@@ -98,7 +89,7 @@ pub struct McpResponseCtx<'a> {
     pub request_headers: &'a HeaderMap,
     pub req_context: &'a RequestContext,
     pub authenticated_user: Option<&'a AuthenticatedUser>,
-    pub service_name: &'a str,
+    pub service_name: &'a ServiceName,
     pub method_str: &'a str,
 }
 
@@ -165,7 +156,7 @@ async fn evict_on_error_response(
     identities: &McpProxyIdentityRepository,
     response: &reqwest::Response,
     request_headers: &HeaderMap,
-    service_name: &str,
+    service_name: &ServiceName,
     method_str: &str,
 ) {
     let resp_status = response.status();
@@ -201,7 +192,7 @@ async fn cache_identity_from_response(
     response: &reqwest::Response,
     req_context: &RequestContext,
     authenticated_user: Option<&AuthenticatedUser>,
-    service_name: &str,
+    service_name: &ServiceName,
 ) {
     let Some(session_id) = session_id_header(response.headers()) else {
         return;
@@ -209,12 +200,15 @@ async fn cache_identity_from_response(
     let Some(user) = authenticated_user else {
         return;
     };
+    let Some(auth_token) = req_context.auth_token() else {
+        return;
+    };
     let row = ProxyIdentityRow {
-        user_id: UserId::new(user.id.to_string()),
+        user_id: user.id.clone(),
         user_type: req_context.user_type(),
         permissions: user.permissions.clone(),
         roles: user.roles.clone(),
-        auth_token: req_context.auth_token().clone(),
+        auth_token: auth_token.clone(),
     };
     match identities.upsert(&session_id, &row).await {
         Ok(()) => {
@@ -225,7 +219,11 @@ async fn cache_identity_from_response(
                 "Stored session identity for MCP session"
             );
             if let Err(e) = identities
-                .attribute_session(&session_id, service_name, &row.user_id)
+                .attribute_session(
+                    &session_id,
+                    &McpServerId::new(service_name.as_str()),
+                    &row.user_id,
+                )
                 .await
             {
                 tracing::warn!(

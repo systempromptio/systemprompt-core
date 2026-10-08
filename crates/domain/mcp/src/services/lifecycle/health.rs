@@ -3,19 +3,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::LifecycleOrchestrator;
+use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
-use crate::services::database::ServiceLifecycleStatus;
 use crate::services::monitoring::health::{HealthCheckResult, HealthStatus, perform_health_check};
 use crate::services::process::ProcessService;
 use crate::services::spawn_target::SpawnTarget;
+use systemprompt_manifest::services::ServiceStatus;
 
 pub async fn check_server_health(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    if !is_process_running(manager, config).await? {
+    if !is_process_running(lifecycle, config).await? {
         return Ok(false);
     }
 
@@ -28,43 +28,35 @@ pub async fn check_server_health(
     if is_healthy {
         log_healthy_status(config, &health_result);
     } else {
-        mark_service_error(manager, config, &health_result).await?;
+        mark_service_error(lifecycle, config, &health_result).await?;
     }
 
     Ok(is_healthy)
 }
 
 async fn is_process_running(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
 ) -> McpDomainResult<bool> {
-    let Some(pid) = ProcessService::find_pid_by_port(config.spawn_port()?)? else {
-        manager
-            .database()
-            .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)
-            .await?;
-        return Ok(false);
-    };
-
-    if !ProcessService::is_running(pid) {
-        manager
-            .database()
-            .update_service_status(&config.name, ServiceLifecycleStatus::Stopped)
-            .await?;
-        return Ok(false);
+    if ProcessService::port_has_listener(config.spawn_port()?).await? {
+        return Ok(true);
     }
 
-    Ok(true)
+    lifecycle
+        .database()
+        .update_service_status(&config.service_name(), ServiceStatus::Stopped)
+        .await?;
+    Ok(false)
 }
 
 async fn mark_service_error(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
     health_result: &HealthCheckResult,
 ) -> McpDomainResult<()> {
-    manager
+    lifecycle
         .database()
-        .update_service_status(&config.name, ServiceLifecycleStatus::Error)
+        .update_service_status(&config.service_name(), ServiceStatus::Error)
         .await?;
 
     if let Some(ref error) = health_result.details.error_message {

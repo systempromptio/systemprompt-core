@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_identifiers::LocaleCode;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 
@@ -20,11 +21,10 @@ pub struct PageContext<'a> {
     pub page_type: &'a str,
     pub web_config: &'a WebConfig,
     pub locale: &'a LocaleCode,
-    content_config: &'a (dyn Any + Send + Sync),
-    db_pool: &'a (dyn Any + Send + Sync),
-    // JSON: Tera template context item; the page data model is dynamic.
+    dependencies: &'a Dependencies,
+    // JSON: Handlebars template context item; the page data model is dynamic.
     content_item: Option<&'a Value>,
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     all_items: Option<&'a [Value]>,
 }
 
@@ -33,8 +33,7 @@ impl std::fmt::Debug for PageContext<'_> {
         f.debug_struct("PageContext")
             .field("page_type", &self.page_type)
             .field("web_config", &"<WebConfig>")
-            .field("content_config", &"<dyn Any>")
-            .field("db_pool", &"<dyn Any>")
+            .field("dependencies", self.dependencies)
             .field("content_item", &self.content_item.is_some())
             .field("all_items_count", &self.all_items.map(<[_]>::len))
             .finish()
@@ -43,18 +42,16 @@ impl std::fmt::Debug for PageContext<'_> {
 
 impl<'a> PageContext<'a> {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         page_type: &'a str,
         web_config: &'a WebConfig,
-        content_config: &'a (dyn Any + Send + Sync),
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
     ) -> Self {
         Self {
             page_type,
             web_config,
             locale: &web_config.i18n.default_locale,
-            content_config,
-            db_pool,
+            dependencies,
             content_item: None,
             all_items: None,
         }
@@ -67,35 +64,31 @@ impl<'a> PageContext<'a> {
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn with_content_item(mut self, item: &'a Value) -> Self {
         self.content_item = Some(item);
         self
     }
 
     #[must_use]
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub const fn with_all_items(mut self, items: &'a [Value]) -> Self {
         self.all_items = Some(items);
         self
     }
 
-    #[must_use]
-    pub fn content_config<T: 'static>(&self) -> Option<&T> {
-        self.content_config.downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 
     #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.downcast_ref::<T>()
-    }
-
-    #[must_use]
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub const fn content_item(&self) -> Option<&Value> {
         self.content_item
     }
 
     #[must_use]
-    // JSON: Tera template context item; the page data model is dynamic.
+    // JSON: Handlebars template context item; the page data model is dynamic.
     pub const fn all_items(&self) -> Option<&[Value]> {
         self.all_items
     }
@@ -109,6 +102,7 @@ pub trait PageDataProvider: Send + Sync {
         vec![]
     }
 
+    // JSON: Handlebars template variables; the page data model is dynamic.
     async fn provide_page_data(&self, ctx: &PageContext<'_>) -> ProviderResult<Value>;
 
     fn priority(&self) -> u32 {

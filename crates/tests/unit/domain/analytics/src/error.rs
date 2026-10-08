@@ -6,37 +6,10 @@ mod analytics_error_tests {
     use super::*;
 
     #[test]
-    fn session_not_found_displays_session_id() {
-        let err = AnalyticsError::SessionNotFound("sess_123".to_string());
-        let display = format!("{}", err);
-
-        assert!(display.contains("Session not found"));
-        assert!(display.contains("sess_123"));
-    }
-
-    #[test]
-    fn invalid_fingerprint_displays_hash() {
-        let err = AnalyticsError::InvalidFingerprint("invalid_hash".to_string());
-        let display = format!("{}", err);
-
-        assert!(display.contains("Invalid fingerprint hash"));
-        assert!(display.contains("invalid_hash"));
-    }
-
-    #[test]
     fn session_expired_displays_message() {
         let err = AnalyticsError::SessionExpired;
         let display = format!("{}", err);
 
         assert!(display.contains("Session expired"));
-    }
-
-    #[test]
-    fn behavioral_bot_detected_displays_reason() {
-        let err = AnalyticsError::BehavioralBotDetected("high_request_count".to_string());
-        let display = format!("{}", err);
-
-        assert!(display.contains("Behavioral bot detected"));
-        assert!(display.contains("high_request_count"));
     }
 }

@@ -123,8 +123,11 @@ enum CommsError {
     Http(#[from] reqwest::Error),
     #[error("gateway rejected the comms subscription")]
     Unauthorized,
-    #[error("gateway answered {0}")]
-    Status(reqwest::StatusCode),
+    #[error("gateway answered {status}: {rejection}")]
+    Status {
+        status: reqwest::StatusCode,
+        rejection: Box<crate::gateway::GatewayRejection>,
+    },
 }
 
 async fn subscribe_once(
@@ -150,7 +153,8 @@ async fn subscribe_once(
         return Err(CommsError::Unauthorized);
     }
     if !response.status().is_success() {
-        return Err(CommsError::Status(response.status()));
+        let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;
+        return Err(CommsError::Status { status, rejection });
     }
 
     tracing::info!("comms stream open");

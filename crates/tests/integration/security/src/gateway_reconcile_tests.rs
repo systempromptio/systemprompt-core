@@ -23,17 +23,18 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, UserId};
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
-    synthesize_route_id,
+use systemprompt_manifest::services::{
+    GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, synthesize_route_id,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_security::authz::resolver::{ResolveInput, resolve};
 use systemprompt_security::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
     DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
     reconcile_gateway_entities_exact,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
 
 struct Fixture {
@@ -44,9 +45,8 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
-    let pg = db.pool_arc().expect("read pool");
+    let db = test_db_pool().await;
+    let pg = db.pool();
     // A unique provider name keeps the synthesized catch-all id (`star-<hash>`)
     // distinct from every other test and from the live profile's routes.
     let provider = format!("recon-{}", Uuid::new_v4().simple());
@@ -139,7 +139,7 @@ async fn role_values(pg: &PgPool, id: &RouteId) -> Vec<String> {
 #[tokio::test]
 async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it() {
     let f = setup().await;
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
 
     // 1. Reconcile the profile's dispatchable routes (here: only the synthetic
     //    default catch-all) into the entity catalog.
@@ -169,7 +169,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
     );
 
     // 2. Ingest the wildcard rule; it must expand onto the synthesized id.
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     service
         .ingest_config(
             &wildcard_gateway_rule(&["user", "admin"]),
@@ -272,7 +272,7 @@ async fn entity_exists(pg: &PgPool, id: &str) -> bool {
 #[tokio::test]
 async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
     let f = setup().await;
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
 
     let gateway = gateway_with_default(&f.provider);
     let registry_ids = gateway.dispatchable_route_ids(&registry(&f.provider));
@@ -367,7 +367,7 @@ async fn ingest_still_self_materializes_when_the_kind_is_not_enforced() {
 #[tokio::test]
 async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
     let f = setup().await;
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
 
     let gateway = gateway_with_default(&f.provider);
     let ids = gateway.dispatchable_route_ids(&registry(&f.provider));
@@ -409,7 +409,7 @@ async fn exact_reconcile_prunes_stale_rows_and_refuses_an_empty_route_set() {
 #[tokio::test]
 async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
     let f = setup().await;
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let id = RouteId::new(format!("ensure-{}", f.provider));
 
     repo.ensure_entity(EntityKind::GatewayRoute, id.as_str(), "test:ensure")

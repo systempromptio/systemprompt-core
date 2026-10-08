@@ -8,6 +8,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
+use systemprompt_identifiers::JobName;
 
 use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
@@ -17,8 +18,8 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
-    fixture_db_pool, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
+    test_database_url, test_db_pool,
 };
 
 const KNOWN_JOB: &str = "content_prerender";
@@ -50,9 +51,9 @@ fn parse_logs(args: &[&str]) -> LogsCommands {
 async fn app() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -67,10 +68,10 @@ fn ctx(app: &Arc<AppContext>, json: bool) -> CommandContext {
 #[tokio::test]
 async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() {
     let (pool, app) = app().await;
-    let repo = JobRepository::new(&pool).unwrap();
+    let repo = JobRepository::new(&pool);
     // `set_enabled` is a bare UPDATE, so the schedule row has to exist before
     // the CLI toggle has anything to flip.
-    repo.upsert_job(KNOWN_JOB, "0 0 * * * *", true)
+    repo.upsert_job(&JobName::new(KNOWN_JOB), "0 0 * * * *", true)
         .await
         .expect("seed the schedule row");
 
@@ -78,7 +79,7 @@ async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() 
         .await
         .expect("disable a registered job");
     let disabled = repo
-        .find_job(KNOWN_JOB)
+        .find_job(&JobName::new(KNOWN_JOB))
         .await
         .unwrap()
         .expect("the toggle must materialise a schedule row");
@@ -91,7 +92,7 @@ async fn disabling_then_enabling_a_registered_job_persists_the_flag_both_ways() 
         .await
         .expect("enable a registered job");
     let enabled = repo
-        .find_job(KNOWN_JOB)
+        .find_job(&JobName::new(KNOWN_JOB))
         .await
         .unwrap()
         .expect("the row must survive the second toggle");
@@ -137,7 +138,7 @@ async fn jobs_history_renders_in_both_output_modes() {
 #[tokio::test]
 async fn logs_cleanup_honours_its_retention_window() {
     let (pool, app) = app().await;
-    let raw = pool.pool_arc().unwrap().as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     let owner = format!("cleanup_owner_{}", uuid::Uuid::new_v4().simple());
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -199,20 +200,12 @@ async fn logs_delete_clears_every_entry() {
     ensure_test_bootstrap();
     install_test_signing_key();
 
-    let database = DisposableDb::create("cov_cli_logsdel").await.unwrap();
+    let database = DisposableDb::with_schema("cov_cli_logsdel").await;
     let url = database.url().to_owned();
 
     {
-        let pool = fixture_db_pool(&url).await.unwrap();
-        let raw = pool.pool_arc().unwrap().as_ref().clone();
-        systemprompt_database::install_extension_schemas_full(
-            &systemprompt_extension::ExtensionRegistry::discover().unwrap(),
-            pool.write(),
-            &[],
-            systemprompt_database::MigrationConfig::default(),
-        )
-        .await
-        .expect("migrate the disposable database");
+        let pool = database.test_pool().await;
+        let raw = pool.pool().as_ref().clone();
 
         let owner = "logdel_owner";
         sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2)")
@@ -238,7 +231,7 @@ async fn logs_delete_clears_every_entry() {
             .unwrap();
         assert_eq!(before, 3);
 
-        let app = fixture_app_context(&pool, &url).expect("app context on the disposable db");
+        let app = test_app_context(&pool, &url);
         logs::execute(parse_logs(&["delete", "-y"]), &ctx(&app, true))
             .await
             .expect("delete all logs");

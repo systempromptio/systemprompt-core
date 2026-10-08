@@ -13,8 +13,8 @@ use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Args)]
 pub struct PerformanceArgs {
-    #[arg(help = "Link ID")]
-    pub link_id: String,
+    #[arg(help = "Link ID", value_parser = crate::shared::parse_link_id)]
+    pub link_id: LinkId,
 }
 
 pub async fn execute(args: PerformanceArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -24,9 +24,8 @@ pub async fn execute(args: PerformanceArgs, ctx: &CommandContext) -> Result<Comm
         repositories.link_analytics.clone(),
     );
 
-    let link_id = LinkId::new(args.link_id.clone());
     let performance = service
-        .get_link_performance(&link_id)
+        .find_link_performance(&args.link_id)
         .await?
         .ok_or_else(|| anyhow!("Link not found: {}", args.link_id))?;
 

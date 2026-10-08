@@ -5,7 +5,9 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContextId, ExecutionStepId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, ExecutionStepId, SessionId, TaskId, TraceId, UserId,
+};
 
 #[derive(Debug, Clone)]
 pub struct TraceListFilter {
@@ -108,7 +110,7 @@ pub struct ExecutionStepSummary {
 pub struct TaskInfo {
     pub task_id: TaskId,
     pub context_id: ContextId,
-    pub agent_name: Option<String>,
+    pub agent_name: Option<AgentName>,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub started_at: Option<DateTime<Utc>>,

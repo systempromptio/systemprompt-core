@@ -32,7 +32,7 @@ pub async fn execute_content_ingestion(
     let start_time = std::time::Instant::now();
     log_job_started();
 
-    let ingestion_service = create_ingestion_service(db_pool)?;
+    let ingestion_service = create_ingestion_service(db_pool);
     let sources = get_enabled_sources(content_config);
 
     if sources.is_empty() {
@@ -49,11 +49,8 @@ fn log_job_started() {
     tracing::info!("Content ingestion job started");
 }
 
-fn create_ingestion_service(db_pool: &DbPool) -> ContentResult<IngestionService> {
-    Ok(IngestionService::new(
-        db_pool,
-        ContentRepository::new(db_pool)?,
-    ))
+fn create_ingestion_service(db_pool: &DbPool) -> IngestionService {
+    IngestionService::new(db_pool, ContentRepository::new(db_pool))
 }
 
 fn get_enabled_sources(

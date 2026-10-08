@@ -2,13 +2,16 @@
 //! reachable — so every local host takes the failure arm and the
 //! classification arms above it are what is under test.
 
+#[cfg(not(target_os = "macos"))]
 use std::fs;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::integration::enrol::{Outcome, Selection, enrol_hosts};
+use systemprompt_bridge::integration::enrol::{Outcome, Selection, SelectionError, enrol_hosts};
 use systemprompt_bridge::integration::reapply::ModelProtocolOverrides;
 use tempfile::TempDir;
+#[cfg(not(target_os = "macos"))]
 use wiremock::matchers::{method, path};
+#[cfg(not(target_os = "macos"))]
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn in_sandbox<R>(f: impl FnOnce() -> R) -> R {
@@ -61,19 +64,14 @@ fn enrolling_an_empty_selection_reports_nothing_and_is_not_an_error() {
 
 #[test]
 fn an_unknown_host_id_fails_the_whole_request_before_any_host_is_touched() {
-    let rt = runtime();
     in_sandbox(|| {
-        let ctx = context();
-        let err = rt
-            .block_on(enrol_hosts(
-                &ctx,
-                &Selection::Ids(vec!["not-a-host".to_owned()]),
-                &ModelProtocolOverrides::new(),
-                None,
-            ))
+        let err = Selection::parse_ids(&["not-a-host".to_owned()])
             .expect_err("an unknown id is rejected outright");
-        assert!(err.contains("not-a-host"), "got {err}");
-        assert!(err.contains("known ids:"), "got {err}");
+        assert!(
+            matches!(&err, SelectionError::Unknown { id, .. } if id == "not-a-host"),
+            "got {err:?}"
+        );
+        assert!(err.to_string().contains("known ids:"), "got {err}");
     });
 }
 
@@ -120,13 +118,12 @@ fn a_named_host_cannot_bypass_the_enabled_host_gate() {
         let host_id = all
             .first()
             .expect("the sandbox registers at least one bridge host")
-            .host_id
-            .clone();
+            .host_id;
 
         let reports = rt
             .block_on(enrol_hosts(
                 &ctx,
-                &Selection::Ids(vec![host_id.clone()]),
+                &Selection::Ids(vec![host_id]),
                 &ModelProtocolOverrides::new(),
                 Some(Vec::new()),
             ))
@@ -157,7 +154,7 @@ fn an_enabled_list_naming_a_host_lets_that_one_through_while_skipping_the_rest()
             ))
             .expect("baseline");
         // skip-ok: no enrolled bridge host on this machine
-        let Some(first) = all.first().map(|r| r.host_id.clone()) else {
+        let Some(first) = all.first().map(|r| r.host_id) else {
             return;
         };
 
@@ -166,7 +163,7 @@ fn an_enabled_list_naming_a_host_lets_that_one_through_while_skipping_the_rest()
                 &ctx,
                 &Selection::All,
                 &ModelProtocolOverrides::new(),
-                Some(vec![first.clone()]),
+                Some(vec![first.as_str().to_owned()]),
             ))
             .expect("enrol with one host enabled");
 
@@ -204,14 +201,14 @@ fn with_no_gateway_reachable_an_enabled_host_reports_a_failure_that_names_a_caus
             ))
             .expect("baseline");
         // skip-ok: no enrolled bridge host on this machine
-        let Some(first) = all.first().map(|r| r.host_id.clone()) else {
+        let Some(first) = all.first().map(|r| r.host_id) else {
             return;
         };
 
         let reports = rt
             .block_on(enrol_hosts(
                 &ctx,
-                &Selection::Ids(vec![first.clone()]),
+                &Selection::Ids(vec![first]),
                 &ModelProtocolOverrides::new(),
                 None,
             ))
@@ -221,7 +218,7 @@ fn with_no_gateway_reachable_an_enabled_host_reports_a_failure_that_names_a_caus
         assert_eq!(report.host_id, first);
         match &report.outcome {
             Outcome::Failed(message) => assert!(
-                !message.is_empty(),
+                !message.to_string().is_empty(),
                 "a failure must carry the cause, not an empty string"
             ),
             other => panic!("expected a failure with no gateway configured, got {other:?}"),
@@ -331,7 +328,7 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
             let ctx = context();
             rt.block_on(enrol_hosts(
                 &ctx,
-                &Selection::Ids(vec!["codex-cli".to_owned()]),
+                &Selection::Ids(vec![systemprompt_bridge::integration::HostKind::CodexCli]),
                 &ModelProtocolOverrides::new(),
                 None,
             ))

@@ -8,7 +8,7 @@ async fn failed_local_database_start_removes_its_owned_compose_project() {
     use systemprompt_cli::ScriptedPrompter;
     use systemprompt_cli::cloud::tenant::create::{create_local_tenant, sanitize_database_name};
 
-    let root = tempfile::TempDir::new().expect("owned project directory");
+    let root = systemprompt_test_fixtures::canonical_tempdir();
     let bin = root.path().join("bin");
     std::fs::create_dir_all(&bin).unwrap();
     let calls = root.path().join("docker.calls");

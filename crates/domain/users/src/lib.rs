@@ -31,12 +31,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-#![expect(
-    missing_debug_implementations,
-    reason = "service types in this crate hold pools/clients that intentionally do not implement \
-              Debug"
-)]
-
 pub mod error;
 pub(crate) mod extension;
 pub mod jobs;
@@ -48,13 +42,14 @@ pub use extension::UsersExtension;
 
 pub use error::{Result, UserError, UserResult};
 pub use models::{
-    NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown, UserDeviceCert, UserExport,
-    UserRole, UserSession, UserStats, UserStatus, UserWithSessions, normalise_email,
+    ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown, UserDeviceCert,
+    UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions, normalise_email,
 };
 pub use repository::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
     CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    PurgeCount, UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
+    PurgeCount, SessionRepository, UserRateLimitBucketRepository, UserRepository,
+    UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,
@@ -64,5 +59,5 @@ pub use services::{
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};
 
-pub mod sessions;
-pub use sessions::{SessionRepository, UsersAiSessionProvider};
+pub(crate) mod sessions;
+pub use sessions::UsersAiSessionProvider;

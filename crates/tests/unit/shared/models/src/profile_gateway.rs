@@ -2,14 +2,16 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::profile::default_resource_audiences;
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
+use systemprompt_manifest::profile::default_resource_audiences;
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayRoute, GatewayState,
     ModelGovernance, ModelPricing, OverrideRuleAction, ProviderEntry, ProviderModel,
-    ProviderRegistry, QuotaFaultMode, ResponseFormatKind, RouteMatch, RouteRequirements,
-    SystemPromptRule, WireProtocol, slugify_pattern, synthesize_route_id,
+    ProviderRegistry, QuotaFaultMode, ResponseFormatKind, RouteDeployment, RouteMatch,
+    RouteRequirements, SystemPromptRule, slugify_pattern, synthesize_route_id,
 };
-use systemprompt_models::wire::canonical::{
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool, ReasoningEffort,
     ResponseFormat, Role, SystemBlock, ThinkingConfig,
 };
@@ -42,7 +44,7 @@ fn req(model: &str) -> CanonicalRequest {
 
 fn route(pattern: &str) -> GatewayRoute {
     GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: pattern.to_owned(),
@@ -52,8 +54,8 @@ fn route(pattern: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     }
 }
 
@@ -79,7 +81,7 @@ fn route_finds_matching_model() {
     let config = GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
-            id: RouteId::new(""),
+            id: None,
             name: None,
             description: None,
             model_pattern: "kimi-*".to_owned(),
@@ -89,8 +91,8 @@ fn route_finds_matching_model() {
             pricing: None,
             when: None,
             requires: None,
-            fallback_provider: None,
-            fallback_upstream_model: None,
+            fallbacks: Vec::new(),
+            by_scope: None,
         }],
         ..GatewayConfig::default()
     };
@@ -219,9 +221,9 @@ fn synthesize_route_id_matches_golden_fnv1a_digests() {
 #[test]
 fn ensure_id_backfills_empty_id() {
     let mut r = route("claude-*");
-    assert!(r.id.as_str().is_empty());
+    assert!(r.id.is_none());
     r.ensure_id();
-    assert_eq!(r.id, synthesize_route_id("claude-*", "test"));
+    assert_eq!(r.id, Some(synthesize_route_id("claude-*", "test")));
     let preserved = r.id.clone();
     r.ensure_id();
     assert_eq!(r.id, preserved, "ensure_id must be idempotent");
@@ -320,9 +322,9 @@ fn registry_validate_rejects_non_http_scheme_and_plain_http_to_remote() {
 #[test]
 fn validate_rejects_duplicate_route_id() {
     let mut a = route("claude-*");
-    a.id = RouteId::new("dup");
+    a.id = Some(RouteId::new("dup"));
     let mut b = route("gpt-*");
-    b.id = RouteId::new("dup");
+    b.id = Some(RouteId::new("dup"));
     let config = GatewayConfig {
         enabled: true,
         routes: vec![a, b],
@@ -399,9 +401,9 @@ fn two_provider_config(default_provider: Option<&str>) -> GatewayConfig {
     }
 }
 
-fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
+pub(crate) fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
     let mut r = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: pattern.to_owned(),
@@ -411,8 +413,8 @@ fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     r.ensure_id();
     r
@@ -526,9 +528,7 @@ fn validate_rejects_default_provider_absent_from_registry() {
 }
 
 fn route_id(route: Cow<'_, GatewayRoute>) -> RouteId {
-    let mut route = route.into_owned();
-    route.ensure_id();
-    route.id
+    route.effective_id()
 }
 
 #[test]
@@ -849,6 +849,7 @@ fn route_match_predicates_evaluate_against_request() {
 
     let mut tooled = req("m");
     tooled.tools = vec![CanonicalTool {
+        anthropic_definition: None,
         name: "t".to_owned(),
         description: None,
         input_schema: serde_json::Value::Null,
@@ -964,6 +965,7 @@ fn matched_predicates_lists_set_fields_in_declaration_order() {
     assert!(RouteMatch::default().matched_predicates().is_empty());
 
     let full = RouteMatch {
+        tool_names_any: Vec::new(),
         requires_tools: Some(true),
         min_tools: Some(2),
         thinking: Some(true),
@@ -1087,7 +1089,7 @@ fn priced_registry(models: Vec<ProviderModel>) -> ProviderRegistry {
     }
 }
 
-fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
+pub(crate) fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
     ProviderModel {
         id: ModelId::new(id),
         aliases: Vec::new(),
@@ -1100,7 +1102,7 @@ fn priced_model(id: &str, pricing: ModelPricing) -> ProviderModel {
     }
 }
 
-fn token_rates(input: f64, output: f64) -> ModelPricing {
+pub(crate) fn token_rates(input: f64, output: f64) -> ModelPricing {
     ModelPricing {
         input_per_million: input,
         output_per_million: output,
@@ -1109,7 +1111,7 @@ fn token_rates(input: f64, output: f64) -> ModelPricing {
     }
 }
 
-fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
+pub(crate) fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
     GatewayConfig {
         enabled: true,
         routes,
@@ -1117,6 +1119,7 @@ fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_model: None,
         allow_unlisted_models: false,
         quota_fault_mode: QuotaFaultMode::Open,
+        require_scopes: Vec::new(),
         automatic_prompt_caching: true,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),
@@ -1136,6 +1139,51 @@ fn validate_accepts_a_glob_route_whose_reachable_models_are_all_priced() {
             .validate(&registry)
             .is_ok()
     );
+}
+
+#[test]
+fn validate_accepts_a_primary_route_reaching_a_priced_upstream_alias() {
+    let mut model = priced_model("native-claude-sonnet-5", token_rates(7.0, 9.0));
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    model.hidden = true;
+    let registry = priced_registry(vec![model]);
+    enabled_gateway(vec![route("claude-*")])
+        .validate(&registry)
+        .expect("an explicitly routed provider can serve its priced upstream alias");
+}
+
+#[test]
+fn validate_rejects_an_unpriced_primary_upstream_alias() {
+    let mut model = priced_model("native-claude-sonnet-5", ModelPricing::default());
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    let registry = priced_registry(vec![model]);
+    assert!(matches!(
+        enabled_gateway(vec![route("claude-*")]).validate(&registry),
+        Err(GatewayProfileError::RouteModelUnpriced { .. })
+    ));
+}
+
+#[test]
+fn validate_checks_governance_on_primary_upstream_aliases() {
+    let mut model = priced_model("native-claude-sonnet-5", token_rates(7.0, 9.0));
+    model.upstream_model = Some("claude-sonnet-5".to_owned());
+    let registry = priced_registry(vec![model]);
+    let mut selected = route("claude-*");
+    selected.requires = Some(requires_no_retain());
+    assert!(matches!(
+        enabled_gateway(vec![selected]).validate(&registry),
+        Err(GatewayProfileError::RouteGovernanceUnsatisfied { .. })
+    ));
+}
+
+#[test]
+fn validate_accepts_a_route_reaching_a_declared_catalog_alias() {
+    let mut model = priced_model("claude-sonnet-5", token_rates(7.0, 9.0));
+    model.aliases.push(ModelId::new("public-sonnet"));
+    let registry = priced_registry(vec![model]);
+    enabled_gateway(vec![route("public-sonnet")])
+        .validate(&registry)
+        .expect("declared aliases resolve to the same priced model");
 }
 
 #[test]
@@ -1233,7 +1281,7 @@ fn validate_skips_pricing_checks_when_the_gateway_is_disabled() {
     assert!(gw.validate(&registry).is_ok());
 }
 
-fn requires_no_retain() -> RouteRequirements {
+pub(crate) fn requires_no_retain() -> RouteRequirements {
     RouteRequirements {
         european: false,
         no_retain: true,
@@ -1244,7 +1292,7 @@ fn requires_no_retain() -> RouteRequirements {
 fn validate_rejects_governance_route_over_unannotated_provider() {
     let registry = priced_registry(vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))]);
     let mut r = route("claude-*");
-    r.id = RouteId::new("gov");
+    r.id = Some(RouteId::new("gov"));
     r.requires = Some(requires_no_retain());
     match enabled_gateway(vec![r]).validate(&registry) {
         Err(GatewayProfileError::RouteGovernanceUnsatisfied {
@@ -1332,7 +1380,9 @@ fn a_discovered_unpriced_model_would_fail_boot() {
     );
 }
 
-fn releases_spec(token_secret: Option<&str>) -> systemprompt_models::services::BridgeReleasesSpec {
+fn releases_spec(
+    token_secret: Option<&str>,
+) -> systemprompt_manifest::services::BridgeReleasesSpec {
     serde_json::from_value(serde_json::json!({
         "repo": "Astound-Digital/systemprompt-astound",
         "token_secret": token_secret,
@@ -1382,7 +1432,11 @@ fn a_public_release_feed_names_no_secret_and_is_not_reported() {
     );
 }
 
-fn priced_provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -> ProviderEntry {
+pub(crate) fn priced_provider(
+    name: &str,
+    wire: WireProtocol,
+    models: Vec<ProviderModel>,
+) -> ProviderEntry {
     ProviderEntry {
         name: ProviderId::new(name),
         display_name: None,
@@ -1396,151 +1450,6 @@ fn priced_provider(name: &str, wire: WireProtocol, models: Vec<ProviderModel>) -
         accepted_betas: None,
         models,
     }
-}
-
-fn failover_registry() -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![
-            priced_provider(
-                "anthropic",
-                WireProtocol::Anthropic,
-                vec![priced_model("claude-opus-5", token_rates(5.0, 25.0))],
-            ),
-            priced_provider(
-                "vertex",
-                WireProtocol::Anthropic,
-                vec![priced_model("claude-opus-5", token_rates(6.0, 30.0))],
-            ),
-            priced_provider(
-                "gemini",
-                WireProtocol::Gemini,
-                vec![priced_model("gemini-3.5-flash", token_rates(0.3, 2.5))],
-            ),
-        ],
-    }
-}
-
-fn failover_route(fallback: &str) -> GatewayRoute {
-    let mut r = route_to("claude-*", "anthropic");
-    r.fallback_provider = Some(ProviderId::new(fallback));
-    r
-}
-
-#[test]
-fn fallback_view_is_the_route_as_the_fallback_provider_serves_it() {
-    let mut r = failover_route("vertex");
-    r.fallback_upstream_model = Some("claude-opus-5@20260501".to_owned());
-    r.pricing = Some(token_rates(1.0, 2.0));
-    let view = r.fallback_view().expect("route names a fallback");
-    assert_eq!(view.provider.as_str(), "vertex");
-    assert_eq!(
-        view.upstream_model.as_deref(),
-        Some("claude-opus-5@20260501")
-    );
-    assert_eq!(view.model_pattern, "claude-*");
-    assert_eq!(view.id, r.id);
-    assert!(
-        view.pricing.is_none(),
-        "a primary pricing override is not the fallback's rate"
-    );
-    assert!(view.fallback_provider.is_none());
-    assert!(view.fallback_upstream_model.is_none());
-    assert!(route_to("claude-*", "anthropic").fallback_view().is_none());
-}
-
-#[test]
-fn validate_accepts_a_fallback_declared_in_the_registry() {
-    let gw = enabled_gateway(vec![failover_route("vertex")]);
-    assert!(gw.validate(&failover_registry()).is_ok());
-}
-
-#[test]
-fn validate_accepts_a_fallback_on_a_different_wire_with_its_own_upstream_model() {
-    let mut r = failover_route("gemini");
-    r.fallback_upstream_model = Some("gemini-3.5-flash".to_owned());
-    let gw = enabled_gateway(vec![r]);
-    assert!(gw.validate(&failover_registry()).is_ok());
-}
-
-#[test]
-fn validate_rejects_a_fallback_absent_from_the_registry() {
-    let gw = enabled_gateway(vec![failover_route("ghost")]);
-    match gw.validate(&failover_registry()) {
-        Err(GatewayProfileError::RouteFallbackProviderNotInRegistry { provider, .. }) => {
-            assert_eq!(provider, "ghost");
-        },
-        other => panic!("expected RouteFallbackProviderNotInRegistry, got {other:?}"),
-    }
-}
-
-#[test]
-fn validate_rejects_a_fallback_that_is_the_primary() {
-    let gw = enabled_gateway(vec![failover_route("anthropic")]);
-    match gw.validate(&failover_registry()) {
-        Err(GatewayProfileError::RouteFallbackIsPrimary { provider, .. }) => {
-            assert_eq!(provider, "anthropic");
-        },
-        other => panic!("expected RouteFallbackIsPrimary, got {other:?}"),
-    }
-}
-
-#[test]
-fn validate_rejects_a_fallback_upstream_model_without_a_fallback_provider() {
-    let mut r = route_to("claude-*", "anthropic");
-    r.fallback_upstream_model = Some("claude-opus-5".to_owned());
-    let gw = enabled_gateway(vec![r]);
-    assert!(matches!(
-        gw.validate(&failover_registry()),
-        Err(GatewayProfileError::RouteFallbackModelWithoutProvider { .. })
-    ));
-}
-
-#[test]
-fn validate_rejects_a_fallback_that_reaches_no_priced_model() {
-    let gw = enabled_gateway(vec![failover_route("gemini")]);
-    match gw.validate(&failover_registry()) {
-        Err(GatewayProfileError::RouteReachesNoPricedModel { provider, .. }) => {
-            assert_eq!(provider, "gemini");
-        },
-        other => panic!("expected RouteReachesNoPricedModel for the fallback, got {other:?}"),
-    }
-}
-
-#[test]
-fn validate_rejects_a_fallback_that_breaks_the_route_governance_requirement() {
-    let mut registry = failover_registry();
-    registry.providers[0].governance = ModelGovernance {
-        european: false,
-        no_retain: true,
-    };
-    let mut r = failover_route("vertex");
-    r.requires = Some(requires_no_retain());
-    match enabled_gateway(vec![r]).validate(&registry) {
-        Err(GatewayProfileError::RouteGovernanceUnsatisfied { requirements, .. }) => {
-            assert_eq!(requirements, "no_retain");
-        },
-        other => panic!("expected RouteGovernanceUnsatisfied for the fallback, got {other:?}"),
-    }
-}
-
-#[test]
-fn yaml_route_parses_fallback_fields() {
-    let yaml = "model_pattern: claude-*\nprovider: anthropic\nfallback_provider: vertex\n\
-                fallback_upstream_model: claude-opus-5@20260501\n";
-    let r: GatewayRoute = serde_yaml::from_str(yaml).expect("route parses");
-    assert_eq!(
-        r.fallback_provider.as_ref().map(ProviderId::as_str),
-        Some("vertex")
-    );
-    assert_eq!(
-        r.fallback_upstream_model.as_deref(),
-        Some("claude-opus-5@20260501")
-    );
-    let back = serde_yaml::to_string(&route_to("claude-*", "anthropic")).expect("serialize");
-    assert!(
-        !back.contains("fallback"),
-        "absent fallback is not serialized: {back}"
-    );
 }
 
 fn same_model_two_hosts() -> ProviderRegistry {
@@ -1560,7 +1469,10 @@ fn same_model_two_hosts() -> ProviderRegistry {
 
 fn failover_config() -> GatewayConfig {
     let mut claude = route_to("claude-*", "vertex-anthropic");
-    claude.fallback_provider = Some(ProviderId::new("anthropic"));
+    claude.fallbacks = vec![RouteDeployment {
+        provider: ProviderId::new("anthropic"),
+        upstream_model: None,
+    }];
     GatewayConfig {
         enabled: true,
         routes: vec![claude],
@@ -1590,7 +1502,7 @@ fn a_fallback_serves_the_requested_model_under_its_own_catalog_id() {
 }
 
 #[test]
-fn a_primary_route_is_still_reached_by_catalog_id_only() {
+fn a_primary_route_serves_the_requested_model_under_its_own_catalog_id() {
     let registry = same_model_two_hosts();
     let config = GatewayConfig {
         enabled: true,
@@ -1598,12 +1510,15 @@ fn a_primary_route_is_still_reached_by_catalog_id_only() {
         ..GatewayConfig::default()
     };
     assert!(
-        matches!(
-            config.validate(&registry),
-            Err(GatewayProfileError::RouteReachesNoPricedModel { .. })
-        ),
-        "an upstream-name match must not make a primary route look reachable"
+        registry
+            .find_provider("anthropic")
+            .unwrap()
+            .find_model("claude-sonnet-5")
+            .is_none()
     );
+    config
+        .validate(&registry)
+        .expect("a primary reaching the requested models by upstream name validates");
 }
 
 #[test]

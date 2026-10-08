@@ -92,8 +92,8 @@ mod owned {
             TraceId::generate(),
             ContextId::generate(),
             AgentName::try_new("artifact-test").expect("valid AgentName"),
+            Actor::user(user.clone()),
         )
-        .with_actor(Actor::user(user.clone()))
     }
 
     async fn seed_user(db: &DbPool) -> Result<UserId> {
@@ -106,7 +106,7 @@ mod owned {
         let context = ContextId::generate();
         let session = SessionId::generate();
         seed_user_session(db, user, &session).await?;
-        let p = db.pool_arc()?;
+        let p = db.pool();
         sqlx::query(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name) \
              VALUES ($1, $2, $3, 'artifact-fixture')",

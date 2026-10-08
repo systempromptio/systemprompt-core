@@ -7,12 +7,18 @@ use crate::cli_settings::CliConfig;
 use crate::interactive::{Prompter, confirm_optional};
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use std::time::Duration;
+use systemprompt_config::ProfileBootstrap;
+use systemprompt_loader::subprocess::{self, ChildKind};
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, ServiceCategory, ShutdownRequest, validate_system};
-use systemprompt_scheduler::ProcessCleanup;
-use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_runtime::{AppContext, ShutdownRequest, validate_system};
+use systemprompt_scheduler::{port_holders, wait_for_port_free};
+use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::{get_api_addr, get_api_port};
+
+const CONFIRMED_HOLDER_GRACE: Duration = Duration::from_secs(2);
+const PORT_RELEASE: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServeOptions {
@@ -40,8 +46,6 @@ pub async fn execute_with_events(
 
     ensure_port_free(prompter, port, kill_port_process, config, events).await?;
 
-    register_modules(events);
-
     let shutdown = ShutdownRequest::default();
     let early = bind_early(foreground, events, shutdown.clone()).await?;
 
@@ -50,13 +54,18 @@ pub async fn execute_with_events(
             .with_startup_warnings(true)
             .with_shutdown(shutdown)
             .with_migrations(run_migrations)
+            .with_schema_verification(!run_migrations)
             .build()
             .await
             .context("Failed to initialize application context")?,
     );
 
     if events.is_none() {
-        CliService::phase_success("Database schemas installed", None);
+        if run_migrations {
+            CliService::phase_success("Database schemas installed", None);
+        } else {
+            CliService::phase_success("Schema current (migrations skipped)", None);
+        }
     }
 
     if let Some(tx) = events {
@@ -76,6 +85,9 @@ pub async fn execute_with_events(
 
     if events.is_none() {
         CliService::phase_success("System validation complete", None);
+        CliService::phase_info(&format!("Node role: {}", ctx.config().role), None);
+    } else if let Some(tx) = events {
+        tx.info(format!("Node role: {}", ctx.config().role));
     }
 
     if events.is_none() {
@@ -102,18 +114,28 @@ pub async fn execute_with_events(
     Ok(format!("http://127.0.0.1:{}", port))
 }
 
-pub async fn execute(
-    prompter: &dyn Prompter,
-    foreground: bool,
-    kill_port_process: bool,
-    config: &CliConfig,
-) -> Result<()> {
+#[derive(Debug, Clone, Copy)]
+pub struct ServeFlags {
+    pub foreground: bool,
+    pub kill_port_process: bool,
+    pub skip_migrate: bool,
+}
+
+pub const fn effective_run_migrations(skip_flag: bool, migrate_on_boot: bool) -> bool {
+    !skip_flag && migrate_on_boot
+}
+
+pub async fn execute(prompter: &dyn Prompter, flags: ServeFlags, config: &CliConfig) -> Result<()> {
+    let migrate_on_boot = ProfileBootstrap::get()
+        .context("Profile not initialized")?
+        .database
+        .migrate_on_boot;
     execute_with_events(
         prompter,
         ServeOptions {
-            foreground,
-            kill_port_process,
-            run_migrations: true,
+            foreground: flags.foreground,
+            kill_port_process: flags.kill_port_process,
+            run_migrations: effective_run_migrations(flags.skip_migrate, migrate_on_boot),
         },
         config,
         None,
@@ -129,13 +151,20 @@ async fn ensure_port_free(
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    if let Some(pid) = check_port_available(port) {
+    if let Some(pid) = port_holder(port).await? {
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflict { port, pid })
         {
             tracing::debug!(error = %e, "startup event channel closed: PortConflict");
         }
-        handle_port_conflict(prompter, port, pid, kill_port_process, config, events).await?;
+        handle_port_conflict(
+            prompter,
+            PortConflict { port, pid },
+            kill_port_process,
+            config,
+            events,
+        )
+        .await?;
         if let Some(tx) = events
             && let Err(e) = tx.unbounded_send(StartupEvent::PortConflictResolved { port })
         {
@@ -165,56 +194,80 @@ async fn bind_early(
     Ok(Some(early))
 }
 
-fn check_port_available(port: u16) -> Option<u32> {
-    ProcessCleanup::check_port(port)
-}
-
-fn kill_process(pid: u32) {
-    ProcessCleanup::kill_process(pid);
-}
-
-#[expect(
-    clippy::too_many_arguments,
-    reason = "port-conflict handling threads discrete CLI flags plus the prompt seam"
-)]
-async fn handle_port_conflict(
-    prompter: &dyn Prompter,
+#[derive(Debug, Clone, Copy)]
+struct PortConflict {
     port: u16,
     pid: u32,
+}
+
+async fn port_holder(port: u16) -> Result<Option<u32>> {
+    Ok(port_holders(port).await?.first().copied())
+}
+
+async fn stop_confirmed_holder(port: u16, pid: u32) -> Result<()> {
+    if port_holders(port).await?.contains(&pid) {
+        subprocess::terminate_gracefully(pid, CONFIRMED_HOLDER_GRACE)
+            .await
+            .with_context(|| format!("Failed to stop PID {pid} holding port {port}"))?;
+    }
+    wait_for_port_free(port, PORT_RELEASE)
+        .await
+        .with_context(|| format!("Failed to free port {port} after stopping PID {pid}"))?;
+    Ok(())
+}
+
+async fn handle_port_conflict(
+    prompter: &dyn Prompter,
+    conflict: PortConflict,
     kill_port_process: bool,
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
+    let PortConflict { port, pid } = conflict;
     if events.is_none() {
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
 
-    let should_kill = kill_port_process
-        || confirm_optional(
+    let verified = subprocess::owns(pid, ChildKind::Api, &subprocess::api_server_service()).await;
+    let should_kill = if verified {
+        kill_port_process
+            || confirm_optional(
+                prompter,
+                &format!("Stop the running API server (PID {pid}) and restart?"),
+                false,
+                config,
+            )?
+    } else if kill_port_process {
+        confirm_optional(
             prompter,
-            &format!("Kill process {} and restart?", pid),
+            &format!(
+                "PID {pid} holding port {port} is not a verified systemprompt API server. Signal \
+                 PID {pid} anyway?"
+            ),
             false,
             config,
-        )?;
+        )?
+    } else {
+        false
+    };
 
     if should_kill {
         if events.is_none() {
-            CliService::info(&format!("Killing process {}...", pid));
+            CliService::info(&format!("Stopping process {}...", pid));
         }
-        kill_process(pid);
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-        if check_port_available(port).is_some() {
-            return Err(anyhow::anyhow!(
-                "Failed to free port {} after killing PID {}",
-                port,
-                pid
-            ));
-        }
+        stop_confirmed_holder(port, pid).await?;
         if events.is_none() {
             CliService::success(&format!("Port {} is now available", port));
         }
         return Ok(());
+    }
+
+    if !verified {
+        return Err(anyhow::anyhow!(
+            "Port {port} is held by PID {pid}, which is not a verified systemprompt API server; \
+             it was not signalled. Stop it by hand, or rerun interactively with \
+             --kill-port-process and confirm."
+        ));
     }
 
     if config.is_interactive() {
@@ -227,9 +280,9 @@ async fn handle_port_conflict(
 
     if events.is_none() {
         CliService::error(&format!("Port {} is already in use by PID {}", port, pid));
-        CliService::info("Use --kill-port-process to terminate the process, or:");
-        CliService::info("   - just api-rebuild    (rebuild and restart)");
-        CliService::info("   - just api-nuke       (nuclear option - kill everything)");
+        CliService::info("Use --kill-port-process to stop it, or:");
+        CliService::info("   - systemprompt infra services restart api");
+        CliService::info("   - systemprompt infra services stop --all --force");
         CliService::info(&format!(
             "   - kill {}             (manually kill the process)",
             pid
@@ -240,38 +293,4 @@ async fn handle_port_conflict(
         port,
         pid
     ))
-}
-
-fn register_modules(events: Option<&StartupEventSender>) {
-    let api_registrations: Vec<_> =
-        inventory::iter::<systemprompt_runtime::ModuleApiRegistration>().collect();
-
-    if let Some(tx) = events {
-        let modules: Vec<_> = api_registrations
-            .iter()
-            .map(|r| ModuleInfo {
-                name: r.module_name.to_owned(),
-                category: format!("{:?}", r.category),
-            })
-            .collect();
-        tx.modules_loaded(modules.len(), modules);
-    } else {
-        CliService::phase_info(
-            &format!("Loading {} route modules", api_registrations.len()),
-            None,
-        );
-
-        for registration in &api_registrations {
-            let category_name = match registration.category {
-                ServiceCategory::Core => "Core",
-                ServiceCategory::Agent => "Agent",
-                ServiceCategory::Mcp => "Mcp",
-                ServiceCategory::Meta => "Meta",
-            };
-            CliService::phase_success(
-                registration.module_name,
-                Some(&format!("{} routes", category_name)),
-            );
-        }
-    }
 }

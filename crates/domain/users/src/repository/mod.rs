@@ -2,8 +2,8 @@
 //!
 //! [`UserRepository`] holds the read and write pools and implements user CRUD,
 //! sessions, and federated identity across the `user` submodule; the API-key,
-//! device-cert, banned-IP, and rate-limit-bucket repositories live alongside
-//! it. Mutating
+//! device-cert, banned-IP, rate-limit-bucket and session repositories live
+//! alongside it. Mutating
 //! operations take typed parameter structs ([`UpdateUserParams`],
 //! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`], [`BanIpParams`]).
 //!
@@ -16,6 +16,7 @@ mod device_cert;
 mod federated_identity;
 mod rate_limit_bucket;
 mod role_directory;
+mod session;
 mod user;
 
 pub use api_key::CreateApiKeyParams;
@@ -25,9 +26,9 @@ pub use banned_ip::{
 pub use device_cert::EnrollDeviceCertParams;
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
+pub use session::SessionRepository;
 pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, UpdateUserParams};
 
-use crate::error::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -41,9 +42,9 @@ pub struct UserRepository {
 }
 
 impl UserRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 }

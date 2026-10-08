@@ -11,6 +11,18 @@
 
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
+use systemprompt_identifiers::TraceId;
+
+use crate::repository::otlp::RequestRow;
+
+pub(super) fn trace_key(request: &RequestRow) -> &str {
+    request
+        .trace_id
+        .as_ref()
+        .map(TraceId::as_str)
+        .filter(|t| !t.is_empty())
+        .unwrap_or(request.id.as_str())
+}
 
 pub(super) const TRACE_ID_LEN: usize = 16;
 pub(super) const SPAN_ID_LEN: usize = 8;

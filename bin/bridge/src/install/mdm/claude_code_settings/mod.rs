@@ -16,6 +16,7 @@ use helper::{key_helper_path, prepare_helper, shell_command_for};
 pub mod model_picker;
 pub mod permissions;
 mod removal;
+pub mod skill_budget;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -75,6 +76,8 @@ pub fn standalone_settings_path() -> Option<PathBuf> {
     )
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 pub(super) fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::Value> {
     let mut env = serde_json::Map::new();
     env.insert(
@@ -94,6 +97,8 @@ pub(super) fn bridge_env(gateway: &str) -> serde_json::Map<String, serde_json::V
     env
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn render(
     root: serde_json::Map<String, serde_json::Value>,
     path: &Path,
@@ -186,6 +191,8 @@ pub(crate) fn apply_managed_settings(gateway: &str) -> Result<MdmApplication, Md
     })
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn read_settings(path: &Path) -> Result<serde_json::Map<String, serde_json::Value>, MdmError> {
     let existing = read_or_empty(path)?;
     if existing.trim().is_empty() {
@@ -232,7 +239,7 @@ pub fn seed_default_model(model: &str) -> Result<bool, MdmError> {
         managed_settings_path().ok_or(MdmError::Resolve("the managed settings path"))?;
     let mut root = read_settings(&settings_path)?;
     if let Some(existing) = root.get("model").and_then(serde_json::Value::as_str) {
-        let base = systemprompt_models::services::providers::without_context_variant(model);
+        let base = systemprompt_models::providers::without_context_variant(model);
         if existing == model || existing != base {
             return Ok(false);
         }

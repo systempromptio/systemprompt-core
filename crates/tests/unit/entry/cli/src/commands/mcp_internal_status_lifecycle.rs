@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 use clap::Parser;
 use systemprompt_cli::plugins::mcp::{self, McpCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, fixture_app_context_with, init_services_bootstrap, install_test_signing_key,
 };
@@ -56,10 +56,8 @@ async fn internal_status_helper() {
     std::fs::create_dir_all(&selected_bin).unwrap();
     std::fs::write(&release_binary, "owned fixture binary\n").unwrap();
 
-    let database = DisposableDb::installed("cli_mcp_internal_status")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_mcp_internal_status").await;
+    let pool = database.test_pool().await;
     let paths = PathsConfig {
         system: boot.system_path.to_string_lossy().into_owned(),
         services: boot.services_path.to_string_lossy().into_owned(),
@@ -93,7 +91,7 @@ async fn internal_status_helper() {
     println!("END_DETAILED_STATUS");
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

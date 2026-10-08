@@ -10,11 +10,10 @@ use systemprompt_identifiers::JwtToken;
 
 async fn extract_error(response: Response) -> ClientError {
     let status = response.status().as_u16();
-    let body = response.text().await.unwrap_or_else(|e| {
-        tracing::warn!(error = %e, status = %status, "Failed to read error response body");
-        format!("(body unreadable: {})", e)
-    });
-    ClientError::from_response(status, body)
+    match response.text().await {
+        Ok(body) => ClientError::from_response(status, body),
+        Err(source) => ClientError::UnreadableErrorBody { status, source },
+    }
 }
 
 fn apply_auth(

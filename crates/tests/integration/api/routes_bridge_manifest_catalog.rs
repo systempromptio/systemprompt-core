@@ -163,6 +163,8 @@ async fn set_enabled_host_rejects_unknown_host() -> anyhow::Result<()> {
         ))
         .await?;
     assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let body = read_json(resp).await?;
+    assert_eq!(body["error_key"].as_str(), Some("invalid_body"), "{body}");
     Ok(())
 }
 

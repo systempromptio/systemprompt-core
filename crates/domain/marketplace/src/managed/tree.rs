@@ -1,5 +1,9 @@
 //! Bounded authoring-tree capture. Imported files are never executed.
 //!
+//! A skill is captured without its dev-only files: the default excludes plus
+//! the authoring tree's own `.systempromptignore` (see [`crate::dev_files`]),
+//! so they count against no limit and never enter a revision.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -9,20 +13,22 @@ use std::io::Read;
 use std::path::Path;
 
 use serde::Serialize;
-use systemprompt_models::DiskSkillConfig;
+use systemprompt_identifiers::SkillId;
+use systemprompt_manifest::DiskSkillConfig;
 
 use super::error::invalid;
 use super::{AssetDigest, AssetFile, FileEntry, ManagedError, Result, RevisionFiles};
+use crate::dev_files::DevFileFilter;
 use systemprompt_models::managed::validate_key;
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct CapturedSkills {
-    pub(super) skills: BTreeMap<String, RevisionFiles>,
+    pub(super) skills: BTreeMap<SkillId, RevisionFiles>,
     pub(super) tree_digest: AssetDigest,
 }
 
 impl CapturedSkills {
-    pub const fn skills(&self) -> &BTreeMap<String, RevisionFiles> {
+    pub const fn skills(&self) -> &BTreeMap<SkillId, RevisionFiles> {
         &self.skills
     }
     pub const fn tree_digest(&self) -> &AssetDigest {
@@ -30,7 +36,7 @@ impl CapturedSkills {
     }
 }
 
-pub fn capture_skills(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSkills> {
+pub fn capture_skills(services_root: &Path, skill_ids: &[SkillId]) -> Result<CapturedSkills> {
     let captured = capture_once(services_root, skill_ids)?;
     if capture_once(services_root, skill_ids)?.tree_digest != captured.tree_digest {
         return Err(invalid(
@@ -46,24 +52,32 @@ struct CaptureBudget {
     files: usize,
 }
 
-fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSkills> {
+fn capture_once(services_root: &Path, skill_ids: &[SkillId]) -> Result<CapturedSkills> {
     if skill_ids.is_empty() || skill_ids.len() > 100 {
         return Err(invalid("Expected 1–100 skill IDs"));
     }
     let services_root = crate::inventory::catalog::resolve_services_root(services_root)?;
     let root = services_root.join("skills");
     reject_link(&root)?;
+    let dev_files = DevFileFilter::load(&services_root)
+        .map_err(|error| super::error::invalid_input("dev-file filter", error))?;
     let mut skills = BTreeMap::new();
     let mut manifests = BTreeMap::new();
     let mut budget = CaptureBudget::default();
     for id in skill_ids {
-        validate_key(id)?;
-        if id.contains('/') || id == "." || id == ".." || skills.contains_key(id) {
+        let key = id.as_str();
+        validate_key(key)?;
+        if key.contains('/') || key == "." || key == ".." || skills.contains_key(key) {
             return Err(invalid("Invalid or duplicate skill ID"));
         }
-        let path = root.join(id);
+        let path = root.join(key);
         let mut files = RevisionFiles::default();
-        capture_directory(&path, &path, &mut files, &mut budget)?;
+        let mut walk = Walk {
+            files: &mut files,
+            budget: &mut budget,
+            dev_files: Some(&dev_files),
+        };
+        capture_directory(&path, &path, &mut walk)?;
         validate_skill(id, &files)?;
         manifests.insert(id.clone(), file_manifest(&files));
         skills.insert(id.clone(), files);
@@ -74,7 +88,7 @@ fn capture_once(services_root: &Path, skill_ids: &[String]) -> Result<CapturedSk
     })
 }
 
-fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
+fn validate_skill(id: &SkillId, files: &RevisionFiles) -> Result<()> {
     files.validate()?;
     let config = files
         .0
@@ -82,8 +96,15 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
         .ok_or_else(|| invalid("Skill configuration is missing"))?;
     let config: DiskSkillConfig = serde_yaml::from_slice(&config.bytes)
         .map_err(|_error| invalid("Skill configuration is invalid"))?;
-    if !config.id.as_str().is_empty() && config.id.as_str() != id {
+    if config
+        .id
+        .as_ref()
+        .is_some_and(|declared| declared.as_str() != id.as_str())
+    {
         return Err(invalid("Skill ID does not match its authoring directory"));
+    }
+    if let Err(unknown) = config.host_kinds() {
+        return Err(invalid(&format!("Skill hosts list is invalid: {unknown}")));
     }
     if !config.enabled || !files.0.contains_key(config.content_file()) {
         return Err(invalid(
@@ -93,12 +114,13 @@ fn validate_skill(id: &str, files: &RevisionFiles) -> Result<()> {
     Ok(())
 }
 
-fn capture_directory(
-    base: &Path,
-    current: &Path,
-    files: &mut RevisionFiles,
-    budget: &mut CaptureBudget,
-) -> Result<()> {
+struct Walk<'a> {
+    files: &'a mut RevisionFiles,
+    budget: &'a mut CaptureBudget,
+    dev_files: Option<&'a DevFileFilter>,
+}
+
+fn capture_directory(base: &Path, current: &Path, walk: &mut Walk<'_>) -> Result<()> {
     reject_link(current)?;
     if current
         .strip_prefix(base)
@@ -116,10 +138,16 @@ fn capture_directory(
         if kind.is_symlink() {
             return Err(invalid("Authoring trees cannot contain symlinks"));
         }
+        if walk
+            .dev_files
+            .is_some_and(|filter| filter.excludes_on_disk(base, &path, kind.is_dir()))
+        {
+            continue;
+        }
         if kind.is_dir() {
-            capture_directory(base, &path, files, budget)?;
+            capture_directory(base, &path, walk)?;
         } else if kind.is_file() {
-            capture_file(base, &path, files, budget)?;
+            capture_file(base, &path, walk.files, walk.budget)?;
         } else {
             return Err(invalid(
                 "Authoring trees may contain only regular files and directories",
@@ -238,7 +266,12 @@ pub(crate) fn capture_inventory_files(
         let mut files = RevisionFiles::default();
         let mut budget = CaptureBudget::default();
         if path.is_dir() {
-            capture_directory(&path, &path, &mut files, &mut budget)?;
+            let mut walk = Walk {
+                files: &mut files,
+                budget: &mut budget,
+                dev_files: None,
+            };
+            capture_directory(&path, &path, &mut walk)?;
         } else {
             capture_file(
                 path.parent()

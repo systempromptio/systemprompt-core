@@ -6,10 +6,8 @@
 use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
 use reqwest::Client;
-use systemprompt_database::DbPool;
-use systemprompt_models::services::ProviderModel;
-use systemprompt_models::services::providers::upstream_model_in;
-
+use systemprompt_manifest::services::ProviderModel;
+use systemprompt_manifest::services::providers::upstream_model_in;
 
 use super::transport;
 
@@ -17,7 +15,6 @@ use super::transport;
 pub struct GeminiProvider {
     pub(crate) client: Client,
     pub(crate) target: UpstreamTarget,
-    pub(crate) db_pool: Option<DbPool>,
     pub(crate) google_search_enabled: bool,
     pub(crate) models: Vec<ProviderModel>,
     pub(crate) default_model_override: Option<String>,
@@ -28,7 +25,6 @@ impl GeminiProvider {
         Ok(Self {
             client: transport::build_client()?,
             target,
-            db_pool: None,
             google_search_enabled: false,
             models: Vec::new(),
             default_model_override: None,
@@ -37,11 +33,6 @@ impl GeminiProvider {
 
     pub(crate) fn upstream_model<'a>(&'a self, requested: &'a str) -> &'a str {
         upstream_model_in(&self.models, requested)
-    }
-
-    pub fn with_db_pool(mut self, db_pool: DbPool) -> Self {
-        self.db_pool = Some(db_pool);
-        self
     }
 
     pub const fn with_google_search(mut self) -> Self {

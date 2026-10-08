@@ -1,6 +1,6 @@
 //! Unit tests for [`systemprompt_models::execution::SharedRequestContext`].
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::execution::{RequestContext, SharedRequestContext};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
@@ -11,6 +11,7 @@ fn ctx() -> RequestContext {
         TraceId::new("trace-456"),
         ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
         AgentName::try_new("test_agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

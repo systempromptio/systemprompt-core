@@ -11,19 +11,15 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::AgentError;
-
 #[derive(Debug, Clone)]
 pub struct AgentOwnerReassignment {
     write_pool: Arc<PgPool>,
 }
 
 impl AgentOwnerReassignment {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 
@@ -38,11 +34,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
         from: &UserId,
         to: &UserId,
     ) -> Result<ReassignedRows, RepositoryError> {
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         let contexts = sqlx::query!(
             "UPDATE user_contexts SET user_id = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $1",
@@ -50,8 +42,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let tasks = sqlx::query!(
@@ -60,8 +51,7 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let messages = sqlx::query!(
@@ -70,11 +60,10 @@ impl OwnerReassignment for AgentOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         Ok(ReassignedRows {
             tables: vec![

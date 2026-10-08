@@ -81,7 +81,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 }
 
 pub fn resolve_tenant(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     tenant: &systemprompt_identifiers::TenantId,
 ) -> Result<StoredTenant> {
     let tenants_path = ResolvedPaths::from_profile(profile).tenants_path();
@@ -93,14 +93,16 @@ pub fn resolve_tenant(
         )
     })?;
 
-    store
-        .find_tenant(tenant)
-        .cloned()
-        .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant))
+    store.find_tenant(tenant).cloned().with_context(|| {
+        format!(
+            "Tenant '{tenant}' not found in local tenant store. Run 'systemprompt cloud tenant \
+                 list' to sync."
+        )
+    })
 }
 
 pub fn load_session_for_key(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     session_key: &SessionKey,
     issuer: &str,
 ) -> Result<systemprompt_cloud::CliSession> {

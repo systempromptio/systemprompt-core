@@ -15,8 +15,8 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Response, StatusCode};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_oauth::OAuthState;
@@ -30,9 +30,11 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
+            role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
@@ -64,7 +66,7 @@ fn ensure_config() {
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,

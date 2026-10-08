@@ -4,12 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_security::credential::CredentialError;
+use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum UpstreamTargetError {
     #[error("secrets are not available: {0}")]
-    SecretsUnavailable(String),
+    SecretsUnavailable(#[source] BoxedSource),
 
     #[error("provider '{provider}' secret '{secret}' is not configured")]
     MissingSecret { provider: String, secret: String },

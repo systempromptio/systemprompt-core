@@ -17,17 +17,15 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, fixture_system_admin, fixture_user_id,
-    install_test_signing_key,
+    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id,
+    install_test_signing_key, test_db_pool,
 };
 use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
@@ -35,7 +33,7 @@ use tower::ServiceExt;
 async fn boot_server() -> anyhow::Result<axum::Router> {
     let bootstrap = ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
@@ -50,7 +48,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     };
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )?);
 
@@ -61,8 +59,8 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
             );
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-            let session_usage: systemprompt_traits::DynSessionUsageCounters =
-                analytics_service.session_repo().owner();
+            let session_store = Arc::clone(analytics_service.session_store());
+            let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
@@ -71,7 +69,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                 )),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
-                )?)))),
+                ))))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
                     systemprompt_agent::repository::A2aDependencies {
@@ -82,26 +80,26 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
                             systemprompt_test_fixtures::ToolExecutionLedger::Exists,
                         ),
                     },
-                )?),
+                )),
                 content_repositories: Arc::new(
-                    systemprompt_content::repository::ContentRepositories::new(&pool)?,
+                    systemprompt_content::repository::ContentRepositories::new(&pool),
                 ),
                 oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
+                    systemprompt_oauth::repository::OAuthRepositories::new(&pool),
                 ),
-                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
+                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                     &pool,
                     systemprompt_identifiers::InstanceId::new("test-instance"),
-                )?),
-                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
+                )),
+                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,
-                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),
+                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
                 mcp_session_repository: Arc::new(
-                    systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
+                    systemprompt_mcp::repository::McpSessionRepository::new(&pool),
                 ),
                 managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
+                    systemprompt_marketplace::managed::ManagedRepository::new(&pool),
                 ),
             }
         },
@@ -113,7 +111,6 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
         },
         Plugins {
             extension_registry: Arc::new(ExtensionRegistry::new()),
-            api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
@@ -126,12 +123,15 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
-                systemprompt_models::profile::StorageBackend::Local,
-                &std::env::temp_dir(),
+                systemprompt_storage::FileStorageBackend::Local {
+                    root: std::env::temp_dir(),
+                },
             ),
             shutdown: Default::default(),
+            background_tasks: Default::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
@@ -142,10 +142,6 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     Ok(router)
 }
 
-async fn try_boot_or_skip() -> Option<axum::Router> {
-    boot_server().await.ok()
-}
-
 static BOOT_GATE: OnceLock<()> = OnceLock::new();
 
 fn gate() {
@@ -153,11 +149,9 @@ fn gate() {
 }
 
 #[tokio::test]
-async fn health_endpoint_is_reachable_without_auth() {
+async fn health_endpoint_is_reachable_without_auth() -> anyhow::Result<()> {
     gate();
-    let Some(app) = try_boot_or_skip().await else {
-        return;
-    };
+    let app = boot_server().await?;
     let req = Request::builder()
         .uri("/health")
         .body(Body::empty())
@@ -167,10 +161,9 @@ async fn health_endpoint_is_reachable_without_auth() {
     // Health is public; 200 expected. Some configurations 404 if the route
     // isn't mounted under the bootstrap profile — accept either.
     assert!(s == 200 || s == 404, "{s}");
+    Ok(())
 }
 
-// The tests below propagate boot failures rather than using `try_boot`, so a
-// broken fixture fails loudly instead of passing vacuously.
 fn get(uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
     let mut builder = Request::builder().uri(uri);
     for (name, value) in headers {

@@ -8,8 +8,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script, safe_url};
+use super::typed::{lenient, lenient_vec};
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
+use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
@@ -28,13 +30,14 @@ impl ListRenderer {
         for part in &artifact.parts {
             if let Some(data) = part.as_data()
                 && let Some(obj) = data.as_object()
-                && let Some(items_arr) = obj.get("items").and_then(JsonValue::as_array)
+                && let Some(items_value) = obj.get("items")
             {
-                for item in items_arr {
-                    if let Some(list_item) = ListItem::from_json(item) {
-                        items.push(list_item);
-                    }
-                }
+                items.extend(
+                    lenient_vec::<_, ListEntry>(items_value)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(ListItem::from_entry),
+                );
             }
         }
 
@@ -66,52 +69,60 @@ struct ListItem {
     link: Option<String>,
 }
 
-impl ListItem {
-    fn from_json(value: &JsonValue) -> Option<Self> {
-        if let Some(s) = value.as_str() {
-            return Some(Self {
-                title: s.to_owned(),
-                summary: None,
-                description: None,
-                category: None,
-                icon: None,
-                link: None,
-            });
-        }
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum ListEntry {
+    Text(String),
+    Fields(Box<ListItemSpec>),
+}
 
-        let title = value
-            .get("title")
-            .or_else(|| value.get("name"))
-            .or_else(|| value.get("label"))
-            .and_then(JsonValue::as_str)?
-            .to_owned();
+#[derive(Debug, Deserialize)]
+struct ListItemSpec {
+    #[serde(default, deserialize_with = "lenient")]
+    title: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    name: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    label: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    summary: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    category: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    description: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    subtitle: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    icon: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    link: Option<String>,
+    #[serde(default, deserialize_with = "lenient")]
+    url: Option<String>,
+}
+
+impl ListItem {
+    fn from_entry(entry: ListEntry) -> Option<Self> {
+        let spec = match entry {
+            ListEntry::Text(title) => {
+                return Some(Self {
+                    title,
+                    summary: None,
+                    description: None,
+                    category: None,
+                    icon: None,
+                    link: None,
+                });
+            },
+            ListEntry::Fields(spec) => spec,
+        };
 
         Some(Self {
-            title,
-            summary: value
-                .get("summary")
-                .and_then(JsonValue::as_str)
-                .filter(|s| !s.is_empty())
-                .map(String::from),
-            category: value
-                .get("category")
-                .and_then(JsonValue::as_str)
-                .filter(|s| !s.is_empty())
-                .map(String::from),
-            description: value
-                .get("description")
-                .or_else(|| value.get("subtitle"))
-                .and_then(JsonValue::as_str)
-                .map(String::from),
-            icon: value
-                .get("icon")
-                .and_then(JsonValue::as_str)
-                .map(String::from),
-            link: value
-                .get("link")
-                .or_else(|| value.get("url"))
-                .and_then(JsonValue::as_str)
-                .map(String::from),
+            title: spec.title.or(spec.name).or(spec.label)?,
+            summary: spec.summary.filter(|s| !s.is_empty()),
+            category: spec.category.filter(|s| !s.is_empty()),
+            description: spec.description.or(spec.subtitle),
+            icon: spec.icon,
+            link: spec.link.or(spec.url),
         })
     }
 

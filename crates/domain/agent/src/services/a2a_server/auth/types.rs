@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 use systemprompt_database::Database;
-pub use systemprompt_models::AgentOAuthConfig;
+pub use systemprompt_manifest::AgentOAuthConfig;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_security::AuthValidationService;
 use systemprompt_traits::DynJwtValidationProvider;

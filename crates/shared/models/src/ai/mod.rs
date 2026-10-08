@@ -19,7 +19,7 @@ pub mod tool_result_formatter;
 pub mod tools;
 
 pub use execution_plan::{
-    ExecutionState, PlannedToolCall, PlanningResult, TemplateRef, ToolCallResult,
+    ExecutionState, PlannedToolCall, PlannedToolResult, PlanningResult, TemplateRef,
 };
 pub use media_types::{
     SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, SUPPORTED_VIDEO_TYPES,
@@ -35,7 +35,7 @@ pub use response_format::{ResponseFormat, StructuredOutputOptions};
 pub use sampling::{ModelHint, ModelPreferences, ProviderConfig, SamplingParams};
 pub use template_resolver::TemplateResolver;
 pub use template_validation::{PlanValidationError, TemplateValidator, ValidationErrorKind};
-pub use tools::{CallToolResult, McpTool, ToolCall, ToolExecution};
+pub use tools::{CallToolResult, McpTool, ToolCall};
 
 pub use provider_trait::{AiProvider, DynAiProvider, GenerateResponseParams, GoogleSearchParams};
 pub use tool_result_formatter::ToolResultFormatter;

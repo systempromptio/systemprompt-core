@@ -18,10 +18,11 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use bcrypt::hash;
 use chrono::Utc;
 use rand::Rng;
-use systemprompt_models::{Config, RequestContext};
+use systemprompt_manifest::Config;
+use systemprompt_models::RequestContext;
 use uuid::Uuid;
 
-use systemprompt_oauth::OauthError;
+use systemprompt_oauth::OauthResult;
 use systemprompt_oauth::models::TokenAuthMethod;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
@@ -32,20 +33,8 @@ use systemprompt_oauth::services::validation::{
 };
 use systemprompt_oauth::services::{generate_registration_token, hash_registration_token};
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
-
-fn is_unique_violation(err: &OauthError) -> bool {
-    if let OauthError::Repository(sqlx::Error::Database(db_err)) = err {
-        db_err.is_unique_violation()
-    } else {
-        false
-    }
-}
-
-fn metadata_error(err: &OauthError) -> OAuthHttpError {
-    OAuthHttpError::invalid_client_metadata(err.to_string())
-}
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 struct ValidatedRegistration {
     client_name: String,
@@ -60,24 +49,25 @@ struct ValidatedRegistration {
 fn validate_registration(
     request: &DynamicRegistrationRequest,
 ) -> Result<ValidatedRegistration, OAuthHttpError> {
-    let client_name = request.get_client_name().map_err(|e| metadata_error(&e))?;
+    let client_name = request
+        .get_client_name()
+        .map_err(internal::client_metadata_error)?;
     let application_type = request
         .get_application_type()
-        .map_err(|e| metadata_error(&e))?;
+        .map_err(internal::client_metadata_error)?;
     let redirect_uris = request
         .get_redirect_uris()
-        .map_err(|e| metadata_error(&e))?;
+        .map_err(internal::client_metadata_error)?;
     validate_registration_redirect_uris(&application_type, &redirect_uris)
-        .map_err(|e| metadata_error(&e))?;
+        .map_err(internal::client_metadata_error)?;
     validate_client_metadata_uri("client_uri", request.client_uri.as_deref())
-        .map_err(|e| metadata_error(&e))?;
+        .map_err(internal::client_metadata_error)?;
     validate_client_metadata_uri("logo_uri", request.logo_uri.as_deref())
-        .map_err(|e| metadata_error(&e))?;
-    let scopes = determine_scopes(request)
-        .map_err(|e| OAuthHttpError::invalid_client_metadata(format!("Invalid scopes: {e}")))?;
+        .map_err(internal::client_metadata_error)?;
+    let scopes = determine_scopes(request).map_err(internal::client_metadata_error)?;
     let token_endpoint_auth_method = request
         .get_token_endpoint_auth_method()
-        .map_err(|e| metadata_error(&e))?;
+        .map_err(internal::client_metadata_error)?;
 
     Ok(ValidatedRegistration {
         client_name,
@@ -116,7 +106,7 @@ pub async fn register_client(
         .as_deref()
         .map(|secret| hash(secret, 12))
         .transpose()
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to hash client secret: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to hash client secret", e))?;
     let registration_access_token = generate_registration_token();
     let registration_client_uri = format!(
         "{}/api/v1/core/oauth/register/{client_id}",
@@ -141,11 +131,11 @@ pub async fn register_client(
     };
 
     repository.create_client(params).await.map_err(|e| {
-        if is_unique_violation(&e) {
+        if e.is_unique_violation() {
             OAuthHttpError::invalid_client_metadata("Client with this ID already exists")
                 .with_status(StatusCode::CONFLICT)
         } else {
-            OAuthHttpError::invalid_client_metadata(format!("Failed to register client: {e}"))
+            OAuthHttpError::from(e)
         }
     })?;
 
@@ -181,14 +171,13 @@ fn generate_opaque_token(byte_len: usize) -> String {
     URL_SAFE_NO_PAD.encode(&buf)
 }
 
-fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>, String> {
+fn determine_scopes(request: &DynamicRegistrationRequest) -> OauthResult<Vec<String>> {
     if let Some(scope_string) = &request.scope {
         let requested_scopes: Vec<String> =
             scope_string.split_whitespace().map(str::to_owned).collect();
 
         if !requested_scopes.is_empty() {
-            return OAuthRepository::validate_scopes_for_registration(&requested_scopes)
-                .map_err(|e| format!("Invalid scopes requested: {e}"));
+            return OAuthRepository::validate_scopes_for_registration(&requested_scopes);
         }
     }
 

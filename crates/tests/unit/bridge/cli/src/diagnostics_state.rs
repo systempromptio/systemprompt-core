@@ -103,6 +103,8 @@ fn a_writable_system_org_plugins_tree_is_listed_entry_by_entry() {
 fn an_unwritable_system_org_plugins_tree_falls_back_to_the_user_tree_and_says_why() {
     use std::os::unix::fs::PermissionsExt;
 
+    // skip-ok: root bypasses the 0o555 lock, so the system tree never reads as
+    // unwritable
     if unsafe { libc::geteuid() } == 0 {
         return;
     }
@@ -134,6 +136,8 @@ fn an_unwritable_system_org_plugins_tree_falls_back_to_the_user_tree_and_says_wh
 fn an_unlistable_org_plugins_tree_is_reported_rather_than_silently_empty() {
     use std::os::unix::fs::PermissionsExt;
 
+    // skip-ok: root lists a mode-0o000 directory, so there is no listing error to
+    // report
     if unsafe { libc::geteuid() } == 0 {
         return;
     }

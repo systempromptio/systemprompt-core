@@ -12,7 +12,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, unique_user_id};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool, unique_user_id};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -26,11 +26,6 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     let mut cli = CliConfig::new().with_interactive(false);
@@ -41,13 +36,12 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
         cli,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
 async fn store(pool: &DbPool, entry: LogEntry) -> LogEntry {
     LoggingRepository::new(pool)
-        .unwrap()
         .log(entry.clone())
         .await
         .unwrap();
@@ -64,7 +58,7 @@ fn actor(trace: &TraceId) -> LogActor {
 
 #[tokio::test]
 async fn a_single_log_renders_its_object_metadata_and_identifier_block_as_text() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let trace = TraceId::generate();
     let entry = store(
         &pool,
@@ -93,7 +87,7 @@ async fn a_single_log_renders_its_object_metadata_and_identifier_block_as_text()
 
 #[tokio::test]
 async fn a_scalar_metadata_blob_renders_without_being_treated_as_a_field_map() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let trace = TraceId::generate();
     let entry = store(
         &pool,
@@ -114,7 +108,7 @@ async fn a_scalar_metadata_blob_renders_without_being_treated_as_a_field_map() {
 
 #[tokio::test]
 async fn a_trace_id_renders_every_level_through_its_own_text_sink() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let trace = TraceId::generate();
 
     for (level, message) in [
@@ -141,7 +135,7 @@ async fn a_trace_id_renders_every_level_through_its_own_text_sink() {
 
 #[tokio::test]
 async fn a_partial_id_resolves_only_after_the_full_id_and_trace_lookups_miss() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let trace = TraceId::generate();
     let entry = store(
         &pool,
@@ -168,7 +162,7 @@ async fn a_partial_id_resolves_only_after_the_full_id_and_trace_lookups_miss() {
 
 #[tokio::test]
 async fn an_id_matching_nothing_is_an_error_that_points_at_logs_view() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let err = logs::execute(
         parse(&["show", "zzzz-no-such-log-id-anywhere-zzzz"]),

@@ -13,10 +13,7 @@ pub mod sessions;
 mod sync;
 pub mod transport;
 
-pub use sync::{
-    RecoveryProgress, deliver, recover_current_manifest, recover_manifest_installations,
-    recover_pending, retry_pending,
-};
+pub use sync::{RecoveryProgress, deliver, recover_pending, retry_pending};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FeedbackError {
@@ -48,8 +45,11 @@ pub enum FeedbackError {
     Header(#[from] http::header::InvalidHeaderValue),
     #[error("feedback contract violation: {0}")]
     Contract(#[from] systemprompt_models::feedback::FeedbackContractError),
-    #[error("feedback request rejected with status {0}")]
-    Rejected(u16),
+    #[error("feedback request rejected with status {status}: {rejection}")]
+    Rejected {
+        status: u16,
+        rejection: Box<crate::gateway::GatewayRejection>,
+    },
     #[error("device enrolment failed: {0}")]
     Gateway(#[from] crate::gateway::errors::GatewayError),
 }
@@ -121,7 +121,7 @@ pub type Result<T> = std::result::Result<T, FeedbackError>;
 // its own; `EvaluatorClient::accepts_host_name` is the one place both are
 // listed, so no second alias table can drift from it.
 pub fn client_kind(host: &str) -> Option<systemprompt_models::feedback::EvaluatorClient> {
-    systemprompt_models::wire::origin::ClientKind::ALL
+    systemprompt_models::origin::ClientKind::ALL
         .into_iter()
         .filter_map(|kind| systemprompt_models::feedback::EvaluatorClient::try_from(kind).ok())
         .find(|client| client.accepts_host_name(host))

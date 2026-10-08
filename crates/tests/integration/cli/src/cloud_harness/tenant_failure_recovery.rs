@@ -53,7 +53,7 @@ async fn rotation_failure_preserves_both_accounts_then_retry_updates_only_the_se
 
     let failed = execute(tenant(TenantCommands::RotateCredentials(
         TenantRotateArgs {
-            id: Some(TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
             yes: true,
         },
     )))
@@ -84,7 +84,7 @@ async fn rotation_failure_preserves_both_accounts_then_retry_updates_only_the_se
         .await;
     execute(tenant(TenantCommands::RotateCredentials(
         TenantRotateArgs {
-            id: Some(TENANT_ID.to_owned()),
+            id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
             yes: true,
         },
     )))
@@ -142,7 +142,7 @@ async fn deletion_failure_preserves_cache_then_retry_removes_only_the_selected_t
         .await;
 
     let failed = execute(tenant(TenantCommands::Delete(TenantDeleteArgs {
-        id: Some(TENANT_ID.to_owned()),
+        id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
         yes: true,
     })))
     .await
@@ -164,7 +164,7 @@ async fn deletion_failure_preserves_cache_then_retry_removes_only_the_selected_t
         .mount(env.server())
         .await;
     execute(tenant(TenantCommands::Delete(TenantDeleteArgs {
-        id: Some(TENANT_ID.to_owned()),
+        id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
         yes: true,
     })))
     .await

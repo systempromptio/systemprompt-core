@@ -21,16 +21,14 @@ async fn seed(repository: &LoggingRepository, actor: &LogActor, module: &str, me
 #[tokio::test]
 async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_profile_noise() {
     ensure_test_bootstrap();
-    let database = DisposableDb::installed("cli_agent_logs_all")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated pool");
+    let database = DisposableDb::with_schema("cli_agent_logs_all").await;
+    let pool = database.test_pool().await;
     let user = UserId::new(format!("logs-all-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row(&pool, &user, &format!("{}@logs.invalid", user.as_str()))
         .await
         .expect("seed log actor");
     let actor = LogActor::new(user, SessionId::generate(), TraceId::generate());
-    let repository = LoggingRepository::new(&pool).expect("logging repository");
+    let repository = LoggingRepository::new(&pool);
     seed(
         &repository,
         &actor,
@@ -74,7 +72,7 @@ async fn all_agent_database_logs_match_operational_modules_strip_ansi_and_hide_p
     assert!(!rendered.contains("noisy startup"), "{artifact}");
     assert!(!rendered.contains("unrelated billing log"), "{artifact}");
 
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

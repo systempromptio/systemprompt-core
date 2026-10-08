@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 
 use systemprompt_cli::web::paths::WebPaths;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 fn fixture() -> (Profile, PathBuf) {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();

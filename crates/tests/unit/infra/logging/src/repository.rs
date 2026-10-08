@@ -8,12 +8,7 @@ use serde_json::json;
 use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -23,10 +18,8 @@ fn unique_id(prefix: &str) -> String {
 async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically() {
     use systemprompt_traits::analytics_events::{AnalyticsEventRecord, AnalyticsEventStore};
 
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let pool = db.write_pool_arc().unwrap();
+    let db = test_db_pool().await;
+    let pool = db.write_pool();
     let session_id = SessionId::new(unique_id("event-store"));
     sqlx::query("INSERT INTO user_sessions (session_id, session_source) VALUES ($1, 'web')")
         .bind(session_id.as_str())
@@ -40,7 +33,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
         std::sync::Arc::new(unavailable_replica),
         Some(pool.clone()),
     ));
-    let store = AnalyticsRepository::new(&split_db).unwrap();
+    let store = AnalyticsRepository::new(&split_db);
     assert!(!store.has_analytics_events(&session_id).await.unwrap());
     store.persist_events(&[]).await.unwrap();
     let first = AnalyticsEventRecord {
@@ -155,18 +148,14 @@ fn make_entry(module: &str, msg: &str, actor: &(UserId, SessionId, TraceId)) -> 
 
 #[tokio::test]
 async fn repository_new_succeeds() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    drop(LoggingRepository::new(&db).expect("repo new"));
+    let db = test_db_pool().await;
+    drop(LoggingRepository::new(&db));
 }
 
 #[tokio::test]
 async fn log_with_database_persists_then_fetch_by_id() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
     let actor = make_actor("persist");
     let entry = make_entry("repo-test", "persisted row", &actor);
     let id = entry.id.clone();
@@ -184,10 +173,8 @@ async fn log_with_database_persists_then_fetch_by_id() {
 
 #[tokio::test]
 async fn log_rejects_invalid_entry() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
     let actor = make_actor("invalid");
     let mut bad = make_entry("ok-mod", "ok-msg", &actor);
     bad.module = String::new();
@@ -197,10 +184,8 @@ async fn log_rejects_invalid_entry() {
 
 #[tokio::test]
 async fn get_recent_logs_returns_inserted_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("recent");
     let mut ids = Vec::new();
@@ -220,10 +205,8 @@ async fn get_recent_logs_returns_inserted_rows() {
 
 #[tokio::test]
 async fn get_logs_paginated_with_filter() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("paginated");
     let mut ids = Vec::new();
@@ -251,10 +234,8 @@ async fn get_logs_paginated_with_filter() {
 
 #[tokio::test]
 async fn get_logs_by_module_patterns() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("by-mod");
     let e = make_entry("module-pattern-test", "pat", &actor);
@@ -272,10 +253,8 @@ async fn get_logs_by_module_patterns() {
 
 #[tokio::test]
 async fn update_log_entry_updates_message() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("update");
     let mut e = make_entry("update-mod", "old", &actor);
@@ -293,10 +272,8 @@ async fn update_log_entry_updates_message() {
 
 #[tokio::test]
 async fn cleanup_old_logs_removes_old_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let repo = LoggingRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let repo = LoggingRepository::new(&db);
 
     let actor = make_actor("cleanup");
     let mut e = make_entry("cleanup-mod", "old-msg", &actor);
@@ -315,17 +292,13 @@ async fn cleanup_old_logs_removes_old_rows() {
 
 #[tokio::test]
 async fn database_log_service_construction() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let svc = DatabaseLogService::new(&db).expect("ctor");
+    let db = test_db_pool().await;
+    let svc = DatabaseLogService::new(&db);
     let _r = svc.repository();
 }
 
 #[tokio::test]
 async fn analytics_repository_constructs() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let _repo = AnalyticsRepository::new(&db).expect("repo");
+    let db = test_db_pool().await;
+    let _repo = AnalyticsRepository::new(&db);
 }

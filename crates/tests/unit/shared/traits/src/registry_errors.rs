@@ -12,19 +12,19 @@ fn registry_not_found_display() {
 
 #[test]
 fn registry_unavailable_display() {
-    let e = RegistryError::Unavailable("no connection".to_owned());
+    let e = RegistryError::Unavailable("no connection".into());
     assert!(format!("{e}").contains("no connection"));
 }
 
 #[test]
 fn registry_configuration_display() {
-    let e = RegistryError::Configuration("bad port".to_owned());
+    let e = RegistryError::Configuration("bad port".into());
     assert!(format!("{e}").contains("bad port"));
 }
 
 #[test]
 fn registry_internal_display() {
-    let e = RegistryError::Internal("panic".to_owned());
+    let e = RegistryError::Internal("panic".into());
     assert!(format!("{e}").contains("panic"));
 }
 

@@ -98,7 +98,7 @@ fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErr
         let artifacts = build_artifacts(artifacts_by_task.get(&row.task_id), artifact_parts_by_id)?;
         let execution_steps = build_execution_steps(steps_by_task.get(&row.task_id))?;
 
-        let mut metadata = converters::construct_metadata(row);
+        let mut metadata = converters::construct_metadata(row)?;
         metadata.execution_steps = execution_steps;
 
         let task_state = converters::parse_task_state(row)?;

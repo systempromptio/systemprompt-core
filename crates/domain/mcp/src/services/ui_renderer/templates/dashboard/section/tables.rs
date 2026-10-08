@@ -9,6 +9,7 @@ use crate::error::McpDomainResult;
 use serde_json::Value as JsonValue;
 use systemprompt_models::artifacts::dashboard::{DashboardSection, TableSectionData};
 
+// JSON: dashboard table cell — producer-supplied, any JSON type.
 fn format_cell(value: Option<&JsonValue>) -> String {
     match value {
         None | Some(JsonValue::Null) => String::new(),
@@ -40,6 +41,7 @@ fn format_number(value: f64) -> String {
     }
 }
 
+// JSON: dashboard table row — an object keyed by column or a positional array.
 fn row_cells(row: &JsonValue, columns: &[String]) -> Vec<String> {
     row.as_object().map_or_else(
         || {

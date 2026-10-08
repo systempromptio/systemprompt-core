@@ -4,6 +4,7 @@
 // — no listener, and therefore none of `run`/`start_server`.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -11,24 +12,23 @@ use systemprompt_agent::services::a2a_server::Server;
 use tower::ServiceExt;
 
 use super::a2a_helpers::{StubAiProvider, make_agent_state};
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 const AGENT_PORT: u16 = 9312;
 
-async fn server_for_registered_agent_or_skip(port: u16) -> Option<Server> {
+async fn server_for_registered_agent(port: u16) -> Server {
     systemprompt_test_fixtures::ensure_messaging_bootstrap();
-    let pool = try_pool_or_skip().await?;
+    let pool = test_db_pool().await;
     let agent_state = make_agent_state(&pool);
 
     Server::new(
         Arc::clone(&pool),
         agent_state,
         Arc::new(StubAiProvider::new()),
-        Some(systemprompt_test_fixtures::test_messaging_agent().to_owned()),
+        &AgentName::new(systemprompt_test_fixtures::test_messaging_agent()),
         port,
     )
     .await
-    .map(Some)
     .expect("construct registered agent server")
 }
 
@@ -50,9 +50,7 @@ async fn body_bytes(response: axum::response::Response) -> Vec<u8> {
 #[tokio::test]
 async fn the_router_serves_the_well_known_agent_card_without_authentication() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 1).await else {
-        return;
-    };
+    let server = server_for_registered_agent(AGENT_PORT + 1).await;
 
     let response = server
         .create_router()
@@ -79,9 +77,7 @@ async fn the_router_serves_the_well_known_agent_card_without_authentication() {
 #[tokio::test]
 async fn the_router_serves_the_card_on_both_advertised_paths() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 2).await else {
-        return;
-    };
+    let server = server_for_registered_agent(AGENT_PORT + 2).await;
     let router = server.create_router();
 
     let alias = router
@@ -106,9 +102,7 @@ async fn the_router_serves_the_card_on_both_advertised_paths() {
 #[tokio::test]
 async fn the_router_rejects_an_unrouted_path() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 3).await else {
-        return;
-    };
+    let server = server_for_registered_agent(AGENT_PORT + 3).await;
 
     let response = server
         .create_router()
@@ -128,9 +122,7 @@ async fn the_router_rejects_an_unrouted_path() {
 #[tokio::test]
 async fn the_post_route_rejects_missing_and_invalid_bearer_before_dispatch() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let server = server_for_registered_agent_or_skip(AGENT_PORT + 4)
-        .await
-        .expect("registered agent server fixture");
+    let server = server_for_registered_agent(AGENT_PORT + 4).await;
     let router = server.create_router();
     let payload = serde_json::json!({
         "jsonrpc": "2.0",
@@ -168,12 +160,9 @@ async fn the_post_route_rejects_missing_and_invalid_bearer_before_dispatch() {
 #[tokio::test]
 async fn the_router_answers_cors_preflight() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let Some(server) = server_for_registered_agent_or_skip(AGENT_PORT + 5).await else {
-        return;
-    };
+    let server = server_for_registered_agent(AGENT_PORT + 5).await;
 
-    let database_url = systemprompt_test_fixtures::fixture_database_url()
-        .expect("agent server fixture database URL");
+    let database_url = systemprompt_test_fixtures::test_database_url();
     let configured_origin = systemprompt_test_fixtures::fixture_config(&database_url)
         .cors_allowed_origins
         .into_iter()
@@ -210,9 +199,7 @@ async fn server_run_serves_the_agent_card_then_exits_after_graceful_shutdown() {
     let reservation = reserve_allowed_agent_port();
     let port = reservation.local_addr().expect("reserved address").port();
     drop(reservation);
-    let server = server_for_registered_agent_or_skip(port)
-        .await
-        .expect("registered agent server fixture");
+    let server = server_for_registered_agent(port).await;
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let running = tokio::spawn(async move {
         server
@@ -268,9 +255,7 @@ async fn server_run_reports_bind_failure_without_disturbing_owned_listener() {
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let listener = reserve_allowed_agent_port();
     let port = listener.local_addr().expect("reserved address").port();
-    let server = server_for_registered_agent_or_skip(port)
-        .await
-        .expect("registered agent server fixture");
+    let server = server_for_registered_agent(port).await;
     let error = server
         .run(std::future::pending::<()>())
         .await

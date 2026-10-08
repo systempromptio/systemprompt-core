@@ -1,5 +1,6 @@
 //! Tests for AgentExtension, Task, TaskStatus, and TaskState.
 
+use systemprompt_models::errors::ParseEnumError;
 use systemprompt_models::{AgentExtension, Task, TaskState, TaskStatus};
 
 #[test]
@@ -14,7 +15,7 @@ fn test_agent_extension_mcp_tools() {
 
 #[test]
 fn test_agent_extension_agent_identity() {
-    let ext = AgentExtension::agent_identity("my-agent");
+    let ext = AgentExtension::agent_identity(&systemprompt_identifiers::AgentName::new("my-agent"));
 
     assert_eq!(ext.uri, "systemprompt:agent-identity");
     assert_eq!(ext.required, Some(true));
@@ -149,7 +150,7 @@ fn test_task_state_unknown() {
 
 #[test]
 fn test_task_state_invalid() {
-    let result: Result<TaskState, String> = "invalid-state".parse();
+    let result: Result<TaskState, ParseEnumError> = "invalid-state".parse();
     let err = result.unwrap_err();
-    assert!(err.contains("Invalid task state"));
+    assert_eq!(err.value, "invalid-state");
 }

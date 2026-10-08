@@ -3,17 +3,17 @@
 //! [`FileMetadata`] is the top-level container, carrying optional
 //! [`FileChecksums`] and a [`TypeSpecificMetadata`] variant
 //! ([`DocumentMetadata`], [`AudioMetadata`], or [`VideoMetadata`]; image detail
-//! lives in the sibling `image_metadata` module). Each type offers a builder
-//! API for incremental construction. Unrecognised keys on stored rows are
-//! preserved verbatim in [`FileMetadata::extra`], so arbitrary historical
-//! shapes decode losslessly.
+//! is the shared [`ImageMetadata`] from `systemprompt_traits`). Each type
+//! offers a builder API for incremental construction. Unrecognised keys on
+//! stored rows are preserved verbatim in [`FileMetadata::extra`], so arbitrary
+//! historical shapes decode losslessly.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 
-pub(super) use super::image_metadata::ImageMetadata;
+use systemprompt_traits::ImageMetadata;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct FileMetadata {
@@ -24,6 +24,7 @@ pub struct FileMetadata {
     pub type_specific: Option<TypeSpecificMetadata>,
 
     #[serde(flatten)]
+    // JSON: JSONB `metadata` column — unknown keys kept verbatim through `#[serde(flatten)]`.
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 

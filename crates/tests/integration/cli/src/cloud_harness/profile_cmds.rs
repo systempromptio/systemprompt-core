@@ -2,7 +2,7 @@
 //! delete, edit, create) through `cloud::execute` with scripted prompts.
 
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::{CloudAppId, TenantId};
 
 use serde_json::json;
 use systemprompt_cli::ScriptedPrompter;
@@ -297,8 +297,8 @@ async fn edit_interactive_api_keys_menu() {
 
 fn create_args(name: &str, tenant: Option<&str>, tenant_type: TenantTypeArg) -> CreateArgs {
     CreateArgs {
-        name: name.to_owned(),
-        tenant: tenant.map(str::to_owned),
+        name: pname(name),
+        tenant: tenant.map(|t| systemprompt_identifiers::TenantId::new(t)),
         tenant_type,
         anthropic_key: None,
         openai_key: None,
@@ -420,7 +420,7 @@ fn seed_masked_cloud_tenant(env: &Env) -> PathBuf {
     let tenant = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TenantId::new(TENANT_ID),
         name: "Masked Prod".to_owned(),
-        app_id: Some("app-masked".to_owned()),
+        app_id: Some(CloudAppId::new("app-masked")),
         hostname: Some("masked.example.com".to_owned()),
         region: Some("iad".to_owned()),
         database_url: Some("postgres://u:***@ext.example.com:5432/db".to_owned()),
@@ -538,11 +538,11 @@ async fn create_profile_for_tenant_handles_name_collision_and_issuer() {
         &prompter,
         &tenant,
         &api_keys,
-        "collide",
+        &pname("collide"),
         Some("https://control.example.com/"),
     )
     .expect("create profile for tenant");
-    assert_eq!(created.name, "collide-renamed");
+    assert_eq!(created.name.as_str(), "collide-renamed");
 
     let profile_yaml = std::fs::read_to_string(
         env.root()
@@ -566,4 +566,8 @@ async fn redact_database_url_variants() {
     );
     assert_eq!(redact_database_url("no-credentials"), "no-credentials");
     assert_eq!(redact_database_url("user@host"), "user@host");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

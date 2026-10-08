@@ -12,17 +12,19 @@
 
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
+use systemprompt_identifiers::{McpExecutionId, McpToolName};
 use systemprompt_models::artifacts::types::ArtifactType;
 use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 
 #[derive(Debug)]
 pub struct BuildMetadataParams<'a> {
     pub artifact_type: &'a ArtifactType,
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     pub schema: Option<&'a JsonValue>,
-    pub mcp_execution_id: Option<String>,
-    pub context_id: &'a str,
-    pub task_id: &'a str,
-    pub tool_name: &'a str,
+    pub mcp_execution_id: Option<McpExecutionId>,
+    pub context_id: &'a ContextId,
+    pub task_id: &'a TaskId,
+    pub tool_name: &'a McpToolName,
 }
 
 pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadata, ArtifactError> {
@@ -42,15 +44,13 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         _ => json!(null),
     };
 
-    let context_id_typed = ContextId::try_new(context_id)
-        .map_err(|e| ArtifactError::MetadataValidation(e.to_string()))?;
-    let task_id_typed = TaskId::new(task_id);
+    let mut metadata = ArtifactMetadata::new_validated(
+        artifact_type.to_string(),
+        context_id.clone(),
+        task_id.clone(),
+    )?;
 
-    let mut metadata =
-        ArtifactMetadata::new_validated(artifact_type.to_string(), context_id_typed, task_id_typed)
-            .map_err(|e| ArtifactError::MetadataValidation(e.to_string()))?;
-
-    metadata = metadata.with_tool_name(tool_name.to_owned());
+    metadata = metadata.with_tool_name(tool_name.to_string());
 
     if !rendering_hints.is_null() {
         metadata = metadata.with_rendering_hints(rendering_hints);
@@ -67,6 +67,8 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
     Ok(metadata)
 }
 
+// JSON: JSON Schema walk — hints come from `x-table-hints` or the tool output
+// schema.
 fn extract_table_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-table-hints")
@@ -91,6 +93,8 @@ fn extract_table_hints(schema: Option<&JsonValue>) -> JsonValue {
     json!({})
 }
 
+// JSON: JSON Schema walk — hints come from `x-form-hints` or the tool output
+// schema.
 fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-form-hints")
@@ -110,6 +114,7 @@ fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
     json!({})
 }
 
+// JSON: JSON Schema walk — hints come from `x-presentation-hints` or a default.
 fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     if let Some(schema) = schema
         && let Some(hints) = schema.get("x-presentation-hints")
@@ -121,6 +126,7 @@ fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
     })
 }
 
+// JSON: JSON Schema walk — `properties` of an arbitrary tool output schema.
 fn schema_properties_to_form_fields(properties: &JsonValue) -> Vec<JsonValue> {
     let mut fields = Vec::new();
 
@@ -152,6 +158,8 @@ fn schema_properties_to_form_fields(properties: &JsonValue) -> Vec<JsonValue> {
     fields
 }
 
+// JSON: JSON Schema walk — one property schema of an arbitrary tool output
+// schema.
 fn schema_type_to_form_type(prop_schema: &JsonValue) -> &str {
     if let Some(format) = prop_schema.get("format").and_then(|f| f.as_str()) {
         return match format {

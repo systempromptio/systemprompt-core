@@ -18,6 +18,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-traits = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -51,6 +52,7 @@ systemprompt-mcp = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 tokio = { workspace = true }
+async-trait = { workspace = true }
 wiremock = { workspace = true }
 uuid = { workspace = true }
 

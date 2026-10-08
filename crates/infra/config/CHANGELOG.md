@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `ConfigError::Other` is removed (use `ProfilePathWithoutParent` or `SecretsFileNotObject`); `ConfigError::ProviderNotFound.name` is `ProviderId` and `ModelNotFound` is `{ id: ModelId, provider: ProviderId }`. `ProfileBootstrapError::{ValidationFailed, LoadFailed}` and `ConfigValidationError::Schema` are removed. `VaultError::Exhausted` carries `last: VaultAttemptFailure` and `VaultError::Transport` is new. `DiscoveryError::Unusable` is replaced by `NotVertexHost { endpoint }` and `BearerRequired`. Migrate by matching the typed variants.
+- **Breaking:** `SecretsError::Invalid` is replaced by `PepperTooShort { min, actual }`.
+- **Breaking:** `ConfigError::InvalidDatabaseUrl` wraps the renamed `GlobalConfigError` (formerly `systemprompt_models::errors::ConfigError`).
+- **Breaking:** `ensure_state_dirs_writable` takes `&[WritableRoot]` (from `AppPaths::writable_roots(role, services_cache)`) instead of `&[&Path]`, and `StateDirError` gains `name`. `StoragePaths::scratch()` is new.
+- **Breaking:** the legacy `.env` deployment pipeline (`ConfigService`, `ConfigValidator`, `ConfigWriter` and their types) is removed, dropping the config → logging dependency. `SecretsValidationMode` is no longer consulted: every secrets failure is logged once and aborts.
+- **Breaking:** services manifest, profile and validator types come from `systemprompt-manifest`, and provider wire types from `systemprompt-wire`. Migrate by renaming `systemprompt_models::{services, profile, …}` paths to `systemprompt_manifest::…`.
+
+### Added
+
+- `create_state_dir` and `ensure_state_dirs_writable` create and write-probe runtime-state directories, failing with `StateDirError` / `StateDirsError` that name the directory, its owner and the process uid. The boot probe covers every writable root for the node's role (`system.logs`, `storage.files`, `storage.exports`, `storage.data`, `storage.scratch`, plus `web.dist` and `services.cache_dir` on `all`/`admin` nodes).
+- `write_private_atomic` creates secrets, private keys and tokens 0600 and publishes them by rename; used for the `secrets.json` seed rewrite and the RSA private key PEM.
+
+### Changed
+
+- An unknown host in a skill's `hosts` list is a validation error.
+- The loaded-secrets summary is logged as a structured field; error variants keep their cause as a `#[source]`.
+
 ## [0.62.0] - 2026-09-25
 
 ### Added

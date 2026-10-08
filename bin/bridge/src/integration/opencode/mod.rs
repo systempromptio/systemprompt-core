@@ -35,10 +35,12 @@ mod probe;
 
 pub use managed_resources::OpenCodeSync;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema,
-    HostKind, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
+    ProfileProbe, ProfileRemoval, ProfileState,
 };
 use crate::integration::reapply::Attendance;
 
@@ -47,14 +49,35 @@ pub fn admin_tier_models() -> Option<(std::path::PathBuf, Vec<String>)> {
     install::admin_tier_models()
 }
 
+// Why: the CLI and the desktop app are two installs of one host; either one
+// reads the managed tier, so either one counts, and only a conclusive miss on
+// both is a miss.
+#[must_use]
+pub const fn install_state(cli: AppInstallState, desktop: AppInstallState) -> AppInstallState {
+    match (cli, desktop) {
+        (AppInstallState::Installed, _) | (_, AppInstallState::Installed) => {
+            AppInstallState::Installed
+        },
+        (AppInstallState::NotInstalled, AppInstallState::NotInstalled) => {
+            AppInstallState::NotInstalled
+        },
+        _ => AppInstallState::Unknown,
+    }
+}
+
+fn desktop_app_present() -> bool {
+    let candidates = config::desktop_candidates();
+    crate::integration::app_launch::desktop_present_on_disk(&config::desktop_locator(&candidates))
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct OpenCodeHost;
 
 pub static OPENCODE_HOST: OpenCodeHost = OpenCodeHost;
 
 impl HostApp for OpenCodeHost {
-    fn id(&self) -> &'static str {
-        "opencode"
+    fn id(&self) -> HostKind {
+        HostKind::OpenCode
     }
 
     fn display_name(&self) -> &'static str {
@@ -76,8 +99,7 @@ impl HostApp for OpenCodeHost {
         // until sync re-renders it, so it must surface as Stale.
         let secret = Freshness::compare(
             install::installed_key_fingerprint(&config::auth_json_path()).as_deref(),
-            env.host_token_fingerprint(&crate::ids::HostId::new(self.id()))
-                .as_deref(),
+            env.host_token_fingerprint(self.id()).as_deref(),
             "opencode host token",
         );
         let profile_state = ProfileState::classify(&ProfileProbe {
@@ -89,6 +111,17 @@ impl HostApp for OpenCodeHost {
             managed_servers: Freshness::Unchecked,
         });
         let found = HostProcesses::from_enumeration(probe::list_opencode_processes());
+        let desktop_candidates = config::desktop_candidates();
+        let app_installed = install_state(
+            crate::integration::app_launch::cli_installed(
+                config::BINARY,
+                &config::extra_bin_dirs(),
+            ),
+            crate::integration::app_launch::is_installed(
+                &config::desktop_locator(&desktop_candidates),
+                &env.start_menu,
+            ),
+        );
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
@@ -98,33 +131,40 @@ impl HostApp for OpenCodeHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed: crate::integration::app_launch::cli_installed(
-                config::BINARY,
-                &config::extra_bin_dirs(),
-            ),
+            app_installed,
             probed_at_unix: config::now_unix(),
             update_needs_approval: false,
         }
     }
 
-    fn generate_profile(&self, inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
-        install::write_profile(inputs)
+    fn generate_profile(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
+        Ok(install::write_profile(inputs)?)
     }
 
-    fn install_profile(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path, Attendance::Attended)
     }
 
-    fn install_profile_unattended(&self, path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
         install::install_profile(path, Attendance::Unattended)
     }
 
-    fn remove_profile(&self) -> std::io::Result<ProfileRemoval> {
+    fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
         install::remove_profile()
     }
 
+    fn open(&self) -> Result<(), HostAppError> {
+        let candidates = config::desktop_candidates();
+        Ok(crate::integration::app_launch::open_app(
+            &config::desktop_locator(&candidates),
+        )?)
+    }
+
     fn can_open(&self) -> bool {
-        false
+        desktop_app_present()
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -139,18 +179,14 @@ impl HostApp for OpenCodeHost {
         }
     }
 
-    fn kind(&self) -> HostKind {
-        HostKind::CliTool
+    fn kind(&self) -> HostAppKind {
+        HostAppKind::CliTool
     }
 
     fn description(&self) -> &'static str {
         "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge \
          installs admin-managed configuration that routes inference through the gateway, \
          registers MCP connectors, and publishes managed skills."
-    }
-
-    fn icon_id(&self) -> &'static str {
-        "opencode"
     }
 
     fn config_format(&self) -> ConfigFormat {

@@ -49,7 +49,7 @@ pub async fn publish_latest(
 async fn load_services(
     ctx: &AppContext,
     owner: &UserId,
-) -> Result<systemprompt_models::services::ServicesConfig, OrchestrationError> {
+) -> Result<systemprompt_manifest::services::ServicesConfig, OrchestrationError> {
     match systemprompt_loader::ConfigLoader::load() {
         Ok(services) => Ok(services),
         Err(error) => {
@@ -57,9 +57,7 @@ async fn load_services(
             ctx.managed_repository()
                 .record_inventory_failure(owner)
                 .await?;
-            Err(OrchestrationError::Source(format!(
-                "Configured inventory could not be loaded; previous inventory retained: {error}"
-            )))
+            Err(OrchestrationError::InventoryLoad(error))
         },
     }
 }

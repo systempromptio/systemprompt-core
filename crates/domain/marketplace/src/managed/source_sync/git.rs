@@ -239,7 +239,7 @@ fn list_tree(
             "--full-tree",
             commit,
             "--",
-            prefix_text,
+            Some(prefix_text).filter(|p| !p.is_empty()).unwrap_or("."),
         ]),
         None,
         deadline,
@@ -263,9 +263,8 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
             "Git source contains links, submodules, or non-regular files",
         ));
     }
-    let path = std::str::from_utf8(path).map_err(|error| {
-        super::super::error::invalid(&format!("Git paths must be UTF-8: {error}"))
-    })?;
+    let path = std::str::from_utf8(path)
+        .map_err(|error| super::super::error::invalid_input("Git paths must be UTF-8", error))?;
     if path
         .split('/')
         .any(|part| matches!(part, ".git" | ".gitmodules"))
@@ -274,10 +273,13 @@ fn parse_tree_entry<'a>(entry: &'a [u8], prefix_text: &str) -> Result<(&'a str, 
             "Nested Git metadata is not permitted",
         ));
     }
-    let relative = path
-        .strip_prefix(prefix_text)
-        .and_then(|value| value.strip_prefix('/'))
-        .ok_or(ManagedError::Integrity)?;
+    let relative = if prefix_text.is_empty() {
+        path
+    } else {
+        path.strip_prefix(prefix_text)
+            .and_then(|value| value.strip_prefix('/'))
+            .ok_or(ManagedError::Integrity)?
+    };
     systemprompt_models::managed::validate_path(relative)?;
     Ok((relative, mode, path))
 }

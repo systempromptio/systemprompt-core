@@ -5,6 +5,7 @@
 //! via [`From`] so call sites can use `?` without manual mapping, and exposes
 //! domain-specific variants (`MissingField`, `TemplateNotFound`,
 //! `RenderFailed`, etc.) so CLI/API layers can surface actionable diagnostics.
+//! A failing provider, template or fetch keeps its cause as the `#[source]`.
 //!
 //! [`GeneratorResult`] is the canonical `Result` alias — prefer it over bare
 //! `Result<T, PublishError>` in new code.
@@ -13,6 +14,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+
+use systemprompt_traits::BoxedSource;
 
 mod suggestions;
 use suggestions::suggest_fix_for_field;
@@ -34,10 +37,11 @@ pub enum PublishError {
         available_templates: Vec<String>,
     },
 
-    #[error("Page data provider '{provider_id}' failed: {cause}")]
+    #[error("Page data provider '{provider_id}' failed: {source}")]
     ProviderFailed {
         provider_id: String,
-        cause: String,
+        #[source]
+        source: BoxedSource,
         suggestion: Option<String>,
     },
 
@@ -45,11 +49,16 @@ pub enum PublishError {
     RenderFailed {
         template_name: String,
         slug: Option<String>,
-        cause: String,
+        #[source]
+        source: BoxedSource,
     },
 
     #[error("Content fetch failed for source '{source_name}'")]
-    FetchFailed { source_name: String, cause: String },
+    FetchFailed {
+        source_name: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("Configuration error: {message}")]
     Config {
@@ -57,8 +66,12 @@ pub enum PublishError {
         path: Option<String>,
     },
 
-    #[error("Page prerenderer '{page_type}' failed: {cause}")]
-    PagePrerendererFailed { page_type: String, cause: String },
+    #[error("Page prerenderer '{page_type}' failed: {source}")]
+    PagePrerendererFailed {
+        page_type: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -94,13 +107,20 @@ pub enum PublishError {
     WebConfig(#[from] systemprompt_models::WebConfigError),
 
     #[error("Failed to load global config: {0}")]
-    GlobalConfig(#[from] systemprompt_models::errors::ConfigError),
+    GlobalConfig(#[from] systemprompt_models::errors::GlobalConfigError),
 
     #[error("{context}: {source}")]
     Content {
         context: String,
         #[source]
         source: systemprompt_content::ContentError,
+    },
+
+    #[error("{context}: {source}")]
+    Analytics {
+        context: String,
+        #[source]
+        source: systemprompt_analytics::AnalyticsError,
     },
 
     #[error("Template registry error: {0}")]
@@ -149,10 +169,10 @@ impl PublishError {
         }
     }
 
-    pub fn provider_failed(provider_id: impl Into<String>, cause: impl Into<String>) -> Self {
+    pub fn provider_failed(provider_id: impl Into<String>, source: impl Into<BoxedSource>) -> Self {
         Self::ProviderFailed {
             provider_id: provider_id.into(),
-            cause: cause.into(),
+            source: source.into(),
             suggestion: None,
         }
     }
@@ -160,19 +180,19 @@ impl PublishError {
     pub fn render_failed(
         template_name: impl Into<String>,
         slug: Option<String>,
-        cause: impl Into<String>,
+        source: impl Into<BoxedSource>,
     ) -> Self {
         Self::RenderFailed {
             template_name: template_name.into(),
             slug,
-            cause: cause.into(),
+            source: source.into(),
         }
     }
 
-    pub fn fetch_failed(source_name: impl Into<String>, cause: impl Into<String>) -> Self {
+    pub fn fetch_failed(source_name: impl Into<String>, source: impl Into<BoxedSource>) -> Self {
         Self::FetchFailed {
             source_name: source_name.into(),
-            cause: cause.into(),
+            source: source.into(),
         }
     }
 
@@ -183,10 +203,13 @@ impl PublishError {
         }
     }
 
-    pub fn page_prerenderer_failed(page_type: impl Into<String>, cause: impl Into<String>) -> Self {
+    pub fn page_prerenderer_failed(
+        page_type: impl Into<String>,
+        source: impl Into<BoxedSource>,
+    ) -> Self {
         Self::PagePrerendererFailed {
             page_type: page_type.into(),
-            cause: cause.into(),
+            source: source.into(),
         }
     }
 
@@ -204,6 +227,16 @@ impl PublishError {
         Self::Content {
             context: context.into(),
             source: source.into(),
+        }
+    }
+
+    pub fn analytics(
+        context: impl Into<String>,
+        source: systemprompt_analytics::AnalyticsError,
+    ) -> Self {
+        Self::Analytics {
+            context: context.into(),
+            source,
         }
     }
 
@@ -243,10 +276,10 @@ impl PublishError {
 
     pub fn cause_string(&self) -> Option<String> {
         match self {
-            Self::ProviderFailed { cause, .. }
-            | Self::RenderFailed { cause, .. }
-            | Self::FetchFailed { cause, .. }
-            | Self::PagePrerendererFailed { cause, .. } => Some(cause.clone()),
+            Self::ProviderFailed { source, .. }
+            | Self::RenderFailed { source, .. }
+            | Self::FetchFailed { source, .. }
+            | Self::PagePrerendererFailed { source, .. } => Some(source.to_string()),
             _ => None,
         }
     }

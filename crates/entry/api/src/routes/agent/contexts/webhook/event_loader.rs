@@ -5,7 +5,7 @@
 
 use serde_json::json;
 use systemprompt_agent::models::a2a::TaskState;
-use systemprompt_identifiers::{MessageId, TaskId, UserId};
+use systemprompt_identifiers::{MessageId, TaskId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
@@ -45,13 +45,14 @@ async fn load_task_completed(
         .update_task_state(&task_id, TaskState::Completed, &timestamp)
         .await?;
 
-    let mut task = task_repo
-        .get_task(&task_id)
-        .await?
-        .ok_or_else(|| LoadEventError::NotFound {
-            entity: "Task",
-            id: request.entity_id.clone(),
-        })?;
+    let mut task =
+        task_repo
+            .find_task(&task_id)
+            .await?
+            .ok_or_else(|| LoadEventError::NotFound {
+                entity: "Task",
+                id: request.entity_id.clone(),
+            })?;
 
     let artifacts = artifact_repo
         .get_artifacts_by_task(&task_id)
@@ -92,7 +93,7 @@ async fn load_task_completed(
         "executionSteps": if execution_steps.is_empty() { None } else { Some(&execution_steps) },
     });
 
-    validate_json_serializable(&payload).map_err(LoadEventError::InvalidPayload)?;
+    validate_json_serializable(&payload)?;
 
     Ok(AgUiWebhookData {
         event_name: "task_completed".to_owned(),
@@ -108,7 +109,7 @@ async fn load_artifact_created(
 
     let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await?
         .ok_or_else(|| LoadEventError::NotFound {
             entity: "Artifact",
@@ -154,10 +155,9 @@ async fn load_context_updated(
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, LoadEventError> {
     let context_repo = &repos.contexts;
-    let context_id = request.context_id.clone();
-    let user_id = UserId::new(request.user_id.clone());
-
-    let context = context_repo.get_context(&context_id, &user_id).await?;
+    let context = context_repo
+        .get_context(&request.context_id, &request.user_id)
+        .await?;
 
     Ok(AgUiWebhookData {
         event_name: "context_updated".to_owned(),

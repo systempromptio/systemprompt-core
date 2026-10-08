@@ -7,12 +7,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
+use systemprompt_identifiers::ExtensionId;
 
 use super::undeclared::SchemaResidue;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ForeignKeyDrift {
-    pub extension: String,
+    pub extension: ExtensionId,
     pub table: String,
     pub constraint: String,
     pub sql: String,

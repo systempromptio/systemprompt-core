@@ -10,23 +10,18 @@ mod ai_requests;
 mod ai_safety_findings;
 mod ownership;
 mod thought_signatures_db;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
-    usage,
+    ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id, usage,
 };
 
-// Acquire a migrated test pool, or `None` when DATABASE_URL is unset so the
-// shard skips DB-backed tests cleanly.
-pub(crate) async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+pub(crate) async fn bootstrapped_pool() -> DbPool {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(pool)
+    test_db_pool().await
 }
 
 // Seed a user and a pending ai_requests row so child tables (payloads,
@@ -36,7 +31,7 @@ pub(crate) async fn seed_request(pool: &DbPool, user_id: &UserId) -> AiRequestId
     seed_user_row(pool, user_id, &email)
         .await
         .expect("seed user");
-    let repo = systemprompt_ai::repository::AiRequestRepository::new(pool).expect("repo");
+    let repo = systemprompt_ai::repository::AiRequestRepository::new(pool);
     let record = AiRequestRecord::builder(
         AiRequestId::generate(),
         user_id.clone(),

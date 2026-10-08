@@ -9,17 +9,17 @@
 use axum::body::Body;
 use axum::http::{Response, StatusCode};
 use axum::response::IntoResponse;
-use systemprompt_agent::{AgentError, ProtocolError};
+use systemprompt_agent::AgentError;
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::services::middleware::context::middleware::error::extraction_error_to_api_error;
-use systemprompt_api::services::proxy::ProxyError;
+use systemprompt_api::services::proxy::{ProxyError, ResponseBuildError};
 use systemprompt_api::services::static_content::fallback::{get_api_suggestions, is_api_path};
 use systemprompt_identifiers::UserId;
 use systemprompt_marketplace::MarketplaceError;
-use systemprompt_models::errors::ServiceError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::OauthError;
 use systemprompt_oauth::services::SessionCreationError;
+use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 
 fn status_of(err: ApiHttpError) -> StatusCode {
@@ -68,11 +68,10 @@ fn marketplace_error_variants_classify() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(MarketplaceError::Validation("v".to_owned()).into()),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_of(MarketplaceError::Signing("s".to_owned()).into()),
+        status_of(
+            MarketplaceError::Signing(systemprompt_security::ManifestSigningError::KeyMissing)
+                .into()
+        ),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }
@@ -80,7 +79,7 @@ fn marketplace_error_variants_classify() {
 #[test]
 fn user_error_variants_classify() {
     assert_eq!(
-        status_of(UserError::NotFound("u".to_owned().into()).into()),
+        status_of(UserError::NotFound(systemprompt_identifiers::UserId::new("u")).into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
@@ -105,7 +104,7 @@ fn context_extraction_error_into_apihttperror_classifies() {
             StatusCode::UNAUTHORIZED,
         ),
         (
-            ContextExtractionError::InvalidToken("x".to_owned()),
+            ContextExtractionError::InvalidToken("x".into()),
             StatusCode::UNAUTHORIZED,
         ),
         (ContextExtractionError::Revoked, StatusCode::UNAUTHORIZED),
@@ -138,7 +137,8 @@ fn context_extraction_error_into_apihttperror_classifies() {
         ),
         (
             ContextExtractionError::DatabaseError {
-                message: "db".to_owned(),
+                context: "db".to_owned(),
+                source: "db".into(),
             },
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
@@ -153,7 +153,7 @@ fn context_extraction_error_into_apihttperror_classifies() {
 fn extraction_error_to_api_error_covers_all_variants() {
     let variants = [
         ContextExtractionError::MissingAuthHeader,
-        ContextExtractionError::InvalidToken("t".to_owned()),
+        ContextExtractionError::InvalidToken("t".into()),
         ContextExtractionError::Revoked,
         ContextExtractionError::UserNotFound("u".to_owned()),
         ContextExtractionError::MissingSessionId,
@@ -166,7 +166,8 @@ fn extraction_error_to_api_error_covers_all_variants() {
         },
         ContextExtractionError::InvalidUserId("bad".to_owned()),
         ContextExtractionError::DatabaseError {
-            message: "db".to_owned(),
+            context: "db".to_owned(),
+            source: "db".into(),
         },
         ContextExtractionError::ForbiddenHeader {
             header: "h".to_owned(),
@@ -178,6 +179,13 @@ fn extraction_error_to_api_error_covers_all_variants() {
             .into_response()
             .status();
         assert!(status.is_client_error() || status.is_server_error());
+    }
+}
+
+fn invalid_method() -> ProxyError {
+    ProxyError::InvalidMethod {
+        method: "BAD METHOD".to_owned(),
+        source: axum::http::Method::from_bytes(b"BAD METHOD").unwrap_err(),
     }
 }
 
@@ -208,7 +216,10 @@ fn proxy_error_status_codes() {
     assert_eq!(
         ProxyError::InvalidResponse {
             service: "s".to_owned(),
-            reason: "r".to_owned()
+            source: ResponseBuildError::Status {
+                status: 1000,
+                source: StatusCode::from_u16(1000).unwrap_err(),
+            },
         }
         .to_status_code(),
         StatusCode::BAD_GATEWAY
@@ -221,13 +232,7 @@ fn proxy_error_status_codes() {
         .to_status_code(),
         StatusCode::INTERNAL_SERVER_ERROR
     );
-    assert_eq!(
-        ProxyError::InvalidMethod {
-            reason: "r".to_owned()
-        }
-        .to_status_code(),
-        StatusCode::BAD_REQUEST
-    );
+    assert_eq!(invalid_method().to_status_code(), StatusCode::BAD_REQUEST);
     assert_eq!(
         ProxyError::AuthenticationRequired {
             service: "s".to_owned()
@@ -277,9 +282,7 @@ fn proxy_error_into_response_maps_status_class() {
         StatusCode::SERVICE_UNAVAILABLE
     );
 
-    let bad_req = ProxyError::InvalidMethod {
-        reason: "nope".to_owned(),
-    };
+    let bad_req = invalid_method();
     assert_eq!(bad_req.into_response().status(), StatusCode::BAD_REQUEST);
 
     let challenge: Response<Body> = (StatusCode::FORBIDDEN, "c").into_response();
@@ -316,29 +319,26 @@ fn fallback_api_suggestions_branch_by_prefix() {
 }
 
 #[test]
-fn service_error_variants_classify() {
+fn repository_error_variants_classify() {
     assert_eq!(
-        status_of(ServiceError::NotFound("s".to_owned()).into()),
+        status_of(RepositoryError::not_found("session", "s").into()),
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(ServiceError::Validation("v".to_owned()).into()),
+        status_of(RepositoryError::invalid_argument("value", "v").into()),
         StatusCode::BAD_REQUEST
     );
     assert_eq!(
-        status_of(ServiceError::Conflict("c".to_owned()).into()),
+        status_of(RepositoryError::conflict("task", "t1", "c").into()),
         StatusCode::CONFLICT
     );
     assert_eq!(
-        status_of(ServiceError::Unauthorized("u".to_owned()).into()),
-        StatusCode::UNAUTHORIZED
+        status_of(RepositoryError::from(sqlx::Error::RowNotFound).into()),
+        StatusCode::NOT_FOUND,
+        "a missing row is a 404, not a 500"
     );
     assert_eq!(
-        status_of(ServiceError::Forbidden("f".to_owned()).into()),
-        StatusCode::FORBIDDEN
-    );
-    assert_eq!(
-        status_of(ServiceError::External("x".to_owned()).into()),
+        status_of(RepositoryError::from(sqlx::Error::PoolClosed).into()),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }
@@ -350,26 +350,36 @@ fn agent_error_not_found_and_validation_are_distinguished_from_the_catch_all() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(AgentError::Validation("v".to_owned()).into()),
-        StatusCode::BAD_REQUEST
-    );
-    assert_eq!(
-        status_of(AgentError::Protocol(ProtocolError::ValidationFailed("p".to_owned())).into()),
-        StatusCode::BAD_REQUEST,
-        "a protocol validation failure is the caller's fault, not the server's"
-    );
-    assert_eq!(
-        status_of(AgentError::Spawn("boom".to_owned()).into()),
+        status_of(AgentError::EmptyCorsAllowlist.into()),
         StatusCode::INTERNAL_SERVER_ERROR,
         "an unclassified agent failure must not be reported as a client error"
     );
 }
 
 #[test]
-fn a_user_pool_failure_is_a_server_error() {
+fn agent_repository_errors_keep_their_classification() {
     assert_eq!(
-        status_of(UserError::Pool("no connections".to_owned()).into()),
-        StatusCode::INTERNAL_SERVER_ERROR
+        status_of(AgentError::Repository(RepositoryError::not_found("task", "t1")).into()),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        status_of(
+            AgentError::Repository(RepositoryError::conflict("task", "t1", "stale version")).into()
+        ),
+        StatusCode::CONFLICT
+    );
+}
+
+#[test]
+fn a_stored_task_without_an_agent_name_is_a_server_error() {
+    let err = AgentError::Repository(RepositoryError::invalid_data(
+        "agent_name",
+        "missing for task t1",
+    ));
+    assert_eq!(
+        status_of(err.into()),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "corrupt stored data is the server's fault, not the caller's"
     );
 }
 
@@ -439,25 +449,24 @@ fn oauth_error_variants_classify() {
             StatusCode::UNAUTHORIZED,
         ),
         (
-            OauthError::Provider("p".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
-            OauthError::Session("s".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
-            OauthError::WebAuthn("w".to_owned()),
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ),
-        (
             OauthError::RegistrationStateExpired,
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            OauthError::AuthenticationUnavailable,
+            StatusCode::UNAUTHORIZED,
+        ),
+        (
+            OauthError::Repository(RepositoryError::database(std::io::Error::other(
+                "pool closed",
+            ))),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
         (
-            OauthError::Internal("i".to_owned()),
+            OauthError::WebAuthnConfig("not configured"),
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
+        (OauthError::Internal("i"), StatusCode::INTERNAL_SERVER_ERROR),
     ];
 
     for (err, expected) in cases {
@@ -503,7 +512,7 @@ fn session_creation_errors_split_missing_user_from_internal_failure() {
         StatusCode::NOT_FOUND
     );
     assert_eq!(
-        status_of(SessionCreationError::Internal("pool exhausted".to_owned()).into()),
+        status_of(SessionCreationError::Internal("pool exhausted".into()).into()),
         StatusCode::INTERNAL_SERVER_ERROR
     );
 }
@@ -518,12 +527,7 @@ fn the_remaining_proxy_error_variants_classify_and_render() {
             },
             StatusCode::INTERNAL_SERVER_ERROR,
         ),
-        (
-            ProxyError::InvalidMethod {
-                reason: "CONNECT".to_owned(),
-            },
-            StatusCode::BAD_REQUEST,
-        ),
+        (invalid_method(), StatusCode::BAD_REQUEST),
         (
             ProxyError::BodyExtractionFailed {
                 source: axum::Error::new(std::io::Error::other("stream closed")),
@@ -547,6 +551,12 @@ fn the_remaining_proxy_error_variants_classify_and_render() {
                 service: "s".to_owned(),
             },
             StatusCode::FORBIDDEN,
+        ),
+        (
+            ProxyError::ProviderNotConnected {
+                service: "s".to_owned(),
+            },
+            StatusCode::CONFLICT,
         ),
     ];
 
@@ -579,4 +589,14 @@ fn a_missing_request_context_is_a_401_not_a_500() {
         message: "RequestContext extension absent".to_owned(),
     };
     assert_eq!(err.to_status_code(), StatusCode::UNAUTHORIZED);
+}
+
+#[test]
+fn a_blank_proxy_service_name_is_a_400_invalid_identifier() {
+    let source = systemprompt_identifiers::ServiceName::try_new("  ")
+        .expect_err("a blank service name is not an identifier");
+    let err = ProxyError::from(source);
+    assert_eq!(err.to_status_code(), StatusCode::BAD_REQUEST);
+    assert_eq!(err.error_key(), "invalid_identifier");
+    assert_eq!(err.into_response().status(), StatusCode::BAD_REQUEST);
 }

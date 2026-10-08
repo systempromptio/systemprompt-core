@@ -7,7 +7,7 @@
 use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_runtime::{StartupValidator, validate_extension_configs};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 
@@ -71,7 +71,7 @@ fn validate_extension_configs_over_bootstrapped_services_path() {
 
     for outcome in &outcomes {
         assert!(
-            !outcome.extension_id.is_empty(),
+            !outcome.extension_id.as_str().is_empty(),
             "each outcome names its extension: {outcome:?}",
         );
         assert!(

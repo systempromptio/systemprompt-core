@@ -29,7 +29,7 @@ pub(super) async fn create_new_session(
             (
                 session_info.session_id,
                 session_info.user_id,
-                session_info.jwt_token,
+                session_info.jwt_token.as_str().to_owned(),
                 session_info.is_new,
                 session_info.fingerprint_hash,
             )
@@ -59,7 +59,7 @@ pub(super) async fn refresh_session_for_user(
             },
         })?;
 
-    let config = systemprompt_models::Config::get().map_err(|e| {
+    let config = systemprompt_manifest::Config::get().map_err(|e| {
         tracing::error!(error = %e, "Failed to get config during session refresh");
         ApiError::internal_error("Failed to refresh session")
     })?;

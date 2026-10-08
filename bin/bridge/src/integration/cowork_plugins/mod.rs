@@ -30,32 +30,35 @@ use thiserror::Error;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, stamp_hooks_file};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport, stamp_hooks_file};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkSync;
 
 #[async_trait]
 impl HostSync for CoworkSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
+    fn host_id(&self) -> HostKind {
+        HostKind::ClaudeDesktop
     }
 
     fn emitter_id(&self) -> &'static str {
         "cowork-plugins"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
-            context: "resolve the Cowork session directory".to_owned(),
-            source: std::io::Error::other(e),
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
+        let mut warnings = HostSyncReport::ok();
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Step {
+            context: "resolve the Cowork session directory",
+            source: Box::new(e),
         })?
         else {
             // Why: Cowork lists a plugin only once `cowork_settings.json` in
             // its session dir enables it, and that dir exists only after
             // Cowork has been opened once.
             if crate::integration::claude_desktop::is_app_installed(ctx.start_menu) {
-                ctx.warnings.push(
+                warnings.warn(
                     crate::host_sync::HostWarningKind::CoworkSessionMissing,
                     self.host_id(),
                     "Claude Desktop is installed but has not opened Cowork on this machine yet, \
@@ -67,7 +70,7 @@ impl HostSync for CoworkSync {
                     "no Cowork install detected; skipping enable"
                 );
             }
-            return Ok(());
+            return Ok(warnings);
         };
         let plugin_ids: Vec<&str> = ctx.manifest.plugins.iter().map(|p| p.id.as_str()).collect();
         for id in &plugin_ids {
@@ -77,7 +80,7 @@ impl HostSync for CoworkSync {
                 )
                 .is_some_and(|manifest| !manifest.dependencies.is_empty());
             if declares_dependencies {
-                ctx.warnings.push(
+                warnings.warn(
                     crate::host_sync::HostWarningKind::PluginDependencies,
                     self.host_id(),
                     format!(
@@ -87,9 +90,9 @@ impl HostSync for CoworkSync {
                 );
             }
         }
-        let report = apply_enable(&target, &plugin_ids).map_err(|e| ApplyError::Io {
-            context: format!("cowork enable: {e}"),
-            source: std::io::Error::other(e.to_string()),
+        let report = apply_enable(&target, &plugin_ids).map_err(|e| ApplyError::Step {
+            context: "cowork enable",
+            source: Box::new(e),
         })?;
         for id in &plugin_ids {
             stamp_hooks_file(
@@ -106,20 +109,20 @@ impl HostSync for CoworkSync {
             enabled = report.enabled,
             "Cowork enable complete"
         );
-        Ok(())
+        Ok(warnings)
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-        let Some(target) = resolve_target().map_err(|e| ApplyError::Io {
-            context: "resolve the Cowork session directory".to_owned(),
-            source: std::io::Error::other(e),
+        let Some(target) = resolve_target().map_err(|e| ApplyError::Step {
+            context: "resolve the Cowork session directory",
+            source: Box::new(e),
         })?
         else {
             return Ok(());
         };
-        clear_all(&target).map_err(|e| ApplyError::Io {
-            context: format!("cowork clear: {e}"),
-            source: std::io::Error::other(e.to_string()),
+        clear_all(&target).map_err(|e| ApplyError::Step {
+            context: "cowork clear",
+            source: Box::new(e),
         })
     }
 }

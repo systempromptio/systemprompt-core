@@ -6,7 +6,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
+use systemprompt_traits::BoxedSource;
 use tracing::info;
 
 use super::exec::{TrackingWrite, check_cross_extension_alters, execute_statements_transactional};
@@ -20,7 +21,7 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
         migration: &Migration,
     ) -> Result<(), LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
 
         check_cross_extension_alters(extension, migration)?;
 
@@ -38,55 +39,17 @@ impl MigrationService<'_> {
             [&id, &ext_id, &migration.version, &migration.name, &checksum];
 
         if migration.no_transaction {
-            // Why: no transaction to scope the bound to, so it is set on the
-            // connection and reset after — `SET LOCAL` would be a silent
-            // no-op here, leaving this path the only unbounded one.
-            self.apply_timeouts(ext_id, migration).await?;
-            let failed = |message: String| LoaderError::MigrationFailed {
-                extension: ext_id.to_owned(),
-                message,
-            };
-            let suspended = triggers::suspend(&mut Target::Pool(self.db), migration)
-                .await
-                .map_err(failed)?;
-            if !suspended.is_empty() {
-                info!(
-                    extension = %ext_id,
-                    version = migration.version,
-                    name = %migration.name,
-                    triggers = %suspended.describe(),
-                    "Row triggers suspended for migration",
-                );
-            }
-            let outcome = SqlExecutor::execute_statements_parsed(self.db, migration.sql)
-                .await
-                .map_err(|e| {
-                    failed(format!(
-                        "Failed to execute migration {} ({}): {e}",
-                        migration.version, migration.name
-                    ))
-                });
-            // Why: nothing rolls a no-transaction migration back, so the
-            // restore runs whether it failed or not.
-            let restored = suspended.restore(&mut Target::Pool(self.db)).await;
-            self.clear_timeouts(ext_id).await?;
-            outcome?;
-            restored.map_err(failed)?;
-            self.db
-                .execute(&RECORD_MIGRATION_SQL, &record_params)
-                .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!("Failed to record migration: {e}"),
-                })?;
+            self.run_without_transaction(ext_id, migration, &record_params)
+                .await?;
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse migration {} ({}): {e}",
+                LoaderError::MigrationStepFailed {
+                    extension: ext_id.clone(),
+                    context: format!(
+                        "Failed to parse migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 }
             })?;
             execute_statements_transactional(
@@ -105,7 +68,66 @@ impl MigrationService<'_> {
         Ok(())
     }
 
-    async fn apply_timeouts(&self, ext_id: &str, migration: &Migration) -> Result<(), LoaderError> {
+    async fn run_without_transaction(
+        &self,
+        ext_id: &ExtensionId,
+        migration: &Migration,
+        record_params: &[&dyn ToDbValue],
+    ) -> Result<(), LoaderError> {
+        // Why: no transaction to scope the bound to, so it is set on the
+        // connection and reset after — `SET LOCAL` would be a silent
+        // no-op here, leaving this path the only unbounded one.
+        self.apply_timeouts(ext_id, migration).await?;
+        let failed = |context: String, source: BoxedSource| LoaderError::MigrationStepFailed {
+            extension: ext_id.clone(),
+            context,
+            source,
+        };
+        let suspended = triggers::suspend(&mut Target::Pool(self.db), migration)
+            .await
+            .map_err(|e| failed("Failed to suspend row triggers".to_owned(), Box::new(e)))?;
+        if !suspended.is_empty() {
+            info!(
+                extension = %ext_id,
+                version = migration.version,
+                name = %migration.name,
+                triggers = %suspended.describe(),
+                "Row triggers suspended for migration",
+            );
+        }
+        let outcome = SqlExecutor::execute_statements_parsed(self.db, migration.sql)
+            .await
+            .map_err(|e| {
+                failed(
+                    format!(
+                        "Failed to execute migration {} ({})",
+                        migration.version, migration.name
+                    ),
+                    Box::new(e),
+                )
+            });
+        // Why: nothing rolls a no-transaction migration back, so the
+        // restore runs whether it failed or not.
+        let restored = suspended.restore(&mut Target::Pool(self.db)).await;
+        self.clear_timeouts(ext_id).await?;
+        outcome?;
+        restored.map_err(|e| failed("Failed to restore row triggers".to_owned(), Box::new(e)))?;
+        self.db
+            .execute(&RECORD_MIGRATION_SQL, record_params)
+            .await
+            .map_err(|e| LoaderError::MigrationStepFailed {
+                extension: ext_id.clone(),
+                context: "Failed to record migration".to_owned(),
+                source: Box::new(e),
+            })?;
+        Ok(())
+    }
+
+    async fn apply_timeouts(
+        &self,
+        ext_id: &ExtensionId,
+        migration: &Migration,
+    ) -> Result<(), LoaderError> {
         let timeout = budget::statement_timeout(migration);
         self.set_timeouts(ext_id, &budget::timeout_statements(timeout, false))
             .await
@@ -114,7 +136,7 @@ impl MigrationService<'_> {
     // Why: the connection outlives this migration, so a bound left on it
     // would apply to whatever ran next — including the application's own
     // queries if the pool hands the connection back.
-    async fn clear_timeouts(&self, ext_id: &str) -> Result<(), LoaderError> {
+    async fn clear_timeouts(&self, ext_id: &ExtensionId) -> Result<(), LoaderError> {
         self.set_timeouts(
             ext_id,
             &[
@@ -125,14 +147,19 @@ impl MigrationService<'_> {
         .await
     }
 
-    async fn set_timeouts(&self, ext_id: &str, statements: &[String]) -> Result<(), LoaderError> {
+    async fn set_timeouts(
+        &self,
+        ext_id: &ExtensionId,
+        statements: &[String],
+    ) -> Result<(), LoaderError> {
         for statement in statements {
             self.db
                 .execute(&statement.as_str(), &[])
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!("Failed to run `{statement}`: {e}"),
+                .map_err(|e| LoaderError::MigrationStepFailed {
+                    extension: ext_id.clone(),
+                    context: format!("Failed to run `{statement}`"),
+                    source: Box::new(e),
                 })?;
         }
         Ok(())

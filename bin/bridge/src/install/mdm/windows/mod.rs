@@ -52,16 +52,22 @@ fn clear_stale_user_value(name: &str) -> Result<(), MdmError> {
 }
 
 fn require_org_plugins() -> Result<(), MdmError> {
-    let org = crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user()
-        .map_err(|e| MdmError::Windows(e.to_string()))?;
+    let org =
+        crate::install::elevated_job::ElevatedJob::org_plugins_for_current_user().map_err(|e| {
+            MdmError::OrgPlugins {
+                context: "location",
+                source: e.into(),
+            }
+        })?;
     if org.path.is_dir() {
-        return crate::windows_acl::verify_modify_tree(&org.path)
-            .map_err(|e| MdmError::Windows(e.to_string()));
+        return crate::windows_acl::verify_modify_tree(&org.path).map_err(|e| {
+            MdmError::OrgPlugins {
+                context: "access check",
+                source: e.into(),
+            }
+        });
     }
-    Err(MdmError::Windows(format!(
-        "{} is not provisioned; run install --apply as Administrator before using Cowork",
-        org.path.display()
-    )))
+    Err(MdmError::OrgPluginsMissing { path: org.path })
 }
 
 // Why: the writer is tried before the per-user write so an unelevated sync
@@ -235,10 +241,7 @@ fn policy_values(
                 source,
             }
         })?;
-    let existing_models = inputs
-        .policy_store
-        .backend()
-        .read_managed_policy("inferenceModels")?;
+    let existing_models = crate::gateway::desktop_catalog::models()?;
     let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
         base_url,
         host_token: &host_token,

@@ -30,7 +30,7 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.62"
+systemprompt-oauth = "0.63"
 ```
 
 ```rust
@@ -47,16 +47,12 @@ use systemprompt_oauth::services::{
 
 | Module | Purpose |
 |--------|---------|
-| `models/` | OAuth client, token, and JWT-claim types, CIMD metadata, analytics, and typed grant/response/PKCE enums. |
-| `queries/` | Compile-time-verified `sqlx` query layer: `postgres/` analytics queries and `seed/` WebAuthn client seeds. |
+| `models/` | OAuth client, token, and JWT-claim types, CIMD metadata, and typed grant/response/PKCE enums. |
 | `repository/` | Data access for clients, OAuth protocol records, bridge sessions and host prefs, exchange codes, setup tokens, and WebAuthn credentials. |
 | `services/` | OAuth business logic: `bridge`, `cimd`, `generation`, `jwt`, `session`, `validation`, `webauthn`, `plugin_token`, `providers`, `templating`, and HTTP helpers. |
 
 ### models/
-Data structures for OAuth clients, tokens, JWT claims, CIMD metadata, and analytics. Includes typed enums for grant types, response types, and PKCE methods.
-
-### queries/
-PostgreSQL query implementations using compile-time-verified `sqlx` macros, plus `queries/seed/` SQL for seeding the WebAuthn client and its scopes.
+Data structures for OAuth clients, tokens, JWT claims, and CIMD metadata. Includes typed enums for grant types, response types, and PKCE methods.
 
 ### repository/
 Data access layer with separate repositories for clients (`ClientRepository`), OAuth protocol records (`OAuthRepository`), bridge sessions (`BridgeSessionRepository`), bridge host preferences (`BridgeHostPrefsRepository`), exchange codes, setup tokens, and WebAuthn credentials.

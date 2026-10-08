@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use systemprompt_extension::error::LoaderError;
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition};
+use systemprompt_identifiers::ExtensionId;
 
 struct MinimalExt;
 
@@ -219,12 +220,6 @@ fn extension_default_component_renderers_is_empty() {
 }
 
 #[test]
-fn extension_default_has_component_renderers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_component_renderers());
-}
-
-#[test]
 fn extension_default_template_data_extenders_is_empty() {
     let ext = MinimalExt;
     assert!(ext.template_data_extenders().is_empty());
@@ -234,12 +229,6 @@ fn extension_default_template_data_extenders_is_empty() {
 fn extension_default_page_data_providers_is_empty() {
     let ext = MinimalExt;
     assert!(ext.page_data_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_page_data_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_page_data_providers());
 }
 
 #[test]
@@ -267,21 +256,9 @@ fn extension_default_rss_feed_providers_is_empty() {
 }
 
 #[test]
-fn extension_default_has_rss_feed_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_rss_feed_providers());
-}
-
-#[test]
 fn extension_default_sitemap_providers_is_empty() {
     let ext = MinimalExt;
     assert!(ext.sitemap_providers().is_empty());
-}
-
-#[test]
-fn extension_default_has_sitemap_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_sitemap_providers());
 }
 
 #[test]
@@ -291,39 +268,9 @@ fn extension_default_router_config_is_none() {
 }
 
 #[test]
-fn extension_default_has_template_data_extenders_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_template_data_extenders());
-}
-
-#[test]
-fn extension_default_has_page_prerenderers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_page_prerenderers());
-}
-
-#[test]
-fn extension_default_has_frontmatter_processors_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_frontmatter_processors());
-}
-
-#[test]
-fn extension_default_has_content_data_providers_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_content_data_providers());
-}
-
-#[test]
 fn extension_default_site_auth_is_none() {
     let ext = MinimalExt;
     assert!(ext.site_auth().is_none());
-}
-
-#[test]
-fn extension_default_has_site_auth_is_false() {
-    let ext = MinimalExt;
-    assert!(!ext.has_site_auth());
 }
 
 #[test]
@@ -441,7 +388,7 @@ fn extension_is_arc_dyn_compatible() {
 #[test]
 fn loader_error_migration_not_reversible_display() {
     let err = LoaderError::MigrationNotReversible {
-        extension: "my-ext".to_string(),
+        extension: ExtensionId::new("my-ext"),
         version: 5,
     };
     let msg = err.to_string();
@@ -463,7 +410,7 @@ fn loader_error_dependency_cycle_display() {
 #[test]
 fn loader_error_cross_extension_alter_undeclared_display() {
     let err = LoaderError::CrossExtensionAlterUndeclared {
-        extension: "plugin-x".to_string(),
+        extension: ExtensionId::new("plugin-x"),
         table: "users".to_string(),
     };
     let msg = err.to_string();
@@ -476,8 +423,8 @@ fn loader_error_cross_extension_alter_undeclared_display() {
 fn loader_error_duplicate_table_owner_display() {
     let err = LoaderError::DuplicateTableOwner {
         table: "orders".to_string(),
-        extension_a: "billing".to_string(),
-        extension_b: "shop".to_string(),
+        extension_a: ExtensionId::new("billing"),
+        extension_b: ExtensionId::new("shop"),
     };
     let msg = err.to_string();
     assert!(msg.contains("orders"));
@@ -488,7 +435,7 @@ fn loader_error_duplicate_table_owner_display() {
 #[test]
 fn loader_error_cross_extension_table_not_owned_display() {
     let err = LoaderError::CrossExtensionTableNotOwned {
-        extension: "addon".to_string(),
+        extension: ExtensionId::new("addon"),
         table: "nonexistent_table".to_string(),
     };
     let msg = err.to_string();
@@ -499,7 +446,7 @@ fn loader_error_cross_extension_table_not_owned_display() {
 #[test]
 fn loader_error_invalid_seed_statement_display() {
     let err = LoaderError::InvalidSeedStatement {
-        extension: "seeder".to_string(),
+        extension: ExtensionId::new("seeder"),
         seed: "initial_data".to_string(),
         statement: "CREATE TABLE".to_string(),
     };
@@ -512,7 +459,7 @@ fn loader_error_invalid_seed_statement_display() {
 #[test]
 fn loader_error_seed_insert_not_idempotent_display() {
     let err = LoaderError::SeedInsertNotIdempotent {
-        extension: "ext".to_string(),
+        extension: ExtensionId::new("ext"),
         seed: "seed_roles".to_string(),
     };
     let msg = err.to_string();
@@ -524,9 +471,10 @@ fn loader_error_seed_insert_not_idempotent_display() {
 #[test]
 fn loader_error_seed_failed_display() {
     let err = LoaderError::SeedFailed {
-        extension: "data-ext".to_string(),
+        extension: ExtensionId::new("data-ext"),
         seed: "load_defaults".to_string(),
-        message: "connection timeout".to_string(),
+        context: "execute".to_string(),
+        source: "connection timeout".into(),
     };
     let msg = err.to_string();
     assert!(msg.contains("data-ext"));

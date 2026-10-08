@@ -13,6 +13,7 @@ use std::fs;
 use std::path::Path;
 
 use serde_json::json;
+use systemprompt_models::bridge::host::HostKind;
 
 use super::io_err;
 use crate::host_sync::{ApplyError, stamp_hooks_file};
@@ -29,11 +30,11 @@ pub(super) fn mirror_plugin(
         fs::remove_dir_all(dst).map_err(|e| io_err(format!("clear {}", dst.display()), e))?;
     }
     copy_dir_all(src, dst)?;
-    filter_skills_for_host(dst, skills, "claude-code")?;
+    filter_skills_for_host(dst, skills, HostKind::ClaudeCode)?;
     drop_standard_hooks_pointer(dst)?;
     // Why: Claude Code runs hooks from this copy, so the host stamp has to
     // land here — the org-plugins source stays unstamped.
-    stamp_hooks_file(&dst.join("hooks").join("hooks.json"), super::HOST_ID)?;
+    stamp_hooks_file(&dst.join("hooks").join("hooks.json"), HostKind::ClaudeCode)?;
     write_mcp_json(loopback, dst, mcp_servers)?;
     Ok(())
 }
@@ -41,11 +42,11 @@ pub(super) fn mirror_plugin(
 pub fn filter_skills_for_host(
     root: &Path,
     skills: &[crate::gateway::manifest::SkillEntry],
-    host: &str,
+    host: HostKind,
 ) -> Result<(), ApplyError> {
     let excluded: std::collections::HashSet<String> = skills
         .iter()
-        .filter(|skill| !skill.hosts.is_empty() && !skill.hosts.iter().any(|id| id == host))
+        .filter(|skill| !crate::gateway::manifest::skill_targets_host(skill, host))
         .map(|skill| skill.id.as_str().replace('_', "-"))
         .collect();
     let path = root.join("skills");
@@ -112,7 +113,8 @@ fn drop_standard_hooks_pointer(dst: &Path) -> Result<(), ApplyError> {
             source: e,
         }
     })?;
-    fs::write(&path, &bytes).map_err(|e| io_err(format!("write {}", path.display()), e))?;
+    crate::fsutil::atomic_write_0644(&path, &bytes)
+        .map_err(|e| io_err(format!("write {}", path.display()), e))?;
     Ok(())
 }
 
@@ -161,7 +163,7 @@ fn write_mcp_json(
     servers: &[String],
 ) -> Result<(), ApplyError> {
     let bearer = loopback
-        .host_bearer(&crate::ids::HostId::new("claude-code"))
+        .host_bearer(HostKind::ClaudeCode)
         .map_err(|e| io_err("derive claude-code host token for .mcp.json", e))?;
     let mut map = serde_json::Map::new();
     for name in servers {

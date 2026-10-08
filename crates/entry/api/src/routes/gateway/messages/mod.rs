@@ -11,6 +11,7 @@
 
 pub mod auth;
 pub mod dispatch;
+pub mod error;
 pub mod extract;
 pub mod rejection;
 
@@ -24,22 +25,22 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
-use crate::services::gateway::audit::GatewayAccessLog;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
 use crate::services::middleware::JwtContextExtractor;
+use systemprompt_gateway::audit::GatewayAccessLog;
+use systemprompt_gateway::protocol::inbound::{InboundAdapter, error_type_for_status};
 
-use dispatch::{RejectionError, build_error_response, dispatch_to_provider, error_type_for};
+use dispatch::{RejectionError, build_error_response, dispatch_to_provider};
 use extract::{RejectionPartial, extract_request_context};
 use rejection::persist_rejection;
 
 pub(super) struct RequestContext<'a> {
     pub jwt_extractor: &'a JwtContextExtractor,
     pub ctx: &'a AppContext,
-    pub repos: &'a crate::services::gateway::GatewayRepositories,
+    pub repos: &'a systemprompt_gateway::GatewayRepositories,
     pub services: &'static ServicesConfig,
     pub ai_request_id: &'a AiRequestId,
     pub access_log: Option<GatewayAccessLog>,
@@ -49,7 +50,7 @@ pub async fn handle(
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
-    repos: Arc<crate::services::gateway::GatewayRepositories>,
+    repos: Arc<systemprompt_gateway::GatewayRepositories>,
     request: Request<Body>,
 ) -> Response<Body> {
     let ai_request_id = AiRequestId::generate();
@@ -66,29 +67,31 @@ pub async fn handle(
     };
     let mut response = match inner.run(request).await {
         Ok(resp) => resp,
-        Err(RejectionError {
-            status,
-            message,
-            persist,
-        }) => {
+        Err(rejection) => {
+            let status = rejection.status;
             tracing::warn!(
                 status = %status,
-                message = %message,
+                message = %rejection.message,
+                cause = ?rejection.cause,
                 ai_request_id = %ai_request_id,
                 wire = inbound.wire_name(),
                 client_kind = partial.origin.client.as_str(),
                 client_attestation = partial.origin.attestation.as_str(),
                 "Gateway request rejected",
             );
-            if persist {
-                persist_rejection(&repos, &ai_request_id, &partial, status, &message).await;
+            if rejection.persist {
+                persist_rejection(&repos, &ai_request_id, &partial, status, &rejection.message)
+                    .await;
             }
-            let body = inbound.render_error(status, &message);
+            let public_message = rejection.public_message();
+            let body = inbound.render_error(status, public_message);
             Response::builder()
                 .status(status)
                 .header("content-type", "application/json")
                 .body(Body::from(body))
-                .unwrap_or_else(|_| build_error_response(status, error_type_for(status), &message))
+                .unwrap_or_else(|_| {
+                    build_error_response(status, error_type_for_status(status), public_message)
+                })
         },
     };
     attach_log_identity(&mut response, &partial);
@@ -114,17 +117,16 @@ struct HandleInner<'a> {
     inbound: Arc<dyn InboundAdapter>,
     jwt_extractor: &'a JwtContextExtractor,
     ctx: &'a AppContext,
-    repos: &'a crate::services::gateway::GatewayRepositories,
+    repos: &'a systemprompt_gateway::GatewayRepositories,
     ai_request_id: &'a AiRequestId,
     partial: &'a mut RejectionPartial,
 }
 
 impl HandleInner<'_> {
     async fn run(self, request: Request<Body>) -> Result<Response<Body>, RejectionError> {
-        let services = ServicesBootstrap::get().map_err(|e| RejectionError {
-            status: StatusCode::SERVICE_UNAVAILABLE,
-            message: format!("Services config not ready: {e}"),
-            persist: true,
+        let services = ServicesBootstrap::get().map_err(|e| {
+            RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
+                .with_cause(e)
         })?;
         let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
@@ -135,13 +137,8 @@ impl HandleInner<'_> {
             ai_request_id: self.ai_request_id,
             access_log,
         };
-        let prepared = extract_request_context(&request_ctx, &self.inbound, request, self.partial)
-            .await
-            .map_err(|(status, message)| RejectionError {
-                status,
-                message,
-                persist: true,
-            })?;
+        let prepared =
+            extract_request_context(&request_ctx, &self.inbound, request, self.partial).await?;
         dispatch_to_provider(&request_ctx, self.inbound, prepared).await
     }
 }

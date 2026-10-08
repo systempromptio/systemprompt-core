@@ -10,6 +10,8 @@ use systemprompt_models::ai::{ExecutionState, PlannedToolCall};
 
 use crate::services::ExecutionTrackingService;
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 pub(super) fn build_tool_summary(calls: &[PlannedToolCall]) -> (String, Value) {
     if calls.len() == 1 {
         (calls[0].tool_name.clone(), calls[0].arguments.clone())

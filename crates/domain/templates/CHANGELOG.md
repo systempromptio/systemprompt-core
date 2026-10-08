@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `TemplateError::CompileError` is removed (never produced). Migrate by dropping the match arm.
+
+### Changed
+
+- Domain errors carry their sources; JSON boundaries are annotated.
+
 ## [0.21.1] - 2026-07-17
 
 ### Changed

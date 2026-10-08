@@ -19,11 +19,9 @@ mod task_messages;
 mod task_updates;
 
 pub use constructor::TaskConstructor;
-pub use mutations::{
-    CreateTaskParams, create_task, task_state_to_db_string, track_agent_in_context,
-};
+pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub use queries::{
-    TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
+    TaskContextInfo, find_task, find_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
 pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
 pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
@@ -32,7 +30,7 @@ use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, SessionId, TraceId, UserId};
 use systemprompt_traits::{DynSessionUsageCounters, RepositoryError};
 
 #[expect(
@@ -44,7 +42,7 @@ pub struct RepoCreateTaskParams<'a> {
     pub user_id: &'a UserId,
     pub session_id: &'a SessionId,
     pub trace_id: &'a TraceId,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
 }
 
 #[derive(Clone)]
@@ -65,22 +63,15 @@ impl std::fmt::Debug for TaskRepository {
 }
 
 impl TaskRepository {
-    pub fn new(
-        db: &DbPool,
-        sessions: DynSessionUsageCounters,
-    ) -> Result<Self, crate::error::AgentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        Ok(Self {
+    pub fn new(db: &DbPool, sessions: DynSessionUsageCounters) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self {
             pool,
             write_pool,
-            constructor: TaskConstructor::new(db)?,
+            constructor: TaskConstructor::new(db),
             sessions,
-        })
+        }
     }
 
     pub async fn create_task(
@@ -104,11 +95,11 @@ impl TaskRepository {
         Ok(result)
     }
 
-    pub async fn get_task(
+    pub async fn find_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
-        get_task(&self.constructor, task_id).await
+        find_task(&self.constructor, task_id).await
     }
 
     pub async fn list_tasks_by_context(
@@ -130,7 +121,7 @@ impl TaskRepository {
     pub async fn track_agent_in_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> Result<(), RepositoryError> {
         track_agent_in_context(&self.write_pool, context_id, agent_name).await
     }
@@ -162,11 +153,11 @@ impl TaskRepository {
         update_task_failed_with_error(&self.write_pool, task_id, error_message, timestamp).await
     }
 
-    pub async fn get_task_context_info(
+    pub async fn find_task_context_info(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<TaskContextInfo>, RepositoryError> {
-        get_task_context_info(&self.pool, task_id).await
+        find_task_context_info(&self.pool, task_id).await
     }
 
     pub async fn validate_task_ownership(
@@ -181,14 +172,14 @@ impl TaskRepository {
             user_id.as_str()
         )
         .fetch_optional(self.pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match result {
             Some(_) => Ok(()),
-            None => Err(RepositoryError::NotFound(format!(
-                "Task {task_id} not found or user {user_id} does not have access"
-            ))),
+            None => Err(RepositoryError::not_found(
+                "task",
+                format!("{task_id} for user {user_id}"),
+            )),
         }
     }
 }

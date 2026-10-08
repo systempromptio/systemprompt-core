@@ -32,7 +32,7 @@ pub(super) fn write_mcp_blocks(
     let mut written = Vec::with_capacity(servers.len());
     if !servers.is_empty() {
         let bearer = loopback
-            .host_bearer(&crate::ids::HostId::new("opencode"))
+            .host_bearer(systemprompt_models::bridge::host::HostKind::OpenCode)
             .map_err(|e| ApplyError::Io {
                 context: "derive opencode host token for mcp".into(),
                 source: e,
@@ -60,6 +60,8 @@ pub(super) fn write_mcp_blocks(
     write_json(&path, &Value::Object(value))
 }
 
+// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
+// preserved.
 fn strip_bridge_servers(recorded: &[String], root: &mut Map<String, Value>) {
     let Some(Value::Object(table)) = root.get_mut(MCP_TABLE) else {
         return;

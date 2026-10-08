@@ -7,8 +7,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::manifest::ManagedMcpServer;
-use systemprompt_models::services::PluginConfig;
 
 use super::{BundleFile, PluginBundle};
 use crate::error::MarketplaceError;
@@ -98,7 +98,7 @@ pub(super) fn append_mcp_file(
     let json = serde_json::to_vec_pretty(&McpConfigFile {
         mcp_servers: entries,
     })
-    .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    .map_err(|e| MarketplaceError::catalog("serialise .mcp.json", e))?;
     bundle.insert(
         ".mcp.json".to_owned(),
         BundleFile {

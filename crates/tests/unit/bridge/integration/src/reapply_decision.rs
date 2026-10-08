@@ -6,12 +6,12 @@ use std::sync::Arc;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppSnapshot, HostConfigSchema, ProbeEnv,
-    ProfileGenInputs, ProfileInstalled, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
+    ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
 };
 use systemprompt_bridge::integration::host_apps;
 use systemprompt_bridge::integration::reapply::{
-    Attendance, Outcome, build_profile_inputs, reapply_host, reapply_stale_profiles,
+    Attendance, Outcome, ProfileFailure, build_profile_inputs, reapply_host, reapply_stale_profiles,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -269,7 +269,7 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
         inputs.host_token,
         systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new("seeded-loopback-secret"),
-            &systemprompt_bridge::ids::HostId::new(CODEX_CLI_HOST.id()),
+            CODEX_CLI_HOST.id(),
         ),
         "the profile carries the host token derived from the loopback secret the proxy will check"
     );
@@ -316,7 +316,7 @@ fn a_surface_override_replaces_the_models_and_the_protocol_header() {
 
 #[test]
 fn every_registered_host_is_probed_before_a_repair_is_considered() {
-    let ids: Vec<&'static str> = host_apps().iter().map(|h| h.id()).collect();
+    let ids: Vec<&'static str> = host_apps().iter().map(|h| h.id().as_str()).collect();
     assert!(
         ids.contains(&"codex-cli") && ids.contains(&"hermes") && ids.contains(&"opencode"),
         "the reapply sweep walks the whole host registry: {ids:?}"
@@ -345,8 +345,15 @@ fn an_unattended_reapply_repairs_a_host_that_needs_no_prompt() {
 
 // A host whose install raises an operating-system prompt — the machine
 // policy on Windows, the profile approval on macOS — refuses an unattended
-// install with `PermissionDenied` and installs when attended.
-struct PromptingHost;
+// install with `HostAppError::NeedsPrompt` and installs when attended. With
+// `os_denied` the unattended install instead fails with a plain
+// `PermissionDenied`, the shape of a read-only file or a bad ACL.
+struct PromptingHost {
+    os_denied: bool,
+}
+
+static PROMPTING_HOST: PromptingHost = PromptingHost { os_denied: false };
+static DENIED_HOST: PromptingHost = PromptingHost { os_denied: true };
 
 static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
     required_keys: &["alpha"],
@@ -354,8 +361,8 @@ static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
 };
 
 impl HostApp for PromptingHost {
-    fn id(&self) -> &'static str {
-        "prompting-host"
+    fn id(&self) -> systemprompt_models::bridge::host::HostKind {
+        systemprompt_models::bridge::host::HostKind::Hermes
     }
 
     fn display_name(&self) -> &'static str {
@@ -382,7 +389,10 @@ impl HostApp for PromptingHost {
         }
     }
 
-    fn generate_profile(&self, _inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
         Ok(GeneratedProfile {
             path: "prompting-host.profile".to_owned(),
             bytes: 0,
@@ -391,15 +401,21 @@ impl HostApp for PromptingHost {
         })
     }
 
-    fn install_profile(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
+    fn install_profile(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
         Ok(ProfileInstalled::ok())
     }
 
-    fn install_profile_unattended(&self, _path: &str) -> std::io::Result<ProfileInstalled> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "needs the user's approval",
-        ))
+    fn install_profile_unattended(&self, _path: &str) -> Result<ProfileInstalled, HostAppError> {
+        if self.os_denied {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "read-only file system",
+            )
+            .into());
+        }
+        Err(HostAppError::NeedsPrompt {
+            reason: "needs the user's approval",
+        })
     }
 
     fn install_action_label(&self) -> &'static str {
@@ -409,7 +425,7 @@ impl HostApp for PromptingHost {
 
 #[test]
 fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
-    let host: &'static dyn HostApp = &PromptingHost;
+    let host: &'static dyn HostApp = &PROMPTING_HOST;
     let (unattended, attended) = with_gateway(None, |ctx, _managed| {
         let env = ProbeEnv {
             proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
@@ -434,10 +450,42 @@ fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
         ));
         (unattended.outcome, attended.outcome)
     });
-    assert_eq!(
-        unattended,
-        Outcome::Declined,
-        "an unattended repair never raises the prompt; it leaves the host for the user's Repair"
+    assert!(
+        matches!(unattended, Outcome::Declined),
+        "an unattended repair never raises the prompt; it leaves the host for the user's Repair: \
+         {unattended:?}"
     );
-    assert_eq!(attended, Outcome::Reapplied);
+    assert!(matches!(attended, Outcome::Reapplied), "{attended:?}");
+}
+
+#[test]
+fn an_operating_system_denial_is_a_failure_not_a_decline() {
+    let host: &'static dyn HostApp = &DENIED_HOST;
+    let outcome = with_gateway(None, |ctx, _managed| {
+        let env = ProbeEnv {
+            proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
+            loopback_secret: None,
+            start_menu: Arc::default(),
+            expected_managed_servers: None,
+            policy_writer_ready: false,
+        };
+        ctx.block_on(reapply_host(
+            ctx,
+            host,
+            &BTreeMap::new(),
+            &env,
+            Attendance::Unattended,
+        ))
+        .outcome
+    });
+    assert!(
+        matches!(
+            outcome,
+            Outcome::Failed(ref e) if matches!(
+                e.as_ref(),
+                ProfileFailure::Host(host) if host.is_permission_denied()
+            ) && e.to_string().contains("read-only file system")
+        ),
+        "a write the OS refused is reported as failed, never as declined: {outcome:?}"
+    );
 }

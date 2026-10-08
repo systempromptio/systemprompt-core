@@ -4,7 +4,8 @@
 //! Drives [`ProcessMonitor`] against the fixture database: lifecycle
 //! (start/stop/drop/double-start), on-demand
 //! [`ProcessMonitor::health_check_all`] over live and dead PIDs, and the
-//! background monitoring loop that marks a vanished PID's service `error`. Also
+//! background monitoring loop that marks a vanished PID's service `error`,
+//! awaited through [`ProcessMonitor::completed_cycles`]. Also
 //! exercises [`HealthChecker`] retries against a `wiremock` upstream and the
 //! [`HealthSummary`] / [`ModuleHealth`] arithmetic.
 
@@ -14,7 +15,8 @@ use std::time::Duration;
 use systemprompt_api::services::health::{
     HealthChecker, HealthSummary, ModuleHealth, ProcessMonitor,
 };
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -28,23 +30,24 @@ fn unique_name(prefix: &str) -> String {
 async fn register_running(
     pool: &systemprompt_database::DbPool,
     name: &str,
-    module: &str,
+    module: ServiceModule,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
     let repo = ServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
+    );
+    let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
-        name,
+        name: &name,
         module_name: module,
-        status: "running",
+        status: ServiceStatus::Running,
         port: 0,
         binary_mtime: None,
     })
     .await?;
     if let Some(pid) = pid {
-        repo.update_service_pid(name, pid).await?;
+        repo.update_service_pid(&name, pid).await?;
     }
     Ok(())
 }
@@ -66,7 +69,7 @@ async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
     let mut monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
+    ));
     assert!(!monitor.is_running());
 
     monitor.start();
@@ -90,7 +93,7 @@ async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
         ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?,
+        ),
         Duration::from_secs(60),
     );
     monitor.start();
@@ -103,19 +106,23 @@ async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
 async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("hc-live");
-    let own_pid = std::process::id() as i32;
-    register_running(&pool, &name, "custom", Some(own_pid)).await?;
+    let mut live = std::process::Command::new("sleep").arg("30").spawn()?;
+    let live_pid = i32::try_from(live.id())?;
+    register_running(&pool, &name, ServiceModule::Agent, Some(live_pid)).await?;
 
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
-    let summary = monitor.health_check_all().await?;
+    ));
+    let summary = monitor.health_check_all().await;
+    live.kill()?;
+    live.wait()?;
+    let summary = summary?;
 
-    assert!(summary.total_healthy() >= 1, "own PID should be healthy");
+    assert!(summary.total_healthy() >= 1, "a live PID should be healthy");
     assert!(
-        summary.modules.contains_key("custom"),
-        "custom module present in summary"
+        summary.modules.contains_key("agent"),
+        "agent module present in summary"
     );
     Ok(())
 }
@@ -123,19 +130,20 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
 #[tokio::test]
 async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let module = unique_name("mod-dead");
     let name = unique_name("hc-dead");
-    register_running(&pool, &name, &module, Some(dead_pid())).await?;
+    register_running(&pool, &name, ServiceModule::Mcp, Some(dead_pid())).await?;
 
     let monitor = ProcessMonitor::new(ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?);
+    ));
     let summary = monitor.health_check_all().await?;
 
-    let health = summary.modules.get(&module).copied().unwrap_or_default();
-    assert_eq!(health.crashed, 1, "dead PID marked crashed for its module");
-    assert_eq!(health.healthy, 0);
+    let health = summary.modules.get("mcp").copied().unwrap_or_default();
+    assert!(
+        health.crashed >= 1,
+        "dead PID marked crashed for its module"
+    );
     Ok(())
 }
 
@@ -143,35 +151,34 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
 async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("loop-dead");
-    register_running(&pool, &name, "custom", Some(dead_pid())).await?;
+    register_running(&pool, &name, ServiceModule::Agent, Some(dead_pid())).await?;
 
     let mut monitor = ProcessMonitor::with_interval(
         ServiceRepository::new(
             &pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )?,
+        ),
         Duration::from_millis(50),
     );
+    let mut cycles = monitor.completed_cycles();
     monitor.start();
+    tokio::time::timeout(Duration::from_secs(10), cycles.wait_for(|done| *done >= 1))
+        .await
+        .expect("monitor completes a cycle")?;
 
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )?;
-    let mut status = String::new();
-    for _ in 0..40 {
-        tokio::time::sleep(Duration::from_millis(50)).await;
-        if let Some(svc) = repo.find_service_by_name(&name).await? {
-            status = svc.status;
-            if status == "error" {
-                break;
-            }
-        }
-    }
+    );
+    let status = repo
+        .find_service_by_name(&ServiceName::new(name))
+        .await?
+        .map(|svc| svc.status);
     monitor.stop();
 
     assert_eq!(
-        status, "error",
+        status,
+        Some(ServiceStatus::Error),
         "monitor loop should mark vanished PID error"
     );
     Ok(())
@@ -212,9 +219,9 @@ async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint(
 -> anyhow::Result<()> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let socket = tokio::net::TcpSocket::new_v4()?;
-    socket.bind("127.0.0.1:0".parse()?)?;
-    let address = socket.local_addr()?;
+    // Why: macOS silently drops a SYN aimed at a bound socket that is not
+    // listening, where Linux answers RST; a released port refuses on both.
+    let address = std::net::TcpListener::bind("127.0.0.1:0")?.local_addr()?;
     let checker = HealthChecker::new(format!("http://{address}/health"))
         .with_max_retries(2)
         .with_retry_delay(Duration::ZERO);
@@ -222,12 +229,15 @@ async fn health_checker_bounds_transport_retries_then_recovers_on_same_endpoint(
     let error = tokio::time::timeout(Duration::from_secs(5), checker.check())
         .await
         .expect("refused transport attempts remain bounded")
-        .expect_err("a bound socket that is not listening refuses connections");
+        .expect_err("a released port refuses connections");
     assert!(
         error.to_string().contains("failed after 2 attempts"),
         "{error:#}"
     );
 
+    let socket = tokio::net::TcpSocket::new_v4()?;
+    socket.set_reuseaddr(true)?;
+    socket.bind(address)?;
     let listener = socket.listen(1)?;
     let server = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await?;

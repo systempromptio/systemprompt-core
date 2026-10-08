@@ -7,8 +7,8 @@ use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
-    seed_user_session,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_session,
+    test_app_context,
 };
 use systemprompt_users::{UserRepository, UserService};
 
@@ -26,13 +26,11 @@ fn parse(args: &[&str]) -> UsersCommands {
 
 #[tokio::test]
 async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
-    let database = DisposableDb::installed("cli_user_merge_atomic")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_user_merge_atomic").await;
+    let pool = database.test_pool().await;
     ensure_test_bootstrap();
     install_test_signing_key();
-    let repository = Arc::new(UserRepository::new(&pool).expect("user repository"));
+    let repository = Arc::new(UserRepository::new(&pool));
     let service = UserService::new(Arc::clone(&repository));
     let nonce = uuid::Uuid::new_v4().simple().to_string();
     let source = service
@@ -57,7 +55,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     seed_user_session(&pool, &source.id, &session)
         .await
         .expect("source session");
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     sqlx::query(
         "CREATE FUNCTION reject_cli_merge_attribution() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN IF NEW.tool_name = 'users.merge' THEN RAISE EXCEPTION 'fixture late merge failure'; \
@@ -79,7 +77,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(&pool, database.url()).expect("isolated full app context"),
+        test_app_context(&pool, database.url()),
     );
     let command = || {
         parse(&[
@@ -161,7 +159,7 @@ async fn merge_rolls_back_transfers_on_late_failure_and_retry_commits_once() {
     drop(service);
     drop(repository);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

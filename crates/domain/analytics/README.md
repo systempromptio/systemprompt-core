@@ -24,13 +24,13 @@ This crate provides:
 
 ```toml
 [dependencies]
-systemprompt-analytics = "0.62"
+systemprompt-analytics = "0.63"
 ```
 
 Optional `geolocation` feature enables MaxMind GeoIP enrichment via `maxminddb`:
 
 ```toml
-systemprompt-analytics = { version = "0.62", features = ["geolocation"] }
+systemprompt-analytics = { version = "0.63", features = ["geolocation"] }
 ```
 
 ## Module Layout
@@ -56,7 +56,7 @@ Schema DDL lives in `schema/*.sql` (`engagement_events`, `fingerprint_reputation
 
 | Repository | Purpose |
 |------------|---------|
-| `SessionRepository` | Delegates session operations to users and behavioral event/content reads to their owners |
+| `SessionSignalsRepository` | Behavioural-detector inputs from the event store and content catalogue, fingerprint engagement counts, and session geo backfill; plain session operations go to the users-owned `SessionStore` |
 | `EngagementRepository` | Engagement event operations |
 | `FingerprintRepository` | Fingerprint reputation tracking |
 | `AnalyticsEventsRepository` | Logging-owned event ingestion |
@@ -74,7 +74,6 @@ Schema DDL lives in `schema/*.sql` (`engagement_events`, `fingerprint_reputation
 
 | Model | Purpose |
 |-------|---------|
-| `AnalyticsSession` | Session data with tracking fields |
 | `EngagementEvent` | Client-side engagement metrics |
 | `FingerprintReputation` | Fingerprint tracking and flags |
 | `BehavioralAnalysisResult`, `BehavioralSignal` | Bot detection |

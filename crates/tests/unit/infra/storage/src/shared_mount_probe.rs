@@ -59,3 +59,41 @@ async fn unwritable_root_fails_the_probe() {
 fn chrono_like(body: &str) -> bool {
     body.len() >= 20 && body.as_bytes()[4] == b'-' && body.contains('T')
 }
+
+const RANDOM_A: &str = "instance-0123456789abcdef0123456789abcdef";
+const RANDOM_B: &str = "instance-fedcba9876543210fedcba9876543210";
+
+#[tokio::test]
+async fn random_instance_id_leaves_no_marker_behind() {
+    let dir = TempDir::new().expect("tempdir");
+    let report = probe_shared_mount(dir.path(), &InstanceId::new(RANDOM_A))
+        .await
+        .expect("probe");
+
+    assert!(report.write_read_ok);
+    assert!(!report.has_siblings());
+    assert!(
+        !dir.path()
+            .join(".systemprompt/instances")
+            .join(RANDOM_A)
+            .exists()
+    );
+}
+
+#[tokio::test]
+async fn leftover_random_markers_are_pruned_not_reported() {
+    let dir = TempDir::new().expect("tempdir");
+    let markers = dir.path().join(".systemprompt/instances");
+    std::fs::create_dir_all(&markers).expect("marker dir");
+    std::fs::write(markers.join(RANDOM_B), b"2026-01-01T00:00:00Z").expect("stale marker");
+    probe_shared_mount(dir.path(), &InstanceId::new("node-a"))
+        .await
+        .expect("stable probe");
+
+    let report = probe_shared_mount(dir.path(), &InstanceId::new("node-b"))
+        .await
+        .expect("probe");
+
+    assert_eq!(report.instances, vec!["node-a".to_owned()]);
+    assert!(!markers.join(RANDOM_B).exists());
+}

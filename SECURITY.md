@@ -32,9 +32,12 @@ We will keep you informed throughout triage. If a fix requires more time than th
 
 | Version | Security fixes |
 |---------|----------------|
-| 0.41.x (current minor) | Yes |
-| 0.40.x (previous minor) | Critical and High only |
-| < 0.40 | No |
+| 0.62.x (current minor) | Yes |
+| 0.61.x (previous minor) | Critical and High only |
+| < 0.61 | No |
+
+0.63.0 is the next release; when it ships, 0.62.x becomes the previous minor and 0.61.x
+leaves support.
 
 While the project is pre-1.0, security fixes land on the current minor release. The
 previous minor receives Critical and High fixes until the minor after it ships, at
@@ -75,9 +78,11 @@ If your research requires testing against a production deployment not owned by y
   a daily schedule — see `.github/workflows/supply-chain.yml`.
 - Advisories we have assessed and accepted are recorded, each with a written
   justification, in [`deny.toml`](deny.toml). We publish the register rather than
-  reporting a clean scan: as of 0.41.0 it holds two entries reachable from the published
-  crates, and twelve reachable only from the desktop bridge's Linux windowing stack,
-  which the bridge does not compile.
+  reporting a clean scan: as of 0.62.0 it holds fifteen entries. Three concern the
+  published crates' lockfile — one reachable at runtime (`rsa`, RUSTSEC-2023-0071), one
+  optional dependency that is never compiled (`rkyv`), and one build-time-only proc-macro
+  (`proc-macro-error2`) — and twelve are reachable only from the desktop bridge's Linux
+  windowing stack, which the bridge does not compile.
 - `systemprompt-bridge` release binaries are built in GitHub-hosted CI runners from
   tagged commits and signed with Sigstore (`cosign` keyless, OIDC-bound to this
   repository and workflow) — see `.github/workflows/release-sign.yml`. Verify one with:
@@ -94,6 +99,29 @@ If your research requires testing against a production deployment not owned by y
   distribution sign the resulting artefact packs under their own key and provenance.
 - A CycloneDX SBOM can be generated on demand from the committed `Cargo.lock` with
   `cargo cyclonedx`. It is not currently produced or attached by CI.
+
+## Telemetry
+
+A self-hosted installation sends nothing to the vendor. The server binary has no crash
+reporting, no usage or licence pings and no update check. Its only outbound connections
+are ones the operator configures:
+
+1. **Upstream AI providers** — the endpoints declared in the services manifest, called
+   when a gateway or agent request is routed to them.
+2. **OpenTelemetry export** — the OTLP endpoint in the profile's `observability.otlp`
+   block. Unset by default, in which case nothing is exported.
+3. **systemprompt.io cloud** — `api.systemprompt.io`, contacted only when a cloud profile
+   (`target: cloud`) or the `systemprompt cloud` commands are used, for tenant
+   credentials and deployment. A self-hosted profile never contacts it.
+4. **Bridge release feed** — when the services manifest declares a bridge releases
+   repository, the gateway resolves the newest bridge release from that GitHub
+   repository on a desktop bridge's request, cached per platform.
+
+The desktop bridge checks for its own updates against the gateway it is enrolled with
+(`/v1/bridge/latest`), never against the vendor, and only when its auto-update policy
+allows. [Outbound egress controls](documentation/security/outbound-egress-controls.md)
+describes how every outbound request is guarded and the egress policy a deployment still
+provides; the four channels above are what that policy has to allow.
 
 ## Further Reading
 

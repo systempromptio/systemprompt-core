@@ -4,14 +4,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::Method;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use thiserror::Error;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
 #[derive(Debug, Error)]
 pub enum CorsError {
-    #[error("Invalid origin '{origin}' in cors_allowed_origins: {reason}")]
-    InvalidOrigin { origin: String, reason: String },
+    #[error("Invalid origin '{origin}' in cors_allowed_origins")]
+    InvalidOrigin {
+        origin: String,
+        #[source]
+        source: http::header::InvalidHeaderValue,
+    },
     #[error("cors_allowed_origins must contain at least one valid origin")]
     EmptyOrigins,
 }
@@ -27,13 +31,12 @@ impl CorsMiddleware {
             if trimmed.is_empty() {
                 continue;
             }
-            let header_value =
-                trimmed
-                    .parse::<http::HeaderValue>()
-                    .map_err(|e| CorsError::InvalidOrigin {
-                        origin: origin.clone(),
-                        reason: e.to_string(),
-                    })?;
+            let header_value = trimmed.parse::<http::HeaderValue>().map_err(|source| {
+                CorsError::InvalidOrigin {
+                    origin: origin.clone(),
+                    source,
+                }
+            })?;
             origins.push(header_value);
         }
 
@@ -67,9 +70,7 @@ impl CorsMiddleware {
             ])
             .expose_headers([
                 http::header::WWW_AUTHENTICATE,
-                http::HeaderName::from_static(
-                    crate::services::gateway::service::RECOVERY_COUNT_HEADER,
-                ),
+                http::HeaderName::from_static(systemprompt_gateway::service::RECOVERY_COUNT_HEADER),
             ]))
     }
 }

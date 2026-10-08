@@ -3,7 +3,7 @@
 //! [`TraceQueryService`] is the single entry point for reconstructing a trace
 //! from its constituent rows (logs, AI requests, MCP tool executions, task
 //! execution steps) and for the log/audit browsing surfaces. Each public method
-//! delegates to a focused query module in this directory;
+//! reads through the injected [`TraceRepository`];
 //! [`get_all_trace_data`] fans the per-source fetches out concurrently.
 //!
 //! [`get_all_trace_data`]: TraceQueryService::get_all_trace_data
@@ -12,11 +12,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
-use std::sync::Arc;
-use systemprompt_identifiers::{AiRequestId, TaskId, TraceId};
+use systemprompt_identifiers::{AiRequestId, LogId, TaskId, TraceId};
 
-use systemprompt_logging::models::LogEntry;
+use systemprompt_logging::models::{LogEntry, LogLevel};
 
 use super::TraceError;
 
@@ -28,46 +26,45 @@ use super::models::{
     LevelCount, LinkedMcpCall, LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount,
     ToolExecutionFilter, ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
 };
-use super::{
-    audit_queries, list_queries, log_lookup_queries, log_search_queries, log_summary_queries,
-    queries, request_queries, request_stats_queries, tool_queries,
-};
+use super::repository::TraceRepository;
 
 #[derive(Debug, Clone)]
 pub struct TraceQueryService {
-    pool: Arc<PgPool>,
+    repository: TraceRepository,
 }
 
 impl TraceQueryService {
-    pub const fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub const fn new(repository: TraceRepository) -> Self {
+        Self { repository }
     }
 
     pub async fn get_log_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
-        queries::fetch_log_events(&self.pool, trace_id).await
+        self.repository.fetch_log_events(trace_id).await
     }
 
     pub async fn get_ai_request_summary(&self, trace_id: &TraceId) -> Result<AiRequestSummary> {
-        queries::fetch_ai_request_summary(&self.pool, trace_id).await
+        self.repository.fetch_ai_request_summary(trace_id).await
     }
 
     pub async fn get_ai_request_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
-        queries::fetch_ai_request_events(&self.pool, trace_id).await
+        self.repository.fetch_ai_request_events(trace_id).await
     }
 
     pub async fn get_mcp_execution_summary(
         &self,
         trace_id: &TraceId,
     ) -> Result<McpExecutionSummary> {
-        queries::fetch_mcp_execution_summary(&self.pool, trace_id).await
+        self.repository.fetch_mcp_execution_summary(trace_id).await
     }
 
     pub async fn get_mcp_execution_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
-        queries::fetch_mcp_execution_events(&self.pool, trace_id).await
+        self.repository.fetch_mcp_execution_events(trace_id).await
     }
 
     pub async fn get_task_id(&self, trace_id: &TraceId) -> Result<Option<TaskId>> {
-        Ok(queries::fetch_task_id_for_trace(&self.pool, trace_id)
+        Ok(self
+            .repository
+            .fetch_task_id_for_trace(trace_id)
             .await?
             .map(TaskId::new))
     }
@@ -76,11 +73,11 @@ impl TraceQueryService {
         &self,
         trace_id: &TraceId,
     ) -> Result<ExecutionStepSummary> {
-        queries::fetch_execution_step_summary(&self.pool, trace_id).await
+        self.repository.fetch_execution_step_summary(trace_id).await
     }
 
     pub async fn get_execution_step_events(&self, trace_id: &TraceId) -> Result<Vec<TraceEvent>> {
-        queries::fetch_execution_step_events(&self.pool, trace_id).await
+        self.repository.fetch_execution_step_events(trace_id).await
     }
 
     pub async fn get_all_trace_data(
@@ -109,24 +106,26 @@ impl TraceQueryService {
     }
 
     pub async fn list_traces(&self, filter: &TraceListFilter) -> Result<Vec<TraceListItem>> {
-        list_queries::list_traces(&self.pool, filter).await
+        self.repository.list_traces(filter).await
     }
 
     pub async fn list_tool_executions(
         &self,
         filter: &ToolExecutionFilter,
     ) -> Result<Vec<ToolExecutionItem>> {
-        tool_queries::list_tool_executions(&self.pool, filter).await
+        self.repository.list_tool_executions(filter).await
     }
 
     pub async fn search_logs(
         &self,
         pattern: &str,
         since: Option<DateTime<Utc>>,
-        level: Option<&str>,
+        level: Option<LogLevel>,
         limit: i64,
     ) -> Result<Vec<LogSearchItem>> {
-        log_search_queries::search_logs(&self.pool, pattern, since, level, limit).await
+        self.repository
+            .search_logs(pattern, since, level, limit)
+            .await
     }
 
     pub async fn search_tool_executions(
@@ -135,37 +134,39 @@ impl TraceQueryService {
         since: Option<DateTime<Utc>>,
         limit: i64,
     ) -> Result<Vec<ToolExecutionItem>> {
-        log_search_queries::search_tool_executions(&self.pool, pattern, since, limit).await
+        self.repository
+            .search_tool_executions(pattern, since, limit)
+            .await
     }
 
     pub async fn list_ai_requests(
         &self,
         filter: &AiRequestFilter,
     ) -> Result<Vec<AiRequestListItem>> {
-        request_queries::list_ai_requests(&self.pool, filter).await
+        self.repository.list_ai_requests(filter).await
     }
 
     pub async fn get_ai_request_stats(
         &self,
         since: Option<DateTime<Utc>>,
     ) -> Result<AiRequestStats> {
-        request_stats_queries::get_ai_request_stats(&self.pool, since).await
+        self.repository.get_ai_request_stats(since).await
     }
 
     pub async fn find_ai_request_detail(&self, id: &str) -> Result<Option<AiRequestDetail>> {
-        request_queries::find_ai_request_detail(&self.pool, id).await
+        self.repository.find_ai_request_detail(id).await
     }
 
     pub async fn find_ai_request_for_audit(&self, id: &str) -> Result<Option<AuditLookupResult>> {
-        audit_queries::find_ai_request_for_audit(&self.pool, id).await
+        self.repository.find_ai_request_for_audit(id).await
     }
 
     pub async fn count_audit_messages(&self, request_id: &AiRequestId) -> Result<i64> {
-        audit_queries::count_audit_messages(&self.pool, request_id).await
+        self.repository.count_audit_messages(request_id).await
     }
 
     pub async fn count_audit_tool_calls(&self, request_id: &AiRequestId) -> Result<i64> {
-        audit_queries::count_audit_tool_calls(&self.pool, request_id).await
+        self.repository.count_audit_tool_calls(request_id).await
     }
 
     pub async fn list_audit_messages(
@@ -173,7 +174,7 @@ impl TraceQueryService {
         request_id: &AiRequestId,
         page: AuditPage,
     ) -> Result<Vec<ConversationMessage>> {
-        audit_queries::list_audit_messages(&self.pool, request_id, page).await
+        self.repository.list_audit_messages(request_id, page).await
     }
 
     pub async fn list_audit_tool_calls(
@@ -181,42 +182,46 @@ impl TraceQueryService {
         request_id: &AiRequestId,
         page: AuditPage,
     ) -> Result<Vec<AuditToolCallRow>> {
-        audit_queries::list_audit_tool_calls(&self.pool, request_id, page).await
+        self.repository
+            .list_audit_tool_calls(request_id, page)
+            .await
     }
 
     pub async fn list_linked_mcp_calls(
         &self,
         request_id: &AiRequestId,
     ) -> Result<Vec<LinkedMcpCall>> {
-        audit_queries::list_linked_mcp_calls(&self.pool, request_id).await
+        self.repository.list_linked_mcp_calls(request_id).await
     }
 
-    pub async fn find_log_by_id(&self, id: &str) -> Result<Option<LogEntry>> {
-        log_lookup_queries::find_log_by_id(&self.pool, id).await
+    pub async fn find_log_by_id(&self, id: &LogId) -> Result<Option<LogEntry>> {
+        self.repository.find_log_by_id(id).await
     }
 
     pub async fn find_log_by_partial_id(&self, id_prefix: &str) -> Result<Option<LogEntry>> {
-        log_lookup_queries::find_log_by_partial_id(&self.pool, id_prefix).await
+        self.repository.find_log_by_partial_id(id_prefix).await
     }
 
     pub async fn find_logs_by_trace_id(&self, trace_id: &TraceId) -> Result<Vec<LogEntry>> {
-        log_lookup_queries::find_logs_by_trace_id(&self.pool, trace_id).await
+        self.repository.find_logs_by_trace_id(trace_id).await
     }
 
     pub async fn list_logs_filtered(
         &self,
         since: Option<DateTime<Utc>>,
-        level: Option<&str>,
+        level: Option<LogLevel>,
         limit: i64,
     ) -> Result<Vec<LogEntry>> {
-        log_lookup_queries::list_logs_filtered(&self.pool, since, level, limit).await
+        self.repository
+            .list_logs_filtered(since, level, limit)
+            .await
     }
 
     pub async fn count_logs_by_level(
         &self,
         since: Option<DateTime<Utc>>,
     ) -> Result<Vec<LevelCount>> {
-        log_summary_queries::count_logs_by_level(&self.pool, since).await
+        self.repository.count_logs_by_level(since).await
     }
 
     pub async fn top_modules(
@@ -224,14 +229,14 @@ impl TraceQueryService {
         since: Option<DateTime<Utc>>,
         limit: i64,
     ) -> Result<Vec<ModuleCount>> {
-        log_summary_queries::top_modules(&self.pool, since, limit).await
+        self.repository.top_modules(since, limit).await
     }
 
     pub async fn log_time_range(&self, since: Option<DateTime<Utc>>) -> Result<LogTimeRange> {
-        log_summary_queries::log_time_range(&self.pool, since).await
+        self.repository.log_time_range(since).await
     }
 
     pub async fn total_log_count(&self) -> Result<i64> {
-        log_summary_queries::total_log_count(&self.pool).await
+        self.repository.total_log_count().await
     }
 }

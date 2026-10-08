@@ -4,14 +4,15 @@
 //! nested-path resolution.
 
 use serde_json::{Value, json};
-use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
-use systemprompt_models::ai::execution_plan::ToolCallResult;
+use systemprompt_identifiers::{
+    Actor, AgentName, AiRequestId, ContextId, McpServerId, SessionId, TraceId, UserId,
+};
+use systemprompt_models::ai::execution_plan::PlannedToolResult;
 use systemprompt_models::ai::{
     AiContentPart, AiMessage, AiRequest, AiResponse, McpTool, MessageRole, SamplingParams,
     StructuredOutputOptions, TemplateResolver, ToolCall, ToolModelConfig,
 };
 use systemprompt_models::execution::context::RequestContext;
-use uuid::Uuid;
 
 fn request_context() -> RequestContext {
     RequestContext::new(
@@ -19,6 +20,7 @@ fn request_context() -> RequestContext {
         TraceId::new("trace-air"),
         ContextId::try_new("00000000-0000-4000-8000-0000000000aa").expect("valid ContextId"),
         AgentName::try_new("air-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -125,17 +127,22 @@ fn has_tools_is_false_for_empty_tool_list() {
 
 #[test]
 fn response_builders_populate_fields() {
-    let id = Uuid::new_v4();
-    let response = AiResponse::new(id, "out".to_owned(), "anthropic".to_owned(), "m".to_owned())
-        .with_tokens(42)
-        .with_latency(17)
-        .with_streaming(true)
-        .with_tool_calls(vec![ToolCall {
-            ai_tool_call_id: systemprompt_identifiers::AiToolCallId::new("tc-1"),
-            name: "lookup".to_owned(),
-            arguments: json!({}),
-        }])
-        .with_tool_results(vec![]);
+    let id = AiRequestId::generate();
+    let response = AiResponse::new(
+        id.clone(),
+        "out".to_owned(),
+        "anthropic".to_owned(),
+        "m".to_owned(),
+    )
+    .with_tokens(42)
+    .with_latency(17)
+    .with_streaming(true)
+    .with_tool_calls(vec![ToolCall {
+        ai_tool_call_id: systemprompt_identifiers::AiToolCallId::new("tc-1"),
+        name: "lookup".to_owned(),
+        arguments: json!({}),
+    }])
+    .with_tool_results(vec![]);
 
     assert_eq!(response.request_id, id);
     assert_eq!(response.tokens_used, Some(42));
@@ -147,7 +154,13 @@ fn response_builders_populate_fields() {
 
 #[test]
 fn response_default_omits_optional_fields_on_the_wire() {
-    let wire = serde_json::to_value(AiResponse::default()).expect("serialize");
+    let response = AiResponse::new(
+        AiRequestId::generate(),
+        String::new(),
+        String::new(),
+        String::new(),
+    );
+    let wire = serde_json::to_value(response).expect("serialize");
     let obj = wire.as_object().expect("object");
 
     assert!(!obj.contains_key("tokens_used"));
@@ -185,8 +198,8 @@ fn mcp_tool_builders_set_all_fields() {
     assert!(bare.description.is_none());
 }
 
-fn tool_result(output: Value) -> ToolCallResult {
-    ToolCallResult {
+fn tool_result(output: Value) -> PlannedToolResult {
+    PlannedToolResult {
         tool_name: "t".to_owned(),
         arguments: json!({}),
         success: true,

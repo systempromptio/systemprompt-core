@@ -5,6 +5,7 @@
 // errored and logs the startup diagnosis for each stored status.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
@@ -13,14 +14,14 @@ use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -33,8 +34,7 @@ fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
         AgentServiceRepository::new(
             pool,
             systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("repo"),
+        ),
         app_paths(),
     )
     .expect("lifecycle")
@@ -44,8 +44,7 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -57,28 +56,28 @@ async fn ephemeral_listener() -> (TcpListener, u16) {
 
 #[tokio::test]
 async fn validate_prerequisites_free_port_is_ok() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
     let (listener, port) = ephemeral_listener().await;
     drop(listener);
 
-    lc.validate_prerequisites(port).await.expect("free port");
+    lc.validate_prerequisites(&AgentName::new("lc_prereq"), port)
+        .await
+        .expect("free port");
 }
 
 #[tokio::test]
 async fn validate_prerequisites_port_held_by_non_agent_fails() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
     let (listener, port) = ephemeral_listener().await;
-    let result = lc.validate_prerequisites(port).await;
+    let result = lc
+        .validate_prerequisites(&AgentName::new("lc_prereq"), port)
+        .await;
     drop(listener);
 
     assert!(
@@ -89,9 +88,7 @@ async fn validate_prerequisites_port_held_by_non_agent_fails() {
 
 #[tokio::test]
 async fn verify_startup_succeeds_against_live_listener() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
 
@@ -102,17 +99,15 @@ async fn verify_startup_succeeds_against_live_listener() {
         }
     });
 
-    lc.verify_startup("lc_verify_ok", port)
+    lc.verify_startup(&AgentName::new("lc_verify_ok"), port)
         .await
         .expect("listener answers the readiness probe");
     accept_loop.abort();
 }
 
 #[tokio::test]
-async fn verify_startup_times_out_and_marks_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+async fn verify_startup_times_out_without_clearing_the_pid() {
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
     let db = db_service(&pool);
@@ -129,24 +124,35 @@ async fn verify_startup_times_out_and_marks_error() {
         .verify_startup(&name, port)
         .await
         .expect_err("nothing listens on the probed port");
-    assert!(err.to_string().contains(&name));
+    assert!(err.to_string().contains(name.as_str()));
+
+    let row = db
+        .repository
+        .find_agent_status(&name)
+        .await
+        .expect("status")
+        .expect("row");
+    assert_eq!(
+        row.pid,
+        Some(i32::try_from(DEAD_PID).expect("pid fits")),
+        "the caller reaps the spawned process before the PID is cleared"
+    );
 
     db.remove_agent_service(&name).await.ok();
 }
 
 #[tokio::test]
 async fn log_startup_failure_covers_stored_statuses() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let lc = lifecycle(&pool);
     let db = db_service(&pool);
 
-    lc.log_startup_failure("lc_log_missing", 39462).await;
+    lc.log_startup_failure(&AgentName::new("lc_log_missing"), 39462)
+        .await;
 
     let running = unique_name("lc_log_running");
-    db.register_agent(&running, std::process::id(), 39463)
+    db.register_agent(&running, std::os::unix::process::parent_id(), 39463)
         .await
         .expect("register running");
     lc.log_startup_failure(&running, 39463).await;

@@ -1,10 +1,11 @@
 //! Tests for error module types and implementations.
 
 use std::time::Duration;
-use systemprompt_ai::error::{AiError, RepositoryError};
+use systemprompt_ai::error::{AiError, ProviderCapability};
 use systemprompt_database::resilience::Outcome;
-use systemprompt_identifiers::McpServerId;
-use uuid::Uuid;
+use systemprompt_identifiers::{McpServerId, McpToolName};
+use systemprompt_models::errors::AiInferenceError;
+use systemprompt_traits::RepositoryError;
 
 mod ai_error_tests {
     use super::*;
@@ -106,7 +107,7 @@ mod ai_error_tests {
     #[test]
     fn missing_tool_field_error() {
         let err = AiError::MissingToolField {
-            tool_name: "search".to_string(),
+            tool_name: McpToolName::new("search"),
             field: "description".to_string(),
         };
         let msg = err.to_string();
@@ -117,7 +118,7 @@ mod ai_error_tests {
     #[test]
     fn empty_tool_description_error() {
         let err = AiError::EmptyToolDescription {
-            tool_name: "calculator".to_string(),
+            tool_name: McpToolName::new("calculator"),
         };
         let msg = err.to_string();
         assert!(msg.contains("calculator"));
@@ -164,12 +165,9 @@ mod ai_error_tests {
     }
 
     #[test]
-    fn database_error_from_anyhow() {
-        let err: AiError = AiError::DatabaseError {
-            message: "connection refused".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("connection refused"));
+    fn a_row_not_found_keeps_its_classification_through_ai_error() {
+        let err = AiError::from(RepositoryError::from(sqlx::Error::RowNotFound));
+        assert!(matches!(err, AiError::Repository(ref e) if e.is_not_found()));
     }
 
     #[test]
@@ -202,13 +200,23 @@ mod ai_error_tests {
     }
 
     #[test]
-    fn storage_error() {
-        let err = AiError::StorageError {
-            message: "disk full".to_string(),
+    fn storage_error_keeps_the_backend_cause() {
+        let err = AiError::Storage {
+            context: "failed to write image file a.png".to_string(),
+            source: systemprompt_traits::FileStorageError::Validation("disk full".to_string()),
         };
         let msg = err.to_string();
         assert!(msg.contains("disk full"));
-        assert!(msg.contains("Storage operation failed"));
+        assert!(msg.contains("a.png"));
+        assert!(std::error::Error::source(&err).is_some());
+    }
+
+    #[test]
+    fn oversized_image_reports_both_sizes() {
+        let err = AiError::ImageTooLarge { size: 11, max: 10 };
+        let msg = err.to_string();
+        assert!(msg.contains("11"));
+        assert!(msg.contains("10"));
     }
 
     #[test]
@@ -220,49 +228,18 @@ mod ai_error_tests {
     }
 
     #[test]
-    fn repository_error_converts_to_ai_error() {
-        let repo_err = RepositoryError::NotFound(Uuid::nil());
-        let ai_err: AiError = repo_err.into();
-        let msg = ai_err.to_string();
-        assert!(msg.contains("Database operation failed"));
-    }
-}
-
-mod repository_error_tests {
-    use super::*;
-
-    #[test]
-    fn not_found_error_displays_uuid() {
-        let uuid = Uuid::new_v4();
-        let err = RepositoryError::NotFound(uuid);
-        let msg = err.to_string();
-        assert!(msg.contains(&uuid.to_string()));
-        assert!(msg.contains("not found"));
+    fn repository_error_converts_to_ai_error_without_losing_the_variant() {
+        let ai_err: AiError = RepositoryError::conflict("AI request", "x", "already exists").into();
+        assert!(matches!(ai_err, AiError::Repository(ref e) if e.is_conflict()));
     }
 
     #[test]
-    fn database_error_from_sqlx() {
-        let err = RepositoryError::Database(sqlx::Error::RowNotFound);
-        let msg = err.to_string();
-        assert!(msg.contains("Database error"));
-    }
-
-    #[test]
-    fn invalid_data_error() {
-        let err = RepositoryError::InvalidData {
-            field: "status".to_string(),
-            reason: "unknown value 'unknown_status'".to_string(),
-        };
-        let msg = err.to_string();
-        assert!(msg.contains("status"));
-        assert!(msg.contains("unknown value"));
-    }
-
-    #[test]
-    fn pool_initialization_error() {
-        let err = RepositoryError::PoolInitialization("connection timeout".to_string());
-        let msg = err.to_string();
-        assert!(msg.contains("connection timeout"));
+    fn repository_failures_surface_as_storage_on_the_inference_seam() {
+        let ai_err: AiError = RepositoryError::not_found("AI request", "x").into();
+        assert!(matches!(
+            AiInferenceError::from(ai_err),
+            AiInferenceError::Storage(_)
+        ));
     }
 }
 
@@ -357,10 +334,25 @@ mod classify_tests {
     }
 
     #[test]
-    fn internal_error_displays_message() {
-        let err = AiError::Internal("unexpected state".to_string());
-        assert!(err.to_string().contains("unexpected state"));
+    fn capability_unsupported_names_provider_and_capability() {
+        let err = AiError::CapabilityUnsupported {
+            provider: "minimal".to_string(),
+            capability: ProviderCapability::ToolStreaming,
+        };
+        assert_eq!(
+            err.to_string(),
+            "provider minimal does not support tool streaming"
+        );
         assert!(matches!(err.classify(), Outcome::Permanent));
+    }
+
+    #[test]
+    fn provider_not_found_is_a_configuration_failure() {
+        let err: AiInferenceError = AiError::ProviderNotFound {
+            provider: "absent".to_string(),
+        }
+        .into();
+        assert!(matches!(err, AiInferenceError::Configuration(_)));
     }
 
     #[test]

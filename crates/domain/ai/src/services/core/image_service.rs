@@ -12,7 +12,7 @@ use crate::services::providers::image_provider_trait::{
 use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{TraceId, UserId};
+use systemprompt_identifiers::{FileId, TraceId, UserId};
 use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider, FileStorage};
 use tracing::error;
 
@@ -205,8 +205,8 @@ impl ImageService {
         Ok(responses)
     }
 
-    pub async fn find_generated_image(&self, uuid: &str) -> Result<Option<AiGeneratedFile>> {
-        image_persistence::find_generated_image(self.file_provider.as_ref(), uuid).await
+    pub async fn find_generated_image(&self, file_id: &FileId) -> Result<Option<AiGeneratedFile>> {
+        image_persistence::find_generated_image(self.file_provider.as_ref(), file_id).await
     }
 
     pub async fn list_user_images(
@@ -219,8 +219,8 @@ impl ImageService {
             .await
     }
 
-    pub async fn delete_image(&self, uuid: &str) -> Result<()> {
-        image_persistence::delete_image(self.file_provider.as_ref(), &self.storage, uuid).await
+    pub async fn delete_image(&self, file_id: &FileId) -> Result<()> {
+        image_persistence::delete_image(self.file_provider.as_ref(), &self.storage, file_id).await
     }
 
     fn find_provider_for_model(&self, model: &str) -> Result<String> {

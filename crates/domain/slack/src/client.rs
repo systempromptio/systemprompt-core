@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use serde::Deserialize;
 use serde_json::{Value, json};
 use systemprompt_identifiers::SlackUserId;
 use systemprompt_models::net::validate_outbound_url;
@@ -26,6 +27,30 @@ pub struct SlackUserProfile {
     pub email: Option<String>,
     pub email_confirmed: bool,
     pub display_name: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoResponse {
+    #[serde(default)]
+    user: Option<UsersInfoUser>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoUser {
+    #[serde(default)]
+    is_email_confirmed: bool,
+    #[serde(default)]
+    profile: Option<UsersInfoProfile>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UsersInfoProfile {
+    #[serde(default)]
+    email: Option<String>,
+    #[serde(default)]
+    real_name: Option<String>,
+    #[serde(default)]
+    display_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,9 +92,9 @@ impl SlackClient {
         self
     }
 
+    // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn post_message(&self, channel: &str, blocks: Value) -> SlackResult<()> {
-        validate_outbound_url(&self.post_message_url)
-            .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(&self.post_message_url)?;
         let body = json!({ "channel": channel, "blocks": blocks });
         let resp = self
             .http
@@ -81,13 +106,14 @@ impl SlackClient {
         Self::check_ok(resp).await
     }
 
+    // JSON: Slack Block Kit `blocks` array — vendor layout JSON.
     pub async fn respond(
         &self,
         response_url: &str,
         blocks: Value,
         ephemeral: bool,
     ) -> SlackResult<()> {
-        validate_outbound_url(response_url).map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(response_url)?;
         let body = json!({
             "response_type": if ephemeral { "ephemeral" } else { "in_channel" },
             "blocks": blocks,
@@ -97,8 +123,7 @@ impl SlackClient {
     }
 
     pub async fn user_info(&self, user_id: &SlackUserId) -> SlackResult<SlackUserProfile> {
-        validate_outbound_url(&self.users_info_url)
-            .map_err(|e| SlackError::OutboundUrl(e.to_string()))?;
+        validate_outbound_url(&self.users_info_url)?;
         let resp = self
             .http
             .get(&self.users_info_url)
@@ -106,23 +131,16 @@ impl SlackClient {
             .query(&[("user", user_id.as_str())])
             .send()
             .await?;
-        let payload = Self::parse_ok(resp).await?;
-        let user = payload.get("user");
-        let profile = user.and_then(|u| u.get("profile"));
+        let payload: UsersInfoResponse = serde_json::from_value(Self::parse_ok(resp).await?)?;
+        let user = payload.user.unwrap_or_default();
+        let profile = user.profile.unwrap_or_default();
         Ok(SlackUserProfile {
-            email: profile
-                .and_then(|p| p.get("email"))
-                .and_then(Value::as_str)
-                .map(str::to_owned),
-            email_confirmed: user
-                .and_then(|u| u.get("is_email_confirmed"))
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
+            email: profile.email,
+            email_confirmed: user.is_email_confirmed,
             display_name: profile
-                .and_then(|p| p.get("real_name").or_else(|| p.get("display_name")))
-                .and_then(Value::as_str)
-                .filter(|name| !name.is_empty())
-                .map(str::to_owned),
+                .real_name
+                .or(profile.display_name)
+                .filter(|name| !name.is_empty()),
         })
     }
 
@@ -131,6 +149,7 @@ impl SlackClient {
     }
 
     // Why: Slack reports logical failures with HTTP 200 and `ok: false` in JSON.
+    // JSON: Slack Web API response — method-specific; only `ok`/`error` shared.
     async fn parse_ok(resp: reqwest::Response) -> SlackResult<Value> {
         let status = resp.status();
         let payload: Value = resp

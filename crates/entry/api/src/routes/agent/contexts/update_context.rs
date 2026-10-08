@@ -10,9 +10,7 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
 use super::super::responses::{api_error_response, single_response};
-use super::is_valid_context_id;
 use systemprompt_agent::models::context::UpdateContextRequest;
-use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn update_context(
@@ -21,19 +19,12 @@ pub async fn update_context(
     Path(context_id_str): Path<String>,
     Json(request): Json<UpdateContextRequest>,
 ) -> Response {
-    if !is_valid_context_id(&context_id_str) {
-        return api_error_response(ApiError::bad_request(
-            "Invalid context ID. Please select or create a valid conversation.",
-        ));
-    }
-
+    let context_id = match ContextId::try_new(context_id_str) {
+        Ok(id) => id,
+        Err(e) => return api_error_response(ApiError::from(e)),
+    };
     let context_repo = &ctx.a2a_repositories().contexts;
     let user_id = &req_ctx.auth.actor.user_id;
-    let Ok(context_id) = ContextId::try_new(context_id_str) else {
-        return api_error_response(ApiError::bad_request(
-            "Invalid context ID. Please select or create a valid conversation.",
-        ));
-    };
 
     match context_repo
         .update_context_name(&context_id, user_id, &request.name)
@@ -50,26 +41,19 @@ pub async fn update_context(
                 Ok(context) => {
                     let event =
                         SystemEventBuilder::context_updated(context_id.clone(), Some(request.name));
-                    EventRouter::route_system(user_id, event)
+                    ctx.event_router()
+                        .route_system(user_id, event)
                         .await
                         .into_local_logged();
 
                     single_response(context)
                 },
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to retrieve updated context");
-                    api_error_response(ApiError::internal_error(format!(
-                        "Context updated but failed to retrieve: {}",
-                        e
-                    )))
-                },
+                Err(e) => api_error_response(ApiError::internal(
+                    "Context updated but failed to retrieve",
+                    e,
+                )),
             }
         },
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to update context");
-            api_error_response(ApiError::not_found(format!(
-                "Failed to update context: {e}"
-            )))
-        },
+        Err(e) => api_error_response(ApiError::from(e)),
     }
 }

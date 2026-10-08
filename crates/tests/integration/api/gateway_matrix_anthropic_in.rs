@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 
 use super::gateway_matrix::{
     OutWire, anthropic_request_body, assert_declares_tool_use, assert_tool_call_survived, run_cell,

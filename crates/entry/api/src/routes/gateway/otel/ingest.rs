@@ -5,14 +5,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::json;
-use systemprompt_identifiers::TraceId;
+use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, enqueue_background};
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
 use opentelemetry_proto::tonic::collector::trace::v1::ExportTraceServiceRequest;
 
-use super::convert::{any_value_to_string, attrs_to_json, hex_lower, severity_to_level};
+use super::convert::{attrs_to_json, hex_lower, severity_to_level};
 
 const MODULE: &str = "otel";
 // Why: OTLP `Status.code` — 0 UNSET, 1 OK, 2 ERROR
@@ -28,10 +28,6 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                 .map_or(&[][..], |r| r.attributes.as_slice()),
         );
         for scope in resource.scope_spans {
-            let scope_name = scope
-                .scope
-                .as_ref()
-                .map_or_else(String::new, |s| s.name.clone());
             for span in scope.spans {
                 let trace_hex = hex_lower(&span.trace_id);
                 let span_hex = hex_lower(&span.span_id);
@@ -41,15 +37,15 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                     "trace_id": trace_hex,
                     "span_id": span_hex,
                     "parent_span_id": parent_hex,
-                    "scope": scope_name,
+                    "scope": "claude-desktop",
                     "start_time_unix_nano": span.start_time_unix_nano,
                     "end_time_unix_nano": span.end_time_unix_nano,
                     "duration_ns": span
                         .end_time_unix_nano
                         .saturating_sub(span.start_time_unix_nano),
                     "status_code": span.status.as_ref().map(|s| s.code),
-                    "status_message": span.status.as_ref().map(|s| s.message.clone()),
-                    "attributes": attrs_to_json(&span.attributes),
+
+                    "attributes": record_attributes(&span.attributes),
                     "resource": resource_attrs.clone(),
                 });
                 let level = span
@@ -63,24 +59,16 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let actor = match LogActor::platform(trace_id) {
+                let actor = match actor(&resource_attrs, trace_id) {
                     Ok(a) => a,
                     Err(e) => {
                         tracing::warn!(error = %e, "otel: span log skipped, system admin not initialized");
                         continue;
                     },
                 };
-                let entry = LogEntry::new(
-                    level,
-                    MODULE,
-                    if span.name.is_empty() {
-                        "<unnamed-span>".to_owned()
-                    } else {
-                        span.name.clone()
-                    },
-                    actor,
-                )
-                .with_metadata(metadata);
+                let entry =
+                    LogEntry::new(level, MODULE, "Desktop telemetry span".to_owned(), actor)
+                        .with_metadata(metadata);
                 enqueue_background(entry);
             }
         }
@@ -96,42 +84,29 @@ pub fn ingest_logs(req: ExportLogsServiceRequest) {
                 .map_or(&[][..], |r| r.attributes.as_slice()),
         );
         for scope in resource.scope_logs {
-            let scope_name = scope
-                .scope
-                .as_ref()
-                .map_or_else(String::new, |s| s.name.clone());
             for record in scope.log_records {
                 let trace_hex = hex_lower(&record.trace_id);
                 let span_hex = hex_lower(&record.span_id);
-                let body_text = any_value_to_string(record.body.as_ref());
                 let metadata = json!({
                     "kind": "log",
                     "trace_id": trace_hex,
                     "span_id": span_hex,
-                    "scope": scope_name,
+                    "scope": "claude-desktop",
                     "severity_number": record.severity_number,
-                    "severity_text": record.severity_text,
+                    "severity_text": "redacted",
                     "time_unix_nano": record.time_unix_nano,
                     "observed_time_unix_nano": record.observed_time_unix_nano,
-                    "attributes": attrs_to_json(&record.attributes),
+                    "attributes": record_attributes(&record.attributes),
                     "resource": resource_attrs.clone(),
                 });
                 let level = severity_to_level(record.severity_number);
-                let message = if body_text.is_empty() {
-                    if record.severity_text.is_empty() {
-                        "<otel-log>".to_owned()
-                    } else {
-                        record.severity_text.clone()
-                    }
-                } else {
-                    body_text
-                };
+                let message = "Desktop telemetry log".to_owned();
                 let trace_id = if trace_hex.is_empty() {
                     TraceId::system()
                 } else {
                     TraceId::new(trace_hex)
                 };
-                let actor = match LogActor::platform(trace_id) {
+                let actor = match actor(&resource_attrs, trace_id) {
                     Ok(a) => a,
                     Err(e) => {
                         tracing::warn!(error = %e, "otel: log skipped, system admin not initialized");
@@ -146,17 +121,42 @@ pub fn ingest_logs(req: ExportLogsServiceRequest) {
 }
 
 pub fn ingest_metrics(req: &ExportMetricsServiceRequest) {
-    let mut total = 0usize;
-    let mut names: Vec<String> = Vec::new();
-    for resource in &req.resource_metrics {
-        for scope in &resource.scope_metrics {
-            for m in &scope.metrics {
-                total += 1;
-                if names.len() < 16 {
-                    names.push(m.name.clone());
-                }
-            }
-        }
+    let total: usize = req
+        .resource_metrics
+        .iter()
+        .flat_map(|resource| &resource.scope_metrics)
+        .map(|scope| scope.metrics.len())
+        .sum();
+    tracing::debug!(total, "otel: metrics export");
+}
+
+// JSON: Sanitized OTLP resource attributes carry server-bound identity
+// metadata.
+fn actor(
+    resource: &serde_json::Value,
+    trace: TraceId,
+) -> Result<LogActor, systemprompt_logging::LogAttributionUnset> {
+    if let (Some(user), Some(session)) = (
+        resource["systemprompt.user.id"].as_str(),
+        resource["systemprompt.session.id"].as_str(),
+    ) {
+        return Ok(LogActor::new(
+            UserId::new(user.to_owned()),
+            SessionId::new(session.to_owned()),
+            trace,
+        ));
     }
-    tracing::debug!(total, names = ?names, "otel: metrics export");
+    LogActor::platform(trace)
+}
+
+// JSON: Allowlisted OTLP attributes form the persisted log metadata envelope.
+fn record_attributes(
+    attributes: &[opentelemetry_proto::tonic::common::v1::KeyValue],
+) -> serde_json::Value {
+    let mut metadata = attrs_to_json(attributes);
+    if let Some(object) = metadata.as_object_mut() {
+        object.remove("systemprompt.user.id");
+        object.remove("systemprompt.session.id");
+    }
+    metadata
 }

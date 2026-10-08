@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 
 use rmcp::ErrorData as McpError;
-use systemprompt_identifiers::{Actor, McpServerId, UserId, headers};
+use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId, headers};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
@@ -20,7 +20,7 @@ pub fn try_proxy_verified_auth(
     parts: Option<&http::request::Parts>,
     request_context: RequestContext,
     oauth_config: &crate::OAuthRequirement,
-    server_name: &str,
+    server_id: &McpServerId,
 ) -> Result<Option<AuthenticatedRequestContext>, McpError> {
     let parts = parts.ok_or_else(|| {
         McpError::invalid_request("No HTTP parts in MCP context".to_owned(), None)
@@ -59,10 +59,11 @@ pub fn try_proxy_verified_auth(
             )
         })?;
 
-    validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
+    validate_scopes_for_permissions(server_id, &permissions, oauth_config)?;
 
-    let user_id: uuid::Uuid = user_id_str.parse().map_err(|e| {
-        McpError::invalid_request(format!("Invalid user ID in x-user-id header: {e}"), None)
+    let user_id = UserId::try_new(user_id_str).map_err(|error| {
+        tracing::warn!(%error, "Rejected proxy-verified request with a malformed x-user-id");
+        McpError::invalid_request("Invalid user ID in x-user-id header".to_owned(), None)
     })?;
     // Why: a gateway that did not decorate the hop with roles asserted none;
     // the subject is evaluated with exactly the roles it presented.
@@ -73,7 +74,7 @@ pub fn try_proxy_verified_auth(
         .map(systemprompt_models::auth::parse_roles)
         .unwrap_or_default();
     let authenticated_user = AuthenticatedUser::new_with_roles(
-        user_id,
+        user_id.clone(),
         String::new(),
         String::new(),
         permissions,
@@ -90,15 +91,15 @@ pub fn try_proxy_verified_auth(
                 "Proxy-verified request missing Authorization Bearer token".to_owned(),
                 None,
             )
-        })?
-        .to_owned();
+        })
+        .map(JwtToken::new)?;
 
     let context = request_context
         .with_user(authenticated_user)
-        .with_actor(Actor::user(UserId::new(user_id_str.to_owned())));
+        .with_actor(Actor::user(user_id));
 
     tracing::info!(
-        server = %server_name,
+        server = %server_id,
         user_id = %user_id_str,
         "Authorized via proxy-verified identity"
     );
@@ -106,6 +107,8 @@ pub fn try_proxy_verified_auth(
     Ok(Some(AuthenticatedRequestContext::new(context, token)))
 }
 
+// JSON: marketplace policy floor — open attribute map passed to the authz
+// context.
 #[must_use]
 pub(super) fn build_proxy_authz_request(
     server_id: &McpServerId,

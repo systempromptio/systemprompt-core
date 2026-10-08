@@ -9,6 +9,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
@@ -26,10 +27,11 @@ use crate::prerender::utils::{merge_json_data, render_components};
 pub async fn prerender_content(
     db_pool: DbPool,
     content_repo: ContentRepository,
+    content_analytics: ContentAnalyticsRepository,
     paths: &AppPaths,
 ) -> Result<()> {
     let ctx = load_prerender_context(db_pool, content_repo, paths).await?;
-    let total_rendered = process_all_sources(&ctx).await?;
+    let total_rendered = process_all_sources(&ctx, &content_analytics).await?;
     tracing::debug!(items_rendered = total_rendered, "Prerendering completed");
     Ok(())
 }
@@ -70,7 +72,7 @@ async fn prerender_pages_with_context(ctx: &PrerenderContext) -> Result<Vec<Page
     for locale in &ctx.web_config.i18n.supported_locales {
         let locale_prefix = ctx.web_config.i18n.locale_prefix(locale);
         let prepare_ctx =
-            PagePrepareContext::new(&ctx.web_config, &ctx.config, &ctx.db_pool, &ctx.dist_dir)
+            PagePrepareContext::new(&ctx.web_config, &ctx.dependencies, &ctx.dist_dir)
                 .with_locale(locale);
 
         let mut rendered_page_types: HashSet<String> = HashSet::new();
@@ -130,7 +132,7 @@ async fn render_prerenderer_page(
     let render_spec = prerenderer
         .prepare(prepare_ctx)
         .await
-        .map_err(|e| PublishError::page_prerenderer_failed(page_type, e.to_string()))?;
+        .map_err(|e| PublishError::page_prerenderer_failed(page_type, e))?;
 
     let Some(spec) = render_spec else {
         tracing::debug!(page_type = %page_type, locale = %locale, "Prerenderer returned None, skipping");
@@ -151,7 +153,7 @@ async fn render_prerenderer_page(
     let html = ctx
         .template_registry
         .render(&spec.template_name, &page_data)
-        .map_err(|e| PublishError::render_failed(&spec.template_name, None, e.to_string()))?;
+        .map_err(|e| PublishError::render_failed(&spec.template_name, None, e))?;
 
     let prefixed_output = if locale_prefix.is_empty() {
         spec.output_path.clone()
@@ -179,6 +181,7 @@ async fn render_prerenderer_page(
     }))
 }
 
+// JSON: Handlebars page base context; page-data providers merge into it.
 async fn collect_page_data(
     ctx: &PrerenderContext,
     page_type: &str,
@@ -194,7 +197,7 @@ async fn collect_page_data(
     }
 
     let page_ctx =
-        PageContext::new(page_type, &ctx.web_config, &ctx.config, &ctx.db_pool).with_locale(locale);
+        PageContext::new(page_type, &ctx.web_config, &ctx.dependencies).with_locale(locale);
     let providers = ctx.template_registry.page_providers_for(page_type);
     let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
 
@@ -210,7 +213,7 @@ async fn collect_page_data(
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e))?;
         merge_json_data(&mut page_data, &data);
     }
 

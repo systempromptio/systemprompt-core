@@ -9,18 +9,19 @@ use crate::gateway::GatewayClient;
 use crate::gateway::types::HelperOutput;
 use crate::ids::PatToken;
 use async_trait::async_trait;
+use std::sync::Arc;
 use std::{env, fs};
 use systemprompt_identifiers::{SessionId, ValidatedUrl};
 
 #[derive(Debug)]
 pub struct PatProvider {
     base_url: ValidatedUrl,
-    pat_source: Result<Option<PatToken>, std::io::Error>,
+    pat_source: Result<Option<PatToken>, Arc<std::io::Error>>,
 }
 
 impl PatProvider {
     pub fn new(config: &Config) -> Self {
-        let pat_source = read_source(config);
+        let pat_source = read_source(config).map_err(Arc::new);
         Self {
             base_url: crate::config::gateway_url_or_default(config),
             pat_source,
@@ -44,10 +45,7 @@ impl AuthProvider for PatProvider {
             .as_ref()
             .map_err(|e| AuthError::Failed {
                 provider: "pat",
-                source: AuthFailedSource::Custom(Box::new(std::io::Error::new(
-                    e.kind(),
-                    e.to_string(),
-                ))),
+                source: AuthFailedSource::Custom(Box::new(Arc::clone(e))),
             })?
             .as_ref()
             .ok_or(AuthError::NotConfigured)?;
@@ -68,8 +66,15 @@ pub(crate) fn read_source(config: &Config) -> std::io::Result<Option<PatToken>> 
         Ok(value) => Some(value),
         Err(env::VarError::NotPresent) => match config.pat.as_ref().and_then(|p| p.file.as_ref()) {
             Some(path) => Some(
-                fs::read_to_string(crate::fsutil::expand_tilde(path))
-                    .map_err(|e| std::io::Error::new(e.kind(), format!("read PAT {path}: {e}")))?,
+                fs::read_to_string(crate::fsutil::expand_tilde(path)).map_err(|source| {
+                    std::io::Error::new(
+                        source.kind(),
+                        PatReadError {
+                            path: path.clone(),
+                            source,
+                        },
+                    )
+                })?,
             ),
             None => None,
         },
@@ -84,4 +89,12 @@ pub(crate) fn read_source(config: &Config) -> std::io::Result<Option<PatToken>> 
             }
         })
         .transpose()
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("read PAT {path}: {source}")]
+pub struct PatReadError {
+    path: String,
+    #[source]
+    source: std::io::Error,
 }

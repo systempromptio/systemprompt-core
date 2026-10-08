@@ -14,13 +14,17 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, header};
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::SESSION_ID;
+use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
-    install_test_signing_key, seed_admin_credential,
+    AuthedFixture, TestBootstrap, init_services_bootstrap, install_test_signing_key,
+    seed_admin_credential, test_app_context, test_db_pool,
 };
+use systemprompt_traits::DrainOutcome;
 use tokio::sync::OnceCell;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -88,16 +92,15 @@ async fn harness() -> &'static Harness {
         .await
 }
 
-async fn app() -> Result<(Router, DbPool)> {
+async fn app() -> Result<(Router, DbPool, Arc<AppContext>)> {
     let h = harness().await;
     install_test_signing_key();
-    let pool = fixture_db_pool(&h.boot.database_url).await?;
-    let ctx = fixture_app_context(&pool, &h.boot.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &h.boot.database_url);
     Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router available"),
+        gateway_router(&ctx).expect("gateway router builds"),
         pool,
+        ctx,
     ))
 }
 
@@ -128,7 +131,7 @@ fn messages_post(cred: &AuthedFixture) -> Request<Body> {
 
 #[tokio::test]
 async fn an_empty_upstream_body_is_not_relayed_as_a_successful_turn() -> Result<()> {
-    let (app, pool) = app().await?;
+    let (app, pool, _ctx) = app().await?;
     let cred = credential(&pool).await?;
     let (status, body) =
         super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
@@ -148,30 +151,24 @@ async fn an_empty_upstream_body_is_not_relayed_as_a_successful_turn() -> Result<
 
 #[tokio::test]
 async fn an_empty_upstream_body_is_audited_as_failed() -> Result<()> {
-    let (app, pool) = app().await?;
+    let (app, pool, ctx) = app().await?;
     let cred = credential(&pool).await?;
     let _ = super::common::body_to_string(app.oneshot(messages_post(&cred)).await?).await?;
 
-    let pg = pool.pool_arc()?;
-    let mut settled = None;
-    for _ in 0..100 {
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT status, error_message FROM ai_requests \
-             WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
-        )
-        .bind(cred.user_id.as_str())
-        .fetch_optional(pg.as_ref())
-        .await?;
-        if let Some(row) = row
-            && row.0 != "pending"
-        {
-            settled = Some(row);
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(30)).await,
+        DrainOutcome::Drained,
+        "the post-response audit work must finish"
+    );
+    let settled: Option<(String, Option<String>)> = sqlx::query_as(
+        "SELECT status, error_message FROM ai_requests \
+         WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(cred.user_id.as_str())
+    .fetch_optional(pool.pool().as_ref())
+    .await?;
 
-    let (status, error_message) = settled.expect("an audit row must settle");
+    let (status, error_message) = settled.expect("the request must leave an audit row");
     assert_eq!(status, "failed", "audit status");
     let message = error_message.unwrap_or_default();
     assert!(

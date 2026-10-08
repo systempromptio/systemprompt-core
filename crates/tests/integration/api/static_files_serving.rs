@@ -18,19 +18,17 @@ use systemprompt_api::services::static_content::static_files::{
     StaticContentState, compute_etag, serve_static_content,
 };
 use systemprompt_files::FilesConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context_with, test_db_pool};
 use tempfile::TempDir;
 
 async fn state_with_dist(
     matcher: StaticContentMatcher,
 ) -> anyhow::Result<(TempDir, StaticContentState)> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let tmp = TempDir::new()?;
     let web = tmp.path().join("web");
     std::fs::create_dir_all(web.join("dist"))?;
@@ -344,7 +342,7 @@ fn blog_matcher(tmp_cfg: &TempDir) -> anyhow::Result<StaticContentMatcher> {
 
 async fn seed_blog_post(state: &StaticContentState, slug: &str) -> anyhow::Result<()> {
     let uniq = uuid::Uuid::new_v4();
-    let pool = state.ctx.db_pool().pool_arc()?;
+    let pool = state.ctx.db_pool().pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

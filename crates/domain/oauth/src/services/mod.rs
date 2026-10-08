@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod authenticated_user;
 pub mod bridge;
 pub mod cimd;
 pub mod ema;
@@ -18,6 +19,7 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
+pub use authenticated_user::load_authenticated_user;
 pub use bridge::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeCode, BridgeExchangeRequest,
     BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
@@ -38,7 +40,7 @@ pub use templating::TemplateEngine;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 
 pub use generation::{
-    JwtConfig, JwtSigningParams, generate_access_token_jti, generate_anonymous_jwt,
+    DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt,
     generate_anonymous_jwt_with_expiry, generate_client_secret, generate_jwt,
     generate_jwt_with_act, generate_secure_token, hash_client_secret, verify_client_secret,
 };

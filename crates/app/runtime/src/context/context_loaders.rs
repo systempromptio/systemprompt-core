@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
 use systemprompt_logging::CliService;
-use systemprompt_models::{Config, ContentConfigRaw};
+use systemprompt_manifest::Config;
+use systemprompt_models::ContentConfigRaw;
 
 #[cfg(feature = "geolocation")]
 use systemprompt_analytics::GeoIpReader;
@@ -47,7 +48,7 @@ pub(super) fn load_geoip_database(
         Ok(reader) => Ok(Some(Arc::new(reader))),
         Err(e) => Err(RuntimeError::GeoIpUnreadable {
             path: geoip_path.clone(),
-            message: e.to_string(),
+            source: Box::new(e),
         }),
     }
 }

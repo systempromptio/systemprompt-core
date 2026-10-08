@@ -45,6 +45,8 @@ systemprompt-config = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-security = { workspace = true }
 
 [dev-dependencies]
@@ -56,3 +58,4 @@ all-features = true
 # Parent-death signalling for spawned children (see `subprocess::spawn_supervised`)
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
+nix = { workspace = true }

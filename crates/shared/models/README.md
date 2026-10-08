@@ -5,7 +5,7 @@
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 [![codecov](https://img.shields.io/codecov/c/github/systempromptio/systemprompt-core/main?style=flat-square&logo=codecov)](https://codecov.io/gh/systempromptio/systemprompt-core)
 
-Defines shared configuration, request and response models, wire codecs, protocol types and supporting error types.
+Defines the runtime request and response models, protocol types, bridge manifest types and supporting error types. The services manifest and profile live in `systemprompt-manifest`; the provider wire codecs in `systemprompt-wire`.
 
 The shared layer sits at the bottom of the workspace and depends on no other systemprompt layer. `infra`, `domain`, `app`, and `entry` all consume it. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -13,7 +13,7 @@ The shared layer sits at the bottom of the workspace and depends on no other sys
 
 ```toml
 [dependencies]
-systemprompt-models = "0.62"
+systemprompt-models = "0.63"
 ```
 
 ## Module Map
@@ -28,31 +28,25 @@ systemprompt-models = "0.62"
 | `artifacts` | Typed tool-result artifacts (chart, table, image, cli, …) and conversion. |
 | `auth` | Authenticated user, base roles, JWT audience, PKCE, grant types. |
 | `bridge` | Cowork desktop bridge manifest types. |
-| `config` | Global `Config` singleton assembled from profile + secrets. |
 | `content`, `content_config` | Published content metadata and on-disk content routing. |
-| `env` | Environment-variable reading and `${VAR}` / `${VAR:-default}` interpolation. |
 | `errors` | `thiserror`-derived `RepositoryError`, `ServiceError`, and the per-concern parse, secrets, validation, provider, metadata, and row enums. |
 | `events` | Analytics, A2A, context, and system event envelopes. |
 | `execution` | `RequestContext`, `ExecutionStep`, planned-tool bookkeeping. |
 | `extension` | Extension manifest and discovery types. |
-| `gateway_hash` | Stable hashing helpers for gateway-derived identifiers. |
+| `hooks` | Hook lifecycle events and categories. |
 | `macros` | Crate-internal repository helper macros. |
-| `mcp` | MCP server/registry config, deployment, auth state, provider traits. |
+| `mcp` | MCP server/registry config, deployment, auth state, registry trait. |
 | `modules` | API path constants, CLI paths, service category resolution. |
 | `net` | Network-layer value objects (ports, hosts). |
 | `oauth` | OAuth client and server configuration shapes. |
-| `paths` | Well-known directory layout helpers (`AppPaths`, `StoragePaths`, …). |
-| `profile` | On-disk profile, security, server, cloud, database, paths configuration. |
+| `origin` | Client attribution of an AI request: client kind, attestation tier, evidence. |
+| `plugin` | Plugin component references, hook selection and dependencies carried in the bridge manifest. |
+| `providers` | `ApiSurface`, the client-facing API family a provider is advertised under. |
 | `repository` | `ServiceLifecycle` trait, `ServiceRecord`, `WhereClause` query builder. |
 | `routing` | Request routing classification (`RouteClassifier`, `ApiCategory`). |
-| `schema` | JSON-Schema capability matrices and sanitisation for the wire codecs. |
-| `secrets` | Secrets document model and parsing. |
-| `services` | Services manifest: agents, plugins, hooks, MCP, skills, scheduler, marketplace. |
 | `subprocess` | Environment-marker contract between the supervisor and its detached children. |
 | `text`, `time_format` | Small text and timestamp formatting helpers. |
 | `users` | Public user and session summaries. |
-| `validators` | Startup configuration validation passes. |
-| `wire` | Canonical AI wire types and per-protocol codecs shared by gateway and providers. |
 
 ## Error Model
 
@@ -65,7 +59,7 @@ RepositoryError → ServiceError → ApiError → HTTP Response
 ```rust
 use systemprompt_models::{RepositoryError, ServiceError, ApiError};
 
-let repo_err = RepositoryError::NotFound("user-123".to_string());
+let repo_err = RepositoryError::not_found("user", "user-123");
 let svc_err: ServiceError = repo_err.into();
 let api_err: ApiError = svc_err.into();
 ```
@@ -113,13 +107,12 @@ let (clause, params) = WhereClause::default()
 - `thiserror`, `async-trait`: error enums and async traits
 - `chrono`, `uuid`, `indexmap`: common types
 - `schemars`, `regex`: schema generation and pattern validation
-- `zeroize`: wipe credential material on drop
-- `http`, `url`, `bytes`, `futures`, `futures-util`: HTTP types, SSRF URL validation, and wire/stream codecs
+- `http`, `url`, `futures`: HTTP types, SSRF URL validation, and streams
 - `tracing`: structured logging
 - `rmcp`: MCP protocol types
 - `sqlx`: optional, with the `sqlx` feature
 - `axum`: optional, with the `web` feature
-- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-extension`, `systemprompt-provider-contracts`: shared layer siblings
+- `systemprompt-traits`, `systemprompt-identifiers`, `systemprompt-provider-contracts`: shared layer siblings
 
 ## License
 

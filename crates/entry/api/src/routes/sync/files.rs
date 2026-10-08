@@ -17,24 +17,23 @@ use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use super::archive::{collect_manifest, create_tarball, get_services_path};
-use super::types::{ApiResult, FileManifest, FilesQuery, to_api_error};
+use super::types::{ApiResult, FileManifest, FilesQuery, SyncError};
 
 async fn run_blocking<T, F>(job: F) -> Result<T, ApiError>
 where
-    F: FnOnce() -> Result<T, String> + Send + 'static,
+    F: FnOnce() -> Result<T, SyncError> + Send + 'static,
     T: Send + 'static,
 {
-    tokio::task::spawn_blocking(job)
+    Ok(tokio::task::spawn_blocking(job)
         .await
-        .map_err(to_api_error)?
-        .map_err(to_api_error)
+        .map_err(SyncError::Join)??)
 }
 
 pub(super) async fn manifest(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
 ) -> ApiResult<Json<FileManifest>> {
-    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
+    let services_path = get_services_path(&ctx)?;
     let directories = owned_directories(&query);
 
     let manifest = run_blocking(move || {
@@ -50,7 +49,7 @@ pub(super) async fn download(
     State(ctx): State<AppContext>,
     Query(query): Query<FilesQuery>,
 ) -> Result<Response, ApiError> {
-    let services_path = get_services_path(&ctx).map_err(to_api_error)?;
+    let services_path = get_services_path(&ctx)?;
     let directories = owned_directories(&query);
     let dry_run = query.dry_run;
 
@@ -69,7 +68,7 @@ pub(super) async fn download(
         return Ok(Json(manifest).into_response());
     };
 
-    Response::builder()
+    let response = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/gzip")
         .header(
@@ -78,7 +77,8 @@ pub(super) async fn download(
         )
         .header(header::CONTENT_LENGTH, tarball.len())
         .body(Body::from(tarball))
-        .map_err(to_api_error)
+        .map_err(SyncError::Response)?;
+    Ok(response)
 }
 
 fn owned_directories(query: &FilesQuery) -> Vec<String> {

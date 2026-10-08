@@ -12,7 +12,7 @@ use super::super::paths::WebPaths;
 use super::super::types::{TemplatesConfig, ValidationIssue};
 
 pub fn validate_templates(
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,

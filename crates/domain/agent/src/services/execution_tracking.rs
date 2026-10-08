@@ -44,6 +44,7 @@ impl ExecutionTrackingService {
         Ok((tracked, step))
     }
 
+    // JSON: MCP tool result — schema-less output persisted as JSONB.
     pub async fn complete(
         &self,
         tracked: TrackedStep,
@@ -133,6 +134,8 @@ impl ExecutionTrackingService {
             .await
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub async fn track_tool_execution(
         &self,
         task_id: TaskId,

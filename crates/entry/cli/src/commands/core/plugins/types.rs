@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::PluginId;
 
-pub use systemprompt_models::services::PluginSummary;
-pub use systemprompt_models::services::plugin::PluginComponentRef;
+pub use systemprompt_manifest::services::PluginSummary;
+pub use systemprompt_models::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PluginListOutput {

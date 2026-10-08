@@ -19,8 +19,10 @@ use crate::models::{LogEntry, LogFilter, LoggingError};
 
 pub mod analytics;
 mod operations;
+mod ownership;
 
 pub use analytics::{AnalyticsEvent, AnalyticsRepository};
+pub use ownership::LoggingOwnerReassignment;
 
 #[derive(Clone, Debug)]
 pub struct LoggingRepository {
@@ -29,15 +31,19 @@ pub struct LoggingRepository {
 }
 
 impl LoggingRepository {
-    pub fn new(db: &DbPool) -> Result<Self, LoggingError> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn log(&self, entry: LogEntry) -> Result<(), LoggingError> {
         entry.validate()?;
         operations::create_log(&self.write_pool, &entry).await
+    }
+
+    pub async fn insert_batch(&self, entries: &[LogEntry]) -> Result<(), LoggingError> {
+        operations::insert_log_batch(&self.write_pool, entries).await
     }
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {

@@ -17,9 +17,10 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, agent_reply_response_json,
-    ensure_messaging_bootstrap, fixture_app_context, fixture_db_pool, install_test_signing_key,
-    seed_agent_backend,
+    ensure_messaging_bootstrap, install_test_signing_key, seed_agent_backend, test_app_context,
+    test_db_pool,
 };
+use systemprompt_traits::DrainOutcome;
 use tower::ServiceExt;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -30,8 +31,8 @@ use super::common::body_to_string;
 // `resolve_app` and the signing-secret lookup resolve.
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok((pool, ctx))
 }
 
@@ -45,7 +46,7 @@ fn now_ts() -> String {
 
 fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
     let ts = now_ts();
-    let signature = sign(secret.as_bytes(), &ts, body.as_bytes());
+    let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
         .method("POST")
         .uri(path)
@@ -113,8 +114,8 @@ async fn url_verification_challenge_is_echoed() -> anyhow::Result<()> {
 async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::Result<()> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
 
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -141,8 +142,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
     let resp = router(&ctx).oneshot(req).await?;
     assert_eq!(resp.status(), StatusCode::OK, "the route acks immediately");
 
-    // The reply is posted from a spawned task; poll until the hook records it.
-    let posted = wait_for_request(&response_hook).await;
+    let posted = wait_for_request(&ctx, &response_hook).await;
     let body = String::from_utf8_lossy(&posted);
     assert!(
         body.contains("dispatched reply"),
@@ -155,23 +155,21 @@ fn urlencode(s: &str) -> String {
     s.replace(':', "%3A").replace('/', "%2F")
 }
 
-// The reply comes from a spawned task running the full dispatch pipeline
+// The reply comes from a background task running the full dispatch pipeline
 // (identity linking, authz, proxy round-trip); under a loaded shard that has
-// been observed to stall past 30s, so the deadline must dwarf it.
-async fn wait_for_request(server: &MockServer) -> Vec<u8> {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(120);
-    loop {
-        if let Some(reqs) = server.received_requests().await
-            && let Some(first) = reqs.first()
-        {
-            return first.body.clone();
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "spawned reply never reached the response hook within 120s"
-        );
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
+// been observed to stall past 30s, so the drain bound must dwarf it.
+async fn wait_for_request(ctx: &AppContext, server: &MockServer) -> Vec<u8> {
+    assert_eq!(
+        ctx.background_tasks().drain(Duration::from_secs(120)).await,
+        DrainOutcome::Drained,
+        "the reply task must finish within the drain bound"
+    );
+    server
+        .received_requests()
+        .await
+        .and_then(|reqs| reqs.into_iter().next())
+        .expect("the drained reply task posted to the response hook")
+        .body
 }
 
 async fn coverage_command_reply(
@@ -181,7 +179,7 @@ async fn coverage_command_reply(
 ) -> anyhow::Result<serde_json::Value> {
     let b = ensure_messaging_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let ctx = if denied {
         systemprompt_test_fixtures::fixture_app_context_with_hook(
             &pool,
@@ -189,7 +187,7 @@ async fn coverage_command_reply(
             Arc::new(systemprompt_security::authz::DenyAllHook::null()),
         )?
     } else {
-        fixture_app_context(&pool, &b.database_url)?
+        test_app_context(&pool, &b.database_url)
     };
     let agent = MockServer::start().await;
     Mock::given(method("POST"))
@@ -216,7 +214,9 @@ async fn coverage_command_reply(
         .oneshot(signed_post("/commands", &body, TEST_SLACK_SIGNING_SECRET))
         .await?;
     assert_eq!(response.status(), StatusCode::OK);
-    Ok(serde_json::from_slice(&wait_for_request(&hook).await)?)
+    Ok(serde_json::from_slice(
+        &wait_for_request(&ctx, &hook).await,
+    )?)
 }
 
 #[tokio::test]

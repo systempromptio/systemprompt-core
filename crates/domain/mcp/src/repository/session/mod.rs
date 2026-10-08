@@ -12,13 +12,13 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{McpServerId, SessionId, UserId};
 
 #[derive(Debug, Clone)]
 pub struct McpSessionRecord {
     pub session_id: SessionId,
     pub user_id: Option<UserId>,
-    pub mcp_server_id: Option<String>,
+    pub mcp_server_id: Option<McpServerId>,
     pub last_event_id: Option<String>,
     pub status: String,
     pub created_at: DateTime<Utc>,
@@ -32,18 +32,16 @@ pub struct McpSessionRepository {
 }
 
 impl McpSessionRepository {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let write_pool = db.write_pool_arc().map_err(|e| {
-            crate::error::McpDomainError::Internal(format!("Database must be PostgreSQL: {e}"))
-        })?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 
     pub async fn create(
         &self,
         session_id: &SessionId,
         user_id: Option<&UserId>,
-        mcp_server_id: Option<&str>,
+        mcp_server_id: Option<&McpServerId>,
     ) -> McpDomainResult<()> {
         sqlx::query!(
             r#"
@@ -53,7 +51,7 @@ impl McpSessionRepository {
             "#,
             session_id.as_str(),
             user_id.map(UserId::as_str),
-            mcp_server_id,
+            mcp_server_id.map(McpServerId::as_str),
         )
         .execute(&*self.write_pool)
         .await?;
@@ -100,7 +98,7 @@ impl McpSessionRepository {
         Ok(row.map(|r| McpSessionRecord {
             session_id: r.session_id,
             user_id: r.user_id,
-            mcp_server_id: r.mcp_server_id,
+            mcp_server_id: r.mcp_server_id.map(McpServerId::new),
             last_event_id: r.last_event_id,
             status: r.status,
             created_at: r.created_at,
@@ -146,6 +144,8 @@ impl McpSessionRepository {
         Ok(())
     }
 
+    // JSON: JSONB MCP `initialize` params — stored verbatim as the client sent
+    // them.
     pub async fn store_initialize_params(
         &self,
         session_id: &SessionId,
@@ -167,6 +167,8 @@ impl McpSessionRepository {
         Ok(())
     }
 
+    // JSON: JSONB MCP `initialize` params — stored verbatim as the client sent
+    // them.
     pub async fn find_initialize_params(
         &self,
         session_id: &SessionId,

@@ -1,11 +1,12 @@
-//! Tests for WebAuthn service data types: LinkUserInfo, WebAuthnRegistry
+//! Tests for WebAuthn service data types: LinkUserInfo
 
+use systemprompt_identifiers::UserId;
 use systemprompt_oauth::services::webauthn::service::LinkUserInfo;
 
 #[test]
 fn test_link_user_info_construction() {
     let info = LinkUserInfo {
-        id: "user-id-456".to_string().into(),
+        id: UserId::new("user-id-456"),
         email: "test@example.com".to_string(),
         name: "Test User".to_string(),
     };
@@ -19,7 +20,7 @@ fn test_link_user_info_construction() {
 #[test]
 fn test_link_user_info_debug() {
     let info = LinkUserInfo {
-        id: "dbg-id".to_string().into(),
+        id: UserId::new("dbg-id"),
         email: "dbg@example.com".to_string(),
         name: "Debug Name".to_string(),
     };
@@ -34,12 +35,11 @@ fn test_link_user_info_debug() {
 #[test]
 fn test_link_user_info_empty_fields() {
     let info = LinkUserInfo {
-        id: String::new().into(),
+        id: UserId::new("empty-fields"),
         email: String::new(),
         name: String::new(),
     };
 
-    assert!(info.id.as_str().is_empty());
     assert!(info.email.is_empty());
     assert!(info.name.is_empty());
 }

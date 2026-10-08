@@ -60,6 +60,8 @@ mod presentation_startup_renderer;
 #[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]
+mod profile_flag_parsing;
+#[cfg(test)]
 mod runner_args;
 #[cfg(test)]
 mod runner_routing;
@@ -91,6 +93,8 @@ mod services_refresh;
 mod services_refresh_changed_exit;
 #[cfg(test)]
 mod services_refresh_flows;
+#[cfg(test)]
+mod services_serve_parsing;
 #[cfg(test)]
 mod services_validate;
 #[cfg(test)]

@@ -138,5 +138,9 @@ async fn an_unreadable_body_is_a_reason_not_a_panic() {
         client::list_publisher_models(&reqwest::Client::new(), &server.uri(), "test-token", "qwen")
             .await
             .expect_err("a non-JSON body cannot be read");
-    assert!(reason.contains("unreadable body"), "{reason}");
+    assert!(
+        matches!(reason, client::ListingError::Decode(_)),
+        "{reason:?}"
+    );
+    assert!(reason.to_string().contains("unreadable body"), "{reason}");
 }

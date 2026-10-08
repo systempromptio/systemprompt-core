@@ -15,22 +15,26 @@ use crate::CliConfig;
 use crate::shared::CommandOutput;
 
 use super::types::{PluginValidateAllOutput, PluginValidateOutput};
+use systemprompt_identifiers::PluginId;
 use systemprompt_loader::ServicesRootBootstrap;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {
-    #[arg(help = "Plugin ID to validate (validates all if omitted)")]
-    pub id: Option<String>,
+    #[arg(
+        help = "Plugin ID to validate (validates all if omitted)",
+        value_parser = crate::shared::parse_plugin_id
+    )]
+    pub id: Option<PluginId>,
 }
 
-pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandOutput> {
+pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
     let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
 
     let plugin_ids = match args.id {
         Some(id) => {
-            let plugin_dir = plugins_path.join(&id);
+            let plugin_dir = plugins_path.join(id.as_str());
             if !plugin_dir.exists() {
                 return Err(anyhow!("Plugin '{}' not found", id));
             }
@@ -46,16 +50,20 @@ pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<Command
         results.push(result);
     }
 
+    let valid = results.iter().all(|result| result.valid);
     let output = PluginValidateAllOutput { results };
 
-    Ok(CommandOutput::table_of(
-        vec!["plugin_id", "valid", "errors", "warnings"],
-        &output.results,
-    )
-    .with_title("Plugin Validation Results"))
+    Ok((
+        CommandOutput::table_of(
+            vec!["plugin_id", "valid", "errors", "warnings"],
+            &output.results,
+        )
+        .with_title("Plugin Validation Results"),
+        valid,
+    ))
 }
 
-pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
+pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<PluginId>> {
     if !plugins_path.exists() {
         return Ok(Vec::new());
     }
@@ -67,7 +75,7 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
             && entry.path().join("config.yaml").exists()
             && let Some(name) = entry.file_name().to_str()
         {
-            ids.push(name.to_owned());
+            ids.push(PluginId::new(name));
         }
     }
     ids.sort();
@@ -75,20 +83,20 @@ pub fn collect_plugin_ids(plugins_path: &Path) -> Result<Vec<String>> {
 }
 
 pub fn validate_plugin(
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugins_path: &Path,
     skills_path: &Path,
 ) -> PluginValidateOutput {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
 
-    let config_path = plugins_path.join(plugin_id).join("config.yaml");
+    let config_path = plugins_path.join(plugin_id.as_str()).join("config.yaml");
     let content = match std::fs::read_to_string(&config_path) {
         Ok(c) => c,
         Err(e) => {
             errors.push(format!("Failed to read config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+                plugin_id: plugin_id.clone(),
                 valid: false,
                 errors,
                 warnings,
@@ -96,12 +104,13 @@ pub fn validate_plugin(
         },
     };
 
-    let plugin_file: systemprompt_models::PluginConfigFile = match serde_yaml::from_str(&content) {
+    let plugin_file: systemprompt_manifest::PluginConfigFile = match serde_yaml::from_str(&content)
+    {
         Ok(p) => p,
         Err(e) => {
             errors.push(format!("Failed to parse config.yaml: {}", e));
             return PluginValidateOutput {
-                plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+                plugin_id: plugin_id.clone(),
                 valid: false,
                 errors,
                 warnings,
@@ -111,11 +120,11 @@ pub fn validate_plugin(
 
     let plugin = &plugin_file.plugin;
 
-    if let Err(e) = plugin.validate(plugin_id) {
+    if let Err(e) = plugin.validate(plugin_id.as_str()) {
         errors.push(format!("{}", e));
     }
 
-    if plugin.id != plugin_id {
+    if plugin.id != *plugin_id {
         warnings.push(format!(
             "Plugin id '{}' does not match directory name '{}'",
             plugin.id, plugin_id
@@ -126,7 +135,7 @@ pub fn validate_plugin(
     validate_scripts(plugin, plugins_path, plugin_id, &mut errors);
 
     PluginValidateOutput {
-        plugin_id: systemprompt_identifiers::PluginId::new(plugin_id),
+        plugin_id: plugin_id.clone(),
         valid: errors.is_empty(),
         errors,
         warnings,
@@ -134,12 +143,12 @@ pub fn validate_plugin(
 }
 
 fn validate_skill_refs(
-    plugin: &systemprompt_models::PluginConfig,
+    plugin: &systemprompt_manifest::PluginConfig,
     skills_path: &Path,
     errors: &mut Vec<String>,
     warnings: &mut Vec<String>,
 ) {
-    if plugin.skills.source == systemprompt_models::ComponentSource::Explicit {
+    if plugin.skills.source == systemprompt_models::plugin::ComponentSource::Explicit {
         let skills = declared_skills(skills_path);
         for skill_id in &plugin.skills.include {
             match skills.get(skill_id.as_str()) {
@@ -147,23 +156,34 @@ fn validate_skill_refs(
                     "Referenced skill '{}' does not exist (no skill declares that id)",
                     skill_id
                 )),
-                Some(false) => warnings.push(format!(
-                    "Referenced skill '{}' is disabled and will not be delivered",
-                    skill_id
-                )),
-                Some(true) => {},
+                Some(skill) => {
+                    if let Some(unknown) = &skill.unknown_host {
+                        errors.push(format!("Referenced skill '{skill_id}' lists an {unknown}"));
+                    }
+                    if !skill.enabled {
+                        warnings.push(format!(
+                            "Referenced skill '{}' is disabled and will not be delivered",
+                            skill_id
+                        ));
+                    }
+                },
             }
         }
     }
 
     if !skills_path.exists()
-        && plugin.skills.source == systemprompt_models::ComponentSource::Instance
+        && plugin.skills.source == systemprompt_models::plugin::ComponentSource::Instance
     {
         warnings.push("Skills directory does not exist".to_owned());
     }
 }
 
-fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool> {
+struct DeclaredSkill {
+    enabled: bool,
+    unknown_host: Option<systemprompt_models::bridge::host::UnknownHostKind>,
+}
+
+fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, DeclaredSkill> {
     let mut skills = std::collections::HashMap::new();
     let Ok(entries) = std::fs::read_dir(skills_path) else {
         return skills;
@@ -176,28 +196,33 @@ fn declared_skills(skills_path: &Path) -> std::collections::HashMap<String, bool
         let Ok(content) = std::fs::read_to_string(dir.join("config.yaml")) else {
             continue;
         };
-        let Ok(config) = serde_yaml::from_str::<systemprompt_models::DiskSkillConfig>(&content)
+        let Ok(config) = serde_yaml::from_str::<systemprompt_manifest::DiskSkillConfig>(&content)
         else {
             continue;
         };
-        let id = if config.id.as_str().is_empty() {
-            entry.file_name().to_string_lossy().into_owned()
-        } else {
-            config.id.as_str().to_owned()
-        };
-        skills.insert(id, config.enabled);
+        let id = config.id.as_ref().map_or_else(
+            || entry.file_name().to_string_lossy().into_owned(),
+            |id| id.as_str().to_owned(),
+        );
+        skills.insert(
+            id,
+            DeclaredSkill {
+                enabled: config.enabled,
+                unknown_host: config.host_kinds().err(),
+            },
+        );
     }
     skills
 }
 
 fn validate_scripts(
-    plugin: &systemprompt_models::PluginConfig,
+    plugin: &systemprompt_manifest::PluginConfig,
     plugins_path: &Path,
-    plugin_id: &str,
+    plugin_id: &PluginId,
     errors: &mut Vec<String>,
 ) {
     for script in &plugin.scripts {
-        let script_path = plugins_path.join(plugin_id).join(&script.source);
+        let script_path = plugins_path.join(plugin_id.as_str()).join(&script.source);
         if !script_path.exists() {
             errors.push(format!(
                 "Script '{}' not found at {}",

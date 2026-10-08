@@ -25,7 +25,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let stats: FileStats = service.get_stats().await?;
 

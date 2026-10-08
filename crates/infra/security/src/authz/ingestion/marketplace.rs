@@ -21,10 +21,12 @@
 
 use std::collections::{BTreeSet, HashMap};
 
+use sqlx::PgConnection;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::MarketplaceConfig;
+use systemprompt_manifest::services::MarketplaceConfig;
 
 use super::super::error::{AuthzError, AuthzResult};
+use super::super::repository::ingestion::IngestionRepository;
 use super::super::types::{EntityKind, RuleType};
 use super::subjects::{SubjectMention, find_unknown_subjects};
 use super::upsert::{Target, upsert_marketplace_entity_row, upsert_target};
@@ -56,20 +58,17 @@ fn declared_bands(
     }
 }
 
-type Tx<'a> = sqlx::Transaction<'a, sqlx::Postgres>;
-
 fn validate_rule_types(
     marketplaces: &HashMap<MarketplaceId, MarketplaceConfig>,
 ) -> AuthzResult<()> {
     for (id, cfg) in marketplaces {
         for rule in &cfg.access.rules {
             RuleType::extension(rule.rule_type.clone()).map_err(|source| {
-                AuthzError::Validation(format!(
-                    "marketplace '{}': access.rules rule_type '{}' is not a valid subject \
-                     dimension: {source}",
-                    id.as_str(),
-                    rule.rule_type
-                ))
+                AuthzError::MarketplaceRuleType {
+                    marketplace: id.as_str().to_owned(),
+                    rule_type: rule.rule_type.clone(),
+                    source: Box::new(source),
+                }
             })?;
         }
     }
@@ -77,30 +76,22 @@ fn validate_rule_types(
 }
 
 async fn delete_declared_bands(
-    tx: &mut Tx<'_>,
+    tx: &mut PgConnection,
     bands: &DeclaredBands,
     source: &str,
 ) -> AuthzResult<usize> {
-    let res = sqlx::query!(
-        r#"
-        DELETE FROM access_control_rules
-        WHERE entity_type = 'marketplace'
-          AND source = $3
-          AND (entity_id, rule_type) IN (
-              SELECT * FROM UNNEST($1::text[], $2::text[])
-          )
-        "#,
+    let deleted = IngestionRepository::delete_marketplace_bands(
+        tx,
         &bands.entity_ids,
         &bands.rule_types,
         source,
     )
-    .execute(&mut **tx)
     .await?;
-    Ok(res.rows_affected() as usize)
+    Ok(deleted as usize)
 }
 
 async fn upsert_marketplace(
-    tx: &mut Tx<'_>,
+    tx: &mut PgConnection,
     entity_id: &str,
     cfg: &MarketplaceConfig,
     options: &IngestOptions,
@@ -129,8 +120,7 @@ async fn upsert_marketplace(
     }
 
     for rule in &cfg.access.rules {
-        let rule_type = RuleType::extension(rule.rule_type.clone())
-            .map_err(|source| AuthzError::Validation(source.to_string()))?;
+        let rule_type = RuleType::extension(rule.rule_type.clone())?;
         let justification = rule
             .justification
             .as_deref()

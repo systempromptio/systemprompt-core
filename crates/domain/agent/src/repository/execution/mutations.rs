@@ -1,5 +1,6 @@
 //! Write paths for the execution-step repository — step creation, completion,
-//! and failure transitions.
+//! and failure transitions. Every failure is an
+//! [`AgentError::ExecutionStepWrite`] naming the step or task it addressed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,21 +8,21 @@
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
-use systemprompt_traits::RepositoryError;
+
+use crate::error::AgentError;
 
 use super::ExecutionStepRepository;
 use super::parse::{ParseStepParams, parse_step};
 
 impl ExecutionStepRepository {
-    pub async fn create(&self, step: &ExecutionStep) -> Result<(), RepositoryError> {
+    pub async fn create(&self, step: &ExecutionStep) -> Result<(), AgentError> {
         let step_id_str = step.step_id.as_str();
         let task_id = &step.task_id;
         let status_str = step.status.to_string();
         let step_type_str = step.content.step_type().to_string();
         let title = step.content.title();
-        let content_json = serde_json::to_value(&step.content).map_err(|e| {
-            RepositoryError::Internal(format!("Failed to serialize step content: {e}"))
-        })?;
+        let content_json = serde_json::to_value(&step.content)
+            .map_err(|e| AgentError::step_write(&step.step_id, e))?;
         sqlx::query!(
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
@@ -39,16 +40,17 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::Internal(format!("Failed to create execution step: {e}")))?;
+        .map_err(|e| AgentError::step_write(&step.step_id, e))?;
         Ok(())
     }
 
+    // JSON: MCP tool result — schema-less output persisted as JSONB.
     pub async fn complete_step(
         &self,
         step_id: &StepId,
         started_at: DateTime<Utc>,
         tool_result: Option<serde_json::Value>,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<(), AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
         let step_id_str = step_id.as_str();
@@ -70,11 +72,7 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| {
-                RepositoryError::Internal(format!(
-                    "Failed to complete execution step: {step_id}: {e}"
-                ))
-            })?;
+            .map_err(|e| AgentError::step_write(step_id, e))?;
         } else {
             sqlx::query!(
                 r#"UPDATE task_execution_steps SET
@@ -89,11 +87,7 @@ impl ExecutionStepRepository {
             )
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| {
-                RepositoryError::Internal(format!(
-                    "Failed to complete execution step: {step_id}: {e}"
-                ))
-            })?;
+            .map_err(|e| AgentError::step_write(step_id, e))?;
         }
 
         Ok(())
@@ -104,7 +98,7 @@ impl ExecutionStepRepository {
         step_id: &StepId,
         started_at: DateTime<Utc>,
         error_message: &str,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<(), AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
         let step_id_str = step_id.as_str();
@@ -125,9 +119,7 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to fail execution step: {step_id}: {e}"))
-        })?;
+        .map_err(|e| AgentError::step_write(step_id, e))?;
 
         Ok(())
     }
@@ -136,7 +128,7 @@ impl ExecutionStepRepository {
         &self,
         task_id: &TaskId,
         error_message: &str,
-    ) -> Result<u64, RepositoryError> {
+    ) -> Result<u64, AgentError> {
         let completed_at = Utc::now();
         let in_progress_str = StepStatus::InProgress.to_string();
         let failed_str = StepStatus::Failed.to_string();
@@ -156,11 +148,7 @@ impl ExecutionStepRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!(
-                "Failed to fail in-progress steps for task: {task_id}: {e}"
-            ))
-        })?;
+        .map_err(|e| AgentError::task_steps_write(task_id, e))?;
 
         Ok(result.rows_affected())
     }
@@ -171,16 +159,15 @@ impl ExecutionStepRepository {
         started_at: DateTime<Utc>,
         reasoning: Option<String>,
         planned_tools: Option<Vec<PlannedTool>>,
-    ) -> Result<ExecutionStep, RepositoryError> {
+    ) -> Result<ExecutionStep, AgentError> {
         let completed_at = Utc::now();
         let duration_ms = (completed_at - started_at).num_milliseconds() as i32;
         let step_id_str = step_id.as_str();
         let status_str = StepStatus::Completed.to_string();
 
         let content = StepContent::planning(reasoning, planned_tools);
-        let content_json = serde_json::to_value(&content).map_err(|e| {
-            RepositoryError::Internal(format!("Failed to serialize planning content: {e}"))
-        })?;
+        let content_json =
+            serde_json::to_value(&content).map_err(|e| AgentError::step_write(step_id, e))?;
 
         let row = sqlx::query!(
             r#"UPDATE task_execution_steps SET
@@ -199,9 +186,7 @@ impl ExecutionStepRepository {
         )
         .fetch_one(&*self.write_pool)
         .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to complete planning step: {step_id}: {e}"))
-        })?;
+        .map_err(|e| AgentError::step_write(step_id, e))?;
 
         parse_step(ParseStepParams {
             step_id: row.step_id,
@@ -213,5 +198,6 @@ impl ExecutionStepRepository {
             duration_ms: row.duration_ms,
             error_message: row.error_message,
         })
+        .map_err(|e| AgentError::step_write(step_id, e))
     }
 }

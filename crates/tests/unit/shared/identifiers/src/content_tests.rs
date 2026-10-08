@@ -1,20 +1,23 @@
-use std::collections::HashSet;
 use systemprompt_identifiers::{
-    CategoryId, ContentId, DbValue, FileId, SkillId, SourceId, TagId, ToDbValue,
+    CategoryId, ContentId, DbValue, FileId, SkillId, SkillName, SourceId, TagId, ToDbValue,
 };
 
 #[test]
-fn skill_id_generate_uuid_format() {
-    let id = SkillId::generate();
-    assert_eq!(id.as_str().len(), 36);
+fn skill_id_try_new_rejects_blank() {
+    assert!(SkillId::try_new("").is_err());
+    assert!(SkillId::try_new("   ").is_err());
+    assert_eq!(SkillId::try_new("writer").unwrap().as_str(), "writer");
 }
 
 #[test]
-fn skill_id_generate_unique() {
-    let ids: HashSet<String> = (0..10)
-        .map(|_| SkillId::generate().as_str().to_string())
-        .collect();
-    assert_eq!(ids.len(), 10);
+fn skill_id_deserialize_rejects_empty() {
+    assert!(serde_json::from_str::<SkillId>("\"\"").is_err());
+}
+
+#[test]
+fn skill_name_try_new_rejects_blank() {
+    assert!(SkillName::try_new("").is_err());
+    assert_eq!(SkillName::try_new("Writer").unwrap().as_str(), "Writer");
 }
 
 #[test]
@@ -69,11 +72,25 @@ fn file_id_generate_unique() {
 
 #[test]
 fn file_id_serde_transparent() {
-    let id = FileId::new("file-1");
+    let raw = "6f1c2a4e-8d3b-4b7a-9e2f-0c5d7a1b3e9f";
+    let id = FileId::new(raw);
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"file-1\"");
+    assert_eq!(json, format!("\"{raw}\""));
     let deserialized: FileId = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, id);
+}
+
+#[test]
+fn file_id_rejects_non_uuid() {
+    assert!(FileId::try_new("file-1").is_err());
+    assert!(serde_json::from_str::<FileId>("\"file-1\"").is_err());
+}
+
+#[test]
+fn file_id_uuid_round_trip() {
+    let uuid = uuid::Uuid::new_v4();
+    let id = FileId::from_uuid(uuid);
+    assert_eq!(id.to_uuid().unwrap(), uuid);
 }
 
 #[test]

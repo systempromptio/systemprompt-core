@@ -70,6 +70,8 @@ pub enum InstallError {
     MobileconfigUnsupported,
     #[error("registering the scheduled sync job failed: {0}")]
     ScheduleApply(String),
+    #[error("registering the scheduled sync job failed: {0}")]
+    ScheduleCommand(#[from] SchedulerError),
     #[error(
         "scheduler units written ({}) but not activated: {reason}; activate them by hand or \
          re-run --apply-schedule where systemd --user is available",
@@ -90,4 +92,45 @@ pub enum InstallError {
 
 impl InstallError {
     pub const EXIT_CODE: ExitCode = ExitCode::FAILURE;
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SchedulerError {
+    #[error("{command}: {source}")]
+    Spawn {
+        command: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("{command} exited with {code}{}", stderr_suffix(.stderr))]
+    Exited {
+        command: String,
+        code: i32,
+        stderr: String,
+    },
+    #[error("read {path}: {source}", path = .path.display())]
+    Read {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
+
+impl SchedulerError {
+    #[must_use]
+    pub fn command(&self) -> Option<&str> {
+        match self {
+            Self::Spawn { command, .. } | Self::Exited { command, .. } => Some(command),
+            Self::Read { .. } => None,
+        }
+    }
+}
+
+fn stderr_suffix(stderr: &str) -> String {
+    let trimmed = stderr.trim();
+    if trimmed.is_empty() {
+        String::new()
+    } else {
+        format!(": {trimmed}")
+    }
 }

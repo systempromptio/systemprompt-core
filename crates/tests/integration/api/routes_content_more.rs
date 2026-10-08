@@ -12,7 +12,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap,
-    fixture_app_context, fixture_db_pool,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -28,7 +28,7 @@ fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {
         .expect("clock")
         .as_secs()
         .to_string();
-    let signature = sign(secret.as_bytes(), &ts, body.as_bytes());
+    let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
         .method("POST")
         .uri(path)
@@ -41,8 +41,8 @@ fn signed_slack_post(path: &str, body: &str, secret: &str) -> Request<Body> {
 
 async fn messaging_ctx() -> anyhow::Result<std::sync::Arc<systemprompt_runtime::AppContext>> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    fixture_app_context(&pool, &b.database_url)
+    let pool = test_db_pool().await;
+    Ok(test_app_context(&pool, &b.database_url))
 }
 
 #[tokio::test]
@@ -157,15 +157,15 @@ fn bot_context() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("user_bot")),
     )
-    .with_actor(Actor::user(UserId::new("user_bot")))
 }
 
 async fn seed_link(db: &DbPool) -> anyhow::Result<String> {
     let uniq = uuid::Uuid::new_v4().simple().to_string();
     let short_code = format!("sc{uniq}");
     let id = format!("lnk-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO campaign_links (id, short_code, target_url, link_type) \
          VALUES ($1, $2, $3, $4)",
@@ -263,7 +263,7 @@ async fn query_over_seeded_content_returns_results() -> anyhow::Result<()> {
     let uniq = uuid::Uuid::new_v4().simple().to_string();
     let slug = format!("post-{uniq}");
     let source = format!("src-{uniq}");
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query(
         "INSERT INTO markdown_content \
          (id, slug, title, description, body, author, published_at, keywords, source_id, \

@@ -3,7 +3,8 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::middleware::from_fn;
 use axum::routing::get;
-use systemprompt_extension::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
+use systemprompt_extension::{FrameOptionsOverride, stamp_frame_options};
+use systemprompt_provider_contracts::FrameOptions;
 use tower::ServiceExt;
 
 #[test]

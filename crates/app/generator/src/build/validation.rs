@@ -36,16 +36,14 @@ pub(super) async fn validate_build(web_dir: &Path) -> Result<()> {
 
 fn validate_required_paths(dist_dir: &Path) -> Result<()> {
     if !dist_dir.exists() {
-        return Err(BuildError::ValidationFailed(
-            "dist directory not found".to_owned(),
-        ));
+        return Err(BuildError::MissingDist {
+            path: dist_dir.to_path_buf(),
+        });
     }
 
     let index_html = dist_dir.join("index.html");
     if !index_html.exists() {
-        return Err(BuildError::ValidationFailed(
-            "index.html not found in dist".to_owned(),
-        ));
+        return Err(BuildError::MissingIndex { path: index_html });
     }
 
     Ok(())
@@ -66,10 +64,9 @@ pub(super) async fn validate_sitemap(dist_dir: &Path, sitemap_path: &Path) -> Re
 
     let sitemap_xml = fs::read_to_string(sitemap_path)
         .await
-        .map_err(|e| BuildError::ValidationFailed(format!("Failed to read sitemap: {e}")))?;
+        .map_err(BuildError::SitemapRead)?;
 
-    let urlset: Urlset = from_str(&sitemap_xml)
-        .map_err(|e| BuildError::ValidationFailed(format!("Failed to parse sitemap XML: {e}")))?;
+    let urlset: Urlset = from_str(&sitemap_xml).map_err(BuildError::SitemapParse)?;
 
     let (valid_count, missing_count, errors) = validate_urls(&urlset.url, dist_dir);
     check_validation_results(urlset.url.len(), valid_count, missing_count, &errors)?;
@@ -155,9 +152,7 @@ fn check_validation_results(
 
     log_validation_errors(errors);
 
-    Err(BuildError::ValidationFailed(format!(
-        "{missing} URLs missing corresponding HTML files"
-    )))
+    Err(BuildError::MissingSitemapPages { missing })
 }
 
 fn log_validation_errors(errors: &[ValidationError]) {
@@ -182,7 +177,7 @@ fn extract_path_from_url(url: &str) -> Result<String> {
         return Ok(url.to_owned());
     }
 
-    Err(BuildError::ValidationFailed(format!(
-        "Invalid URL format: {url}"
-    )))
+    Err(BuildError::InvalidSitemapUrl {
+        url: url.to_owned(),
+    })
 }

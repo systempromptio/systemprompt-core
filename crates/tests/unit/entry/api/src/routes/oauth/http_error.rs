@@ -252,11 +252,8 @@ fn oauth_domain_errors_map_onto_their_protocol_codes() {
             OauthError::WebAuthnVerificationFailed("w".to_owned()),
             OAuthErrorCode::InvalidCredential,
         ),
-        (
-            OauthError::Internal("i".to_owned()),
-            OAuthErrorCode::ServerError,
-        ),
-        (OauthError::TokenMissingKid, OAuthErrorCode::ServerError),
+        (OauthError::Internal("i"), OAuthErrorCode::ServerError),
+        (OauthError::TokenMissingKid, OAuthErrorCode::InvalidToken),
     ];
 
     for (err, expected) in cases {
@@ -314,7 +311,11 @@ fn an_anyhow_error_collapses_to_a_server_error() {
     let http: OAuthHttpError = anyhow::anyhow!("something deep failed").into();
 
     assert_eq!(http.code(), OAuthErrorCode::ServerError);
-    assert!(http.description().contains("something deep failed"));
+    assert!(
+        !http.description().contains("something deep failed"),
+        "the cause rides as the logged source, never as description text: {}",
+        http.description()
+    );
 }
 
 #[test]

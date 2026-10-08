@@ -10,17 +10,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use uuid::Uuid;
 
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{AccessTokenId, PluginId, SessionId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 
-use super::generation::{JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt};
+use super::generation::{JwtConfig, JwtSigningParams, generate_jwt};
 use crate::error::OauthResult;
 
 #[derive(Debug, Clone)]
 pub struct PluginTokenSubject {
-    pub id: Uuid,
+    pub id: UserId,
     pub username: String,
     pub email: String,
 }
@@ -28,7 +27,7 @@ pub struct PluginTokenSubject {
 #[derive(Debug, Clone)]
 pub struct IssuedPluginToken {
     pub token: String,
-    pub jti: String,
+    pub jti: AccessTokenId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -38,7 +37,7 @@ impl PluginTokenService {
     pub fn issue(
         subject: PluginTokenSubject,
         issuer: &str,
-        plugin_id: String,
+        plugin_id: PluginId,
         duration_days: u32,
         session_id: &SessionId,
     ) -> OauthResult<IssuedPluginToken> {
@@ -52,7 +51,7 @@ impl PluginTokenService {
         );
 
         let signing = JwtSigningParams { issuer };
-        let jti = generate_access_token_jti();
+        let jti = AccessTokenId::generate();
 
         let config = JwtConfig {
             permissions,

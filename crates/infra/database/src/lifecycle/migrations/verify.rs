@@ -15,6 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{LoaderError, Migration};
+use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
 use super::{AppliedMigration, MigrationService};
@@ -22,7 +23,7 @@ use super::{AppliedMigration, MigrationService};
 impl MigrationService<'_> {
     pub(super) fn verify_slot_identity(
         &self,
-        ext_id: &str,
+        ext_id: &ExtensionId,
         migration: &Migration,
         stored: Option<&AppliedMigration>,
     ) -> Result<(), LoaderError> {
@@ -43,7 +44,7 @@ impl MigrationService<'_> {
             return Ok(());
         }
         Err(LoaderError::MigrationSlotReused {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             version: migration.version,
             stored_name: stored.name.clone(),
             current_name: migration.name.clone(),
@@ -52,7 +53,7 @@ impl MigrationService<'_> {
 
     pub(super) fn verify_checksum(
         &self,
-        ext_id: &str,
+        ext_id: &ExtensionId,
         migration: &Migration,
         stored_checksum: &str,
     ) -> Result<(), LoaderError> {
@@ -72,7 +73,7 @@ impl MigrationService<'_> {
             return Ok(());
         }
         Err(LoaderError::MigrationChecksumDrift {
-            extension: ext_id.to_owned(),
+            extension: ext_id.clone(),
             version: migration.version,
             name: migration.name.clone(),
             stored_checksum: stored_checksum.to_owned(),

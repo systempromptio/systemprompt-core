@@ -754,6 +754,41 @@ async fn image_file_bytes_default_mime() {
 }
 
 #[tokio::test]
+async fn image_from_file_part_url() {
+    let renderer = ImageRenderer::new();
+    let artifact = make_artifact(
+        "image",
+        None,
+        None,
+        vec![file_part(
+            Some("remote.png"),
+            Some("image/png"),
+            None,
+            Some("https://e.test/remote.png"),
+        )],
+        None,
+    );
+    let result = renderer.render(&artifact).unwrap();
+    assert!(result.html.contains("https://e.test/remote.png"));
+}
+
+#[tokio::test]
+async fn image_data_part_with_mistyped_width_keeps_its_source() {
+    let renderer = ImageRenderer::new();
+    let artifact = make_artifact(
+        "image",
+        None,
+        None,
+        vec![data_part(
+            serde_json::json!({"src": "https://e.test/w.png", "width": "wide"}),
+        )],
+        None,
+    );
+    let result = renderer.render(&artifact).unwrap();
+    assert!(result.html.contains("https://e.test/w.png"));
+}
+
+#[tokio::test]
 async fn image_url_alias_in_data_part() {
     let renderer = ImageRenderer::new();
     let artifact = make_artifact(

@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -14,19 +15,19 @@ use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseSe
 use systemprompt_agent::services::agent_orchestration::orchestrator::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use crate::repository::try_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
 const DEAD_PID: u32 = 2_000_000_000;
 
-fn unique_name(prefix: &str) -> String {
-    format!("{prefix}_{}", Uuid::new_v4().simple())
+fn unique_name(prefix: &str) -> AgentName {
+    AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
 }
 
 fn app_paths() -> Arc<AppPaths> {
@@ -38,17 +39,16 @@ fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
     let repo = AgentServiceRepository::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
+    );
     AgentDatabaseService::new(repo).expect("db service")
 }
 
-fn registry_from(entries: &[(&str, &str, u16)]) -> AgentRegistry {
+fn registry_from(entries: &[(&AgentName, &AgentName, u16)]) -> AgentRegistry {
     let mut agents = HashMap::new();
     for (key, name, port) in entries {
-        let mut config = agent_config(name);
+        let mut config = agent_config(name.as_str());
         config.port = *port;
-        agents.insert((*key).to_owned(), config);
+        agents.insert(key.to_string(), config);
     }
     AgentRegistry::from_config(ServicesConfig {
         agents,
@@ -58,7 +58,7 @@ fn registry_from(entries: &[(&str, &str, u16)]) -> AgentRegistry {
 
 async fn make_orchestrator(
     pool: &systemprompt_database::DbPool,
-    entries: &[(&str, &str, u16)],
+    entries: &[(&AgentName, &AgentName, u16)],
 ) -> AgentOrchestrator {
     let agent_state = make_agent_state(pool);
     let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
@@ -70,9 +70,7 @@ async fn make_orchestrator(
 
 #[tokio::test]
 async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_a");
     let b = unique_name("recon_b");
@@ -119,9 +117,7 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
 
 #[tokio::test]
 async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let key = unique_name("recon_key");
     let declared = unique_name("recon_declared");
@@ -130,22 +126,16 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
     let info = orchestrator.get_detailed_status().await.expect("status");
     let entry = info
         .iter()
-        .find(|i| i.id.as_str() == declared)
+        .find(|i| i.name == declared)
         .expect("status is keyed by the declared agent name");
 
-    assert_eq!(
-        entry.name, "Unknown",
-        "a name that is not a registry key resolves no config"
-    );
     assert_eq!(entry.port, 8000, "the failed-status fallback port is used");
     assert!(matches!(entry.status, AgentStatus::Failed { .. }));
 }
 
 #[tokio::test]
 async fn disable_all_leaves_every_registry_agent_failed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_dis_a");
     let b = unique_name("recon_dis_b");
@@ -172,9 +162,7 @@ async fn disable_all_leaves_every_registry_agent_failed() {
 
 #[tokio::test]
 async fn health_check_reports_a_dead_pid_as_not_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("recon_health");
     let orchestrator = make_orchestrator(&pool, &[(&name, &name, 39475)]).await;
@@ -204,14 +192,12 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
 
 #[tokio::test]
 async fn enable_agent_for_an_unregistered_name_is_rejected() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let orchestrator = make_orchestrator(&pool, &[]).await;
 
     let err = orchestrator
-        .enable_agent("__no_such_agent", None)
+        .enable_agent(&AgentName::new("__no_such_agent"), None)
         .await
         .expect_err("an agent absent from the registry cannot be enabled");
     assert!(

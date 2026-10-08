@@ -1,6 +1,7 @@
 //! DB-backed tests for banned-IP mutation, lookup, and listing queries.
 
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
 use uuid::Uuid;
 
@@ -11,26 +12,23 @@ struct Ctx {
     fingerprint: String,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = BannedIpRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = BannedIpRepository::new(&pool);
     let tag = Uuid::new_v4();
-    let octet = u128::from_le_bytes(*tag.as_bytes()) % 200 + 10;
-    Some(Ctx {
+    let [a, b, c, ..] = *tag.as_bytes();
+    Ctx {
         repo,
-        ip: format!("10.{}.{}.{}", octet % 250, (octet / 7) % 250, prefix.len()),
+        ip: format!("10.{a}.{b}.{c}"),
         source: format!("src-{prefix}-{}", tag.simple()),
         fingerprint: format!("fp-{prefix}-{}", tag.simple()),
-    })
+    }
 }
 
 #[tokio::test]
 async fn ban_then_query_then_unban_round_trip() {
-    let Some(ctx) = setup_or_skip("round").await else {
-        return;
-    };
+    let ctx = setup("round").await;
     let params = BanIpParams::new(&ctx.ip, "abuse", BanDuration::Hours(2), &ctx.source)
         .with_source_fingerprint(&ctx.fingerprint);
     ctx.repo.ban_ip(params).await.expect("ban");
@@ -74,9 +72,7 @@ async fn ban_then_query_then_unban_round_trip() {
 
 #[tokio::test]
 async fn reban_increments_count_and_permanent_ban_stays_permanent() {
-    let Some(ctx) = setup_or_skip("perm").await else {
-        return;
-    };
+    let ctx = setup("perm").await;
     ctx.repo
         .ban_ip(BanIpParams::new(
             &ctx.ip,
@@ -113,19 +109,19 @@ async fn reban_increments_count_and_permanent_ban_stays_permanent() {
 
 #[tokio::test]
 async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
-    let Some(ctx) = setup_or_skip("meta").await else {
-        return;
-    };
+    let ctx = setup("meta").await;
+    let sess_one = SessionId::new("sess-one");
+    let sess_two = SessionId::new("sess-two");
     let first = BanIpWithMetadataParams::new(&ctx.ip, "bot", BanDuration::Days(1), &ctx.source)
         .with_source_fingerprint(&ctx.fingerprint)
         .with_offense_path("/admin")
         .with_user_agent("badbot/1.0")
-        .with_session_id("sess-one");
+        .with_session_id(&sess_one);
     ctx.repo.ban_ip_with_metadata(first).await.expect("first");
 
     let second =
         BanIpWithMetadataParams::new(&ctx.ip, "bot again", BanDuration::Days(1), &ctx.source)
-            .with_session_id("sess-two");
+            .with_session_id(&sess_two);
     ctx.repo.ban_ip_with_metadata(second).await.expect("second");
 
     let ban = ctx
@@ -142,16 +138,17 @@ async fn ban_with_metadata_accumulates_session_ids_and_keeps_metadata() {
         Some(ctx.fingerprint.as_str())
     );
     let sessions = ban.associated_session_ids.expect("session ids");
-    assert_eq!(sessions, vec!["sess-one".to_owned(), "sess-two".to_owned()]);
+    assert_eq!(
+        sessions,
+        vec![SessionId::new("sess-one"), SessionId::new("sess-two")]
+    );
 
     ctx.repo.unban_ip(&ctx.ip).await.expect("cleanup");
 }
 
 #[tokio::test]
 async fn expired_ban_is_invisible_and_removed_by_cleanup() {
-    let Some(ctx) = setup_or_skip("exp").await else {
-        return;
-    };
+    let ctx = setup("exp").await;
     ctx.repo
         .ban_ip(
             BanIpParams::new(&ctx.ip, "expired", BanDuration::Hours(-2), &ctx.source)

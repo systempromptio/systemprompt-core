@@ -1,4 +1,4 @@
-use systemprompt_identifiers::{ClientId, ClientType, DbValue, ToDbValue};
+use systemprompt_identifiers::{ClientId, ClientType, DbValue, ServiceName, ToDbValue};
 
 #[test]
 fn client_type_cimd_for_https_prefix() {
@@ -49,7 +49,7 @@ fn is_dcr_false_for_cimd() {
 
 #[test]
 fn is_dcr_false_for_system() {
-    assert!(!ClientId::system("worker").is_dcr());
+    assert!(!ClientId::system(&ServiceName::new("worker")).is_dcr());
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn is_cimd_false_for_http_url() {
 
 #[test]
 fn is_system_true_for_sys_prefix() {
-    assert!(ClientId::system("worker").is_system());
+    assert!(ClientId::system(&ServiceName::new("worker")).is_system());
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn factory_methods_produce_correct_values() {
 
 #[test]
 fn system_factory_formats_with_prefix() {
-    let id = ClientId::system("scheduler");
+    let id = ClientId::system(&ServiceName::new("scheduler"));
     assert_eq!(id.as_str(), "sys_scheduler");
     assert!(id.is_system());
 }

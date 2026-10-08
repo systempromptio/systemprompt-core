@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde_json::{Value, json};
+use serde::Serialize;
 
 use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
@@ -13,8 +13,11 @@ use crate::{config, install, update};
 
 pub(crate) fn on_settings_read(app: &GuiApp, reply_to: ReplyId) {
     if let Some(id) = reply_to {
-        let payload = match current(&app.ctx.schedule) {
-            Ok(value) => IpcReplyPayload::ok(value),
+        let payload = match current(&app.ctx.schedule).map(serde_json::to_value) {
+            Ok(Ok(value)) => IpcReplyPayload::ok(value),
+            Ok(Err(e)) => IpcReplyPayload::err(crate::wire::ipc::BridgeError::internal(format!(
+                "settings encode failed: {e}"
+            ))),
             Err(e) => IpcReplyPayload::err(crate::wire::ipc::BridgeError::internal(e.to_string())),
         };
         emit::send_reply_payload(app, id, &payload);
@@ -58,37 +61,75 @@ fn set_autostart(app: &GuiApp, enabled: bool) -> Result<(), GuiError> {
     Ok(())
 }
 
-fn current(schedule: &crate::schedule::status::ScheduleStatusCache) -> Result<Value, GuiError> {
+#[derive(Debug, Serialize)]
+struct SettingsSnapshot {
+    gateway_url: String,
+    auth_scheme: Option<String>,
+    models: Option<Vec<String>>,
+    pinned_pubkey: Option<PinnedPubkeyPayload>,
+    config_file: Option<String>,
+    config_malformed: Option<String>,
+    schedule: SchedulePayload,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum PinnedPubkeyPayload {
+    Pinned {
+        value: String,
+        source: &'static str,
+    },
+    StaleForGateway {
+        trust_required: bool,
+        pinned_for: config::GatewayIdentity,
+        gateway: config::GatewayIdentity,
+    },
+}
+
+#[derive(Debug, Serialize)]
+struct SchedulePayload {
+    verdict: crate::verdict::Verdict<install::ScheduleStatus>,
+    label: &'static str,
+}
+
+fn current(
+    schedule: &crate::schedule::status::ScheduleStatusCache,
+) -> Result<SettingsSnapshot, GuiError> {
     let malformed = config::read().err().map(|e| e.to_string());
     let cfg = config::load()?;
     let claude = cfg.claude.as_ref();
-    Ok(json!({
-        "gateway_url": config::gateway_url_or_default(&cfg).as_str(),
-        "auth_scheme": claude.and_then(|c| c.auth_scheme.clone()),
-        "models": claude.and_then(|c| c.models.clone()),
-        "pinned_pubkey": pinned_pubkey_value()?,
-        "config_file": config::config_path().map(|p| p.display().to_string()),
-        "config_malformed": malformed,
-        "schedule": schedule_value(schedule),
-    }))
+    Ok(SettingsSnapshot {
+        gateway_url: config::gateway_url_or_default(&cfg).as_str().to_owned(),
+        auth_scheme: claude.and_then(|c| c.auth_scheme.clone()),
+        models: claude.and_then(|c| c.models.clone()),
+        pinned_pubkey: pinned_pubkey_payload()?,
+        config_file: config::config_path().map(|p| p.display().to_string()),
+        config_malformed: malformed,
+        schedule: schedule_payload(schedule),
+    })
 }
 
-fn pinned_pubkey_value() -> Result<Value, GuiError> {
+fn pinned_pubkey_payload() -> Result<Option<PinnedPubkeyPayload>, GuiError> {
     Ok(match config::pinned_pubkey_state()? {
-        config::PinnedPubkeyState::Pinned { key, source } => {
-            json!({ "value": key.as_str(), "source": source.label() })
-        },
+        config::PinnedPubkeyState::Pinned { key, source } => Some(PinnedPubkeyPayload::Pinned {
+            value: key.as_str().to_owned(),
+            source: source.label(),
+        }),
         config::PinnedPubkeyState::StaleForGateway {
             pinned_for,
             current,
-        } => json!({ "trust_required": true, "pinned_for": pinned_for, "gateway": current }),
-        config::PinnedPubkeyState::Unpinned => Value::Null,
+        } => Some(PinnedPubkeyPayload::StaleForGateway {
+            trust_required: true,
+            pinned_for,
+            gateway: current,
+        }),
+        config::PinnedPubkeyState::Unpinned => None,
     })
 }
 
-fn schedule_value(schedule: &crate::schedule::status::ScheduleStatusCache) -> Value {
-    json!({
-        "verdict": install::schedule_status(schedule).verdict(),
-        "label": install::schedule_label(),
-    })
+fn schedule_payload(schedule: &crate::schedule::status::ScheduleStatusCache) -> SchedulePayload {
+    SchedulePayload {
+        verdict: install::schedule_status(schedule).verdict(),
+        label: install::schedule_label(),
+    }
 }

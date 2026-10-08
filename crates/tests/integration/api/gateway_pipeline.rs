@@ -14,35 +14,35 @@ use std::time::Duration;
 
 use axum::body::to_bytes;
 use bytes::Bytes;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
 };
-use systemprompt_api::services::gateway::service::{DispatchError, GatewayService};
-use systemprompt_api::services::gateway::{DispatchInputs, GatewayRequestContext};
-use systemprompt_database::DbPool;
+use systemprompt_gateway::service::{DispatchError, GatewayService};
+use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
 use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, RouteId, SecretName,
-    TraceId,
+    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-    WireProtocol,
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
+use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -55,15 +55,15 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 
 pub(super) fn gw_repos(
     db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("gateway repos")
 }
 
 const API_KEY_ENV: &str = "ANTHROPIC_API_KEY";
@@ -157,7 +157,7 @@ pub(super) fn provider_registry(
 
 pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: "claude-*".to_owned(),
@@ -167,8 +167,8 @@ pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     GatewayConfig {
@@ -262,6 +262,8 @@ pub(super) fn dispatch_ctx(
         is_streaming: stream,
         origin: RequestOrigin::gateway(ClientKind::Other, wire, ClientAttestation::None),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }
@@ -314,7 +316,7 @@ fn governance_inputs(
     dispatch
 }
 
-fn buffered_response_json() -> serde_json::Value {
+pub(super) fn buffered_response_json() -> serde_json::Value {
     serde_json::json!({
         "id": "msg_upstream_1",
         "type": "message",
@@ -326,7 +328,7 @@ fn buffered_response_json() -> serde_json::Value {
     })
 }
 
-fn streaming_sse_body() -> String {
+pub(super) fn streaming_sse_body() -> String {
     [
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_s\",\"model\":\"claude-test-model\",\"usage\":{\"input_tokens\":9,\"output_tokens\":0}}}\n\n",
         "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
@@ -338,21 +340,25 @@ fn streaming_sse_body() -> String {
     .concat()
 }
 
-async fn poll_completion(pool: &DbPool, id: &AiRequestId) -> Option<i32> {
-    let pg = pool.pool_arc().expect("read pool");
-    for _ in 0..50 {
-        let row: Option<(Option<i32>,)> =
-            sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
-                .bind(id.as_str())
-                .fetch_optional(pg.as_ref())
-                .await
-                .expect("query ai_requests");
-        if let Some((Some(tokens),)) = row {
-            return Some(tokens);
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    None
+async fn settled_tokens(
+    repos: &GatewayRepositories,
+    pool: &DbPool,
+    id: &AiRequestId,
+) -> Option<i32> {
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    let row: Option<(Option<i32>,)> =
+        sqlx::query_as("SELECT tokens_used FROM ai_requests WHERE id = $1")
+            .bind(id.as_str())
+            .fetch_optional(pool.pool().as_ref())
+            .await
+            .expect("query ai_requests");
+    row.and_then(|(tokens,)| tokens)
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -386,7 +392,8 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("buffered dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -397,13 +404,13 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
     let rendered = body.to_string();
     assert!(rendered.contains("hello from upstream"), "body: {rendered}");
 
-    let tokens = poll_completion(&pool, &request_id).await;
+    let tokens = settled_tokens(&repos, &pool, &request_id).await;
     assert_eq!(
         tokens,
         Some(18),
         "input+output tokens recorded on completion"
     );
-    let pg = pool.pool_arc()?;
+    let pg = pool.pool();
     type DurableRequest = (
         String,
         String,
@@ -451,8 +458,8 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_audit_admission").await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_audit_admission").await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "audit-admission@example.invalid").await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -461,7 +468,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         .expect(1)
         .mount(&upstream)
         .await;
-    let raw = pool.pool_arc().expect("private database pool");
+    let raw = pool.pool();
     sqlx::query(
         "CREATE FUNCTION reject_gateway_audit() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'injected audit admission failure'; END $$",
@@ -531,7 +538,10 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         GatewayService::dispatch(&config, &registry, &pool, &repositories, retry).await?;
     assert_eq!(response.status(), http::StatusCode::OK);
     to_bytes(response.into_body(), 1024 * 1024).await?;
-    assert_eq!(poll_completion(&pool, &retry_id).await, Some(18));
+    assert_eq!(
+        settled_tokens(&repositories, &pool, &retry_id).await,
+        Some(18)
+    );
 
     drop(repositories);
     drop(raw);
@@ -568,7 +578,8 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
     let di = inputs(&cred, request, true);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("streaming dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
@@ -587,7 +598,7 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
         "tapped stream body: {text}"
     );
 
-    let tokens = poll_completion(&pool, &request_id).await;
+    let tokens = settled_tokens(&repos, &pool, &request_id).await;
     assert!(
         tokens.is_some(),
         "streaming completion must record a token count"
@@ -636,9 +647,9 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
     let DispatchError::Recorded(inner) = error else {
         panic!("governance denial must already be audited");
     };
-    let repair = inner
-        .downcast_ref::<systemprompt_api::services::gateway::service::PromptRepairRequired>()
-        .expect("secret denial must request prompt repair");
+    let systemprompt_gateway::service::GatewayError::PromptRepair(repair) = &inner else {
+        panic!("secret denial must request prompt repair, got {inner:?}");
+    };
     assert_eq!(repair.locations, ["forwarded.$.messages[0].content"]);
 
     let row: (String, String, String, Option<String>, serde_json::Value) = sqlx::query_as(
@@ -647,7 +658,7 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
          ORDER BY created_at DESC LIMIT 1",
     )
     .bind(cred.user_id.as_str())
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await?;
     assert_eq!(row.0, "deny");
     assert_eq!(row.1, session_id.as_str());
@@ -702,7 +713,7 @@ async fn warn_secret_scan_allows_upstream_and_persists_a_correlated_warning() ->
          WHERE user_id=$1 AND policy='secret_scan' ORDER BY created_at DESC LIMIT 1",
     )
     .bind(cred.user_id.as_str())
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await?;
     assert_eq!(row.0, "warn");
     assert_eq!(row.1, session_id.as_str());
@@ -757,9 +768,10 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
         .expect_err("unexposed model must be denied");
     match err {
         DispatchError::PreAudit(inner) => assert!(
-            inner
-                .downcast_ref::<systemprompt_api::services::gateway::service::PolicyDenied>()
-                .is_some(),
+            matches!(
+                inner,
+                systemprompt_gateway::service::GatewayError::PolicyDenied(_)
+            ),
             "expected PolicyDenied, got {inner}"
         ),
         other => panic!("expected PreAudit(PolicyDenied), got {other:?}"),
@@ -848,8 +860,7 @@ async fn upstream_4xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         .expect_err("upstream 400 must surface as a dispatch error");
     match err {
         DispatchError::Recorded(inner) => {
-            let upstream_err = inner
-                .downcast_ref::<systemprompt_api::services::gateway::protocol::outbound::UpstreamError>();
+            let upstream_err = inner.upstream();
             assert!(
                 upstream_err.is_some(),
                 "expected UpstreamError, got {inner}"
@@ -891,7 +902,7 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
 }
 
 async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
          TRUE, 100)",
@@ -906,42 +917,35 @@ async fn install_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> 
     Ok(())
 }
 
-async fn remove_safety_policy(pool: &DbPool, name: &str) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
-    sqlx::query("DELETE FROM ai_gateway_policies WHERE name = $1")
-        .bind(name)
-        .execute(pg.as_ref())
-        .await?;
-    Ok(())
-}
-
-async fn poll_findings(
+async fn settled_findings(
+    repos: &GatewayRepositories,
     pool: &DbPool,
     id: &AiRequestId,
-    want: usize,
 ) -> Vec<(String, String, String)> {
-    let pg = pool.pool_arc().expect("read pool");
-    for _ in 0..100 {
-        let rows: Vec<(String, String, String)> = sqlx::query_as(
-            "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
-             ORDER BY phase, category",
-        )
-        .bind(id.as_str())
-        .fetch_all(pg.as_ref())
-        .await
-        .expect("query findings");
-        if rows.len() >= want {
-            return rows;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    Vec::new()
+    assert_eq!(
+        repos
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    sqlx::query_as(
+        "SELECT phase, category, severity FROM ai_safety_findings WHERE ai_request_id = $1 \
+         ORDER BY phase, category",
+    )
+    .bind(id.as_str())
+    .fetch_all(pool.pool().as_ref())
+    .await
+    .expect("query findings")
 }
 
 #[tokio::test]
 async fn buffered_dispatch_persists_request_and_response_safety_findings() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_findings").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-safety@example.invalid").await?;
     let policy_name = format!("gw-safety-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -975,13 +979,14 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("scanned-but-unblocked dispatch succeeds");
     assert_eq!(resp.status(), http::StatusCode::OK);
 
-    let findings = poll_findings(&pool, &request_id, 2).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
     assert!(
         findings
             .iter()
@@ -1014,7 +1019,9 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
 async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -> anyhow::Result<()>
 {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_noflag").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-noflag@example.invalid").await?;
     let policy_name = format!("gw-noflag-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -1054,13 +1061,14 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
     // Why: a jailbreak finding is in this policy's block_categories, so if the
     // prose matched, dispatch would be refused rather than merely flagged --
     // the failure would arrive here, not at the assertions.
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("a request carrying only identifiers and prose is not blocked");
     assert_eq!(resp.status(), http::StatusCode::OK);
 
-    let findings = poll_findings(&pool, &request_id, 1).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
 
     assert!(
         findings
@@ -1087,7 +1095,9 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
 async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -> anyhow::Result<()>
 {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_safety_block").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-safety-block@example.invalid").await?;
     let policy_name = format!("gw-block-{}", uuid::Uuid::new_v4().simple());
     install_safety_policy(&pool, &policy_name).await?;
@@ -1106,17 +1116,18 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     let di = inputs(&cred, request, false);
     let request_id = di.ctx.ai_request_id.clone();
 
-    let err = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let err = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect_err("blocked category must reject the dispatch");
-    let findings = poll_findings(&pool, &request_id, 1).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
 
     match err {
         DispatchError::Recorded(inner) => {
-            let blocked = inner
-                .downcast_ref::<systemprompt_api::services::gateway::service::SafetyBlocked>()
-                .expect("SafetyBlocked error");
+            let systemprompt_gateway::service::GatewayError::Safety(blocked) = &inner else {
+                panic!("expected SafetyBlocked, got {inner:?}");
+            };
             assert_eq!(blocked.category, "jailbreak");
         },
         other => panic!("expected Recorded(SafetyBlocked), got {other:?}"),
@@ -1130,12 +1141,16 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
     Ok(())
 }
 
+// Why: the gateway merges every global `ai_gateway_policies` row by
+// `(priority, name)`, so a policy installed on the shared shard database is
+// applied to every concurrent dispatch; every test that installs a policy owns
+// a disposable database.
 async fn install_response_block_policy(
     pool: &DbPool,
     name: &str,
     block_response: &[&str],
 ) -> anyhow::Result<()> {
-    let pg = pool.pool_arc().map_err(anyhow::Error::msg)?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_gateway_policies (id, name, spec, enabled, priority) VALUES ($1, $2, $3, \
          TRUE, 100)",
@@ -1168,7 +1183,11 @@ fn jailbreak_response_json() -> serde_json::Value {
 async fn dispatch_against_jailbreak_upstream(
     pool: &DbPool,
     cred: &AuthedFixture,
-) -> anyhow::Result<(AiRequestId, http::Response<axum::body::Body>)> {
+) -> anyhow::Result<(
+    AiRequestId,
+    http::Response<axum::body::Body>,
+    GatewayRepositories,
+)> {
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/messages"))
@@ -1185,39 +1204,28 @@ async fn dispatch_against_jailbreak_upstream(
     );
     let di = inputs(cred, canonical_request(MODEL, false), false);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(
-        &config,
-        &registry,
-        pool,
-        &systemprompt_api::services::gateway::GatewayRepositories::new(
-            pool,
-            gateway_journal(),
-            std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-                systemprompt_agent::repository::ContextRepository::new(pool)
-                    .expect("context repository"),
-            )),
-        )
-        .expect("repos"),
-        di,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
-    Ok((request_id, resp))
+    let repos = gw_repos(pool);
+    let resp = GatewayService::dispatch(&config, &registry, pool, &repos, di)
+        .await
+        .map_err(|e| anyhow::anyhow!("dispatch failed: {e:?}"))?;
+    Ok((request_id, resp, repos))
 }
 
 #[tokio::test]
 async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_block").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-block@example.invalid").await?;
     let policy_name = format!("gw-resp-block-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
 
-    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let (request_id, resp, repos) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    let findings = poll_findings(&pool, &request_id, 1).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
 
     assert_eq!(status, http::StatusCode::FORBIDDEN);
     let body = String::from_utf8_lossy(&bytes).into_owned();
@@ -1238,16 +1246,18 @@ async fn buffered_response_in_a_blocked_category_is_not_served() -> anyhow::Resu
 #[tokio::test]
 async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_audit").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-audit@example.invalid").await?;
     let policy_name = format!("gw-resp-audit-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &[]).await?;
 
-    let (request_id, resp) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
+    let (request_id, resp, repos) = dispatch_against_jailbreak_upstream(&pool, &cred).await?;
     let status = resp.status();
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
-    let findings = poll_findings(&pool, &request_id, 1).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
 
     assert_eq!(status, http::StatusCode::OK);
     let body = String::from_utf8_lossy(&bytes).into_owned();
@@ -1264,7 +1274,10 @@ async fn the_same_response_is_served_intact_when_no_category_blocks() -> anyhow:
 #[tokio::test]
 async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     install_provider_api_key();
-    let (pool, _ctx) = setup_ctx().await?;
+    let _ = setup_ctx().await?;
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("gw_response_stream").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "gw-resp-stream@example.invalid").await?;
     let policy_name = format!("gw-resp-stream-{}", uuid::Uuid::new_v4().simple());
     install_response_block_policy(&pool, &policy_name, &["jailbreak"]).await?;
@@ -1287,15 +1300,16 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
     );
     let di = inputs(&cred, canonical_request(MODEL, true), true);
     let request_id = di.ctx.ai_request_id.clone();
-    let resp = GatewayService::dispatch(&config, &registry, &pool, &gw_repos(&pool), di)
+    let repos = gw_repos(&pool);
+    let resp = GatewayService::dispatch(&config, &registry, &pool, &repos, di)
         .await
         .expect("streaming dispatch succeeds");
 
     assert_eq!(resp.status(), http::StatusCode::OK);
     let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
-    let findings = poll_findings(&pool, &request_id, 1).await;
-    remove_safety_policy(&pool, &policy_name).await?;
+    let findings = settled_findings(&repos, &pool, &request_id).await;
+    database.drop_now().await;
 
     assert!(
         body.contains("developer mode enabled"),
@@ -1317,10 +1331,10 @@ fn jailbreak_sse_body() -> String {
 async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     install_provider_api_key();
     let _ = setup_ctx().await?;
-    let database = systemprompt_test_fixtures::DisposableDb::installed("coverage_gw_quota").await?;
-    let pool = database.pool().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema("coverage_gw_quota").await;
+    let pool = database.test_pool().await;
     let cred = seed_admin_credential(&pool, "quota@example.invalid").await?;
-    let raw = pool.pool_arc().unwrap();
+    let raw = pool.pool();
     sqlx::query("INSERT INTO ai_gateway_policies (id,name,spec,enabled,priority) VALUES ($1,$2,$3,true,100)")
         .bind("coverage-quota").bind("coverage-quota")
         .bind(serde_json::json!({"quota_mode":mode,"quota_windows":[{"window_seconds":60,"max_requests":1}]}))
@@ -1349,6 +1363,13 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
     .await?;
     assert_eq!(first.status(), http::StatusCode::OK);
     to_bytes(first.into_body(), 1024 * 1024).await?;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     let second = inputs(&cred, canonical_request(MODEL, false), false);
     let request_id = second.ctx.ai_request_id.clone();
     let result = GatewayService::dispatch(&config, &registry, &pool, &repositories, second).await;
@@ -1363,13 +1384,30 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         let DispatchError::Recorded(error) = result.unwrap_err() else {
             panic!("quota denial must already be audited");
         };
-        let quota = error
-            .downcast_ref::<systemprompt_api::services::gateway::service::QuotaExceeded>()
-            .unwrap();
-        assert_eq!(quota.retry_after_seconds, 60);
+        let systemprompt_gateway::service::GatewayError::Quota(quota) = &error else {
+            panic!("expected QuotaExceeded, got {error:?}");
+        };
+        assert!(
+            (1..=60).contains(&quota.retry_after_seconds),
+            "retry-after is the time to the window reset: {}",
+            quota.retry_after_seconds
+        );
         assert!(quota.message.contains("used 2/1"), "{}", quota.message);
+        let detail = quota
+            .detail
+            .as_ref()
+            .expect("a window denial carries its detail");
+        assert_eq!(detail.used, Some(2));
+        assert_eq!(detail.limit, Some(1));
     }
     upstream.verify().await;
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     drop(repositories);
     raw.close().await;
     database.drop_now().await;
@@ -1454,7 +1492,7 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
     let error: Option<String> =
         sqlx::query_scalar("SELECT error_message FROM ai_requests WHERE id=$1")
             .bind(id.as_str())
-            .fetch_one(pool.pool_arc().unwrap().as_ref())
+            .fetch_one(pool.pool().as_ref())
             .await?;
     assert!(error.unwrap().contains("fixture"));
     Ok(())
@@ -1481,21 +1519,20 @@ async fn coverage_gateway_credit_guard_denial_keeps_its_retry_after() -> anyhow:
 fn owned_gateway_repos(
     pool: &DbPool,
     state_dir: &tempfile::TempDir,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+) -> systemprompt_gateway::GatewayRepositories {
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
         systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
     )
     .expect("owned gateway journal");
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+    systemprompt_gateway::GatewayRepositories::new(
         pool,
         journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(pool)
-                .expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(pool),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("owned gateway repositories")
 }
 
 struct AbortOnDrop<T>(Option<tokio::task::JoinHandle<T>>);
@@ -1512,14 +1549,14 @@ async fn admitted_receipt_fixture(
     label: &str,
 ) -> anyhow::Result<(
     systemprompt_test_fixtures::DisposableDb,
-    systemprompt_api::services::gateway::GatewayRepositories,
+    systemprompt_gateway::GatewayRepositories,
     tempfile::TempDir,
     std::path::PathBuf,
 )> {
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label).await?;
-    let pool = database.pool().await?;
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, &format!("{label}@journal.invalid")).await?;
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
@@ -1586,9 +1623,7 @@ async fn recovery_quarantines_a_tampered_receipt_without_touching_foreign_files(
     *last ^= 0x80;
     std::fs::write(&receipt, bytes)?;
 
-    let settled =
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
     assert!(receipt.with_extension("receipt.bad").exists());
@@ -1606,9 +1641,7 @@ async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_f
     let temp = state_dir.path().join("gateway-journal/interrupted.tmp");
     std::fs::write(&temp, b"partial")?;
 
-    let settled =
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?;
     assert_eq!(settled, 0);
     assert!(!receipt.exists());
     assert!(receipt.with_extension("receipt.bad").exists());
@@ -1616,7 +1649,6 @@ async fn recovery_quarantines_a_truncated_receipt_and_removes_interrupted_temp_f
     database.drop_now().await;
     Ok(())
 }
-// Append after owned_gateway_repos in gateway_pipeline.rs.
 #[tokio::test(flavor = "current_thread")]
 async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exactly_once()
 -> anyhow::Result<()> {
@@ -1630,11 +1662,11 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     install_provider_api_key();
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let database =
-        systemprompt_test_fixtures::DisposableDb::installed("gateway_journal_settlement_retry")
-            .await?;
-    let pool = database.pool().await?;
+        systemprompt_test_fixtures::DisposableDb::with_schema("gateway_journal_settlement_retry")
+            .await;
+    let pool = database.test_pool().await;
     let credential = seed_admin_credential(&pool, "journal-retry@example.invalid").await?;
-    let write = pool.write_pool_arc()?;
+    let write = pool.write_pool();
     // The fault is scoped to the status transition settlement performs:
     // admission also updates ai_requests, through the message_count trigger on
     // ai_request_messages, and an unscoped BEFORE UPDATE would fault there.
@@ -1670,6 +1702,13 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         .await
         .expect("provider response remains available when accounting is retained for recovery");
     assert_eq!(response.status(), http::StatusCode::OK);
+    assert_eq!(
+        repositories
+            .background
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
     assert_eq!(
         upstream
             .received_requests()
@@ -1719,8 +1758,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         "failed settlement must not claim successful completion"
     );
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         0,
         "recovery retains a terminal receipt while settlement is still faulted"
     );
@@ -1743,8 +1781,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
     .execute(write.as_ref())
     .await?;
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         1
     );
     assert!(!receipts[0].exists());
@@ -1774,8 +1811,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         "terminal payload settles into the admission row"
     );
     assert_eq!(
-        systemprompt_api::services::gateway::audit::journal::recover(&repositories.settlement())
-            .await?,
+        systemprompt_gateway::audit::journal::recover(&repositories.settlement()).await?,
         0
     );
     assert_eq!(
@@ -1816,15 +1852,15 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         .await
         .expect_err("a registry-exposed model still requires a matching gateway route");
     match error {
-        DispatchError::PreAudit(inner) => assert_eq!(
-            inner.to_string(),
-            format!("No gateway route matches model '{MODEL}'")
+        DispatchError::PreAudit(inner) => assert!(
+            matches!(&inner, systemprompt_gateway::service::GatewayError::NoRoute { model } if model == MODEL),
+            "expected NoRoute, got {inner:?}"
         ),
         other => panic!("expected pre-audit route failure, got {other:?}"),
     }
     let persisted: i64 = sqlx::query_scalar("SELECT count(*) FROM ai_requests WHERE id = $1")
         .bind(request_id.as_str())
-        .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await?;
     assert_eq!(persisted, 0, "route resolution precedes audit creation");
     assert!(

@@ -20,7 +20,7 @@ use std::io::Read;
 use std::path::{Component, Path, PathBuf};
 
 use flate2::read::GzDecoder;
-use systemprompt_models::services::bundle::BUNDLE_MANIFEST_FILE;
+use systemprompt_manifest::services::bundle::BUNDLE_MANIFEST_FILE;
 use tar::Archive;
 
 use super::error::{BundleError, BundleResult};
@@ -103,7 +103,7 @@ fn extract_reader<R: Read>(
         }
         entry
             .unpack(&dest_path)
-            .map_err(|e| BundleError::extract(&dest_path, e))?;
+            .map_err(|e| BundleError::extract_cause(&dest_path, e))?;
         written.push(relative);
     }
 

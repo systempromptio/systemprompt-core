@@ -17,7 +17,7 @@ use systemprompt_cloud::{
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 

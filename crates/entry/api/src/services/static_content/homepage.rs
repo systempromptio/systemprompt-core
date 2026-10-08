@@ -8,7 +8,10 @@ use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 
+use systemprompt_models::api::ApiError;
+
 use super::static_files::{CACHE_HTML, StaticContentState, compute_etag};
+use crate::error::ApiHttpError;
 
 pub async fn serve_homepage(
     State(state): State<StaticContentState>,
@@ -49,8 +52,7 @@ pub async fn serve_homepage(
                     .into_response();
             },
             Err(e) => {
-                tracing::error!(error = %e, "Failed to read homepage");
-                return (StatusCode::INTERNAL_SERVER_ERROR, "Error reading homepage")
+                return ApiHttpError::from(ApiError::internal("Error reading homepage", e))
                     .into_response();
             },
         }

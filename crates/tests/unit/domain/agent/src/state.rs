@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use systemprompt_agent::AgentState;
-use systemprompt_test_fixtures::{fixture_config, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{fixture_config, test_database_url, test_db_pool};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
@@ -24,8 +24,8 @@ fn stub_jwt() -> systemprompt_traits::DynJwtValidationProvider {
 }
 
 async fn make_state() -> AgentState {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
     let config = Arc::new(fixture_config(&url));
     let repos = systemprompt_test_fixtures::a2a_repositories(&pool);
     AgentState::new(

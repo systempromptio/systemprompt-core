@@ -8,7 +8,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{ManagedMcpServerName, Sha256Digest, SkillId, SkillName};
+use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::codex_cli::CodexCliSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -54,6 +54,7 @@ fn manifest_with(
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -72,13 +73,14 @@ fn skill(id: &str, body: &str) -> SkillEntry {
         instructions: body.into(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
 fn mcp(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(url).unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -96,7 +98,6 @@ fn ctx<'a>(
 ) -> HostSyncCtx<'a> {
     HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest,
         org_plugins_root: root,
         plugin_mcp_servers,
@@ -109,8 +110,6 @@ fn ctx<'a>(
 }
 
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -634,5 +633,22 @@ fn clearing_a_codex_home_that_was_never_written_is_a_no_op() {
             !marketplace_root(home).exists(),
             "nothing is created by a clear"
         );
+    });
+}
+
+#[test]
+fn authored_frontmatter_keys_follow_name_and_description() {
+    with_codex_home(|home| {
+        let mut entry = skill("tooled", "Body.");
+        entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
+        apply(&manifest_with(vec![entry], vec![], vec![]), home);
+        let written = fs::read_to_string(
+            plugin_src(home)
+                .join("skills")
+                .join("tooled")
+                .join("SKILL.md"),
+        )
+        .expect("SKILL.md");
+        crate::skill_passthrough::assert_passthrough_block(&written, "tooled");
     });
 }

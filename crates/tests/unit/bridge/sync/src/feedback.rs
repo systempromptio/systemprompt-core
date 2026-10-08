@@ -13,6 +13,10 @@ use systemprompt_models::feedback::receipts::{
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
 
+const SKILL_MD: &[u8] = b"---\nname: \"test\"\ndescription: \"d\"\nallowed-tools:\n- Read\n\
+hooks:\n  PreToolUse:\n  - matcher: Bash\n    hooks:\n    - type: command\n      command: ./gate.sh\n\
+      timeout: 30\n---\n\n# Test\n";
+
 fn plan(host: EvaluatorClient) -> ConsumerInstallationPlan {
     let content = b"echo safe".to_vec();
     ConsumerInstallationPlan {
@@ -44,7 +48,7 @@ fn plan(host: EvaluatorClient) -> ConsumerInstallationPlan {
             },
             InstallationPlanFile {
                 path: "SKILL.md".to_owned(),
-                bytes: b"---\nname: test\n---\n# Test\n".to_vec(),
+                bytes: SKILL_MD.to_vec(),
                 executable: false,
             },
         ],
@@ -54,7 +58,7 @@ fn plan(host: EvaluatorClient) -> ConsumerInstallationPlan {
 fn scope(device: &str) -> OutboxScope {
     OutboxScope {
         gateway: GatewayOrigin::parse("https://example.invalid").unwrap(),
-        consumer_id: UserId::new("consumer"),
+        consumer_id: UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         device_id: DeviceId::try_new(device).expect("nonempty fixture device"),
     }
 }

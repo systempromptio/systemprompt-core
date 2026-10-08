@@ -6,7 +6,7 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_manifest::services::ServicesConfig;
 
 pub(super) struct IncludeResolveCtx<'a> {
     pub visited: &'a mut HashSet<PathBuf>,

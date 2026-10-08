@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use systemprompt_identifiers::McpToolName;
 
 use anyhow::Result;
 use systemprompt_agent::models::a2a::{Artifact, Part, TextPart};
@@ -7,7 +8,7 @@ use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
-use systemprompt_identifiers::{Actor, AgentName, ArtifactId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ArtifactId, SessionId, TraceId, UserId};
 use systemprompt_models::a2a::{ArtifactMetadata, TaskState};
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
@@ -17,7 +18,7 @@ use crate::common::Fixture;
 
 fn publishing_service(fx: &Fixture) -> Result<ArtifactPublishingService> {
     let repositories = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let steps = Arc::new(ExecutionStepRepository::new(&fx.db)?);
+    let steps = Arc::new(ExecutionStepRepository::new(&fx.db));
     let skills = Arc::new(SkillService::new(
         systemprompt_test_fixtures::not_managed_skills(),
         steps,
@@ -70,6 +71,7 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
         TraceId::new("art-pub-trace"),
         fx.context_id.clone(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 
@@ -78,7 +80,7 @@ async fn artifact_publishing_publish_from_mcp_agentic_skips_messages() -> Result
         artifact: &artifact,
         task_id: &task_id,
         context_id: &fx.context_id,
-        tool_name: "my_tool",
+        tool_name: &McpToolName::new("my_tool"),
         tool_args: &args,
         request_context: &ctx,
         call_source: CallSource::Agentic,
@@ -102,6 +104,7 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
         TraceId::new("art-pub-direct-trace"),
         fx.context_id.clone(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(fx.user_id.clone());
 
@@ -110,7 +113,7 @@ async fn artifact_publishing_publish_from_mcp_direct_creates_messages() -> Resul
         artifact: &artifact,
         task_id: &task_id,
         context_id: &fx.context_id,
-        tool_name: "direct_tool",
+        tool_name: &McpToolName::new("direct_tool"),
         tool_args: &args,
         request_context: &ctx,
         call_source: CallSource::Direct,

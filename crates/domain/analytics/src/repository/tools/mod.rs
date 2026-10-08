@@ -11,7 +11,6 @@
 mod detail_queries;
 pub(super) mod list_queries;
 
-use crate::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -22,8 +21,8 @@ pub struct ToolAnalyticsRepository {
 }
 
 impl ToolAnalyticsRepository {
-    pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.pool_arc()?;
-        Ok(Self { pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        Self { pool }
     }
 }

@@ -9,9 +9,29 @@ use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ScheduledJobId;
+use systemprompt_identifiers::{InstanceId, JobName, ScheduledJobId};
 
 const RETIRED_JOB_GRACE_DAYS: i32 = 7;
+
+macro_rules! scheduled_job {
+    ($row:expr) => {{
+        let row = $row;
+        ScheduledJob {
+            id: ScheduledJobId::new(row.id),
+            job_name: JobName::new(row.job_name),
+            schedule: row.schedule,
+            enabled: row.enabled,
+            last_run: row.last_run,
+            next_run: row.next_run,
+            last_status: row.last_status,
+            last_error: row.last_error,
+            last_instance_id: row.last_instance_id.map(InstanceId::new),
+            run_count: row.run_count,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }};
+}
 
 #[derive(Debug, Clone)]
 pub struct JobRepository {
@@ -20,15 +40,15 @@ pub struct JobRepository {
 }
 
 impl JobRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        let pool = db.pool_arc()?;
-        let write_pool = db.write_pool_arc()?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn upsert_job(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         schedule: &str,
         enabled: bool,
     ) -> SchedulerResult<()> {
@@ -45,7 +65,7 @@ impl JobRepository {
                 updated_at = EXCLUDED.updated_at
             "#,
             id.as_str(),
-            job_name,
+            job_name.as_str(),
             schedule,
             enabled,
             now,
@@ -57,14 +77,15 @@ impl JobRepository {
         Ok(())
     }
 
-    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+    pub async fn delete_jobs_not_in(&self, known: &[JobName]) -> SchedulerResult<u64> {
         if known.is_empty() {
             return Ok(0);
         }
+        let known: Vec<String> = known.iter().map(String::from).collect();
         let result = sqlx::query!(
             "DELETE FROM scheduled_jobs WHERE NOT (job_name = ANY($1)) AND updated_at < NOW() - \
              make_interval(days => $2)",
-            known,
+            known.as_slice(),
             RETIRED_JOB_GRACE_DAYS
         )
         .execute(&*self.write_pool)
@@ -72,25 +93,23 @@ impl JobRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
-        sqlx::query_as!(
-            ScheduledJob,
+    pub async fn find_job(&self, job_name: &JobName) -> SchedulerResult<Option<ScheduledJob>> {
+        let row = sqlx::query!(
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
                    last_instance_id, run_count, created_at, updated_at
             FROM scheduled_jobs
             WHERE job_name = $1
             "#,
-            job_name
+            job_name.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(Into::into)
+        .await?;
+        Ok(row.map(|row| scheduled_job!(row)))
     }
 
     pub async fn list_enabled_jobs(&self) -> SchedulerResult<Vec<ScheduledJob>> {
-        sqlx::query_as!(
-            ScheduledJob,
+        let rows = sqlx::query!(
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
                    last_instance_id, run_count, created_at, updated_at
@@ -100,13 +119,13 @@ impl JobRepository {
             "#
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
+        .await?;
+        Ok(rows.into_iter().map(|row| scheduled_job!(row)).collect())
     }
 
     pub async fn update_job_execution(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
         let JobRunRecord {
@@ -138,7 +157,7 @@ impl JobRepository {
             next_run,
             instance_id.as_str(),
             now,
-            job_name,
+            job_name.as_str(),
             message
         )
         .execute(&*self.write_pool)
@@ -148,8 +167,7 @@ impl JobRepository {
     }
 
     pub async fn list_recent_runs(&self, limit: i64) -> SchedulerResult<Vec<ScheduledJob>> {
-        sqlx::query_as!(
-            ScheduledJob,
+        let rows = sqlx::query!(
             r#"
             SELECT id, job_name, schedule, enabled, last_run, next_run, last_status, last_error,
                    last_instance_id, run_count, created_at, updated_at
@@ -161,15 +179,15 @@ impl JobRepository {
             limit
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(Into::into)
+        .await?;
+        Ok(rows.into_iter().map(|row| scheduled_job!(row)).collect())
     }
 
-    pub async fn set_enabled(&self, job_name: &str, enabled: bool) -> SchedulerResult<()> {
+    pub async fn set_enabled(&self, job_name: &JobName, enabled: bool) -> SchedulerResult<()> {
         sqlx::query!(
             "UPDATE scheduled_jobs SET enabled = $1, updated_at = NOW() WHERE job_name = $2",
             enabled,
-            job_name,
+            job_name.as_str(),
         )
         .execute(&*self.write_pool)
         .await?;

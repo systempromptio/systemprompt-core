@@ -28,7 +28,7 @@ impl ContentProvider for DefaultContentProvider {
         &self,
         id: &systemprompt_identifiers::ContentId,
     ) -> Result<Option<ContentItem>, Self::Error> {
-        let content = self.repo.get_by_id(id).await?;
+        let content = self.repo.find_by_id(id).await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
@@ -47,7 +47,7 @@ impl ContentProvider for DefaultContentProvider {
     }
 
     async fn find_content_by_slug(&self, slug: &str) -> Result<Option<ContentItem>, Self::Error> {
-        let content = self.repo.get_by_slug(slug, &LocaleCode::english()).await?;
+        let content = self.repo.find_by_slug(slug, &LocaleCode::english()).await?;
 
         Ok(content.map(|c| ContentItem {
             id: c.id,
@@ -72,7 +72,7 @@ impl ContentProvider for DefaultContentProvider {
     ) -> Result<Option<ContentItem>, Self::Error> {
         let content = self
             .repo
-            .get_by_source_and_slug(source_id, slug, &LocaleCode::english())
+            .find_by_source_and_slug(source_id, slug, &LocaleCode::english())
             .await?;
 
         Ok(content.map(|c| ContentItem {

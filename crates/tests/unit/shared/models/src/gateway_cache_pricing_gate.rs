@@ -17,10 +17,12 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayProfileError, GatewayRoute, ModelPricing, ProviderEntry,
-    ProviderModel, ProviderRegistry, WireProtocol,
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayProfileError, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
+    ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
 
 fn priced(cache_read: Option<f64>) -> ModelPricing {
     ModelPricing {
@@ -63,7 +65,7 @@ fn config() -> GatewayConfig {
     GatewayConfig {
         enabled: true,
         routes: vec![GatewayRoute {
-            id: RouteId::new("gemini-pro"),
+            id: Some(RouteId::new("gemini-pro")),
             name: None,
             description: None,
             model_pattern: "gemini-2.5-*".to_owned(),
@@ -73,8 +75,8 @@ fn config() -> GatewayConfig {
             pricing: None,
             when: None,
             requires: None,
-            fallback_provider: None,
-            fallback_upstream_model: None,
+            fallbacks: Vec::new(),
+            by_scope: None,
         }],
         ..GatewayConfig::default()
     }

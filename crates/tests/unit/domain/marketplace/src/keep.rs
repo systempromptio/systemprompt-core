@@ -15,14 +15,13 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId, UserId};
 use systemprompt_marketplace::{
     KeepSetsSubject, MarketplaceCandidate, MarketplaceMembership, keep_sets,
 };
-use systemprompt_models::bridge::ids::{PluginId, SkillId};
 use systemprompt_models::bridge::manifest::{PluginEntry, SkillEntry};
 use systemprompt_security::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct Fixture {
@@ -36,11 +35,9 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let b = ensure_test_bootstrap();
-    let db = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the keep_sets tests need a reachable test database");
-    let pg = db.pool_arc().expect("read pool");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
+    let pg = db.pool();
     let tag = Uuid::new_v4().simple().to_string();
     let fixture = Fixture {
         db,
@@ -108,7 +105,8 @@ async fn grant_role(f: &Fixture, kind: &str, id: &str, role: &str) {
 const ZERO_DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 fn skill(id: &str) -> SkillEntry {
-    use systemprompt_models::bridge::ids::{Sha256Digest, SkillName};
+    use systemprompt_identifiers::SkillName;
+    use systemprompt_models::bridge::ids::Sha256Digest;
     SkillEntry {
         publication: None,
         id: SkillId::try_new(id).expect("valid skill id"),
@@ -120,6 +118,7 @@ fn skill(id: &str) -> SkillEntry {
         instructions: String::new(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -153,7 +152,7 @@ fn candidate_in(f: &Fixture, record_owner: bool, markets: &[&str]) -> Marketplac
     for id in &ids {
         membership.access.insert(
             id.clone(),
-            systemprompt_models::services::MarketplaceAccess::default(),
+            systemprompt_manifest::services::MarketplaceAccess::default(),
         );
     }
     membership.plugins.insert(
@@ -170,7 +169,7 @@ fn candidate_in(f: &Fixture, record_owner: bool, markets: &[&str]) -> Marketplac
 }
 
 async fn visible(f: &Fixture, candidate: &MarketplaceCandidate, roles: &[&str]) -> Vec<String> {
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let roles: Vec<String> = roles.iter().map(|r| (*r).to_owned()).collect();
     let user = UserId::new("keep-sets-test-user");
     let sets = keep_sets(
@@ -269,7 +268,7 @@ async fn the_plugin_itself_is_kept_when_its_rule_names_the_role() {
     let f = setup().await;
     grant_role(&f, "plugin", &f.plugin, "engineer").await;
 
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let user = UserId::new("keep-sets-test-user");
     let roles = vec!["engineer".to_owned()];
     let sets = keep_sets(
@@ -302,7 +301,7 @@ async fn a_plugin_granted_by_a_second_marketplace_is_kept() {
     grant_role(&f, "marketplace", &f.market2, "contractor").await;
 
     let candidate = candidate_in(&f, true, &[&f.market, &f.market2]);
-    let repo = AccessControlRepository::new(&f.db).expect("repo");
+    let repo = AccessControlRepository::new(&f.db);
     let user = UserId::new("keep-sets-test-user");
     let roles = vec!["contractor".to_owned()];
     let sets = keep_sets(

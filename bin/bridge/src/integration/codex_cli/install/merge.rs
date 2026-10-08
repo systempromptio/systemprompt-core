@@ -13,6 +13,7 @@ use std::path::Path;
 use toml_edit::{DocumentMut, Item};
 
 use crate::host_sync::ForeignShape;
+use crate::integration::host_app::HostAppError;
 
 const OWNED_SCALAR_KEYS: &[&str] = &["model_provider", "approval_policy", "sandbox_mode"];
 const OWNED_TABLES: &[&str] = &["otel", "analytics", "sandbox_workspace_write"];
@@ -38,7 +39,7 @@ fn write_document(target: &Path, doc: &DocumentMut) -> std::io::Result<()> {
     crate::fsutil::atomic_write_0644(target, doc.to_string().as_bytes())
 }
 
-pub(super) fn install(source: &Path, target: &Path) -> std::io::Result<()> {
+pub(super) fn install(source: &Path, target: &Path) -> Result<(), HostAppError> {
     let source_text = std::fs::read_to_string(source)?;
     let source_value: toml::Value = toml::from_str(&source_text).map_err(invalid)?;
 
@@ -54,7 +55,7 @@ pub(super) fn install(source: &Path, target: &Path) -> std::io::Result<()> {
         .into());
     };
     deep_merge(doc.as_table_mut(), source_table, target)?;
-    write_document(target, &doc)
+    Ok(write_document(target, &doc)?)
 }
 
 pub(super) fn uninstall(target: &Path) -> std::io::Result<bool> {

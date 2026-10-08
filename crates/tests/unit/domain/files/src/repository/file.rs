@@ -5,11 +5,11 @@
 
 use systemprompt_files::{FileMetadata, InsertFileRequest};
 use systemprompt_identifiers::{FileId, SessionId, TraceId};
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 #[test]
 fn test_insert_file_request_new() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request = InsertFileRequest::new(
         file_id.clone(),
         "/storage/test.png",
@@ -25,7 +25,7 @@ fn test_insert_file_request_new() {
 
 #[test]
 fn test_insert_file_request_default_values() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request = InsertFileRequest::new(file_id, "/path", "/url", "application/octet-stream");
 
     assert!(request.size_bytes.is_none());
@@ -40,7 +40,7 @@ fn test_insert_file_request_default_values() {
 
 #[test]
 fn test_insert_file_request_with_size() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request = InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_size(4096);
 
     assert_eq!(request.size_bytes, Some(4096));
@@ -48,7 +48,7 @@ fn test_insert_file_request_with_size() {
 
 #[test]
 fn test_insert_file_request_with_size_zero() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request = InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_size(0);
 
     assert_eq!(request.size_bytes, Some(0));
@@ -56,7 +56,7 @@ fn test_insert_file_request_with_size_zero() {
 
 #[test]
 fn test_insert_file_request_with_size_large() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let large_size: i64 = 10 * 1024 * 1024 * 1024; // 10 GB
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "video/mp4").with_size(large_size);
@@ -66,7 +66,7 @@ fn test_insert_file_request_with_size_large() {
 
 #[test]
 fn test_insert_file_request_with_ai_content_true() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_ai_content(true);
 
@@ -75,7 +75,7 @@ fn test_insert_file_request_with_ai_content_true() {
 
 #[test]
 fn test_insert_file_request_with_ai_content_false() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_ai_content(false);
 
@@ -84,7 +84,7 @@ fn test_insert_file_request_with_ai_content_false() {
 
 #[test]
 fn test_insert_file_request_with_metadata() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let metadata: FileMetadata = serde_json::from_value(serde_json::json!({
         "width": 1920,
         "height": 1080
@@ -100,18 +100,18 @@ fn test_insert_file_request_with_metadata() {
 
 #[test]
 fn test_insert_file_request_with_user_id() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let user_id = fixture_user_id();
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_user_id(user_id);
 
     request.user_id.as_ref().expect("user_id should be present");
-    assert_eq!(request.user_id.as_ref().unwrap().as_str(), "test-user");
+    assert_eq!(request.user_id.as_ref().unwrap().as_str(), FIXTURE_USER_ID);
 }
 
 #[test]
 fn test_insert_file_request_with_session_id() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let session_id = SessionId::new("sess_xyz789");
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_session_id(session_id);
@@ -125,7 +125,7 @@ fn test_insert_file_request_with_session_id() {
 
 #[test]
 fn test_insert_file_request_with_trace_id() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let trace_id = TraceId::new("trace_def456");
     let request =
         InsertFileRequest::new(file_id, "/path", "/url", "image/png").with_trace_id(trace_id);
@@ -139,7 +139,7 @@ fn test_insert_file_request_with_trace_id() {
 
 #[test]
 fn test_insert_file_request_builder_chain() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let user_id = fixture_user_id();
     let session_id = SessionId::new("sess_456");
     let trace_id = TraceId::new("trace_789");
@@ -179,7 +179,7 @@ fn test_insert_file_request_builder_chain() {
 
 #[test]
 fn test_insert_file_request_partial_builder() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
 
     let request = InsertFileRequest::new(file_id, "/path", "/url", "application/pdf")
         .with_size(1024)
@@ -195,7 +195,7 @@ fn test_insert_file_request_partial_builder() {
 
 #[test]
 fn test_insert_file_request_debug() {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     let request = InsertFileRequest::new(file_id, "/path", "/url", "image/gif");
 
     let debug_str = format!("{:?}", request);
@@ -218,7 +218,7 @@ fn test_insert_file_request_image_mime_types() {
     ];
 
     for mime_type in mime_types {
-        let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+        let file_id = FileId::generate();
         let request = InsertFileRequest::new(file_id, "/path", "/url", mime_type);
         assert_eq!(request.mime_type, mime_type);
     }
@@ -234,7 +234,7 @@ fn test_insert_file_request_document_mime_types() {
     ];
 
     for mime_type in mime_types {
-        let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+        let file_id = FileId::generate();
         let request = InsertFileRequest::new(file_id, "/path", "/url", mime_type);
         assert_eq!(request.mime_type, mime_type);
     }
@@ -245,7 +245,7 @@ fn test_insert_file_request_video_mime_types() {
     let mime_types = ["video/mp4", "video/webm", "video/ogg"];
 
     for mime_type in mime_types {
-        let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+        let file_id = FileId::generate();
         let request = InsertFileRequest::new(file_id, "/path", "/url", mime_type);
         assert_eq!(request.mime_type, mime_type);
     }
@@ -256,7 +256,7 @@ fn test_insert_file_request_audio_mime_types() {
     let mime_types = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/webm"];
 
     for mime_type in mime_types {
-        let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+        let file_id = FileId::generate();
         let request = InsertFileRequest::new(file_id, "/path", "/url", mime_type);
         assert_eq!(request.mime_type, mime_type);
     }

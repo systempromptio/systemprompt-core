@@ -8,6 +8,7 @@ use systemprompt_agent::models::a2a::Part;
 use systemprompt_agent::services::mcp::artifact_transformer::{
     McpToA2aTransformer, TransformParams,
 };
+use systemprompt_identifiers::{ContextId, McpToolName, TaskId};
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 fn wire_result(artifact: serde_json::Value, exec_meta: serde_json::Value) -> CallToolResult {
@@ -36,11 +37,12 @@ fn valid_result() -> CallToolResult {
 fn transform_builds_artifact() {
     let result = valid_result();
     let artifact = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "writer-tool",
+        tool_name: &McpToolName::new("writer-tool"),
         tool_result: &result,
         output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-xform",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-xform"),
         tool_arguments: Some(&json!({"q": 1})),
     })
     .expect("transform");
@@ -49,7 +51,11 @@ fn transform_builds_artifact() {
     assert_eq!(artifact.title.as_deref(), Some("writer-tool"));
     assert_eq!(artifact.metadata.artifact_type, "text");
     assert_eq!(
-        artifact.metadata.mcp_execution_id.as_deref(),
+        artifact
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some("exec-xform-1")
     );
     assert!(
@@ -79,11 +85,12 @@ fn transform_missing_type_errors() {
         json!({"artifact_id": "art-2", "mcp_execution_id": "exec-2"}),
     );
     let outcome = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "mystery",
+        tool_name: &McpToolName::new("mystery"),
         tool_result: &result,
         output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "t",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("t"),
         tool_arguments: None,
     });
     assert!(outcome.is_err());
@@ -93,11 +100,12 @@ fn transform_missing_type_errors() {
 fn transform_with_schema_type_hint() {
     let result = valid_result();
     let artifact = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "writer-tool",
+        tool_name: &McpToolName::new("writer-tool"),
         tool_result: &result,
         output_schema: Some(&json!({"x-artifact-type": "text"})),
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "task-xform",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("task-xform"),
         tool_arguments: None,
     })
     .expect("transform");
@@ -109,11 +117,12 @@ fn transform_with_schema_type_hint() {
 fn transform_without_structured_content_errors() {
     let result = CallToolResult::success(vec![]);
     let outcome = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "tool",
+        tool_name: &McpToolName::new("tool"),
         tool_result: &result,
         output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "t",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("t"),
         tool_arguments: None,
     });
     assert!(outcome.is_err());
@@ -124,11 +133,12 @@ fn transform_without_execution_meta_errors() {
     let mut result = CallToolResult::success(vec![]);
     result.structured_content = Some(json!({"x-artifact-type": "text", "value": "v"}));
     let outcome = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "tool",
+        tool_name: &McpToolName::new("tool"),
         tool_result: &result,
         output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "t",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("t"),
         tool_arguments: None,
     });
     assert!(outcome.is_err());
@@ -145,16 +155,21 @@ fn transform_falls_back_to_meta_execution_id() {
         }),
     );
     let artifact = McpToA2aTransformer::transform(&TransformParams {
-        tool_name: "lister",
+        tool_name: &McpToolName::new("lister"),
         tool_result: &result,
         output_schema: None,
-        context_id: "00000000-0000-4000-8000-000000000001",
-        task_id: "t",
+        context_id: &ContextId::try_new("00000000-0000-4000-8000-000000000001")
+            .expect("valid ContextId"),
+        task_id: &TaskId::new("t"),
         tool_arguments: None,
     })
     .expect("transform");
     assert_eq!(
-        artifact.metadata.mcp_execution_id.as_deref(),
+        artifact
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some("fallback-exec")
     );
 }

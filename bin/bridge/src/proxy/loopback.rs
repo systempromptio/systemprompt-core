@@ -70,7 +70,10 @@ impl LoopbackEndpoint {
             .map(|s| format!("Bearer {}", s.as_str()))
     }
 
-    pub fn host_bearer(&self, host: &crate::ids::HostId) -> std::io::Result<String> {
+    pub fn host_bearer(
+        &self,
+        host: systemprompt_models::bridge::host::HostKind,
+    ) -> std::io::Result<String> {
         self.secret_or_mint()
             .map(|s| super::scoped_token::host_token(&s, host))
             .map(|t| format!("Bearer {}", t.as_str()))

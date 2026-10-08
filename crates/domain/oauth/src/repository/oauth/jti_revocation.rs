@@ -13,7 +13,7 @@ use lru::LruCache;
 use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use uuid::Uuid;
+use systemprompt_identifiers::{AccessTokenId, UserId};
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
@@ -22,16 +22,16 @@ const DEFAULT_CACHE_CAPACITY: usize = 5_000;
 impl OAuthRepository {
     pub async fn revoke_jti(
         &self,
-        jti: &str,
-        user_id: Uuid,
+        jti: &AccessTokenId,
+        user_id: &UserId,
         exp: DateTime<Utc>,
     ) -> OauthResult<()> {
         sqlx::query!(
             "INSERT INTO oauth_jti_revocations (jti, user_id, exp)
              VALUES ($1, $2, $3)
              ON CONFLICT (jti) DO NOTHING",
-            jti,
-            user_id,
+            jti.as_str(),
+            user_id.as_str(),
             exp,
         )
         .execute(self.write_pool_ref())
@@ -39,13 +39,13 @@ impl OAuthRepository {
         Ok(())
     }
 
-    pub async fn is_jti_revoked(&self, jti: &str) -> OauthResult<bool> {
+    pub async fn is_jti_revoked(&self, jti: &AccessTokenId) -> OauthResult<bool> {
         let revoked = sqlx::query_scalar!(
             r#"SELECT EXISTS(
                  SELECT 1 FROM oauth_jti_revocations
                   WHERE jti = $1 AND exp > now()
                ) AS "exists!""#,
-            jti,
+            jti.as_str(),
         )
         .fetch_one(self.write_pool_ref())
         .await?;
@@ -54,8 +54,8 @@ impl OAuthRepository {
 
     pub async fn revoke_jtis_for_user(
         &self,
-        user_id: Uuid,
-        jtis: &[String],
+        user_id: &UserId,
+        jtis: &[AccessTokenId],
         exp_floor: DateTime<Utc>,
     ) -> OauthResult<u64> {
         let mut inserted: u64 = 0;
@@ -64,8 +64,8 @@ impl OAuthRepository {
                 "INSERT INTO oauth_jti_revocations (jti, user_id, exp)
                  VALUES ($1, $2, $3)
                  ON CONFLICT (jti) DO NOTHING",
-                jti,
-                user_id,
+                jti.as_str(),
+                user_id.as_str(),
                 exp_floor,
             )
             .execute(self.write_pool_ref())
@@ -73,13 +73,6 @@ impl OAuthRepository {
             inserted += result.rows_affected();
         }
         Ok(inserted)
-    }
-
-    pub async fn cleanup_expired_jti_revocations(&self) -> OauthResult<u64> {
-        let result = sqlx::query!("DELETE FROM oauth_jti_revocations WHERE exp < now()")
-            .execute(self.write_pool_ref())
-            .await?;
-        Ok(result.rows_affected())
     }
 }
 
@@ -93,7 +86,7 @@ enum CacheEntry {
 /// expire after 60s; positive results are sticky (a revoked jti cannot
 /// become un-revoked).
 pub struct JtiRevocationCache {
-    cache: Mutex<LruCache<String, CacheEntry>>,
+    cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
 }
 
 impl std::fmt::Debug for JtiRevocationCache {
@@ -116,8 +109,12 @@ impl JtiRevocationCache {
         }
     }
 
-    pub fn peek(&self, jti: &str) -> Option<bool> {
-        let mut guard = self.cache.lock().ok()?;
+    pub fn peek(&self, jti: &AccessTokenId) -> Option<bool> {
+        let mut guard = self
+            .cache
+            .lock()
+            .inspect_err(|e| tracing::warn!(error = %e, "JTI revocation cache lock is poisoned"))
+            .ok()?;
         match guard.get(jti).copied()? {
             CacheEntry::Revoked => Some(true),
             CacheEntry::NotRevoked { inserted_at } => {
@@ -131,7 +128,7 @@ impl JtiRevocationCache {
         }
     }
 
-    pub fn record(&self, jti: &str, revoked: bool) {
+    pub fn record(&self, jti: &AccessTokenId, revoked: bool) {
         if let Ok(mut guard) = self.cache.lock() {
             let entry = if revoked {
                 CacheEntry::Revoked
@@ -140,7 +137,7 @@ impl JtiRevocationCache {
                     inserted_at: Instant::now(),
                 }
             };
-            guard.put(jti.to_owned(), entry);
+            guard.put(jti.clone(), entry);
         }
     }
 }

@@ -1,4 +1,7 @@
-use systemprompt_bridge::config::trust::{GatewayIdentity, TrustError, pinned_pubkey_state_for};
+use systemprompt_bridge::config::trust::{
+    GatewayIdentity, PinSource, TrustError, TrustRecord, parse_policy_trust,
+    resolve_pinned_pubkey_state,
+};
 use systemprompt_bridge::config::{Config, PinnedPubkeyState};
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -24,7 +27,7 @@ fn a_leftover_pinned_pubkey_key_is_ignored_and_only_the_trust_record_counts() {
     ))
     .unwrap();
     let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
-    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
+    let state = operator_only(&cfg, &gateway).unwrap();
     assert!(
         matches!(state, PinnedPubkeyState::Pinned { .. }),
         "{state:?}"
@@ -40,14 +43,12 @@ fn a_bare_pinned_pubkey_key_without_a_trust_record_is_unpinned() {
     ))
     .unwrap();
     let gateway = ValidatedUrl::try_new("https://example.com").unwrap();
-    let state = without_policy(|| pinned_pubkey_state_for(&cfg, &gateway).unwrap());
+    let state = operator_only(&cfg, &gateway).unwrap();
     assert_eq!(state, PinnedPubkeyState::Unpinned, "{state:?}");
 }
 
 const VALID_KEY: &str = "WGZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmZmY=";
 const MALFORMED_KEY: &str = "not base64 and far too short";
-const POLICY_TRUST_ENV: &str = "SP_BRIDGE_POLICY_TRUST";
-
 fn operator_trust(gateway: &str, key: &str) -> Config {
     toml::from_str(&format!(
         "[sync.trust]\ngateway = '{gateway}'\nkey = '{key}'\nsource = 'operator'\n"
@@ -55,8 +56,14 @@ fn operator_trust(gateway: &str, key: &str) -> Config {
     .expect("a trust record parses without validating its key")
 }
 
-fn without_policy<T>(f: impl FnOnce() -> T) -> T {
-    temp_env::with_var(POLICY_TRUST_ENV, None::<&str>, f)
+fn operator_only(cfg: &Config, gateway: &ValidatedUrl) -> Result<PinnedPubkeyState, TrustError> {
+    let operator = cfg.sync.as_ref().and_then(|s| s.trust.as_ref());
+    resolve_pinned_pubkey_state(None, operator, gateway)
+}
+
+fn managed(record: &str, gateway: &ValidatedUrl) -> Result<PinnedPubkeyState, TrustError> {
+    let policy = parse_policy_trust(record).expect("the managed record parses");
+    resolve_pinned_pubkey_state(Some(&policy), None, gateway)
 }
 
 #[test]
@@ -66,9 +73,7 @@ fn a_record_for_another_gateway_is_judged_before_its_key_is_validated() {
     // on and hides the real reason the pin does not apply.
     let cfg = operator_trust("https://old.example.com", MALFORMED_KEY);
     let gateway = ValidatedUrl::try_new("https://new.example.com").expect("url");
-    let state = without_policy(|| {
-        pinned_pubkey_state_for(&cfg, &gateway).expect("a stale record is a state, not an error")
-    });
+    let state = operator_only(&cfg, &gateway).expect("a stale record is a state, not an error");
     assert_eq!(
         state,
         PinnedPubkeyState::Unpinned,
@@ -82,16 +87,14 @@ fn an_operator_record_for_the_current_gateway_still_validates_its_key() {
     // would let an unusable key be reported as pinned.
     let cfg = operator_trust("https://gw.example.com", MALFORMED_KEY);
     let gateway = ValidatedUrl::try_new("https://gw.example.com").expect("url");
-    let err = without_policy(|| {
-        pinned_pubkey_state_for(&cfg, &gateway).expect_err("a key that will be used is checked")
-    });
+    let err = operator_only(&cfg, &gateway).expect_err("a key that will be used is checked");
     assert!(
         err.to_string().contains("not base64"),
         "the operator is told the key itself is unusable: {err}"
     );
 
     let usable = operator_trust("https://gw.example.com", VALID_KEY);
-    let state = without_policy(|| pinned_pubkey_state_for(&usable, &gateway).expect("valid"));
+    let state = operator_only(&usable, &gateway).expect("valid");
     assert!(
         matches!(state, PinnedPubkeyState::Pinned { ref key, .. } if key.as_str() == VALID_KEY),
         "{state:?}"
@@ -106,11 +109,8 @@ fn a_managed_pin_for_another_gateway_is_reported_stale_rather_than_ignored() {
     let record = format!(
         r#"{{"gateway":"https://managed.example.com","key":"{VALID_KEY}","source":"policy"}}"#
     );
-    let cfg = Config::default();
     let gateway = ValidatedUrl::try_new("https://other.example.com").expect("url");
-    let state = temp_env::with_var(POLICY_TRUST_ENV, Some(record.as_str()), || {
-        pinned_pubkey_state_for(&cfg, &gateway).expect("a stale managed pin is a state")
-    });
+    let state = managed(&record, &gateway).expect("a stale managed pin is a state");
     match state {
         PinnedPubkeyState::StaleForGateway {
             pinned_for,
@@ -134,12 +134,9 @@ fn a_stale_managed_pin_is_reported_stale_even_when_its_key_is_unusable() {
     // "not base64" for a record that was never going to be used, which sent
     // the administrator to fix the wrong thing.
     let record = policy_record("https://managed.example.com", MALFORMED_KEY);
-    let cfg = Config::default();
     let gateway = ValidatedUrl::try_new("https://other.example.com").expect("url");
-    let state = temp_env::with_var(POLICY_TRUST_ENV, Some(record.as_str()), || {
-        pinned_pubkey_state_for(&cfg, &gateway)
-            .expect("a stale managed pin is a state, not a decoding error")
-    });
+    let state =
+        managed(&record, &gateway).expect("a stale managed pin is a state, not a decoding error");
     match state {
         PinnedPubkeyState::StaleForGateway {
             pinned_for,
@@ -156,22 +153,17 @@ fn a_stale_managed_pin_is_reported_stale_even_when_its_key_is_unusable() {
 fn a_managed_pin_for_the_current_gateway_is_still_refused_when_its_key_is_unusable() {
     // Why: the negative control. Deferring key validation must not skip it —
     // a key that is about to be used to verify a manifest is checked.
-    let cfg = Config::default();
     let gateway = ValidatedUrl::try_new("https://gw.example.com").expect("url");
 
     let record = policy_record("https://gw.example.com", MALFORMED_KEY);
-    let err = temp_env::with_var(POLICY_TRUST_ENV, Some(record.as_str()), || {
-        pinned_pubkey_state_for(&cfg, &gateway).expect_err("a key that will be used is checked")
-    });
+    let err = managed(&record, &gateway).expect_err("a key that will be used is checked");
     assert!(
         matches!(err, TrustError::KeyEncoding(_)),
         "a non-base64 managed key is a decoding failure: {err:?}"
     );
 
     let short = policy_record("https://gw.example.com", "aGVsbG8=");
-    let err = temp_env::with_var(POLICY_TRUST_ENV, Some(short.as_str()), || {
-        pinned_pubkey_state_for(&cfg, &gateway).expect_err("a short key is checked too")
-    });
+    let err = managed(&short, &gateway).expect_err("a short key is checked too");
     assert!(
         matches!(err, TrustError::KeyLength { actual: 5 }),
         "the length failure names the bytes it got: {err:?}"
@@ -179,25 +171,49 @@ fn a_managed_pin_for_the_current_gateway_is_still_refused_when_its_key_is_unusab
 }
 
 #[test]
-fn policy_pubkey_validates_the_key_regardless_of_which_gateway_it_names() {
-    // Why: `policy_pubkey` hands the key straight to signature verification,
-    // so it has no gateway comparison to defer behind and must validate
-    // eagerly. Moving validation out of `policy_trust` must not have moved
-    // it out of this path too.
-    let stale = policy_record("https://managed.example.com", MALFORMED_KEY);
-    let err = temp_env::with_var(POLICY_TRUST_ENV, Some(stale.as_str()), || {
-        systemprompt_bridge::config::trust::policy_pubkey()
-            .expect_err("an unusable managed key is never handed out")
-    });
-    assert!(matches!(err, TrustError::KeyEncoding(_)), "{err:?}");
-
-    let usable = policy_record("https://managed.example.com", VALID_KEY);
-    let key = temp_env::with_var(POLICY_TRUST_ENV, Some(usable.as_str()), || {
-        systemprompt_bridge::config::trust::policy_pubkey().expect("a valid managed key is read")
-    });
+fn a_managed_pin_outranks_an_operator_pin_for_the_same_gateway() {
+    let gateway = ValidatedUrl::try_new("https://gw.example.com").expect("url");
+    let policy = parse_policy_trust(&policy_record("https://gw.example.com", VALID_KEY))
+        .expect("managed record");
+    let operator_key = "11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo=";
+    let operator =
+        TrustRecord::new(&gateway, operator_key, PinSource::Operator).expect("operator record");
+    let state = resolve_pinned_pubkey_state(Some(&policy), Some(&operator), &gateway)
+        .expect("both records are valid");
     assert_eq!(
-        key.expect("a policy pin is present").as_str(),
-        VALID_KEY,
-        "the negative control: a valid key still comes back"
+        state,
+        PinnedPubkeyState::Pinned {
+            key: policy.key.clone(),
+            source: PinSource::Policy,
+        }
+    );
+}
+
+#[test]
+fn a_managed_record_is_labelled_policy_whatever_source_it_claims() {
+    let record = r#"{"gateway":"https://gw.example.com","key":"k","source":"operator"}"#;
+    let parsed = parse_policy_trust(record).expect("record parses");
+    assert_eq!(parsed.source, PinSource::Policy);
+}
+
+#[test]
+fn a_malformed_managed_record_is_an_invalid_policy_error() {
+    assert!(matches!(
+        parse_policy_trust("invalid json"),
+        Err(TrustError::InvalidPolicy(_))
+    ));
+}
+
+#[test]
+fn the_process_environment_cannot_supply_or_replace_managed_trust() {
+    let gateway = ValidatedUrl::try_new("https://gw.example.com").expect("url");
+    let attacker = policy_record("https://gw.example.com", VALID_KEY);
+    let cfg = operator_trust("https://gw.example.com", MALFORMED_KEY);
+    let result = temp_env::with_var("SP_BRIDGE_POLICY_TRUST", Some(attacker.as_str()), || {
+        systemprompt_bridge::config::trust::pinned_pubkey_state_for(&cfg, &gateway)
+    });
+    assert!(
+        matches!(result, Err(TrustError::KeyEncoding(_))),
+        "the operator record is what is judged; the env record never wins: {result:?}"
     );
 }

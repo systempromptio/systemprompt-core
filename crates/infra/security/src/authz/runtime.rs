@@ -37,10 +37,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_models::net::validate_outbound_url;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuthzConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
+use systemprompt_models::net::validate_outbound_url;
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository};
 use super::composite::CompositeAuthzHook;
@@ -127,8 +127,7 @@ fn build_webhook_hook(
         .filter(|s| !s.is_empty())
         .ok_or(AuthzBootstrapError::MissingWebhookUrl)?
         .to_owned();
-    validate_outbound_url(&url)
-        .map_err(|e| AuthzBootstrapError::InvalidWebhookUrl(e.to_string()))?;
+    validate_outbound_url(&url).map_err(AuthzBootstrapError::InvalidWebhookUrl)?;
     let webhook = WebhookHook::new(
         url,
         Duration::from_millis(authz.hook.timeout_ms),

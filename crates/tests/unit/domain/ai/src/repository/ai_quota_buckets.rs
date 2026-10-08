@@ -3,12 +3,12 @@
 use chrono::{TimeZone, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
 
-use super::{pool_or_skip, user};
+use super::{bootstrapped_pool, user};
 
-async fn repo_or_skip() -> Option<(AiQuotaBucketRepository, systemprompt_database::DbPool)> {
-    let pool = pool_or_skip().await?;
-    let repo = AiQuotaBucketRepository::new(&pool).expect("repo");
-    Some((repo, pool))
+async fn test_repo() -> (AiQuotaBucketRepository, systemprompt_database::DbPool) {
+    let pool = bootstrapped_pool().await;
+    let repo = AiQuotaBucketRepository::new(&pool);
+    (repo, pool)
 }
 
 const NO_DELTA: QuotaBucketDelta = QuotaBucketDelta {
@@ -20,9 +20,7 @@ const NO_DELTA: QuotaBucketDelta = QuotaBucketDelta {
 
 #[tokio::test]
 async fn increment_creates_bucket_then_accumulates() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -77,9 +75,7 @@ async fn increment_creates_bucket_then_accumulates() {
 
 #[tokio::test]
 async fn separate_windows_are_independent_buckets() {
-    let Some((repo, pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, pool) = test_repo().await;
     let uid = user();
     let email = format!("{}@ai.invalid", uid.as_str());
     systemprompt_test_fixtures::seed_user_row(&pool, &uid, &email)
@@ -124,9 +120,7 @@ async fn separate_windows_are_independent_buckets() {
 
 #[tokio::test]
 async fn the_same_subject_id_under_different_kinds_is_two_buckets() {
-    let Some((repo, _pool)) = repo_or_skip().await else {
-        return;
-    };
+    let (repo, _pool) = test_repo().await;
     let subject = format!("shared-{}", uuid::Uuid::new_v4());
     let window_start = Utc
         .with_ymd_and_hms(2026, 3, 1, 0, 0, 0)

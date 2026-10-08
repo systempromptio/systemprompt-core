@@ -25,7 +25,7 @@ fn app_for(ctx: &AppContext, user: &str) -> axum::Router {
 
 async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(ContextId, TaskId)> {
     seed_user_row(pool, owner, &format!("{}@test.local", owner.as_str())).await?;
-    let p = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let p = pool.pool();
     let context_id = ContextId::generate();
     let task_id = TaskId::generate();
     sqlx::query!(
@@ -37,9 +37,10 @@ async fn seed_owned_task(pool: &DbPool, owner: &UserId) -> anyhow::Result<(Conte
     .execute(p.as_ref())
     .await?;
     sqlx::query!(
-        "INSERT INTO agent_tasks (task_id, context_id) VALUES ($1, $2)",
+        "INSERT INTO agent_tasks (task_id, context_id, agent_name) VALUES ($1, $2, $3)",
         task_id.as_str(),
         context_id.as_str(),
+        "ownership-agent",
     )
     .execute(p.as_ref())
     .await?;

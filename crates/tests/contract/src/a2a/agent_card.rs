@@ -35,7 +35,7 @@ fn agent_card_serializes_required_fields() {
 fn capabilities_default_values() {
     let caps = AgentCapabilities::default();
     assert_eq!(caps.streaming, Some(true));
-    assert_eq!(caps.push_notifications, Some(true));
+    assert_eq!(caps.push_notifications, Some(false));
     assert_eq!(caps.state_transition_history, Some(true));
 }
 

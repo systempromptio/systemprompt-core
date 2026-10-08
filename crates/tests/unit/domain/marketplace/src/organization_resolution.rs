@@ -7,8 +7,8 @@ use systemprompt_traits::{ManagedSkillResolver, SkillResolution, WithheldReason}
 
 #[tokio::test]
 async fn organization_grants_preserve_exact_publication_and_revocation() {
-    let f = fixture().await.expect("database fixture");
-    let consumer = fixture().await.expect("consumer fixture");
+    let f = fixture().await;
+    let consumer = fixture().await;
     publish(&f).await;
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
     let runtime: &dyn ManagedSkillResolver = &resolver;
@@ -93,8 +93,8 @@ async fn organization_grants_preserve_exact_publication_and_revocation() {
 
 #[tokio::test]
 async fn organization_unknown_key_preserves_personal_publication_and_withdrawal() {
-    let organization = fixture().await.expect("organization fixture");
-    let personal = fixture().await.expect("personal fixture");
+    let organization = fixture().await;
+    let personal = fixture().await;
     let resolver =
         OrganizationSkillResolver::new(organization.repository.clone(), organization.owner);
     publish(&personal).await;
@@ -122,12 +122,12 @@ async fn organization_unknown_key_preserves_personal_publication_and_withdrawal(
 
 #[tokio::test]
 async fn anonymous_catalog_withholds_managed_keys_but_preserves_public_disk() {
-    let f = fixture().await.expect("fixture");
+    let f = fixture().await;
     publish(&f).await;
     let (dir, _) = disk_catalog_with(&f.key);
     crate::helpers::write_skill_on_disk(dir.path(), "ordinary_public");
     let disk = systemprompt_marketplace::CatalogContent::load(
-        &systemprompt_models::services::ServicesConfig::default(),
+        &systemprompt_manifest::services::ServicesConfig::default(),
         dir.path(),
         "https://api.example.invalid",
     )
@@ -146,10 +146,8 @@ async fn anonymous_catalog_withholds_managed_keys_but_preserves_public_disk() {
 
 #[tokio::test]
 async fn organization_key_never_falls_through_to_personal_shadow() {
-    let f = fixture().await.expect("organization");
-    let personal = crate::managed_resolution::fixture_with_key(f.key.clone())
-        .await
-        .expect("personal same key");
+    let f = fixture().await;
+    let personal = crate::managed_resolution::fixture_with_key(f.key.clone()).await;
     publish(&personal).await;
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
     assert!(
@@ -184,9 +182,7 @@ async fn organization_key_never_falls_through_to_personal_shadow() {
 
 #[tokio::test]
 async fn another_owner_sees_the_key_as_unmanaged() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     publish(&f).await;
     let stranger =
         systemprompt_identifiers::UserId::new(format!("managed-stranger-{}", uuid::Uuid::new_v4()));
@@ -201,7 +197,7 @@ async fn another_owner_sees_the_key_as_unmanaged() {
 
 #[tokio::test]
 async fn generic_catalog_reoverlay_removes_withdrawn_revision_files() {
-    let f = fixture().await.expect("fixture");
+    let f = fixture().await;
     publish(&f).await;
     let (_dir, disk) = disk_catalog_with(&f.key);
     let published = disk
@@ -220,8 +216,8 @@ async fn generic_catalog_reoverlay_removes_withdrawn_revision_files() {
 
 #[tokio::test]
 async fn catalog_includes_published_skill_without_grant() {
-    let f = fixture().await.expect("database fixture");
-    let consumer = fixture().await.expect("consumer fixture");
+    let f = fixture().await;
+    let consumer = fixture().await;
     publish(&f).await;
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
     let (_dir, disk) = disk_catalog_with(&f.key);
@@ -252,8 +248,8 @@ async fn catalog_includes_published_skill_without_grant() {
 
 #[tokio::test]
 async fn explicit_revocation_withholds_from_catalog() {
-    let f = fixture().await.expect("database fixture");
-    let consumer = fixture().await.expect("consumer fixture");
+    let f = fixture().await;
+    let consumer = fixture().await;
     publish(&f).await;
     let resolver = OrganizationSkillResolver::new(f.repository.clone(), f.owner.clone());
     f.repository

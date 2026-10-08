@@ -9,6 +9,12 @@
 //! (`kill(-pid)`) could reach an unrelated session leader — so a row is only
 //! ever signalled once both the marker and the exact pairing are found.
 //!
+//! The API server is not a spawned child: `infra services serve` re-executes
+//! itself once with [`API_SERVER_ENV`] so a later `stop api` can prove a port
+//! holder is the API server before signalling it. It deliberately does not
+//! carry [`SUBPROCESS_MARKER_ENV`], which selects the subprocess secrets
+//! source.
+//!
 //! Spawning and the platform-specific process probes live in
 //! `systemprompt_loader::subprocess`; this module holds only data and pure
 //! functions so the shared layer stays free of process I/O.
@@ -16,9 +22,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ServiceName;
+
 pub const SUBPROCESS_MARKER_ENV: &str = "SYSTEMPROMPT_SUBPROCESS";
 pub const AGENT_NAME_ENV: &str = "AGENT_NAME";
 pub const MCP_SERVICE_ID_ENV: &str = "MCP_SERVICE_ID";
+pub const API_SERVER_ENV: &str = "SYSTEMPROMPT_API_SERVER";
+pub const API_SERVER_SERVICE: &str = "api";
 
 pub const DEPLOYMENT_HOST_ENV: &str = "SYSTEMPROMPT_DEPLOYMENT_HOST";
 
@@ -68,8 +78,13 @@ pub fn signalable_pid(pid: u32) -> Option<i32> {
     }
     i32::try_from(pid).ok()
 }
+
 #[must_use]
-pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &str) -> bool {
+pub fn environ_identifies_child(
+    environ: &[u8],
+    name_key: &str,
+    service_name: &ServiceName,
+) -> bool {
     let marker = format!("{SUBPROCESS_MARKER_ENV}=1");
     let expected_name = format!("{name_key}={service_name}");
 
@@ -84,6 +99,21 @@ pub fn environ_identifies_child(environ: &[u8], name_key: &str, service_name: &s
     }
 
     has_marker && has_name
+}
+
+#[must_use]
+pub fn environ_identifies_api_server(environ: &[u8], service_name: &ServiceName) -> bool {
+    let expected = format!("{API_SERVER_ENV}={service_name}");
+    environ
+        .split(|&b| b == 0)
+        .any(|entry| entry == expected.as_bytes())
+}
+
+#[must_use]
+pub fn environ_has_entries(environ: &[u8]) -> bool {
+    environ
+        .split(|&b| b == 0)
+        .any(|entry| entry.contains(&b'='))
 }
 
 // Why: macOS `KERN_PROCARGS2` stores argc, exec path, NUL padding, argv, then

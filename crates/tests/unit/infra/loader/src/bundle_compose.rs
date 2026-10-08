@@ -12,7 +12,7 @@ use std::path::Path;
 
 use systemprompt_loader::bundle::pack::build_manifest;
 use systemprompt_loader::bundle::{BundleCache, BundleMember, compose, composed_hash};
-use systemprompt_models::services::bundle::{BundleSourceInfo, ServicesBundleManifest};
+use systemprompt_manifest::services::bundle::{BundleSourceInfo, ServicesBundleManifest};
 
 use crate::bundle_support::{base_tree, marketplace_tree, write};
 

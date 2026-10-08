@@ -3,14 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, NativeMarker,
-};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, NativeMarker};
+use systemprompt_traits::RepositoryError;
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -35,14 +33,10 @@ struct EvidenceRow {
 }
 
 impl AiRequestClientEvidenceRepository {
-    pub fn new(db: &DbPool) -> Result<Self, RepositoryError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn upsert(
@@ -116,11 +110,9 @@ impl TryFrom<EvidenceRow> for ClientEvidence {
     type Error = RepositoryError;
 
     fn try_from(row: EvidenceRow) -> Result<Self, Self::Error> {
-        let invalid =
-            |e: systemprompt_models::wire::origin::OriginParseError| RepositoryError::InvalidData {
-                field: "ai_request_client_evidence".to_owned(),
-                reason: e.to_string(),
-            };
+        let invalid = |e: systemprompt_models::origin::OriginParseError| {
+            RepositoryError::decode("ai_request_client_evidence", e)
+        };
         Ok(Self {
             kind_source: ClientAttestation::parse(&row.kind_source).map_err(invalid)?,
             attested_host: row

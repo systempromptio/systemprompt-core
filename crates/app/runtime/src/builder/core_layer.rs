@@ -27,12 +27,12 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::FileStorage;
 
-use crate::error::{RuntimeError, RuntimeResult};
+use crate::error::RuntimeResult;
 
 pub(super) struct CoreLayer {
     pub(super) config: Arc<Config>,
@@ -44,13 +44,12 @@ pub(super) struct CoreLayer {
 }
 
 async fn init_services(
-    secrets: &systemprompt_models::secrets::Secrets,
-) -> RuntimeResult<&'static systemprompt_models::services::ServicesConfig> {
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<&'static systemprompt_manifest::services::ServicesConfig> {
     let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
         Box::pin(discover_vertex_models(providers))
     })
-    .await
-    .map_err(|err| RuntimeError::Internal(format!("services config init: {err}")))?;
+    .await?;
     if let Some(gateway) = services.gateway_config() {
         for reference in gateway.unresolved_secret_refs(|name| secrets.get(name).is_some()) {
             tracing::warn!(
@@ -66,31 +65,29 @@ pub(super) async fn init_core(
     authz_hook_override: Option<SharedAuthzHook>,
 ) -> RuntimeResult<CoreLayer> {
     let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()
-        .map_err(|err| RuntimeError::Internal(format!("services bundle secrets: {err}")))?;
+    let secrets = SecretsBootstrap::get()?;
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
         |name| secrets.get(name).cloned(),
         env!("CARGO_PKG_VERSION"),
     )
-    .await
-    .map_err(|err| RuntimeError::Internal(format!("services bundle init: {err}")))?;
+    .await?;
     let app_paths = Arc::new(AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         Some(active_root.path.as_path()),
     )?);
     systemprompt_files::FilesConfig::init(&app_paths)?;
-    systemprompt_config::try_init_config(Some(active_root.path.as_path()))
-        .map_err(|err| RuntimeError::Internal(format!("config init: {err}")))?;
+    systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
-    let instance_id = systemprompt_identifiers::InstanceId::new(&config.instance_id);
+    let instance_id = config.instance_id.clone();
     systemprompt_logging::set_instance_id(instance_id.clone());
-    let file_storage = init_file_storage(&profile.storage, &app_paths, &instance_id).await?;
+    let file_storage =
+        crate::storage::init_file_storage(&profile.storage, &app_paths, &instance_id, secrets)
+            .await?;
 
-    systemprompt_security::keys::authority::init()
-        .map_err(|err| RuntimeError::Internal(format!("signing key init: {err}")))?;
+    systemprompt_security::keys::authority::init()?;
 
     let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
     let database = Arc::new(
@@ -112,20 +109,19 @@ pub(super) async fn init_core(
     )
     .await?;
 
-    let authz_audit_pool = database.write_pool_arc()?;
+    let authz_audit_pool = database.write_pool();
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
         chain_sources()?,
-    )
-    .map_err(|err| RuntimeError::Internal(format!("authz bootstrap: {err}")))?;
+    )?;
 
     let governance = Arc::new(GovernanceEngine::from_services_root(std::path::Path::new(
         &profile.paths.services,
     ))?);
 
-    systemprompt_logging::init_logging(Arc::clone(&database));
+    systemprompt_logging::init_logging(&database);
 
     if config.database_write_url.is_some() {
         tracing::debug!(
@@ -144,9 +140,9 @@ pub(super) async fn init_core(
 }
 
 pub async fn discover_vertex_models(
-    providers: &mut systemprompt_models::services::ProviderRegistry,
-) -> systemprompt_models::services::DiscoveryReport {
-    use systemprompt_models::services::DiscoveryReport;
+    providers: &mut systemprompt_manifest::services::ProviderRegistry,
+) -> systemprompt_manifest::services::DiscoveryReport {
+    use systemprompt_manifest::services::DiscoveryReport;
 
     let Ok(secrets) = SecretsBootstrap::get() else {
         tracing::warn!("secret store unavailable; skipping Vertex model discovery");
@@ -161,53 +157,15 @@ pub async fn discover_vertex_models(
     .await
 }
 
-async fn init_file_storage(
-    storage: &systemprompt_models::profile::StorageConfig,
-    app_paths: &AppPaths,
-    instance_id: &systemprompt_identifiers::InstanceId,
-) -> RuntimeResult<Arc<dyn FileStorage>> {
-    let root = app_paths.storage().root();
-    let report = systemprompt_storage::probe_shared_mount(root, instance_id)
-        .await
-        .map_err(|err| {
-            RuntimeError::Internal(format!("storage root {} probe: {err}", root.display()))
-        })?;
-    if !report.write_read_ok {
-        return Err(RuntimeError::Internal(format!(
-            "storage root {} did not read back what was written",
-            root.display()
-        )));
-    }
-    match (storage.shared, report.has_siblings()) {
-        (true, false) => tracing::warn!(
-            root = %root.display(),
-            "storage.shared is true but no other replica has marked this root; \
-             it may be a per-node disk"
-        ),
-        (false, true) => tracing::warn!(
-            root = %root.display(),
-            instances = ?report.instances,
-            "storage.shared is false but other replicas have marked this root; \
-             set storage.shared: true if it is a shared mount"
-        ),
-        _ => {},
-    }
-    Ok(systemprompt_storage::build_file_storage(
-        storage.backend,
-        root,
-    ))
-}
-
 fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {
-    let services = systemprompt_loader::ServicesBootstrap::get()
-        .map_err(|err| RuntimeError::Internal(format!("services config: {err}")))?;
+    let services = systemprompt_loader::ServicesBootstrap::get()?;
     Ok(systemprompt_security::authz::ChainSources::from_services(
         services,
     ))
 }
 
 fn pool_config_from_profile(
-    profile_pool: Option<&systemprompt_models::profile::PoolConfig>,
+    profile_pool: Option<&systemprompt_manifest::profile::PoolConfig>,
 ) -> PoolConfig {
     use std::time::Duration;
 
@@ -230,9 +188,15 @@ fn pool_config_from_profile(
     cfg
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct SchemaPolicy {
+    pub install: bool,
+    pub verify: bool,
+}
+
 pub(super) async fn init_extensions(
     extension_registry: Option<ExtensionRegistry>,
-    install_schemas: bool,
+    schema: SchemaPolicy,
     migration_config: MigrationConfig,
     database: &Arc<Database>,
 ) -> RuntimeResult<(Arc<ExtensionRegistry>, SchemaInstallReport)> {
@@ -242,9 +206,14 @@ pub(super) async fn init_extensions(
     };
     registry.validate()?;
 
-    let report = if install_schemas {
+    let report = if schema.install {
         install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
     } else {
+        if schema.verify {
+            let profile = ProfileBootstrap::get()?;
+            crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
+                .await?;
+        }
         SchemaInstallReport::default()
     };
 

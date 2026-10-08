@@ -16,18 +16,19 @@ use systemprompt_api::services::static_content::serve_homepage;
 use systemprompt_api::services::static_content::session::ensure_session;
 use systemprompt_api::services::static_content::static_files::{StaticContentState, compute_etag};
 use systemprompt_files::FilesConfig;
+use systemprompt_identifiers::JwtToken;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with, fixture_config, fixture_db_pool,
-    install_test_signing_key,
+    ensure_test_bootstrap, fixture_app_context_with, fixture_config, install_test_signing_key,
+    test_db_pool,
 };
 use tempfile::TempDir;
 
 async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
     let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let tmp = TempDir::new()?;
     let web = tmp.path().join("web");
     std::fs::create_dir_all(web.join("dist"))?;
@@ -100,7 +101,7 @@ async fn serve_homepage_missing_index_is_404() -> anyhow::Result<()> {
 #[tokio::test]
 async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     install_test_signing_key();
     let (_tmp, state) = state_with_dist().await?;
 
@@ -122,7 +123,7 @@ async fn ensure_session_mints_anonymous_session_without_token() -> anyhow::Resul
 async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_session()
 -> anyhow::Result<()> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     install_test_signing_key();
     let (_tmp, state) = state_with_dist().await?;
     let mut first_headers = HeaderMap::new();
@@ -131,13 +132,17 @@ async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_se
         format!("session-reuse/{}", uuid::Uuid::new_v4()).parse()?,
     );
     let first = ensure_session(&first_headers, None, None, &state.ctx).await?;
-    let raw = state.ctx.db_pool().pool_arc()?;
+    let raw = state.ctx.db_pool().pool();
     let before: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
         .bind(first.user_id.as_str())
         .fetch_one(raw.as_ref())
         .await?;
 
-    let token = first.jwt_token.as_deref().expect("anonymous session token");
+    let token = first
+        .jwt_token
+        .as_ref()
+        .map(JwtToken::as_str)
+        .expect("anonymous session token");
     let mut headers = HeaderMap::new();
     headers.insert(
         header::COOKIE,
@@ -150,7 +155,7 @@ async fn ensure_session_reuses_a_valid_browser_token_without_creating_another_se
     assert_eq!(reused.session_id, first.session_id);
     assert_eq!(reused.user_id, first.user_id);
     assert!(!reused.is_new);
-    assert_eq!(reused.jwt_token.as_deref(), Some(token));
+    assert_eq!(reused.jwt_token.as_ref().map(JwtToken::as_str), Some(token));
     let after: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
         .bind(first.user_id.as_str())
         .fetch_one(raw.as_ref())

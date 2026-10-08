@@ -5,7 +5,7 @@
 
 use systemprompt_cli::admin::agents::shared::{prompt_agent_selection, select_agent_from_names};
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 
 fn names(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| (*s).to_owned()).collect()

@@ -5,13 +5,15 @@
 
 use schemars::JsonSchema;
 use serde::Serialize;
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{
     ArtifactIngest, ClientProfile, McpOutputSchema, McpResponseBuilder, ToolIdentity,
     UI_RESOURCE_URI_META_KEY,
 };
 use systemprompt_models::RequestContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[derive(Serialize, JsonSchema)]
 struct UnrenderableArtifact {
@@ -38,21 +40,14 @@ fn test_ctx() -> RequestContext {
         TraceId::new("t-unrender"),
         ContextId::generate(),
         AgentName::try_new("agent-unrender").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("user-unrender")),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "user-unrender",
-    )))
 }
 
 #[tokio::test]
 async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -60,7 +55,10 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
         UnrenderableArtifact {
             detail: "payload the UI layer cannot draw".to_owned(),
         },
-        ToolIdentity::new("unrenderable-server", "unrenderable-tool"),
+        ToolIdentity::new(
+            McpServerId::new("unrenderable-server"),
+            McpToolName::new("unrenderable-tool"),
+        ),
         &ctx,
         &exec_id,
         &ui_client(),
@@ -97,13 +95,8 @@ async fn an_artifact_with_no_renderer_still_produces_a_successful_result() {
 
 #[tokio::test]
 async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
     let ctx = test_ctx();
     let exec_id = McpExecutionId::generate();
 
@@ -111,7 +104,10 @@ async fn the_result_meta_names_the_ui_resource_even_when_rendering_failed() {
         UnrenderableArtifact {
             detail: "another payload".to_owned(),
         },
-        ToolIdentity::new("unrenderable-server", "unrenderable-tool"),
+        ToolIdentity::new(
+            McpServerId::new("unrenderable-server"),
+            McpToolName::new("unrenderable-tool"),
+        ),
         &ctx,
         &exec_id,
         &ui_client(),

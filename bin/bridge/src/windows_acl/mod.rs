@@ -65,6 +65,24 @@ pub(super) fn wide(path: &Path) -> io::Result<Vec<u16>> {
     value.push(0);
     Ok(value)
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("{context}: {source}")]
+struct AclCallError {
+    context: String,
+    #[source]
+    source: io::Error,
+}
+
+pub(super) fn call_failed(context: impl Into<String>, source: io::Error) -> io::Error {
+    io::Error::new(
+        source.kind(),
+        AclCallError {
+            context: context.into(),
+            source,
+        },
+    )
+}
 pub(super) fn process_token() -> io::Result<OwnedHandle> {
     let mut token = null_mut();
     // SAFETY: output points to a live handle slot; the returned token is owned.

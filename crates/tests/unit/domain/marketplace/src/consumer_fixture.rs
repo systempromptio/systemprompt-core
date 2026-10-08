@@ -11,7 +11,7 @@ use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, FileReadback, ReadbackStatus, SessionBindingRequest,
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 pub struct Fixture {
     pub repo: ManagedRepository,
@@ -28,11 +28,25 @@ pub async fn fixture() -> Fixture {
 }
 
 pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url)
-        .await
-        .expect("database required");
-    let pool = db.write_pool_arc().expect("write pool").as_ref().clone();
+    fixture_with(metadata, &[], true).await
+}
+
+pub async fn fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
+    fixture_with(None, extra, true).await
+}
+
+pub async fn unplanned_fixture_with_extra_files(extra: &[(&str, &[u8])]) -> Fixture {
+    fixture_with(None, extra, false).await
+}
+
+async fn fixture_with(
+    metadata: Option<(&str, &str)>,
+    extra: &[(&str, &[u8])],
+    plan_runtime_files: bool,
+) -> Fixture {
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
+    let pool = db.write_pool().as_ref().clone();
     let owner = UserId::new(uuid::Uuid::new_v4().to_string());
     let consumer = UserId::new(uuid::Uuid::new_v4().to_string());
     seed_user_row(&db, &owner, &format!("{owner}@consumer-test.invalid"))
@@ -43,7 +57,7 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
         .expect("consumer");
     let cert = DeviceCertId::generate();
     sqlx::query!("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'consumer test')", cert.as_str(), consumer.as_str(), cert.as_str()).execute(&pool).await.expect("enrolled device");
-    let repo = ManagedRepository::new(&db).expect("managed repository");
+    let repo = ManagedRepository::new(&db);
     let source = repo
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await
@@ -91,6 +105,16 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
             },
         ),
     ]));
+    for (path, bytes) in extra {
+        files.0.insert(
+            (*path).to_owned(),
+            AssetFile {
+                bytes: bytes.to_vec(),
+                media_type: "text/plain".to_owned(),
+                executable: false,
+            },
+        );
+    }
     if let Some((name, description)) = metadata {
         files.0.insert("config.yaml".to_owned(), AssetFile {
             bytes: serde_json::to_vec(&serde_json::json!({"id":"skill","name":name,"description":description,"file":"SKILL.md"})).unwrap(),
@@ -171,29 +195,31 @@ pub async fn fixture_with_metadata(metadata: Option<(&str, &str)>) -> Fixture {
     repo.set_consumer_grant(&owner, &request.resource_id, &consumer, true)
         .await
         .expect("grant");
-    let plan = repo
-        .consumer_installation_plan(
-            &credential.credential,
-            &request.resource_id,
-            &request.publication_id,
-            request.host,
-        )
-        .await
-        .expect("installation plan");
-    request.runtime_files = plan
-        .runtime_files
-        .iter()
-        .map(
-            |file| systemprompt_models::feedback::receipts::RuntimeFileReadback {
-                path: file.path.clone(),
-                digest: ContentDigest::of(&file.bytes),
-                bytes: file.bytes.len() as u64,
-                executable: file.executable,
-                content_check: ReadbackStatus::Verified,
-                mode_check: ReadbackStatus::Verified,
-            },
-        )
-        .collect();
+    if plan_runtime_files {
+        let plan = repo
+            .consumer_installation_plan(
+                &credential.credential,
+                &request.resource_id,
+                &request.publication_id,
+                request.host,
+            )
+            .await
+            .expect("installation plan");
+        request.runtime_files = plan
+            .runtime_files
+            .iter()
+            .map(
+                |file| systemprompt_models::feedback::receipts::RuntimeFileReadback {
+                    path: file.path.clone(),
+                    digest: ContentDigest::of(&file.bytes),
+                    bytes: file.bytes.len() as u64,
+                    executable: file.executable,
+                    content_check: ReadbackStatus::Verified,
+                    mode_check: ReadbackStatus::Verified,
+                },
+            )
+            .collect();
+    }
     Fixture {
         repo,
         pool,

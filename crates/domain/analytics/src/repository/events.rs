@@ -75,6 +75,7 @@ impl AnalyticsEventsRepository {
         }
     }
 
+    // JSON: JSONB `event_data` — the client's free-form `data` plus content keys.
     fn build_event_data(input: &CreateAnalyticsEventInput) -> serde_json::Value {
         let mut data = input.data.clone().unwrap_or(serde_json::json!({}));
 

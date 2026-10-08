@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 
-use crate::services::db_helper::{lazy_pool, pool_or_skip};
+use crate::services::db_helper::{lazy_pool, test_pool};
 use systemprompt_database::{
     AppliedMigration, ChecksumDrift, DatabaseInfo, DatabaseProvider, DatabaseResult,
     DatabaseTransaction, ExtensionMigrationStatus, JsonRow, MarkAppliedOutcome, MigrationResult,
@@ -18,12 +18,13 @@ use systemprompt_database::{
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_test_fixtures::DisposableDb;
 
 #[test]
 fn test_applied_migration_creation() {
     let migration = AppliedMigration {
-        extension_id: "users".to_string(),
+        extension_id: ExtensionId::new("users"),
         version: 1,
         name: "create_users_table".to_string(),
         checksum: "abc123".to_string(),
@@ -39,7 +40,7 @@ fn test_applied_migration_creation() {
 #[test]
 fn test_applied_migration_with_high_version() {
     let migration = AppliedMigration {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: u32::MAX,
         name: "max_version".to_string(),
         checksum: "hash".to_string(),
@@ -52,14 +53,14 @@ fn test_applied_migration_with_high_version() {
 #[test]
 fn test_applied_migration_with_empty_strings() {
     let migration = AppliedMigration {
-        extension_id: String::new(),
+        extension_id: ExtensionId::new(""),
         version: 0,
         name: String::new(),
         checksum: String::new(),
         applied_at: None,
     };
 
-    assert!(migration.extension_id.is_empty());
+    assert!(migration.extension_id.as_str().is_empty());
     assert!(migration.name.is_empty());
     assert!(migration.checksum.is_empty());
 }
@@ -107,7 +108,7 @@ fn test_migration_result_large_values() {
 #[test]
 fn test_migration_status_creation() {
     let status = MigrationStatus {
-        extension_id: "content".to_string(),
+        extension_id: ExtensionId::new("content"),
         total_defined: 10,
         total_applied: 8,
         pending_count: 2,
@@ -124,7 +125,7 @@ fn test_migration_status_creation() {
 #[test]
 fn test_migration_status_all_applied() {
     let status = MigrationStatus {
-        extension_id: "fully_migrated".to_string(),
+        extension_id: ExtensionId::new("fully_migrated"),
         total_defined: 15,
         total_applied: 15,
         pending_count: 0,
@@ -140,14 +141,14 @@ fn test_migration_status_all_applied() {
 fn test_migration_status_with_applied_migrations() {
     let applied = vec![
         AppliedMigration {
-            extension_id: "test".to_string(),
+            extension_id: ExtensionId::new("test"),
             version: 1,
             name: "v1".to_string(),
             checksum: "hash1".to_string(),
             applied_at: None,
         },
         AppliedMigration {
-            extension_id: "test".to_string(),
+            extension_id: ExtensionId::new("test"),
             version: 2,
             name: "v2".to_string(),
             checksum: "hash2".to_string(),
@@ -156,7 +157,7 @@ fn test_migration_status_with_applied_migrations() {
     ];
 
     let status = MigrationStatus {
-        extension_id: "test".to_string(),
+        extension_id: ExtensionId::new("test"),
         total_defined: 3,
         total_applied: 2,
         pending_count: 1,
@@ -172,7 +173,7 @@ fn test_migration_status_with_applied_migrations() {
 #[test]
 fn test_migration_status_no_migrations() {
     let status = MigrationStatus {
-        extension_id: "empty".to_string(),
+        extension_id: ExtensionId::new("empty"),
         total_defined: 0,
         total_applied: 0,
         pending_count: 0,
@@ -271,8 +272,8 @@ impl DatabaseProvider for RecordingProvider {
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
         self.log.push("begin");
         if *self.log.fail_begin.lock().expect("lock") {
-            return Err(systemprompt_database::RepositoryError::internal(
-                "begin refused",
+            return Err(systemprompt_traits::RepositoryError::database(
+                std::io::Error::other("begin refused"),
             ));
         }
         Ok(Box::new(RecordingTx {
@@ -336,10 +337,9 @@ impl DatabaseTransaction for RecordingTx {
         if let Some(fail_at) = self.fail_on_statement
             && fail_at == self.statement_index
         {
-            return Err(systemprompt_database::RepositoryError::internal(format!(
-                "boom on stmt {}",
-                self.statement_index
-            )));
+            return Err(systemprompt_traits::RepositoryError::database(
+                std::io::Error::other(format!("boom on stmt {}", self.statement_index)),
+            ));
         }
         Ok(0)
     }
@@ -371,8 +371,8 @@ impl DatabaseTransaction for RecordingTx {
     async fn commit(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("commit");
         if self.fail_commit {
-            return Err(systemprompt_database::RepositoryError::internal(
-                "commit refused",
+            return Err(systemprompt_traits::RepositoryError::database(
+                std::io::Error::other("commit refused"),
             ));
         }
         Ok(())
@@ -381,8 +381,8 @@ impl DatabaseTransaction for RecordingTx {
     async fn rollback(self: Box<Self>) -> DatabaseResult<()> {
         self.log.push("rollback");
         if self.fail_rollback {
-            return Err(systemprompt_database::RepositoryError::internal(
-                "rollback refused",
+            return Err(systemprompt_traits::RepositoryError::database(
+                std::io::Error::other("rollback refused"),
             ));
         }
         Ok(())
@@ -471,7 +471,7 @@ async fn execute_migration_rolls_back_and_skips_recording_on_failure() {
         .run_pending_migrations(&extension)
         .await
         .expect_err("migration must fail");
-    assert!(matches!(err, LoaderError::MigrationFailed { .. }));
+    assert!(matches!(err, LoaderError::MigrationStepFailed { .. }));
 
     let events = log.snapshot();
     assert!(events.iter().any(|e| e == "begin"));
@@ -726,14 +726,14 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
         .await
         .expect_err("unparseable migration must fail");
     match err {
-        LoaderError::MigrationFailed { message, .. } => {
-            assert!(message.contains("parse"), "message: {message}");
+        LoaderError::MigrationStepFailed { context, .. } => {
+            assert!(context.contains("parse"), "context: {context}");
             assert!(
-                message.contains("3"),
-                "message names the version: {message}"
+                context.contains("3"),
+                "context names the version: {context}"
             );
         },
-        other => panic!("expected MigrationFailed, got {other:?}"),
+        other => panic!("expected MigrationStepFailed, got {other:?}"),
     }
     assert!(
         !log.snapshot().iter().any(|e| e == "begin"),
@@ -743,13 +743,13 @@ async fn transactional_migration_with_unparseable_sql_fails_before_execution() {
 
 mod checksum_drift_db {
     use super::{Migration, MigrationService, StubExtension};
-    use crate::services::db_helper::pool_or_skip;
+    use crate::services::db_helper::test_pool;
     use systemprompt_database::{MigrationConfig, PostgresProvider};
 
-    async fn provider_or_skip() -> Option<PostgresProvider> {
-        let db = pool_or_skip().await?;
-        let pg = db.write_pool_arc().ok()?;
-        Some(PostgresProvider::from_pool(pg))
+    async fn test_provider() -> PostgresProvider {
+        let db = test_pool().await;
+        let pg = db.write_pool();
+        PostgresProvider::from_pool(pg)
     }
 
     fn ext(id: &'static str, sql: &'static str) -> StubExtension {
@@ -761,9 +761,7 @@ mod checksum_drift_db {
 
     #[tokio::test]
     async fn edited_applied_migration_is_refused_unless_drift_allowed() {
-        let Some(provider) = provider_or_skip().await else {
-            return;
-        };
+        let provider = test_provider().await;
         let service = MigrationService::new(&provider);
 
         use systemprompt_database::DatabaseProvider as _;
@@ -819,7 +817,7 @@ mod checksum_drift_db {
 #[test]
 fn test_migration_status_all_pending() {
     let status = MigrationStatus {
-        extension_id: "fresh_install".to_string(),
+        extension_id: ExtensionId::new("fresh_install"),
         total_defined: 10,
         total_applied: 0,
         pending_count: 10,
@@ -834,7 +832,7 @@ fn test_migration_status_all_pending() {
 #[test]
 fn test_pending_migration_fields() {
     let p = PendingMigration {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: 7,
         name: "add_index".to_string(),
         sql: "CREATE INDEX idx ON t(c)",
@@ -853,7 +851,7 @@ fn test_pending_migration_fields() {
 #[test]
 fn test_checksum_drift_fields() {
     let d = ChecksumDrift {
-        extension_id: "ext".to_string(),
+        extension_id: ExtensionId::new("ext"),
         version: 3,
         name: "modify".to_string(),
         stored_checksum: "stored".to_string(),
@@ -865,27 +863,18 @@ fn test_checksum_drift_fields() {
 }
 
 #[test]
-fn test_extension_migration_status_default_empty() {
-    let s = ExtensionMigrationStatus::default();
-    assert!(s.extension_id.is_empty());
-    assert!(s.applied.is_empty());
-    assert!(s.pending.is_empty());
-    assert!(s.drift.is_empty());
-}
-
-#[test]
 fn test_extension_migration_status_with_drift_and_pending() {
     let s = ExtensionMigrationStatus {
-        extension_id: "users".to_string(),
+        extension_id: ExtensionId::new("users"),
         applied: vec![AppliedMigration {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 1,
             name: "v1".to_string(),
             checksum: "old".to_string(),
             applied_at: Some("2026-05-15T10:00:00+00:00".to_string()),
         }],
         pending: vec![PendingMigration {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 2,
             name: "v2".to_string(),
             sql: "ALTER TABLE x ADD c INT",
@@ -893,13 +882,15 @@ fn test_extension_migration_status_with_drift_and_pending() {
             no_tx: false,
         }],
         drift: vec![ChecksumDrift {
-            extension_id: "users".to_string(),
+            extension_id: ExtensionId::new("users"),
             version: 1,
             name: "v1".to_string(),
             stored_checksum: "old".to_string(),
             current_checksum: "edited".to_string(),
         }],
-        ..Default::default()
+        slot_collisions: vec![],
+        orphaned: vec![],
+        tombstoned: vec![],
     };
 
     assert_eq!(s.applied.len(), 1);
@@ -1166,10 +1157,8 @@ async fn run_down_migrations_rejects_unparseable_down_sql_before_deleting_the_re
 
 #[tokio::test]
 async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() {
-    let database = DisposableDb::installed("down_corrupt_version")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("down_corrupt_version").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool();
     let extension_id = "down_corrupt_version_ext";
     sqlx::query(
@@ -1220,10 +1209,8 @@ async fn run_down_migrations_rejects_a_corrupt_ledger_version_without_writing() 
 
 #[tokio::test]
 async fn run_down_migrations_refuses_an_applied_tombstone_without_writing() {
-    let database = DisposableDb::installed("down_tombstone")
-        .await
-        .expect("private database");
-    let db = database.pool().await.expect("private pool");
+    let database = DisposableDb::with_schema("down_tombstone").await;
+    let db = database.test_pool().await;
     let raw = db.write_pool();
     let extension_id = "down_tombstone_ext";
     sqlx::query(
@@ -1408,7 +1395,7 @@ async fn an_applied_migration_row_maps_every_column_including_a_null_timestamp()
     let service = MigrationService::new(&provider);
 
     let applied = service
-        .get_applied_migrations("rows_ext")
+        .get_applied_migrations(&ExtensionId::new("rows_ext"))
         .await
         .expect("the applied-migration query maps its rows");
 
@@ -1468,7 +1455,7 @@ async fn a_row_with_a_malformed_version_fails_the_query_instead_of_reading_as_pe
     let service = MigrationService::new(&provider);
 
     let err = service
-        .get_applied_migrations("rows_ext")
+        .get_applied_migrations(&ExtensionId::new("rows_ext"))
         .await
         .expect_err("a version that does not fit u32 is malformed, not absent");
     assert!(err.to_string().contains("malformed"), "{err}");
@@ -1548,7 +1535,7 @@ async fn a_tombstoned_slot_is_neither_executed_nor_recorded() {
 #[test]
 fn orphaned_migration_names_the_slot_no_file_claims() {
     let orphan = OrphanedMigration {
-        extension_id: "web".to_owned(),
+        extension_id: ExtensionId::new("web"),
         version: 34,
         name: "knowledge_bank".to_owned(),
     };
@@ -1560,7 +1547,7 @@ fn orphaned_migration_names_the_slot_no_file_claims() {
 #[test]
 fn tombstoned_slot_reports_whether_the_database_ever_ran_it() {
     let tracked = TombstonedSlot {
-        extension_id: "web".to_owned(),
+        extension_id: ExtensionId::new("web"),
         version: 34,
         name: "knowledge_bank".to_owned(),
         tracked: true,
@@ -1879,9 +1866,7 @@ async fn reconcile_drift_refuses_a_reused_slot() {
 async fn repair_drift_reapplies_when_the_name_matches() {
     // Why: repair takes the bootstrap advisory lock on a live session before
     // touching the faked rows, so the fake borrows the fixture pool for it.
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
@@ -1902,9 +1887,7 @@ async fn repair_drift_reapplies_when_the_name_matches() {
 
 #[tokio::test]
 async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let provider = drifted_provider(&log, "034_knowledge_bank", "034_knowledge_bank", db.pool());
     let service = MigrationService::new(&provider);
@@ -1928,9 +1911,13 @@ async fn reconcile_drift_rewrites_bookkeeping_without_executing_sql() {
 
 fn status_with_collisions(collisions: Vec<SlotCollision>) -> ExtensionMigrationStatus {
     ExtensionMigrationStatus {
-        extension_id: "knowledge_bank".to_string(),
+        extension_id: ExtensionId::new("knowledge_bank"),
+        applied: vec![],
+        pending: vec![],
+        drift: vec![],
         slot_collisions: collisions,
-        ..Default::default()
+        orphaned: vec![],
+        tombstoned: vec![],
     }
 }
 
@@ -1944,7 +1931,7 @@ fn refuse_slot_collisions_accepts_a_status_without_collisions() {
 #[test]
 fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
     let status = status_with_collisions(vec![SlotCollision {
-        extension_id: "knowledge_bank".to_string(),
+        extension_id: ExtensionId::new("knowledge_bank"),
         version: 34,
         stored_name: "034_knowledge_bank".to_string(),
         current_name: "034_project_activity".to_string(),
@@ -1964,13 +1951,13 @@ fn refuse_slot_collisions_names_both_the_stored_and_the_current_migration() {
 fn refuse_slot_collisions_reports_the_first_collision_when_several_exist() {
     let status = status_with_collisions(vec![
         SlotCollision {
-            extension_id: "knowledge_bank".to_string(),
+            extension_id: ExtensionId::new("knowledge_bank"),
             version: 34,
             stored_name: "034_knowledge_bank".to_string(),
             current_name: "034_project_activity".to_string(),
         },
         SlotCollision {
-            extension_id: "knowledge_bank".to_string(),
+            extension_id: ExtensionId::new("knowledge_bank"),
             version: 35,
             stored_name: "035_files".to_string(),
             current_name: "035_projects".to_string(),
@@ -2047,9 +2034,7 @@ async fn persisted_users001_checksum_matches_exact_historical_release_bytes() {
 
 #[tokio::test]
 async fn repair_drift_rejects_unparseable_replacement_without_changing_trusted_checksum() {
-    let db = pool_or_skip()
-        .await
-        .expect("migration repair database fixture must be configured");
+    let db = test_pool().await;
     let log = Arc::new(CallLog::default());
     let broken_sql = "THIS IS NOT SQL";
     let broken = StubExtension {

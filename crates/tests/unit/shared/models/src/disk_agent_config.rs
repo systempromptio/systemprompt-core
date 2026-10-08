@@ -1,7 +1,8 @@
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::services::{
-    AgentCardConfig, CapabilitiesConfig, DiskAgentConfig, OAuthConfig, PluginComponentRef,
+use systemprompt_manifest::services::{
+    AgentCardConfig, CapabilitiesConfig, DiskAgentConfig, OAuthConfig,
 };
+use systemprompt_models::plugin::PluginComponentRef;
 
 fn pcr<I: IntoIterator<Item = &'static str>>(items: I) -> PluginComponentRef {
     PluginComponentRef {

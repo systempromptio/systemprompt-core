@@ -1,3 +1,5 @@
+use systemprompt_identifiers::{JobName, ServiceName};
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DesiredStatus, ReconciliationResult, RuntimeStatus, SchedulerError, ServiceAction, ServiceType,
     VerifiedServiceState,
@@ -9,7 +11,7 @@ mod enabled_state_transitions {
     #[test]
     fn all_enabled_state_transitions() {
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -19,7 +21,7 @@ mod enabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::None);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Starting,
@@ -29,7 +31,7 @@ mod enabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::None);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Stopped,
@@ -39,7 +41,7 @@ mod enabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::Start);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Crashed,
@@ -49,7 +51,7 @@ mod enabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::Restart);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Orphaned,
@@ -66,7 +68,7 @@ mod disabled_state_transitions {
     #[test]
     fn all_disabled_state_transitions() {
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
             RuntimeStatus::Running,
@@ -76,7 +78,7 @@ mod disabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::Stop);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
             RuntimeStatus::Starting,
@@ -86,7 +88,7 @@ mod disabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::Stop);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
             RuntimeStatus::Stopped,
@@ -96,7 +98,7 @@ mod disabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
             RuntimeStatus::Crashed,
@@ -106,7 +108,7 @@ mod disabled_state_transitions {
         assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
         let state = VerifiedServiceState::builder(
-            "s".to_string(),
+            ServiceName::new("s"),
             ServiceType::Api,
             DesiredStatus::Disabled,
             RuntimeStatus::Orphaned,
@@ -123,7 +125,7 @@ mod verified_state_serialization_tests {
     #[test]
     fn serialization() {
         let state = VerifiedServiceState::builder(
-            "test-service".to_string(),
+            ServiceName::new("test-service"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -160,7 +162,7 @@ mod verified_state_serialization_tests {
     #[test]
     fn serialization_with_error() {
         let state = VerifiedServiceState::builder(
-            "error-service".to_string(),
+            ServiceName::new("error-service"),
             ServiceType::Api,
             DesiredStatus::Enabled,
             RuntimeStatus::Crashed,
@@ -176,7 +178,7 @@ mod verified_state_serialization_tests {
     #[test]
     fn serialization_without_pid() {
         let state = VerifiedServiceState::builder(
-            "no-pid-service".to_string(),
+            ServiceName::new("no-pid-service"),
             ServiceType::Mcp,
             DesiredStatus::Disabled,
             RuntimeStatus::Stopped,
@@ -198,7 +200,7 @@ mod verified_state_serialization_tests {
 
         for (service_type, expected_str) in types {
             let state = VerifiedServiceState::builder(
-                "type-test".to_string(),
+                ServiceName::new("type-test"),
                 service_type,
                 DesiredStatus::Enabled,
                 RuntimeStatus::Running,
@@ -213,25 +215,6 @@ mod verified_state_serialization_tests {
                 expected_str
             );
         }
-    }
-}
-
-mod edge_cases {
-    use super::*;
-
-    #[test]
-    fn empty_service_name() {
-        let state = VerifiedServiceState::builder(
-            "".to_string(),
-            ServiceType::Api,
-            DesiredStatus::Enabled,
-            RuntimeStatus::Stopped,
-            8080,
-        )
-        .build();
-
-        assert_eq!(state.name, "");
-        assert_eq!(state.needs_action, ServiceAction::Start);
     }
 }
 
@@ -254,7 +237,7 @@ mod scheduler_error_additional_tests {
     fn display_all_variants() {
         let errors = vec![
             (
-                SchedulerError::job_not_found("test_job"),
+                SchedulerError::job_not_found(JobName::new("test_job")),
                 "Job not found: test_job",
             ),
             (
@@ -262,12 +245,17 @@ mod scheduler_error_additional_tests {
                 "Invalid cron schedule: bad_cron",
             ),
             (
-                SchedulerError::job_execution_failed("job", "error"),
-                "Job execution failed: job - error",
+                SchedulerError::job_execution_failed(
+                    JobName::new("job"),
+                    ProviderError::InvalidInput("error".to_owned()),
+                ),
+                "Job execution failed: job - Invalid input: error",
             ),
             (
-                SchedulerError::config_error("bad config"),
-                "Configuration error: bad config",
+                SchedulerError::UnknownRetentionTable {
+                    table: "nope".to_owned(),
+                },
+                "No retention path for table nope",
             ),
             (SchedulerError::AlreadyRunning, "Scheduler already running"),
             (SchedulerError::NotInitialized, "Scheduler not initialized"),
@@ -298,7 +286,7 @@ mod reconciliation_additional_tests {
     #[test]
     fn debug() {
         let mut result = ReconciliationResult::new();
-        result.started.push("service-1".to_string());
+        result.started.push(ServiceName::new("service-1"));
 
         let debug_str = format!("{:?}", result);
         assert!(debug_str.contains("ReconciliationResult"));
@@ -309,15 +297,15 @@ mod reconciliation_additional_tests {
     fn aggregation() {
         let mut result = ReconciliationResult::new();
 
-        result.started.push("new-api".to_string());
-        result.started.push("new-mcp".to_string());
-        result.restarted.push("crashed-service".to_string());
-        result.stopped.push("disabled-old".to_string());
-        result.cleaned_up.push("orphan-1".to_string());
-        result.cleaned_up.push("orphan-2".to_string());
+        result.started.push(ServiceName::new("new-api"));
+        result.started.push(ServiceName::new("new-mcp"));
+        result.restarted.push(ServiceName::new("crashed-service"));
+        result.stopped.push(ServiceName::new("disabled-old"));
+        result.cleaned_up.push(ServiceName::new("orphan-1"));
+        result.cleaned_up.push(ServiceName::new("orphan-2"));
         result
             .failed
-            .push(("bad-service".to_string(), "Error".to_string()));
+            .push((ServiceName::new("bad-service"), "Error".to_string()));
 
         assert_eq!(result.started.len(), 2);
         assert_eq!(result.restarted.len(), 1);

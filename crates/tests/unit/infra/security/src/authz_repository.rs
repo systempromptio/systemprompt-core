@@ -14,18 +14,14 @@ use systemprompt_identifiers::RuleId;
 use systemprompt_security::authz::{
     Access, AccessControlRepository, EntityKind, RuleType, UpsertRuleParams,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 const KIND: EntityKind = EntityKind::Skill;
 
 async fn fixture_repository() -> (AccessControlRepository, DbPool) {
-    let url = fixture_database_url().expect("authz database fixture URL");
-    let db = fixture_db_pool(&url)
-        .await
-        .expect("connect to migrated authz database fixture");
-    let repo = AccessControlRepository::new(&db)
-        .expect("construct access-control repository from fixture database");
+    let db = test_db_pool().await;
+    let repo = AccessControlRepository::new(&db);
     (repo, db)
 }
 
@@ -34,7 +30,7 @@ fn unique_entity() -> String {
 }
 
 async fn cleanup(db: &DbPool, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(KIND.as_str())
         .bind(entity_id)

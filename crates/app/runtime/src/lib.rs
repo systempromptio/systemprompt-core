@@ -1,7 +1,6 @@
 //! `systemprompt-runtime` — application runtime services.
 //!
 //! This crate hosts [`AppContext`], the lifecycle [`AppContextBuilder`],
-//! the inventory-driven module API and well-known route registries,
 //! per-module installation helpers, startup validation, and the typed
 //! [`RuntimeError`] / [`RuntimeResult`] error boundary used by all of
 //! the above.
@@ -9,14 +8,14 @@
 //! Public APIs return [`RuntimeResult<T>`]. [`RuntimeError`] composes
 //! upstream typed errors (`ConfigError`, `RepositoryError`,
 //! `FilesError`, `UserError`, `LoaderError`, `AnalyticsError`,
-//! `ProfileBootstrapError`, `PathError`) via `#[from]` and absorbs
-//! untyped third-party errors into [`RuntimeError::Internal`] as strings.
+//! `ProfileBootstrapError`, `PathError`) via `#[from]`; every variant
+//! built from another error keeps it as its source.
 //!
 //! # Feature flags
 //!
 //! | Feature       | Effect                                                          |
 //! |---------------|------------------------------------------------------------------|
-//! | (default)     | Core context, builder, registries, validation                   |
+//! | (default)     | Core context, builder, validation                               |
 //! | `geolocation` | Enables `MaxMind` `GeoIP2` loading via `maxminddb` and pulls in `systemprompt-analytics/geolocation` |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -28,18 +27,18 @@ mod context_traits;
 mod database_context;
 mod error;
 pub mod managed;
-mod registry;
+pub mod schema_currency;
 pub mod services_reconcile;
 mod startup_validation;
+pub mod storage;
 pub mod trace;
 mod validation;
-mod wellknown;
 
-pub use builder::{AppContextBuilder, discover_models};
+pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
-pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleType, WellKnownRoute};
+pub use schema_currency::assert_schema_current;
 pub use startup_validation::{
     ExtensionConfigOutcome, FilesConfigValidator, StartupValidator, collect_manifest_errors,
     display_validation_report, display_validation_warnings, merge_mcp_errors,
@@ -54,61 +53,8 @@ pub use trace::{
     McpToolExecution, ModelStatsRow, ModuleCount, ProviderStatsRow, RequestCursor,
     RequestCursorError, TaskArtifact, TaskInfo, ToolExecutionFilter, ToolExecutionItem,
     ToolLogEntry, TraceError, TraceEvent, TraceListFilter, TraceListItem, TraceQueryService,
+    TraceRepository,
 };
-pub use validation::{validate_database_path, validate_system};
-pub use wellknown::{WellKnownMetadata, get_wellknown_metadata};
+pub use validation::{validate_database_url, validate_system};
 
 pub use systemprompt_models::modules::ServiceCategory;
-
-#[macro_export]
-macro_rules! register_module_api {
-    ($module_name:literal, $category:expr, $router_fn:expr, $auth_required:expr, $module_type:expr) => {
-        inventory::submit! {
-            $crate::ModuleApiRegistration {
-                module_name: $module_name,
-                category: $category,
-                module_type: $module_type,
-                router_fn: $router_fn,
-                auth_required: $auth_required,
-            }
-        }
-    };
-    ($module_name:literal, $category:expr, $router_fn:expr, $auth_required:expr) => {
-        inventory::submit! {
-            $crate::ModuleApiRegistration {
-                module_name: $module_name,
-                category: $category,
-                module_type: $crate::ModuleType::Regular,
-                router_fn: $router_fn,
-                auth_required: $auth_required,
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! register_wellknown_route {
-    ($path:literal, $handler:expr, $methods:expr, name: $name:literal, description: $desc:literal) => {
-        inventory::submit! {
-            $crate::WellKnownRoute {
-                path: $path,
-                handler_fn: $handler,
-                methods: $methods,
-            }
-        }
-
-        inventory::submit! {
-            $crate::WellKnownMetadata::new($path, $name, $desc)
-        }
-    };
-
-    ($path:literal, $handler:expr, $methods:expr) => {
-        inventory::submit! {
-            $crate::WellKnownRoute {
-                path: $path,
-                handler_fn: $handler,
-                methods: $methods,
-            }
-        }
-    };
-}

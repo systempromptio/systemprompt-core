@@ -7,17 +7,17 @@
 //! matching only on the documented variants.
 //!
 //! Upstream errors are composed via `#[from]` so callers can use `?`
-//! transparently from `std::io`, `serde_json`, `serde_yaml`, and
-//! `regex` operations performed inside the bootstrap and validator
-//! pipelines.
+//! transparently from `std::io`, `serde_json` and `serde_yaml`
+//! operations performed inside the bootstrap pipeline.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
 
-use systemprompt_models::errors::SecretsError;
-use systemprompt_models::profile::ProfileError;
+use systemprompt_identifiers::{ModelId, ProviderId};
+use systemprompt_manifest::profile::ProfileError;
+use systemprompt_models::errors::{GlobalConfigError, SecretsError};
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
 use crate::services::ConfigValidationError;
@@ -92,17 +92,8 @@ pub enum ConfigError {
     #[error("Unsupported database type '{db_type}'. Only 'postgres' is supported.")]
     UnsupportedDatabaseType { db_type: String },
 
-    #[error("Invalid database URL: {message}")]
-    InvalidDatabaseUrl { message: String },
-
-    #[error("Failed to resolve variables after {passes} passes: {unresolved}")]
-    UnresolvedVariables { passes: usize, unresolved: String },
-
-    #[error("{count} validation error(s)")]
-    ValidationErrors { count: usize },
-
-    #[error("Required config file missing: {path}")]
-    EnvironmentConfigMissing { path: PathBuf },
+    #[error("Invalid database URL: {0}")]
+    InvalidDatabaseUrl(#[source] GlobalConfigError),
 
     #[error(
         "Profile is missing required `system_admin.username` and `SYSTEMPROMPT_SYSTEM_ADMIN` is \
@@ -111,10 +102,10 @@ pub enum ConfigError {
     MissingSystemAdmin,
 
     #[error("No provider named {name}")]
-    ProviderNotFound { name: String },
+    ProviderNotFound { name: ProviderId },
 
     #[error("No model with id {id} under provider {provider}")]
-    ModelNotFound { id: String, provider: String },
+    ModelNotFound { id: ModelId, provider: ProviderId },
 
     #[error("Access token expiry must be positive")]
     NonPositiveAccessTokenExpiry,
@@ -125,14 +116,9 @@ pub enum ConfigError {
     #[error("No trusted issuer found with issuer {issuer}")]
     TrustedIssuerNotFound { issuer: String },
 
-    #[error("{message}")]
-    Other { message: String },
-}
+    #[error("Profile path has no parent directory: {path}")]
+    ProfilePathWithoutParent { path: PathBuf },
 
-impl ConfigError {
-    pub fn other(message: impl Into<String>) -> Self {
-        Self::Other {
-            message: message.into(),
-        }
-    }
+    #[error("Secrets file root is not a JSON object: {path}")]
+    SecretsFileNotObject { path: PathBuf },
 }

@@ -1,26 +1,33 @@
 //! RFC 7009 token revocation endpoint.
 //!
+//! An access token is acted on only after its signature, issuer, audience and
+//! expiry verify, and a refresh token only after it resolves to a stored row.
+//! Either way the token must belong to the caller (or the caller is an admin)
+//! and, when the request authenticates a client, must have been issued to that
+//! client. A token that fails any of these checks is left untouched and the
+//! endpoint still answers 200, as RFC 7009 §2.2 requires for unknown tokens.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
 use axum::Form;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use jsonwebtoken::dangerous::insecure_decode;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{AccessTokenId, ClientId, RefreshTokenId, UserId};
+use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::JwtClaims;
+use systemprompt_models::auth::UserType;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
 use tracing::instrument;
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[derive(Debug, Deserialize)]
 pub struct RevokeRequest {
@@ -28,6 +35,29 @@ pub struct RevokeRequest {
     pub token_type_hint: Option<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+}
+
+struct Caller<'a> {
+    user_id: &'a UserId,
+    is_admin: bool,
+    client_id: Option<&'a ClientId>,
+}
+
+impl Caller<'_> {
+    fn owns(&self, owner: &UserId) -> bool {
+        self.is_admin || owner == self.user_id
+    }
+
+    fn check_client(&self, issued_to: Option<&ClientId>) -> Result<(), OAuthHttpError> {
+        if let (Some(caller), Some(issued)) = (self.client_id, issued_to)
+            && caller != issued
+        {
+            return Err(OAuthHttpError::invalid_request(
+                "Token was not issued to the authenticating client",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[instrument(skip(state, req_ctx, request, repo))]
@@ -38,102 +68,136 @@ pub async fn handle_revoke(
     Form(request): Form<RevokeRequest>,
 ) -> Result<Response, OAuthHttpError> {
     let audit_user = get_audit_user(Some(&req_ctx.auth.actor.user_id)).map_err(|e| {
-        OAuthHttpError::invalid_request(format!("Authenticated user required: {e}"))
+        internal::rejected(
+            OAuthHttpError::invalid_request("Authenticated user required"),
+            e,
+        )
     })?;
 
-    let token_type = request
-        .token_type_hint
-        .as_deref()
-        .unwrap_or("not_specified");
-    let token_hash = hash_token(&request.token);
+    let client_id = match &request.client_id {
+        Some(raw) => {
+            let client_id = ClientId::new(raw.clone());
+            validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
+                .await?;
+            Some(client_id)
+        },
+        None => None,
+    };
 
-    if let Some(client_id_str) = &request.client_id {
-        let client_id = systemprompt_identifiers::ClientId::new(client_id_str.clone());
-        if validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
-            .await
-            .is_err()
-        {
-            return Err(OAuthHttpError::invalid_client("Invalid client credentials"));
-        }
-    }
+    let caller = Caller {
+        user_id: req_ctx.user_id(),
+        is_admin: req_ctx.user_type() == UserType::Admin,
+        client_id: client_id.as_ref(),
+    };
 
-    revoke_token(&repo, &request.token, request.token_type_hint.as_deref()).await?;
-
-    if let Some(session_id) = extract_session_id_unverified(&request.token)
-        && let Err(e) = state.session_provider().revoke_session(&session_id).await
-    {
-        tracing::warn!(
-            session_id = %session_id,
-            error = %e,
-            "Failed to revoke session after token revocation"
-        );
+    match request.token_type_hint.as_deref() {
+        Some("refresh_token") => {
+            revoke_refresh_token(&repo, &request.token, &caller).await?;
+        },
+        Some("access_token") => {
+            revoke_access_token(&state, &repo, &request.token, &caller).await?;
+        },
+        _ => {
+            if !revoke_refresh_token(&repo, &request.token, &caller).await? {
+                revoke_access_token(&state, &repo, &request.token, &caller).await?;
+            }
+        },
     }
 
     tracing::info!(
-        token_hash = %token_hash,
-        token_type = %token_type,
+        token_hash = %hash_token(&request.token),
+        token_type = %request.token_type_hint.as_deref().unwrap_or("not_specified"),
         client_id = ?request.client_id,
         revocation_reason = "user_request",
         revoked_by = %audit_user,
-        "Token revoked"
+        "Token revocation processed"
     );
 
     Ok(StatusCode::OK.into_response())
 }
 
-async fn revoke_token(
+async fn revoke_refresh_token(
     repo: &OAuthRepository,
     token: &str,
-    token_type_hint: Option<&str>,
-) -> Result<()> {
-    use systemprompt_identifiers::RefreshTokenId;
+    caller: &Caller<'_>,
+) -> Result<bool, OAuthHttpError> {
+    let Ok(token_id) = RefreshTokenId::try_new(token) else {
+        return Ok(false);
+    };
+    let Some(holder) = repo.find_refresh_token_holder(&token_id).await? else {
+        return Ok(false);
+    };
+    caller.check_client(Some(&holder.client_id))?;
 
-    match token_type_hint {
-        Some("refresh_token") => {
-            let token_id = RefreshTokenId::new(token);
-            repo.revoke_refresh_token(&token_id).await?;
-        },
-        Some("access_token") => {
-            revoke_access_token_jti(repo, token).await;
-        },
-        _ => {
-            let token_id = RefreshTokenId::new(token);
-            if let Err(e) = repo.revoke_refresh_token(&token_id).await {
-                tracing::debug!(error = %e, "Refresh-token revocation no-op; trying access-token JTI path");
-                revoke_access_token_jti(repo, token).await;
-            }
-        },
+    let owner = holder.user_id;
+    if !caller.owns(&owner) {
+        tracing::warn!(
+            caller = %caller.user_id,
+            "Refused to revoke a refresh token owned by another user"
+        );
+        return Ok(true);
     }
 
+    repo.revoke_refresh_token(&token_id).await?;
+    Ok(true)
+}
+
+async fn revoke_access_token(
+    state: &OAuthState,
+    repo: &OAuthRepository,
+    token: &str,
+    caller: &Caller<'_>,
+) -> Result<(), OAuthHttpError> {
+    let config = Config::get()?;
+    let claims = match validate_jwt_token(token, &config.jwt_issuer, &config.jwt_audiences) {
+        Ok(claims) => claims,
+        Err(e) => {
+            tracing::debug!(error = %e, "Access token did not verify; nothing to revoke");
+            return Ok(());
+        },
+    };
+    caller.check_client(claims.client_id.as_ref())?;
+
+    let owner = match UserId::try_new(&claims.sub) {
+        Ok(owner) => owner,
+        Err(e) => {
+            tracing::debug!(error = %e, "Access token subject is not a user id; nothing to revoke");
+            return Ok(());
+        },
+    };
+    if !caller.owns(&owner) {
+        tracing::warn!(
+            caller = %caller.user_id,
+            "Refused to revoke an access token owned by another user"
+        );
+        return Ok(());
+    }
+
+    match AccessTokenId::try_new(&claims.jti) {
+        Ok(jti) => record_jti_revocation(repo, &jti, &owner, claims.exp).await?,
+        Err(e) => tracing::debug!(error = %e, "Access token has no jti; nothing to record"),
+    }
+
+    if let Some(session_id) = &claims.session_id {
+        state
+            .session_provider()
+            .revoke_session(session_id)
+            .await
+            .map_err(|e| internal::server_error("Failed to revoke session", e))?;
+    }
     Ok(())
 }
 
-async fn revoke_access_token_jti(repo: &OAuthRepository, token: &str) {
-    let Some(claims) = insecure_decode::<JwtClaims>(token).ok().map(|d| d.claims) else {
-        tracing::debug!("Access token did not parse as JWT; cannot revoke jti");
-        return;
-    };
-    if claims.jti.is_empty() {
-        tracing::debug!("Access token has no jti; nothing to revoke");
-        return;
-    }
-    let exp = chrono::DateTime::<chrono::Utc>::from_timestamp(claims.exp, 0)
-        .unwrap_or_else(chrono::Utc::now);
-    let user_uuid = match uuid::Uuid::parse_str(&claims.sub) {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::debug!(error = %e, sub = %claims.sub, "Access token sub is not a UUID; cannot revoke");
-            return;
-        },
-    };
-    if let Err(e) = repo.revoke_jti(&claims.jti, user_uuid, exp).await {
-        tracing::warn!(error = %e, "Failed to record JTI revocation for access token");
-    }
-}
-
-fn extract_session_id_unverified(token: &str) -> Option<SessionId> {
-    let data = insecure_decode::<JwtClaims>(token).ok()?;
-    data.claims.session_id
+async fn record_jti_revocation(
+    repo: &OAuthRepository,
+    jti: &AccessTokenId,
+    owner: &UserId,
+    exp: i64,
+) -> Result<(), OAuthHttpError> {
+    let exp =
+        chrono::DateTime::<chrono::Utc>::from_timestamp(exp, 0).unwrap_or_else(chrono::Utc::now);
+    repo.revoke_jti(jti, owner, exp).await?;
+    Ok(())
 }
 
 fn hash_token(token: &str) -> String {

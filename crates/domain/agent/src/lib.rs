@@ -40,19 +40,16 @@ pub use state::AgentState;
 pub use models::a2a::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities, AgentCard, AgentInterface,
     AgentProvider, AgentSkill, Artifact, DataPart, Message, MessageSendParams, Part,
-    SecurityScheme, Task, TaskIdParams, TaskQueryParams, TaskState, TaskStatus, TextPart,
-    TransportProtocol,
+    ProtocolBinding, SecurityScheme, Task, TaskIdParams, TaskQueryParams, TaskState, TaskStatus,
+    TextPart,
 };
 
-pub use error::{
-    AgentError, AgentResult, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
-};
+pub use error::{AgentError, AgentResult, ArtifactError, ExecutionStepTarget};
 
 pub const A2A_PROTOCOL_VERSION: &str = "0.3.0";
 
 pub use services::{
-    AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
-    ContextService, SkillService,
+    AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus, ContextService, SkillService,
 };
 
 pub use repository::content::ArtifactRepository;

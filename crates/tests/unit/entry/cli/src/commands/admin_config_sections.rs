@@ -250,8 +250,7 @@ fn an_unreadable_section_directory_fails_enumeration_instead_of_being_skipped() 
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).ok();
     };
     if std::fs::read_dir(&locked).is_ok() {
-        // Running with CAP_DAC_OVERRIDE (root): the permission bit cannot
-        // deny the read, so there is nothing to observe here.
+        // skip-ok: running as root (CAP_DAC_OVERRIDE), mode 0o000 cannot deny the read.
         restore();
         return;
     }

@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::{ArtifactId, McpExecutionId};
+use systemprompt_identifiers::{ArtifactId, McpExecutionId, McpServerId};
 use systemprompt_models::artifacts::{ExecutionMetadata, PayloadDigest, ToolResponse};
 
 use super::IngestRequest;
@@ -43,7 +43,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
         metadata.clone(),
     )
     .to_json()
-    .map_err(|e| McpDomainError::Internal(format!("artifact envelope: {e}")))?;
+    .map_err(|e| McpDomainError::operation("artifact envelope", e))?;
 
     let mut create = CreateMcpArtifact::new(
         artifact_id.clone(),
@@ -51,7 +51,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
         request
             .server_name
             .clone()
-            .unwrap_or_else(|| request.source.to_string()),
+            .unwrap_or_else(|| McpServerId::new(request.source.to_string())),
         classified.artifact_type.clone(),
         envelope,
     );
@@ -63,7 +63,9 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
     create.tool_name = Some(request.tool_name.clone());
     create.title.clone_from(&classified.title);
     create.source = request.source;
-    create.metadata = metadata.to_object().map(JsonValue::Object);
+    create.metadata = Some(JsonValue::Object(metadata.to_object().map_err(|e| {
+        McpDomainError::operation("serialise artifact execution metadata", e)
+    })?));
     create.payload_sha256 = Some(stored_digest.sha256.clone());
     create.payload_bytes = Some(byte_len);
     create.shape = ArtifactShape {
@@ -78,7 +80,7 @@ pub(super) fn create_record(new: &NewArtifact<'_>) -> McpDomainResult<CreateMcpA
 fn build_metadata(request: &IngestRequest, exec_id: &McpExecutionId) -> ExecutionMetadata {
     let mut builder = ExecutionMetadata::builder(&request.ctx)
         .with_tool(request.tool_name.clone())
-        .with_execution(exec_id.to_string());
+        .with_execution(exec_id.clone());
     if let Some((id, name)) = &request.skill {
         builder = builder.with_skill(id.clone(), name.clone());
     }

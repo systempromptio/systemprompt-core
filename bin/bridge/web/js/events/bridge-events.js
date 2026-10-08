@@ -1,17 +1,8 @@
-import { TAB_KEYS, isTextInput } from "/assets/js/utils/rail-tabs.js";
+import { TAB_KEYS, activateRailTab, isTextInput } from "/assets/js/utils/rail-tabs.js";
 
 const FORWARDED_EVENTS = ["mkt:count", "setup-open", "sp:toast"];
 const handlers = new Map();
 for (const name of FORWARDED_EVENTS) { handlers.set(name, new Set()); }
-
-function activateRailTab(name, options) {
-  const rail = document.querySelector("sp-rail");
-  if (rail && typeof rail.activateTab === "function") {
-    rail.activateTab(name, options);
-    return true;
-  }
-  return false;
-}
 
 // Why: the search box only exists while the Marketplace pane is rendered, so on
 // every other pane this used to swallow the keystroke and do nothing. Switching

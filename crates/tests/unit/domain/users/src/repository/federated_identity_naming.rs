@@ -2,7 +2,7 @@
 //! derivation branches not covered by the round-trip suite.
 
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
@@ -13,16 +13,15 @@ struct Ctx {
     external_sub: String,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let tag = Uuid::new_v4();
-    Some(Ctx {
-        repo: UserRepository::new(&pool).expect("repo"),
+    Ctx {
+        repo: UserRepository::new(&pool),
         issuer: format!("https://idp-{prefix}-{tag}.example.com:8443/realm"),
         external_sub: format!("sub-{prefix}-{tag}"),
-    })
+    }
 }
 
 async fn cleanup(ctx: &Ctx, user_id: &UserId) {
@@ -31,9 +30,7 @@ async fn cleanup(ctx: &Ctx, user_id: &UserId) {
 
 #[tokio::test]
 async fn preferred_username_wins_over_display_name() {
-    let Some(ctx) = setup_or_skip("username").await else {
-        return;
-    };
+    let ctx = setup("username").await;
     let claims = FederatedIdentityClaims {
         email: None,
         email_verified: false,
@@ -55,9 +52,7 @@ async fn preferred_username_wins_over_display_name() {
 
 #[tokio::test]
 async fn missing_username_and_name_derive_hashed_fallback() {
-    let Some(ctx) = setup_or_skip("fallback").await else {
-        return;
-    };
+    let ctx = setup("fallback").await;
     let claims = FederatedIdentityClaims {
         email: None,
         email_verified: false,
@@ -93,9 +88,7 @@ async fn missing_username_and_name_derive_hashed_fallback() {
 
 #[tokio::test]
 async fn upstream_roles_pass_through_when_present() {
-    let Some(ctx) = setup_or_skip("roles").await else {
-        return;
-    };
+    let ctx = setup("roles").await;
     let claims = FederatedIdentityClaims {
         email: Some("roles@example.com".to_owned()),
         email_verified: true,

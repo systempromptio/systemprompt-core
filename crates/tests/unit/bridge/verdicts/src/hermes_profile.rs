@@ -19,7 +19,7 @@ use systemprompt_bridge::integration::HostApp;
 use systemprompt_bridge::integration::hermes::{
     HERMES_HOST, contract, install_profile_into, remove_profile_from,
 };
-use systemprompt_bridge::integration::host_app::{ProfileGenInputs, ProfileRemoval};
+use systemprompt_bridge::integration::host_app::{HostAppError, ProfileGenInputs, ProfileRemoval};
 
 const GATEWAY: &str = "http://127.0.0.1:48217";
 const MODEL: &str = "claude-haiku-4-5";
@@ -200,5 +200,54 @@ fn reinstall_replaces_the_managed_entry_rather_than_duplicating_it() {
         format!("{GATEWAY}/v1")
     );
 
+    std::fs::remove_dir_all(&home).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn the_env_file_holding_the_host_token_is_private_even_when_it_existed_world_readable() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let home = scratch("env-mode");
+    let env = home.join(".env");
+    std::fs::write(&env, "OTHER=kept\n").expect("seed .env");
+    std::fs::set_permissions(&env, std::fs::Permissions::from_mode(0o644)).expect("chmod");
+
+    install_into(&home);
+
+    let mode = std::fs::metadata(&env)
+        .expect("stat .env")
+        .permissions()
+        .mode()
+        & 0o777;
+    assert_eq!(
+        mode, 0o600,
+        "the host token is never left readable by other accounts"
+    );
+    let body = std::fs::read_to_string(&env).expect("read .env");
+    assert!(body.contains("OTHER=kept"), "foreign lines survive: {body}");
+    std::fs::remove_dir_all(&home).ok();
+}
+
+#[test]
+fn a_config_yaml_whose_root_is_not_a_mapping_is_refused_and_left_untouched() {
+    let home = scratch("non-mapping");
+    let config = home.join("config.yaml");
+    let original = "- a user list\n- not a mapping\n";
+    std::fs::write(&config, original).expect("seed config.yaml");
+
+    let generated = HERMES_HOST.generate_profile(&inputs()).expect("generate");
+    let err = install_profile_into(&generated.path, &home)
+        .expect_err("a foreign root shape is refused, not replaced");
+    std::fs::remove_file(&generated.path).ok();
+
+    assert!(
+        matches!(err, HostAppError::ForeignShape(ref shape) if shape.key == "<root>"),
+        "a foreign root is a typed foreign-shape refusal: {err:?}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&config).expect("read config.yaml"),
+        original,
+        "the user's file is never replaced with an empty mapping"
+    );
     std::fs::remove_dir_all(&home).ok();
 }

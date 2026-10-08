@@ -23,8 +23,10 @@ use std::collections::BTreeSet;
 
 use pg_query::Context;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
+use crate::error::RepositoryError;
 use crate::services::DatabaseProvider;
 
 // Why: one function can serve several triggers (an INSERT one naming
@@ -44,6 +46,7 @@ const LIVE_PLPGSQL_TRIGGERS: &str = "SELECT t.tgname::text AS trigger, t.tgrelid
 
 const RELATION_EXISTS: &str = "SELECT to_regclass($1) IS NOT NULL AS present";
 
+// JSON: libpg_query PL/pgSQL parse tree — walked for embedded SQL statements.
 fn collect_queries(value: &serde_json::Value, out: &mut Vec<String>) {
     match value {
         serde_json::Value::Object(map) => {
@@ -99,14 +102,16 @@ fn text(row: &crate::models::JsonRow, key: &str) -> String {
 }
 
 pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), LoaderError> {
-    let failed = |message: String| LoaderError::SchemaInstallationFailed {
-        extension: "database".to_owned(),
-        message,
-    };
+    let failed =
+        |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
+            extension: ExtensionId::new("database"),
+            context,
+            source: Box::new(source),
+        };
     let rows = db
         .fetch_all(&LIVE_PLPGSQL_TRIGGERS, &[])
         .await
-        .map_err(|e| failed(format!("Failed to list trigger routines: {e}")))?;
+        .map_err(|e| failed("Failed to list trigger routines".to_owned(), e))?;
 
     let mut first: Option<LoaderError> = None;
     for row in &rows {
@@ -123,7 +128,7 @@ pub async fn check_trigger_routines(db: &dyn DatabaseProvider) -> Result<(), Loa
             let present = db
                 .fetch_optional(&RELATION_EXISTS, &[&relation])
                 .await
-                .map_err(|e| failed(format!("Failed to resolve {relation}: {e}")))?
+                .map_err(|e| failed(format!("Failed to resolve {relation}"), e))?
                 .and_then(|r| r.get("present").and_then(serde_json::Value::as_bool))
                 .unwrap_or(false);
             if present {

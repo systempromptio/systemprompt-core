@@ -2,7 +2,7 @@
 //! `ServicesConfig` into the flat agent + MCP service list the reconciler's
 //! state verifier consumes.
 
-use systemprompt_models::ServicesConfig;
+use systemprompt_manifest::ServicesConfig;
 use systemprompt_scheduler::{ServiceConfig, ServiceType};
 
 fn empty_manifest() -> ServicesConfig {

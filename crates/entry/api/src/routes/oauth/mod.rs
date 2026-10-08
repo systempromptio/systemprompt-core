@@ -16,6 +16,7 @@ pub mod endpoints;
 pub mod error;
 pub mod extractors;
 pub mod health;
+pub mod internal;
 pub mod responses;
 pub mod webauthn;
 pub mod wellknown;

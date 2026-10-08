@@ -42,7 +42,7 @@ impl Classified {
     pub fn header_only(&self, request: &IngestRequest) -> JsonValue {
         let mut artifact =
             ToolResultArtifact::new(request.tool_name.clone()).with_error(self.is_error);
-        artifact.server_name.clone_from(&request.server_name);
+        artifact.server_name = request.server_name.as_ref().map(ToString::to_string);
         artifact.truncated = true;
         serde_json::to_value(artifact).unwrap_or(JsonValue::Null)
     }
@@ -74,7 +74,7 @@ pub(super) fn classify(request: &IngestRequest) -> Classified {
         .with_error(is_error)
         .with_blocks(blocks)
         .with_structured_content(result.structured_content.clone());
-    artifact.server_name.clone_from(&request.server_name);
+    artifact.server_name = request.server_name.as_ref().map(ToString::to_string);
     let is_structured = has_meta || result.structured_content.is_some();
     Classified {
         artifact_type: ToolResultArtifact::ARTIFACT_TYPE_STR.to_owned(),
@@ -112,6 +112,8 @@ fn execution_meta(result: &CallToolResult) -> (Option<ArtifactId>, Option<McpExe
     (artifact_id, execution_id)
 }
 
+// JSON: MCP `structuredContent` ingest — schema-less body keyed by
+// `x-artifact-type`.
 fn typed_body(structured: Option<&JsonValue>) -> Option<(String, JsonValue, Option<String>)> {
     let value = structured?;
     let declared = value.get("x-artifact-type")?.as_str()?;

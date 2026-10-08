@@ -22,7 +22,7 @@ impl Job for OauthCleanupJob {
     }
 
     fn description(&self) -> &'static str {
-        "Deletes expired OAuth refresh tokens, authorization codes, state bindings, JTI revocations and ID-JAG replay markers"
+        "Deletes expired OAuth refresh tokens, authorization codes, state bindings, JTI revocations, ID-JAG replay markers and WebAuthn challenges"
     }
 
     fn schedule(&self) -> &'static str {
@@ -31,18 +31,15 @@ impl Job for OauthCleanupJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("DbPool not available in job context".into())
-        })?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         debug!("Job started");
 
-        let repository = OauthCleanupRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let repository = OauthCleanupRepository::new(&db_pool);
         let counts = repository
             .delete_expired()
             .await
-            .map_err(|e| ProviderError::Internal(e.to_string()))?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
         info!(
@@ -52,6 +49,7 @@ impl Job for OauthCleanupJob {
             oauth_jti_revocations = counts.jti_revocations,
             id_jag_replays = counts.id_jag_replays,
             bridge_exchange_codes = counts.bridge_exchange_codes,
+            webauthn_challenges = counts.webauthn_challenges,
             duration_ms,
             "Job completed"
         );

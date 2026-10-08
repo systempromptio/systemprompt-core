@@ -7,6 +7,7 @@
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_loader::{ConfigLoader, ConfigWriter, ExtensionLoader, ProfileLoader};
 use tempfile::TempDir;
@@ -46,6 +47,7 @@ fn unreadable_skill_config_surfaces_io_error() {
     let skill_config = skill_dir.join("config.yaml");
     std::fs::write(&skill_config, "id: broken-skill\nname: b\n").expect("write skill");
     chmod(&skill_config, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&skill_config) {
         chmod(&skill_config, 0o644);
         return;
@@ -68,6 +70,7 @@ fn unreadable_skills_catalog_dir_surfaces_io_error() {
     let skills_dir = temp.path().join("skills");
     std::fs::create_dir_all(&skills_dir).expect("skills dir");
     chmod(&skills_dir, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&skills_dir) {
         chmod(&skills_dir, 0o755);
         return;
@@ -187,6 +190,7 @@ fn profile_list_unreadable_dir_returns_empty() {
     let profiles_dir = temp.path().join("profiles");
     std::fs::create_dir_all(&profiles_dir).expect("profiles dir");
     chmod(&profiles_dir, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&profiles_dir) {
         chmod(&profiles_dir, 0o755);
         return;
@@ -234,12 +238,13 @@ fn find_agent_file_scans_for_mismatched_filenames() {
     )
     .expect("write agent file");
 
-    let found = ConfigWriter::find_agent_file("hidden-agent", temp.path())
+    let found = ConfigWriter::find_agent_file(&AgentName::new("hidden-agent"), temp.path())
         .expect("scan succeeds")
         .expect("agent located despite filename mismatch");
     assert!(found.ends_with("agents/renamed-file.yaml"));
 
-    let missing = ConfigWriter::find_agent_file("absent-agent", temp.path()).expect("scan");
+    let missing =
+        ConfigWriter::find_agent_file(&AgentName::new("absent-agent"), temp.path()).expect("scan");
     assert!(missing.is_none());
 }
 
@@ -251,12 +256,13 @@ fn find_agent_file_unreadable_candidate_is_io_error() {
     let file = agents_dir.join("locked.yaml");
     std::fs::write(&file, "agents: {}\n").expect("write");
     chmod(&file, 0o000);
+    // skip-ok: root reads a mode-0o000 path, so the permission error never occurs
     if !perms_are_enforced(&file) {
         chmod(&file, 0o644);
         return;
     }
 
-    let err = ConfigWriter::find_agent_file("locked", temp.path())
+    let err = ConfigWriter::find_agent_file(&AgentName::new("locked"), temp.path())
         .expect_err("unreadable candidate must surface Io");
     chmod(&file, 0o644);
     assert!(format!("{err:#}").contains("locked"), "got {err:#}");

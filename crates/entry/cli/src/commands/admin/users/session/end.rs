@@ -45,7 +45,7 @@ pub(super) async fn execute(args: EndArgs, ctx: &CommandContext) -> Result<Comma
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let admin_service = UserAdminService::new(user_service.clone());
 
     if args.all {

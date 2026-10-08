@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use axum::http::StatusCode;
-use systemprompt_api::routes::gateway::bridge_release::ReleaseFeed;
-use systemprompt_models::services::BridgeReleasesSpec;
+use axum::response::IntoResponse;
+use systemprompt_api::routes::gateway::bridge_release::{ReleaseError, ReleaseFeed};
+use systemprompt_manifest::services::BridgeReleasesSpec;
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -209,26 +210,32 @@ async fn a_release_without_sha256sums_is_refused_when_nothing_is_cached() {
     )
     .await;
 
-    let (status, message) = ReleaseFeed::default()
+    let error = ReleaseFeed::default()
         .resolve(&spec(&server), "linux-x64")
         .await
         .expect_err("a release with no checksum file cannot be trusted");
 
-    assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert!(message.contains("publishes no SHA256SUMS"), "{message}");
+    assert!(
+        matches!(&error, ReleaseError::NoChecksums { version } if version == "0.50.0"),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::BAD_GATEWAY);
 }
 
 #[tokio::test]
 async fn an_unpublished_platform_is_a_not_found_before_github_is_called() {
     let server = MockServer::start().await;
 
-    let (status, message) = ReleaseFeed::default()
+    let error = ReleaseFeed::default()
         .resolve_asset(&spec(&server), "solaris-sparc")
         .await
         .expect_err("an unknown platform has no build");
 
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(message.contains("solaris-sparc"), "{message}");
+    assert!(
+        matches!(&error, ReleaseError::UnknownPlatform { platform } if platform == "solaris-sparc"),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -245,13 +252,16 @@ async fn a_release_missing_the_platform_asset_names_the_asset_it_wanted() {
     )
     .await;
 
-    let (status, message) = ReleaseFeed::default()
+    let error = ReleaseFeed::default()
         .resolve_asset(&spec(&server), "linux-x64")
         .await
         .expect_err("a release without the platform asset cannot be served");
 
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(message.contains(ASSET), "{message}");
+    assert!(
+        matches!(&error, ReleaseError::MissingAsset { asset, .. } if asset == ASSET),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -327,13 +337,34 @@ async fn a_github_error_with_nothing_cached_is_reported_as_a_bad_gateway() {
         .mount(&server)
         .await;
 
-    let (status, message) = ReleaseFeed::default()
+    let error = ReleaseFeed::default()
         .resolve_asset(&spec(&server), "linux-x64")
         .await
         .expect_err("no cached answer means the failure surfaces");
 
-    assert_eq!(status, StatusCode::BAD_GATEWAY);
-    assert!(message.contains("github returned 500"), "{message}");
+    assert!(
+        matches!(
+            &error,
+            ReleaseError::UpstreamStatus { status, .. }
+                if *status == reqwest::StatusCode::INTERNAL_SERVER_ERROR
+        ),
+        "{error:?}"
+    );
+    assert_eq!(error.status(), StatusCode::BAD_GATEWAY);
+
+    let response = error.into_response();
+    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
+    let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("read the error body");
+    let body: serde_json::Value = serde_json::from_slice(&body).expect("ApiError JSON");
+    assert_eq!(body["code"], "service_unavailable");
+    assert_eq!(body["error_key"], "release_upstream_failed");
+    assert_eq!(body["message"], "Service temporarily unavailable");
+    assert!(
+        !body.to_string().contains("github"),
+        "the upstream cause stays in the log: {body}"
+    );
 }
 
 #[tokio::test]
@@ -351,7 +382,7 @@ async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_git
     .await;
     mount_sums(&server, &format!("{DIGEST}  {ASSET}\n")).await;
 
-    let (status, detail) = ReleaseFeed::default()
+    let error = ReleaseFeed::default()
         .resolve(
             &spec_with_token(&server, Some("github_release_token")),
             "linux-x64",
@@ -359,7 +390,7 @@ async fn a_token_secret_the_store_cannot_resolve_refuses_rather_than_calling_git
         .await
         .expect_err("a configured token that cannot be resolved must refuse");
 
-    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{detail}");
+    assert_eq!(error.status(), StatusCode::SERVICE_UNAVAILABLE, "{error:?}");
     assert!(
         server
             .received_requests()

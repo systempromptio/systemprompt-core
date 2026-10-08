@@ -10,7 +10,8 @@ use systemprompt_cli::cloud::doctor::CheckStatus;
 use systemprompt_cli::cloud::doctor::distributed::{
     check_readyz, check_replica_lag, check_write_primary, run,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
+use systemprompt_test_fixtures::test_database_url;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -27,16 +28,11 @@ fn secrets(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         .collect()
 }
 
-fn live_db_url() -> String {
-    systemprompt_test_fixtures::fixture_database_url()
-        .expect("DATABASE_URL must be set for the distributed doctor probes")
-}
-
 // Why: a database name that does not exist on the live server fails
 // permanently on the first attempt, where a refused TCP connect is classified
 // retryable and spends ~3s in backoff before reporting the same warning.
 fn unreachable_db_url() -> String {
-    let live = live_db_url();
+    let live = test_database_url();
     let base = live.rsplit_once('/').expect("database url has a path").0;
     format!("{base}/sp_doctor_probe_absent_db")
 }
@@ -82,7 +78,7 @@ async fn write_primary_warns_rather_than_fails_when_the_primary_is_unreachable()
 
 #[tokio::test]
 async fn write_primary_passes_against_a_live_primary() {
-    let url = live_db_url();
+    let url = test_database_url();
     let result = check_write_primary(&secrets(&[("database_write_url", &url)])).await;
     assert_eq!(result.status, CheckStatus::Pass, "{}", result.detail);
     assert!(result.detail.contains("is a primary"), "{}", result.detail);
@@ -101,7 +97,7 @@ async fn replica_lag_fails_without_a_read_url() {
 
 #[tokio::test]
 async fn replica_lag_skips_the_probe_when_reads_and_writes_share_one_url() {
-    let url = live_db_url();
+    let url = test_database_url();
     let result = check_replica_lag(&secrets(&[
         ("database_url", &url),
         ("database_write_url", &url),
@@ -117,7 +113,7 @@ async fn replica_lag_skips_the_probe_when_reads_and_writes_share_one_url() {
 
 #[tokio::test]
 async fn replica_lag_skips_the_probe_when_no_write_url_is_configured() {
-    let url = live_db_url();
+    let url = test_database_url();
     let result = check_replica_lag(&secrets(&[("database_url", &url)])).await;
     assert_eq!(
         result.status,
@@ -135,7 +131,7 @@ async fn replica_lag_skips_the_probe_when_no_write_url_is_configured() {
 #[tokio::test]
 async fn replica_lag_warns_when_the_read_url_is_unreachable() {
     let read = unreachable_db_url();
-    let write = live_db_url();
+    let write = test_database_url();
     let result = check_replica_lag(&secrets(&[
         ("database_url", &read),
         ("database_write_url", &write),
@@ -151,7 +147,7 @@ async fn replica_lag_warns_when_the_read_url_is_unreachable() {
 
 #[tokio::test]
 async fn replica_lag_warns_when_the_declared_read_replica_is_not_a_standby() {
-    let read = live_db_url();
+    let read = test_database_url();
     let write = format!("{read}?application_name=primary");
     let result = check_replica_lag(&secrets(&[
         ("database_url", &read),
@@ -247,10 +243,10 @@ async fn run_reports_every_distributed_check_exactly_once() {
         .mount(&server)
         .await;
 
-    let url = live_db_url();
+    let url = test_database_url();
     let mut profile = fixture_profile();
     profile.server.api_internal_url = server.uri();
-    profile.server.instance_id = Some("node-a".to_owned());
+    profile.server.instance_id = Some(systemprompt_identifiers::InstanceId::new("node-a"));
     profile.server.trusted_proxies = vec!["fc00::/7".parse().expect("cidr")];
 
     let results = run(

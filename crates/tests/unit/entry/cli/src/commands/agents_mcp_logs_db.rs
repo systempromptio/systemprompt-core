@@ -11,14 +11,9 @@ use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, unique_user_id};
+use systemprompt_test_fixtures::{test_db_pool, unique_user_id};
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
@@ -31,11 +26,7 @@ async fn seed_log(pool: &DbPool, module: &str, message: &str) {
         TraceId::generate(),
     );
     let entry = LogEntry::new(LogLevel::Error, module, message, actor);
-    LoggingRepository::new(pool)
-        .unwrap()
-        .log(entry)
-        .await
-        .unwrap();
+    LoggingRepository::new(pool).log(entry).await.unwrap();
 }
 
 fn contains(out: &CommandOutput, needle: &str) -> bool {
@@ -67,7 +58,7 @@ fn mcp_args(server: &str, level: Option<mcp_logs::LogLevel>) -> mcp_logs::LogsAr
 
 #[tokio::test]
 async fn agent_logs_db_returns_matching_entries() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = format!("covagent{}", Uuid::new_v4().simple());
     let msg = format!("agent-log-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("agent.{token}"), &msg).await;
@@ -82,7 +73,7 @@ async fn agent_logs_db_returns_matching_entries() {
 
 #[tokio::test]
 async fn mcp_logs_db_returns_matching_entries() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = format!("covmcp{}", Uuid::new_v4().simple());
     let msg = format!("mcp-log-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("mcp.{token}"), &msg).await;
@@ -97,7 +88,7 @@ async fn mcp_logs_db_returns_matching_entries() {
 
 #[tokio::test]
 async fn mcp_logs_db_level_filter_keeps_error() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let token = format!("covmcplvl{}", Uuid::new_v4().simple());
     let msg = format!("mcp-error-needle-{}", Uuid::new_v4().simple());
     seed_log(&pool, &format!("mcp.{token}"), &msg).await;

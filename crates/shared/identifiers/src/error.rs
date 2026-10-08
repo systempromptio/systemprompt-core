@@ -14,9 +14,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use thiserror::Error;
 
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum IdValidationError {
     #[error("{id_type} cannot be empty")]
     Empty { id_type: &'static str },
@@ -25,7 +27,27 @@ pub enum IdValidationError {
         id_type: &'static str,
         message: String,
     },
+    #[error("{id_type}: {source}")]
+    Uuid {
+        id_type: &'static str,
+        #[source]
+        source: uuid::Error,
+    },
+    #[error("{id_type}: {source}")]
+    Json {
+        id_type: &'static str,
+        #[source]
+        source: Arc<serde_json::Error>,
+    },
 }
+
+impl PartialEq for IdValidationError {
+    fn eq(&self, other: &Self) -> bool {
+        self.comparable() == other.comparable()
+    }
+}
+
+impl Eq for IdValidationError {}
 
 impl IdValidationError {
     #[must_use]
@@ -38,6 +60,28 @@ impl IdValidationError {
         Self::Invalid {
             id_type,
             message: message.into(),
+        }
+    }
+
+    #[must_use]
+    pub const fn uuid(id_type: &'static str, source: uuid::Error) -> Self {
+        Self::Uuid { id_type, source }
+    }
+
+    #[must_use]
+    pub fn json(id_type: &'static str, source: serde_json::Error) -> Self {
+        Self::Json {
+            id_type,
+            source: Arc::new(source),
+        }
+    }
+
+    fn comparable(&self) -> (u8, &'static str, String) {
+        match self {
+            Self::Empty { id_type } => (0, *id_type, String::new()),
+            Self::Invalid { id_type, message } => (1, *id_type, message.clone()),
+            Self::Uuid { id_type, source } => (2, *id_type, source.to_string()),
+            Self::Json { id_type, source } => (3, *id_type, source.to_string()),
         }
     }
 }

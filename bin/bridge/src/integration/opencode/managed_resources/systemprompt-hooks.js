@@ -152,8 +152,4 @@ export const SystempromptHooks = async ({ directory }) => ({
     if (isSkill) body.skill_ref = SKILL_MAP[name] || `opencode:${name}`;
     await post(body);
   },
-      native_host: HOST,
-      skill_ref: SKILL_MAP[name] || `opencode:${name}`,
-    });
-  },
 });

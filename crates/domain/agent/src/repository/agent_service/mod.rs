@@ -1,260 +1,151 @@
 //! Repository for declared agent services (named processes registered with the
 //! platform).
 //!
+//! The `services` table belongs to `systemprompt-database`; this adapter keeps
+//! the agent vocabulary (register, mark running/stopped/error) and delegates
+//! every statement to [`ServiceRepository`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sqlx::PgPool;
-use std::sync::Arc;
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::InstanceId;
+use systemprompt_database::{DbPool, ServiceRepository, UpsertServiceProcessInput};
+use systemprompt_identifiers::{AgentName, InstanceId, ServiceName};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_traits::RepositoryError;
-
-use crate::error::AgentError;
 
 #[derive(Debug)]
 pub struct AgentServiceRow {
-    pub name: String,
+    pub name: AgentName,
     pub pid: Option<i32>,
     pub port: i32,
-    pub status: String,
+    pub status: ServiceStatus,
 }
 
 #[derive(Debug)]
 pub struct AgentServerIdRow {
-    pub name: String,
-}
-
-#[derive(Debug)]
-pub struct AgentServerIdPidRow {
-    pub name: String,
-    pub pid: i32,
+    pub name: AgentName,
 }
 
 #[derive(Debug, Clone)]
 pub struct AgentServiceRepository {
-    pool: Arc<PgPool>,
-    write_pool: Arc<PgPool>,
-    instance_id: InstanceId,
+    services: ServiceRepository,
 }
 
 impl AgentServiceRepository {
-    pub fn new(db: &DbPool, instance_id: InstanceId) -> Result<Self, AgentError> {
-        let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self {
-            pool,
-            write_pool,
-            instance_id,
-        })
+    pub fn new(db: &DbPool, instance_id: InstanceId) -> Self {
+        let services = ServiceRepository::new(db, instance_id);
+        Self { services }
     }
 
     pub async fn register_agent(
         &self,
-        name: &str,
+        name: &AgentName,
         pid: u32,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.remove_agent_service(name).await?;
-
-        let pool = &self.write_pool;
-        let pid_i32 = db_pid(pid)?;
-        let port_i32 = i32::from(port);
-
-        sqlx::query!(
-            "INSERT INTO services (instance_id, name, module_name, pid, port, status, updated_at)
-             VALUES ($4, $1, 'agent', $2, $3, 'running', CURRENT_TIMESTAMP)
-             ON CONFLICT (instance_id, name) DO UPDATE SET pid = $2, port = $3, status = \
-             'running', heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
-            name,
-            pid_i32,
-            port_i32,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(())
+        self.register_process(name, pid, port, ServiceStatus::Running)
+            .await
     }
 
     pub async fn register_agent_starting(
         &self,
-        name: &str,
+        name: &AgentName,
         pid: u32,
         port: u16,
     ) -> Result<(), RepositoryError> {
-        self.remove_agent_service(name).await?;
-
-        let pool = &self.write_pool;
-        let pid_i32 = db_pid(pid)?;
-        let port_i32 = i32::from(port);
-
-        sqlx::query!(
-            "INSERT INTO services (instance_id, name, module_name, pid, port, status, updated_at)
-             VALUES ($4, $1, 'agent', $2, $3, 'starting', CURRENT_TIMESTAMP)
-             ON CONFLICT (instance_id, name) DO UPDATE SET pid = $2, port = $3, status = \
-             'starting', heartbeat_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP",
-            name,
-            pid_i32,
-            port_i32,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(())
+        self.register_process(name, pid, port, ServiceStatus::Starting)
+            .await
     }
 
-    pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "UPDATE services SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(())
-    }
-
-    pub async fn get_agent_status(
+    async fn register_process(
         &self,
-        agent_name: &str,
+        name: &AgentName,
+        pid: u32,
+        port: u16,
+        status: ServiceStatus,
+    ) -> Result<(), RepositoryError> {
+        self.remove_agent_service(name).await?;
+        self.services
+            .upsert_service_process(UpsertServiceProcessInput {
+                name: &ServiceName::of_agent(name),
+                module_name: ServiceModule::Agent,
+                pid: db_pid(pid)?,
+                port,
+                status,
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn mark_running(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
+        self.services
+            .update_service_status(&ServiceName::of_agent(agent_name), ServiceStatus::Running)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn find_agent_status(
+        &self,
+        agent_name: &AgentName,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {
-        let pool = &self.pool;
-
-        let row = sqlx::query!(
-            "SELECT name, pid, port, status FROM services WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .fetch_optional(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(row.map(|r| AgentServiceRow {
-            name: r.name,
-            pid: r.pid,
-            port: r.port,
-            status: r.status,
+        let Some(row) = self
+            .services
+            .find_service_by_name(&ServiceName::of_agent(agent_name))
+            .await?
+        else {
+            return Ok(None);
+        };
+        if row.module_name != ServiceModule::Agent {
+            return Ok(None);
+        }
+        Ok(Some(AgentServiceRow {
+            status: row.status,
+            name: AgentName::new(row.name.as_str()),
+            pid: row.pid,
+            port: row.port,
         }))
     }
 
-    pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP \
-             WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
+    pub async fn mark_stopped(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
+        self.services
+            .update_service_stopped(&ServiceName::of_agent(agent_name))
+            .await?;
         Ok(())
     }
 
-    pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
-             WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
+    pub async fn mark_error(&self, agent_name: &AgentName) -> Result<(), RepositoryError> {
+        self.services
+            .mark_service_crashed(&ServiceName::of_agent(agent_name))
+            .await?;
         Ok(())
     }
 
     pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
-        let pool = &self.pool;
-
-        let rows = sqlx::query!(
-            "SELECT name FROM services WHERE instance_id = $1 AND status = 'running'",
-            self.instance_id.as_str()
-        )
-        .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
+        let rows = self
+            .services
+            .list_running_services_by_module(ServiceModule::Agent)
+            .await?;
         Ok(rows
             .into_iter()
-            .map(|r| AgentServerIdRow { name: r.name })
+            .map(|r| AgentServerIdRow {
+                name: AgentName::new(r.name.as_str()),
+            })
             .collect())
     }
 
-    pub async fn list_running_agent_pids(
+    pub async fn remove_agent_service(
         &self,
-    ) -> Result<Vec<AgentServerIdPidRow>, RepositoryError> {
-        let pool = &self.pool;
-
-        let rows = sqlx::query!(
-            "SELECT name, pid FROM services WHERE instance_id = $1 AND status = 'running' AND pid \
-             IS NOT NULL",
-            self.instance_id.as_str()
-        )
-        .fetch_all(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(rows
-            .into_iter()
-            .filter_map(|r| r.pid.map(|pid| AgentServerIdPidRow { name: r.name, pid }))
-            .collect())
-    }
-
-    pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "DELETE FROM services WHERE instance_id = $2 AND name = $1",
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
-        Ok(())
-    }
-
-    pub async fn update_health_status(
-        &self,
-        agent_name: &str,
-        health_status: &str,
+        agent_name: &AgentName,
     ) -> Result<(), RepositoryError> {
-        let pool = &self.write_pool;
-
-        sqlx::query!(
-            "UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE instance_id = $3 \
-             AND name = $2",
-            health_status,
-            agent_name,
-            self.instance_id.as_str()
-        )
-        .execute(pool.as_ref())
-        .await
-        .map_err(RepositoryError::database)?;
-
+        self.services
+            .delete_service(&ServiceName::of_agent(agent_name))
+            .await?;
         Ok(())
     }
 }
 
 fn db_pid(pid: u32) -> Result<i32, RepositoryError> {
     i32::try_from(pid).map_err(|_overflow| {
-        RepositoryError::InvalidData(format!("pid {pid} exceeds the services.pid column"))
+        RepositoryError::invalid_data("services.pid", format!("{pid} exceeds the column range"))
     })
 }

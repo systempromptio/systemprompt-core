@@ -8,9 +8,10 @@ use clap::Parser;
 use serde_json::Value;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 
 const HELPER: &str = "commands::infrastructure::jobs_run_lifecycle::mixed_job_run_helper";
@@ -34,18 +35,16 @@ fn parse(args: &[&str]) -> JobsCommands {
 async fn mixed_job_run_helper() {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_jobs_run")
-        .await
-        .expect("private jobs database");
+    let database = DisposableDb::with_schema("cli_jobs_run").await;
     let info_path =
         std::env::var_os("JOBS_RUN_DATABASE_INFO").expect("private database info channel");
     std::fs::write(info_path, database.url()).expect("write private database info");
-    let pool = database.pool().await.expect("private jobs pool");
-    let app = fixture_app_context(&pool, database.url()).expect("full fixture app context");
-    let repository = JobRepository::new(&pool).expect("job repository");
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
+    let repository = JobRepository::new(&pool);
     for name in [SUCCESS_JOB, MISSING_JOB] {
         repository
-            .upsert_job(name, "0 0 * * * *", true)
+            .upsert_job(&JobName::new(name), "0 0 * * * *", true)
             .await
             .expect("seed scheduled job row");
     }
@@ -72,7 +71,7 @@ async fn mixed_job_run_helper() {
     .expect("mixed manual batch returns a structured report");
     println!("END_JOB_RUN");
 
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let raw = pool.pool();
     let states: Vec<(String, Option<String>, Option<String>, i32)> = sqlx::query_as(
         "SELECT job_name, last_status, last_error, run_count FROM scheduled_jobs \
          WHERE job_name = ANY($1) ORDER BY job_name",
@@ -89,7 +88,7 @@ async fn mixed_job_run_helper() {
     drop(raw);
     drop(ctx);
     drop(repository);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

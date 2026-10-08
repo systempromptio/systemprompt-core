@@ -6,17 +6,23 @@
 //! service). Lifecycle / process-spawn paths are exercised by the existing
 //! integration suite.
 
+use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 
-async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_orchestrator() -> McpOrchestrator {
+    make_orchestrator_and_repo().await.0
+}
+
+async fn make_orchestrator_and_repo() -> (McpOrchestrator, ServiceRepository) {
+    let _ = ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -28,49 +34,33 @@ async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .ok()?;
-    McpOrchestrator::new(service_repo, app_paths, registry).ok()
+    let service_repo = ServiceRepository::new(&db, unique_instance());
+    let orchestrator =
+        McpOrchestrator::new(service_repo.clone(), app_paths, registry).expect("orchestrator");
+    (orchestrator, service_repo)
 }
 
 #[tokio::test]
 async fn orchestrator_new_succeeds() {
-    let Some(_o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let _o = make_orchestrator().await;
 }
 
 #[tokio::test]
 async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    let Some(url) = fixture_database_url().ok() else {
-        return;
-    };
-    let Some(db) = fixture_db_pool(&url).await.ok() else {
-        return;
-    };
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    use systemprompt_database::CreateServiceInput;
+    let (o, repo) = make_orchestrator_and_repo().await;
     let name = format!("orch-run-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
+        name: &name_id,
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: 65509,
         binary_mtime: None,
     })
@@ -82,16 +72,17 @@ async fn orchestrator_get_running_servers_excludes_rows_absent_from_registry() {
         !running.iter().any(|c| c.name == name),
         "a running DB row with no matching registry config is excluded"
     );
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 }
 
 #[tokio::test]
 async fn orchestrator_get_service_info_missing_returns_none() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let r = o
-        .get_service_info(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
+        .get_service_info(&ServiceName::new(format!(
+            "missing-{}",
+            uuid::Uuid::new_v4().simple()
+        )))
         .await
         .unwrap();
     assert!(r.is_none());
@@ -99,16 +90,12 @@ async fn orchestrator_get_service_info_missing_returns_none() {
 
 #[tokio::test]
 async fn orchestrator_subscribe_events_returns_receiver() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let _rx = o.subscribe_events();
 }
 
 #[tokio::test]
 async fn orchestrator_registry_accessor() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let _ = o.registry();
 }

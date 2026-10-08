@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::Write;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_users::{UserRepository, UserService};
+use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use super::types::{UserExportItem, UserExportOutput};
 use crate::CliConfig;
@@ -30,7 +30,7 @@ pub struct ExportArgs {
     pub role: Option<String>,
 
     #[arg(long, help = "Filter by status")]
-    pub status: Option<String>,
+    pub status: Option<UserStatus>,
 
     #[arg(
         long,
@@ -49,15 +49,10 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
 
     let users = user_service
-        .list_by_filter(
-            args.status.as_deref(),
-            args.role.as_deref(),
-            None,
-            args.limit,
-        )
+        .list_by_filter(args.status, args.role.as_deref(), None, args.limit)
         .await?;
 
     let export_items: Vec<UserExportItem> = users
@@ -68,7 +63,7 @@ pub(super) async fn execute_with_pool(
             email: u.email,
             full_name: u.full_name,
             display_name: u.display_name,
-            status: u.status,
+            status: u.status.to_string(),
             email_verified: u.email_verified,
             roles: u.roles,
             is_bot: u.is_bot,

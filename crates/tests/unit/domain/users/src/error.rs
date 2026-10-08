@@ -6,7 +6,7 @@
 //! - Error conversions (From implementations)
 //! - Result type alias
 
-use systemprompt_test_fixtures::{fixture_user_id, unique_user_id};
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id, unique_user_id};
 use systemprompt_users::UserError;
 
 mod user_error_display_tests {
@@ -19,7 +19,7 @@ mod user_error_display_tests {
 
         let display = error.to_string();
         assert!(display.contains("user not found"));
-        assert!(display.contains("test-user"));
+        assert!(display.contains(FIXTURE_USER_ID));
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod result_type_tests {
         match result {
             Ok(_) => panic!("Expected error"),
             Err(UserError::NotFound(id)) => {
-                assert_eq!(id.to_string(), "test-user");
+                assert_eq!(id.to_string(), FIXTURE_USER_ID);
             },
             Err(_) => panic!("Expected NotFound error"),
         }

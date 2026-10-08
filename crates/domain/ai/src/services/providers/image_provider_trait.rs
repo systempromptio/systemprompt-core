@@ -18,7 +18,7 @@ use crate::models::image_generation::{
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_models::services::ModelDefinition;
+use systemprompt_manifest::services::ModelDefinition;
 
 #[must_use]
 pub fn registry_image_models<S: std::hash::BuildHasher>(

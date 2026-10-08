@@ -4,17 +4,24 @@
 // behind the fixture skip-guard; the schema/trait parts are pure.
 
 use std::sync::Arc;
+use systemprompt_identifiers::McpServerId;
 
 use rmcp::ErrorData as McpError;
 use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpToolExecutor, McpToolHandler};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::DynToolCallIntentClaims;
+
+fn intents(db: &systemprompt_database::DbPool) -> DynToolCallIntentClaims {
+    Arc::new(AiRequestRepository::new(db))
+}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct EchoInput {
@@ -79,10 +86,8 @@ fn test_ctx() -> RequestContext {
         TraceId::new("t-tool"),
         ContextId::generate(),
         AgentName::try_new("agent-tool").expect("valid AgentName"),
+        systemprompt_identifiers::Actor::user(UserId::new("user-tool")),
     )
-    .with_actor(systemprompt_identifiers::Actor::user(UserId::new(
-        "user-tool",
-    )))
 }
 
 fn echo_request(message: &str) -> CallToolRequestParams {
@@ -133,15 +138,15 @@ fn handler_output_schema_tags_artifact_type() {
 
 #[tokio::test]
 async fn execute_success_records_and_returns_result() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
-    let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-echo");
+    let db = test_db_pool().await;
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-echo"),
+    );
 
     let ctx = test_ctx();
     let request = echo_request("hi there");
@@ -157,15 +162,15 @@ async fn execute_success_records_and_returns_result() {
 
 #[tokio::test]
 async fn execute_handler_error_propagates() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
-    let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-fail");
+    let db = test_db_pool().await;
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-fail"),
+    );
 
     let ctx = test_ctx();
     let mut map = serde_json::Map::new();
@@ -184,15 +189,15 @@ async fn execute_handler_error_propagates() {
 
 #[tokio::test]
 async fn execute_input_parse_error_returns_invalid_params() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let tool_repo = Arc::new(ToolUsageRepository::new(&db).unwrap());
-    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None).unwrap());
-    let exec = McpToolExecutor::new(tool_repo, art_repo, "srv-bad");
+    let db = test_db_pool().await;
+    let tool_repo = Arc::new(ToolUsageRepository::new(&db));
+    let art_repo = Arc::new(ArtifactIngest::from_db(&db, None));
+    let exec = McpToolExecutor::new(
+        tool_repo,
+        intents(&db),
+        art_repo,
+        McpServerId::new("srv-bad"),
+    );
 
     let ctx = test_ctx();
     // Missing required "message" field -> parse_input fails.
@@ -244,7 +249,7 @@ fn tagged_enum_input_still_declares_an_object_root() {
         raw.get("type").is_none(),
         "and gives it no root type: {raw}"
     );
-    let tool = TaggedHandler.tool_definition("srv");
+    let tool = TaggedHandler.tool_definition(&McpServerId::new("srv"));
     assert_eq!(
         tool.input_schema.get("type"),
         Some(&serde_json::json!("object"))

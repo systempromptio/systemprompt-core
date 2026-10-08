@@ -12,16 +12,22 @@
 //! destination answers `false`); an unconfigured job is never put on the cron
 //! schedule, so it costs no ticks, but it can still be run by name.
 //!
+//! A job reaches the host's handles through [`JobContext::get`]: the scheduler
+//! inserts `DbPool`, `Arc<AppContext>` and `Arc<AppPaths>` into the context's
+//! [`Dependencies`], and `ctx.get::<DbPool>()?` inside `execute` either yields
+//! the pool or fails the run with [`crate::ProviderError::MissingDependency`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::any::Any;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::Actor;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 
 #[derive(Debug, Clone)]
@@ -84,41 +90,20 @@ impl JobResult {
     }
 }
 
+#[derive(Debug)]
 pub struct JobContext {
     actor: Actor,
-    db_pool: Arc<dyn std::any::Any + Send + Sync>,
-    app_context: Arc<dyn std::any::Any + Send + Sync>,
-    app_paths: Arc<dyn std::any::Any + Send + Sync>,
+    dependencies: Dependencies,
     parameters: HashMap<String, String>,
     enforce: bool,
 }
 
-impl std::fmt::Debug for JobContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("JobContext")
-            .field("actor", &self.actor)
-            .field("db_pool", &"<type-erased>")
-            .field("app_context", &"<type-erased>")
-            .field("app_paths", &"<type-erased>")
-            .field("parameters", &self.parameters)
-            .field("enforce", &self.enforce)
-            .finish()
-    }
-}
-
 impl JobContext {
     #[must_use]
-    pub fn new(
-        actor: Actor,
-        db_pool: Arc<dyn std::any::Any + Send + Sync>,
-        app_context: Arc<dyn std::any::Any + Send + Sync>,
-        app_paths: Arc<dyn std::any::Any + Send + Sync>,
-    ) -> Self {
+    pub fn new(actor: Actor, dependencies: Dependencies) -> Self {
         Self {
             actor,
-            db_pool,
-            app_context,
-            app_paths,
+            dependencies,
             parameters: HashMap::new(),
             enforce: false,
         }
@@ -146,34 +131,13 @@ impl JobContext {
         self
     }
 
-    #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.as_ref().downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 
     #[must_use]
-    pub fn app_context<T: 'static>(&self) -> Option<&T> {
-        self.app_context.as_ref().downcast_ref::<T>()
-    }
-
-    #[must_use]
-    pub fn app_paths<T: 'static>(&self) -> Option<&T> {
-        self.app_paths.as_ref().downcast_ref::<T>()
-    }
-
-    #[must_use]
-    pub fn db_pool_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
-        Arc::clone(&self.db_pool)
-    }
-
-    #[must_use]
-    pub fn app_context_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
-        Arc::clone(&self.app_context)
-    }
-
-    #[must_use]
-    pub fn app_paths_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
-        Arc::clone(&self.app_paths)
+    pub const fn dependencies(&self) -> &Dependencies {
+        &self.dependencies
     }
 
     #[must_use]
@@ -191,16 +155,18 @@ impl JobContext {
         key: &str,
     ) -> Result<Option<T>, crate::ProviderError>
     where
-        T::Err: std::fmt::Display,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         self.parameters
             .get(key)
             .map(|value| {
-                value.parse().map_err(|e| {
-                    crate::ProviderError::Configuration(format!(
-                        "invalid job parameter {key}={value}: {e}"
-                    ))
-                })
+                value
+                    .parse()
+                    .map_err(|e| crate::ProviderError::InvalidParameter {
+                        key: key.to_owned(),
+                        value: value.clone(),
+                        source: Box::new(e),
+                    })
             })
             .transpose()
     }

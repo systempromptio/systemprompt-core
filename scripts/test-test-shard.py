@@ -77,6 +77,11 @@ class TestShardInvocation(unittest.TestCase):
         self.assertEqual(args.count("--lib"), 1)
         self.assertEqual(args.count("--tests"), 1)
 
+    def test_every_shard_runs_integration_test_targets(self):
+        args = self.run_shard("bridge")
+        self.assertEqual(args.count("--lib"), 1)
+        self.assertEqual(args.count("--tests"), 1)
+
     def test_arguments_after_separator_are_unchanged(self):
         args = self.run_shard("integration-cli", "--", "--tests")
         self.assertEqual(args[-2:], ["--", "--tests"])

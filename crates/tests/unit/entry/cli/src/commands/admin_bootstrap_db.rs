@@ -39,7 +39,7 @@ async fn bootstrap_is_idempotent_and_grants_the_admin_role() {
 
     // Passing the configured name explicitly takes the match branch rather
     // than the refusal branch.
-    let configured = systemprompt_models::Config::get()
+    let configured = systemprompt_manifest::Config::get()
         .unwrap()
         .system_admin_username
         .clone();
@@ -63,9 +63,7 @@ async fn bootstrap_refuses_a_name_that_is_not_the_configured_admin() {
 async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("cli_bootstrap_inactive")
-        .await
-        .expect("private bootstrap database");
+    let database = DisposableDb::with_schema("cli_bootstrap_inactive").await;
     // SAFETY: nextest runs this test in its own process and the bootstrap singleton
     // has not been initialized; the private URL is installed before any
     // configuration is read.
@@ -75,7 +73,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     }
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let config = CliConfig::new().with_interactive(false);
-    let configured = systemprompt_models::Config::get()
+    let configured = systemprompt_manifest::Config::get()
         .expect("fixture config")
         .system_admin_username
         .clone();
@@ -90,8 +88,8 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     .await
     .expect("create initial bootstrap administrator");
 
-    let pool = database.pool().await.expect("private bootstrap pool");
-    let raw = pool.pool_arc().expect("private SQL pool");
+    let pool = database.test_pool().await;
+    let raw = pool.pool();
     sqlx::query("UPDATE users SET status = 'inactive', roles = ARRAY['user'] WHERE name = $1")
         .bind(&configured)
         .execute(raw.as_ref())
@@ -117,7 +115,7 @@ async fn inactive_existing_admin_is_refused_without_granting_a_role() {
     assert_eq!(roles, ["user"]);
 
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

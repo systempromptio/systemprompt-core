@@ -1,6 +1,7 @@
 //! Tests for BannedIp struct.
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::SessionId;
 use systemprompt_users::BannedIp;
 
 mod banned_ip_tests {
@@ -18,7 +19,10 @@ mod banned_ip_tests {
             is_permanent: false,
             source_fingerprint: Some("fp-abc123".to_string()),
             ban_source: Some("rate_limiter".to_string()),
-            associated_session_ids: Some(vec!["session-1".to_string(), "session-2".to_string()]),
+            associated_session_ids: Some(vec![
+                SessionId::new("session-1"),
+                SessionId::new("session-2"),
+            ]),
         }
     }
 
@@ -81,7 +85,11 @@ mod banned_ip_tests {
     #[test]
     fn banned_ip_with_many_session_ids() {
         let mut banned = create_test_banned_ip();
-        banned.associated_session_ids = Some((0..100).map(|i| format!("session-{}", i)).collect());
+        banned.associated_session_ids = Some(
+            (0..100)
+                .map(|i| SessionId::new(format!("session-{i}")))
+                .collect(),
+        );
 
         assert_eq!(banned.associated_session_ids.as_ref().unwrap().len(), 100);
     }

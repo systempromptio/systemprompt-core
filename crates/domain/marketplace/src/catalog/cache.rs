@@ -24,9 +24,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::ids::PluginId;
-use systemprompt_models::services::ServicesConfig;
+use systemprompt_identifiers::{PluginId, UserId};
+use systemprompt_manifest::services::ServicesConfig;
 
 use super::content::{CatalogContent, catalog_fingerprint};
 use super::plugins::{bundle_fingerprint, plugin_bundles};

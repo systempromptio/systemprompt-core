@@ -9,7 +9,7 @@ use systemprompt_cli::core::files::{self, FilesCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -24,11 +24,6 @@ fn parse(args: &[&str]) -> FilesCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -37,7 +32,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -55,7 +50,7 @@ async fn seed_file(pool: &DbPool, metadata: serde_json::Value) -> (String, Strin
     .bind(&path)
     .bind(&url)
     .bind(metadata)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     (id.to_string(), path)
@@ -63,7 +58,7 @@ async fn seed_file(pool: &DbPool, metadata: serde_json::Value) -> (String, Strin
 
 #[tokio::test]
 async fn show_by_id_renders_image_metadata() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let metadata = json!({
         "checksums": {"md5": "abc", "sha256": "def"},
         "type_specific": {
@@ -82,7 +77,7 @@ async fn show_by_id_renders_image_metadata() {
 
 #[tokio::test]
 async fn show_by_path_renders_document_metadata() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let metadata = json!({
         "type_specific": {
             "type": "document",
@@ -99,7 +94,7 @@ async fn show_by_path_renders_document_metadata() {
 
 #[tokio::test]
 async fn show_renders_audio_metadata() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let metadata = json!({
         "type_specific": {
             "type": "audio",
@@ -116,7 +111,7 @@ async fn show_renders_audio_metadata() {
 
 #[tokio::test]
 async fn show_renders_video_metadata() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let metadata = json!({
         "type_specific": {
             "type": "video",
@@ -134,7 +129,7 @@ async fn show_renders_video_metadata() {
 
 #[tokio::test]
 async fn show_renders_empty_metadata() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (id, _) = seed_file(&pool, json!({})).await;
     files::execute(parse(&["show", &id]), &ctx(&pool))
         .await
@@ -143,7 +138,7 @@ async fn show_renders_empty_metadata() {
 
 #[tokio::test]
 async fn show_missing_id_and_path_fail() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing_id = Uuid::new_v4().to_string();
     let err = files::execute(parse(&["show", &missing_id]), &ctx)

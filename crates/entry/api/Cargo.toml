@@ -14,8 +14,11 @@ description = "Axum-based HTTP server and API gateway for systemprompt.io AI gov
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
-schemars = { workspace = true }
+http-body-util = "0.1"
 # Core runtime
 tokio = { workspace = true, features = ["fs", "process", "signal"] }
 tokio-stream = { workspace = true }
@@ -67,6 +70,8 @@ metrics-exporter-prometheus = { workspace = true }
 
 # systemprompt.io crates
 systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-manifest = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-client = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
@@ -76,6 +81,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-users = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
@@ -83,6 +89,7 @@ systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-scheduler = { workspace = true }
+systemprompt-gateway = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -90,12 +97,6 @@ systemprompt-security = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-slack = { workspace = true }
 systemprompt-teams = { workspace = true }
-
-# API registry
-inventory = { workspace = true }
-
-# JWT
-jsonwebtoken = { workspace = true }
 
 # Authentication
 bcrypt = { workspace = true }
@@ -110,8 +111,6 @@ nix = { workspace = true }
 # OTel ingest (OTLP/HTTP Protobuf)
 prost = { workspace = true }
 opentelemetry-proto = { workspace = true }
-
-chacha20poly1305 = { workspace = true }
 
 [lints]
 workspace = true

@@ -24,6 +24,7 @@ use std::sync::Arc;
 use pg_query::protobuf::{AlterTableType, ObjectType};
 use pg_query::{Context, NodeEnum};
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use tracing::warn;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +69,7 @@ struct Reference {
 }
 
 struct ParsedMigration {
-    extension: String,
+    extension: ExtensionId,
     migration: String,
     creates: Objects,
     references: Vec<Reference>,
@@ -81,16 +82,17 @@ pub fn check_migration_references(extensions: &[Arc<dyn Extension>]) -> Result<(
     let mut migrations = Vec::new();
 
     for ext in extensions {
-        let extension = ext.id().to_owned();
+        let extension = ExtensionId::new(ext.id());
         for schema in ext.schemas() {
             declared.absorb(created_objects(&extension, &schema.sql)?);
         }
         for migration in ext.migrations().into_iter().filter(|m| !m.tombstone) {
             let label = format!("{:03}_{}", migration.version, migration.name);
             let parsed = pg_query::parse(migration.sql).map_err(|e| {
-                LoaderError::SchemaInstallationFailed {
+                LoaderError::SchemaInstallationStepFailed {
                     extension: extension.clone(),
-                    message: format!("migration {label}: SQL parse failed: {e}"),
+                    context: format!("migration {label}: SQL parse failed"),
+                    source: Box::new(e),
                 }
             })?;
             let creates = created_objects_of(&parsed);
@@ -145,10 +147,11 @@ pub fn check_migration_references(extensions: &[Arc<dyn Extension>]) -> Result<(
     first.map_or(Ok(()), Err)
 }
 
-fn created_objects(extension: &str, sql: &str) -> Result<Objects, LoaderError> {
-    let parsed = pg_query::parse(sql).map_err(|e| LoaderError::SchemaInstallationFailed {
-        extension: extension.to_owned(),
-        message: format!("SQL parse failed: {e}"),
+fn created_objects(extension: &ExtensionId, sql: &str) -> Result<Objects, LoaderError> {
+    let parsed = pg_query::parse(sql).map_err(|e| LoaderError::SchemaInstallationStepFailed {
+        extension: extension.clone(),
+        context: "SQL parse failed".to_owned(),
+        source: Box::new(e),
     })?;
     Ok(created_objects_of(&parsed))
 }

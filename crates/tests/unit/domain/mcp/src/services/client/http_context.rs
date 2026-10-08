@@ -9,7 +9,7 @@ use rmcp::transport::streamable_http_client::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::services::client::{HttpClientWithContext, McpTransportError};
 use systemprompt_models::RequestContext;
 use wiremock::matchers::{method, path};
@@ -21,9 +21,9 @@ fn ctx() -> RequestContext {
         TraceId::new("t-http"),
         ContextId::generate(),
         AgentName::try_new("agent-http").expect("valid AgentName"),
+        Actor::user(UserId::new("user-http")),
     )
-    .with_actor(Actor::user(UserId::new("user-http")))
-    .with_auth_token("jwt-token")
+    .with_auth_token(JwtToken::new("jwt-token"))
 }
 
 fn ping() -> ClientJsonRpcMessage {
@@ -372,6 +372,37 @@ async fn forwarding_client_sends_context_and_bearer_headers() {
         headers.get("x-static-extra").and_then(|v| v.to_str().ok()),
         Some("extra")
     );
+    assert_eq!(headers.get_all("authorization").iter().count(), 1);
+}
+
+#[tokio::test]
+async fn forwarding_client_with_transport_token_sends_one_authorization_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(202))
+        .mount(&server)
+        .await;
+
+    let client = HttpClientWithContext::forwarding(ctx(), HashMap::new()).expect("guarded client");
+    client
+        .post_message(
+            uri(&server),
+            ping(),
+            None,
+            Some("jwt-token".to_owned()),
+            HashMap::new(),
+        )
+        .await
+        .expect("accepted");
+
+    let requests = server.received_requests().await.expect("recorded");
+    let values: Vec<&str> = requests[0]
+        .headers
+        .get_all("authorization")
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .collect();
+    assert_eq!(values, vec!["Bearer jwt-token"]);
 }
 
 #[tokio::test]

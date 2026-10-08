@@ -6,17 +6,19 @@
 use std::path::PathBuf;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::AppContext;
 
 fn fixture_config(geoip: Option<String>) -> Config {
     Config {
-        instance_id: "t".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("t"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x/y".to_string(),
@@ -48,7 +50,7 @@ fn fixture_config(geoip: Option<String>) -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,
@@ -73,7 +75,7 @@ fn app_paths_for(system: &std::path::Path) -> AppPaths {
     };
     AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths")

@@ -1,6 +1,19 @@
-//! Identifiers for cloud billing surfaces.
+//! Identifiers for cloud billing and account surfaces.
+//!
+//! `CloudUserId` is the account id the systemprompt.io cloud management API
+//! assigns. It is an external-protocol value, not a local `users.id`, so it
+//! is a checked opaque string rather than a `UserId`. `CloudAppId` is the
+//! hosting application the same API reports a cloud tenant as deployed to.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-crate::define_id!(PriceId, schema);
+crate::define_id!(PriceId, checked, |value| {
+    crate::macros::validate_non_empty("PriceId", value)
+});
+crate::define_id!(CloudUserId, checked, |value| {
+    crate::macros::validate_non_empty("CloudUserId", value)
+});
+crate::define_id!(CloudAppId, checked, |value| {
+    crate::macros::validate_non_empty("CloudAppId", value)
+});

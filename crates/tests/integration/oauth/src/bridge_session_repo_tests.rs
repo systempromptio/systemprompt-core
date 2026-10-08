@@ -24,7 +24,7 @@ fn make_upsert(user_id: &systemprompt_identifiers::UserId, suffix: &str) -> Upse
 async fn upsert_then_list_active_returns_row() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = BridgeSessionRepository::new(&db).expect("repo");
+    let repo = BridgeSessionRepository::new(&db);
 
     let p = make_upsert(&user_id, "a");
     let sid = p.session_id.clone();
@@ -47,7 +47,7 @@ async fn upsert_then_list_active_returns_row() {
 async fn upsert_is_idempotent_per_session_id() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = BridgeSessionRepository::new(&db).expect("repo");
+    let repo = BridgeSessionRepository::new(&db);
 
     let mut p = make_upsert(&user_id, "i");
     let sid = p.session_id.clone();
@@ -68,7 +68,7 @@ async fn upsert_is_idempotent_per_session_id() {
 #[tokio::test]
 async fn delete_stale_removes_old_rows() {
     let db = setup_test_db().await;
-    let repo = BridgeSessionRepository::new(&db).expect("repo");
+    let repo = BridgeSessionRepository::new(&db);
     // Trivial: no rows older than 1 year — but the query exercises the path.
     let removed = repo
         .delete_stale(Duration::from_secs(365 * 24 * 3600))

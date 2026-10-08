@@ -48,16 +48,22 @@ struct DbUrl {
     database: String,
 }
 
-fn db_url_or_skip() -> Option<DbUrl> {
-    let raw = std::env::var("DATABASE_URL").ok()?;
-    let url = url::Url::parse(&raw).ok()?;
-    Some(DbUrl {
+fn db_url() -> DbUrl {
+    let raw = systemprompt_test_fixtures::test_database_url();
+    let url = url::Url::parse(&raw).expect("DATABASE_URL parses as a URL");
+    DbUrl {
         user: url.username().to_owned(),
-        password: url.password()?.to_owned(),
-        host: url.host_str()?.to_owned(),
+        password: url
+            .password()
+            .expect("DATABASE_URL carries a password")
+            .to_owned(),
+        host: url
+            .host_str()
+            .expect("DATABASE_URL carries a host")
+            .to_owned(),
         port: url.port().unwrap_or(5432),
         database: url.path().trim_start_matches('/').to_owned(),
-    })
+    }
 }
 
 fn runtime() -> tokio::runtime::Runtime {
@@ -125,7 +131,7 @@ fn test_connection_fails_for_bad_credentials() {
 
 #[test]
 fn non_interactive_with_reachable_database() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let mut setup_args = args();
     setup_args.db_host = db.host.clone();
     setup_args.db_port = db.port;
@@ -164,7 +170,7 @@ fn non_interactive_with_unreachable_database_still_returns_config() {
 
 #[test]
 fn interactive_existing_connection_succeeds() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let mut setup_args = args();
     setup_args.db_password = Some(db.password.clone());
 
@@ -229,7 +235,7 @@ fn interactive_invalid_selection_is_error() {
 
 #[test]
 fn interactive_generated_password_and_skipped_creation() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -253,7 +259,7 @@ fn interactive_generated_password_and_skipped_creation() {
 
 #[test]
 fn interactive_empty_manual_password_is_error() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -275,7 +281,7 @@ fn interactive_empty_manual_password_is_error() {
 
 #[test]
 fn interactive_creates_database_and_user_via_superuser() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let scratch_user = "cov_setup_role";
     let scratch_db = "cov_setup_db";
     runtime().block_on(async {
@@ -340,7 +346,7 @@ fn interactive_creates_database_and_user_via_superuser() {
 
 #[test]
 fn interactive_superuser_empty_password_is_error() {
-    let Some(db) = db_url_or_skip() else { return };
+    let db = db_url();
     let prompter = scripted(&[
         "0",
         db.host.as_str(),
@@ -365,8 +371,8 @@ fn interactive_superuser_empty_password_is_error() {
 
 #[test]
 fn docker_non_interactive_reuses_reachable_database_without_compose() {
-    let Some(db) = db_url_or_skip() else { return };
-    let dir = tempfile::tempdir().expect("tempdir");
+    let db = db_url();
+    let dir = systemprompt_test_fixtures::canonical_tempdir();
     std::env::set_current_dir(dir.path()).expect("chdir");
 
     let config = PostgresConfig {
@@ -393,11 +399,12 @@ fn docker_non_interactive_refuses_occupied_port() {
         is_compose_available, is_docker_available,
     };
     if !is_docker_available() || !is_compose_available() {
+        // skip-ok: Docker and docker compose are not installed on this host.
         return;
     }
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let port = listener.local_addr().expect("addr").port();
-    let dir = tempfile::tempdir().expect("tempdir");
+    let dir = systemprompt_test_fixtures::canonical_tempdir();
     std::env::set_current_dir(dir.path()).expect("chdir");
 
     let config = PostgresConfig {

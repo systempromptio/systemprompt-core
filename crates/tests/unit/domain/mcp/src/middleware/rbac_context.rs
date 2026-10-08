@@ -1,7 +1,7 @@
 //! Tests for `AuthResult::context`, `context_mut`, and the `Deref` impl on
 //! `AuthenticatedRequestContext`.
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_models::RequestContext;
 
@@ -11,6 +11,7 @@ fn ctx(tag: &str) -> RequestContext {
         TraceId::new(format!("trace-{tag}")),
         ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
         AgentName::try_new(format!("agent-{tag}")).expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -24,7 +25,7 @@ fn auth_result_anonymous_context_returns_inner() {
 #[test]
 fn auth_result_authenticated_context_returns_inner() {
     let c = ctx("auth");
-    let auth_ctx = AuthenticatedRequestContext::new(c.clone(), "tok".to_owned());
+    let auth_ctx = AuthenticatedRequestContext::new(c.clone(), JwtToken::new("tok"));
     let r = AuthResult::Authenticated(auth_ctx);
     assert_eq!(r.context().session_id().as_str(), c.session_id().as_str());
 }
@@ -42,7 +43,7 @@ fn auth_result_context_mut_anonymous_mutates() {
 #[test]
 fn auth_result_context_mut_authenticated_mutates() {
     let c = ctx("mut-auth");
-    let auth_ctx = AuthenticatedRequestContext::new(c, "t".to_owned());
+    let auth_ctx = AuthenticatedRequestContext::new(c, JwtToken::new("t"));
     let mut r = AuthResult::Authenticated(auth_ctx);
     {
         let _ = r.context_mut();
@@ -53,23 +54,19 @@ fn auth_result_context_mut_authenticated_mutates() {
 #[test]
 fn authenticated_request_context_deref_gives_request_context() {
     let c = ctx("deref");
-    let auth_ctx = AuthenticatedRequestContext::new(c.clone(), "deref-token".to_owned());
+    let auth_ctx = AuthenticatedRequestContext::new(c.clone(), JwtToken::new("deref-token"));
     let deref: &RequestContext = &*auth_ctx;
     assert_eq!(deref.session_id().as_str(), c.session_id().as_str());
 }
 
 #[test]
-fn authenticated_request_context_token_accessor() {
+fn authenticated_request_context_carries_the_bearer_on_the_context() {
     let c = ctx("tok-acc");
-    let auth_ctx = AuthenticatedRequestContext::new(c, "my-secret-token".to_owned());
-    assert_eq!(auth_ctx.token(), "my-secret-token");
-}
-
-#[test]
-fn authenticated_request_context_empty_token() {
-    let c = ctx("empty");
-    let auth_ctx = AuthenticatedRequestContext::new(c, String::new());
-    assert_eq!(auth_ctx.token(), "");
+    let auth_ctx = AuthenticatedRequestContext::new(c, JwtToken::new("my-secret-token"));
+    assert_eq!(
+        auth_ctx.auth_token().map(JwtToken::as_str),
+        Some("my-secret-token")
+    );
 }
 
 #[test]
@@ -84,9 +81,12 @@ fn auth_result_expect_authenticated_on_anonymous_is_err() {
 
 #[test]
 fn auth_result_expect_authenticated_on_authenticated_is_ok() {
-    let auth_ctx = AuthenticatedRequestContext::new(ctx("exp-auth"), "good-token".to_owned());
+    let auth_ctx = AuthenticatedRequestContext::new(ctx("exp-auth"), JwtToken::new("good-token"));
     let r = AuthResult::Authenticated(auth_ctx);
     let result = r.expect_authenticated("msg");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().token(), "good-token");
+    assert_eq!(
+        result.unwrap().auth_token().map(JwtToken::as_str),
+        Some("good-token")
+    );
 }

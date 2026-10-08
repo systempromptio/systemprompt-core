@@ -20,15 +20,15 @@ use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use jsonwebtoken::{Algorithm, Header, encode};
 use systemprompt_api::routes::oauth::public_router;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::TrustedIssuer;
 use systemprompt_oauth::OAuthState;
 use systemprompt_security::keys::authority::{active_kid, encoding_key};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -80,6 +80,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
         TraceId::new("token-exchange-oidc"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
     next.run(req).await
 }
@@ -100,10 +101,10 @@ async fn token_app() -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@tx-oidc.invalid", user.as_str()))

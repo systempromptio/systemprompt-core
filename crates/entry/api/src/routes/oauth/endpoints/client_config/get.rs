@@ -6,7 +6,7 @@
 use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json, Response};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 
 use super::validation::authenticate_client_configuration;
 use crate::routes::oauth::OAuthHttpError;
@@ -18,7 +18,7 @@ pub async fn get_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
-    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
+    let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
     let (client, token) =
         authenticate_client_configuration(&repository, &headers, &client_id).await?;
 

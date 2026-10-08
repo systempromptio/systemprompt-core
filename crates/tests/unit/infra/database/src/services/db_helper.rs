@@ -12,10 +12,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::{Database, DbPool, PoolConfig};
-use systemprompt_test_fixtures::{fixture_database_url, lazy_pg_pool};
+use systemprompt_test_fixtures::{lazy_pg_pool, test_database_url};
 
-pub async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+pub async fn test_pool() -> DbPool {
+    let url = test_database_url();
     let cfg = PoolConfig {
         max_connections: 4,
         min_connections: 0,
@@ -23,8 +23,10 @@ pub async fn pool_or_skip() -> Option<DbPool> {
         idle_timeout: Duration::from_secs(30),
         max_lifetime: Duration::from_secs(300),
     };
-    let db = Database::connect(&url, None, &cfg).await.ok()?;
-    Some(Arc::new(db))
+    let db = Database::connect(&url, None, &cfg)
+        .await
+        .expect("connect to the test database");
+    Arc::new(db)
 }
 
 pub fn lazy_pool() -> Arc<sqlx::PgPool> {

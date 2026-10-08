@@ -1,6 +1,6 @@
 //! Tests for redirect URI validation
 
-use systemprompt_models::AuthError;
+use systemprompt_models::AuthRequestError;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
 
 #[test]
@@ -34,7 +34,10 @@ fn test_validate_redirect_uri_none() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, None);
 
-    assert!(matches!(result.unwrap_err(), AuthError::InvalidRedirectUri));
+    assert!(matches!(
+        result.unwrap_err(),
+        AuthRequestError::InvalidRedirectUri
+    ));
 }
 
 #[test]
@@ -42,7 +45,10 @@ fn test_validate_redirect_uri_empty_string() {
     let registered = vec!["https://example.com/callback".to_string()];
     let result = validate_redirect_uri(&registered, Some(""));
 
-    assert!(matches!(result.unwrap_err(), AuthError::InvalidRedirectUri));
+    assert!(matches!(
+        result.unwrap_err(),
+        AuthRequestError::InvalidRedirectUri
+    ));
 }
 
 #[test]
@@ -51,7 +57,7 @@ fn test_validate_redirect_uri_not_registered() {
     let result = validate_redirect_uri(&registered, Some("https://evil.com/callback"));
 
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
             assert!(reason.contains("https://evil.com/callback"));
         },
@@ -65,7 +71,7 @@ fn test_validate_redirect_uri_empty_registered_list() {
     let result = validate_redirect_uri(&registered, Some("https://example.com/callback"));
 
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
         },
         _ => panic!("Expected InvalidRequest error"),
@@ -164,7 +170,7 @@ fn test_validate_redirect_uri_relative_path_matches_absolute() {
     let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login"));
 
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
         },
         _ => panic!("Expected InvalidRequest error"),
@@ -177,7 +183,7 @@ fn test_validate_redirect_uri_relative_path_different_host() {
     let result = validate_redirect_uri(&registered, Some("https://other-host.io/admin/login"));
 
     match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
+        AuthRequestError::InvalidRequest { reason } => {
             assert!(reason.contains("not registered"));
         },
         _ => panic!("Expected InvalidRequest error"),

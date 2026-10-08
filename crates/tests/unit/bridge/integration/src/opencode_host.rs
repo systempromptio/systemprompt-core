@@ -3,10 +3,11 @@ use std::path::Path;
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileGenInputs, ProfileState,
+    AppInstallState, ConfigFormat, HostApp, HostAppKind, ProbeEnv, ProfileGenInputs, ProfileState,
     StaleReason,
 };
-use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_bridge::integration::opencode::{OPENCODE_HOST, install_state};
+use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 
 fn probe_env() -> ProbeEnv {
@@ -67,13 +68,14 @@ const COMPLETE: &str = r#"{
       "models": { "gpt-4.1": { "name": "gpt-4.1" }, "claude-sonnet-5": { "name": "claude-sonnet-5" } }
     }
   },
-  "model": "systemprompt/claude-sonnet-5"
+  "model": "systemprompt/claude-sonnet-5",
+  "enabled_providers": ["systemprompt"]
 }"#;
 
 #[test]
 fn an_absent_managed_config_probes_as_absent() {
     let snapshot = sandbox(None, |_| OPENCODE_HOST.probe(&probe_env()));
-    assert_eq!(snapshot.host_id, "opencode");
+    assert_eq!(snapshot.host_id, HostKind::OpenCode);
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "no managed file means an absent profile, got {:?}",
@@ -121,6 +123,10 @@ fn a_complete_managed_config_probes_as_installed_with_models_listed_by_name() {
         keys.get("model").map(String::as_str),
         Some("systemprompt/claude-sonnet-5")
     );
+    assert_eq!(
+        keys.get("enabled_providers").map(String::as_str),
+        Some(r#"["systemprompt"]"#)
+    );
     assert!(
         snapshot
             .profile_source
@@ -140,7 +146,10 @@ fn a_partial_managed_config_lists_the_missing_required_keys() {
     match snapshot.profile_state {
         ProfileState::Partial { missing_required } => assert_eq!(
             missing_required,
-            vec!["provider.systemprompt.options.baseURL".to_owned()]
+            vec![
+                "provider.systemprompt.options.baseURL".to_owned(),
+                "enabled_providers".to_owned()
+            ]
         ),
         other => panic!("expected Partial, got {other:?}"),
     }
@@ -256,13 +265,45 @@ fn the_binary_is_found_in_a_known_install_prefix_outside_path() {
 }
 
 #[test]
-fn the_opencode_host_describes_itself_as_a_json_cli_tool_that_cannot_be_opened() {
-    assert_eq!(OPENCODE_HOST.id(), "opencode");
+fn a_managed_config_without_the_provider_allowlist_is_partial_not_installed() {
+    let unrestricted = COMPLETE.replace(
+        r#",
+  "enabled_providers": ["systemprompt"]"#,
+        "",
+    );
+    let snapshot = sandbox(Some(&unrestricted), |_| OPENCODE_HOST.probe(&probe_env()));
+    match snapshot.profile_state {
+        ProfileState::Partial { missing_required } => {
+            assert_eq!(missing_required, vec!["enabled_providers".to_owned()]);
+        },
+        other => {
+            panic!("a file that lets OpenCode's own providers through is not governed: {other:?}")
+        },
+    }
+}
+
+#[test]
+fn either_install_of_the_host_counts_and_only_a_double_miss_is_a_miss() {
+    use AppInstallState::{Installed, NotInstalled, Unknown};
+    assert_eq!(install_state(Installed, NotInstalled), Installed);
+    assert_eq!(install_state(NotInstalled, Installed), Installed);
+    assert_eq!(install_state(Unknown, Installed), Installed);
+    assert_eq!(install_state(NotInstalled, NotInstalled), NotInstalled);
+    assert_eq!(install_state(Unknown, NotInstalled), Unknown);
+    assert_eq!(install_state(NotInstalled, Unknown), Unknown);
+}
+
+#[test]
+fn the_opencode_host_describes_itself_as_a_json_cli_tool_openable_only_with_the_desktop_app() {
+    assert_eq!(OPENCODE_HOST.id(), HostKind::OpenCode);
     assert_eq!(OPENCODE_HOST.display_name(), "OpenCode");
     assert_eq!(OPENCODE_HOST.icon_id(), "opencode");
-    assert_eq!(OPENCODE_HOST.kind(), HostKind::CliTool);
+    assert_eq!(OPENCODE_HOST.kind(), HostAppKind::CliTool);
     assert_eq!(OPENCODE_HOST.config_format(), ConfigFormat::Json);
-    assert!(!OPENCODE_HOST.can_open());
+    assert!(
+        !OPENCODE_HOST.can_open(),
+        "with no desktop bundle on this machine there is nothing to open"
+    );
     assert!(OPENCODE_HOST.download_url().starts_with("https://"));
     assert!(
         OPENCODE_HOST.description().contains("OpenCode"),
@@ -291,7 +332,8 @@ fn the_opencode_schema_requires_the_wire_and_the_loopback_endpoint() {
         schema.required_keys,
         &[
             "provider.systemprompt.npm",
-            "provider.systemprompt.options.baseURL"
+            "provider.systemprompt.options.baseURL",
+            "enabled_providers"
         ]
     );
     assert!(schema.display_keys.contains(&"model"));
@@ -330,6 +372,10 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
         "gpt-4.1"
     );
     assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
+    assert_eq!(
+        doc["enabled_providers"],
+        serde_json::json!(["systemprompt"])
+    );
     assert_eq!(doc["_systemprompt_api_key"], "loopback-secret-value");
     assert_eq!(generated.bytes, body.len());
     assert_ne!(generated.payload_uuid, generated.profile_uuid);

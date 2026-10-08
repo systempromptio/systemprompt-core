@@ -60,6 +60,20 @@ impl BridgeError {
         }
     }
 
+    pub fn from_error(scope: ErrorScope, code: ErrorCode, error: &dyn std::error::Error) -> Self {
+        Self::new(scope, code, error.to_string())
+    }
+
+    pub fn from_error_in(
+        scope: ErrorScope,
+        code: ErrorCode,
+        context: &str,
+        error: &dyn std::error::Error,
+    ) -> Self {
+        Self::new(scope, code, format!("{context}: {error}"))
+    }
+
+    // JSON: webview IPC error `detail` — free-form context attached per error site.
     pub fn with_detail(mut self, detail: Value) -> Self {
         self.detail = Some(detail);
         self
@@ -144,6 +158,8 @@ pub struct IpcReplyPayload {
 }
 
 impl IpcReplyPayload {
+    // JSON: webview IPC reply — each command's typed result serialized at the call
+    // site.
     pub const fn ok(value: Value) -> Self {
         Self {
             ok: true,
@@ -170,7 +186,7 @@ pub fn reply_script(target: ReplyTarget, payload: &IpcReplyPayload) -> String {
     )
 }
 
-pub fn emit_script(channel: &str, payload: &Value) -> String {
+pub fn emit_script<T: Serialize + ?Sized>(channel: &str, payload: &T) -> String {
     let channel_json = serde_json::to_string(channel).unwrap_or_else(|_| "\"unknown\"".to_owned());
     let body = serde_json::to_string(payload).unwrap_or_else(|_| "null".to_owned());
     format!(

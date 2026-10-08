@@ -10,16 +10,14 @@ use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 
 #[tokio::test]
 async fn final_outbox_write_failure_rolls_back_publication_then_identical_retry_commits() {
-    let db = DisposableDb::installed("publication_outbox_rollback")
-        .await
-        .expect("isolated database");
-    let pool = db.pool().await.expect("database pool");
-    let raw = pool.write_pool_arc().expect("write pool");
+    let db = DisposableDb::with_schema("publication_outbox_rollback").await;
+    let pool = db.test_pool().await;
+    let raw = pool.write_pool();
     let owner = UserId::new(format!("publication-tx-{}", uuid::Uuid::new_v4()));
     seed_user_row(&pool, &owner, &format!("{owner}@publication-tx.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(&pool).expect("managed repository");
+    let repository = ManagedRepository::new(&pool);
     let source = repository
         .register_source(&owner, "publication-transaction", &SourceSpec::Managed)
         .await
@@ -109,7 +107,7 @@ async fn final_outbox_write_failure_rolls_back_publication_then_identical_retry_
         .review_and_publish(&owner, &owner, &request)
         .await
         .expect_err("final outbox failure must abort publication");
-    assert!(matches!(error, ManagedError::Database(_)));
+    assert!(matches!(error, ManagedError::Repository(_)));
     assert!(matches!(
         repository
             .resolve_managed(&owner, ResourceKind::Skill, "atomic-skill")

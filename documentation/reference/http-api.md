@@ -262,6 +262,61 @@ Base `/v1` (`crates/entry/api/src/routes/gateway/mod.rs`). The gateway mounts on
 curl http://127.0.0.1:8080/v1/models
 ```
 
+### Scope attribution
+
+Every `/v1/messages` and `/v1/responses` request is attributed to one value in each subject dimension the deployment registers (a `SubjectAttributeProvider`, for example `project` or `cost_centre`; core registers none). For each registered dimension the gateway takes, in order:
+
+1. the `x-systemprompt-scope-<dimension>` header (for example `x-systemprompt-scope-project: apollo`). The value must be one the caller holds in that dimension;
+2. the value the API key is bound to in that dimension, checked the same way;
+3. the dimension's default for the caller (the provider's first value).
+
+| Condition | Status |
+|-----------|--------|
+| A header names a dimension no provider registers, or is malformed (`[a-z][a-z0-9_]{0,63}`), empty or repeated | `400` |
+| A header or key-bound value is one the caller does not hold (an unknown value is answered the same way) | `403` `not a member of <dimension> '<value>'` |
+| A dimension listed in `gateway.require_scopes` resolves to nothing | `400` `scope_required: …` |
+
+The resolved values are written to `ai_request_attributions` (`dimension`, `value`, `source` = `header` \| `api_key` \| `default`) beside the request row, which also records the authenticating `api_key_id`; rejected requests carry the attribution known when they were refused. `x-systemprompt-scope-*` headers are never forwarded to the provider.
+
+### Quota exhaustion
+
+Gateway policies (`services/gateway/policies.yaml`) declare `quota_windows`, each keyed by a `subject`: `user`, `api_key`, or any scope dimension (the window then counts the request's attributed value for that dimension). Admission reserves one request plus the request's estimated input tokens (body length / 4), output tokens (`max_tokens`, clamped to the model's ceiling) and cost (priced with the request's rate card); completion settles the window to the audited usage and a failed or abandoned request returns the reserved tokens and cost. Under `quota_mode: enforce` a breached window answers `429` before the provider is called:
+
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "rate_limit_error",
+    "message": "cost ceiling exceeded for user window 60s (spent 1500/1000 microdollars)",
+    "quota": {
+      "window_seconds": 60,
+      "subject": "user",
+      "dimension": "cost_microdollars",
+      "limit": 1000,
+      "used": 1500,
+      "resets_at": "2026-10-07T10:01:00Z",
+      "retry_after_seconds": 37
+    }
+  }
+}
+```
+
+`dimension` is one of `requests`, `input_tokens`, `output_tokens`, `cost_microdollars`; it, `limit` and `used` are `null` when the window could not be evaluated under `quota_fault_mode: closed`. The `Retry-After` header equals `retry_after_seconds`, the time until `resets_at`. Under `quota_mode: warn` the request proceeds and the breach is recorded as a `quota` governance decision. Every breach increments `systemprompt_quota_denials_total{subject_kind, dimension, mode}`.
+
+### API key limits and scope bindings
+
+`POST /api/v1/admin/api-keys` accepts, beside `name`, `target_user_id` and `expires_at`:
+
+| Field | Type | Effect |
+|-------|------|--------|
+| `model_allowlist` | string[] | Requests for any other model answer `403` before routing. Omit for no restriction; an empty list is refused. |
+| `budget_microdollars` | integer | Spend ceiling for the key over `request_window_seconds`. |
+| `max_requests` | integer | Request ceiling for the key over `request_window_seconds`. |
+| `request_window_seconds` | integer | Required (positive) when either ceiling is set. |
+| `scopes` | `[{dimension, value}]` | One bound value per scope dimension; each must be a value the key's owner holds (`403` otherwise, `400` for an unregistered dimension). |
+
+The ceilings run as a quota window with `subject: api_key`, so they reserve, settle and answer `429` exactly as policy windows do. `GET /api/v1/admin/api-keys` returns the same fields.
+
 ## Webhooks
 
 See [Context webhooks](#context-webhooks--base-apiv1webhook-authenticated) above. Base `/api/v1/webhook`, authenticated, with `/broadcast`, `/agui`, and `/a2a`.

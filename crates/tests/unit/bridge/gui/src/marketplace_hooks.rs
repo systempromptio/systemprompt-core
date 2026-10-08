@@ -62,3 +62,19 @@ fn user_command_hooks_get_their_own_rows() {
     assert_eq!(user["name"], "PostToolUse (Bash)");
     assert_eq!(user["summary"], "echo hi");
 }
+
+#[test]
+fn a_user_command_hook_without_a_timeout_still_gets_its_row() {
+    let json = r#"{
+        "hooks": {
+            "PostToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "echo hi", "event": "PostToolUse"}]}]
+        }
+    }"#;
+    let items = hook_items(json.as_bytes(), Path::new("hooks.json"));
+    let user = items
+        .iter()
+        .map(|item| serde_json::to_value(item).unwrap())
+        .find(|item| item["name"] == "PostToolUse (Bash)")
+        .expect("user row");
+    assert_eq!(user["summary"], "echo hi");
+}

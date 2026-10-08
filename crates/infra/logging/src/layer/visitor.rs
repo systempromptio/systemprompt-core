@@ -32,6 +32,7 @@ mod field_names {
 #[derive(Debug, Default)]
 pub(super) struct FieldVisitor {
     pub message: String,
+    // JSON: tracing event fields, recorded as the log `metadata` JSON object.
     pub fields: Option<serde_json::Value>,
 }
 
@@ -114,6 +115,7 @@ impl Visit for FieldVisitor {
 }
 
 impl FieldVisitor {
+    // JSON: tracing event fields, recorded as the log `metadata` JSON object.
     fn insert_scalar(&mut self, field: &Field, value: serde_json::Value) {
         let fields = self.fields.get_or_insert_with(|| serde_json::json!({}));
         if let Some(obj) = fields.as_object_mut() {

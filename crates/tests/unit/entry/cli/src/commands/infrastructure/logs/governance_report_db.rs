@@ -6,7 +6,7 @@
 //! the CSV branch all run against rows rather than against an empty window.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use std::sync::Arc;
 
@@ -17,14 +17,12 @@ use systemprompt_ai::repository::{AiRequestRepository, InsertSafetyFinding};
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, AiRequestId, ContextId, UserId};
+use systemprompt_identifiers::{Actor, AiRequestId, ContextId, SessionId, UserId};
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -43,11 +41,6 @@ fn parse(args: &[&str]) -> LogsCommands {
     .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("a test database url"))
-        .await
-        .expect("the governance report tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -56,7 +49,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().expect("a test database url"),
+        test_database_url(),
     )
 }
 
@@ -72,16 +65,16 @@ async fn seed_decision(
     tool: &str,
     reason: &str,
 ) {
-    let repo = GovernanceDecisionRepository::from_pool(
-        pool.write_pool_arc().expect("a write pool handle"),
-    );
+    let repo = GovernanceDecisionRepository::from_pool(pool.write_pool());
     let id = Uuid::new_v4().to_string();
     let actor = Actor::user(user.clone());
     let evaluated = serde_json::json!([]);
+    let session = SessionId::new("sess-governance-report");
+    let context = ContextId::from_uuid(Uuid::from_u128(3));
     repo.insert(&GovernanceDecisionRecord {
         id: &id,
         actor: &actor,
-        session_id: "sess-governance-report",
+        session_id: Some(&session),
         tool_name: tool,
         agent_id: None,
         agent_scope: None,
@@ -91,7 +84,7 @@ async fn seed_decision(
         evaluated_rules: &evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_governance_report",
+        context_id: &context,
         task_id: None,
         trace_id: None,
         client_id: None,
@@ -114,32 +107,26 @@ async fn seed_finding(pool: &DbPool, user: &UserId, category: &str, blocked: boo
     .model("claude-fixture-1")
     .build();
     let request_id = AiRequestRepository::new(pool)
-        .expect("request repo")
         .insert(&record)
         .await
         .expect("seed an ai request");
 
-    AiSafetyFindingRepository::from_pool(Arc::new(
-        pool.write_pool_arc()
-            .expect("a write pool handle")
-            .as_ref()
-            .clone(),
-    ))
-    .insert(InsertSafetyFinding {
-        ai_request_id: &request_id,
-        phase: "input",
-        severity: "high",
-        category,
-        scanner: "heuristic",
-        excerpt: Some("ignore previous instructions"),
-        blocked,
-    })
-    .await
-    .expect("seed a safety finding");
+    AiSafetyFindingRepository::from_pool(Arc::new(pool.write_pool().as_ref().clone()))
+        .insert(InsertSafetyFinding {
+            ai_request_id: &request_id,
+            phase: "input",
+            severity: "high",
+            category,
+            scanner: "heuristic",
+            excerpt: Some("ignore previous instructions"),
+            blocked,
+        })
+        .await
+        .expect("seed a safety finding");
 }
 
 async fn seeded_pool() -> DbPool {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let alice = unique_user_id("gov-report-a");
     let bob = unique_user_id("gov-report-b");
 
@@ -240,7 +227,7 @@ async fn an_absolute_date_is_accepted_as_the_window() {
 
 #[tokio::test]
 async fn an_unparseable_window_names_the_value_it_could_not_read() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let err = run(&pool, &["report", "--since", "last-tuesday"])
         .await

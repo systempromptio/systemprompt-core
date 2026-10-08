@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::services::{GatewayState, ProviderRegistry, ServicesConfig};
+use systemprompt_manifest::services::{GatewayState, ProviderRegistry, ServicesConfig};
 
 use super::config_section::{ConfigSection, GATEWAY_INCLUDE_RELATIVE, PROVIDERS_INCLUDE_RELATIVE};
 

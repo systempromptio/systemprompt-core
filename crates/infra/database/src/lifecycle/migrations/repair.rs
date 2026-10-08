@@ -26,7 +26,7 @@ use super::{ChecksumDrift, ExtensionMigrationStatus, MigrationService};
 use crate::lifecycle::installation::BootstrapLockGuard;
 use crate::services::SqlExecutor;
 use systemprompt_extension::{Extension, LoaderError, Migration};
-use systemprompt_identifiers::ToDbValue;
+use systemprompt_identifiers::{ExtensionId, ToDbValue};
 
 const UPDATE_CHECKSUM_SQL: &str =
     "UPDATE extension_migrations SET checksum = $3 WHERE extension_id = $1 AND version = $2";
@@ -115,12 +115,13 @@ impl MigrationService<'_> {
                 &[&drift.extension_id, &drift.version, &drift.current_checksum],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
+            .map_err(|e| LoaderError::MigrationStepFailed {
                 extension: drift.extension_id.clone(),
-                message: format!(
-                    "Failed to rewrite checksum for migration {} ('{}'): {e}",
+                context: format!(
+                    "Failed to rewrite checksum for migration {} ('{}')",
                     drift.version, drift.name
                 ),
+                source: Box::new(e),
             })?;
         Ok(())
     }
@@ -130,7 +131,7 @@ impl MigrationService<'_> {
         extension: &dyn Extension,
         drift: &[ChecksumDrift],
     ) -> Result<(), LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let migrations = extension.migrations();
 
         for d in drift {
@@ -138,7 +139,7 @@ impl MigrationService<'_> {
                 .iter()
                 .find(|m| m.version == d.version)
                 .ok_or_else(|| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
+                    extension: ext_id.clone(),
                     message: format!(
                         "Drifted migration {} ('{}') is no longer declared by extension \
                          '{ext_id}'",
@@ -157,7 +158,7 @@ impl MigrationService<'_> {
         migration: &Migration,
         drift: &ChecksumDrift,
     ) -> Result<(), LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
 
         check_cross_extension_alters(extension, migration)?;
 
@@ -175,22 +176,24 @@ impl MigrationService<'_> {
         if migration.no_transaction {
             SqlExecutor::execute_statements_parsed(self.db, migration.sql)
                 .await
-                .map_err(|e| LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to re-apply drifted migration {} ({}): {e}",
+                .map_err(|e| LoaderError::MigrationStepFailed {
+                    extension: ext_id.clone(),
+                    context: format!(
+                        "Failed to re-apply drifted migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 })?;
             self.rewrite_checksum(drift).await
         } else {
             let statements = SqlExecutor::parse_sql_statements(migration.sql).map_err(|e| {
-                LoaderError::MigrationFailed {
-                    extension: ext_id.to_owned(),
-                    message: format!(
-                        "Failed to parse migration {} ({}): {e}",
+                LoaderError::MigrationStepFailed {
+                    extension: ext_id.clone(),
+                    context: format!(
+                        "Failed to parse migration {} ({})",
                         migration.version, migration.name
                     ),
+                    source: Box::new(e),
                 }
             })?;
             execute_statements_transactional(

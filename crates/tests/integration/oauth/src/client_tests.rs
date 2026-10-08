@@ -12,7 +12,7 @@ fn test_client_id() -> ClientId {
 #[tokio::test]
 async fn test_client_lifecycle() {
     let db = setup_test_db().await;
-    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+    let repo = ClientRepository::new(&db);
 
     let client_id = test_client_id();
     let redirect_uris = vec!["http://localhost:3000/callback".to_string()];
@@ -102,7 +102,7 @@ async fn test_client_lifecycle() {
 #[tokio::test]
 async fn test_client_update() {
     let db = setup_test_db().await;
-    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+    let repo = ClientRepository::new(&db);
 
     let client_id = test_client_id();
     let original_scopes = vec!["openid".to_string()];
@@ -160,7 +160,7 @@ async fn test_client_update() {
 #[tokio::test]
 async fn test_client_secret_update() {
     let db = setup_test_db().await;
-    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+    let repo = ClientRepository::new(&db);
 
     let client_id = test_client_id();
 
@@ -199,7 +199,7 @@ async fn test_client_secret_update() {
 #[tokio::test]
 async fn test_client_counting() {
     let db = setup_test_db().await;
-    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+    let repo = ClientRepository::new(&db);
 
     let client_id = test_client_id();
 
@@ -257,7 +257,7 @@ async fn test_client_counting() {
 #[tokio::test]
 async fn test_application_type_round_trip() {
     let db = setup_test_db().await;
-    let repo = ClientRepository::new(&db).expect("Failed to create repository");
+    let repo = ClientRepository::new(&db);
 
     let client_id = test_client_id();
 

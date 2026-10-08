@@ -26,6 +26,9 @@ mod startup_events;
 mod analytics;
 
 #[cfg(test)]
+mod background_tasks;
+
+#[cfg(test)]
 mod storage;
 
 #[cfg(test)]

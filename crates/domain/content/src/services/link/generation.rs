@@ -210,18 +210,18 @@ impl LinkGenerationService {
         .await
     }
 
-    pub async fn get_link_by_short_code(
+    pub async fn find_link_by_short_code(
         &self,
         short_code: &str,
     ) -> Result<Option<CampaignLink>, ContentError> {
-        Ok(self.link_repo.get_link_by_short_code(short_code).await?)
+        Ok(self.link_repo.find_link_by_short_code(short_code).await?)
     }
 
-    pub async fn get_link_by_id(
+    pub async fn find_link_by_id(
         &self,
         id: &systemprompt_identifiers::LinkId,
     ) -> Result<Option<CampaignLink>, ContentError> {
-        Ok(self.link_repo.get_link_by_id(id).await?)
+        Ok(self.link_repo.find_link_by_id(id).await?)
     }
 
     pub async fn delete_link(

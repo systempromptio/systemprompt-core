@@ -58,6 +58,6 @@ fn analytics_provider_error_messages_are_descriptive() {
     assert!(format!("{e}").contains("Session"));
     let e = AnalyticsProviderError::FingerprintNotFound;
     assert!(format!("{e}").contains("Fingerprint"));
-    let e = AnalyticsProviderError::Internal("boom".to_owned());
+    let e = AnalyticsProviderError::Internal("boom".into());
     assert!(format!("{e}").contains("boom"));
 }

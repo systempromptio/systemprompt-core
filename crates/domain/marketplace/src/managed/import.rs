@@ -9,13 +9,15 @@ use super::{
 };
 use serde::Serialize;
 use std::collections::BTreeMap;
-use systemprompt_identifiers::{ManagedSourceId, ResourceRevisionId, SourceSnapshotId, UserId};
+use systemprompt_identifiers::{
+    ManagedSourceId, ResourceRevisionId, SkillId, SourceSnapshotId, UserId,
+};
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ImportedSkills {
     pub source_id: ManagedSourceId,
     pub snapshot_id: SourceSnapshotId,
-    pub revisions: BTreeMap<String, ResourceRevisionId>,
+    pub revisions: BTreeMap<SkillId, ResourceRevisionId>,
 }
 
 impl ManagedRepository {
@@ -48,7 +50,7 @@ impl ManagedRepository {
                         source_id: source.clone(),
                         upstream_key: format!("skills/{key}"),
                         kind: ResourceKind::Skill,
-                        resource_key: key.clone(),
+                        resource_key: key.as_str().to_owned(),
                     },
                 )
                 .await?;

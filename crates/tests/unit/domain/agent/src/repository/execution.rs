@@ -1,12 +1,11 @@
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus, StepType};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn create_and_get_tool_execution_step() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -33,9 +32,7 @@ async fn create_and_get_tool_execution_step() {
 
 #[tokio::test]
 async fn get_unknown_step_returns_none() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let result = r.execution_steps.get(&StepId::new()).await.expect("get");
     assert!(result.is_none());
@@ -43,9 +40,7 @@ async fn get_unknown_step_returns_none() {
 
 #[tokio::test]
 async fn create_instant_steps() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -75,9 +70,7 @@ async fn create_instant_steps() {
 
 #[tokio::test]
 async fn list_by_task_ordered() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -99,9 +92,7 @@ async fn list_by_task_ordered() {
 
 #[tokio::test]
 async fn complete_step_sets_completed() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -129,9 +120,7 @@ async fn complete_step_sets_completed() {
 
 #[tokio::test]
 async fn complete_step_without_result() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -158,9 +147,7 @@ async fn complete_step_without_result() {
 
 #[tokio::test]
 async fn fail_step_records_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -188,9 +175,7 @@ async fn fail_step_records_error() {
 
 #[tokio::test]
 async fn fail_in_progress_steps_for_task() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -219,9 +204,7 @@ async fn fail_in_progress_steps_for_task() {
 
 #[tokio::test]
 async fn complete_planning_step_returns_step() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -252,9 +235,7 @@ async fn complete_planning_step_returns_step() {
 
 #[tokio::test]
 async fn list_by_task_empty_for_unknown() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let list = r
         .execution_steps
@@ -266,9 +247,7 @@ async fn list_by_task_empty_for_unknown() {
 
 #[tokio::test]
 async fn get_step_with_corrupt_status_errors() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -277,7 +256,7 @@ async fn get_step_with_corrupt_status_errors() {
     let step_id = step.step_id.clone();
     r.execution_steps.create(&step).await.expect("create");
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE task_execution_steps SET status = 'bogus_state' WHERE step_id = $1")
         .bind(step_id.to_string())
         .execute(pg.as_ref())
@@ -289,16 +268,21 @@ async fn get_step_with_corrupt_status_errors() {
         .get(&step_id)
         .await
         .expect_err("corrupt status must fail parsing");
-    assert!(err.to_string().contains("Invalid status"), "got {err}");
+    assert!(
+        matches!(
+            &err,
+            systemprompt_traits::RepositoryError::Decode { context, .. }
+                if context == "execution step status"
+        ),
+        "got {err:?}"
+    );
 
     r.tasks.delete_task(&task_id).await.ok();
 }
 
 #[tokio::test]
 async fn get_step_with_corrupt_content_errors() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -307,7 +291,7 @@ async fn get_step_with_corrupt_content_errors() {
     let step_id = step.step_id.clone();
     r.execution_steps.create(&step).await.expect("create");
 
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     sqlx::query("UPDATE task_execution_steps SET content = '[]'::jsonb WHERE step_id = $1")
         .bind(step_id.to_string())
         .execute(pg.as_ref())
@@ -319,7 +303,14 @@ async fn get_step_with_corrupt_content_errors() {
         .get(&step_id)
         .await
         .expect_err("corrupt content must fail parsing");
-    assert!(err.to_string().contains("Invalid content"), "got {err}");
+    assert!(
+        matches!(
+            &err,
+            systemprompt_traits::RepositoryError::Decode { context, .. }
+                if context == "execution step content"
+        ),
+        "got {err:?}"
+    );
 
     r.tasks.delete_task(&task_id).await.ok();
 }

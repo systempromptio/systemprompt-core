@@ -63,12 +63,11 @@ pub mod error;
 pub(crate) mod extension;
 pub mod jobs;
 pub mod models;
-pub(crate) mod queries;
 pub mod repository;
 pub mod services;
 pub(crate) mod state;
 
-pub use error::{OauthError, OauthResult};
+pub use error::{OauthError, OauthErrorKind, OauthResult};
 pub use extension::OauthExtension;
 
 pub use models::*;
@@ -82,4 +81,4 @@ pub use services::{
 };
 
 pub use state::OAuthState;
-pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};
+pub use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, BEARER_PREFIX};

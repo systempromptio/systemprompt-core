@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use systemprompt_loader::ExtensionRegistry as McpExtensionRegistry;
+use systemprompt_loader::ExtensionBinaryIndex;
+use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_models::{Config, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationIssue;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
@@ -15,29 +15,27 @@ pub(super) fn validate_mcp_manifests(
     services_config: &ServicesConfig,
     report: &mut StartupValidationReport,
 ) {
-    let registry = McpExtensionRegistry::build(
+    let registry = ExtensionBinaryIndex::build(
         Path::new(&config.system_path),
         config.is_cloud,
         &config.bin_path,
     );
 
     let mcp_errors = collect_manifest_errors(services_config, config.is_cloud, |binary| {
-        registry
-            .get_path(binary)
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        registry.get_path(binary).map(|_| ())
     });
 
     merge_mcp_errors(report, mcp_errors);
 }
 
-pub fn collect_manifest_errors<F>(
+pub fn collect_manifest_errors<F, E>(
     services_config: &ServicesConfig,
     is_cloud: bool,
     resolve: F,
 ) -> Vec<ValidationIssue>
 where
-    F: Fn(&str) -> Result<(), String>,
+    F: Fn(&str) -> Result<(), E>,
+    E: std::fmt::Display,
 {
     let mut mcp_errors: Vec<ValidationIssue> = Vec::new();
 

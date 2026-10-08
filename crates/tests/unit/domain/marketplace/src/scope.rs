@@ -1,7 +1,7 @@
+use systemprompt_manifest::services::MarketplaceMemberKind;
 use systemprompt_marketplace::{
     enabled_marketplaces, scope_to_marketplace, scope_to_union, union_include,
 };
-use systemprompt_models::services::MarketplaceMemberKind;
 
 use crate::helpers::{config_with, include as include_ref, marketplace};
 

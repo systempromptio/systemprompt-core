@@ -1,17 +1,19 @@
 //! Tests for cluster- versus node-scoped job claims: a node-scoped job runs on
 //! every replica and only de-duplicates against its own instance, while a
 //! cluster-scoped job still yields to a peer-held advisory lock. DB-backed
-//! tests skip when `DATABASE_URL` is
-//! unset locally, and fail under `CI`.
+//! tests fail when `DATABASE_URL` is unset.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use systemprompt_identifiers::JobName;
 
 use systemprompt_database::DbPool;
-use systemprompt_models::services::scheduler::JobScope;
+use systemprompt_manifest::services::scheduler::JobScope;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{JobConfig, SchedulerConfig, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{fixture_app_context_with_config, fixture_config};
+use systemprompt_test_fixtures::{
+    fixture_app_context_with_config, fixture_config, test_database_url, test_db_pool,
+};
 
 use crate::test_jobs::{NODE_JOB, NODE_JOB_RUNS};
 
@@ -21,7 +23,7 @@ static SERIALIZE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn context_for_instance(pool: &DbPool, url: &str, instance_id: &str) -> Arc<AppContext> {
     let mut config = fixture_config(url);
-    config.instance_id = instance_id.to_owned();
+    config.instance_id = systemprompt_identifiers::InstanceId::new(instance_id);
     fixture_app_context_with_config(pool, config).expect("fixture AppContext")
 }
 
@@ -29,26 +31,25 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
     SchedulerConfig {
         enabled: true,
         jobs,
-        bootstrap_jobs: vec![NODE_JOB.to_owned()],
+        bootstrap_jobs: vec![JobName::new(NODE_JOB)],
         distributed_lock: true,
     }
 }
 
 async fn dispatch_on(pool: &DbPool, url: &str, instance_id: &str, jobs: Vec<JobConfig>) {
     let app_ctx = context_for_instance(pool, url, instance_id);
-    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx)
-        .expect("SchedulerService::new");
+    let svc = SchedulerService::new(bootstrap_config(jobs), Arc::clone(pool), app_ctx);
     svc.run_bootstrap_jobs(None)
         .await
         .expect("bootstrap dispatch must not abort");
 }
 
 async fn seed_row(pool: &DbPool) -> SchedulerRepository {
-    let repo = SchedulerRepository::new(pool).expect("repo");
-    repo.upsert_job(NODE_JOB, "", true)
+    let repo = SchedulerRepository::new(pool);
+    repo.upsert_job(&JobName::new(NODE_JOB), "", true)
         .await
         .expect("seed scheduled_jobs row");
-    let pg = pool.write_pool_arc().expect("write pool");
+    let pg = pool.write_pool();
     sqlx::query!(
         "UPDATE scheduled_jobs SET last_run = NULL, last_instance_id = NULL WHERE job_name = $1",
         NODE_JOB
@@ -64,7 +65,8 @@ mod node_scope {
 
     #[tokio::test]
     async fn runs_on_every_replica_back_to_back() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 
@@ -78,16 +80,20 @@ mod node_scope {
             "a node-scoped job must run on both replicas even within the dedupe window"
         );
         let row = repo
-            .find_job(NODE_JOB)
+            .find_job(&JobName::new(NODE_JOB))
             .await
             .expect("find_job")
             .expect("seeded row");
-        assert_eq!(row.last_instance_id.as_deref(), Some("node-b"));
+        assert_eq!(
+            row.last_instance_id.as_ref().map(|id| id.as_str()),
+            Some("node-b")
+        );
     }
 
     #[tokio::test]
     async fn same_replica_within_dedupe_window_is_skipped() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         seed_row(&pool).await;
 
@@ -108,11 +114,12 @@ mod cluster_scope {
 
     #[tokio::test]
     async fn config_override_to_cluster_yields_to_peer_held_lock() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let _guard = SERIALIZE.lock().await;
         let repo = seed_row(&pool).await;
 
-        let pg = pool.write_pool_arc().expect("write pool");
+        let pg = pool.write_pool();
         let mut peer = pg.acquire().await.expect("peer connection");
         let key: i64 = sqlx::query_scalar!(r#"SELECT hashtext($1)::bigint AS "key!""#, NODE_JOB)
             .fetch_one(peer.as_mut())
@@ -130,7 +137,7 @@ mod cluster_scope {
         );
 
         let before = NODE_JOB_RUNS.load(Ordering::SeqCst);
-        let jobs = vec![JobConfig::new(NODE_JOB).with_scope(JobScope::Cluster)];
+        let jobs = vec![JobConfig::new(JobName::new(NODE_JOB)).with_scope(JobScope::Cluster)];
         dispatch_on(&pool, &url, "node-c", jobs).await;
 
         sqlx::query_scalar!("SELECT pg_advisory_unlock($1)", key)
@@ -144,7 +151,7 @@ mod cluster_scope {
             "a cluster-scoped job must skip while a peer holds the advisory lock"
         );
         let row = repo
-            .find_job(NODE_JOB)
+            .find_job(&JobName::new(NODE_JOB))
             .await
             .expect("find_job")
             .expect("seeded row");

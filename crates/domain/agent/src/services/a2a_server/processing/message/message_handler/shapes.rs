@@ -5,10 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use uuid::Uuid;
-
 use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 
 use crate::services::a2a_server::active_tasks::ActiveTasks;
@@ -16,7 +14,7 @@ use crate::services::a2a_server::active_tasks::ActiveTasks;
 pub struct HandleMessageParams<'a> {
     pub message: Message,
     pub agent_runtime: &'a crate::models::AgentRuntimeInfo,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub active_tasks: &'a ActiveTasks,
 }
@@ -34,7 +32,7 @@ impl std::fmt::Debug for HandleMessageParams<'_> {
 pub fn resolve_task_id(message: &Message) -> TaskId {
     message.task_id.clone().map_or_else(
         || {
-            let new_task_id = TaskId::new(Uuid::new_v4().to_string());
+            let new_task_id = TaskId::generate();
             tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
             new_task_id
         },
@@ -45,7 +43,11 @@ pub fn resolve_task_id(message: &Message) -> TaskId {
     )
 }
 
-pub fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: &str) -> Task {
+pub fn new_submitted_task(
+    task_id: &TaskId,
+    context_id: &ContextId,
+    agent_name: &AgentName,
+) -> Task {
     Task {
         id: task_id.clone(),
         context_id: context_id.clone(),
@@ -56,7 +58,7 @@ pub fn new_submitted_task(task_id: &TaskId, context_id: &ContextId, agent_name: 
         },
         history: None,
         artifacts: None,
-        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_owned())),
+        metadata: Some(TaskMetadata::new_agent_message(agent_name.to_string())),
         created_at: Some(chrono::Utc::now()),
         last_modified: Some(chrono::Utc::now()),
     }

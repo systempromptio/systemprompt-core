@@ -10,9 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::Config;
-use systemprompt_models::config::validate_postgres_url;
-use systemprompt_models::profile::Profile;
+use systemprompt_identifiers::InstanceId;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::config::validate_postgres_url;
+use systemprompt_manifest::profile::Profile;
 
 use crate::bootstrap::{ProfileBootstrap, SecretsBootstrap};
 use crate::error::{ConfigError, ConfigResult};
@@ -108,20 +109,14 @@ fn require_yaml_path(field: &str, value: Option<&str>) -> ConfigResult<String> {
     Ok(path.to_owned())
 }
 
-pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<String> {
-    if let Some(id) = profile
-        .server
-        .instance_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-    {
-        return Ok(id.to_owned());
+pub fn resolve_instance_id(profile: &Profile) -> ConfigResult<InstanceId> {
+    if let Some(id) = &profile.server.instance_id {
+        return Ok(id.clone());
     }
-    match systemprompt_models::config::stable_instance_id(|name| std::env::var(name).ok()) {
-        Some(id) => Ok(id),
+    match systemprompt_manifest::config::stable_instance_id(|name| std::env::var(name).ok()) {
+        Some(id) => Ok(InstanceId::new(id)),
         None if profile.target.is_cloud() => Err(ConfigError::InstanceIdUnresolved),
-        None => Ok(systemprompt_models::config::random_instance_id()),
+        None => Ok(systemprompt_manifest::config::random_instance_id()),
     }
 }
 
@@ -139,6 +134,8 @@ fn build_config(
         instance_id,
         metrics_port: profile.server.metrics_port,
         max_concurrent_streams: profile.server.max_concurrent_streams,
+        role: profile.server.role,
+        max_in_flight: profile.server.max_in_flight,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),
         database_url: secrets.database_url.clone(),
@@ -225,13 +222,9 @@ pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
         });
     }
 
-    validate_postgres_url(&config.database_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
-        message: e.to_string(),
-    })?;
+    validate_postgres_url(&config.database_url).map_err(ConfigError::InvalidDatabaseUrl)?;
     if let Some(write_url) = &config.database_write_url {
-        validate_postgres_url(write_url).map_err(|e| ConfigError::InvalidDatabaseUrl {
-            message: e.to_string(),
-        })?;
+        validate_postgres_url(write_url).map_err(ConfigError::InvalidDatabaseUrl)?;
     }
     Ok(())
 }

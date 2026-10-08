@@ -8,8 +8,8 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::StatusCode;
 use systemprompt_api::routes::oauth::{authenticated_router, public_router};
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_oauth::OAuthState;
@@ -28,9 +28,11 @@ fn ensure_config() {
 
 fn test_config() -> Config {
     Config {
-        instance_id: "test".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x".to_string(),
@@ -62,7 +64,7 @@ fn test_config() -> Config {
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,
@@ -252,7 +254,7 @@ async fn register_client_applies_rfc7591_defaults_when_grant_and_response_types_
 
     let user_id = UserId::new(format!("dcr-defaults-{}", Uuid::new_v4()));
     {
-        let p = pool.pool_arc().expect("read pool");
+        let p = pool.pool();
         sqlx::query(
             "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
         )
@@ -318,7 +320,7 @@ async fn register_client_echoes_native_application_type() -> anyhow::Result<()> 
 
     let user_id = UserId::new(format!("dcr-apptype-{}", Uuid::new_v4()));
     {
-        let p = pool.pool_arc().expect("read pool");
+        let p = pool.pool();
         sqlx::query(
             "INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING",
         )
@@ -409,7 +411,7 @@ async fn dcr_app() -> anyhow::Result<Router> {
     ensure_config();
     let (pool, ctx) = setup_ctx().await?;
     let user_id = UserId::new(format!("dcr-scope-{}", Uuid::new_v4()));
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user_id.as_str())
         .bind(format!("{}@dcr-fixture.invalid", user_id.as_str()))

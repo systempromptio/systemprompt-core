@@ -6,6 +6,7 @@
 use sqlx::Postgres;
 use sqlx::pool::PoolConnection;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, warn};
 
 use crate::services::DatabaseProvider;
@@ -34,18 +35,20 @@ impl std::fmt::Debug for BootstrapLockGuard {
 impl BootstrapLockGuard {
     pub async fn acquire(db: &dyn DatabaseProvider) -> Result<Self, LoaderError> {
         let mut conn = db.get_postgres_pool().acquire().await.map_err(|e| {
-            LoaderError::SchemaInstallationFailed {
-                extension: "database".to_owned(),
-                message: format!("Failed to acquire bootstrap lock connection: {e}"),
+            LoaderError::SchemaInstallationStepFailed {
+                extension: ExtensionId::new("database"),
+                context: "Failed to acquire bootstrap lock connection".to_owned(),
+                source: Box::new(e),
             }
         })?;
 
         sqlx::query!("SELECT pg_advisory_lock($1)", BOOTSTRAP_ADVISORY_LOCK_KEY)
             .execute(conn.as_mut())
             .await
-            .map_err(|e| LoaderError::SchemaInstallationFailed {
-                extension: "database".to_owned(),
-                message: format!("Failed to acquire bootstrap advisory lock: {e}"),
+            .map_err(|e| LoaderError::SchemaInstallationStepFailed {
+                extension: ExtensionId::new("database"),
+                context: "Failed to acquire bootstrap advisory lock".to_owned(),
+                source: Box::new(e),
             })?;
 
         debug!(

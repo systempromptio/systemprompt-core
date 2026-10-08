@@ -8,12 +8,11 @@
 //! `{type:function,name,...}` objects with no `function:{}` nesting.
 
 use serde_json::{Value, json};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalMessage, CanonicalStopReason, CanonicalToolChoice,
     ReasoningEffort, ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig,
 };
-use systemprompt_models::wire::openai_responses;
+use systemprompt_wire::{ModelLimits, openai_responses};
 
 use super::{base_request, image_url, plain_tool};
 

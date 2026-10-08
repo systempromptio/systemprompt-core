@@ -3,33 +3,29 @@
 //! Each job is constructed (zero-cost unit struct), a real `JobContext` is
 //! assembled from the fixture pool, and `execute` is driven against the
 //! migrated DB. The DB starts empty of application data, so every job should
-//! complete without errors and return a success `JobResult`. Tests skip when
-//! `DATABASE_URL` is unset locally, and fail under `CI`.
+//! complete without errors and return a success `JobResult`. Tests fail when
+//! `DATABASE_URL` is unset.
 
 use std::sync::Arc;
 
 use systemprompt_scheduler::{BehavioralAnalysisJob, DatabaseCleanupJob, MaliciousIpBlacklistJob};
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
-use systemprompt_traits::{Job, JobContext};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_test_ctx(pool: &systemprompt_database::DbPool, url: &str) -> JobContext {
     use systemprompt_identifiers::{Actor, UserId};
 
-    let app_ctx = fixture_app_context(pool, url)
-        .expect("fixture AppContext must build against a migrated DB");
+    let app_ctx = test_app_context(pool, url);
 
-    // Why: JobContext stores type-erased Arcs; jobs downcast to the concrete
-    // type. The production make_job_context wraps each value in Arc::new so
-    // the downcast target is the original concrete type.
-    let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-        Arc::new(Arc::clone(app_ctx.app_paths_arc()));
-    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+    let dependencies = Dependencies::new()
+        .with(Arc::clone(app_ctx.app_paths_arc()))
+        .with(Arc::clone(pool))
+        .with(app_ctx);
 
     let owner = UserId::new("job-test-admin");
     let actor = Actor::job(owner, "test".to_string());
 
-    JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+    JobContext::new(actor, dependencies)
 }
 
 mod behavioral_analysis_db {
@@ -37,7 +33,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -54,7 +51,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_returns_valid_duration() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -65,7 +63,8 @@ mod behavioral_analysis_db {
 
     #[tokio::test]
     async fn execute_has_stats_fields() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = BehavioralAnalysisJob;
 
@@ -84,7 +83,8 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = MaliciousIpBlacklistJob;
 
@@ -101,7 +101,8 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_reports_zero_banned_on_empty_db() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = MaliciousIpBlacklistJob;
 
@@ -116,7 +117,8 @@ mod malicious_ip_blacklist_db {
 
     #[tokio::test]
     async fn execute_is_idempotent() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let job = MaliciousIpBlacklistJob;
 
         for _ in 0..2 {
@@ -128,7 +130,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn seed_scanner_sessions(pool: &systemprompt_database::DbPool, ip: &str, count: i32) {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         for i in 0..count {
             sqlx::query(
                 "INSERT INTO user_sessions (session_id, ip_address, is_scanner, started_at, \
@@ -143,7 +145,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn cleanup_seed(pool: &systemprompt_database::DbPool, ip: &str) {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         sqlx::query("DELETE FROM banned_ips WHERE ip_address = $1")
             .bind(ip)
             .execute(&*pg)
@@ -157,7 +159,7 @@ mod malicious_ip_blacklist_db {
     }
 
     async fn is_ip_banned(pool: &systemprompt_database::DbPool, ip: &str) -> bool {
-        let pg = pool.pool_arc().expect("fixture pool");
+        let pg = pool.pool();
         let count: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM banned_ips WHERE ip_address = $1")
                 .bind(ip)
@@ -172,7 +174,8 @@ mod malicious_ip_blacklist_db {
     // no-enforce test's seeded IP would be banned by the other test's run.
     #[tokio::test]
     async fn enforce_flag_gates_banning_of_qualifying_candidates() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ip = format!("198.51.100.{}", std::process::id() % 200);
         cleanup_seed(&pool, &ip).await;
         seed_scanner_sessions(&pool, &ip, 3).await;
@@ -206,7 +209,8 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_succeeds_against_empty_db() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = DatabaseCleanupJob;
 
@@ -223,7 +227,8 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_is_idempotent() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let job = DatabaseCleanupJob;
 
         for _ in 0..2 {
@@ -236,7 +241,8 @@ mod database_cleanup_db {
 
     #[tokio::test]
     async fn execute_reports_no_failures() {
-        let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+        let url = test_database_url();
+        let pool = test_db_pool().await;
         let ctx = make_test_ctx(&pool, &url);
         let job = DatabaseCleanupJob;
 
@@ -257,25 +263,22 @@ mod closed_pool_error_propagation {
         use systemprompt_identifiers::{Actor, UserId};
         use systemprompt_test_fixtures::closed_db_pool;
 
-        let real_pool = fixture_db_pool(url).await.expect("fixture pool");
-        let app_ctx = fixture_app_context(&real_pool, url)
-            .expect("fixture AppContext must build against a migrated DB");
+        let real_pool = test_db_pool().await;
+        let app_ctx = test_app_context(&real_pool, url);
         let closed = closed_db_pool().await;
 
-        let app_paths_any: Arc<dyn std::any::Any + Send + Sync> =
-            Arc::new(Arc::clone(app_ctx.app_paths_arc()));
-        let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(closed);
-        let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app_ctx);
+        let dependencies = Dependencies::new()
+            .with(Arc::clone(app_ctx.app_paths_arc()))
+            .with(closed)
+            .with(app_ctx);
 
         let actor = Actor::job(UserId::new("job-test-admin"), "test".to_string());
-        JobContext::new(actor, db_pool_any, app_context_any, app_paths_any)
+        JobContext::new(actor, dependencies)
     }
 
     #[tokio::test]
     async fn database_cleanup_propagates_a_dead_pool_error() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
+        let url = test_database_url();
         let ctx = make_closed_ctx(&url).await;
 
         DatabaseCleanupJob
@@ -286,9 +289,7 @@ mod closed_pool_error_propagation {
 
     #[tokio::test]
     async fn behavioral_analysis_propagates_a_dead_pool_error() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
+        let url = test_database_url();
         let ctx = make_closed_ctx(&url).await;
 
         BehavioralAnalysisJob
@@ -299,9 +300,7 @@ mod closed_pool_error_propagation {
 
     #[tokio::test]
     async fn malicious_ip_blacklist_propagates_a_dead_pool_error() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
+        let url = test_database_url();
         let ctx = make_closed_ctx(&url).await;
 
         MaliciousIpBlacklistJob

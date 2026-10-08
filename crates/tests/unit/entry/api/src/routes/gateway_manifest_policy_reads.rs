@@ -4,16 +4,17 @@
 
 use std::sync::{Arc, OnceLock};
 
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, header};
 use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_database::Database;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_models::api::ErrorCode;
 use systemprompt_test_fixtures::{
     TestBootstrap, fixture_app_context_with, fixture_app_context_with_user_repository,
-    fixture_db_pool, init_isolated_bootstrap, install_test_signing_key, seed_bridge_credential,
-    seed_user_row,
+    init_isolated_bootstrap, install_test_signing_key, seed_bridge_credential, seed_user_row,
+    test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use systemprompt_users::UserRepository;
@@ -50,9 +51,7 @@ async fn closed_write_pool(url: &str) -> Arc<sqlx::PgPool> {
 async fn manifest_is_not_signed_when_the_revocation_read_fails() {
     let boot = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    let pool = test_db_pool().await;
     let healthy = fixture_app_context_with(
         &pool,
         &boot.database_url,
@@ -68,16 +67,17 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
         healthy.session_provider().expect("session provider"),
         healthy.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(healthy.oauth_repositories().oauth.clone()),
+        healthy.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, "manifest-policy@example.invalid")
         .await
         .expect("consumer credential");
 
     let broken_users = Arc::new(Database::from_pools(
-        pool.pool_arc().expect("read pool"),
+        pool.pool(),
         Some(closed_write_pool(&boot.database_url).await),
     ));
-    let user_repository = Arc::new(UserRepository::new(&broken_users).expect("user repository"));
+    let user_repository = Arc::new(UserRepository::new(&broken_users));
     let degraded = fixture_app_context_with_user_repository(
         &pool,
         &boot.database_url,
@@ -94,10 +94,17 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
             .parse()
             .expect("bearer header"),
     );
-    let (status, body) = bridge_manifest::manifest(extractor, (*degraded).clone(), headers)
+    let error = bridge_manifest::manifest(extractor, (*degraded).clone(), headers)
         .await
-        .expect_err("a manifest whose revocation list cannot be read is not served");
+        .expect_err("a manifest whose revocation list cannot be read is not served")
+        .into_inner();
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
-    assert!(body.contains("revocations"), "{body}");
+    assert_eq!(error.code, ErrorCode::InternalError, "{}", error.message);
+    assert_eq!(error.message, "manifest: revocations unavailable");
+    assert!(
+        error.source().is_some(),
+        "the read failure is kept for the log"
+    );
+    let wire = serde_json::to_value(&error).expect("serialise the error");
+    assert_eq!(wire["message"], "Internal server error");
 }

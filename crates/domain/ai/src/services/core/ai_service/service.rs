@@ -10,8 +10,8 @@ use std::sync::Arc;
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
 use crate::repository::AiRepositories;
-use crate::services::config::ConfigValidator;
-use crate::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
+use crate::services::config::{AiConfigError, ConfigValidator};
+use crate::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
 use crate::services::tools::ToolDiscovery;
 use crate::services::upstream::UpstreamTarget;
@@ -19,13 +19,14 @@ use crate::services::upstream::UpstreamTarget;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_database::DbPool;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::{
+    AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry,
+};
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 
 pub struct AiService {
-    pub(super) providers: HashMap<String, Arc<dyn AiProvider>>,
+    pub(super) providers: HashMap<String, Arc<dyn ProviderClient>>,
     pub(super) tool_provider: Arc<dyn ToolProvider>,
     pub(super) tool_discovery: Arc<ToolDiscovery>,
     pub(super) tooled_executor: TooledExecutor,
@@ -59,7 +60,6 @@ impl std::fmt::Debug for AiServiceProviders {
 
 impl AiService {
     pub fn new(
-        db_pool: &DbPool,
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
         providers: AiServiceProviders,
@@ -70,15 +70,16 @@ impl AiService {
             sessions: session_provider,
         } = providers;
         let mut missing_env_vars = Vec::new();
-        let providers = Self::build_providers(registry, ai_config, db_pool, &mut missing_env_vars)?;
+        let providers = Self::build_providers(registry, ai_config, &mut missing_env_vars)?;
         ConfigValidator::validate(ai_config, &providers, &missing_env_vars)?;
 
         let default_provider = ai_config.default_provider.clone();
         let provider = providers.get(&default_provider).ok_or_else(|| {
-            crate::error::AiError::Internal(format!(
-                "Default provider '{default_provider}' is not enabled or has no registry \
-                 connectivity"
-            ))
+            crate::error::AiError::from(AiConfigError::DefaultProviderNoConnectivity {
+                provider: default_provider.clone(),
+                connected: providers.keys().cloned().collect(),
+                withheld: None,
+            })
         })?;
 
         let default_model = ai_config
@@ -133,11 +134,10 @@ impl AiService {
     fn build_providers(
         registry: &ProviderRegistry,
         ai_config: &AiConfig,
-        db_pool: &DbPool,
         missing_env_vars: &mut Vec<String>,
-    ) -> Result<HashMap<String, Arc<dyn AiProvider>>> {
+    ) -> Result<HashMap<String, Arc<dyn ProviderClient>>> {
         SecretsBootstrap::get()?;
-        let mut providers: HashMap<String, Arc<dyn AiProvider>> = HashMap::new();
+        let mut providers: HashMap<String, Arc<dyn ProviderClient>> = HashMap::new();
 
         for (name, policy) in &ai_config.providers {
             if !policy.enabled {
@@ -168,7 +168,7 @@ impl AiService {
                 },
             };
 
-            let provider = Self::build_one(entry, policy, target, db_pool)?;
+            let provider = Self::build_one(entry, policy, target)?;
             providers.insert(name.clone(), provider);
         }
 
@@ -179,8 +179,7 @@ impl AiService {
         entry: &ProviderEntry,
         policy: &AiProviderConfig,
         target: UpstreamTarget,
-        db_pool: &DbPool,
-    ) -> Result<Arc<dyn AiProvider>> {
+    ) -> Result<Arc<dyn ProviderClient>> {
         let params = ProviderClientParams {
             name: entry.name.as_str(),
             target,
@@ -190,7 +189,7 @@ impl AiService {
             default_model: (!policy.default_model.is_empty())
                 .then_some(policy.default_model.as_str()),
         };
-        ProviderFactory::create(&params, Some(Arc::clone(db_pool)))
+        ProviderFactory::create(&params)
     }
 
     pub fn default_provider(&self) -> &str {
@@ -205,11 +204,13 @@ impl AiService {
         self.default_max_output_tokens
     }
 
-    pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn AiProvider>> {
+    pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn ProviderClient>> {
         self.providers
             .get(name)
             .cloned()
-            .ok_or_else(|| crate::error::AiError::Internal(format!("Provider {name} not found")))
+            .ok_or_else(|| crate::error::AiError::ProviderNotFound {
+                provider: name.to_owned(),
+            })
     }
 
     pub(super) async fn audit(&self, params: &StoreParams<'_>) {
@@ -227,7 +228,7 @@ impl AiService {
     pub(super) async fn store_error(
         &self,
         request: &AiRequest,
-        request_id: uuid::Uuid,
+        request_id: systemprompt_identifiers::AiRequestId,
         latency_ms: u64,
         error_message: String,
     ) {

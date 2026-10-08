@@ -35,10 +35,8 @@ fn systemprompt_bin() -> std::path::PathBuf {
     panic!("systemprompt binary not found; set SYSTEMPROMPT_BIN or run via `just coverage`");
 }
 
-fn golden_json_or_skip(args: &[&str]) -> Option<Value> {
-    let url = std::env::var("DATABASE_URL")
-        .ok()
-        .filter(|u| !u.is_empty())?;
+fn golden_json(args: &[&str]) -> Value {
+    let url = systemprompt_test_fixtures::test_database_url();
     let mut cmd = Command::new(systemprompt_bin());
     cmd.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     cmd.env_remove("RUST_LOG");
@@ -48,7 +46,7 @@ fn golden_json_or_skip(args: &[&str]) -> Option<Value> {
         String::from_utf8(assert.get_output().stdout.clone()).expect("stdout must be valid UTF-8");
     let value: Value = serde_json::from_str(&stdout)
         .unwrap_or_else(|e| panic!("whole stdout must be one JSON document: {e}\n---\n{stdout}"));
-    Some(value)
+    value
 }
 
 fn assert_artifact_type(value: &Value, expected: &str) {
@@ -61,9 +59,7 @@ fn assert_artifact_type(value: &Value, expected: &str) {
 
 #[test]
 fn admin_users_count_emits_presentation_card() {
-    let Some(v) = golden_json_or_skip(&["admin", "users", "count"]) else {
-        return;
-    };
+    let v = golden_json(&["admin", "users", "count"]);
     assert_artifact_type(&v, "presentation_card");
     assert!(v.get("title").is_some(), "card must carry a title: {v}");
     assert!(
@@ -74,9 +70,7 @@ fn admin_users_count_emits_presentation_card() {
 
 #[test]
 fn admin_users_list_emits_table() {
-    let Some(v) = golden_json_or_skip(&["admin", "users", "list", "--limit", "5"]) else {
-        return;
-    };
+    let v = golden_json(&["admin", "users", "list", "--limit", "5"]);
     assert_artifact_type(&v, "table");
     assert!(
         v.get("columns").and_then(Value::as_array).is_some(),
@@ -90,9 +84,7 @@ fn admin_users_list_emits_table() {
 
 #[test]
 fn analytics_overview_emits_presentation_card() {
-    let Some(v) = golden_json_or_skip(&["analytics", "overview"]) else {
-        return;
-    };
+    let v = golden_json(&["analytics", "overview"]);
     assert_artifact_type(&v, "presentation_card");
     assert_eq!(
         v.get("title").and_then(Value::as_str),
@@ -103,9 +95,7 @@ fn analytics_overview_emits_presentation_card() {
 
 #[test]
 fn core_content_list_emits_table() {
-    let Some(v) = golden_json_or_skip(&["core", "content", "list", "--limit", "5"]) else {
-        return;
-    };
+    let v = golden_json(&["core", "content", "list", "--limit", "5"]);
     assert_artifact_type(&v, "table");
     assert!(
         v.get("columns").and_then(Value::as_array).is_some(),
@@ -115,9 +105,7 @@ fn core_content_list_emits_table() {
 
 #[test]
 fn core_files_stats_emits_presentation_card() {
-    let Some(v) = golden_json_or_skip(&["core", "files", "stats"]) else {
-        return;
-    };
+    let v = golden_json(&["core", "files", "stats"]);
     assert_artifact_type(&v, "presentation_card");
     assert!(
         v.get("sections").and_then(Value::as_array).is_some(),
@@ -127,9 +115,7 @@ fn core_files_stats_emits_presentation_card() {
 
 #[test]
 fn infra_db_indexes_emits_table() {
-    let Some(v) = golden_json_or_skip(&["infra", "db", "indexes"]) else {
-        return;
-    };
+    let v = golden_json(&["infra", "db", "indexes"]);
     assert_artifact_type(&v, "table");
     assert!(
         v.get("columns").and_then(Value::as_array).is_some(),
@@ -139,10 +125,7 @@ fn infra_db_indexes_emits_table() {
 
 #[test]
 fn yaml_output_is_well_formed_for_users_count() {
-    // skip-ok: the systemprompt binary is not built in this checkout
-    let Some(url) = std::env::var("DATABASE_URL").ok().filter(|u| !u.is_empty()) else {
-        return;
-    };
+    let url = systemprompt_test_fixtures::test_database_url();
     let mut cmd = Command::new(systemprompt_bin());
     cmd.env("SYSTEMPROMPT_PROFILE", "__nonexistent__");
     cmd.env_remove("RUST_LOG");

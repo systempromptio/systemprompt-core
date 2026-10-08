@@ -17,13 +17,14 @@ mod set_value;
 use std::fs;
 use std::path::PathBuf;
 
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::AgentName;
 use systemprompt_loader::{ConfigWriteError, ConfigWriter};
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
-    PluginComponentRef, ProviderRegistry,
+    ProviderRegistry,
 };
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::plugin::PluginComponentRef;
 use thiserror::Error;
 
 pub use edit::AgentEditRequest;
@@ -74,7 +75,10 @@ pub enum ConfigAuthoringError {
     NoDefaultModel(String),
 
     #[error("Failed to load services config for defaults: {0}")]
-    ServicesConfig(String),
+    ServicesConfig(#[from] systemprompt_loader::ConfigLoadError),
+
+    #[error("Failed to load the provider catalogue for defaults: {0}")]
+    ProviderCatalog(#[from] systemprompt_manifest::services::ProviderRegistryError),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -170,7 +174,7 @@ impl AgentConfigAuthoringService {
         )?)
     }
 
-    pub fn delete(&self, name: &str) -> Result<(), ConfigAuthoringError> {
+    pub fn delete(&self, name: &AgentName) -> Result<(), ConfigAuthoringError> {
         Ok(ConfigWriter::delete_agent(name, &self.services_dir)?)
     }
 }
@@ -188,7 +192,7 @@ fn build_agent_config(
     };
     let endpoint = match request.endpoint.take() {
         Some(endpoint) => endpoint,
-        None => ApiPaths::agent_endpoint(&AgentId::new(&request.name)),
+        None => ApiPaths::agent_endpoint(&AgentName::new(&request.name)),
     };
 
     Ok(AgentConfig {
@@ -240,8 +244,7 @@ fn build_agent_config(
 }
 
 fn default_provider() -> Result<String, ConfigAuthoringError> {
-    let services = systemprompt_loader::ConfigLoader::load()
-        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    let services = systemprompt_loader::ConfigLoader::load()?;
     if services.ai.default_provider.is_empty() {
         return Err(ConfigAuthoringError::NoDefaultProvider);
     }
@@ -249,8 +252,7 @@ fn default_provider() -> Result<String, ConfigAuthoringError> {
 }
 
 fn default_model_for(provider: &str) -> Result<String, ConfigAuthoringError> {
-    let registry = ProviderRegistry::default_seed()
-        .map_err(|e| ConfigAuthoringError::ServicesConfig(e.to_string()))?;
+    let registry = ProviderRegistry::default_seed()?;
     registry
         .find_provider(provider)
         .and_then(|entry| entry.models.first().map(|m| m.id.as_str().to_owned()))

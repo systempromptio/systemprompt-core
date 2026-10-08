@@ -76,7 +76,7 @@ HTTP routing lives outside this crate. API consumers compose `AgentHandlerState`
 
 ```toml
 [dependencies]
-systemprompt-agent = "0.62"
+systemprompt-agent = "0.63"
 ```
 
 ## Module Layout
@@ -161,15 +161,12 @@ Conversation context with full history:
 pub use models::a2a::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities,
     AgentCard, AgentInterface, AgentProvider, AgentSkill, Artifact,
-    DataPart, Message, MessageSendParams, Part, SecurityScheme, Task,
-    TaskIdParams, TaskQueryParams, TaskState, TaskStatus, TextPart,
-    TransportProtocol,
+    DataPart, Message, MessageSendParams, Part, ProtocolBinding,
+    SecurityScheme, Task, TaskIdParams, TaskQueryParams, TaskState,
+    TaskStatus, TextPart,
 };
 
-pub use error::{
-    AgentError, AgentResult, ArtifactError, ContextError,
-    ProtocolError, RowParseError, TaskError,
-};
+pub use error::{AgentError, AgentResult, ArtifactError};
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator,

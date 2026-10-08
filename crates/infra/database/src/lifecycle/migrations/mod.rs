@@ -16,6 +16,7 @@ mod repair;
 mod run;
 mod stamp;
 mod status;
+mod step_error;
 mod triggers;
 mod verify;
 
@@ -30,6 +31,7 @@ pub use status::{
 use crate::services::{DatabaseProvider, SqlExecutor};
 use std::collections::HashSet;
 use systemprompt_extension::{Extension, LoaderError, Migration};
+use systemprompt_identifiers::ExtensionId;
 use tracing::{debug, info, warn};
 
 pub(crate) const RECORD_MIGRATION_SQL: &str = "INSERT INTO extension_migrations (id, extension_id, version, \
@@ -71,15 +73,16 @@ impl<'a> MigrationService<'a> {
         let sql = include_str!("../../../schema/extension_migrations.sql");
         SqlExecutor::execute_statements_parsed(self.db, sql)
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: "database".to_owned(),
-                message: format!("Failed to ensure migrations table exists: {e}"),
+            .map_err(|e| LoaderError::MigrationStepFailed {
+                extension: ExtensionId::new("database"),
+                context: "Failed to ensure migrations table exists".to_owned(),
+                source: Box::new(e),
             })
     }
 
     pub async fn get_applied_migrations(
         &self,
-        extension_id: &str,
+        extension_id: &ExtensionId,
     ) -> Result<Vec<AppliedMigration>, LoaderError> {
         let result = self
             .db
@@ -89,9 +92,10 @@ impl<'a> MigrationService<'a> {
                 &[&extension_id],
             )
             .await
-            .map_err(|e| LoaderError::MigrationFailed {
-                extension: extension_id.to_owned(),
-                message: format!("Failed to query applied migrations: {e}"),
+            .map_err(|e| LoaderError::MigrationStepFailed {
+                extension: extension_id.clone(),
+                context: "Failed to query applied migrations".to_owned(),
+                source: Box::new(e),
             })?;
 
         result
@@ -105,7 +109,7 @@ impl<'a> MigrationService<'a> {
         &self,
         extension: &dyn Extension,
     ) -> Result<MigrationResult, LoaderError> {
-        let ext_id = extension.metadata().id;
+        let ext_id = &ExtensionId::new(extension.metadata().id);
         let migrations = extension.migrations();
 
         if migrations.is_empty() {
@@ -180,7 +184,11 @@ pub(crate) fn orphaned_versions(applied: &[AppliedMigration], defined: &[Migrati
         .collect()
 }
 
-fn warn_orphaned_versions(ext_id: &str, applied: &[AppliedMigration], defined: &[Migration]) {
+fn warn_orphaned_versions(
+    ext_id: &ExtensionId,
+    applied: &[AppliedMigration],
+    defined: &[Migration],
+) {
     let orphaned = orphaned_versions(applied, defined);
     if orphaned.is_empty() {
         return;
@@ -194,11 +202,11 @@ fn warn_orphaned_versions(ext_id: &str, applied: &[AppliedMigration], defined: &
 }
 
 fn decode_applied_row(
-    extension_id: &str,
+    extension_id: &ExtensionId,
     row: &crate::models::JsonRow,
 ) -> Result<AppliedMigration, LoaderError> {
     let malformed = |column: &str| LoaderError::MigrationFailed {
-        extension: extension_id.to_owned(),
+        extension: extension_id.clone(),
         message: format!("extension_migrations row has a malformed `{column}` column"),
     };
     let text = |column: &str| -> Result<String, LoaderError> {
@@ -214,7 +222,7 @@ fn decode_applied_row(
         .ok_or_else(|| malformed("version"))?;
     let checksum = text("checksum")?;
     Ok(AppliedMigration {
-        extension_id: text("extension_id")?,
+        extension_id: extension_id.clone(),
         version,
         name: text("name")?,
         checksum,

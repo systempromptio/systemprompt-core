@@ -30,9 +30,11 @@ systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-config = { workspace = true }
 
 # Async
+tokio = { workspace = true, features = ["fs"] }
 
 # Database
 sqlx = { workspace = true, features = ["postgres", "uuid"] }
@@ -45,7 +47,6 @@ serde_yaml = { workspace = true }
 
 # Utilities
 thiserror = { workspace = true }
-uuid = { workspace = true }
 chrono = { workspace = true }
 walkdir = { workspace = true }
 sha2 = { workspace = true }

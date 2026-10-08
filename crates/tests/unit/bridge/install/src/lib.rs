@@ -1,6 +1,8 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
+mod approval;
+#[cfg(test)]
 mod bootstrap;
 #[cfg(test)]
 mod builders;
@@ -35,6 +37,8 @@ mod schedule;
 #[cfg(test)]
 mod settings_path_probe;
 #[cfg(test)]
+mod skill_budget;
+#[cfg(test)]
 mod summary;
 #[cfg(test)]
 mod tool_catalog;
@@ -42,5 +46,5 @@ mod tool_catalog;
 mod tool_permissions;
 #[cfg(test)]
 mod uninstall;
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "windows")))]
 mod user_alert;

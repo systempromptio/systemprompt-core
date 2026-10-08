@@ -17,7 +17,7 @@ use systemprompt_analytics::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -48,9 +48,8 @@ impl Fixture {
     async fn new() -> Result<Self> {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
-        let url = fixture_database_url()?;
-        let db = fixture_db_pool(&url).await?;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let db = test_db_pool().await;
+        let pool = db.pool().as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = format!("repo_u_{tag}");
         let context_id = format!("repo_c_{tag}");
@@ -212,7 +211,7 @@ async fn traffic_repository_smoke() -> Result<()> {
     )
     .await?;
 
-    let repo = TrafficAnalyticsRepository::new(&fx.db)?;
+    let repo = TrafficAnalyticsRepository::new(&fx.db);
     let sources = repo
         .get_sources(fx.window_start, fx.window_end, 50, false)
         .await?;
@@ -275,7 +274,7 @@ async fn overview_repository_smoke() -> Result<()> {
     )
     .await?;
 
-    let repo = OverviewAnalyticsRepository::new(&fx.db)?;
+    let repo = OverviewAnalyticsRepository::new(&fx.db);
     let conv_count = repo
         .get_conversation_count(fx.window_start, fx.window_end)
         .await?;
@@ -318,7 +317,7 @@ async fn engagement_repository_lifecycle() -> Result<()> {
     .execute(&fx.pool)
     .await?;
 
-    let repo = EngagementRepository::new(&fx.db)?;
+    let repo = EngagementRepository::new(&fx.db);
     let input = CreateEngagementEventInput {
         page_url: "/home".into(),
         event_type: "page_exit".into(),
@@ -378,7 +377,7 @@ async fn request_analytics_repository_smoke() -> Result<()> {
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_ai_request("m2", 200, 20).await?;
 
-    let repo = RequestAnalyticsRepository::new(&fx.db)?;
+    let repo = RequestAnalyticsRepository::new(&fx.db);
     let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total >= 2);
     let stats_filtered = repo
@@ -438,7 +437,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_rejected_ai_request().await?;
 
-    let repo = RequestAnalyticsRepository::new(&fx.db)?;
+    let repo = RequestAnalyticsRepository::new(&fx.db);
 
     let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
     assert!(
@@ -463,7 +462,7 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
 #[tokio::test]
 async fn conversation_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ConversationAnalyticsRepository::new(&fx.db)?;
+    let repo = ConversationAnalyticsRepository::new(&fx.db);
     let _agent = repo
         .list_agent_contexts(fx.window_start, fx.window_end, 50, None)
         .await?;
@@ -525,7 +524,7 @@ async fn conversation_repository_smoke() -> Result<()> {
 async fn events_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
     let repo = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&fx.db)?,
+        systemprompt_logging::AnalyticsRepository::new(&fx.db),
     ));
 
     let session_id = SessionId::new(format!("ev_s_{}", fx.tag));

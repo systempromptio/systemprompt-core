@@ -7,12 +7,13 @@ use crate::models::TaskRow;
 use crate::models::a2a::{Message, MessageRole, Part, TaskState};
 use crate::models::database_rows::TaskMessage;
 use systemprompt_models::a2a::TaskMetadata;
+use systemprompt_models::errors::ParseEnumError;
 use systemprompt_traits::RepositoryError;
 
 pub(super) fn parse_task_state(row: &TaskRow) -> Result<TaskState, RepositoryError> {
-    row.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })
+    row.status
+        .parse()
+        .map_err(|e: ParseEnumError| RepositoryError::decode("stored task state", e))
 }
 
 pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
@@ -53,19 +54,23 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
     }
 }
 
-pub(super) fn construct_metadata(row: &TaskRow) -> TaskMetadata {
-    let metadata_json = row
-        .metadata
-        .as_ref()
-        .map_or_else(|| "{}".to_owned(), ToString::to_string);
-
+pub(super) fn construct_metadata(row: &TaskRow) -> Result<TaskMetadata, RepositoryError> {
     let agent_name = row
         .agent_name
         .as_ref()
-        .map_or_else(String::new, ToString::to_string);
+        .map(ToString::to_string)
+        .ok_or_else(|| {
+            RepositoryError::invalid_data("agent_name", format!("missing for task {}", row.task_id))
+        })?;
 
-    let mut metadata = serde_json::from_str::<TaskMetadata>(&metadata_json)
-        .unwrap_or_else(|_| TaskMetadata::new_agent_message(agent_name.clone()));
+    let mut metadata = match row.metadata.as_ref() {
+        None => TaskMetadata::new_agent_message(agent_name.clone()),
+        Some(value) if value.as_object().is_some_and(serde_json::Map::is_empty) => {
+            TaskMetadata::new_agent_message(agent_name.clone())
+        },
+        Some(value) => serde_json::from_value::<TaskMetadata>(value.clone())
+            .map_err(|e| RepositoryError::decode(format!("task {} metadata", row.task_id), e))?,
+    };
 
     metadata.agent_name = agent_name;
     metadata.created_at = row.created_at.to_rfc3339();
@@ -74,5 +79,5 @@ pub(super) fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     metadata.completed_at = row.completed_at.map(|dt| dt.to_rfc3339());
     metadata.execution_time_ms = row.execution_time_ms.map(i64::from);
 
-    metadata
+    Ok(metadata)
 }

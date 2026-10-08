@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
-use systemprompt_models::services::{
-    HookAction, HookCategory, HookEvent, HookEventsConfig, HookMatcher, HookType,
-};
+use systemprompt_manifest::services::{HookAction, HookEventsConfig, HookMatcher, HookType};
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 #[test]
 fn hook_event_as_str_round_trips_all_variants() {
@@ -173,11 +172,29 @@ fn disk_hook_config_yaml_round_trip_with_defaults() {
     let yaml = r"
 event: SessionStart
 ";
-    let cfg: systemprompt_models::services::DiskHookConfig = serde_yaml::from_str(yaml).unwrap();
+    let cfg: systemprompt_manifest::services::DiskHookConfig = serde_yaml::from_str(yaml).unwrap();
+    assert!(cfg.id.is_none());
     assert_eq!(cfg.name, "");
     assert_eq!(cfg.version, "1.0.0");
     assert!(cfg.enabled);
     assert_eq!(cfg.matcher, "*");
     assert!(matches!(cfg.category, HookCategory::Custom));
     assert!(cfg.tags.is_empty());
+}
+
+#[test]
+fn disk_hook_config_keeps_an_explicit_id() {
+    let yaml = "id: audit_hook\nevent: SessionStart\n";
+    let cfg: systemprompt_manifest::services::DiskHookConfig = serde_yaml::from_str(yaml).unwrap();
+    assert_eq!(cfg.id.as_ref().map(|id| id.as_str()), Some("audit_hook"));
+}
+
+#[test]
+fn disk_hook_config_reads_a_blank_id_as_absent() {
+    for raw in ["\"\"", "\"   \""] {
+        let yaml = format!("id: {raw}\nevent: SessionStart\n");
+        let cfg: systemprompt_manifest::services::DiskHookConfig = serde_yaml::from_str(&yaml)
+            .unwrap_or_else(|e| panic!("blank id {raw} must parse: {e}"));
+        assert!(cfg.id.is_none(), "blank id {raw} must read as absent");
+    }
 }

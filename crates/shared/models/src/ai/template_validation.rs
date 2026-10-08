@@ -155,6 +155,7 @@ impl TemplateValidator {
         }
     }
 
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     pub fn validate_plan(
         calls: &[PlannedToolCall],
         tool_output_schemas: &[(String, Option<Value>)],
@@ -178,6 +179,7 @@ impl TemplateValidator {
         }
     }
 
+    // JSON: MCP tool output schema — arbitrary JSON Schema.
     fn validate_template(
         tool_index: usize,
         call: &PlannedToolCall,

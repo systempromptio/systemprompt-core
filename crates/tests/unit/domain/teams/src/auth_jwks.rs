@@ -13,6 +13,7 @@ use rsa::RsaPublicKey;
 use rsa::pkcs8::DecodePublicKey;
 use rsa::traits::PublicKeyParts;
 use serde::Serialize;
+use systemprompt_identifiers::TeamsAppId;
 use systemprompt_teams::TeamsError;
 use systemprompt_teams::auth::ActivityTokenVerifier;
 use wiremock::matchers::{method, path};
@@ -80,7 +81,7 @@ async fn mount_openid(server: &MockServer, jwk_kid: &str) {
 fn verifier(server: &MockServer) -> ActivityTokenVerifier {
     ActivityTokenVerifier::with_openid_url(
         reqwest::Client::new(),
-        AUDIENCE,
+        TeamsAppId::new(AUDIENCE),
         format!("{}/openid", server.uri()),
     )
 }
@@ -119,8 +120,8 @@ async fn unknown_kid_triggers_a_fetch_and_then_fails_closed() {
         .await
         .expect_err("a kid absent from the JWKS is rejected after refresh");
     assert!(
-        matches!(err, TeamsError::TokenValidation(_)),
-        "expected TokenValidation, got {err:?}"
+        matches!(err, TeamsError::UnknownSigningKey { .. }),
+        "expected UnknownSigningKey, got {err:?}"
     );
 
     assert_eq!(
@@ -136,14 +137,14 @@ async fn the_production_constructor_rejects_a_malformed_token_without_fetching()
     // endpoint. A token whose header cannot even be decoded fails in
     // `decode_header` before any key fetch, so this covers the production
     // constructor without a live metadata call.
-    let verifier = ActivityTokenVerifier::new(reqwest::Client::new(), AUDIENCE);
+    let verifier = ActivityTokenVerifier::new(reqwest::Client::new(), TeamsAppId::new(AUDIENCE));
     let err = verifier
         .verify("not-a-jwt", SERVICE_URL, 0)
         .await
         .expect_err("a malformed token is rejected before the JWKS is fetched");
     assert!(
-        matches!(err, TeamsError::TokenValidation(_)),
-        "expected TokenValidation, got {err:?}"
+        matches!(err, TeamsError::InvalidToken { .. }),
+        "expected InvalidToken, got {err:?}"
     );
 }
 
@@ -172,8 +173,8 @@ async fn a_jwk_with_unparseable_key_material_is_rejected() {
         .await
         .expect_err("a JWK whose modulus cannot decode yields no usable key");
     assert!(
-        matches!(err, TeamsError::TokenValidation(_)),
-        "expected TokenValidation, got {err:?}"
+        matches!(err, TeamsError::InvalidToken { .. }),
+        "expected InvalidToken, got {err:?}"
     );
 }
 

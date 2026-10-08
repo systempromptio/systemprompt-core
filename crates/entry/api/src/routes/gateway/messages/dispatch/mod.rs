@@ -9,11 +9,12 @@ use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::services::gateway::audit::GatewayRequestContext;
-use crate::services::gateway::protocol::inbound::InboundAdapter;
-use crate::services::gateway::service::{DispatchInputs, GatewayService};
+use systemprompt_gateway::audit::GatewayRequestContext;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::service::{DispatchInputs, GatewayService};
 
 use super::RequestContext;
+pub use super::error::RejectionError;
 use super::extract::PreparedRequest;
 
 pub mod errors;
@@ -21,16 +22,9 @@ pub mod errors;
 pub use self::errors::map_upstream_error;
 
 pub use self::errors::{
-    build_error_response, build_policy_denial, classify_dispatch_error, error_type_for,
-    map_dispatch_error, policy_denial_message,
+    build_error_response, build_policy_denial, classify_dispatch_error, map_dispatch_error,
+    policy_denial_message,
 };
-
-#[derive(Debug)]
-pub struct RejectionError {
-    pub status: StatusCode,
-    pub message: String,
-    pub persist: bool,
-}
 
 pub(super) async fn dispatch_to_provider(
     rc: &RequestContext<'_>,
@@ -40,6 +34,7 @@ pub(super) async fn dispatch_to_provider(
     let PreparedRequest {
         origin,
         evidence,
+        attribution,
         principal,
         body_bytes,
         client_headers,
@@ -53,6 +48,7 @@ pub(super) async fn dispatch_to_provider(
     } = prepared;
 
     let max_tokens = gateway_request.max_tokens;
+    let api_key_windows = super::extract::scope::api_key_windows(&principal);
     let is_streaming = gateway_request.stream;
 
     let gateway_ctx = GatewayRequestContext {
@@ -72,14 +68,15 @@ pub(super) async fn dispatch_to_provider(
         is_streaming,
         origin,
         evidence,
+        attribution,
+        api_key_windows,
         access_log: rc.access_log.clone(),
     };
 
-    let gateway_config = rc.services.gateway_config().ok_or_else(|| RejectionError {
-        status: StatusCode::NOT_FOUND,
-        message: "Gateway not enabled".to_owned(),
-        persist: true,
-    })?;
+    let gateway_config = rc
+        .services
+        .gateway_config()
+        .ok_or_else(|| RejectionError::client(StatusCode::NOT_FOUND, "Gateway not enabled"))?;
 
     match Box::pin(GatewayService::dispatch(
         gateway_config,

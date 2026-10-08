@@ -6,7 +6,7 @@
 use std::path::{Path, PathBuf};
 
 use super::PathError;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 
 #[derive(Debug, Clone)]
 pub struct BuildPaths {

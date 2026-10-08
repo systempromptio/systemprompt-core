@@ -81,27 +81,9 @@ impl Database {
         self.read().get_postgres_pool()
     }
 
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "every layer threads `?` through this accessor; collapsing its callers onto \
-                  `pool()` is a workspace-wide mechanical change scheduled after 0.53.0"
-    )]
-    pub fn pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Ok(self.pool())
-    }
-
     #[must_use]
     pub fn write_pool(&self) -> Arc<sqlx::PgPool> {
         self.write().get_postgres_pool()
-    }
-
-    #[expect(
-        clippy::unnecessary_wraps,
-        reason = "every layer threads `?` through this accessor; collapsing its callers onto \
-                  `write_pool()` is a workspace-wide mechanical change scheduled after 0.53.0"
-    )]
-    pub fn write_pool_arc(&self) -> DatabaseResult<Arc<sqlx::PgPool>> {
-        Ok(self.write_pool())
     }
 
     #[must_use]
@@ -127,13 +109,6 @@ impl Database {
 
     pub async fn begin(&self) -> DatabaseResult<sqlx::Transaction<'_, sqlx::Postgres>> {
         self.write_pool().begin().await.map_err(Into::into)
-    }
-
-    pub async fn begin_scoped(
-        &self,
-        scope: &systemprompt_models::RequestScope,
-    ) -> DatabaseResult<sqlx::Transaction<'static, sqlx::Postgres>> {
-        super::scoped_transaction::begin_scoped(&self.write_pool(), scope).await
     }
 }
 

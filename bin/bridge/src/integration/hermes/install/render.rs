@@ -12,11 +12,11 @@ use super::super::config::{
     PROVIDER_BASE_URL, PROVIDER_ENTRY, PROVIDER_KEY_ENV,
 };
 use super::super::probe::write_dotted;
-use crate::integration::host_app::ProfileGenInputs;
+use crate::integration::host_app::{HostAppError, ProfileGenInputs};
 
 pub(super) const API_KEY_MARKER: &str = "_systemprompt_openai_api_key";
 
-pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
+pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> Result<String, HostAppError> {
     let gateway = inputs.gateway_base_url.trim_end_matches('/');
 
     let mut value = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
@@ -45,7 +45,7 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     let default = inputs
         .default_model
         .as_deref()
-        .map(systemprompt_models::services::providers::without_context_variant)
+        .map(systemprompt_models::providers::without_context_variant)
         .and_then(|d| inputs.models.iter().find(|m| m.as_str() == d))
         .or_else(|| inputs.models.first());
     if let Some(model) = default {
@@ -62,5 +62,5 @@ pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     )?;
 
     serde_yaml::to_string(&value)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e).into())
 }

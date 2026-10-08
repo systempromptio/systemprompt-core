@@ -1,11 +1,11 @@
 // DB-backed authorization-code persistence tests (HMAC-at-rest store/consume,
-// single-use, redirect-uri mismatch, PKCE S256).
+// single-use, mandatory redirect-uri and PKCE S256 checks).
 
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
-use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId, UserId};
+use systemprompt_oauth::repository::{AuthCodeParams, MintAuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, PkcePair, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    pkce_pair, seed_oauth_client, seed_user_row, unique_user_id,
+    OAuthClientFixture, PkcePair, ensure_test_bootstrap, pkce_pair, seed_oauth_client,
+    seed_user_row, test_db_pool, unique_user_id,
 };
 use uuid::Uuid;
 
@@ -14,13 +14,13 @@ struct Ctx {
     client_id: ClientId,
     user_id: UserId,
     redirect_uri: String,
+    pkce: PkcePair,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = OAuthRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
     let user_id = unique_user_id("ac");
     seed_user_row(&pool, &user_id, &format!("{}@ac.invalid", user_id.as_str()))
         .await
@@ -32,19 +32,16 @@ async fn setup_or_skip() -> Option<Ctx> {
     } = seed_oauth_client(&pool, &user_id)
         .await
         .expect("seed client");
-    Some(Ctx {
+    Ctx {
         repo,
         client_id,
         user_id,
         redirect_uri,
-    })
+        pkce: pkce_pair(),
+    }
 }
 
-#[tokio::test]
-async fn store_then_validate_without_pkce() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+async fn store_code(ctx: &Ctx, scope: &str, resource: Option<&str>) -> AuthorizationCode {
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -52,13 +49,19 @@ async fn store_then_validate_without_pkce() {
             client_id: &ctx.client_id,
             user_id: &ctx.user_id,
             redirect_uri: &ctx.redirect_uri,
-            scope: "openid profile",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: Some("https://api.invalid"),
+            scope,
+            code_challenge: &ctx.pkce.challenge,
+            resource,
         })
         .await
         .expect("store");
+    code
+}
+
+#[tokio::test]
+async fn store_then_validate_with_pkce() {
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid profile", Some("https://api.invalid")).await;
 
     let found_client = ctx
         .repo
@@ -70,7 +73,7 @@ async fn store_then_validate_without_pkce() {
 
     let result = ctx
         .repo
-        .validate_authorization_code(&code, &ctx.client_id, Some(&ctx.redirect_uri), None)
+        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
         .await
         .expect("validate");
     assert_eq!(result.user_id, ctx.user_id);
@@ -80,47 +83,40 @@ async fn store_then_validate_without_pkce() {
 
 #[tokio::test]
 async fn validate_is_single_use() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: None,
-        })
-        .await
-        .expect("store");
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
 
     ctx.repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
+        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
         .await
         .expect("first use ok");
 
-    // Second use is rejected (replay).
     assert!(
         ctx.repo
-            .validate_authorization_code(&code, &ctx.client_id, None, None)
+            .validate_authorization_code(
+                &code,
+                &ctx.client_id,
+                &ctx.redirect_uri,
+                &ctx.pkce.verifier,
+            )
             .await
-            .is_err()
+            .is_err(),
+        "a replayed code must be rejected"
     );
 }
 
 #[tokio::test]
 async fn validate_unknown_code_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("never-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
-            .validate_authorization_code(&code, &ctx.client_id, None, None)
+            .validate_authorization_code(
+                &code,
+                &ctx.client_id,
+                &ctx.redirect_uri,
+                &ctx.pkce.verifier,
+            )
             .await
             .is_err()
     );
@@ -135,31 +131,16 @@ async fn validate_unknown_code_errors() {
 
 #[tokio::test]
 async fn validate_redirect_uri_mismatch_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: None,
-        })
-        .await
-        .expect("store");
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
 
     assert!(
         ctx.repo
             .validate_authorization_code(
                 &code,
                 &ctx.client_id,
-                Some("https://evil.invalid/cb"),
-                None
+                "https://evil.invalid/cb",
+                &ctx.pkce.verifier,
             )
             .await
             .is_err()
@@ -168,105 +149,70 @@ async fn validate_redirect_uri_mismatch_errors() {
 
 #[tokio::test]
 async fn validate_rejects_mismatched_client_id() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: None,
-        })
-        .await
-        .expect("store");
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
 
     let other_client = ClientId::new(format!("other-{}", Uuid::new_v4()));
     assert!(
         ctx.repo
-            .validate_authorization_code(&code, &other_client, Some(&ctx.redirect_uri), None)
+            .validate_authorization_code(
+                &code,
+                &other_client,
+                &ctx.redirect_uri,
+                &ctx.pkce.verifier,
+            )
             .await
             .is_err(),
         "a code issued to one client must not be redeemable by another"
     );
 
-    // The mismatched attempt still consumes the code (single-use), so the
-    // rightful client also cannot now redeem it — fail closed.
     assert!(
         ctx.repo
-            .validate_authorization_code(&code, &ctx.client_id, Some(&ctx.redirect_uri), None)
+            .validate_authorization_code(
+                &code,
+                &ctx.client_id,
+                &ctx.redirect_uri,
+                &ctx.pkce.verifier,
+            )
+            .await
+            .is_err(),
+        "the mismatched attempt consumed the code, so the rightful client is refused too"
+    );
+}
+
+#[tokio::test]
+async fn validate_rejects_a_wrong_verifier() {
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
+    assert!(
+        ctx.repo
+            .validate_authorization_code(
+                &code,
+                &ctx.client_id,
+                &ctx.redirect_uri,
+                "wrong-verifier",
+            )
             .await
             .is_err()
     );
 }
 
 #[tokio::test]
-async fn validate_pkce_s256_success_and_failure() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let PkcePair {
-        verifier,
-        challenge,
-        ..
-    } = pkce_pair();
-
-    // Wrong verifier rejected.
-    let code1 = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code1,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: Some(&challenge),
-            code_challenge_method: Some("S256"),
-            resource: None,
-        })
-        .await
-        .expect("store");
+async fn validate_rejects_an_empty_verifier() {
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
     assert!(
         ctx.repo
-            .validate_authorization_code(&code1, &ctx.client_id, None, Some("wrong-verifier"))
+            .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, "")
             .await
-            .is_err()
+            .is_err(),
+        "a PKCE-bound code must not be redeemable without a verifier"
     );
-
-    // Correct verifier accepted (fresh code since the prior was consumed).
-    let code2 = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code2,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: Some(&challenge),
-            code_challenge_method: Some("S256"),
-            resource: None,
-        })
-        .await
-        .expect("store");
-    let ok = ctx
-        .repo
-        .validate_authorization_code(&code2, &ctx.client_id, None, Some(&verifier))
-        .await
-        .expect("pkce ok");
-    assert_eq!(ok.user_id, ctx.user_id);
 }
 
 #[tokio::test]
-async fn validate_pkce_missing_verifier_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let PkcePair { challenge, .. } = pkce_pair();
+async fn store_rejects_an_empty_challenge() {
+    let ctx = setup().await;
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
     ctx.repo
         .store_authorization_code(AuthCodeParams {
@@ -275,42 +221,59 @@ async fn validate_pkce_missing_verifier_errors() {
             user_id: &ctx.user_id,
             redirect_uri: &ctx.redirect_uri,
             scope: "openid",
-            code_challenge: Some(&challenge),
-            code_challenge_method: Some("S256"),
+            code_challenge: "",
             resource: None,
         })
         .await
-        .expect("store");
-    assert!(
-        ctx.repo
-            .validate_authorization_code(&code, &ctx.client_id, None, None)
-            .await
-            .is_err()
-    );
+        .expect_err("a code without a PKCE challenge must not be stored");
+}
+
+#[tokio::test]
+async fn mint_rejects_a_missing_challenge_or_a_non_s256_method() {
+    let ctx = setup().await;
+    let base = MintAuthCodeParams {
+        client_id: &ctx.client_id,
+        user_id: &ctx.user_id,
+        redirect_uri: &ctx.redirect_uri,
+        scope: Some("openid"),
+        code_challenge: &ctx.pkce.challenge,
+        code_challenge_method: "S256",
+        resource: None,
+    };
+
+    ctx.repo
+        .mint_authorization_code(MintAuthCodeParams {
+            code_challenge: "",
+            ..base
+        })
+        .await
+        .expect_err("an empty challenge must not be silently dropped");
+    ctx.repo
+        .mint_authorization_code(MintAuthCodeParams {
+            code_challenge_method: "plain",
+            ..base
+        })
+        .await
+        .expect_err("only S256 is accepted");
+
+    let code = ctx
+        .repo
+        .mint_authorization_code(base)
+        .await
+        .expect("S256 mint");
+    ctx.repo
+        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
+        .await
+        .expect("minted code redeems with its verifier");
 }
 
 #[tokio::test]
 async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: None,
-        })
-        .await
-        .expect("store");
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
 
     ctx.repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
+        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
         .await
         .expect("first use");
 
@@ -327,103 +290,33 @@ async fn replayed_code_with_linked_refresh_token_revokes_the_family() {
         .await
         .expect("store refresh token");
     ctx.repo
-        .link_auth_code_to_refresh_token(&code, rt.as_str())
+        .link_auth_code_to_refresh_token(&code, &rt)
         .await
         .expect("link");
 
     let err = ctx
         .repo
-        .validate_authorization_code(&code, &ctx.client_id, None, None)
+        .validate_authorization_code(&code, &ctx.client_id, &ctx.redirect_uri, &ctx.pkce.verifier)
         .await
         .expect_err("replay must be rejected");
     assert!(err.to_string().contains("Invalid authorization code"));
 
-    let err = ctx
-        .repo
-        .validate_refresh_token(&rt, &ctx.client_id)
+    ctx.repo
+        .consume_refresh_token(&rt, &ctx.client_id)
         .await
         .expect_err("family must be revoked after replay");
-    assert!(
-        err.to_string().contains("Invalid refresh token") || err.to_string().contains("token"),
-        "unexpected: {err}"
-    );
-}
-
-#[tokio::test]
-async fn validate_pkce_rejects_unsupported_challenge_method() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: Some("stored-plain-challenge"),
-            code_challenge_method: Some("plain"),
-            resource: None,
-        })
-        .await
-        .expect("store");
-
-    let err = ctx
-        .repo
-        .validate_authorization_code(&code, &ctx.client_id, None, Some("stored-plain-challenge"))
-        .await
-        .expect_err("plain method is not supported");
-    assert!(err.to_string().contains("Invalid authorization code"));
-}
-
-#[test]
-fn auth_code_params_builder_sets_pkce_and_resource() {
-    let code = AuthorizationCode::new("code-builder");
-    let client = ClientId::new("client_builder");
-    let user = UserId::new("user-builder");
-    let params = systemprompt_oauth::repository::AuthCodeParams::builder(
-        &code,
-        &client,
-        &user,
-        "http://127.0.0.1/cb",
-        "openid",
-    )
-    .with_pkce("challenge-value", "S256")
-    .with_resource("https://rs.example")
-    .build();
-
-    assert_eq!(params.code_challenge, Some("challenge-value"));
-    assert_eq!(params.code_challenge_method, Some("S256"));
-    assert_eq!(params.resource, Some("https://rs.example"));
 }
 
 #[tokio::test]
 async fn link_auth_code_to_dangling_refresh_token_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
-    let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4()));
-    ctx.repo
-        .store_authorization_code(AuthCodeParams {
-            code: &code,
-            client_id: &ctx.client_id,
-            user_id: &ctx.user_id,
-            redirect_uri: &ctx.redirect_uri,
-            scope: "openid",
-            code_challenge: None,
-            code_challenge_method: None,
-            resource: None,
-        })
-        .await
-        .expect("store");
+    let ctx = setup().await;
+    let code = store_code(&ctx, "openid", None).await;
 
-    // refresh_token_id carries a foreign key into oauth_refresh_tokens, so
-    // linking an id with no matching token row is rejected by the database.
     assert!(
         ctx.repo
-            .link_auth_code_to_refresh_token(&code, "rt-id-value")
+            .link_auth_code_to_refresh_token(&code, &RefreshTokenId::new("rt-id-value"))
             .await
-            .is_err()
+            .is_err(),
+        "refresh_token_id is a foreign key, so a dangling id is rejected"
     );
 }

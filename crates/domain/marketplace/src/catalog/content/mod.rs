@@ -13,11 +13,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::bridge::ids::SkillId;
+use systemprompt_identifiers::SkillId;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
-use systemprompt_models::services::ServicesConfig;
 
 use crate::bundle::BundleContent;
 use crate::catalog::fingerprint::{canonical_json, hash_dir_metadata};
@@ -121,7 +121,8 @@ pub(super) fn catalog_fingerprint(
     api_external_url: &str,
 ) -> Result<[u8; 32], MarketplaceError> {
     let mut hasher = Sha256::new();
-    let config = canonical_json(services).map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+    let config = canonical_json(services)
+        .map_err(|e| MarketplaceError::catalog("canonicalise services config", e))?;
     hasher.update((config.len() as u64).to_le_bytes());
     hasher.update(&config);
     hasher.update(services_root.as_os_str().as_encoded_bytes());

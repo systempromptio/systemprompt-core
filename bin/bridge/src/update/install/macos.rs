@@ -62,7 +62,11 @@ fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
         .arg(archive)
         .arg(into)
         .output()
-        .map_err(|e| UpdateError::Unpack(format!("could not run ditto: {e}")))?;
+        .map_err(|source| UpdateError::Tool {
+            stage: "unpacking the download",
+            tool: "ditto",
+            source,
+        })?;
     if !out.status.success() {
         return Err(UpdateError::Unpack(format!(
             "ditto failed to expand the archive: {}",
@@ -84,7 +88,11 @@ fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
         .arg("--strict")
         .arg(bundle)
         .output()
-        .map_err(|e| UpdateError::Signature(format!("could not run codesign: {e}")))?;
+        .map_err(|source| UpdateError::Tool {
+            stage: "signature verification",
+            tool: "codesign",
+            source,
+        })?;
     if !codesign.status.success() {
         return Err(UpdateError::Signature(format!(
             "the downloaded app is not validly signed: {}",
@@ -98,7 +106,11 @@ fn verify_signature(bundle: &Path) -> Result<(), UpdateError> {
         .arg("execute")
         .arg(bundle)
         .output()
-        .map_err(|e| UpdateError::Signature(format!("could not run spctl: {e}")))?;
+        .map_err(|source| UpdateError::Tool {
+            stage: "signature verification",
+            tool: "spctl",
+            source,
+        })?;
     if !spctl.status.success() {
         return Err(UpdateError::Signature(format!(
             "the downloaded app was rejected by Gatekeeper: {}",
@@ -125,7 +137,11 @@ fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
             "ditto failed to install the new bundle: {}",
             String::from_utf8_lossy(&o.stderr).trim()
         ))),
-        Err(e) => Err(UpdateError::Unpack(format!("could not run ditto: {e}"))),
+        Err(source) => Err(UpdateError::Tool {
+            stage: "installing the new bundle",
+            tool: "ditto",
+            source,
+        }),
     };
 
     match copied {
@@ -140,19 +156,21 @@ fn swap(new_bundle: &Path, target: &Path) -> Result<(), UpdateError> {
             match std::fs::remove_dir_all(target) {
                 Ok(()) => {},
                 Err(cleanup) if cleanup.kind() == std::io::ErrorKind::NotFound => {},
-                Err(cleanup) => {
-                    return Err(UpdateError::Unpack(format!(
-                        "{e}; rollback cannot remove {}: {cleanup}; previous app remains at {}",
-                        target.display(),
-                        backup.display()
-                    )));
+                Err(source) => {
+                    return Err(UpdateError::RollbackRemove {
+                        failure: Box::new(e),
+                        target: target.to_path_buf(),
+                        backup,
+                        source,
+                    });
                 },
             }
-            if let Err(restore) = std::fs::rename(&backup, target) {
-                return Err(UpdateError::Unpack(format!(
-                    "{e}; rollback failed: {restore}; previous app remains at {}",
-                    backup.display()
-                )));
+            if let Err(source) = std::fs::rename(&backup, target) {
+                return Err(UpdateError::RollbackRestore {
+                    failure: Box::new(e),
+                    backup,
+                    source,
+                });
             }
             Err(e)
         },

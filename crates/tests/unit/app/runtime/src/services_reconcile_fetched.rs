@@ -13,18 +13,16 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::DbPool;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesBootstrap, ServicesProvenance};
-use systemprompt_models::Profile;
-use systemprompt_models::profile::ServicesSource;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::ServicesSource;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::bundle::{
     BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
     ServicesBundleState, SignedBundleManifest,
 };
 use systemprompt_runtime::RuntimeError;
 use systemprompt_runtime::services_reconcile::{ReconcileOutcome, reconcile_fetched_services};
-use systemprompt_test_fixtures::{
-    DisposableDb, closed_db_pool, ensure_test_bootstrap, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, ensure_test_bootstrap};
 use tempfile::TempDir;
 
 const SOURCE: &str = "astound";
@@ -118,13 +116,6 @@ fn write_manifest(cache: &BundleCache, owns: BundleOwnership) {
     .expect("write manifest");
 }
 
-fn message(err: &RuntimeError) -> String {
-    match err {
-        RuntimeError::Internal(m) => m.clone(),
-        other => panic!("expected an internal error, got {other:?}"),
-    }
-}
-
 #[tokio::test]
 async fn a_baked_tree_is_reconciled_without_touching_the_database() {
     let f = fixture(false);
@@ -160,10 +151,9 @@ async fn a_source_with_no_cached_fetch_state_refuses_the_boot() {
             .await
             .expect_err("a composed source with no cached fetch state cannot be projected");
 
-    let text = message(&err);
     assert!(
-        text.contains(SOURCE) && text.contains("no cached fetch state"),
-        "the error must name the source that is missing: {text}"
+        matches!(&err, RuntimeError::ServicesBundleNotCached { name } if name == SOURCE),
+        "the error must name the source that is missing: {err:?}"
     );
     assert_eq!(f.cache.read_state().last_reconciled_hash, None);
 }
@@ -181,10 +171,9 @@ async fn an_unreadable_cached_manifest_refuses_the_boot() {
             .await
             .expect_err("a cached manifest that is not on disk cannot be projected");
 
-    let text = message(&err);
     assert!(
-        text.contains(SOURCE) && text.contains("manifest"),
-        "the error must name the unreadable manifest: {text}"
+        matches!(&err, RuntimeError::ServicesBundleManifest { name, .. } if name == SOURCE),
+        "the error must name the unreadable manifest: {err:?}"
     );
     assert_eq!(f.cache.read_state().last_reconciled_hash, None);
 }
@@ -204,9 +193,8 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
             .expect_err("a projection that cannot reach the database must refuse the boot");
 
     assert!(
-        message(&err).contains("services authz reconcile"),
-        "the reconcile failure must be reported as such: {}",
-        message(&err)
+        matches!(err, RuntimeError::ServicesReconcile(_)),
+        "the reconcile failure must be reported as such: {err:?}"
     );
     assert_eq!(
         f.cache.read_state().last_reconciled_hash,
@@ -218,17 +206,13 @@ async fn a_failed_projection_refuses_the_boot_and_records_nothing() {
 #[tokio::test]
 async fn a_projected_composition_is_recorded_and_not_projected_again() {
     let boot = ensure_test_bootstrap();
-    let Ok(disposable) = DisposableDb::installed("services_reconcile").await else {
-        return;
-    };
+    let disposable = DisposableDb::with_schema("services_reconcile").await;
     let f = fixture(true);
     f.cache
         .write_state(&state_with_source())
         .expect("seed cache state");
     write_manifest(&f.cache, BundleOwnership::default());
-    let db = fixture_db_pool(disposable.url())
-        .await
-        .expect("disposable pool");
+    let db = disposable.test_pool().await;
     let root = ActiveServicesRoot {
         path: boot.services_path.clone(),
         base: boot.services_path.clone(),

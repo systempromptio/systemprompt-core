@@ -15,7 +15,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
+use systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE;
 
 use super::RegistryClient;
 use crate::bundle::error::{BundleError, BundleResult};
@@ -84,12 +84,12 @@ pub async fn get_manifest(registry: &RegistryClient) -> BundleResult<(String, Oc
     let body = response
         .bytes()
         .await
-        .map_err(|e| BundleError::fetch(&registry.name, e))?;
+        .map_err(|e| BundleError::fetch_cause(&registry.name, e))?;
     let digest =
         header_digest.unwrap_or_else(|| format!("sha256:{}", hex::encode(Sha256::digest(&body))));
 
     let manifest: OciManifest = serde_json::from_slice(&body)
-        .map_err(|e| BundleError::fetch(&registry.name, format!("manifest does not parse: {e}")))?;
+        .map_err(|e| BundleError::fetch_context(&registry.name, "manifest does not parse", e))?;
     Ok((digest, manifest))
 }
 
@@ -177,17 +177,17 @@ async fn follow_blob_redirects(
             Err(_) => response
                 .url()
                 .join(location)
-                .map_err(|e| BundleError::fetch(&registry.name, format!("blob redirect: {e}")))?,
+                .map_err(|e| BundleError::fetch_context(&registry.name, "blob redirect", e))?,
         };
         let target =
             validate_outbound_url_with_trust(target.as_str(), &trusted_http_hosts_from_env())
-                .map_err(|e| BundleError::fetch(&registry.name, e))?;
+                .map_err(|e| BundleError::fetch_cause(&registry.name, e))?;
         response = registry
             .client
             .get(target)
             .send()
             .await
-            .map_err(|e| BundleError::fetch(&registry.name, e))?;
+            .map_err(|e| BundleError::fetch_cause(&registry.name, e))?;
     }
     Err(BundleError::fetch(
         &registry.name,

@@ -6,9 +6,9 @@ use systemprompt_bridge::gateway::manifest::{
     TenantId, UserInfo, ValidatedUrl, verify_envelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId, RuleId, RuleName,
-    Sha256Digest, SkillId, SkillName,
+use systemprompt_bridge::ids::{ManifestSignature, Sha256Digest};
+use systemprompt_identifiers::{
+    LibraryArtifactId, MarketplaceRuleId, McpServerId, PluginId, RuleName, SkillId, SkillName,
 };
 
 const FAKE_SHA_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -83,9 +83,10 @@ fn sample_manifest() -> SignedManifest {
             instructions: "do the thing".into(),
             hosts: Vec::new(),
             plugins: Vec::new(),
+            frontmatter: None,
         }],
         rules: vec![RuleEntry {
-            id: RuleId::try_new("rule_one").unwrap(),
+            id: MarketplaceRuleId::try_new("rule_one").unwrap(),
             name: RuleName::try_new("Rule One").unwrap(),
             description: "first rule".into(),
             file_path: "/rules/one.md".into(),
@@ -107,11 +108,11 @@ fn sample_manifest() -> SignedManifest {
             is_primary: true,
             provider: Some(systemprompt_identifiers::ProviderId::new("anthropic")),
             model: Some(systemprompt_identifiers::ModelId::new("claude-opus")),
-            mcp_servers: systemprompt_models::services::PluginComponentRef {
+            mcp_servers: systemprompt_models::plugin::PluginComponentRef {
                 include: vec!["github".into()],
                 ..Default::default()
             },
-            skills: systemprompt_models::services::PluginComponentRef {
+            skills: systemprompt_models::plugin::PluginComponentRef {
                 include: vec!["skill_one".into()],
                 ..Default::default()
             },
@@ -122,7 +123,7 @@ fn sample_manifest() -> SignedManifest {
         managed_mcp_servers: vec![ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("github")
                 .expect("valid McpServerId"),
-            name: ManagedMcpServerName::try_new("github").unwrap(),
+            name: McpServerId::try_new("github").unwrap(),
             url: ValidatedUrl::try_from("https://mcp.example.com/github").unwrap(),
             transport: Some("http".into()),
             headers: None,
@@ -144,6 +145,7 @@ fn sample_manifest() -> SignedManifest {
             plugins: Vec::new(),
         }],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),

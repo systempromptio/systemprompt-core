@@ -8,8 +8,7 @@ use systemprompt_cli::core::{self, CoreCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
-    seed_user_row,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row, test_app_context,
 };
 
 const HELPER: &str = "commands::core_files_ai_output_lifecycle::files_ai_output_helper";
@@ -29,10 +28,8 @@ fn parse(args: &[&str]) -> CoreCommands {
 #[tokio::test]
 #[ignore = "re-executed by public_ai_file_commands_render_the_same_isolated_image"]
 async fn files_ai_output_helper() {
-    let database = DisposableDb::installed("cli_files_ai_output")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_files_ai_output").await;
+    let pool = database.test_pool().await;
     ensure_test_bootstrap();
     install_test_signing_key();
     let user = UserId::new(format!("ai-output-{}", uuid::Uuid::new_v4().simple()));
@@ -49,7 +46,7 @@ async fn files_ai_output_helper() {
     .expect("seed other image owner");
     let id = uuid::Uuid::new_v4();
     let path = format!("/owned/generated/{id}.png");
-    let raw = pool.pool_arc().expect("raw pool");
+    let raw = pool.pool();
     sqlx::query(
         "INSERT INTO files (id, path, public_url, mime_type, size_bytes, ai_content, user_id, \
          metadata) VALUES ($1, $2, $3, 'image/png', 73, true, $4, $5)",
@@ -92,7 +89,7 @@ async fn files_ai_output_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(&pool, database.url()).expect("isolated app context"),
+        test_app_context(&pool, database.url()),
     );
     println!("BEGIN_AI_LIST");
     core::execute(
@@ -130,7 +127,7 @@ async fn files_ai_output_helper() {
 
     drop(context);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

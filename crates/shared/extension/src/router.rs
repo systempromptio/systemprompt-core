@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::frame_options::FrameOptions;
+use systemprompt_provider_contracts::FrameOptions;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ExtensionRouterConfig {

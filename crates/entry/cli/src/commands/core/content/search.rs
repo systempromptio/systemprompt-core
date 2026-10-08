@@ -38,7 +38,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repositories = ContentRepositories::new(pool)?;
+    let repositories = ContentRepositories::new(pool);
     let service = SearchService::new(repositories.search, repositories.content);
 
     let filters = args.category.as_ref().map(|cat| SearchFilters {

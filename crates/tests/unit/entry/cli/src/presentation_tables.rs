@@ -13,7 +13,8 @@ use systemprompt_cli::presentation::tables::{
     mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table, truncate_cell,
 };
 use systemprompt_identifiers::{
-    AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, TaskId,
+    AgentName, AiRequestId, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, McpServerId,
+    McpToolName, TaskId,
 };
 use systemprompt_runtime::{
     AiRequestInfo, ExecutionStep, McpToolExecution, TaskArtifact, TaskInfo, TraceEvent,
@@ -139,7 +140,7 @@ fn task_info_table_shows_duration_and_truncated_id() {
     let info = TaskInfo {
         task_id: TaskId::new("task-1234567890"),
         context_id: ContextId::generate(),
-        agent_name: Some("agent".to_owned()),
+        agent_name: Some(AgentName::new("agent")),
         status: "completed".to_owned(),
         created_at: ts(0),
         started_at: Some(ts(1)),
@@ -242,8 +243,8 @@ fn ai_requests_table_defaults_missing_numbers() {
 fn mcp_tool_calls_table_renders_status_and_duration() {
     let executions = vec![McpToolExecution {
         mcp_execution_id: McpExecutionId::new("m1"),
-        tool_name: "search".to_owned(),
-        server_name: "content".to_owned(),
+        tool_name: McpToolName::new("search"),
+        server_name: McpServerId::new("content"),
         status: "completed".to_owned(),
         execution_time_ms: Some(88),
         error_message: None,

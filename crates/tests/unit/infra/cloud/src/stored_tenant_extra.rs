@@ -3,12 +3,12 @@
 //! `has_missing_credentials`, `uses_managed_container`,
 //! `get_local_database_url`, and `new_local_docker`.
 
-use systemprompt_cloud::{StoredTenant, TenantInfo, TenantType};
-use systemprompt_identifiers::TenantId;
+use systemprompt_cloud::{CloudTenantInfo, StoredTenant, TenantType};
+use systemprompt_identifiers::{CloudAppId, TenantId};
 
-fn make_tenant_info(id: &str, db_url: &str) -> TenantInfo {
-    TenantInfo {
-        id: id.to_string(),
+fn make_tenant_info(id: &str, db_url: &str) -> CloudTenantInfo {
+    CloudTenantInfo {
+        id: TenantId::new(id),
         name: "Test Tenant".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -114,7 +114,7 @@ fn get_local_database_url_prefers_database_url_over_internal() {
 fn update_from_tenant_info_updates_name() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Old Name".to_string());
     let info = make_tenant_info("t-1", "postgres://new-db");
-    tenant.update_from_tenant_info(&TenantInfo {
+    tenant.update_from_tenant_info(&CloudTenantInfo {
         name: "New Name".to_string(),
         ..info
     });
@@ -124,12 +124,12 @@ fn update_from_tenant_info_updates_name() {
 #[test]
 fn update_from_tenant_info_updates_app_id() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    let info = TenantInfo {
-        id: "t-1".to_string(),
+    let info = CloudTenantInfo {
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
-        app_id: Some("app-updated".to_string()),
+        app_id: Some(CloudAppId::new("app-updated")),
         hostname: None,
         region: None,
         plan: None,
@@ -138,14 +138,14 @@ fn update_from_tenant_info_updates_app_id() {
         database_url: "postgres://x".to_string(),
     };
     tenant.update_from_tenant_info(&info);
-    assert_eq!(tenant.app_id, Some("app-updated".to_string()));
+    assert_eq!(tenant.app_id, Some(CloudAppId::new("app-updated")));
 }
 
 #[test]
 fn update_from_tenant_info_updates_hostname() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    let info = TenantInfo {
-        id: "t-1".to_string(),
+    let info = CloudTenantInfo {
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -164,8 +164,8 @@ fn update_from_tenant_info_updates_hostname() {
 #[test]
 fn update_from_tenant_info_updates_region() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    let info = TenantInfo {
-        id: "t-1".to_string(),
+    let info = CloudTenantInfo {
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,
@@ -184,8 +184,8 @@ fn update_from_tenant_info_updates_region() {
 #[test]
 fn update_from_tenant_info_updates_external_db_access() {
     let mut tenant = StoredTenant::new(TenantId::new("t-1"), "Name".to_string());
-    let info = TenantInfo {
-        id: "t-1".to_string(),
+    let info = CloudTenantInfo {
+        id: TenantId::new("t-1"),
         name: "Name".to_string(),
         subscription_id: None,
         subscription_status: None,

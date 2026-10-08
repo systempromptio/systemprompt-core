@@ -14,11 +14,9 @@ use systemprompt_identifiers::{
 use super::error::invalid;
 use super::{AssetDigest, ManagedError, ManagedRepository, ResourceKind, Result, RevisionBundle};
 
-mod catalog_batch;
-mod history;
 mod repository;
 
-pub use catalog_batch::SkillResolutionRow;
+pub use repository::SkillResolutionRow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -210,11 +208,11 @@ fn request_digest(
 }
 
 pub(super) struct PublicationRow {
-    pub id: String,
-    pub review_id: String,
+    pub id: PublicationId,
+    pub review_id: PublicationReviewId,
     pub generation: i64,
     pub action: String,
-    pub revision_id: Option<String>,
+    pub revision_id: Option<ResourceRevisionId>,
     pub bundle_digest: Option<String>,
 }
 
@@ -224,12 +222,12 @@ fn decision_from_row(
 ) -> Result<PublicationDecision> {
     let digest = row.bundle_digest.map(AssetDigest::try_from).transpose()?;
     Ok(PublicationDecision {
-        publication_id: PublicationId::new(row.id),
-        review_id: PublicationReviewId::new(row.review_id),
+        publication_id: row.id,
+        review_id: row.review_id,
         resource_id: resource_id.clone(),
         generation: row.generation,
         action: PublicationAction::parse(&row.action)?,
-        revision_id: row.revision_id.map(ResourceRevisionId::new),
+        revision_id: row.revision_id,
         bundle_digest: digest,
     })
 }
@@ -237,8 +235,8 @@ fn decision_from_row(
 pub(super) struct SelectionRow {
     pub generation: i64,
     pub state: String,
-    pub publication_id: String,
-    pub revision_id: Option<String>,
+    pub publication_id: PublicationId,
+    pub revision_id: Option<ResourceRevisionId>,
     pub bundle_digest: Option<String>,
 }
 
@@ -253,7 +251,6 @@ fn resolution_from_row(
         revision_id,
         bundle_digest,
     } = row;
-    let publication_id = PublicationId::new(publication_id);
     match state.as_str() {
         "withdrawn" => Ok(ManagedResolution::Withdrawn {
             publication_id,
@@ -264,7 +261,7 @@ fn resolution_from_row(
             publication_id,
             resource_id,
             generation,
-            revision_id: ResourceRevisionId::new(revision_id.ok_or(ManagedError::Integrity)?),
+            revision_id: revision_id.ok_or(ManagedError::Integrity)?,
             bundle_digest: AssetDigest::try_from(bundle_digest.ok_or(ManagedError::Integrity)?)?,
         }),
         _ => Err(ManagedError::Integrity),

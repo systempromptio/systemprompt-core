@@ -18,6 +18,7 @@ use serde_json::Value as JsonValue;
 use systemprompt_models::artifacts::PayloadDigest;
 use systemprompt_security::policy::GovernedInput;
 use systemprompt_security::policy::secrets::{SecretScanner, redact_spans};
+use systemprompt_traits::BoxedSource;
 
 use super::{ArtifactIngest, IngestRequest};
 use crate::error::{McpDomainError, McpDomainResult};
@@ -34,7 +35,10 @@ pub(super) const SECRET_CATEGORY: &str = "secret";
 pub trait ArtifactScanner: Send + Sync {
     fn name(&self) -> &'static str;
 
-    async fn scan(&self, surfaces: &[(String, String)]) -> Result<Vec<ArtifactFinding>, String>;
+    async fn scan(
+        &self,
+        surfaces: &[(String, String)],
+    ) -> Result<Vec<ArtifactFinding>, BoxedSource>;
 }
 
 #[derive(Debug)]
@@ -46,6 +50,8 @@ pub struct ScanOutcome {
 }
 
 impl ScanOutcome {
+    // JSON: artifact ingest payload — truncated MCP structured content,
+    // schema-less.
     #[must_use]
     pub fn truncate(self, header: JsonValue, digest: &PayloadDigest) -> (Self, Option<JsonValue>) {
         tracing::warn!(
@@ -67,6 +73,7 @@ impl ScanOutcome {
     }
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 pub(super) async fn scan_body(
     ingest: &ArtifactIngest,
     request: &IngestRequest,
@@ -88,12 +95,15 @@ pub(super) async fn scan_body(
 
     let surfaces = surfaces(&body);
     for scanner in ingest.scanners() {
-        let found = scanner.scan(&surfaces).await.map_err(|e| {
-            McpDomainError::Internal(format!(
-                "artifact scanner {} failed for tool {}: {e}",
-                scanner.name(),
-                request.tool_name
-            ))
+        let found = scanner.scan(&surfaces).await.map_err(|source| {
+            McpDomainError::operation(
+                format!(
+                    "artifact scanner {} failed for tool {}",
+                    scanner.name(),
+                    request.tool_name
+                ),
+                source,
+            )
         })?;
         findings.extend(found);
     }
@@ -105,6 +115,7 @@ pub(super) async fn scan_body(
     })
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 fn redact_secrets(
     scanner: &SecretScanner,
     body: &mut JsonValue,
@@ -154,6 +165,7 @@ fn redact_secrets(
     redacted
 }
 
+// JSON: artifact ingest payload — MCP structured content scanned for secrets.
 fn surfaces(body: &JsonValue) -> Vec<(String, String)> {
     let mut out = Vec::new();
     collect_surfaces(body, "body", &mut out);

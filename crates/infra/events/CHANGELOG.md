@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** `EventRouter` is a value (`EventRouter::local_only()`, `EventRouter::with_outbox(pool, instance_id)`) carried by `AppContext::event_router()`; `EventRouter::install_relay` and the process-global outbox are removed and `route_{agui,a2a,system,analytics}` are methods. `PostgresEventBridge::router` returns a router over its own outbox. Dropping an `EventBridgeHandle` aborts its task.
+
+### Added
+
+- `EventBridgeHandle::listening` resolves once the relay's `LISTEN` is in place, so a `NOTIFY` committed afterwards is guaranteed to arrive.
+- An `OwnerReassignment` for `event_outbox`, so an account merge moves this crate's rows itself.
+
+### Changed
+
+- The durable outbox queries live in the outbox repository.
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed

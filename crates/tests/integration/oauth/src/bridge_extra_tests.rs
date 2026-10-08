@@ -3,30 +3,28 @@
 //! bridge OAuth client provisioning.
 
 use std::path::PathBuf;
-use std::sync::Once;
 
 use crate::{create_test_user, setup_test_db};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{
     BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
     issue_bridge_exchange_code, provision_bridge_oauth_client,
 };
-use systemprompt_security::keys::authority;
 
 fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
-    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+    systemprompt_oauth::OAuthRepository::new(db)
 }
 
-static AUTHORITY: Once = Once::new();
+fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
+    systemprompt_users::UserService::new(std::sync::Arc::new(
+        systemprompt_users::UserRepository::new(db),
+    ))
+}
 
 fn ensure_runtime() {
-    AUTHORITY.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
+    systemprompt_test_fixtures::install_test_signing_key();
     let _ = Config::install(test_config());
 }
 
@@ -34,9 +32,11 @@ fn test_config() -> Config {
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
     Config {
-        instance_id: "test-instance".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url,
@@ -68,7 +68,7 @@ fn test_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,
@@ -102,7 +102,8 @@ async fn exchange_code_issued_and_consumed_once() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,
@@ -119,7 +120,8 @@ async fn exchange_code_issued_and_consumed_once() {
     let replay = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,
@@ -144,7 +146,8 @@ async fn exchange_unknown_code_returns_none() {
     let result = exchange_bridge_session_code(
         &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip: None,

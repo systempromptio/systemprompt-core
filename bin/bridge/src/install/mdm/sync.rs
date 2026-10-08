@@ -39,11 +39,16 @@ fn write_empty_managed_mcp_servers(
 }
 
 // Why: Desktop's `toolPolicy` names tools one by one, so the policy write
-// needs each server's current tool list before it runs.
+// needs each server's current tool list before it runs. A catalog that could
+// not be refreshed is invalidated, so every wildcard over it is withheld from
+// the policy instead of expanded over names that may miss new tools.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
+async fn refresh_tool_catalog(
+    ctx: &crate::host_sync::HostSyncCtx<'_>,
+) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
+    let mut report = crate::host_sync::HostSyncReport::ok();
     if ctx.mcp_registry.is_empty() {
-        return;
+        return Ok(report);
     }
     let results = crate::proxy::mcp_probe::probe_all(ctx.loopback, ctx.mcp_registry).await;
     let slugs: Vec<String> = ctx.mcp_registry.keys().cloned().collect();
@@ -59,18 +64,31 @@ async fn refresh_tool_catalog(ctx: &crate::host_sync::HostSyncCtx<'_>) {
             "mcp tool catalog refreshed for the desktop tool policy"
         ),
         Err(e) => {
+            if let Err(source) = super::tool_catalog::invalidate() {
+                return Err(crate::host_sync::ApplyError::Io {
+                    context: format!(
+                        "tool catalog not refreshed ({e}) and could not be invalidated; desktop \
+                         policy withheld"
+                    ),
+                    source,
+                });
+            }
             tracing::warn!(
                 target: "bridge::mdm",
                 error = %e,
-                "mcp tool catalog not written; desktop tool policy keeps its last names"
+                "mcp tool catalog not refreshed; wildcard tool policies are withheld"
             );
-            ctx.warnings.push(
+            report.warn(
                 crate::host_sync::HostWarningKind::ToolCatalog,
-                "claude-desktop",
-                format!("tool catalog not updated ({e}); the tool policy keeps its last names"),
+                systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
+                format!(
+                    "tool catalog not refreshed ({e}); managed connectors with a wildcard tool \
+                     policy are withheld until the next successful sync"
+                ),
             );
         },
     }
+    Ok(report)
 }
 
 #[cfg(target_os = "windows")]
@@ -113,9 +131,9 @@ fn classify_refresh_error(e: super::MdmError) -> crate::host_sync::ApplyError {
             detail,
         };
     }
-    crate::host_sync::ApplyError::Io {
-        context: format!("mdm refresh: {e}"),
-        source: std::io::Error::other(e),
+    crate::host_sync::ApplyError::Step {
+        context: "mdm refresh",
+        source: Box::new(e),
     }
 }
 
@@ -125,15 +143,21 @@ pub(crate) struct ClaudeDesktopMdmSync;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[async_trait::async_trait]
 impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
+    fn host_id(&self) -> systemprompt_models::bridge::host::HostKind {
+        systemprompt_models::bridge::host::HostKind::ClaudeDesktop
     }
 
     async fn apply(
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
-    ) -> Result<(), crate::host_sync::ApplyError> {
-        refresh_tool_catalog(ctx).await;
+    ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
+        ctx.client.fetch_bridge_profile().await.map_err(|source| {
+            crate::host_sync::ApplyError::Step {
+                context: "refresh desktop model catalog",
+                source: Box::new(source),
+            }
+        })?;
+        let report = refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,
             loopback: ctx.loopback,
@@ -141,11 +165,15 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             egress_allowed_hosts: None,
         };
         #[cfg(target_os = "windows")]
-        {
+        let report = {
+            let mut report = report;
+            let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Step {
+                context: "load the bridge config for the desktop policy's organization",
+                source: Box::new(e),
+            })?;
             let facts = crate::install::policy_writer::RequestFacts {
-                org_uuid: crate::config::load()
-                    .ok()
-                    .and_then(|cfg| cfg.deployment_organization_uuid)
+                org_uuid: config
+                    .deployment_organization_uuid
                     .map(|uuid| uuid.as_str().to_owned()),
                 ..Default::default()
             };
@@ -156,19 +184,20 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                         written = %line,
                         "managed policy enforced on sync through the elevated writer"
                     );
-                    return Ok(());
+                    return Ok(report);
                 },
                 Ok(None) => {},
-                Err(e) => ctx.warnings.push(
+                Err(e) => report.warn(
                     crate::host_sync::HostWarningKind::PolicyWriter,
-                    "claude-desktop",
+                    systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
                     format!(
                         "the elevated policy writer did not apply the policy ({e}); falling back \
                          to the write that needs administrator approval"
                     ),
                 ),
             }
-        }
+            report
+        };
         match enforce_managed_policy(&inputs) {
             Ok(line) => {
                 tracing::info!(
@@ -176,7 +205,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                     written = %line,
                     "managed policy enforced on sync"
                 );
-                Ok(())
+                Ok(report)
             },
             Err(e) => Err(classify_refresh_error(e)),
         }
@@ -201,9 +230,9 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
                 );
                 Ok(())
             },
-            Err(e) => Err(crate::host_sync::ApplyError::Io {
-                context: format!("mdm clear: {e}"),
-                source: std::io::Error::other(e),
+            Err(e) => Err(crate::host_sync::ApplyError::Step {
+                context: "mdm clear",
+                source: Box::new(e),
             }),
         }
     }

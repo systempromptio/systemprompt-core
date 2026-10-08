@@ -44,7 +44,11 @@ fn skill_md(description: &str) -> String {
 
 fn run(tree: &Tree) -> Result<(TempDir, ImportReport), MarketplaceError> {
     let dest = TempDir::new().expect("tempdir");
-    let report = import_anthropic_tree(tree.path(), dest.path(), &ImportOptions::default())?;
+    let report = import_anthropic_tree(
+        tree.path(),
+        dest.path(),
+        &ImportOptions::new(std::env::temp_dir()),
+    )?;
     Ok((dest, report))
 }
 
@@ -76,7 +80,7 @@ fn a_source_tree_that_does_not_exist_is_refused() {
     let err = import_anthropic_tree(
         &PathBuf::from("/nonexistent/anthropic-tree"),
         dest.path(),
-        &ImportOptions::default(),
+        &ImportOptions::new(std::env::temp_dir()),
     )
     .expect_err("missing source must fail");
 
@@ -90,8 +94,12 @@ fn a_destination_that_is_a_file_is_refused() {
     let dest = holder.path().join("out");
     std::fs::write(&dest, b"x").expect("write");
 
-    let err = import_anthropic_tree(tree.path(), &dest, &ImportOptions::default())
-        .expect_err("a file destination must fail");
+    let err = import_anthropic_tree(
+        tree.path(),
+        &dest,
+        &ImportOptions::new(std::env::temp_dir()),
+    )
+    .expect_err("a file destination must fail");
 
     assert!(err.to_string().contains("not a directory"), "{err}");
 }
@@ -687,6 +695,26 @@ fn several_actions_under_one_event_get_distinct_indexed_directories() {
     assert_eq!(doc["async"].as_bool(), Some(true));
     assert_eq!(doc["name"].as_str(), Some("alpha PreToolUse 1"));
     assert_eq!(doc["tags"][0].as_str(), Some("alpha"));
+}
+
+#[test]
+fn an_authored_hook_timeout_is_carried_and_an_absent_one_is_omitted() {
+    let tree = tree_with_hooks(
+        r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"gate","timeout":30},{"type":"command","command":"plain"}]}]}}"#,
+    );
+
+    let (dest, _report) = expect_ok(&tree);
+
+    let read = |n: u8| {
+        let text = std::fs::read_to_string(
+            dest.path()
+                .join(format!("hooks/alpha__PreToolUse__{n}/config.yaml")),
+        )
+        .expect("hook written");
+        serde_yaml::from_str::<serde_yaml::Value>(&text).expect("valid yaml")
+    };
+    assert_eq!(read(0)["timeout"].as_u64(), Some(30));
+    assert!(read(1).get("timeout").is_none());
 }
 
 #[test]

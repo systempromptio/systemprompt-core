@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `AnalyticsError::{SessionNotFound, InvalidFingerprint, MissingField, BehavioralBotDetected}` and `AnalyticsError::missing_field` are removed, and `FingerprintReputation::associated_user_ids` is `Vec<UserId>`. Migrate by dropping the arms and comparing typed user ids.
+- The session forwarding shim is deleted; callers use the owner's `SessionStore`.
+
+### Added
+
+- `OwnerReassignment` over `engagement_events` and `fingerprint_reputation.associated_user_ids`, so an account merge moves the analytics rows in this crate's own transaction.
+- Popular-content ranking over the analytics report views (`ContentAnalyticsRepository::popular_content_ids`, replacing `ContentRepository::get_popular_content_ids`).
+
+### Changed
+
+- Identifiers are typed and `query_as!` decode rows live in `models/rows.rs`; errors keep their sources on the one `RepositoryError` model. Offline sqlx caches regenerated.
+
+### Removed
+
+- The aliases `systemprompt_analytics::{AnalyticsResult, AnalyticsSession}`. Migrate by using `systemprompt_analytics::Result` and `systemprompt_traits::session_store::SessionSnapshot`.
+
 ## [0.61.0] - 2026-09-23
 
 ### Changed

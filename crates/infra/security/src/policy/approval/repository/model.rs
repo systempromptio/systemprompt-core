@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, McpServerId, McpToolName, SessionId, TraceId, UserId};
 
 /// Lifecycle of a held call. Bound to the `approval_requests.status` column,
 /// which carries a matching SQL CHECK.
@@ -46,15 +46,15 @@ impl std::fmt::Display for ApprovalStatus {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ApprovalRequest {
     pub call_id: CallId,
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     // JSON: the tool arguments verbatim, so the approver authorises exactly
     // what will run rather than a re-rendered summary of it.
     pub arguments: serde_json::Value,
     pub args_digest: String,
     pub requested_by: UserId,
     pub session_id: Option<SessionId>,
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     pub rule: String,
     pub status: ApprovalStatus,
     pub approver_id: Option<UserId>,
@@ -69,12 +69,13 @@ pub struct ApprovalRequest {
 #[derive(Debug, Clone)]
 pub struct NewApprovalRequest<'a> {
     pub call_id: &'a CallId,
-    pub tool_name: &'a str,
-    pub server_name: &'a str,
+    pub tool_name: &'a McpToolName,
+    pub server_name: &'a McpServerId,
+    // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: &'a serde_json::Value,
     pub requested_by: &'a UserId,
     pub session_id: Option<&'a SessionId>,
-    pub trace_id: Option<&'a str>,
+    pub trace_id: Option<&'a TraceId>,
     pub rule: &'a str,
     pub expires_in_seconds: u64,
 }
@@ -92,6 +93,7 @@ pub struct ApprovalVerdict<'a> {
 }
 
 #[must_use]
+// JSON: MCP tool-call arguments, canonicalised and hashed to bind an approval.
 pub fn args_digest(arguments: &serde_json::Value) -> String {
     let canonical = canonicalize(arguments);
     let mut hasher = Sha256::new();
@@ -111,6 +113,7 @@ fn hex(bytes: &[u8]) -> String {
     out
 }
 
+// JSON: MCP tool-call arguments, recursively key-ordered for the digest.
 fn canonicalize(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {

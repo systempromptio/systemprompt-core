@@ -15,8 +15,8 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
 use systemprompt_identifiers::{Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
     seed_user_row, seed_user_session,
@@ -55,9 +55,7 @@ async fn run_marked(label: &str, args: &[&str], context: &CommandContext) {
 #[tokio::test]
 #[ignore = "re-executed by public_context_commands_switch_persist_and_protect_the_active_context"]
 async fn public_context_lifecycle_helper() {
-    let database = DisposableDb::installed("cli_public_contexts")
-        .await
-        .expect("private contexts database");
+    let database = DisposableDb::with_schema("cli_public_contexts").await;
     // SAFETY: the ignored helper is process-isolated and configuration has not been
     // initialized.
     unsafe {
@@ -66,7 +64,7 @@ async fn public_context_lifecycle_helper() {
     }
     let boot = ensure_test_bootstrap();
     install_test_signing_key();
-    let project = tempfile::tempdir().expect("owned context project");
+    let project = systemprompt_test_fixtures::canonical_tempdir();
     let profile_path = project
         .path()
         .join(".systemprompt/profiles/coverage/profile.yaml");
@@ -77,7 +75,7 @@ async fn public_context_lifecycle_helper() {
     std::env::set_current_dir(project.path()).expect("enter owned project");
     let _cwd = CwdGuard(previous);
 
-    let pool = database.pool().await.expect("private contexts pool");
+    let pool = database.test_pool().await;
     let user = UserId::new(format!("ctx-public-{}", uuid::Uuid::new_v4().simple()));
     let session_id = SessionId::generate();
     seed_user_row(&pool, &user, "contexts-public@example.invalid")
@@ -86,7 +84,7 @@ async fn public_context_lifecycle_helper() {
     seed_user_session(&pool, &user, &session_id)
         .await
         .expect("seed CLI session row");
-    let repository = ContextRepository::new(&pool).expect("context repository");
+    let repository = ContextRepository::new(&pool);
     let initial_context = repository
         .create_context(
             &user,
@@ -116,7 +114,7 @@ async fn public_context_lifecycle_helper() {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir).expect("session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, "coverage");
+    store.set_active_with_profile(&SessionKey::Local, &pname("coverage"));
     store
         .save(&sessions_dir)
         .expect("persist active CLI session");
@@ -196,7 +194,7 @@ async fn public_context_lifecycle_helper() {
         "SELECT context_id, name FROM user_contexts WHERE user_id = $1 ORDER BY name",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("private SQL pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("read durable contexts");
     let stored = SessionStore::load_or_create(&sessions_dir).expect("reload session store");
@@ -213,7 +211,7 @@ async fn public_context_lifecycle_helper() {
 
     drop(context);
     drop(repository);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -296,4 +294,8 @@ fn public_context_commands_switch_persist_and_protect_the_active_context() {
     assert_eq!(rows[0][1], "Active New Context", "{state}");
     assert_eq!(rows[1][1], "Initial Context", "{state}");
     assert_eq!(state["active_context"], rows[0][0], "{state}");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

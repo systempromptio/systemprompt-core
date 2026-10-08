@@ -160,10 +160,10 @@ pub(crate) fn read_anchor(
     let Some(store::PolicyDocumentValue::Str(raw)) = doc.get(store::MANIFEST_TRUST_KEY) else {
         return Ok(None);
     };
-    let record: crate::config::TrustRecord = serde_json::from_str(raw)
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(e.to_string()))?;
+    let record: crate::config::TrustRecord =
+        serde_json::from_str(raw).map_err(crate::config::TrustError::InvalidPolicy)?;
     let gateway = systemprompt_identifiers::ValidatedUrl::try_new(record.gateway.as_str())
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(format!("gateway: {e}")))?;
+        .map_err(crate::config::TrustError::GatewayInvalid)?;
     Ok(Some(crate::config::TrustRecord::new(
         &gateway,
         record.key.as_str(),
@@ -180,15 +180,15 @@ pub(crate) fn write_policy(
         WriterStatus::Unavailable(why) => return Err(PolicyWriterError::Unavailable(why)),
     }
     let layout = layout()?;
-    let request_path = layout.request_path(request.job_id);
-    let result_path = layout.result_path(request.job_id);
+    let request_path = layout.request_path(&request.job_id);
+    let result_path = layout.result_path(&request.job_id);
     let body = serde_json::to_vec(request)
         .map_err(|e| io_ctx("encode policy write request")(io::Error::other(e)))?;
     crate::fsutil::atomic_write_0600(&request_path, &body)
         .map_err(io_ctx(format!("stage {}", request_path.display())))?;
     task::run().map_err(io_ctx("start writer task"))?;
     let result = await_result(&result_path)?;
-    let steps = result.verify(request.job_id, 0, &expected_steps())?;
+    let steps = result.verify(&request.job_id, 0, &expected_steps())?;
     verify_hive(request)?;
     crate::fsutil::remove_leftover_file(&result_path);
     Ok(steps)

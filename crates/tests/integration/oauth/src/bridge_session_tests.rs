@@ -4,30 +4,24 @@
 //! that row must carry the analytics captured from the exchange request.
 
 use std::path::PathBuf;
-use std::sync::Once;
 
 use crate::{create_test_user, setup_test_db};
 use http::HeaderMap;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::SessionId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_oauth::services::{BridgeAccessRequest, issue_bridge_access};
-use systemprompt_security::keys::authority;
 
-fn oauth_repo(db: &systemprompt_database::DbPool) -> systemprompt_oauth::OAuthRepository {
-    systemprompt_oauth::OAuthRepository::new(db).expect("oauth repo")
+fn user_provider(db: &systemprompt_database::DbPool) -> systemprompt_users::UserService {
+    systemprompt_users::UserService::new(std::sync::Arc::new(
+        systemprompt_users::UserRepository::new(db),
+    ))
 }
 
-static AUTHORITY: Once = Once::new();
-
 fn ensure_runtime() {
-    AUTHORITY.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
+    systemprompt_test_fixtures::install_test_signing_key();
     // `Config::install` is a one-shot global; ignore the error when another
     // test in this binary already installed it.
     let _ = Config::install(test_config());
@@ -37,9 +31,11 @@ fn test_config() -> Config {
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable required");
     Config {
-        instance_id: "test-instance".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url,
@@ -71,7 +67,7 @@ fn test_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,
@@ -113,9 +109,9 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), None, &user_id),
     )
     .await
@@ -129,7 +125,7 @@ async fn fresh_bridge_jwt_has_active_session_for_profile_discovery() {
     );
 
     let session = analytics
-        .session_repo()
+        .session_store()
         .find_active_by_id(&session_id)
         .await
         .expect("session lookup ok")
@@ -155,9 +151,9 @@ async fn bridge_session_captures_request_analytics() {
 
     let caller_ip = "203.0.113.7".parse().ok();
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_request_headers(), caller_ip, &user_id),
     )
     .await
@@ -168,7 +164,7 @@ async fn bridge_session_captures_request_analytics() {
         .get(systemprompt_identifiers::headers::SESSION_ID)
         .expect("minted token carries a session id");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let row = sqlx::query!(
         "SELECT ip_address, user_agent FROM user_sessions WHERE session_id = $1",
         session_id
@@ -202,9 +198,9 @@ async fn bridge_jwt_binds_supplied_session_id() {
 
     let supplied = SessionId::generate();
     let result = issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&exchange_headers_with_session(&supplied), None, &user_id),
     )
     .await
@@ -220,7 +216,7 @@ async fn bridge_jwt_binds_supplied_session_id() {
     );
 
     let session = analytics
-        .session_repo()
+        .session_store()
         .find_active_by_id(&supplied)
         .await
         .expect("session lookup ok")
@@ -248,23 +244,23 @@ async fn repeated_mint_with_same_session_id_is_idempotent() {
     // The bridge re-mints hourly with its stable session id; both mints must
     // succeed (idempotent upsert), not fail on the existing primary key.
     issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await
     .expect("first mint");
     issue_bridge_access(
-        &oauth_repo(&db),
         &analytics,
-        &*analytics.session_repo().owner(),
+        &**analytics.session_store(),
+        &user_provider(&db),
         BridgeAccessRequest::bridge(&headers, None, &user_id),
     )
     .await
     .expect("re-mint with the same session id must not fail");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let count = sqlx::query_scalar!(
         "SELECT COUNT(*) FROM user_sessions WHERE session_id = $1",
         supplied.as_str()

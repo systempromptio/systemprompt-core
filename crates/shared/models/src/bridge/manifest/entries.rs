@@ -6,12 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::bridge::ids::{
-    LibraryArtifactId, PluginId, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
+use crate::bridge::ids::Sha256Digest;
+use crate::hooks::{HookCategory, HookEvent};
+use crate::plugin::{PluginComponentRef, PluginHooksRef};
+use systemprompt_identifiers::{
+    AgentId, AgentName, HookId, LibraryArtifactId, MarketplaceRuleId, ModelId, PluginId,
+    ProviderId, RuleName, SkillId, SkillName,
 };
-use crate::services::hooks::{HookCategory, HookEvent};
-use crate::services::plugin::{PluginComponentRef, PluginHooksRef};
-use systemprompt_identifiers::{AgentId, AgentName, HookId, ModelId, ProviderId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginEntry {
@@ -62,6 +63,8 @@ pub struct SkillEntry {
     pub hosts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frontmatter: Option<serde_yaml::Mapping>,
 }
 
 /// Exact signed publication identity shared by every host projection. This is
@@ -77,7 +80,7 @@ pub struct SkillPublication {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuleEntry {
-    pub id: RuleId,
+    pub id: MarketplaceRuleId,
     pub name: RuleName,
     pub description: String,
     pub file_path: String,
@@ -127,6 +130,8 @@ pub struct HookEntry {
     pub command: String,
     #[serde(default)]
     pub is_async: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
     pub category: HookCategory,
     #[serde(default)]
     pub tags: Vec<String>,

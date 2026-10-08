@@ -11,39 +11,29 @@ use systemprompt_scheduler::{
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
 use systemprompt_test_fixtures::{
-    fixture_actor, fixture_app_context, fixture_database_url, fixture_db_pool,
+    fixture_actor, test_app_context, test_database_url, test_db_pool,
 };
-use systemprompt_traits::{Job, JobContext};
-
-async fn try_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_traits::{Dependencies, Job, JobContext};
 
 fn make_ctx(pool: &DbPool) -> JobContext {
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
+    JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
 }
 
 // database_cleanup reads its per-table windows from `profile.retention`, so
 // unlike the other jobs here it needs a real AppContext rather than the unit
 // placeholder `make_ctx` supplies.
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
-    let url = fixture_database_url().expect("database url");
-    let app = fixture_app_context(pool, &url).expect("app context");
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(pool));
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(app);
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any)
+    let url = test_database_url();
+    let app = test_app_context(pool, &url);
+    JobContext::new(
+        fixture_actor(),
+        Dependencies::new().with(Arc::clone(pool)).with(app),
+    )
 }
 
 #[tokio::test]
 async fn database_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx_with_app(&pool).await;
     let result = DatabaseCleanupJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
@@ -68,9 +58,7 @@ async fn database_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn database_cleanup_job_without_an_app_context_fails() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let error = DatabaseCleanupJob
         .execute(&ctx)
@@ -84,9 +72,7 @@ async fn database_cleanup_job_without_an_app_context_fails() {
 
 #[tokio::test]
 async fn cleanup_inactive_sessions_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = CleanupInactiveSessionsJob
         .execute(&ctx)
@@ -97,9 +83,7 @@ async fn cleanup_inactive_sessions_job_execute_succeeds() {
 
 #[tokio::test]
 async fn cleanup_empty_contexts_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = CleanupEmptyContextsJob
         .execute(&ctx)
@@ -110,9 +94,7 @@ async fn cleanup_empty_contexts_job_execute_succeeds() {
 
 #[tokio::test]
 async fn behavioral_analysis_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = BehavioralAnalysisJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
@@ -120,9 +102,7 @@ async fn behavioral_analysis_job_execute_succeeds() {
 
 #[tokio::test]
 async fn ghost_session_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = GhostSessionCleanupJob
         .execute(&ctx)
@@ -133,9 +113,7 @@ async fn ghost_session_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn malicious_ip_blacklist_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = MaliciousIpBlacklistJob
         .execute(&ctx)
@@ -146,9 +124,7 @@ async fn malicious_ip_blacklist_job_execute_succeeds() {
 
 #[tokio::test]
 async fn no_js_cleanup_job_execute_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let ctx = make_ctx(&pool);
     let result = NoJsCleanupJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
@@ -156,10 +132,7 @@ async fn no_js_cleanup_job_execute_succeeds() {
 
 #[tokio::test]
 async fn jobs_fail_when_dbpool_missing() {
-    let pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let ctx_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let paths_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(());
-    let ctx = JobContext::new(fixture_actor(), pool_any, ctx_any, paths_any);
+    let ctx = JobContext::new(fixture_actor(), Dependencies::new());
 
     assert!(DatabaseCleanupJob.execute(&ctx).await.is_err());
     assert!(CleanupInactiveSessionsJob.execute(&ctx).await.is_err());
@@ -183,8 +156,8 @@ mod cleanup_empty_contexts_enforce_gate {
         context_id: String,
     }
 
-    async fn seed_or_skip(tag: &str) -> Option<Fixture> {
-        let pool = try_pool_or_skip().await?;
+    async fn seed(tag: &str) -> Fixture {
+        let pool = test_db_pool().await;
         let user_id = unique_user_id(tag);
         seed_user_row(
             &pool,
@@ -195,7 +168,7 @@ mod cleanup_empty_contexts_enforce_gate {
         .expect("seed user");
 
         let context_id = format!("{tag}-{}", uuid::Uuid::new_v4());
-        let raw = pool.pool_arc().expect("raw pool");
+        let raw = pool.pool();
         sqlx::query(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at) VALUES ($1, $2, NULL, 'enforce gate fixture', 'conversation', NOW() - \
@@ -207,16 +180,16 @@ mod cleanup_empty_contexts_enforce_gate {
         .await
         .expect("seed context");
 
-        Some(Fixture {
+        Fixture {
             pool,
             user_id,
             context_id,
-        })
+        }
     }
 
     impl Fixture {
         async fn context_exists(&self) -> bool {
-            let raw = self.pool.pool_arc().expect("raw pool");
+            let raw = self.pool.pool();
             sqlx::query_scalar::<_, bool>(
                 "SELECT EXISTS(SELECT 1 FROM user_contexts WHERE context_id = $1)",
             )
@@ -227,7 +200,7 @@ mod cleanup_empty_contexts_enforce_gate {
         }
 
         async fn cleanup(&self) {
-            let raw = self.pool.pool_arc().expect("raw pool");
+            let raw = self.pool.pool();
             for stmt in [
                 "DELETE FROM user_contexts WHERE user_id = $1",
                 "DELETE FROM users WHERE id = $1",
@@ -242,9 +215,7 @@ mod cleanup_empty_contexts_enforce_gate {
 
     #[tokio::test]
     async fn without_enforce_the_context_survives_and_nothing_is_reported_processed() {
-        let Some(fixture) = seed_or_skip("enfoff").await else {
-            return;
-        };
+        let fixture = seed("enfoff").await;
         let ctx = make_ctx(&fixture.pool).with_parameters(
             [("retention_hours".to_owned(), "1".to_owned())]
                 .into_iter()
@@ -271,9 +242,7 @@ mod cleanup_empty_contexts_enforce_gate {
 
     #[tokio::test]
     async fn with_enforce_the_old_empty_context_is_deleted() {
-        let Some(fixture) = seed_or_skip("enfon").await else {
-            return;
-        };
+        let fixture = seed("enfon").await;
         let ctx = make_ctx(&fixture.pool).with_enforce(true).with_parameters(
             [("retention_hours".to_owned(), "1".to_owned())]
                 .into_iter()

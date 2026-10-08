@@ -1,8 +1,5 @@
 // Shared construction helpers for the A2A-server runtime tests: a pooled
 // `AgentHandlerState`, a stubbed `AiProvider`, and request/runtime builders.
-//
-// Every entry point early-returns at the call site when no test database is
-// configured (via `try_pool`); these helpers assume a live pool was obtained.
 
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -14,7 +11,9 @@ use systemprompt_agent::models::AgentRuntimeInfo;
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, AiRequestId, ContextId, JwtToken, SessionId, TraceId, UserId,
+};
 use systemprompt_models::AiMessage;
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
 use systemprompt_models::ai::tools::{CallToolResult, ToolCall};
@@ -24,12 +23,11 @@ use systemprompt_models::ai::{
 };
 use systemprompt_models::errors::{AiInferenceError, AiInferenceResult as ProviderResult};
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
 use tokio::sync::{RwLock, Semaphore};
-use uuid::Uuid;
 
 // A JWT provider that rejects every token; sufficient for state construction.
 struct RejectingJwtProvider;
@@ -94,7 +92,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Ok(AiResponse::new(
-                Uuid::new_v4(),
+                AiRequestId::generate(),
                 content.to_owned(),
                 self.provider.clone(),
                 self.model.clone(),
@@ -107,7 +105,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Err(AiInferenceError::Internal(
-                "stub generate failure".to_owned(),
+                "stub generate failure".into(),
             )));
         self
     }
@@ -130,7 +128,7 @@ impl StubAiProvider {
         self.stream_chunks.get_mut().expect("lock").push(vec![
             Ok(StreamChunk::Text(text.to_owned())),
             Err(AiInferenceError::Internal(
-                "stub partial stream failure".to_owned(),
+                "stub partial stream failure".into(),
             )),
         ]);
         self
@@ -159,7 +157,7 @@ impl StubAiProvider {
             .get_mut()
             .expect("lock")
             .push(Err(AiInferenceError::Internal(
-                "stub response failure".to_owned(),
+                "stub response failure".into(),
             )));
         self
     }
@@ -183,7 +181,7 @@ impl StubAiProvider {
             .pop()
             .unwrap_or_else(|| {
                 Ok(AiResponse::new(
-                    Uuid::new_v4(),
+                    AiRequestId::generate(),
                     "default".to_owned(),
                     self.provider.clone(),
                     self.model.clone(),
@@ -218,7 +216,7 @@ impl AiProvider for StubAiProvider {
             .expect("lock")
             .push(request.messages.clone());
         if self.fail_stream {
-            return Err(AiInferenceError::Internal("stub stream failure".to_owned()));
+            return Err(AiInferenceError::Internal("stub stream failure".into()));
         }
         if self.stall_stream {
             return Ok(Box::pin(futures::stream::pending()));
@@ -323,10 +321,8 @@ impl AiProvider for StubAiProvider {
 }
 
 pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::SkillService {
-    let steps = Arc::new(
-        systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool)
-            .expect("step repo"),
-    );
+    let steps =
+        Arc::new(systemprompt_agent::repository::execution::ExecutionStepRepository::new(pool));
     systemprompt_agent::services::SkillService::new(
         systemprompt_test_fixtures::not_managed_skills(),
         steps,
@@ -337,7 +333,7 @@ pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::Skil
 
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let url = systemprompt_test_fixtures::fixture_database_url().expect("url");
+    let url = systemprompt_test_fixtures::test_database_url();
     let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
     let repos = crate::repository::repos(pool);
     Arc::new(AgentState::new(
@@ -378,9 +374,9 @@ pub(crate) fn make_handler_state(
     })
 }
 
-pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
-    use systemprompt_models::{AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig};
-    systemprompt_models::AgentConfig {
+pub(crate) fn agent_config(name: &str) -> systemprompt_manifest::AgentConfig {
+    use systemprompt_manifest::{AgentCardConfig, AgentMetadataConfig, CapabilitiesConfig};
+    systemprompt_manifest::AgentConfig {
         name: name.to_owned(),
         port: 9100,
         endpoint: String::new(),
@@ -407,7 +403,7 @@ pub(crate) fn agent_config(name: &str) -> systemprompt_models::AgentConfig {
             supports_authenticated_extended_card: false,
         },
         metadata: AgentMetadataConfig::default(),
-        oauth: systemprompt_models::AgentOAuthConfig::default(),
+        oauth: systemprompt_manifest::AgentOAuthConfig::default(),
     }
 }
 
@@ -438,9 +434,10 @@ pub(crate) fn request_context(
         TraceId::generate(),
         ctx.clone(),
         AgentName::try_new(agent_name).expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     rc.auth.actor = systemprompt_identifiers::Actor::user(user.clone());
-    rc.with_auth_token("test-token")
+    rc.with_auth_token(JwtToken::new("test-token"))
 }
 
 pub(crate) fn ai_messages(text: &str) -> Vec<AiMessage> {

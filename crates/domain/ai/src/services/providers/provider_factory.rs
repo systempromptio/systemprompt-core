@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
-use systemprompt_models::services::{ProviderModel, ResilienceSettings, WireProtocol};
+use systemprompt_manifest::services::{ProviderModel, ResilienceSettings};
+use systemprompt_wire::WireProtocol;
 
 use crate::services::upstream::UpstreamTarget;
 
 use crate::error::Result;
 
-use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider, ResilientProvider};
+use super::{AnthropicProvider, GeminiProvider, OpenAiProvider, ProviderClient, ResilientProvider};
 
 #[derive(Debug)]
 pub struct ProviderClientParams<'a> {
@@ -37,11 +37,8 @@ pub struct ProviderClientParams<'a> {
 pub struct ProviderFactory;
 
 impl ProviderFactory {
-    pub fn create(
-        params: &ProviderClientParams<'_>,
-        db_pool: Option<DbPool>,
-    ) -> Result<Arc<dyn AiProvider>> {
-        let inner: Arc<dyn AiProvider> = match params.target.wire() {
+    pub fn create(params: &ProviderClientParams<'_>) -> Result<Arc<dyn ProviderClient>> {
+        let inner: Arc<dyn ProviderClient> = match params.target.wire() {
             WireProtocol::Anthropic => {
                 let provider = AnthropicProvider::with_target(params.target.clone())
                     .with_models(params.models.to_vec())
@@ -70,9 +67,6 @@ impl ProviderFactory {
                     .with_default_model(params.default_model.map(str::to_owned));
                 if params.google_search_enabled {
                     provider = provider.with_google_search();
-                }
-                if let Some(pool) = db_pool {
-                    provider = provider.with_db_pool(pool);
                 }
                 Arc::new(provider)
             },

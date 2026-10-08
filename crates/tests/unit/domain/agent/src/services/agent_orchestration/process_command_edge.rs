@@ -5,11 +5,12 @@
 
 use std::fs;
 use std::path::PathBuf;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::services::agent_orchestration::process::command::{
     BuildAgentCommandParams, build_agent_command, prepare_agent_log_file,
 };
-use systemprompt_models::Secrets;
+use systemprompt_manifest::Secrets;
 
 fn secrets() -> Secrets {
     Secrets::parse(
@@ -22,7 +23,7 @@ fn secrets() -> Secrets {
 }
 
 fn log_file_in(dir: &std::path::Path) -> fs::File {
-    prepare_agent_log_file("envagent", dir).expect("log file")
+    prepare_agent_log_file(&AgentName::new("envagent"), dir).expect("log file")
 }
 
 #[test]
@@ -31,7 +32,7 @@ fn prepare_agent_log_file_fails_when_the_log_directory_path_is_a_file() {
     let blocker = tmp.path().join("logs");
     fs::write(&blocker, b"not a directory").expect("write blocker");
 
-    let err = prepare_agent_log_file("blocked", &blocker)
+    let err = prepare_agent_log_file(&AgentName::new("blocked"), &blocker)
         .expect_err("a regular file cannot hold a log file");
     assert!(
         err.to_string().contains("Failed to create log file"),
@@ -57,10 +58,9 @@ fn prepare_agent_log_file_appends_to_an_existing_log_rather_than_truncating() {
 #[test]
 fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
-        return;
-    };
-    let config = systemprompt_test_fixtures::fixture_config(&url);
+    let config = systemprompt_test_fixtures::fixture_config(
+        &systemprompt_test_fixtures::test_database_url(),
+    );
     let tmp = tempfile::tempdir().expect("tmp");
     let binary = PathBuf::from("/bin/true");
     let creds = secrets();
@@ -77,7 +77,7 @@ fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one(
 
     let command = build_agent_command(BuildAgentCommandParams {
         binary_path: &binary,
-        agent_name: "envagent",
+        agent_name: &AgentName::new("envagent"),
         port: 9401,
         profile_path: "/tmp/profile.yaml",
         secrets: &creds,
@@ -111,10 +111,9 @@ fn build_agent_command_forwards_the_trust_allowlist_when_the_parent_carries_one(
 #[test]
 fn build_agent_command_omits_the_optional_env_vars_when_the_parent_lacks_them() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
-    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
-        return;
-    };
-    let config = systemprompt_test_fixtures::fixture_config(&url);
+    let config = systemprompt_test_fixtures::fixture_config(
+        &systemprompt_test_fixtures::test_database_url(),
+    );
     let tmp = tempfile::tempdir().expect("tmp");
     let binary = PathBuf::from("/bin/true");
     let creds = secrets();
@@ -127,7 +126,7 @@ fn build_agent_command_omits_the_optional_env_vars_when_the_parent_lacks_them() 
 
     let command = build_agent_command(BuildAgentCommandParams {
         binary_path: &binary,
-        agent_name: "envagent",
+        agent_name: &AgentName::new("envagent"),
         port: 9401,
         profile_path: "/tmp/profile.yaml",
         secrets: &creds,

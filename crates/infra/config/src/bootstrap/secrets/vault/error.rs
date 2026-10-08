@@ -8,19 +8,25 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::BoxedSource;
+
 pub(super) const MAX_VAULT_ERROR_CHARS: usize = 200;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum VaultError {
-    #[error("vault address is not a permitted outbound URL: {message}")]
-    Address { message: String },
+    #[error("vault address is not a permitted outbound URL: {0}")]
+    Address(#[source] BoxedSource),
 
-    #[error("vault TLS CA certificate at {path} could not be loaded: {message}")]
-    CaCertificate { path: String, message: String },
+    #[error("vault TLS CA certificate at {path} could not be loaded: {source}")]
+    CaCertificate {
+        path: String,
+        #[source]
+        source: BoxedSource,
+    },
 
-    #[error("vault HTTP client could not be built: {message}")]
-    ClientBuild { message: String },
+    #[error("vault HTTP client could not be built: {0}")]
+    ClientBuild(#[source] reqwest::Error),
 
     #[error(
         "vault credential is missing: {name}. Provide it in the process environment; never write \
@@ -28,8 +34,15 @@ pub enum VaultError {
     )]
     MissingCredential { name: String },
 
-    #[error("vault credential file {path} could not be read: {message}")]
-    CredentialFile { path: String, message: String },
+    #[error("vault credential file {path} could not be read: {source}")]
+    CredentialFile {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("vault credential file {path} could not be read: file is empty")]
+    EmptyCredentialFile { path: String },
 
     #[error("vault {method} login was rejected with HTTP {status}{detail}")]
     Auth {
@@ -56,14 +69,47 @@ pub enum VaultError {
         detail: String,
     },
 
-    #[error("vault response body could not be read: {message}")]
-    Body { message: String },
+    #[error("vault response body could not be read: {0}")]
+    Body(#[source] reqwest::Error),
 
-    #[error("vault response was not the expected KV v2 shape: {message}")]
-    Malformed { message: String },
+    #[error("vault response was not the expected KV v2 shape: {context}: {source}")]
+    Malformed {
+        context: String,
+        #[source]
+        source: serde_json::Error,
+    },
 
-    #[error("vault was unreachable after {attempts} attempt(s): {message}")]
-    Exhausted { attempts: u32, message: String },
+    #[error(
+        "vault response was not the expected KV v2 shape: {location} has no field '{field}' for \
+         override key '{key}'"
+    )]
+    MissingField {
+        location: String,
+        field: String,
+        key: String,
+    },
+
+    #[error("vault request failed: {0}")]
+    Transport(#[source] reqwest::Error),
+
+    #[error("vault was unreachable after {attempts} attempt(s): {last}")]
+    Exhausted {
+        attempts: u32,
+        last: VaultAttemptFailure,
+    },
+}
+
+/// Why the final retryable Vault attempt failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum VaultAttemptFailure {
+    #[error("HTTP {0}")]
+    Status(u16),
+
+    #[error("request timed out")]
+    Timeout,
+
+    #[error("could not connect")]
+    Connect,
 }
 
 #[must_use]

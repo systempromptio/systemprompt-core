@@ -110,7 +110,8 @@ fn claude_settings_doctor_diagnoses_corrupt_mismatched_and_recoverable_profiles_
 #[test]
 fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired_profile() {
     use systemprompt_bridge::cli::doctor::auth::check_host_profile_secrets;
-    use systemprompt_bridge::ids::{HostId, LoopbackSecret};
+    use systemprompt_bridge::ids::LoopbackSecret;
+    use systemprompt_bridge::integration::HostKind;
     use systemprompt_bridge::integration::host_app::ProbeEnv;
     use systemprompt_bridge::proxy::scoped_token::host_token;
 
@@ -127,13 +128,13 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
         let profile = managed.join("opencode.json");
         std::fs::write(
             &profile,
-            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1"}"#,
+            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1","enabled_providers":["systemprompt"]}"#,
         )
         .expect("stale profile");
         let auth = root.join("opencode/auth.json");
         std::fs::create_dir_all(auth.parent().expect("auth parent")).expect("auth directory");
-        let host = HostId::new("opencode");
-        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), &host);
+        let host = HostKind::OpenCode;
+        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host);
         std::fs::write(
             &auth,
             serde_json::json!({ "systemprompt": { "type": "api", "key": stale_token.as_str() } })
@@ -162,7 +163,7 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
             stale.detail
         );
 
-        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), &host);
+        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), host);
         std::fs::write(
             &auth,
             serde_json::json!({ "systemprompt": { "type": "api", "key": live_token.as_str() } })
@@ -278,7 +279,7 @@ fn whoami_check_passes_on_identity_and_fails_generically_on_a_500() {
         Mock::given(method("GET"))
             .and(path("/v1/bridge/whoami"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "user_id": "user_abc",
+                "user_id": "00000000-0000-4000-8000-0000000000ab",
                 "email": "e@example.com",
                 "roles": ["member"]
             })))

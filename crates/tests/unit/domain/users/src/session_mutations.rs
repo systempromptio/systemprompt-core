@@ -5,7 +5,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_users::SessionRepository;
 use uuid::Uuid;
 
@@ -13,12 +13,9 @@ use super::session_support::{base_params, delete_session, seed_session, unique_s
 
 #[tokio::test]
 async fn create_session_then_find_by_id_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
@@ -35,12 +32,9 @@ async fn create_session_then_find_by_id_round_trip() {
 
 #[tokio::test]
 async fn create_session_is_upsert_on_conflict() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
@@ -56,12 +50,9 @@ async fn create_session_is_upsert_on_conflict() {
 
 #[tokio::test]
 async fn increment_counters_accumulate() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -81,12 +72,9 @@ async fn increment_counters_accumulate() {
 
 #[tokio::test]
 async fn increment_ai_usage_accumulates_tokens_and_cost() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -110,12 +98,9 @@ async fn increment_ai_usage_accumulates_tokens_and_cost() {
 
 #[tokio::test]
 async fn end_session_marks_session_ended() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -130,12 +115,9 @@ async fn end_session_marks_session_ended() {
 
 #[tokio::test]
 async fn mark_scanner_and_converted() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -153,12 +135,9 @@ async fn mark_scanner_and_converted() {
 
 #[tokio::test]
 async fn revoke_session_and_active_lookup() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
@@ -186,18 +165,15 @@ async fn revoke_session_and_active_lookup() {
 
 #[tokio::test]
 async fn cleanup_inactive_ends_stale_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let sid = unique_session_id();
     seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
     // Force last_activity_at into the past so cleanup_inactive(1h) catches it.
-    let p = pool.pool_arc().expect("pool");
+    let p = pool.pool();
     sqlx::query(
         "UPDATE user_sessions SET last_activity_at = CURRENT_TIMESTAMP - INTERVAL '5 hours' \
          WHERE session_id = $1",
@@ -221,12 +197,9 @@ async fn cleanup_inactive_ends_stale_sessions() {
 
 #[tokio::test]
 async fn migrate_user_sessions_moves_rows() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     // Two anon user ids that don't exist in `users` -> bypass FK by leaving
     // user_id NULL on insert, then set/migrate via direct update + repo call.
@@ -243,12 +216,9 @@ async fn migrate_user_sessions_moves_rows() {
 
 #[tokio::test]
 async fn revoke_all_for_user_with_no_rows_returns_zero() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
 
     let uid = UserId::new(format!("ghost-{}", Uuid::new_v4()));
     let revoked = repo.revoke_all_for_user(&uid).await.expect("revoke all");

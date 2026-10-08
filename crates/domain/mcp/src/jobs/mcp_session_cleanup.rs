@@ -34,14 +34,9 @@ impl Job for McpSessionCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            systemprompt_provider_contracts::ProviderError::Internal(
-                "DbPool not available in job context".to_owned(),
-            )
-        })?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
-        let repo = McpSessionRepository::new(&db_pool)
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+        let repo = McpSessionRepository::new(&db_pool);
 
         let retention_days = ctx
             .get_parameter_parsed::<i32>("retention_days")?
@@ -50,17 +45,16 @@ impl Job for McpSessionCleanupJob {
         let expired = repo
             .cleanup_expired()
             .await
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
         let deleted = repo
             .delete_stale(retention_days)
             .await
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
 
         let identities = McpProxyIdentityRepository::new(&db_pool)
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?
             .cleanup_expired()
             .await
-            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(e.to_string()))?;
+            .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

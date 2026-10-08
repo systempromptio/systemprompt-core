@@ -1,7 +1,7 @@
 mod challenge_store_db;
 mod config;
 mod jwt_validator;
-mod registry;
+mod service_construction;
 mod service_flow;
 mod service_types;
 mod softtoken_e2e;

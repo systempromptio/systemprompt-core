@@ -10,7 +10,7 @@ use std::net::IpAddr;
 
 use anyhow::Result;
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
+use systemprompt_identifiers::{ClientId, JwtToken, SessionId, SessionSource, UserId};
 use systemprompt_oauth::{CreateAnonymousSessionInput, SessionCreationService, validate_jwt_token};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::TokenExtractor;
@@ -22,7 +22,7 @@ pub struct SessionInfo {
     pub session_id: SessionId,
     pub user_id: UserId,
     pub is_new: bool,
-    pub jwt_token: Option<String>,
+    pub jwt_token: Option<JwtToken>,
 }
 
 pub async fn ensure_session(
@@ -31,22 +31,23 @@ pub async fn ensure_session(
     caller_ip: Option<IpAddr>,
     ctx: &AppContext,
 ) -> Result<SessionInfo> {
-    let config = systemprompt_models::Config::get()?;
+    let config = systemprompt_manifest::Config::get()?;
 
     if let Ok(token) = TokenExtractor::browser_only().extract(headers)
         && let Ok(claims) = validate_jwt_token(&token, &config.jwt_issuer, &config.jwt_audiences)
         && let Some(session_id) = claims.session_id
+        && let Ok(user_id) = UserId::try_new(claims.sub)
     {
         return Ok(SessionInfo {
             session_id: SessionId::new(session_id),
-            user_id: UserId::new(claims.sub),
+            user_id,
             is_new: false,
-            jwt_token: Some(token),
+            jwt_token: Some(JwtToken::new(token)),
         });
     }
 
     let user_service = UserService::new(Arc::clone(ctx.user_repository()));
-    let concrete = ctx.analytics_repositories().sessions.owner();
+    let concrete = Arc::clone(&ctx.analytics_repositories().session_store);
     let analytics: Arc<dyn systemprompt_traits::SessionProvider> = concrete;
     let session_service = SessionCreationService::new(analytics, Arc::new(user_service));
 

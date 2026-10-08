@@ -12,7 +12,7 @@ use systemprompt_database::DbPool;
 use systemprompt_generator::{PublishError, generate_sitemap};
 use systemprompt_identifiers::{LocaleCode, SourceId};
 use systemprompt_test_fixtures::{
-    TestBootstrap, closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_db_pool,
 };
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
@@ -71,13 +71,8 @@ fn install_config(boot: &TestBootstrap, tag: &str) {
     fs::create_dir_all(boot.app_paths.web().dist()).expect("mkdir dist");
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 async fn seed(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let params = CreateContentParams::new(
         slug.to_owned(),
         "Title".to_owned(),
@@ -91,7 +86,7 @@ async fn seed(db: &DbPool, source_id: &SourceId, slug: &str, locale: &str) {
 }
 
 async fn cleanup(db: &DbPool, tags: &[&str]) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     for tag in tags {
         let _ = repo.delete_by_source(&SourceId::new(*tag)).await;
     }
@@ -101,9 +96,7 @@ async fn cleanup(db: &DbPool, tags: &[&str]) {
 async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let tag = "smapextraskip";
     let off = format!("{tag}-off");
@@ -140,9 +133,7 @@ async fn generate_sitemap_skips_disabled_sources_and_disabled_sitemaps() {
 async fn generate_sitemap_excludes_unsupported_locales_from_alternates() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let tag = "smapextradeloc";
     cleanup(&db, &[tag]).await;
@@ -176,9 +167,6 @@ async fn generate_sitemap_excludes_unsupported_locales_from_alternates() {
 async fn generate_sitemap_with_closed_pool_is_fetch_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    if fixture_database_url().is_err() {
-        return;
-    }
 
     install_config(boot, "smapextraclosed");
     let closed = closed_db_pool().await;
@@ -192,5 +180,5 @@ async fn generate_sitemap_with_closed_pool_is_fetch_error() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }

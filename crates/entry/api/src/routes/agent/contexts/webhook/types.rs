@@ -13,8 +13,10 @@ pub struct WebhookRequest {
     pub entity_id: String,
     pub context_id: ContextId,
     pub user_id: UserId,
+    // JSON: webhook payload — agent-defined step data, relayed to subscribers verbatim.
     #[serde(default)]
     pub step_data: Option<serde_json::Value>,
+    // JSON: webhook payload — agent-defined task data, relayed to subscribers verbatim.
     #[serde(default)]
     pub task_data: Option<serde_json::Value>,
 }
@@ -36,5 +38,6 @@ pub struct A2ABroadcastRequest {
 #[derive(Debug)]
 pub struct AgUiWebhookData {
     pub event_name: String,
+    // JSON: webhook payload — AG-UI event body, shape varies by event name.
     pub payload: serde_json::Value,
 }

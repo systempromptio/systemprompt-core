@@ -15,10 +15,11 @@
 use std::path::Path;
 
 use serde::Deserialize;
-use systemprompt_models::services::marketplace::{
-    ExternalMarketplace, MarketplaceAccess, MarketplaceVisibility,
+use systemprompt_manifest::services::marketplace::{
+    ClaudeCodeMarketplaceConfig, ExternalMarketplace, MarketplaceAccess, MarketplaceVisibility,
 };
-use systemprompt_models::services::plugin::{PluginComponentRef, PluginHooksRef, PluginScript};
+use systemprompt_manifest::services::plugin::PluginScript;
+use systemprompt_models::plugin::{PluginComponentRef, PluginHooksRef};
 
 use crate::error::MarketplaceError;
 
@@ -69,6 +70,8 @@ pub struct MarketplaceSidecarBody {
     pub artifacts: PluginComponentRef,
     #[serde(default)]
     pub external_marketplaces: Vec<ExternalMarketplace>,
+    #[serde(default)]
+    pub claude_code: Option<ClaudeCodeMarketplaceConfig>,
 }
 
 impl Default for MarketplaceSidecar {
@@ -133,6 +136,7 @@ impl Default for MarketplaceSidecarBody {
             agents: PluginComponentRef::default(),
             artifacts: PluginComponentRef::default(),
             external_marketplaces: Vec::new(),
+            claude_code: None,
         }
     }
 }
@@ -169,12 +173,14 @@ where
     if !path.is_file() {
         return Ok(T::default());
     }
-    let text = std::fs::read_to_string(path).map_err(|e| err(path, e.to_string()))?;
-    let raw: serde_yaml::Value =
-        serde_yaml::from_str(&text).map_err(|e| err(path, e.to_string()))?;
+    let text =
+        std::fs::read_to_string(path).map_err(|e| MarketplaceError::import(path, "read", e))?;
+    let raw: serde_yaml::Value = serde_yaml::from_str(&text)
+        .map_err(|e| MarketplaceError::import(path, "sidecar is not valid YAML", e))?;
     reject_forbidden_keys(path, &raw, section)?;
     check_schema(path, &raw)?;
-    serde_yaml::from_value(raw).map_err(|e| err(path, e.to_string()))
+    serde_yaml::from_value(raw)
+        .map_err(|e| MarketplaceError::import(path, "sidecar does not match its schema", e))
 }
 
 fn check_schema(path: &Path, raw: &serde_yaml::Value) -> Result<(), MarketplaceError> {

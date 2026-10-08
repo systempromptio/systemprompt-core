@@ -10,7 +10,9 @@ use systemprompt_agent::models::a2a::{Part, TextPart};
 use systemprompt_agent::models::context::{
     ContextDetail, ContextKind, ContextMessage, ContextStateEvent,
 };
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, MessageId,
+};
 use systemprompt_models::UserContext;
 use systemprompt_test_fixtures::fixture_user_id;
 
@@ -135,8 +137,8 @@ fn test_context_state_event_tool_execution_completed_context_id() {
     let event = ContextStateEvent::ToolExecutionCompleted {
         context_id: ContextId::try_new(TEST_CONTEXT_ID_C).expect("valid ContextId"),
         execution_id: McpExecutionId::new("exec-123"),
-        tool_name: "search".to_string(),
-        server_name: "brave".to_string(),
+        tool_name: McpToolName::new("search"),
+        server_name: McpServerId::new("brave"),
         output: Some("Results".to_string()),
         artifact: None,
         status: "success".to_string(),
@@ -209,7 +211,7 @@ fn test_context_state_event_heartbeat_no_context_id() {
 fn test_context_state_event_current_agent() {
     let event = ContextStateEvent::CurrentAgent {
         context_id: ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        agent_name: Some("test-agent".to_string()),
+        agent_name: Some(AgentName::new("test-agent")),
         timestamp: Utc::now(),
     };
 

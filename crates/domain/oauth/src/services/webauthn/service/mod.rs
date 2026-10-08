@@ -37,6 +37,7 @@ pub struct WebAuthnService {
     pub(super) config: WebAuthnConfig,
     pub(super) oauth_repo: OAuthRepository,
     pub(super) user_creation_service: UserCreationService,
+    pub(super) user_provider: Arc<dyn UserProvider>,
 }
 
 impl std::fmt::Debug for WebAuthnService {
@@ -64,25 +65,15 @@ impl WebAuthnService {
             .allow_subdomains(config.allow_subdomains)
             .build()?;
 
-        let user_creation_service = UserCreationService::new(user_provider);
+        let user_creation_service = UserCreationService::new(Arc::clone(&user_provider));
 
         Ok(Self {
             webauthn,
             config,
             oauth_repo,
             user_creation_service,
+            user_provider,
         })
-    }
-
-    pub async fn cleanup_expired_states(&self) -> Result<()> {
-        let removed = self
-            .oauth_repo
-            .cleanup_expired_webauthn_challenges()
-            .await?;
-        if removed > 0 {
-            tracing::debug!(removed, "Expired WebAuthn challenges purged");
-        }
-        Ok(())
     }
 
     pub async fn store_verified_authentication(
@@ -109,12 +100,10 @@ impl WebAuthnService {
             .oauth_repo
             .consume_webauthn_challenge(&key, WebAuthnChallengeKind::Verified)
             .await?
-            .ok_or_else(|| {
-                OauthError::Internal("No verified authentication found for token".to_owned())
-            })?;
+            .ok_or(OauthError::ChallengeExpired)?;
 
-        consumed.user_id.ok_or_else(|| {
-            OauthError::Internal("Verified authentication has no user id".to_owned())
-        })
+        consumed.user_id.ok_or(OauthError::Internal(
+            "Verified authentication has no user id",
+        ))
     }
 }

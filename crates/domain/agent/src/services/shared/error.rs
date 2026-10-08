@@ -7,51 +7,70 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AgentServiceError {
-    #[error("database operation failed: {0}")]
-    Database(String),
-
     #[error("repository operation failed: {0}")]
-    Repository(String),
+    Repository(#[from] RepositoryError),
+
+    #[error("agent operation failed: {0}")]
+    Agent(#[from] crate::error::AgentError),
 
     #[error("network request failed: {0}")]
-    Network(String),
+    Network(#[from] reqwest::Error),
 
-    #[error("authentication failed: {0}")]
-    Authentication(String),
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
 
-    #[error("authorization failed for resource: {0}")]
-    Authorization(String),
+    #[error("ai inference failed: {0}")]
+    AiInference(#[from] systemprompt_models::errors::AiInferenceError),
 
-    #[error("validation failed: {0}: {1}")]
-    Validation(String, String),
+    #[error("mcp registry failed: {0}")]
+    McpRegistry(#[from] systemprompt_models::errors::McpRegistryError),
 
-    #[error("resource not found: {0}")]
-    NotFound(String),
+    #[error("validation failed for {field}: {source}")]
+    Validation {
+        field: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
 
-    #[error("service unavailable: {0}")]
-    ServiceUnavailable(String),
+    #[error("{context}: {source}")]
+    Operation {
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
-    #[error("operation timed out after {0}ms")]
-    Timeout(u64),
+    #[error("Tool execution failed: {0}")]
+    ToolExecution(String),
 
-    #[error("configuration error: {0}: {1}")]
-    Configuration(String, String),
+    #[error("tool {tool_name} returned no result")]
+    ToolReturnedNoResult {
+        tool_name: systemprompt_identifiers::McpToolName,
+    },
 
-    #[error("conflict: {0}")]
-    Conflict(String),
+    #[error("tool {tool_name} failed: {message}")]
+    ToolFailed {
+        tool_name: systemprompt_identifiers::McpToolName,
+        message: String,
+    },
 
-    #[error("internal error: {0}")]
-    Internal(String),
+    #[error("tool {tool_name} returned no structured_content")]
+    ToolReturnedNoStructuredContent {
+        tool_name: systemprompt_identifiers::McpToolName,
+    },
 
-    #[error("logging error: {0}")]
-    Logging(String),
+    #[error("agent stream failed: {message}")]
+    StreamFailed { message: String },
 
-    #[error("capacity exceeded: {0}")]
-    Capacity(String),
+    #[error("skill {skill_id} not found on disk: {} is missing", .path.display())]
+    SkillNotOnDisk {
+        skill_id: systemprompt_identifiers::SkillId,
+        path: std::path::PathBuf,
+    },
 
     #[error("stream consumer closed before the task finished")]
     StreamClosed,
@@ -73,54 +92,31 @@ pub enum AgentServiceError {
     },
 }
 
-impl From<std::io::Error> for AgentServiceError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Internal(format!("io: {err}"))
+impl AgentServiceError {
+    pub fn operation<E>(context: impl Into<String>, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Operation {
+            context: context.into(),
+            source: Box::new(source),
+        }
+    }
+
+    pub fn validation<E>(field: &'static str, source: E) -> Self
+    where
+        E: std::error::Error + Send + Sync + 'static,
+    {
+        Self::Validation {
+            field,
+            source: Box::new(source),
+        }
     }
 }
 
 impl From<sqlx::Error> for AgentServiceError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Database(err.to_string())
-    }
-}
-
-impl From<crate::repository::RepositoryError> for AgentServiceError {
-    fn from(err: crate::repository::RepositoryError) -> Self {
-        Self::Repository(err.to_string())
-    }
-}
-
-impl From<systemprompt_database::RepositoryError> for AgentServiceError {
-    fn from(err: systemprompt_database::RepositoryError) -> Self {
-        Self::Repository(err.to_string())
-    }
-}
-
-impl From<crate::error::AgentError> for AgentServiceError {
-    fn from(err: crate::error::AgentError) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
-impl From<systemprompt_models::errors::AiInferenceError> for AgentServiceError {
-    fn from(err: systemprompt_models::errors::AiInferenceError) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
-impl From<systemprompt_models::errors::McpRegistryError> for AgentServiceError {
-    fn from(err: systemprompt_models::errors::McpRegistryError) -> Self {
-        Self::Internal(err.to_string())
-    }
-}
-
-impl From<reqwest::Error> for AgentServiceError {
-    fn from(err: reqwest::Error) -> Self {
-        Self::Network(
-            err.url()
-                .map_or_else(|| "unknown".to_owned(), ToString::to_string),
-        )
+        Self::Repository(err.into())
     }
 }
 

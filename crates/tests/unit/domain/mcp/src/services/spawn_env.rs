@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::process::spawner::{
     SpawnEnvSpec, build_environment, open_server_log, rotate_log_if_needed,
     serialize_server_configs,
@@ -12,7 +13,6 @@ use systemprompt_mcp::services::process::spawner::{
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn make_config(name: &str, env_vars: Vec<String>) -> McpServerConfig {
@@ -72,9 +72,9 @@ fn build_environment_sets_core_variables() {
     let env = env_map(build_environment(&spec(&config, root), &[], |_| None));
 
     assert_eq!(env.get("SYSTEMPROMPT_PROFILE").unwrap(), "/profiles/local");
-    assert_eq!(env.get("SYSTEMPROMPT_SUBPROCESS").unwrap(), "1");
+    assert!(!env.contains_key("SYSTEMPROMPT_SUBPROCESS"));
     assert_eq!(env.get("DATABASE_TYPE").unwrap(), "postgres");
-    assert_eq!(env.get("MCP_SERVICE_ID").unwrap(), "svc-env");
+    assert!(!env.contains_key("MCP_SERVICE_ID"));
     assert_eq!(env.get("MCP_PORT").unwrap(), "65001");
     assert_eq!(env.get("MCP_TOOLS_CONFIG").unwrap(), "{}");
     assert_eq!(env.get("MCP_SERVER_MODEL_CONFIG").unwrap(), "null");
@@ -175,7 +175,7 @@ fn open_server_log_creates_log_directory_and_file() {
     let paths = Arc::new(
         AppPaths::from_profile(
             &paths_config,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
         .expect("paths"),

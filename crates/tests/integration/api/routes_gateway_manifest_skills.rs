@@ -14,12 +14,12 @@
 
 use std::fs;
 
-use systemprompt_marketplace::catalog::{load_agents, load_skills};
-use systemprompt_marketplace::scope_to_marketplace;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
     ServicesConfig,
 };
+use systemprompt_marketplace::catalog::{load_agents, load_skills};
+use systemprompt_marketplace::scope_to_marketplace;
 use tempfile::TempDir;
 
 const SKILL_FOO_CONFIG: &str = r#"
@@ -71,7 +71,7 @@ fn phantom_agent() -> AgentConfig {
         default: false,
         card: empty_card(),
         metadata: AgentMetadataConfig {
-            skills: systemprompt_models::services::PluginComponentRef {
+            skills: systemprompt_models::plugin::PluginComponentRef {
                 include: vec!["foo".to_owned()],
                 ..Default::default()
             },

@@ -14,14 +14,9 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, FileRole};
 use systemprompt_identifiers::{ContentId, FileId, SourceId};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
@@ -38,7 +33,7 @@ fn contains(out: &CommandOutput, needle: &str) -> bool {
 }
 
 async fn seed_content(pool: &DbPool) -> ContentId {
-    let repo = ContentRepository::new(pool).unwrap();
+    let repo = ContentRepository::new(pool);
     let slug = format!("cf-{}", Uuid::new_v4().simple());
     let params = CreateContentParams::new(
         slug.clone(),
@@ -62,7 +57,7 @@ async fn seed_file(pool: &DbPool) -> String {
     .bind(id)
     .bind(&path)
     .bind(&url)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     id.to_string()
@@ -78,7 +73,7 @@ fn link_args(file: &str, content: &ContentId, role: link::FileRoleArg) -> link::
 }
 
 async fn linked_roles(pool: &DbPool, file: &str) -> Vec<FileRole> {
-    let repo = FileRepository::new(pool).unwrap();
+    let repo = FileRepository::new(pool);
     repo.list_content_by_file(&FileId::new(file.to_owned()))
         .await
         .unwrap()
@@ -89,7 +84,7 @@ async fn linked_roles(pool: &DbPool, file: &str) -> Vec<FileRole> {
 
 #[tokio::test]
 async fn link_attaches_file_to_content() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
 
@@ -107,7 +102,7 @@ async fn link_attaches_file_to_content() {
 
 #[tokio::test]
 async fn list_by_content_and_by_file_reflect_link() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -145,7 +140,7 @@ async fn list_by_content_and_by_file_reflect_link() {
 
 #[tokio::test]
 async fn list_requires_exactly_one_filter() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let none = list::execute_with_pool(
         list::ListArgs {
@@ -174,7 +169,7 @@ async fn list_requires_exactly_one_filter() {
 
 #[tokio::test]
 async fn list_by_file_rejects_bad_uuid() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = list::execute_with_pool(
         list::ListArgs {
             content: None,
@@ -199,7 +194,7 @@ fn unlink_args(file: &str, content: &ContentId, yes: bool, dry_run: bool) -> unl
 
 #[tokio::test]
 async fn unlink_with_yes_removes_link() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -224,7 +219,7 @@ async fn unlink_with_yes_removes_link() {
 
 #[tokio::test]
 async fn unlink_dry_run_preserves_link() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -249,7 +244,7 @@ async fn unlink_dry_run_preserves_link() {
 
 #[tokio::test]
 async fn unlink_non_interactive_without_yes_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -275,7 +270,7 @@ async fn unlink_non_interactive_without_yes_errors() {
 
 #[tokio::test]
 async fn unlink_interactive_confirm_no_preserves_link() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -303,7 +298,7 @@ async fn unlink_interactive_confirm_no_preserves_link() {
 
 #[tokio::test]
 async fn featured_set_then_get_returns_image() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
     link::execute_with_pool(
@@ -342,7 +337,7 @@ async fn featured_set_then_get_returns_image() {
 
 #[tokio::test]
 async fn featured_get_none_reports_absence() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
 
     let out = featured::execute_with_pool(
@@ -361,7 +356,7 @@ async fn featured_get_none_reports_absence() {
 
 #[tokio::test]
 async fn featured_set_unlinked_file_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let content = seed_content(&pool).await;
     let file = seed_file(&pool).await;
 
@@ -385,7 +380,7 @@ async fn featured_set_unlinked_file_errors() {
 // `ContentFilesCommands` and assert the effect in the database, because a
 // variant wired to the wrong arm would still return `Ok(())`.
 mod dispatch {
-    use super::{cfg, link, linked_roles, pool, seed_content, seed_file};
+    use super::{cfg, link, linked_roles, seed_content, seed_file, test_db_pool};
     use systemprompt_cli::core::content::files::{
         ContentFilesCommands, execute, featured, list, unlink,
     };
@@ -393,14 +388,14 @@ mod dispatch {
     use systemprompt_cli::{CommandContext, EnvOverrides, OutputFormat};
     use systemprompt_database::DbPool;
     use systemprompt_files::FileRole;
-    use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url};
+    use systemprompt_test_fixtures::{test_app_context, test_database_url};
 
     fn ctx(pool: &DbPool) -> CommandContext {
-        let url = fixture_database_url().expect("DATABASE_URL");
+        let url = test_database_url();
         CommandContext::with_app_context(
             cfg().with_output_format(OutputFormat::Json),
             EnvOverrides::default(),
-            fixture_app_context(pool, &url).expect("app context"),
+            test_app_context(pool, &url),
         )
     }
 
@@ -410,7 +405,7 @@ mod dispatch {
 
     #[tokio::test]
     async fn the_link_variant_reaches_link_and_creates_the_association() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
@@ -435,7 +430,7 @@ mod dispatch {
 
     #[tokio::test]
     async fn the_unlink_variant_reaches_unlink_and_removes_the_association() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
@@ -474,7 +469,7 @@ mod dispatch {
     // was asked to preview.
     #[tokio::test]
     async fn a_dry_run_unlink_leaves_the_association_in_place() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
@@ -511,7 +506,7 @@ mod dispatch {
 
     #[tokio::test]
     async fn the_list_variant_reaches_list_rather_than_erroring() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
 
         dispatch(
@@ -541,7 +536,7 @@ mod dispatch {
 
     #[tokio::test]
     async fn the_featured_variant_reaches_featured_and_promotes_the_link() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
         link(
@@ -574,7 +569,7 @@ mod dispatch {
     // featured image it has no relationship to.
     #[tokio::test]
     async fn featuring_a_file_that_is_not_linked_is_refused() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let file = seed_file(&pool).await;
 
@@ -600,7 +595,7 @@ mod dispatch {
     // happens to see.
     #[tokio::test]
     async fn featuring_a_second_file_demotes_the_first() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let content = seed_content(&pool).await;
         let first = seed_file(&pool).await;
         let second = seed_file(&pool).await;

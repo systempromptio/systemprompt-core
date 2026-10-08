@@ -3,12 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_traits::{
     AgentJwtClaims, GenerateTokenParams, JwtProviderError, JwtResult, JwtValidationProvider,
 };
-use uuid::Uuid;
+
+use crate::error::OauthError;
 
 use super::generation::{JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token};
 use super::validation::jwt::validate_jwt_token;
@@ -26,11 +27,8 @@ impl JwtValidationProviderImpl {
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let config = systemprompt_models::Config::get().map_err(|e| {
-            JwtProviderError::ConfigurationError {
-                message: e.to_string(),
-            }
-        })?;
+        let config = systemprompt_manifest::Config::get()
+            .map_err(|e| JwtProviderError::Internal(Box::new(e)))?;
 
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
@@ -41,17 +39,16 @@ impl JwtValidationProviderImpl {
 
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
-        let claims = validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {
-            if e.to_string().contains("expired") {
-                JwtProviderError::TokenExpired
-            } else {
-                JwtProviderError::InvalidToken
-            }
-        })?;
+        let claims =
+            validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| match e {
+                OauthError::Expired(_) => JwtProviderError::TokenExpired,
+                _ => JwtProviderError::InvalidToken,
+            })?;
 
         let is_admin = claims.is_admin();
+        let subject = UserId::try_new(claims.sub).map_err(|_e| JwtProviderError::InvalidToken)?;
         Ok(AgentJwtClaims {
-            subject: UserId::new(claims.sub),
+            subject,
             username: claims.username,
             user_type: claims.user_type.to_string(),
             audiences: claims.aud.iter().map(ToString::to_string).collect(),
@@ -63,15 +60,8 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     }
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
-        let user_id = Uuid::parse_str(params.user_id.as_str()).map_err(|e| {
-            JwtProviderError::Internal(format!(
-                "user_id {:?} is not a valid UUID: {e}",
-                params.user_id.as_str()
-            ))
-        })?;
-
         let user = AuthenticatedUser {
-            id: user_id,
+            id: params.user_id.clone(),
             username: params.username.clone(),
             email: params.username.clone(),
             roles: vec![],
@@ -79,25 +69,37 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             attributes: std::collections::BTreeMap::new(),
         };
 
-        let permissions: Vec<Permission> = params
+        let permissions = params
             .permissions
             .iter()
-            .filter_map(|p| p.parse().ok())
-            .collect();
+            .map(|p| {
+                p.parse::<Permission>().map_err(|_e| {
+                    JwtProviderError::Internal(Box::new(OauthError::Validation(format!(
+                        "unknown permission {p:?}"
+                    ))))
+                })
+            })
+            .collect::<JwtResult<Vec<_>>>()?;
 
-        let audiences: Vec<JwtAudience> = params
+        let audiences = params
             .audiences
             .iter()
-            .filter_map(|a| a.parse().ok())
-            .collect();
+            .map(|a| match a.parse::<JwtAudience>() {
+                Ok(JwtAudience::Resource(_)) | Err(_) => {
+                    Err(JwtProviderError::MissingAudience(a.clone()))
+                },
+                Ok(audience) => Ok(audience),
+            })
+            .collect::<JwtResult<Vec<_>>>()?;
+        if audiences.is_empty() {
+            return Err(JwtProviderError::MissingAudience(
+                "at least one audience is required".to_owned(),
+            ));
+        }
 
         let config = JwtConfig {
             permissions,
-            audience: if audiences.is_empty() {
-                JwtAudience::standard()
-            } else {
-                audiences
-            },
+            audience: audiences,
             expires_in: params.expires_in_hours.map_or_else(
                 || JwtConfig::default().expires_in,
                 |hours| chrono::Duration::hours(i64::from(hours)),
@@ -107,13 +109,13 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             client_id: None,
         };
 
-        let jti = generate_secure_token("jwt");
+        let jti = AccessTokenId::new(generate_secure_token("jwt"));
         let signing = JwtSigningParams {
             issuer: &self.issuer,
         };
 
         generate_jwt(&user, config, jti, &params.session_id, &signing)
-            .map_err(|e| JwtProviderError::Internal(e.to_string()))
+            .map_err(|e| JwtProviderError::Internal(e.into()))
     }
 
     fn generate_secure_token(&self, prefix: &str) -> String {

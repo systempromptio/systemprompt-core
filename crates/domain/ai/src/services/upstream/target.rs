@@ -6,10 +6,11 @@
 use std::collections::BTreeSet;
 
 use systemprompt_identifiers::ProviderId;
-use systemprompt_models::services::{Hosting, ProviderEntry, WireProtocol};
-use systemprompt_models::wire::anthropic::AnthropicBeta;
-use systemprompt_models::wire::upstream::UpstreamDialect;
+use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
+use systemprompt_wire::anthropic::AnthropicBeta;
+use systemprompt_wire::upstream::UpstreamDialect;
+use systemprompt_wire::{Hosting, WireProtocol};
 
 use super::call::UpstreamCall;
 use super::error::UpstreamTargetError;
@@ -75,7 +76,7 @@ impl UpstreamTarget {
 
     pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
         let secrets = systemprompt_config::SecretsBootstrap::get()
-            .map_err(|e| UpstreamTargetError::SecretsUnavailable(e.to_string()))?;
+            .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
         let secret_name = entry.api_key_secret.as_str();
         let secret =
             secrets

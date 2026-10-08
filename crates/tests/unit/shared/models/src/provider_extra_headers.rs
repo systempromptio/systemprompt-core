@@ -6,8 +6,10 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_models::services::providers::ProviderRegistryError;
-use systemprompt_models::services::{ApiSurface, ProviderEntry, ProviderRegistry, WireProtocol};
+use systemprompt_manifest::services::providers::ProviderRegistryError;
+use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_models::providers::ApiSurface;
+use systemprompt_wire::WireProtocol;
 
 fn anthropic_with(headers: &[(&str, &str)]) -> ProviderRegistry {
     ProviderRegistry {

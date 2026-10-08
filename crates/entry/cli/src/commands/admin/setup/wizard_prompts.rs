@@ -175,7 +175,7 @@ pub(super) fn print_summary(env_name: &str, profile_path: &Path) {
     ));
     CliService::info("");
     CliService::info("2. Start services:");
-    CliService::info("   just start");
+    CliService::info("   systemprompt infra services start");
     CliService::info("");
     CliService::info("3. (Optional) Configure cloud deployment:");
     CliService::info("   systemprompt cloud auth login");

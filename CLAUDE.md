@@ -7,15 +7,15 @@ Core platform engine for systemprompt.io — a multi-tenant AI agent platform wi
 Five layers under `crates/`; dependencies flow downward only, no cycles:
 
 ```
-entry (api, cli) → app (runtime, scheduler, generator) → domain → infra → shared
+entry (api, cli) → app (runtime, scheduler, generator, oauth-issuance, gateway) → domain → infra → shared
 ```
 
-- **shared** — models, traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider
+- **shared** — models (runtime models), wire (provider wire codecs; depends only on identifiers), manifest (services manifest, profile, config, validators), traits, identifiers (typed IDs), extension framework, provider-contracts, client, template-provider. `models` depends on neither `wire` nor `manifest`, and `bin/bridge` links only `models` and `identifiers` (enforced by `just lint-layers`)
 - **infra** — database (SQLx), events, security (JWT/authz), config, logging, loader, cloud, storage
-- **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams, evaluation. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
-- **app** — runtime (`AppContext`), scheduler, generator
+- **domain** — users, oauth, files, analytics, content, ai, mcp, agent, templates, marketplace, slack, teams. Domain crates are **peers**: no domain→domain deps (see Rust Standards)
+- **app** — runtime (`AppContext`), scheduler, generator, oauth-issuance (`/oauth/token` grant workflow; the API keeps the thin handler), gateway (the AI gateway: protocol translation, gateway policies, quotas, safety, audit journal; the API keeps the thin handlers)
 - **entry** — api (HTTP server), cli
-- `systemprompt/` — facade crate re-exporting everything behind feature flags (`core`, `database`, `api`, `cli`, `full`)
+- `systemprompt/` — facade crate re-exporting everything behind feature flags: `core` (default; carries `models`, `wire` and `manifest`), `full`, and granular `database`, `config`, `mcp`, `api`, `cloud`, `cli`, `runtime`, `analytics`, `logging`, `loader`, `events`, `storage`, `client`, `security`; `slack` and `teams` are opt-in and outside `full` (`systemprompt/Cargo.toml` is the list)
 - `crates/tests/` — separate test workspace, excluded from the main workspace
 
 ## Documentation Layout
@@ -43,8 +43,8 @@ next   ← default branch. Every agent, every session. Every push runs the gates
 main   ← protected, release-only. Tagged. Never pushed to directly.
 ```
 
-**Every push to `next` runs CI, Quality and Supply Chain** — fmt, build,
-sqlx-check, the 14 test shards, the schema upgrade ladder, clippy, rustdoc, the
+**Every push to `next` runs CI, Quality and Supply Chain** — fmt, build
+(offline, against the committed per-crate sqlx caches), the 14 test shards, the schema upgrade ladder, clippy, rustdoc, the
 source-gate linters, MSRV, the file-size guard and `cargo deny`. The ladder
 (`schema-ladder.yml`) installs each of the two newest releases, upgrades that
 database with the pushed tree and diffs it against a fresh install — the only
@@ -96,20 +96,20 @@ day of serial 40-minute promotion rounds.
 
 Public, code-only repository. In git: source, `Cargo.toml`/`build.rs`, `README.md`, `CHANGELOG.md`, schema/migration `*.sql`, legitimate test fixtures. **Never committed**: status/plan/report/summary/guide/progress/findings docs, coverage trackers, scratch notes, build output. `ci/` and `internal/` are gitignored.
 
-No new folders or process docs enter git without explicit user approval. Before any commit, sweep the staged tree:
-`git ls-files | grep -iE '(status|plan|report|summary|guide|progress|findings)'` and `git ls-files 'crates/**/*.md' | grep -vE '/(README|CHANGELOG)\.md$'`.
+No new folders or process docs enter git without explicit user approval. Before any commit, run `just lint-repo-hygiene` (also a `check-gates`/Quality gate). It fails on a tracked prose file (`.md`/`.txt`/`.org`/`.rst`/`.adoc`/`.pdf`/`.docx`) outside the sanctioned set — `README.md`/`CHANGELOG.md`, root `AGENTS.md`/`CLAUDE.md`/`SECURITY.md`, `documentation/`, the `scripts/*.txt` allowlists, `crates/tests/**` fixtures and the vendored A2A spec — and on a status/plan/report/summary/progress/findings-named prose file anywhere; a clean tree prints only its OK line.
 
 ## Rust Standards
 
 **MANDATORY**: the marketplace skill `rust-coding-standards` is canonical; `internal/guides/rust.md` and this file mirror it — when they diverge, the skill wins.
 
 - **Inline `//` comments**: banned for WHAT-comments. Use `// Why:` only for an externally imposed protocol, vendor, platform or toolchain constraint that code cannot express. Preserve required `// SAFETY:` and `// JSON:` annotations. The default is no inline comment; follow AGENTS.md.
-- **`///` rustdoc**: uniform across all production crates incl. `entry/*`. `//!` blocks on `lib.rs` and significant `pub mod` files; per-item `///` only on **pub traits, top-level types, and `mod` declarations** (and only for non-obvious value) — banned on fns, methods, consts, fields, variants, and macros (gate: `scripts/lint-inline-comments.sh`). `///` is banned inside `crates/tests/**`.
+- **`///` rustdoc**: uniform across all production crates incl. `entry/*`. `//!` blocks on `lib.rs` and significant `pub mod` files; per-item `///` only on **pub traits, top-level types, and `mod` declarations** (and only for non-obvious value) — banned on fns, methods, consts, fields, variants, and macros (gate: `scripts/lint-inline-comments.sh`). `///` is banned inside `crates/tests/**` (review-enforced; the gate skips that tree).
 - **Typed identifiers**: no raw String IDs in struct fields or service args — use `systemprompt_identifiers` wrappers. Construct via `Id::new(s)` / `Id::try_new(s)?` / `Id::generate()`; never `.into()` or `::from()` at call sites (convention, reviewer-enforced).
-- **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only where the SQL text is necessarily dynamic: `infra/database/src/admin/**`, `infra/database/src/services/postgres/**`, `infra/database/src/repository/entity.rs`, the table-driven analytics projector (`domain/analytics/src/projection/{mod,snapshot}.rs`), the inventory-driven user purge (`domain/users/src/repository/user/purge.rs`), `entry/cli/src/commands/admin/setup/**` (bootstrap DDL) and `entry/cli/src/commands/infrastructure/jobs/cleanup_logs.rs`. The list is `scripts/check-sqlx.sh`'s allowlist; a turbofish (`query_scalar::<_, T>(`) is a runtime query too.
+- **Repository pattern**: services never run SQL directly; all queries via compile-time macros (`sqlx::query!` family). Runtime `sqlx::query(_)` only where the SQL text is necessarily dynamic: `infra/database/src/admin/**`, `infra/database/src/services/postgres/**`, the inventory-driven user purge (`domain/users/src/repository/user/purge.rs`) and `entry/cli/src/commands/admin/setup/**` (bootstrap DDL). The list is `scripts/check-sqlx.sh`'s allowlist, and an entry whose path is gone or holds no runtime query fails the gate; a turbofish (`query_scalar::<_, T>(`) is a runtime query too.
 - **Repository construction**: repositories are built once at composition roots (the `AppContext` builder, router-scoped state, or an owning service's ctor that stores them as fields) and injected. Consumers use the `AppContext` repository accessors (`a2a_repositories()`, `content_repositories()`, … — see `crates/app/runtime/src/context/mod.rs`) or the owning struct's field. Ad-hoc `Repo::new(&pool)` in handler/method bodies is gated by `just lint-repo-construction` (CLI one-shot commands and job bodies are exempt).
-- **Errors**: `thiserror` enums in library crates; `anyhow` only in `entry/cli`, `entry/api`, `build.rs`, and tests.
+- **Errors**: `thiserror` enums in library crates; `anyhow` only in `entry/cli`, `entry/api`, `build.rs`, and tests. One `RepositoryError` (`systemprompt_traits`) and one HTTP model (`ApiError`): a 5xx body is a fixed message and the cause is logged, never serialised. An error built from another error keeps it as a `#[source]`/`#[from]` cause — no `map_err(|e| e.to_string())`, `Result<_, String>` or `Variant(String)` built from Display (gate: `just lint-stringly-errors`).
 - **Async traits**: native `async fn`; `#[async_trait]` only for `dyn`-compatibility, documented on the trait.
+- **Owned background work**: tasks and threads are spawned through the injected `BackgroundTasks` or held as an `OwnedTask` (`systemprompt_traits`); child processes are supervised through `systemprompt_loader::subprocess` and signalled only when provably ours (recorded pid + spawn marker via `owns`/`stop_owned`). Gate: `just lint-owned-tasks`.
 - **Logging**: `tracing` with structured fields. `println!`/`eprintln!`/`dbg!` banned in libraries (carve-outs: CLI display sinks in `infra/logging/services/cli/**`, `infra/database/src/services/display.rs`, `cargo:` build-script directives).
 - **No domain→domain deps**: cross-domain capability flows through shared-layer traits (`DynAiProvider`, `ToolProvider`, `SessionUsageCounters`, provider-contracts) or infra, wired at app/entry composition roots. Enforced by `just lint-layers`; its allowlist is empty by design.
 - **No legacy code**: no shims, dual paths, or `Option<T>` migration stubs — land the new form and delete the old in the same PR.
@@ -129,7 +129,7 @@ Follow `internal/guides/rust.md` §6. Logging does not turn a failed operation i
 
 ## Extension Framework
 
-Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`metadata()`, `schemas()`, `router()`, `migrations()`). Key traits: `Extension`, `SchemaExtensionTyped`, `ApiExtensionTyped`, `JobExtensionTyped`, `ProviderExtensionTyped`.
+Extensions register at compile time via `inventory` (`register_extension!`); implement `Extension` (`crates/shared/extension/src/traits/extension.rs`): `metadata()` is required; `schemas()`, `migrations()`, `router()`, `jobs()` and the provider hooks (`tool_providers()`, `page_prerenderers()`, …) are defaulted methods on that one trait — there are no typed sub-traits. Companion traits: `ExtensionContext` (handed to `router()`) and `GatewayRequestGuard` (`register_gateway_guard!`).
 
 ## Configuration
 
@@ -142,16 +142,18 @@ The CLI records where the profile came from (`ProfileSource`: `--profile`, `SYST
 ## Building, Running & Schema Validation
 
 ```bash
-cargo build --workspace        # online: sqlx macros validate against the live dev DB
-just build-offline             # offline: committed .sqlx cache, no DB required
+cargo build --workspace        # online: sqlx macros validate against the DB that DATABASE_URL names
+just build-offline             # offline: committed per-crate .sqlx caches, no DB required
 ```
+
+Each crate that issues `query!`-family macros tracks its own `crates/<layer>/<crate>/.sqlx/` (regenerated by `just sqlx-prepare-publish`); the root `.sqlx/` from `just sqlx-prepare` is a gitignored development cache.
 
 **Core has no runnable local profile** — nothing here to `start` or `migrate` against. Running and end-to-end validation happen in **`../systemprompt-template`** (always kept in sync with core):
 
 1. Point the template at local core via `[patch.crates-io]` (never bump its version pins just to validate).
 2. Use the template's recipes: `just build` = offline CLI build → `infra db migrate` → online sqlx-validated build; `just start` migrates before serving. Schema changes cannot deadlock or drift its DB.
 
-**Schema-change gotcha in core**: `.cargo/config.toml` (and `crates/tests/.cargo/config.toml`) pin live `DATABASE_URL`s, so after adding a migration the dev DBs are behind the code and online `cargo check` fails at the sqlx macro. Apply the new `schema/migrations/*.sql` to those DBs (or run the template flow) first; `just check-offline` / `just build-offline` always work.
+**Schema-change gotcha in core**: an online build validates against the database `DATABASE_URL` names (exported for the root workspace; `crates/tests/.cargo/config.toml` falls back to the local `systemprompt_test`), so after adding a migration that DB is behind the code and online `cargo check` fails at the sqlx macro. Apply the new `schema/migrations/*.sql` to it (or run the template flow, or `just test-shard`, which recreates and migrates `systemprompt_test`) first; `just check-offline` / `just build-offline` always work.
 
 The bridge GUI's web tree (`bin/bridge/web/`) cannot be seen on Linux — the
 webview is Windows/macOS only. Use `just bridge-preview` to serve it over HTTP
@@ -160,7 +162,7 @@ GUI.
 
 ## Testing
 
-Separate workspace at `crates/tests/`, run **sharded** under `cargo-nextest`. Shard definitions live in `scripts/test-shard.sh` (single source of truth for CI and the recipes; `scripts/test-shard.sh --list` prints the current groups). Each shard runs against a fresh, freshly-migrated database — never the `systemprompt-web` dev DB (its triggers break core tests). Override the target with `TEST_DATABASE_URL`; the default is a disposable `systemprompt_test`.
+Separate workspace at `crates/tests/`, run **sharded** under `cargo-nextest`. Shard definitions live in `scripts/test-shard.sh` (single source of truth for CI and the recipes; `scripts/test-shard.sh --list` prints the current groups). Each shard runs against a fresh, freshly-migrated database — never the `systemprompt-web` dev DB (its triggers break core tests). Override the target with `TEST_DATABASE_URL`; the default is a disposable `systemprompt_test`, whose URL carries no password (`PGPASSWORD` or `~/.pgpass` supplies it).
 
 ```bash
 just install-nextest                        # one-time, prebuilt binary

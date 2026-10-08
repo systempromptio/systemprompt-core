@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
-use systemprompt_identifiers::{FileId, UserId};
+use systemprompt_identifiers::UserId;
 
 use crate::CliConfig;
 use crate::commands::core::files::types::{AiFilesListOutput, FileSummary};
@@ -36,7 +36,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     let files = match &args.user {
         Some(user_id) => {
@@ -51,7 +51,7 @@ pub async fn execute_with_pool(
     let files: Vec<FileSummary> = files
         .into_iter()
         .map(|f| FileSummary {
-            id: FileId::new(f.id.to_string()),
+            id: f.id,
             path: f.path,
             public_url: f.public_url,
             mime_type: f.mime_type,

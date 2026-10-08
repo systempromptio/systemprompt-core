@@ -187,6 +187,7 @@ fn payload_title(artifact: &Artifact) -> Option<String> {
         .find_map(|part| part.as_data().and_then(|data| string_field(&data, "title")))
 }
 
+// JSON: A2A DataPart — an open JSON object.
 fn string_field(data: &serde_json::Value, field: &str) -> Option<String> {
     data.get(field)
         .and_then(serde_json::Value::as_str)

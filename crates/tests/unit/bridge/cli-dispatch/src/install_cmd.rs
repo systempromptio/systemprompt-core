@@ -82,11 +82,14 @@ fn install_rejects_a_malformed_gateway_before_touching_the_filesystem() {
 fn install_apply_mobileconfig_is_rejected_off_macos() {
     let sb = Sandbox::new();
     sb.run(|| {
-        let _ = run_with_args(&argv(&["install", "--apply-mobileconfig"]));
+        assert_ne!(
+            run_with_args(&argv(&["install", "--apply-mobileconfig"])),
+            std::process::ExitCode::SUCCESS
+        );
     });
     assert!(
-        sb.org_plugins().is_dir(),
-        "the directory bootstrap still runs before the MDM step fails"
+        !sb.org_plugins().exists(),
+        "a failed catalog refresh must not bootstrap an installation"
     );
 }
 
@@ -95,11 +98,14 @@ fn install_apply_mobileconfig_is_rejected_off_macos() {
 fn install_apply_has_no_linux_mdm_format() {
     let sb = Sandbox::new();
     sb.run(|| {
-        let _ = run_with_args(&argv(&["install", "--apply"]));
+        assert_ne!(
+            run_with_args(&argv(&["install", "--apply"])),
+            std::process::ExitCode::SUCCESS
+        );
     });
     assert!(
-        sb.metadata().join("version.json").exists(),
-        "bootstrap completes even though Linux has no MDM apply"
+        !sb.metadata().join("version.json").exists(),
+        "a failed catalog refresh must not record an installation"
     );
 }
 
@@ -113,6 +119,12 @@ fn install_print_mdm_for_another_os_leaves_the_local_tree_bootstrapped() {
     assert!(sb.org_plugins().is_dir());
 }
 
+// The uninstall tests are Linux only, like the `off_macos`/`no_linux_mdm`
+// cases above: on macOS uninstall inspects and removes the machine's real
+// configuration profile and `/Library/Managed Preferences` plists behind an
+// administrator password dialog, which a test can neither answer nor safely
+// grant. This crate runs in the Linux shard only.
+#[cfg(target_os = "linux")]
 #[test]
 fn uninstall_clears_metadata_and_plugin_dirs_but_keeps_credentials() {
     let sb = Sandbox::new();
@@ -149,6 +161,7 @@ fn uninstall_clears_metadata_and_plugin_dirs_but_keeps_credentials() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn uninstall_purge_also_removes_the_stored_credential() {
     let sb = Sandbox::new();
@@ -171,6 +184,7 @@ fn uninstall_purge_also_removes_the_stored_credential() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn uninstall_on_a_never_installed_machine_is_clean() {
     let sb = Sandbox::new();
@@ -183,6 +197,7 @@ fn uninstall_on_a_never_installed_machine_is_clean() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn purge_device_returns_the_machine_to_a_never_installed_state() {
     use systemprompt_bridge::context::{BridgeContext, ProxyMode};

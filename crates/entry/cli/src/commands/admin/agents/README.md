@@ -788,20 +788,3 @@ sp infra logs request stats --since 1h
 ```
 
 **Related Documentation:** See [logs/README.md](../../infrastructure/logs/README.md) for complete logs command documentation.
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandOutput` with proper artifact type
-- [x] `delete` command requires `--yes` / `-y` flag
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] `resolve_input` pattern used for interactive/non-interactive selection
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing required flags
-
-
----

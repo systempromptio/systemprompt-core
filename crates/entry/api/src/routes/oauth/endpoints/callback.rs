@@ -11,18 +11,19 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::Deserialize;
-use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_identifiers::{
-    AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
+    AccessTokenId, AuthorizationCode, ClientId, RefreshTokenId, SessionSource,
 };
-use systemprompt_models::Config;
-use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
+use systemprompt_manifest::Config;
+use systemprompt_models::auth::parse_permissions;
 
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::services::load_authenticated_user;
 use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Deserialize)]
@@ -37,35 +38,19 @@ pub async fn handle_callback(
     OAuthRepo(repo): OAuthRepo,
     ClientIp(caller_ip): ClientIp,
     headers: HeaderMap,
-) -> impl IntoResponse {
-    let config = match Config::get() {
-        Ok(c) => c,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to load config: {e}"),
-            )
-                .into_response();
-        },
-    };
+) -> Result<Response, OAuthHttpError> {
+    let config = Config::get()?;
 
     let server_base_url = &config.api_external_url;
     let redirect_uri = format!("{server_base_url}/api/v1/core/oauth/callback");
 
-    let browser_client = match find_browser_client(&repo, &redirect_uri).await {
-        Ok(client) => client,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to find OAuth client: {e}"),
-            )
-                .into_response();
-        },
-    };
+    let browser_client = find_browser_client(&repo, &redirect_uri)
+        .await
+        .map_err(|e| internal::server_error("Failed to find OAuth client", e))?;
 
     let code = AuthorizationCode::new(&params.code);
     let client_id = ClientId::new(&browser_client.client_id);
-    let token_response = match exchange_code_for_token(
+    let token_response = exchange_code_for_token(
         &repo,
         CodeExchangeParams {
             caller_ip,
@@ -77,47 +62,36 @@ pub async fn handle_callback(
         &state,
     )
     .await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                format!("Failed to exchange code for token: {e}"),
-            )
-                .into_response();
-        },
-    };
+    .map_err(|e| {
+        internal::rejected(
+            OAuthHttpError::invalid_grant("Failed to exchange code for token")
+                .with_status(StatusCode::UNAUTHORIZED),
+            e,
+        )
+    })?;
 
-    let redirect_destination =
-        match resolve_redirect_destination(&repo, params.state.as_deref()).await {
-            Ok(destination) => destination,
-            Err(response) => return response,
-        };
+    let redirect_destination = resolve_redirect_destination(&repo, params.state.as_deref()).await?;
 
-    session_cookie_redirect(&token_response.access_token, &redirect_destination)
+    Ok(session_cookie_redirect(
+        &token_response.access_token,
+        &redirect_destination,
+    ))
 }
 
 async fn resolve_redirect_destination(
     repo: &OAuthRepository,
     state_token: Option<&str>,
-) -> Result<String, Response> {
+) -> Result<String, OAuthHttpError> {
     let Some(state_token) = state_token.filter(|s| !s.is_empty()) else {
-        return Err((StatusCode::BAD_REQUEST, "Missing state parameter").into_response());
+        return Err(OAuthHttpError::invalid_request("Missing state parameter"));
     };
     match repo.consume_state_binding(state_token).await {
         Ok(Some(binding)) => Ok(binding.return_to),
         Ok(None) => {
             tracing::warn!("state binding missing, expired, or already consumed");
-            Err((StatusCode::BAD_REQUEST, "Invalid state parameter").into_response())
+            Err(OAuthHttpError::invalid_request("Invalid state parameter"))
         },
-        Err(e) => {
-            tracing::error!(error = %e, "state binding lookup failed");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to validate state",
-            )
-                .into_response())
-        },
+        Err(e) => Err(internal::server_error("Failed to validate state", e)),
     }
 }
 
@@ -165,19 +139,15 @@ async fn exchange_code_for_token(
     state: &OAuthState,
 ) -> anyhow::Result<TokenResponse> {
     use systemprompt_oauth::services::{
-        JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt, generate_secure_token,
+        JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token,
     };
 
     let validation_result = repo
-        .validate_authorization_code(
-            params.code,
-            params.client_id,
-            Some(params.redirect_uri),
-            None,
-        )
+        .validate_authorization_code(params.code, params.client_id, params.redirect_uri, "")
         .await?;
 
-    let user = load_authenticated_user(&validation_result.user_id, state.user_provider()).await?;
+    let user =
+        load_authenticated_user(state.user_provider().as_ref(), &validation_result.user_id).await?;
 
     let permissions = parse_permissions(&validation_result.scope)?;
 
@@ -196,7 +166,7 @@ async fn exchange_code_for_token(
         .create_authenticated_session(&validation_result.user_id, &analytics, SessionSource::Oauth)
         .await?;
 
-    let access_token_jti = generate_access_token_jti();
+    let access_token_jti = AccessTokenId::generate();
     let global_config = Config::get()?;
     let config = JwtConfig {
         permissions: permissions.clone(),
@@ -226,53 +196,13 @@ async fn exchange_code_for_token(
     repo.store_refresh_token(refresh_params).await?;
 
     if let Err(e) = repo
-        .link_auth_code_to_refresh_token(params.code, refresh_token_id.as_str())
+        .link_auth_code_to_refresh_token(params.code, &refresh_token_id)
         .await
     {
         tracing::warn!(error = %e, "Failed to link auth code to refresh token");
     }
 
     Ok(TokenResponse { access_token })
-}
-
-async fn load_authenticated_user(
-    user_id: &UserId,
-    user_provider: &Arc<dyn systemprompt_traits::UserProvider>,
-) -> anyhow::Result<AuthenticatedUser> {
-    let user = user_provider
-        .find_by_id(user_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?
-        .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
-
-    let permissions: Vec<Permission> = user
-        .roles
-        .iter()
-        .filter_map(|s| {
-            Permission::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(
-                        user_id = %user.id,
-                        role = %s,
-                        error = %e,
-                        "Invalid role in user record"
-                    );
-                    e
-                })
-                .ok()
-        })
-        .collect();
-
-    let user_uuid = uuid::Uuid::parse_str(user.id.as_str())
-        .map_err(|_e| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
-
-    Ok(AuthenticatedUser::new_with_roles(
-        user_uuid,
-        user.name,
-        user.email,
-        permissions,
-        user.roles,
-    ))
 }
 
 #[derive(Debug)]

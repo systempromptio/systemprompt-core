@@ -248,7 +248,7 @@ async fn doctor_check_functions_cover_pass_and_fail() {
     assert!(key_via_secret.detail.contains("secrets.json"));
 
     let providers = check_provider_secrets(
-        &systemprompt_models::services::ProviderRegistry::default_seed().unwrap(),
+        &systemprompt_manifest::services::ProviderRegistry::default_seed().unwrap(),
         &secrets,
     );
     let _ = format!("{providers:?}");
@@ -432,7 +432,7 @@ async fn deploy_skip_push_builds_owned_image_syncs_secrets_and_requests_deploy()
     .expect("write owned release artifact");
     systemprompt_cli::cloud::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
-        name,
+        &pname(name),
         env.root(),
     )
     .expect("write validated profile Dockerfile");
@@ -723,7 +723,7 @@ fn prepare_failure_deploy(env: &Env, name: &str) -> std::path::PathBuf {
     .expect("write owned release artifact");
     systemprompt_cli::cloud::profile::templates::save_dockerfile(
         &profile_dir.join("docker/Dockerfile"),
-        name,
+        &pname(name),
         env.root(),
     )
     .expect("write validated profile Dockerfile");
@@ -1048,4 +1048,8 @@ async fn deployment_logs_in_with_stdin_pushes_exact_image_then_provisions() {
     );
 
     remove_profile(&env, name);
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

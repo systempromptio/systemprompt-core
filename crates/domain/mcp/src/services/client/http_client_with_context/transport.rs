@@ -62,7 +62,7 @@ impl StreamableHttpClient for HttpClientWithContext {
             request_builder = request_builder.header(HEADER_SESSION_ID, session_id.as_ref());
         }
 
-        request_builder = self.add_context_headers(request_builder);
+        request_builder = self.add_context_headers(request_builder, auth_token);
 
         for (key, value) in &custom_headers {
             request_builder = request_builder.header(key, value);
@@ -70,9 +70,6 @@ impl StreamableHttpClient for HttpClientWithContext {
 
         if let Some(last_event_id) = last_event_id {
             request_builder = request_builder.header(HEADER_LAST_EVENT_ID, last_event_id);
-        }
-        if let Some(auth_header) = auth_token {
-            request_builder = request_builder.bearer_auth(auth_header);
         }
 
         let response = request_builder
@@ -112,15 +109,12 @@ impl StreamableHttpClient for HttpClientWithContext {
     ) -> Result<(), StreamableHttpError<Self::Error>> {
         let mut request_builder = self.client().delete(uri.as_ref());
 
-        request_builder = self.add_context_headers(request_builder);
+        request_builder = self.add_context_headers(request_builder, auth_token);
 
         for (key, value) in &custom_headers {
             request_builder = request_builder.header(key, value);
         }
 
-        if let Some(auth_header) = auth_token {
-            request_builder = request_builder.bearer_auth(auth_header);
-        }
         let response = request_builder
             .header(HEADER_SESSION_ID, session.as_ref())
             .send()
@@ -171,15 +165,12 @@ impl StreamableHttpClient for HttpClientWithContext {
             .post(uri.as_ref())
             .header(ACCEPT, [EVENT_STREAM_MIME_TYPE, JSON_MIME_TYPE].join(", "));
 
-        request = self.add_context_headers(request);
+        request = self.add_context_headers(request, auth_token);
 
         for (key, value) in &custom_headers {
             request = request.header(key, value);
         }
 
-        if let Some(auth_header) = auth_token {
-            request = request.bearer_auth(auth_header);
-        }
         if let Some(ref session_id) = session_id {
             request = request.header(HEADER_SESSION_ID, session_id.as_ref());
         }

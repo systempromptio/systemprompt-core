@@ -11,8 +11,8 @@
 use std::fs;
 
 use chrono::Utc;
-use systemprompt_models::profile::ServicesSource;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::profile::ServicesSource;
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BundleSourceState, ServicesBundleState, SignedBundleManifest,
 };
 
@@ -125,7 +125,7 @@ async fn download_and_install(
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::rename(&staged, &target).map_err(|e| BundleError::extract(&target, e))?;
+    fs::rename(&staged, &target).map_err(|e| BundleError::extract_cause(&target, e))?;
 
     tracing::info!(
         source = %source.name,

@@ -13,7 +13,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -36,7 +36,7 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
         cli,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -54,9 +54,8 @@ struct Seed {
 
 impl Seed {
     async fn new() -> Self {
-        let url = fixture_database_url().unwrap();
-        let pool = fixture_db_pool(&url).await.unwrap();
-        let raw = pool.pool_arc().unwrap().as_ref().clone();
+        let pool = test_db_pool().await;
+        let raw = pool.pool().as_ref().clone();
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("prev_user_{tag}");

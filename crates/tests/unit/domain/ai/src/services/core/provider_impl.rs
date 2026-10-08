@@ -17,7 +17,8 @@ use systemprompt_models::ai::{
 use systemprompt_models::errors::AiInferenceError;
 
 use super::{
-    ai_config, noop_session_provider, pool_or_skip, registry_with_endpoint, seeded_context, service,
+    ai_config, bootstrapped_pool, noop_session_provider, registry_with_endpoint, seeded_context,
+    service,
 };
 use crate::services::providers::mock_http;
 
@@ -39,9 +40,7 @@ fn request(context: systemprompt_models::RequestContext) -> AiRequest {
 
 #[tokio::test]
 async fn the_trait_reports_the_same_defaults_as_the_inherent_accessors() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
@@ -65,9 +64,7 @@ async fn the_trait_reports_the_same_defaults_as_the_inherent_accessors() {
 
 #[tokio::test]
 async fn generate_through_the_trait_returns_the_upstream_content() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("via trait"))
             .await;
@@ -80,9 +77,7 @@ async fn generate_through_the_trait_returns_the_upstream_content() {
 
 #[tokio::test]
 async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI provider trait database fixture");
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_error(500, serde_json::json!({"error":{"message":"boom"}}))
             .await;
@@ -96,14 +91,13 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
         .retry_attempts = 1;
     let service = Arc::new(
         AiService::new(
-            &pool,
             &registry,
             &config,
             systemprompt_ai::AiServiceProviders {
                 tools: Arc::new(NoopToolProvider::new()),
                 sessions: noop_session_provider(),
             },
-            &systemprompt_ai::repository::AiRepositories::new(&pool).expect("AI repositories"),
+            &systemprompt_ai::repository::AiRepositories::new(&pool),
         )
         .expect("service with one-attempt provider builds"),
     );
@@ -139,7 +133,7 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'failed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("failed audit count")
     .unwrap_or(0);
@@ -151,9 +145,7 @@ async fn an_upstream_failure_surfaces_as_a_boxed_provider_error() {
 
 #[tokio::test]
 async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI provider trait database fixture");
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(SSE).await;
     let service = Arc::new(service(&pool, ANTHROPIC, server.uri()));
     let provider: Arc<dyn AiProvider> = service.clone();
@@ -173,7 +165,8 @@ async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
     assert!(matches!(
         err,
         AiInferenceError::Configuration(message)
-            if message.contains("anthropic") && message.contains("not-priced-by-the-catalogue")
+            if message.to_string().contains("anthropic")
+                && message.to_string().contains("not-priced-by-the-catalogue")
     ));
     assert!(
         server
@@ -194,7 +187,7 @@ async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row count")
     .unwrap_or(0);
@@ -206,9 +199,7 @@ async fn trait_rejects_an_unpriced_explicit_model_before_dispatch_or_audit() {
 
 #[tokio::test]
 async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI provider trait database fixture");
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("unused")).await;
     let service = Arc::new(service(&pool, ANTHROPIC, server.uri()));
@@ -229,8 +220,8 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
         .expect_err("an unconfigured provider cannot be dispatched");
     assert!(matches!(
         err,
-        AiInferenceError::Internal(message)
-            if message.contains("Provider not-configured not found")
+        AiInferenceError::Configuration(cause)
+            if cause.to_string() == "provider not-configured is not configured"
     ));
     assert!(
         server
@@ -251,7 +242,7 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row count")
     .unwrap_or(0);
@@ -260,9 +251,7 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
 
 #[tokio::test]
 async fn generate_with_tools_and_single_turn_go_through_the_trait() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("tooled")).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
@@ -287,9 +276,7 @@ async fn generate_with_tools_and_single_turn_go_through_the_trait() {
 
 #[tokio::test]
 async fn both_streaming_entry_points_yield_chunks_through_the_trait() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(SSE).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
     let (_user, context) = seeded_context(&pool).await;
@@ -321,9 +308,7 @@ async fn both_streaming_entry_points_yield_chunks_through_the_trait() {
 
 #[tokio::test]
 async fn tool_discovery_and_execution_go_through_the_trait() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
@@ -354,9 +339,7 @@ async fn tool_discovery_and_execution_go_through_the_trait() {
 
 #[tokio::test]
 async fn health_check_reports_a_status_per_configured_provider() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
@@ -371,9 +354,7 @@ async fn health_check_reports_a_status_per_configured_provider() {
 
 #[tokio::test]
 async fn plan_and_response_generation_go_through_the_trait() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("planned")).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));
@@ -412,9 +393,7 @@ async fn plan_and_response_generation_go_through_the_trait() {
 
 #[tokio::test]
 async fn google_search_through_the_trait_is_rejected_for_a_non_gemini_default() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("x")).await;
     let svc: Arc<dyn AiProvider> = Arc::new(service(&pool, ANTHROPIC, server.uri()));

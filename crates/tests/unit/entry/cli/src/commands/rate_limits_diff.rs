@@ -4,7 +4,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::rate_limits::diff::collect_differences;
-use systemprompt_models::RateLimitsConfig;
+use systemprompt_manifest::RateLimitsConfig;
 
 #[test]
 fn identical_configs_produce_no_differences() {

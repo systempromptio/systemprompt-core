@@ -5,12 +5,18 @@
 //! left by its siblings. A root that is really shared shows sibling markers;
 //! a root that only looks shared shows none.
 //!
+//! A random per-process instance id (a local profile with no `instance_id`
+//! and no `HOSTNAME`) cannot be recognised on a later boot, so its marker is
+//! removed once the read-back check passes, and markers left by earlier
+//! random-id processes are pruned rather than reported as siblings.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
 
 use systemprompt_identifiers::InstanceId;
+use systemprompt_manifest::config::is_random_instance_id;
 use systemprompt_traits::FileStorageError;
 use tokio::fs;
 
@@ -43,13 +49,25 @@ pub async fn probe_shared_mount(
     let read_back = fs::read_to_string(&marker).await?;
     let write_read_ok = read_back == body;
 
+    let ephemeral = is_random_instance_id(instance_id.as_str());
+    if ephemeral {
+        fs::remove_file(&marker).await?;
+    }
+
     let mut instances = Vec::new();
     let mut entries = fs::read_dir(&marker_dir).await?;
     while let Some(entry) = entries.next_entry().await? {
         let name = entry.file_name().to_string_lossy().into_owned();
-        if name != instance_id.as_str() {
-            instances.push(name);
+        if name == instance_id.as_str() {
+            continue;
         }
+        if is_random_instance_id(&name) {
+            if let Err(error) = fs::remove_file(entry.path()).await {
+                tracing::debug!(marker = %name, %error, "could not prune stale instance marker");
+            }
+            continue;
+        }
+        instances.push(name);
     }
     instances.sort_unstable();
 

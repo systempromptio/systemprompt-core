@@ -25,40 +25,34 @@ pub fn verify_slack_signature(
     body: &[u8],
     now_unix: i64,
 ) -> SlackResult<()> {
-    let ts: i64 = timestamp.parse().map_err(|e| {
-        SlackError::MalformedRequest(format!("invalid X-Slack-Request-Timestamp: {e}"))
-    })?;
+    if signing_secret.is_empty() {
+        return Err(SlackError::EmptySigningSecret);
+    }
+    let ts: i64 = timestamp.parse().map_err(SlackError::InvalidTimestamp)?;
     if (now_unix - ts).abs() > MAX_TIMESTAMP_SKEW_SECS {
         return Err(SlackError::StaleTimestamp);
     }
 
     let provided = signature
         .strip_prefix("v0=")
-        .ok_or_else(|| SlackError::Signature("missing v0= prefix".to_owned()))?;
-    let provided = hex::decode(provided)
-        .map_err(|e| SlackError::Signature(format!("signature is not valid hex: {e}")))?;
+        .ok_or(SlackError::MissingSignaturePrefix)?;
+    let provided = hex::decode(provided).map_err(SlackError::SignatureEncoding)?;
 
-    let mut mac = HmacSha256::new_from_slice(signing_secret)
-        .map_err(|e| SlackError::Internal(e.to_string()))?;
+    let mut mac = HmacSha256::new_from_slice(signing_secret).map_err(SlackError::SigningKey)?;
     mac.update(b"v0:");
     mac.update(timestamp.as_bytes());
     mac.update(b":");
     mac.update(body);
 
     mac.verify_slice(&provided)
-        .map_err(|e| SlackError::Signature(format!("HMAC mismatch: {e}")))
+        .map_err(SlackError::SignatureMismatch)
 }
 
-#[must_use]
-#[expect(
-    clippy::expect_used,
-    reason = "HMAC-SHA256 accepts any key length by construction; new_from_slice cannot fail here"
-)]
-pub fn sign(signing_secret: &[u8], timestamp: &str, body: &[u8]) -> String {
-    let mut mac = HmacSha256::new_from_slice(signing_secret).expect("HMAC accepts any key length");
+pub fn sign(signing_secret: &[u8], timestamp: &str, body: &[u8]) -> SlackResult<String> {
+    let mut mac = HmacSha256::new_from_slice(signing_secret).map_err(SlackError::SigningKey)?;
     mac.update(b"v0:");
     mac.update(timestamp.as_bytes());
     mac.update(b":");
     mac.update(body);
-    format!("v0={}", hex::encode(mac.finalize().into_bytes()))
+    Ok(format!("v0={}", hex::encode(mac.finalize().into_bytes())))
 }

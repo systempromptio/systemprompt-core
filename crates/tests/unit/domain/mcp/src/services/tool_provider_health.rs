@@ -5,13 +5,11 @@
 
 use std::collections::HashMap;
 
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_mcp::services::tool_provider::McpToolProvider;
-use systemprompt_models::services::ResilienceSettings;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::{ToolContext, ToolProvider};
 use wiremock::MockServer;
 
@@ -28,9 +26,13 @@ fn tool_context() -> ToolContext {
     let mut headers = HashMap::new();
     headers.insert("x-context-id".to_owned(), ContextId::generate().to_string());
     headers.insert("x-agent-name".to_owned(), "harness-agent".to_owned());
-    headers.insert("x-user-id".to_owned(), "harness-user".to_owned());
+    headers.insert(
+        "x-user-id".to_owned(),
+        "00000000-0000-4000-8000-0000000007f3".to_owned(),
+    );
 
-    let mut context = ToolContext::new(Actor::user(UserId::new("user-tph")), "token-tph");
+    let mut context = ToolContext::new(Actor::user(UserId::new("user-tph")))
+        .with_auth_token(JwtToken::new("token-tph"));
     context.session_id = Some(SessionId::new("s-tph"));
     context.headers = headers;
     context
@@ -54,13 +56,12 @@ fn dead_port() -> u16 {
     port
 }
 
-async fn provider_over_internal_servers_or_skip(
+async fn provider_over_internal_servers(
     agent: &str,
     blocks: &[String],
     assigned: &[&str],
-) -> Option<(McpToolProvider, &'static TestBootstrap)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+) -> (McpToolProvider, &'static TestBootstrap) {
+    let db = test_db_pool().await;
 
     let bootstrap = bootstrap_with_services(&format!(
         "{}{}",
@@ -68,10 +69,10 @@ async fn provider_over_internal_servers_or_skip(
         config_with_servers(blocks)
     ));
 
-    Some((
+    (
         McpToolProvider::new(db, RegistryService::new(fixture_user_id()), &resilience()),
         bootstrap,
-    ))
+    )
 }
 
 #[tokio::test]
@@ -84,7 +85,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
     let up = unique("tphup");
     let down = unique("tphdown");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
+    let (provider, bootstrap) = provider_over_internal_servers(
         "tph_agent",
         &[
             internal_server_block(&up, mock_port),
@@ -92,11 +93,7 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
         ],
         &[&up],
     )
-    .await
-    // skip-ok: no live MCP server on this host
-    else {
-        return;
-    };
+    .await;
     register_internal_extension(bootstrap, &up);
     register_internal_extension(bootstrap, &down);
 
@@ -118,15 +115,12 @@ async fn health_check_separates_reachable_managed_servers_from_dead_ones() {
 async fn health_check_failures_open_the_per_server_circuit_breaker() {
     let down = unique("tphbreak");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
+    let (provider, bootstrap) = provider_over_internal_servers(
         "tph_break",
         &[internal_server_block(&down, dead_port())],
         &[&down],
     )
-    .await
-    else {
-        return;
-    };
+    .await;
     register_internal_extension(bootstrap, &down);
 
     for _ in 0..3 {
@@ -136,7 +130,7 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
 
     let context = tool_context();
     let request = systemprompt_traits::ToolCallRequest {
-        tool_call_id: "call-break".to_owned(),
+        tool_call_id: systemprompt_identifiers::AiToolCallId::new("call-break"),
         name: "echo".to_owned(),
         arguments: serde_json::json!({}),
     };
@@ -158,15 +152,12 @@ async fn health_check_failures_open_the_per_server_circuit_breaker() {
 async fn refresh_connections_tolerates_a_managed_server_that_is_not_listening() {
     let down = unique("tphrefresh");
 
-    let Some((provider, bootstrap)) = provider_over_internal_servers_or_skip(
+    let (provider, bootstrap) = provider_over_internal_servers(
         "tph_refresh",
         &[internal_server_block(&down, dead_port())],
         &[&down],
     )
-    .await
-    else {
-        return;
-    };
+    .await;
     register_internal_extension(bootstrap, &down);
 
     provider

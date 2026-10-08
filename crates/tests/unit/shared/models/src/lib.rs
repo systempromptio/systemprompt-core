@@ -9,7 +9,7 @@
 //!   etc.)
 //! - Configuration models (Environment)
 //! - Event system models (SystemEventType, A2AEventType)
-//! - Authentication models (BaseRoles, AuthError)
+//! - Authentication models (BaseRoles, AuthRequestError)
 //! - Execution models (ExecutionStep, RequestContext, CallSource)
 //! - Validators (AgentConfig, AiConfig, Content, Mcp, Skills, RateLimits, Web)
 
@@ -45,6 +45,12 @@ mod artifacts_media;
 mod ai_tool_call;
 
 #[cfg(test)]
+mod ai_tool_result_formatter;
+
+#[cfg(test)]
+mod ai_tool_result_formatter_extended;
+
+#[cfg(test)]
 mod message_artifact;
 
 #[cfg(test)]
@@ -69,6 +75,9 @@ mod profile;
 mod profile_gateway;
 
 #[cfg(test)]
+mod profile_gateway_chains;
+
+#[cfg(test)]
 mod profile_secrets_vault;
 
 #[cfg(test)]
@@ -77,9 +86,15 @@ mod profile_services_sources;
 #[cfg(test)]
 mod profile_audit;
 #[cfg(test)]
+mod profile_database_migrate_on_boot;
+#[cfg(test)]
+mod profile_instance_identity;
+#[cfg(test)]
 mod profile_judge;
 #[cfg(test)]
 mod profile_observability;
+#[cfg(test)]
+mod profile_server_capacity;
 
 #[cfg(test)]
 mod oci_reference;
@@ -186,7 +201,7 @@ mod services_agent;
 mod disk_agent_config;
 
 #[cfg(test)]
-mod internal_api_error;
+mod api_error_codes;
 
 #[cfg(test)]
 mod execution_plan;
@@ -199,6 +214,9 @@ mod auth_permission;
 
 #[cfg(test)]
 mod auth_types;
+
+#[cfg(test)]
+mod bridge_host_kind;
 
 #[cfg(test)]
 mod bridge_ids;
@@ -226,9 +244,6 @@ mod users_summary;
 
 #[cfg(test)]
 mod oauth_models;
-
-#[cfg(test)]
-mod repository_tests;
 
 #[cfg(test)]
 mod modules_tests;
@@ -283,6 +298,9 @@ mod wire_stream_usage_order;
 mod profile_validation;
 
 #[cfg(test)]
+mod profile_storage_gcs;
+
+#[cfg(test)]
 mod auth_claims;
 
 #[cfg(test)]
@@ -316,9 +334,6 @@ mod events_system;
 mod models_misc_edges;
 
 #[cfg(test)]
-mod profile_from_env;
-
-#[cfg(test)]
 mod ai_request_response;
 
 #[cfg(test)]
@@ -336,3 +351,6 @@ mod services_rules;
 
 #[cfg(test)]
 mod feedback_contracts;
+
+#[cfg(test)]
+mod skill_frontmatter_render;

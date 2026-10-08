@@ -108,9 +108,11 @@ fn write(path: &Path, contents: &str) -> Result<(), InstallError> {
             source: e,
         })?;
     }
-    fs::write(path, contents).map_err(|e| InstallError::Schedule {
-        path: path.display().to_string(),
-        source: e,
+    crate::fsutil::atomic_write_0644(path, contents.as_bytes()).map_err(|e| {
+        InstallError::Schedule {
+            path: path.display().to_string(),
+            source: e,
+        }
     })
 }
 

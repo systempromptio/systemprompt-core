@@ -41,7 +41,8 @@ pub mod vertex;
 use std::collections::HashSet;
 use std::time::Duration;
 
-use systemprompt_models::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
+use systemprompt_identifiers::SecretName;
+use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
 use systemprompt_security::credential::ProviderCredential;
 
 use classify::Classification;
@@ -60,7 +61,7 @@ struct Plan<'a> {
     index: usize,
     source: &'a dyn CatalogSource,
     credential: ProviderCredential,
-    secret_name: String,
+    secret_name: SecretName,
 }
 
 pub async fn discover(
@@ -127,7 +128,7 @@ pub async fn discover_with(
         };
         let name = provider.name.as_str().to_owned();
 
-        let auth = match plan.credential.bearer(&plan.secret_name).await {
+        let auth = match plan.credential.bearer(plan.secret_name.as_str()).await {
             Ok(auth) => auth,
             Err(e) => {
                 push_failure(
@@ -174,8 +175,8 @@ fn plan<'a>(
         if !sources.iter().any(|s| s.matches_provider(entry)) {
             continue;
         }
-        let secret_name = entry.api_key_secret.as_str().to_owned();
-        let Some(value) = secret(&secret_name) else {
+        let secret_name = entry.api_key_secret.clone();
+        let Some(value) = secret(secret_name.as_str()) else {
             continue;
         };
         let credential = match ProviderCredential::parse(&value) {

@@ -72,9 +72,10 @@ fn any_value_to_string_serialises_composites_as_json() {
 }
 
 #[test]
-fn attrs_to_json_builds_nested_object() {
+fn attrs_to_json_keeps_only_allowlisted_scalar_metadata() {
     let attrs = vec![
         kv("service.name", AV::StringValue("api".to_owned())),
+        kv("gen_ai.usage.input_tokens", AV::IntValue(3)),
         kv("retries", AV::IntValue(3)),
         kv(
             "nested",
@@ -94,12 +95,31 @@ fn attrs_to_json_builds_nested_object() {
         value,
         json!({
             "service.name": "api",
-            "retries": 3,
-            "nested": {"inner": 0.25},
-            "payload": "<bytes:4>",
-            "missing": null,
+            "gen_ai.usage.input_tokens": 3,
         })
     );
+}
+
+#[test]
+fn attrs_to_json_rejects_private_shapes_under_allowlisted_keys() {
+    let attrs = vec![
+        kv("service.name", AV::StringValue("x".repeat(129))),
+        kv("error.type", AV::StringValue("sk-secret".to_owned())),
+        kv(
+            "gen_ai.usage.input_tokens",
+            AV::KvlistValue(KeyValueList {
+                values: vec![kv("prompt", AV::StringValue("private".to_owned()))],
+            }),
+        ),
+        kv(
+            "http.status_code",
+            AV::ArrayValue(ArrayValue {
+                values: vec![any(AV::IntValue(200))],
+            }),
+        ),
+        kv("service.version", AV::BytesValue(vec![0; 4])),
+    ];
+    assert_eq!(attrs_to_json(&attrs), json!({}));
 }
 
 #[test]

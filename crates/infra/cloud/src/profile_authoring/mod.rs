@@ -15,12 +15,12 @@ mod local_builder;
 pub use cloud_builder::CloudProfileBuilder;
 pub use local_builder::LocalProfileBuilder;
 
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, TrustedIssuer,
     default_resource_audiences,
 };
-use systemprompt_models::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
+use systemprompt_manifest::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
+use systemprompt_models::auth::JwtAudience;
 
 use crate::constants::profile as consts;
 
@@ -70,7 +70,7 @@ fn security_config(issuer: &str, trusted_issuers: Vec<TrustedIssuer>) -> Securit
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers,
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 

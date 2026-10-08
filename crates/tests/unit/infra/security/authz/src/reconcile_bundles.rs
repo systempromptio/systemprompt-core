@@ -10,17 +10,12 @@ use std::collections::HashMap;
 use chrono::Utc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     BundleOwnership, BundleSourceInfo, MarketplaceConfig, ServicesBundleManifest, ServicesConfig,
 };
 use systemprompt_security::authz::{EntityKind, IngestScope, reconcile_composed_bundles};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
-
-async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -53,7 +48,7 @@ fn marketplace(id: &str, role: &str) -> (MarketplaceId, MarketplaceConfig) {
 }
 
 async fn rules_for(db: &DbPool, entity_id: &str) -> Vec<(String, String)> {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_as::<_, (String, String)>(
         "SELECT rule_value, source FROM access_control_rules WHERE entity_id = $1 ORDER BY \
          rule_value",
@@ -65,7 +60,7 @@ async fn rules_for(db: &DbPool, entity_id: &str) -> Vec<(String, String)> {
 }
 
 async fn cleanup(db: &DbPool, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_id = $1")
         .bind(entity_id)
         .execute(&*pg)
@@ -80,9 +75,7 @@ async fn cleanup(db: &DbPool, entity_id: &str) {
 
 #[tokio::test]
 async fn each_bundle_owns_only_its_own_marketplaces() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let base_market = unique_id("bun-base");
     let extra_market = unique_id("bun-extra");
     let root = tempfile::tempdir().expect("composed root");
@@ -135,9 +128,7 @@ async fn each_bundle_owns_only_its_own_marketplaces() {
 
 #[tokio::test]
 async fn one_bundles_prune_never_reaches_another_bundles_rows() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let mine = unique_id("bun-mine");
     let theirs = unique_id("bun-theirs");
     let root = tempfile::tempdir().expect("composed root");
@@ -208,9 +199,7 @@ fn a_kind_added_with_no_ids_still_makes_the_scope_a_scope() {
 
 #[tokio::test]
 async fn a_bundle_that_owns_nothing_prunes_nothing() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let route = unique_id("bun-empty-route");
     let theirs = unique_id("bun-empty-theirs");
     let root = tempfile::tempdir().expect("composed root");

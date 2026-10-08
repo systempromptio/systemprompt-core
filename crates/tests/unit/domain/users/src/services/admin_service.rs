@@ -7,7 +7,7 @@
 
 use chrono::Utc;
 use systemprompt_test_fixtures::fixture_user_id;
-use systemprompt_users::{DemoteResult, PromoteResult, User};
+use systemprompt_users::{DemoteResult, PromoteResult, User, UserStatus};
 
 fn create_test_user(roles: Vec<String>) -> User {
     User {
@@ -16,14 +16,14 @@ fn create_test_user(roles: Vec<String>) -> User {
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
         display_name: Some("Test".to_string()),
-        status: Some("active".to_string()),
-        email_verified: Some(true),
+        status: UserStatus::Active,
+        email_verified: true,
         roles,
         avatar_url: None,
         is_bot: false,
         is_scanner: false,
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     }
 }
 

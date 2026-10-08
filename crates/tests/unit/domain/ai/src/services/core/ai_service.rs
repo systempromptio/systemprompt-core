@@ -10,7 +10,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{McpServerId, UserId};
 use systemprompt_models::ai::PlanningResult;
 
-use super::{pool_or_skip, seeded_context, service};
+use super::{bootstrapped_pool, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -33,7 +33,7 @@ fn user_request(model: &str, context: systemprompt_models::RequestContext) -> Ai
 }
 
 async fn count_requests(pool: &DbPool, user_id: &UserId) -> i64 {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     sqlx::query_scalar!(
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user_id.as_str()
@@ -46,9 +46,7 @@ async fn count_requests(pool: &DbPool, user_id: &UserId) -> i64 {
 
 #[tokio::test]
 async fn generate_returns_content_and_persists_audit_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("hello there"))
             .await;
@@ -68,9 +66,7 @@ async fn generate_returns_content_and_persists_audit_row() {
 
 #[tokio::test]
 async fn generate_error_path_persists_failed_row_and_errs() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_error(
         400,
         json!({ "error": { "type": "invalid_request", "message": "bad" } }),
@@ -88,9 +84,7 @@ async fn generate_error_path_persists_failed_row_and_errs() {
 
 #[tokio::test]
 async fn generate_with_tools_single_text_turn() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("plain answer"))
             .await;
@@ -104,9 +98,7 @@ async fn generate_with_tools_single_text_turn() {
 
 #[tokio::test]
 async fn generate_single_turn_returns_tool_calls() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
         "lookup",
         json!({ "q": "x" }),
@@ -127,9 +119,7 @@ async fn generate_single_turn_returns_tool_calls() {
 
 #[tokio::test]
 async fn generate_plan_direct_response_when_no_tool_calls() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("just reasoning"))
             .await;
@@ -146,9 +136,7 @@ async fn generate_plan_direct_response_when_no_tool_calls() {
 
 #[tokio::test]
 async fn generate_plan_tool_calls_when_present() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_tool_use_body(
         "search",
         json!({ "query": "rust" }),
@@ -174,9 +162,7 @@ async fn generate_plan_tool_calls_when_present() {
 
 #[tokio::test]
 async fn generate_response_synthesizes_final_text() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(mock_http::anthropic_response_body(
         "final synthesized answer",
     ))
@@ -198,9 +184,7 @@ async fn generate_response_synthesizes_final_text() {
 
 #[tokio::test]
 async fn generate_response_falls_back_to_defaults_when_unset() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::anthropic_messages_success(mock_http::anthropic_response_body("defaulted"))
             .await;
@@ -222,9 +206,7 @@ async fn generate_response_falls_back_to_defaults_when_unset() {
 
 #[tokio::test]
 async fn generate_stream_yields_text_chunks() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
@@ -247,9 +229,7 @@ async fn generate_stream_yields_text_chunks() {
 
 #[tokio::test]
 async fn generate_with_tools_stream_yields_chunks() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
@@ -291,7 +271,7 @@ struct StreamAudit {
 // row lands asynchronously; poll with a bounded deadline instead of sleeping a
 // fixed interval.
 async fn wait_for_streamed_row(pool: &DbPool, user_id: &UserId) -> StreamAudit {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     loop {
         let row = sqlx::query!(
@@ -337,9 +317,7 @@ const ANTHROPIC_SSE_WITH_USAGE: &str = "data: {\"type\":\"message_start\",\"mess
 
 #[tokio::test]
 async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE_WITH_USAGE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user_id, ctx) = seeded_context(&pool).await;
@@ -379,9 +357,7 @@ async fn drained_stream_persists_completed_audit_with_aggregated_usage() {
 // bill whatever usage had been reported) rather than leave no trace of it.
 #[tokio::test]
 async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE_WITH_USAGE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user_id, ctx) = seeded_context(&pool).await;
@@ -396,7 +372,7 @@ async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far()
     assert!(matches!(first, StreamChunk::Text(_)));
     drop(stream);
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     let row = loop {
         let row = sqlx::query!(
@@ -436,9 +412,7 @@ async fn dropped_stream_persists_a_failed_audit_row_with_the_usage_seen_so_far()
 // it is refused before the provider is called instead of billed at zero.
 #[tokio::test]
 async fn a_model_without_catalogue_pricing_is_refused_before_streaming() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user_id, ctx) = seeded_context(&pool).await;
@@ -458,9 +432,7 @@ async fn a_model_without_catalogue_pricing_is_refused_before_streaming() {
 
 #[tokio::test]
 async fn tool_stream_drained_to_end_persists_completed_audit() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(ANTHROPIC_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user_id, ctx) = seeded_context(&pool).await;
@@ -482,9 +454,7 @@ async fn tool_stream_drained_to_end_persists_completed_audit() {
 
 #[tokio::test]
 async fn stream_connect_failure_surfaces_provider_error() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_error(
         500,
         json!({ "error": { "type": "overloaded", "message": "busy" } }),
@@ -504,9 +474,7 @@ async fn stream_connect_failure_surfaces_provider_error() {
 
 #[tokio::test]
 async fn health_check_reports_provider_and_tools() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(json!({})).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
 
@@ -516,9 +484,7 @@ async fn health_check_reports_provider_and_tools() {
 
 #[tokio::test]
 async fn default_getters_reflect_config() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(json!({})).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
 
@@ -529,9 +495,7 @@ async fn default_getters_reflect_config() {
 
 #[tokio::test]
 async fn unknown_provider_in_request_errors() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(json!({})).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (_user, ctx) = seeded_context(&pool).await;
@@ -550,9 +514,7 @@ async fn unknown_provider_in_request_errors() {
 
 #[tokio::test]
 async fn openai_protocol_drives_generate() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::openai_chat_success(mock_http::openai_response_body("openai answer")).await;
     let svc = service(&pool, OPENAI, server.uri());
@@ -567,31 +529,26 @@ async fn openai_protocol_drives_generate() {
 
 #[tokio::test]
 async fn build_fails_when_default_provider_not_enabled() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     // default_provider points at a provider with no enabled policy entry.
     let registry = super::registry_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned());
     let mut config = super::ai_config(ANTHROPIC);
     config.default_provider = "gemini".to_owned();
     let result = systemprompt_ai::AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
             tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
             sessions: super::noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     );
     assert!(result.is_err());
 }
 
 #[tokio::test]
 async fn google_search_errs_when_no_provider_supports_it() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_success(json!({})).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
 
@@ -611,9 +568,7 @@ async fn google_search_errs_when_no_provider_supports_it() {
 
 #[tokio::test]
 async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server =
         mock_http::gemini_generate_success(mock_http::gemini_grounded_body("grounded answer"))
             .await;
@@ -625,14 +580,13 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
         .expect("gemini policy entry")
         .google_search_enabled = true;
     let svc = systemprompt_ai::AiService::new(
-        &pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
             tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
             sessions: super::noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(&pool),
     )
     .expect("AiService builds");
 
@@ -690,9 +644,7 @@ async fn tools_only_response_synthesizes_and_audits_both_provider_calls() {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer};
 
-    let pool = pool_or_skip()
-        .await
-        .expect("AI database fixture must be configured");
+    let pool = bootstrapped_pool().await;
     let server = MockServer::start().await;
     let calls = std::sync::Arc::new(AtomicUsize::new(0));
     Mock::given(method("POST"))
@@ -738,7 +690,7 @@ async fn tools_only_response_synthesizes_and_audits_both_provider_calls() {
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1 ORDER BY created_at, id",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable primary and synthesis audit rows");
     assert_eq!(rows.len(), 2);
@@ -782,9 +734,7 @@ async fn failed_tool_synthesis_returns_diagnostic_fallback_without_fabricated_au
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer};
 
-    let pool = pool_or_skip()
-        .await
-        .expect("AI database fixture must be configured");
+    let pool = bootstrapped_pool().await;
     let server = MockServer::start().await;
     let calls = std::sync::Arc::new(AtomicUsize::new(0));
     Mock::given(method("POST"))
@@ -846,7 +796,7 @@ async fn failed_tool_synthesis_returns_diagnostic_fallback_without_fabricated_au
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable audit rows after synthesis failure");
     assert_eq!(
@@ -892,9 +842,7 @@ async fn empty_tool_synthesis_retries_guidance_and_audits_every_completed_provid
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer};
 
-    let pool = pool_or_skip()
-        .await
-        .expect("AI database fixture must be configured");
+    let pool = bootstrapped_pool().await;
     let server = MockServer::start().await;
     let calls = std::sync::Arc::new(AtomicUsize::new(0));
     Mock::given(method("POST"))
@@ -930,7 +878,7 @@ async fn empty_tool_synthesis_retries_guidance_and_audits_every_completed_provid
         "SELECT status, input_tokens, output_tokens FROM ai_requests WHERE user_id = $1",
     )
     .bind(user.as_str())
-    .fetch_all(pool.pool_arc().expect("AI read pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("durable audit rows after guidance retry");
     assert_eq!(rows.len(), 3);

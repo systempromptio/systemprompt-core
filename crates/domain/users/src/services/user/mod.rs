@@ -3,32 +3,66 @@
 //! [`UserService`] is the primary entry point for the users domain, delegating
 //! to [`UserRepository`] for lookups, listing and search, session management,
 //! account creation (including anonymous and federated identities), field
-//! updates, bulk operations, statistics, and account merging.
+//! updates, bulk operations and statistics.
+//!
+//! Account merging spans every domain that keys rows on a user. The service
+//! runs each injected
+//! [`OwnerReassignment`](systemprompt_traits::OwnerReassignment)
+//! — one per owning crate, each in its own transaction and re-runnable — and
+//! only then the users-owned step that moves sessions, records the merge and
+//! deletes the source. A failed reassignment stops the merge with the source
+//! still present, so a rerun completes it. A service built without
+//! reassignments refuses to merge rather than delete a user whose rows it
+//! cannot move.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod bulk;
+mod merge;
 mod provider;
 
-use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_traits::DynOwnerReassignment;
 
-use crate::error::{Result, UserError};
-use crate::models::{
-    User, UserActivity, UserCountBreakdown, UserRole, UserSession, UserStats, UserStatus,
-    UserWithSessions,
-};
-use crate::repository::{MergeResult, PurgeCount, UpdateUserParams, UserRepository};
+use crate::error::Result;
+use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
+use crate::repository::{PurgeCount, UpdateUserParams, UserRepository};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct UserService {
-    repository: Arc<UserRepository>,
+    pub(super) repository: Arc<UserRepository>,
+    pub(super) owner_reassignments: Arc<[DynOwnerReassignment]>,
+}
+
+impl fmt::Debug for UserService {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let domains: Vec<&str> = self
+            .owner_reassignments
+            .iter()
+            .map(|reassignment| reassignment.domain())
+            .collect();
+        f.debug_struct("UserService")
+            .field("repository", &self.repository)
+            .field("owner_reassignments", &domains)
+            .finish()
+    }
 }
 
 impl UserService {
-    pub const fn new(repository: Arc<UserRepository>) -> Self {
-        Self { repository }
+    pub fn new(repository: Arc<UserRepository>) -> Self {
+        Self {
+            repository,
+            owner_reassignments: Arc::from([]),
+        }
+    }
+
+    #[must_use]
+    pub fn with_owner_reassignments(mut self, reassignments: Vec<DynOwnerReassignment>) -> Self {
+        self.owner_reassignments = Arc::from(reassignments);
+        self
     }
 
     pub async fn find_by_id(&self, id: &UserId) -> Result<Option<User>> {
@@ -43,8 +77,8 @@ impl UserService {
         self.repository.find_by_name(name).await
     }
 
-    pub async fn find_by_role(&self, role: UserRole) -> Result<Vec<User>> {
-        self.repository.find_by_role(role).await
+    pub async fn list_by_role(&self, role: UserRole) -> Result<Vec<User>> {
+        self.repository.list_by_role(role).await
     }
 
     pub async fn find_first_user(&self) -> Result<Option<User>> {
@@ -225,74 +259,5 @@ impl UserService {
 
     pub async fn count_old_anonymous(&self, days: i32) -> Result<i64> {
         self.repository.count_old_anonymous(days).await
-    }
-
-    pub async fn count_with_breakdown(&self) -> Result<UserCountBreakdown> {
-        let total = self.repository.count().await?;
-        let by_status_vec = self.repository.count_by_status().await?;
-        let by_role_vec = self.repository.count_by_role().await?;
-
-        let by_status: HashMap<String, i64> = by_status_vec.into_iter().collect();
-        let by_role: HashMap<String, i64> = by_role_vec.into_iter().collect();
-
-        Ok(UserCountBreakdown {
-            total,
-            by_status,
-            by_role,
-        })
-    }
-
-    pub async fn get_stats(&self) -> Result<UserStats> {
-        self.repository.get_stats().await
-    }
-
-    pub async fn list_by_filter(
-        &self,
-        status: Option<&str>,
-        role: Option<&str>,
-        older_than_days: Option<i64>,
-        limit: i64,
-    ) -> Result<Vec<User>> {
-        self.repository
-            .list_by_filter(status, role, older_than_days, limit)
-            .await
-    }
-
-    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
-        self.repository
-            .bulk_update_status(user_ids, new_status)
-            .await
-    }
-
-    pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
-        self.repository.bulk_delete(user_ids).await
-    }
-
-    pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
-        self.repository.merge_users(source_id, target_id).await
-    }
-
-    pub async fn promote_anonymous(
-        &self,
-        source_id: &UserId,
-        target_id: &UserId,
-    ) -> Result<MergeResult> {
-        if source_id == target_id {
-            return Err(UserError::Validation(
-                "cannot promote a user onto itself".to_owned(),
-            ));
-        }
-        let source = self
-            .repository
-            .find_by_id(source_id)
-            .await?
-            .ok_or_else(|| UserError::NotFound(source_id.clone()))?;
-        if !source.has_role(UserRole::Anonymous) {
-            return Err(UserError::Validation(format!(
-                "user {} is not anonymous; use an explicit admin merge instead",
-                source_id
-            )));
-        }
-        self.repository.merge_users(source_id, target_id).await
     }
 }

@@ -138,12 +138,7 @@ fn check_one(plugins: &Path, marketplace: &MarketplaceId, bin: &str) -> Check {
         );
     }
 
-    let parsed = std::fs::read(&manifest)
-        .map_err(|e| e.to_string())
-        .and_then(|bytes| {
-            serde_json::from_slice::<serde_json::Value>(&bytes).map_err(|e| e.to_string())
-        });
-    let doc = match parsed {
+    let doc = match read_manifest(&manifest) {
         Ok(doc) => doc,
         Err(e) => {
             return Check::fail(
@@ -171,4 +166,19 @@ fn check_one(plugins: &Path, marketplace: &MarketplaceId, bin: &str) -> Check {
             format!("{marketplace}: {n} plugin(s) registered with the Claude Code CLI"),
         ),
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+enum ManifestReadError {
+    #[error("{0}")]
+    Read(#[from] std::io::Error),
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
+}
+
+// JSON: a plugin marketplace manifest on disk — a foreign file inspected key by
+// key.
+fn read_manifest(path: &Path) -> Result<serde_json::Value, ManifestReadError> {
+    let bytes = std::fs::read(path)?;
+    Ok(serde_json::from_slice(&bytes)?)
 }

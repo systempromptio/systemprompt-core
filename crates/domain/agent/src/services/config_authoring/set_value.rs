@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::services::AgentConfig;
+use systemprompt_manifest::services::AgentConfig;
 
 use super::edit::AgentEditRequest;
 use super::{AgentConfigAuthoringService, ConfigAuthoringError};

@@ -35,7 +35,7 @@ pub async fn render_yaml_snapshot(pool: &DbPool) -> Result<String> {
 }
 
 async fn load_grouped_rules(pool: &DbPool) -> Result<BTreeMap<GroupKey, GroupValue>> {
-    let repo = AccessControlRepository::new(pool).map_err(|e| anyhow!("acquire repo: {e}"))?;
+    let repo = AccessControlRepository::new(pool);
     let rows = repo
         .list_role_rules_for_export()
         .await

@@ -10,13 +10,14 @@ pub mod skills;
 
 use std::sync::Arc;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_loader::{ConfigLoader, ServicesRootBootstrap};
-use systemprompt_models::{AgentConfig, ServicesConfig};
+use systemprompt_manifest::{AgentConfig, ServicesConfig};
 
 use crate::error::{AgentError, AgentResult};
 
 use crate::models::a2a::{
-    AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, TransportProtocol,
+    AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, ProtocolBinding,
 };
 use security::{oauth_to_security_config, override_oauth_urls};
 use skills::load_skill_from_disk;
@@ -71,7 +72,7 @@ impl AgentRegistry {
                   registry_provider.rs"
     )]
     pub async fn list_enabled_agents(&self) -> AgentResult<Vec<AgentConfig>> {
-        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
+        let is_cloud = is_cloud_deployment()?;
         Ok(self
             .config
             .agents
@@ -88,7 +89,7 @@ impl AgentRegistry {
                   registry_provider.rs"
     )]
     pub async fn get_default_agent(&self) -> AgentResult<AgentConfig> {
-        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
+        let is_cloud = is_cloud_deployment()?;
         self.config
             .agents
             .values()
@@ -123,9 +124,9 @@ impl AgentRegistry {
         let all_skills = load_agent_skills(&agent)?;
 
         let protocol_binding = match agent.card.preferred_transport.as_str() {
-            "GRPC" => TransportProtocol::Grpc,
-            "HTTP+JSON" => TransportProtocol::HttpJson,
-            _ => TransportProtocol::JsonRpc,
+            "GRPC" => ProtocolBinding::Grpc,
+            "HTTP+JSON" => ProtocolBinding::HttpJson,
+            _ => ProtocolBinding::JsonRpc,
         };
 
         Ok(AgentCard {
@@ -161,9 +162,15 @@ impl AgentRegistry {
         })
     }
 
-    pub async fn get_mcp_servers(&self, agent_name: &str) -> AgentResult<Vec<String>> {
-        let agent = self.get_agent(agent_name).await?;
-        Ok(agent.metadata.mcp_servers.include)
+    pub async fn get_mcp_servers(&self, agent_name: &AgentName) -> AgentResult<Vec<McpServerId>> {
+        let agent = self.get_agent(agent_name.as_str()).await?;
+        Ok(agent
+            .metadata
+            .mcp_servers
+            .include
+            .into_iter()
+            .map(McpServerId::new)
+            .collect())
     }
 
     pub async fn find_next_available_port(&self) -> AgentResult<u16> {
@@ -179,10 +186,17 @@ impl AgentRegistry {
             }
         }
 
-        Err(AgentError::Validation(format!(
-            "No available ports in range {BASE_PORT}-{MAX_PORT}"
-        )))
+        Err(AgentError::NoAvailablePort {
+            min: BASE_PORT,
+            max: MAX_PORT,
+        })
     }
+}
+
+fn is_cloud_deployment() -> AgentResult<bool> {
+    systemprompt_manifest::Config::get()
+        .map(|config| config.is_cloud)
+        .map_err(|e| AgentError::invalid_config("cannot resolve dev_only agents", e))
 }
 
 fn build_extensions(
@@ -190,7 +204,7 @@ fn build_extensions(
     runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     mcp_extensions: Vec<AgentExtension>,
 ) -> Vec<AgentExtension> {
-    let mut extensions = vec![AgentExtension::agent_identity(&agent.name)];
+    let mut extensions = vec![AgentExtension::agent_identity(&AgentName::new(&agent.name))];
 
     if let Some(prompt) = &agent.metadata.system_prompt {
         extensions.push(AgentExtension::system_instructions(prompt));
@@ -210,7 +224,8 @@ fn build_extensions(
 }
 
 fn load_agent_skills(agent: &AgentConfig) -> AgentResult<Vec<crate::models::a2a::AgentSkill>> {
-    let profile = ProfileBootstrap::get().map_err(|e| AgentError::Config(e.to_string()))?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| AgentError::invalid_config("profile is not initialised", e))?;
     let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
     load_agent_skills_from_dir(agent, &skills_path)
 }
@@ -229,10 +244,13 @@ pub fn load_agent_skills_from_dir(
         .map(|skill_id| {
             let skill_id_typed = systemprompt_identifiers::SkillId::new(skill_id);
             load_skill_from_disk(skills_dir, &skill_id_typed).map_err(|e| {
-                AgentError::Config(format!(
-                    "agent {} advertises skill {skill_id} which failed to load: {e}",
-                    agent.name
-                ))
+                AgentError::invalid_config(
+                    format!(
+                        "agent {} advertises skill {skill_id} which failed to load",
+                        agent.name
+                    ),
+                    e,
+                )
             })
         })
         .collect()

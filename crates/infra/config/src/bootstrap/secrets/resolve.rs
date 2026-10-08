@@ -15,7 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::{SecretsConfig, SecretsSource, VaultSecretsConfig};
+use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, VaultSecretsConfig};
 
 use super::SecretsBootstrapError;
 
@@ -66,7 +66,5 @@ pub fn resolve_source(
 fn configured_path(config: &SecretsConfig) -> Result<&str, SecretsBootstrapError> {
     config
         .secrets_path()
-        .map_err(|e| SecretsBootstrapError::SecretsConfigInvalid {
-            message: e.to_string(),
-        })
+        .map_err(SecretsBootstrapError::SecretsConfigInvalid)
 }

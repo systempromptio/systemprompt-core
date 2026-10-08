@@ -10,7 +10,9 @@
 //! - Model validation and state transitions
 
 use chrono::{TimeZone, Utc};
-use systemprompt_identifiers::ScheduledJobId;
+use systemprompt_identifiers::{JobName, ScheduledJobId, ServiceName};
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
+use systemprompt_provider_contracts::ProviderError;
 use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
     SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
@@ -52,7 +54,7 @@ fn test_job_status_deserialization() {
 
 #[test]
 fn test_scheduler_error_job_not_found() {
-    let error = SchedulerError::job_not_found("test_job");
+    let error = SchedulerError::job_not_found(JobName::new("test_job"));
     assert_eq!(error.to_string(), "Job not found: test_job");
 }
 
@@ -64,20 +66,23 @@ fn test_scheduler_error_invalid_schedule() {
 
 #[test]
 fn test_scheduler_error_job_execution_failed() {
-    let error = SchedulerError::job_execution_failed("test_job", "connection timeout");
+    let error = SchedulerError::job_execution_failed(
+        JobName::new("test_job"),
+        ProviderError::InvalidInput("connection timeout".to_owned()),
+    );
     assert_eq!(
         error.to_string(),
-        "Job execution failed: test_job - connection timeout"
+        "Job execution failed: test_job - Invalid input: connection timeout"
     );
 }
 
 #[test]
-fn test_scheduler_error_config_error() {
-    let error = SchedulerError::config_error("missing required field");
-    assert_eq!(
-        error.to_string(),
-        "Configuration error: missing required field"
-    );
+fn test_scheduler_error_port_occupied() {
+    let error = SchedulerError::PortOccupied {
+        port: 9000,
+        holders: vec![7],
+    };
+    assert_eq!(error.to_string(), "Port 9000 still held by PID(s) [7]");
 }
 
 #[test]
@@ -97,7 +102,7 @@ fn test_scheduled_job_model() {
     let now = Utc::now();
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "test_job".to_string(),
+        job_name: JobName::new("test_job"),
         schedule: "0 0 * * * *".to_string(),
         enabled: true,
         last_run: Some(now),
@@ -121,7 +126,7 @@ fn test_scheduled_job_with_error() {
     let now = Utc::now();
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "failing_job".to_string(),
+        job_name: JobName::new("failing_job"),
         schedule: "0 */10 * * * *".to_string(),
         enabled: true,
         last_run: Some(now),
@@ -149,7 +154,7 @@ fn test_scheduled_job_serialization() {
         .expect("valid datetime for test");
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "serialization_test".to_string(),
+        job_name: JobName::new("serialization_test"),
         schedule: "0 0 3 * * *".to_string(),
         enabled: false,
         last_run: None,
@@ -170,7 +175,7 @@ fn test_scheduled_job_serialization() {
 #[test]
 fn test_service_config_enabled() {
     let config = ServiceConfig {
-        name: "api-server".to_string(),
+        name: ServiceName::new("api-server"),
         service_type: ServiceType::Api,
         port: 8080,
         enabled: true,
@@ -184,7 +189,7 @@ fn test_service_config_enabled() {
 #[test]
 fn test_service_config_disabled() {
     let config = ServiceConfig {
-        name: "mcp-server".to_string(),
+        name: ServiceName::new("mcp-server"),
         service_type: ServiceType::Mcp,
         port: 3001,
         enabled: false,
@@ -276,7 +281,7 @@ fn test_service_action_cleanup_process() {
 #[test]
 fn test_verified_state_enabled_running_no_action() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -293,7 +298,7 @@ fn test_verified_state_enabled_running_no_action() {
 #[test]
 fn test_verified_state_enabled_starting_no_action() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Starting,
@@ -309,7 +314,7 @@ fn test_verified_state_enabled_starting_no_action() {
 #[test]
 fn test_verified_state_enabled_stopped_needs_start() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Stopped,
@@ -325,7 +330,7 @@ fn test_verified_state_enabled_stopped_needs_start() {
 #[test]
 fn test_verified_state_enabled_crashed_needs_restart() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -341,7 +346,7 @@ fn test_verified_state_enabled_crashed_needs_restart() {
 #[test]
 fn test_verified_state_enabled_orphaned_needs_restart() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Orphaned,
@@ -357,7 +362,7 @@ fn test_verified_state_enabled_orphaned_needs_restart() {
 #[test]
 fn test_verified_state_disabled_running_needs_stop() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Running,
@@ -374,7 +379,7 @@ fn test_verified_state_disabled_running_needs_stop() {
 #[test]
 fn test_verified_state_disabled_starting_needs_stop() {
     let state = VerifiedServiceState::builder(
-        "api-server".to_string(),
+        ServiceName::new("api-server"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Starting,
@@ -390,7 +395,7 @@ fn test_verified_state_disabled_starting_needs_stop() {
 #[test]
 fn test_verified_state_disabled_stopped_needs_cleanup_db() {
     let state = VerifiedServiceState::builder(
-        "old-service".to_string(),
+        ServiceName::new("old-service"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Stopped,
@@ -405,7 +410,7 @@ fn test_verified_state_disabled_stopped_needs_cleanup_db() {
 #[test]
 fn test_verified_state_disabled_crashed_needs_cleanup_db() {
     let state = VerifiedServiceState::builder(
-        "old-service".to_string(),
+        ServiceName::new("old-service"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Crashed,
@@ -419,7 +424,7 @@ fn test_verified_state_disabled_crashed_needs_cleanup_db() {
 #[test]
 fn test_verified_state_disabled_orphaned_needs_cleanup_process() {
     let state = VerifiedServiceState::builder(
-        "orphan-service".to_string(),
+        ServiceName::new("orphan-service"),
         ServiceType::Mcp,
         DesiredStatus::Disabled,
         RuntimeStatus::Orphaned,
@@ -435,7 +440,7 @@ fn test_verified_state_disabled_orphaned_needs_cleanup_process() {
 #[test]
 fn test_verified_state_status_display() {
     let running = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -445,7 +450,7 @@ fn test_verified_state_status_display() {
     assert_eq!(running.status_display(), "running");
 
     let starting = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Starting,
@@ -455,7 +460,7 @@ fn test_verified_state_status_display() {
     assert_eq!(starting.status_display(), "starting");
 
     let stopped = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Stopped,
@@ -465,7 +470,7 @@ fn test_verified_state_status_display() {
     assert_eq!(stopped.status_display(), "stopped");
 
     let crashed = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -475,7 +480,7 @@ fn test_verified_state_status_display() {
     assert_eq!(crashed.status_display(), "crashed");
 
     let orphaned = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Orphaned,
@@ -488,7 +493,7 @@ fn test_verified_state_status_display() {
 #[test]
 fn test_verified_state_action_display() {
     let no_action = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -498,7 +503,7 @@ fn test_verified_state_action_display() {
     assert_eq!(no_action.action_display(), "-");
 
     let start_action = VerifiedServiceState::builder(
-        "svc".to_string(),
+        ServiceName::new("svc"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Stopped,
@@ -511,7 +516,7 @@ fn test_verified_state_action_display() {
 #[test]
 fn test_verified_state_builder_with_pid() {
     let state = VerifiedServiceState::builder(
-        "service".to_string(),
+        ServiceName::new("service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -526,7 +531,7 @@ fn test_verified_state_builder_with_pid() {
 #[test]
 fn test_verified_state_builder_with_error() {
     let state = VerifiedServiceState::builder(
-        "service".to_string(),
+        ServiceName::new("service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -541,7 +546,7 @@ fn test_verified_state_builder_with_error() {
 #[test]
 fn test_verified_state_builder_complete() {
     let state = VerifiedServiceState::builder(
-        "full-service".to_string(),
+        ServiceName::new("full-service"),
         ServiceType::Mcp,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -576,8 +581,8 @@ fn test_reconciliation_result_new() {
 #[test]
 fn test_reconciliation_result_with_starts() {
     let mut result = ReconciliationResult::new();
-    result.started.push("service-1".to_string());
-    result.started.push("service-2".to_string());
+    result.started.push(ServiceName::new("service-1"));
+    result.started.push(ServiceName::new("service-2"));
 
     assert_eq!(result.started.len(), 2);
     assert!(result.is_success());
@@ -587,7 +592,7 @@ fn test_reconciliation_result_with_starts() {
 #[test]
 fn test_reconciliation_result_with_stops() {
     let mut result = ReconciliationResult::new();
-    result.stopped.push("old-service".to_string());
+    result.stopped.push(ServiceName::new("old-service"));
 
     assert_eq!(result.stopped.len(), 1);
     assert!(result.is_success());
@@ -597,7 +602,7 @@ fn test_reconciliation_result_with_stops() {
 #[test]
 fn test_reconciliation_result_with_restarts() {
     let mut result = ReconciliationResult::new();
-    result.restarted.push("crashed-service".to_string());
+    result.restarted.push(ServiceName::new("crashed-service"));
 
     assert_eq!(result.restarted.len(), 1);
     assert!(result.is_success());
@@ -607,8 +612,8 @@ fn test_reconciliation_result_with_restarts() {
 #[test]
 fn test_reconciliation_result_with_cleanups() {
     let mut result = ReconciliationResult::new();
-    result.cleaned_up.push("orphan-1".to_string());
-    result.cleaned_up.push("orphan-2".to_string());
+    result.cleaned_up.push(ServiceName::new("orphan-1"));
+    result.cleaned_up.push(ServiceName::new("orphan-2"));
 
     assert_eq!(result.cleaned_up.len(), 2);
     assert!(result.is_success());
@@ -618,10 +623,10 @@ fn test_reconciliation_result_with_cleanups() {
 #[test]
 fn test_reconciliation_result_with_failures() {
     let mut result = ReconciliationResult::new();
-    result.started.push("success-service".to_string());
+    result.started.push(ServiceName::new("success-service"));
     result
         .failed
-        .push(("fail-service".to_string(), "Port in use".to_string()));
+        .push((ServiceName::new("fail-service"), "Port in use".to_string()));
 
     assert!(!result.is_success());
     assert_eq!(result.total_actions(), 1); // Only successful actions counted
@@ -633,11 +638,11 @@ fn test_reconciliation_result_with_failures() {
 #[test]
 fn test_reconciliation_result_mixed_actions() {
     let mut result = ReconciliationResult::new();
-    result.started.push("new-service-1".to_string());
-    result.started.push("new-service-2".to_string());
-    result.stopped.push("old-service".to_string());
-    result.restarted.push("crashed-service".to_string());
-    result.cleaned_up.push("orphan".to_string());
+    result.started.push(ServiceName::new("new-service-1"));
+    result.started.push(ServiceName::new("new-service-2"));
+    result.stopped.push(ServiceName::new("old-service"));
+    result.restarted.push(ServiceName::new("crashed-service"));
+    result.cleaned_up.push(ServiceName::new("orphan"));
 
     assert!(result.is_success());
     assert_eq!(result.total_actions(), 5);
@@ -646,46 +651,46 @@ fn test_reconciliation_result_mixed_actions() {
 #[test]
 fn test_db_service_record_running() {
     let record = DbServiceRecord {
-        name: "api-server".to_string(),
-        service_type: "api".to_string(),
-        status: "running".to_string(),
+        name: ServiceName::new("api-server"),
+        service_type: ServiceModule::Agent,
+        status: ServiceStatus::Running,
         pid: Some(1234),
         port: 8080,
         updated_at_epoch: None,
     };
 
     assert_eq!(record.name, "api-server");
-    assert_eq!(record.status, "running");
+    assert_eq!(record.status, ServiceStatus::Running);
     assert_eq!(record.pid, Some(1234));
 }
 
 #[test]
 fn test_db_service_record_stopped() {
     let record = DbServiceRecord {
-        name: "mcp-server".to_string(),
-        service_type: "mcp".to_string(),
-        status: "stopped".to_string(),
+        name: ServiceName::new("mcp-server"),
+        service_type: ServiceModule::Mcp,
+        status: ServiceStatus::Stopped,
         pid: None,
         port: 3000,
         updated_at_epoch: None,
     };
 
-    assert_eq!(record.status, "stopped");
+    assert_eq!(record.status, ServiceStatus::Stopped);
     assert!(record.pid.is_none());
 }
 
 #[test]
 fn test_db_service_record_starting() {
     let record = DbServiceRecord {
-        name: "new-service".to_string(),
-        service_type: "api".to_string(),
-        status: "starting".to_string(),
+        name: ServiceName::new("new-service"),
+        service_type: ServiceModule::Agent,
+        status: ServiceStatus::Starting,
         pid: Some(5678),
         port: 9000,
         updated_at_epoch: None,
     };
 
-    assert_eq!(record.status, "starting");
+    assert_eq!(record.status, ServiceStatus::Starting);
     assert_eq!(record.pid, Some(5678));
 }
 
@@ -721,7 +726,7 @@ fn test_is_wedged_missing_timestamp_is_not_wedged() {
 #[test]
 fn test_wedged_service_restarts_via_action() {
     let state = VerifiedServiceState::builder(
-        "wedged".to_string(),
+        ServiceName::new("wedged"),
         ServiceType::Mcp,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -759,7 +764,7 @@ fn test_service_type_from_module_name_unknown() {
 #[test]
 fn test_all_enabled_state_transitions() {
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -769,7 +774,7 @@ fn test_all_enabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::None);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Starting,
@@ -779,7 +784,7 @@ fn test_all_enabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::None);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Stopped,
@@ -789,7 +794,7 @@ fn test_all_enabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::Start);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -799,7 +804,7 @@ fn test_all_enabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::Restart);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Orphaned,
@@ -812,7 +817,7 @@ fn test_all_enabled_state_transitions() {
 #[test]
 fn test_all_disabled_state_transitions() {
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Running,
@@ -822,7 +827,7 @@ fn test_all_disabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::Stop);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Starting,
@@ -832,7 +837,7 @@ fn test_all_disabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::Stop);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Stopped,
@@ -842,7 +847,7 @@ fn test_all_disabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Crashed,
@@ -852,7 +857,7 @@ fn test_all_disabled_state_transitions() {
     assert_eq!(state.needs_action, ServiceAction::CleanupDb);
 
     let state = VerifiedServiceState::builder(
-        "s".to_string(),
+        ServiceName::new("s"),
         ServiceType::Api,
         DesiredStatus::Disabled,
         RuntimeStatus::Orphaned,
@@ -865,7 +870,7 @@ fn test_all_disabled_state_transitions() {
 #[test]
 fn test_verified_state_serialization() {
     let state = VerifiedServiceState::builder(
-        "test-service".to_string(),
+        ServiceName::new("test-service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Running,
@@ -901,24 +906,9 @@ fn test_verified_state_deserialization() {
 }
 
 #[test]
-fn test_empty_service_name() {
-    let state = VerifiedServiceState::builder(
-        String::new(),
-        ServiceType::Api,
-        DesiredStatus::Enabled,
-        RuntimeStatus::Stopped,
-        8080,
-    )
-    .build();
-
-    assert_eq!(state.name, "");
-    assert_eq!(state.needs_action, ServiceAction::Start);
-}
-
-#[test]
 fn test_port_zero() {
     let config = ServiceConfig {
-        name: "no-port".to_string(),
+        name: ServiceName::new("no-port"),
         service_type: ServiceType::Mcp,
         port: 0,
         enabled: true,
@@ -930,7 +920,7 @@ fn test_port_zero() {
 #[test]
 fn test_high_port_number() {
     let config = ServiceConfig {
-        name: "high-port".to_string(),
+        name: ServiceName::new("high-port"),
         service_type: ServiceType::Api,
         port: 65535,
         enabled: true,
@@ -944,7 +934,7 @@ fn test_large_run_count() {
     let now = Utc::now();
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "frequent_job".to_string(),
+        job_name: JobName::new("frequent_job"),
         schedule: "* * * * * *".to_string(),
         enabled: true,
         last_run: Some(now),
@@ -965,7 +955,7 @@ fn test_job_with_special_characters_in_name() {
     let now = Utc::now();
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "job-with_special.chars:v2".to_string(),
+        job_name: JobName::new("job-with_special.chars:v2"),
         schedule: "0 0 * * * *".to_string(),
         enabled: true,
         last_run: None,
@@ -987,7 +977,7 @@ fn test_very_long_error_message() {
     let now = Utc::now();
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
-        job_name: "error_job".to_string(),
+        job_name: JobName::new("error_job"),
         schedule: "0 0 * * * *".to_string(),
         enabled: true,
         last_run: Some(now),
@@ -1021,7 +1011,7 @@ fn test_common_cron_schedules() {
         let now = Utc::now();
         let job = ScheduledJob {
             id: ScheduledJobId::generate(),
-            job_name: "test".to_string(),
+            job_name: JobName::new("test"),
             schedule: schedule.to_string(),
             enabled: true,
             last_run: None,
@@ -1041,25 +1031,25 @@ fn test_common_cron_schedules() {
 fn test_multiple_service_configs() {
     let configs = [
         ServiceConfig {
-            name: "api".to_string(),
+            name: ServiceName::new("api"),
             service_type: ServiceType::Api,
             port: 8080,
             enabled: true,
         },
         ServiceConfig {
-            name: "mcp-1".to_string(),
+            name: ServiceName::new("mcp-1"),
             service_type: ServiceType::Mcp,
             port: 3001,
             enabled: true,
         },
         ServiceConfig {
-            name: "mcp-2".to_string(),
+            name: ServiceName::new("mcp-2"),
             service_type: ServiceType::Mcp,
             port: 3002,
             enabled: false,
         },
         ServiceConfig {
-            name: "agent".to_string(),
+            name: ServiceName::new("agent"),
             service_type: ServiceType::Agent,
             port: 4000,
             enabled: true,
@@ -1080,15 +1070,15 @@ fn test_multiple_service_configs() {
 fn test_reconciliation_result_aggregation() {
     let mut result = ReconciliationResult::new();
 
-    result.started.push("new-api".to_string());
-    result.started.push("new-mcp".to_string());
-    result.restarted.push("crashed-service".to_string());
-    result.stopped.push("disabled-old".to_string());
-    result.cleaned_up.push("orphan-1".to_string());
-    result.cleaned_up.push("orphan-2".to_string());
+    result.started.push(ServiceName::new("new-api"));
+    result.started.push(ServiceName::new("new-mcp"));
+    result.restarted.push(ServiceName::new("crashed-service"));
+    result.stopped.push(ServiceName::new("disabled-old"));
+    result.cleaned_up.push(ServiceName::new("orphan-1"));
+    result.cleaned_up.push(ServiceName::new("orphan-2"));
     result
         .failed
-        .push(("bad-service".to_string(), "Error".to_string()));
+        .push((ServiceName::new("bad-service"), "Error".to_string()));
 
     assert_eq!(result.started.len(), 2);
     assert_eq!(result.restarted.len(), 1);
@@ -1210,153 +1200,11 @@ fn test_all_jobs_have_unique_names() {
 }
 
 #[test]
-fn test_process_info_creation() {
-    use systemprompt_scheduler::ProcessInfo;
-
-    let info = ProcessInfo {
-        pid: 1234,
-        name: "test-process".to_string(),
-        port: 8080,
-    };
-
-    assert_eq!(info.pid, 1234);
-    assert_eq!(info.name, "test-process");
-    assert_eq!(info.port, 8080);
-}
-
-
-#[test]
-fn test_process_info_debug() {
-    use systemprompt_scheduler::ProcessInfo;
-
-    let info = ProcessInfo {
-        pid: 9999,
-        name: "debug-test".to_string(),
-        port: 4000,
-    };
-
-    let debug_str = format!("{:?}", info);
-    assert!(debug_str.contains("ProcessInfo"));
-    assert!(debug_str.contains("9999"));
-    assert!(debug_str.contains("debug-test"));
-    assert!(debug_str.contains("4000"));
-}
-
-#[test]
-fn test_process_info_with_empty_name() {
-    use systemprompt_scheduler::ProcessInfo;
-
-    let info = ProcessInfo {
-        pid: 100,
-        name: String::new(),
-        port: 5000,
-    };
-
-    assert_eq!(info.name, "");
-}
-
-#[test]
-fn test_process_info_with_long_name() {
-    use systemprompt_scheduler::ProcessInfo;
-
-    let long_name = "a".repeat(1000);
-    let info = ProcessInfo {
-        pid: 200,
-        name: long_name,
-        port: 6000,
-    };
-
-    assert_eq!(info.name.len(), 1000);
-}
-
-#[test]
-fn test_check_port_protected_postgres() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::check_port(5432);
-    assert!(result.is_none(), "PostgreSQL port 5432 should be protected");
-}
-
-#[test]
-fn test_check_port_protected_pgbouncer() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::check_port(6432);
-    assert!(result.is_none(), "PgBouncer port 6432 should be protected");
-}
-
-#[test]
-fn test_kill_port_protected_postgres() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_port(5432, u32::MAX);
-    assert!(
-        result.is_empty(),
-        "Should not kill processes on protected PostgreSQL port"
-    );
-}
-
-#[test]
-fn test_kill_port_protected_pgbouncer() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_port(6432, u32::MAX);
-    assert!(
-        result.is_empty(),
-        "Should not kill processes on protected PgBouncer port"
-    );
-}
-
-#[test]
-fn test_kill_by_pattern_protected_postgres() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_by_pattern("postgres");
-    assert_eq!(result, 0, "Should not kill postgres processes");
-}
-
-#[test]
-fn test_kill_by_pattern_protected_pgbouncer() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_by_pattern("pgbouncer");
-    assert_eq!(result, 0, "Should not kill pgbouncer processes");
-}
-
-#[test]
-fn test_kill_by_pattern_protected_psql() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_by_pattern("psql");
-    assert_eq!(result, 0, "Should not kill psql processes");
-}
-
-#[test]
-fn test_kill_by_pattern_protected_contains() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let result = ProcessCleanup::kill_by_pattern("my-postgres-wrapper");
-    assert_eq!(result, 0, "Should not kill patterns containing postgres");
-}
-
-#[test]
-fn test_process_exists_current_process() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    let current_pid = std::process::id();
-    assert!(
-        ProcessCleanup::process_exists(current_pid),
-        "Current process PID should exist"
-    );
-}
-
-
-#[test]
 fn test_db_service_record_debug() {
     let record = DbServiceRecord {
-        name: "debug-service".to_string(),
-        service_type: "mcp".to_string(),
-        status: "crashed".to_string(),
+        name: ServiceName::new("debug-service"),
+        service_type: ServiceModule::Mcp,
+        status: ServiceStatus::Error,
         pid: None,
         port: 3000,
         updated_at_epoch: None,
@@ -1365,18 +1213,24 @@ fn test_db_service_record_debug() {
     let debug_str = format!("{:?}", record);
     assert!(debug_str.contains("DbServiceRecord"));
     assert!(debug_str.contains("debug-service"));
-    assert!(debug_str.contains("crashed"));
+    assert!(debug_str.contains("Error"));
 }
 
 #[test]
 fn test_db_service_record_all_statuses() {
-    let statuses = ["running", "starting", "stopped", "crashed", "orphaned"];
+    let statuses = [
+        ServiceStatus::Running,
+        ServiceStatus::Starting,
+        ServiceStatus::Stopping,
+        ServiceStatus::Stopped,
+        ServiceStatus::Error,
+    ];
 
     for status in statuses {
         let record = DbServiceRecord {
-            name: "status-test".to_string(),
-            service_type: "api".to_string(),
-            status: status.to_string(),
+            name: ServiceName::new("status-test"),
+            service_type: ServiceModule::Agent,
+            status,
             pid: Some(123),
             port: 8080,
             updated_at_epoch: None,
@@ -1388,7 +1242,7 @@ fn test_db_service_record_all_statuses() {
 #[test]
 fn test_verified_state_serialization_with_error() {
     let state = VerifiedServiceState::builder(
-        "error-service".to_string(),
+        ServiceName::new("error-service"),
         ServiceType::Api,
         DesiredStatus::Enabled,
         RuntimeStatus::Crashed,
@@ -1404,7 +1258,7 @@ fn test_verified_state_serialization_with_error() {
 #[test]
 fn test_verified_state_serialization_without_pid() {
     let state = VerifiedServiceState::builder(
-        "no-pid-service".to_string(),
+        ServiceName::new("no-pid-service"),
         ServiceType::Mcp,
         DesiredStatus::Disabled,
         RuntimeStatus::Stopped,
@@ -1426,7 +1280,7 @@ fn test_verified_state_all_service_types() {
 
     for (service_type, expected_str) in types {
         let state = VerifiedServiceState::builder(
-            "type-test".to_string(),
+            ServiceName::new("type-test"),
             service_type,
             DesiredStatus::Enabled,
             RuntimeStatus::Running,
@@ -1447,7 +1301,7 @@ fn test_verified_state_all_service_types() {
 #[test]
 fn test_service_config_debug() {
     let config = ServiceConfig {
-        name: "debug-test".to_string(),
+        name: ServiceName::new("debug-test"),
         service_type: ServiceType::Mcp,
         port: 3001,
         enabled: false,
@@ -1463,7 +1317,7 @@ fn test_service_config_debug() {
 fn test_scheduler_error_display_all_variants() {
     let errors = vec![
         (
-            SchedulerError::job_not_found("test_job"),
+            SchedulerError::job_not_found(JobName::new("test_job")),
             "Job not found: test_job",
         ),
         (
@@ -1471,12 +1325,17 @@ fn test_scheduler_error_display_all_variants() {
             "Invalid cron schedule: bad_cron",
         ),
         (
-            SchedulerError::job_execution_failed("job", "error"),
-            "Job execution failed: job - error",
+            SchedulerError::job_execution_failed(
+                JobName::new("job"),
+                ProviderError::InvalidInput("error".to_owned()),
+            ),
+            "Job execution failed: job - Invalid input: error",
         ),
         (
-            SchedulerError::config_error("bad config"),
-            "Configuration error: bad config",
+            SchedulerError::UnknownRetentionTable {
+                table: "nope".to_owned(),
+            },
+            "No retention path for table nope",
         ),
         (SchedulerError::AlreadyRunning, "Scheduler already running"),
         (SchedulerError::NotInitialized, "Scheduler not initialized"),
@@ -1503,7 +1362,7 @@ fn test_reconciliation_result_default() {
 #[test]
 fn test_reconciliation_result_debug() {
     let mut result = ReconciliationResult::new();
-    result.started.push("service-1".to_string());
+    result.started.push(ServiceName::new("service-1"));
 
     let debug_str = format!("{:?}", result);
     assert!(debug_str.contains("ReconciliationResult"));

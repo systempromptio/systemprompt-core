@@ -7,7 +7,7 @@ use clap::Parser;
 use systemprompt_cli::core::content::{self, ContentCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct ContentHarness {
@@ -21,26 +21,21 @@ fn parse(args: &[&str]) -> ContentCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
+        test_app_context(pool, &url),
     )
 }
 
 #[tokio::test]
 async fn generate_redirect_only_link() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     content::execute(
         parse(&[
@@ -59,7 +54,7 @@ async fn generate_redirect_only_link() {
 
 #[tokio::test]
 async fn generate_link_with_full_utm_params() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     content::execute(
         parse(&[
@@ -90,7 +85,7 @@ async fn generate_link_with_full_utm_params() {
 
 #[tokio::test]
 async fn generate_utm_link_without_params() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     content::execute(
         parse(&[
@@ -109,7 +104,7 @@ async fn generate_utm_link_without_params() {
 
 #[tokio::test]
 async fn generate_empty_url_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = content::execute(parse(&["link", "generate", "--url", ""]), &ctx)
         .await

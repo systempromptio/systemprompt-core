@@ -8,7 +8,7 @@ For what the platform is and why it exists, see the [repository README](https://
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.62.0", features = ["full"] }
+systemprompt = { version = "0.63.0", features = ["full"] }
 ```
 
 ```rust
@@ -17,13 +17,13 @@ use systemprompt::prelude::*;
 
 | Feature | Includes |
 |---------|----------|
-| `core` *(default)* | traits, models, identifiers, extension |
+| `core` *(default)* | traits, models, wire, manifest, identifiers, extension |
 | `database` | PostgreSQL abstraction (`DbPool`) |
-| `api` | HTTP server and `AppContext` (requires `core` + `database`) |
+| `api` | HTTP server, `AppContext` and OAuth token issuance (requires `core` + `database`) |
 | `cli` | CLI entry point |
 | `full` | Everything: all domain modules + CLI |
-| `slack` | Slack integration (opt-in; not included in `full`) |
-| `teams` | Microsoft Teams integration (opt-in; not included in `full`) |
+| `slack` | `systemprompt::slack` module (not in `full`; `api` compiles the crate regardless) |
+| `teams` | `systemprompt::teams` module (not in `full`; `api` compiles the crate regardless) |
 
 The full per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
 

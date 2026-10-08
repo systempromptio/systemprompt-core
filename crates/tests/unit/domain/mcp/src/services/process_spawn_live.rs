@@ -6,6 +6,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
 use systemprompt_config::paths::AppPaths;
+use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::process::spawner::{
     build_server, open_server_log, serialize_server_configs, spawn_server, verify_binary,
 };
@@ -117,11 +118,14 @@ fn build_server_succeeds_with_stub_cargo() {
 fn build_server_surfaces_stub_failure() {
     stub_cargo_on_path(1);
     let err = build_server(&internal_mcp_config("buildfail", 0)).expect_err("stub build fails");
-    assert!(err.to_string().contains("Build failed"));
+    assert!(
+        matches!(&err, systemprompt_mcp::McpDomainError::BuildFailed { service, .. } if service == "buildfail"),
+        "{err}"
+    );
 }
 
-#[test]
-fn spawn_server_permission_failure_creates_no_process_and_retains_its_diagnostic_log() {
+#[tokio::test]
+async fn spawn_server_permission_failure_creates_no_process_and_retains_its_diagnostic_log() {
     let bootstrap = ensure_test_bootstrap();
     let unique = uuid::Uuid::new_v4().simple().to_string();
     let name = format!("spawn-denied-{unique}");
@@ -145,10 +149,11 @@ fn spawn_server_permission_failure_creates_no_process_and_retains_its_diagnostic
         diagnosis.contains("Permission denied"),
         "the operator receives the executable-permission cause: {diagnosis}"
     );
-    assert!(
-        systemprompt_mcp::services::process::pid::find_pids_by_name(&name)
-            .expect("process search")
-            .is_empty(),
+    assert_eq!(
+        ProcessService::owned_port_holders(59323, &config.service_name())
+            .await
+            .expect("listener search"),
+        Vec::<u32>::new(),
         "failed spawn leaves no process carrying the unique service identity"
     );
     let log = bootstrap

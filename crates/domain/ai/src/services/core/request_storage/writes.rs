@@ -125,7 +125,7 @@ pub(super) async fn touch_session(
     session_id: &SessionId,
     user_id: &UserId,
 ) {
-    let jwt_expiration = systemprompt_models::Config::get()
+    let jwt_expiration = systemprompt_manifest::Config::get()
         .map(|c| c.jwt_access_token_expiration)
         .inspect_err(|e| {
             error!(error = %e, "Failed to get config for JWT expiration, using default 3600s");

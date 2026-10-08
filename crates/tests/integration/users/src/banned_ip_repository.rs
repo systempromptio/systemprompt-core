@@ -8,13 +8,9 @@
 //! - Cleanup of expired bans
 
 use anyhow::Result;
-use systemprompt_database::DbPool;
+use systemprompt_identifiers::SessionId;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {
     let _ = repo.unban_ip(ip).await;
@@ -22,13 +18,10 @@ async fn cleanup_test_ip(repo: &BannedIpRepository, ip: &str) {
 
 #[tokio::test]
 async fn repository_creation_from_db_pool() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.count_active_bans().await?;
 
@@ -37,12 +30,9 @@ async fn repository_creation_from_db_pool() -> Result<()> {
 
 #[tokio::test]
 async fn repository_creation_from_pool_arc() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
-    let pool = db.pool_arc()?;
+    let pool = db.pool();
     let repo = BannedIpRepository::from_pool(pool);
 
     repo.count_active_bans().await?;
@@ -52,13 +42,10 @@ async fn repository_creation_from_pool_arc() -> Result<()> {
 
 #[tokio::test]
 async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.255.254";
     cleanup_test_ip(&repo, test_ip).await;
@@ -71,13 +58,10 @@ async fn is_banned_returns_false_for_unbanned_ip() -> Result<()> {
 
 #[tokio::test]
 async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.1";
     cleanup_test_ip(&repo, test_ip).await;
@@ -100,13 +84,10 @@ async fn is_banned_returns_true_for_banned_ip() -> Result<()> {
 
 #[tokio::test]
 async fn ban_ip_creates_new_ban() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.2";
     cleanup_test_ip(&repo, test_ip).await;
@@ -137,13 +118,10 @@ async fn ban_ip_creates_new_ban() -> Result<()> {
 
 #[tokio::test]
 async fn ban_ip_with_fingerprint() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.3";
     let fingerprint = "test-fingerprint-123";
@@ -170,13 +148,10 @@ async fn ban_ip_with_fingerprint() -> Result<()> {
 
 #[tokio::test]
 async fn ban_ip_permanent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.4";
     cleanup_test_ip(&repo, test_ip).await;
@@ -206,13 +181,10 @@ async fn ban_ip_permanent() -> Result<()> {
 
 #[tokio::test]
 async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.5";
     cleanup_test_ip(&repo, test_ip).await;
@@ -248,16 +220,14 @@ async fn ban_ip_increments_ban_count_on_repeat() -> Result<()> {
 
 #[tokio::test]
 async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.6";
     cleanup_test_ip(&repo, test_ip).await;
+    let session_id = SessionId::new("session-xyz");
 
     let params = BanIpWithMetadataParams::new(
         test_ip,
@@ -268,7 +238,7 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
     .with_source_fingerprint("fp-123")
     .with_offense_path("/api/v1/malicious")
     .with_user_agent("TestBot/1.0")
-    .with_session_id("session-xyz");
+    .with_session_id(&session_id);
 
     repo.ban_ip_with_metadata(params).await?;
 
@@ -294,13 +264,10 @@ async fn ban_ip_with_metadata_includes_all_fields() -> Result<()> {
 
 #[tokio::test]
 async fn unban_ip_removes_ban() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.7";
     cleanup_test_ip(&repo, test_ip).await;
@@ -325,13 +292,10 @@ async fn unban_ip_removes_ban() -> Result<()> {
 
 #[tokio::test]
 async fn unban_ip_returns_false_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.200.200";
     cleanup_test_ip(&repo, test_ip).await;
@@ -344,13 +308,10 @@ async fn unban_ip_returns_false_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn get_ban_returns_none_for_unbanned() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.200.201";
     cleanup_test_ip(&repo, test_ip).await;
@@ -363,13 +324,10 @@ async fn get_ban_returns_none_for_unbanned() -> Result<()> {
 
 #[tokio::test]
 async fn list_active_bans_returns_active_bans() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.8";
     cleanup_test_ip(&repo, test_ip).await;
@@ -393,13 +351,10 @@ async fn list_active_bans_returns_active_bans() -> Result<()> {
 
 #[tokio::test]
 async fn list_bans_by_source_filters_correctly() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.9";
     let unique_source = "unique_integration_test_source";
@@ -422,13 +377,10 @@ async fn list_bans_by_source_filters_correctly() -> Result<()> {
 
 #[tokio::test]
 async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     let test_ip = "192.168.100.10";
     let unique_fp = "unique_test_fingerprint_xyz";
@@ -457,13 +409,10 @@ async fn list_bans_by_fingerprint_filters_correctly() -> Result<()> {
 
 #[tokio::test]
 async fn count_active_bans_returns_count() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.count_active_bans().await?;
 
@@ -472,13 +421,10 @@ async fn count_active_bans_returns_count() -> Result<()> {
 
 #[tokio::test]
 async fn cleanup_expired_runs_without_error() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = BannedIpRepository::new(&db_pool)?;
+    let repo = BannedIpRepository::new(&db_pool);
 
     repo.cleanup_expired().await?;
 

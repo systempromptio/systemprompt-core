@@ -3,7 +3,7 @@
 
 use base64::Engine;
 use jsonwebtoken::{Algorithm, decode_header};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{PluginId, SessionId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::plugin_token::{PluginTokenService, PluginTokenSubject};
 use systemprompt_test_fixtures::install_test_signing_key;
@@ -12,7 +12,7 @@ const ISSUER: &str = "https://issuer.test";
 
 fn subject() -> PluginTokenSubject {
     PluginTokenSubject {
-        id: uuid::Uuid::parse_str("11111111-2222-3333-4444-555555555555").expect("uuid"),
+        id: UserId::new("11111111-2222-3333-4444-555555555555"),
         username: "Admin User".to_owned(),
         email: "admin@example.com".to_owned(),
     }
@@ -33,7 +33,7 @@ fn issue_mints_rs256_token_with_kid_header() {
     let issued = PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
     )
@@ -53,7 +53,7 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
     let issued = PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         30,
         &session_id,
     )
@@ -68,7 +68,7 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
 
     assert_eq!(claims.sub, "11111111-2222-3333-4444-555555555555");
     assert_eq!(claims.iss, ISSUER);
-    assert_eq!(claims.jti, issued.jti);
+    assert_eq!(claims.jti, issued.jti.as_str());
     assert_eq!(claims.username, "Admin User");
     assert_eq!(claims.email, "admin@example.com");
     assert_eq!(
@@ -82,7 +82,10 @@ fn issue_embeds_hook_scope_plugin_audience_and_plugin_id() {
             JwtAudience::Resource("plugin".to_owned())
         ]
     );
-    assert_eq!(claims.plugin_id.as_deref(), Some("cowork-bundle"));
+    assert_eq!(
+        claims.plugin_id.as_ref().map(|id| id.as_str()),
+        Some("cowork-bundle")
+    );
     assert!(claims.roles.is_empty());
 }
 
@@ -93,7 +96,7 @@ fn issue_sets_expiry_from_duration_days() {
     let issued = PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
     )
@@ -114,7 +117,7 @@ fn issue_rejects_duration_beyond_one_year() {
     PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         366,
         &SessionId::generate(),
     )
@@ -128,7 +131,7 @@ fn issue_generates_unique_jti_per_token() {
     let first = PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
     )
@@ -136,7 +139,7 @@ fn issue_generates_unique_jti_per_token() {
     let second = PluginTokenService::issue(
         subject(),
         ISSUER,
-        "cowork-bundle".to_owned(),
+        PluginId::new("cowork-bundle"),
         30,
         &SessionId::generate(),
     )

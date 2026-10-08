@@ -1,15 +1,10 @@
 //! Unit tests for systemprompt-core-config crate.
 //!
 //! Test structure mirrors the source file structure:
-//! - Source: `crates/infra/config/src/services/types.rs`
-//! - Test: `crates/tests/unit/infra/config/src/services/types.rs`
+//! - Source: `crates/infra/config/src/services/schema_validation.rs`
+//! - Test: `crates/tests/unit/infra/config/src/services/schema_validation.rs`
 //!
 //! Tests cover:
-//! - DeployEnvironment parsing and conversion
-//! - DeploymentConfig construction and serialization
-//! - EnvironmentConfig creation and validation
-//! - ConfigValidator validation rules
-//! - ValidationReport error and warning tracking
 //! - Schema validation functions
 //! - ProviderCatalogService registry mutations
 //! - SecurityConfigService security-section mutations
@@ -18,6 +13,8 @@
 mod fixture;
 #[cfg(test)]
 mod instance_id;
+#[cfg(test)]
+mod writable_roots;
 
 #[cfg(test)]
 mod bootstrap_profile;

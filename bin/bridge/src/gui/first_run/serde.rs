@@ -17,7 +17,7 @@ pub(crate) fn build(state: &FirstRunState) -> FirstRunPayload<'_> {
             .hosts
             .iter()
             .map(|h| FirstRunHostPayload {
-                host_id: &h.host_id,
+                host_id: h.host_id,
                 display_name: &h.display_name,
                 status: h.status,
                 error: h.error.as_deref(),

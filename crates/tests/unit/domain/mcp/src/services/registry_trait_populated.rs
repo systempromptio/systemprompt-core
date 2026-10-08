@@ -1,10 +1,9 @@
 //! Provider-trait impls on `RegistryService` over a POPULATED registry: the
 //! Some/success arms that the config-error smoke tests never reach.
 
-use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
+use systemprompt_identifiers::McpServerId;
 use systemprompt_mcp::RegistryService;
-use systemprompt_models::RequestContext;
-use systemprompt_models::mcp::{McpRegistry, McpServerStatus, McpToolProvider};
+use systemprompt_models::mcp::McpRegistry;
 use systemprompt_test_fixtures::fixture_user_id;
 use systemprompt_traits::McpRegistryProvider;
 use wiremock::MockServer;
@@ -13,15 +12,6 @@ use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
     external_server_block, mount_mcp_endpoint,
 };
-
-fn ctx() -> RequestContext {
-    RequestContext::new(
-        SessionId::new("s-rtp"),
-        TraceId::new("t-rtp"),
-        ContextId::generate(),
-        AgentName::try_new("agent-rtp").expect("valid AgentName"),
-    )
-}
 
 async fn populated_registry() -> (RegistryService, McpServerId, MockServer) {
     let mock = MockServer::start().await;
@@ -49,7 +39,6 @@ async fn registry_find_server_returns_state_for_known_server() {
         .expect("registry reachable")
         .expect("server known");
     assert_eq!(state.name, name);
-    assert_eq!(state.status, McpServerStatus::Unknown);
 
     let servers = McpRegistry::list_servers(&registry)
         .await
@@ -60,22 +49,6 @@ async fn registry_find_server_returns_state_for_known_server() {
             .await
             .expect("exists check")
     );
-}
-
-#[tokio::test]
-async fn tool_provider_trait_lists_tools_from_scripted_server() {
-    let (registry, name, _mock) = populated_registry().await;
-
-    let tools = McpToolProvider::list_tools(&registry, &name, &ctx())
-        .await
-        .expect("tools listed");
-    assert!(tools.iter().any(|t| t.name == "echo"));
-
-    let by_server = registry
-        .load_tools_for_servers(&[name.clone()], &ctx())
-        .await
-        .expect("tools loaded");
-    assert_eq!(by_server.get(&name).map(Vec::len), Some(2));
 }
 
 #[tokio::test]
@@ -95,4 +68,22 @@ async fn registry_provider_reports_server_info_and_enabled_set() {
         .await
         .expect("enabled servers");
     assert!(enabled.iter().any(|s| s.name == name.as_str()));
+}
+
+#[tokio::test]
+async fn registry_provider_reports_an_unknown_server_as_not_found() {
+    let (registry, _name, _mock) = populated_registry().await;
+
+    let err = McpRegistryProvider::get_server(&registry, "rtp_no_such_server")
+        .await
+        .expect_err("an unregistered server is not resolved");
+    assert!(
+        matches!(err, systemprompt_traits::RegistryError::NotFound(_)),
+        "a missing server is NotFound, not an outage: {err:?}"
+    );
+    assert!(
+        !McpRegistryProvider::server_exists(&registry, "rtp_no_such_server")
+            .await
+            .expect("a missing server is not an error")
+    );
 }

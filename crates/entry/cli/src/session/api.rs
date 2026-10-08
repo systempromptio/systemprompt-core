@@ -20,9 +20,8 @@ pub async fn create_local_session_row(
     ttl: Duration,
 ) -> Result<SessionId> {
     let sessions: Arc<dyn SessionProvider> =
-        Arc::new(systemprompt_users::SessionRepository::new(db_pool)?);
-    let user_repository =
-        Arc::new(UserRepository::new(db_pool).context("Failed to construct user repository")?);
+        Arc::new(systemprompt_users::SessionRepository::new(db_pool));
+    let user_repository = Arc::new(UserRepository::new(db_pool));
     let users: Arc<dyn UserProvider> = Arc::new(UserService::new(user_repository));
 
     SessionCreationService::new(sessions, users)

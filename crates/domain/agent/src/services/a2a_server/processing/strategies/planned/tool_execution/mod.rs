@@ -164,17 +164,15 @@ async fn synthesize_response(
     {
         Ok(response) => Ok(response),
         Err(ai_error) => {
-            if let Some(tool_err) = tool_error_message {
+            if let Some(tool_message) = tool_error_message {
                 tracing::warn!(
                     ai_error = %ai_error,
-                    tool_error = %tool_err,
+                    tool_error = %tool_message,
                     "AI synthesis failed after tool errors - returning tool errors"
                 );
-                return Err(AgentServiceError::Internal(format!(
-                    "Tool execution failed: {tool_err}"
-                )));
+                return Err(AgentServiceError::ToolExecution(tool_message));
             }
-            Err(AgentServiceError::Internal(format!("{ai_error}")))
+            Err(AgentServiceError::AiInference(ai_error))
         },
     }
 }

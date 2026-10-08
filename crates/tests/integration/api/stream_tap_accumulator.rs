@@ -3,11 +3,11 @@
 //! asserts the accumulated snapshot and finalized `Summary` (usage, tool calls,
 //! stop reason, error, final bytes, served model).
 
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate,
     ContentBlockKind,
 };
-use systemprompt_api::services::gateway::stream_tap::accumulator::{
+use systemprompt_gateway::stream_tap::accumulator::{
     TapState, accumulate_event, extract_summary, snapshot,
 };
 use systemprompt_test_fixtures as fixtures;

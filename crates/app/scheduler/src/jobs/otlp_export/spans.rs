@@ -16,9 +16,12 @@ use opentelemetry_proto::tonic::trace::v1::status::StatusCode;
 use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans, Span, Status};
 
 use super::attrs::{Attrs, resource, scope};
-use super::ids::{span_id_bytes, trace_id_bytes, unix_nanos};
-use super::tail::{GovernanceRow, LedgerRow, RequestRow};
-use systemprompt_identifiers::{SessionId, TraceId};
+use super::ids::{span_id_bytes, trace_id_bytes, trace_key, unix_nanos};
+use crate::repository::otlp::{GovernanceRow, LedgerRow, RequestRow};
+use systemprompt_identifiers::{
+    AiRequestId, AiToolCallId, ApiKeyId, InstanceId, McpExecutionId, McpServerId, McpToolName,
+    PluginId, SessionId, TraceId,
+};
 
 pub const REQUEST_SPAN: &str = "ai_request";
 pub const TOOL_SPAN: &str = "tool_call";
@@ -50,19 +53,11 @@ impl TraceBatch {
     }
 }
 
-fn trace_key(request: &RequestRow) -> &str {
-    request
-        .trace_id
-        .as_ref()
-        .map(TraceId::as_str)
-        .filter(|t| !t.is_empty())
-        .unwrap_or(request.id.as_str())
-}
 
 #[must_use]
 pub(super) fn to_export_request(
     batch: &TraceBatch,
-    instance_id: Option<&str>,
+    instance_id: Option<&InstanceId>,
 ) -> ExportTraceServiceRequest {
     ExportTraceServiceRequest {
         resource_spans: vec![ResourceSpans {
@@ -81,7 +76,7 @@ pub(super) fn to_export_request(
 pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
     let mut by_request: HashMap<&str, Vec<&LedgerRow>> = HashMap::new();
     for row in &batch.ledger {
-        if let Some(request_id) = row.request_id.as_deref() {
+        if let Some(request_id) = row.request_id.as_ref().map(AiRequestId::as_str) {
             by_request.entry(request_id).or_default().push(row);
         }
     }
@@ -95,7 +90,7 @@ pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
     let mut spans = Vec::with_capacity(batch.requests.len());
     for request in &batch.requests {
         let trace = trace_id_bytes(trace_key(request));
-        let parent = span_id_bytes(REQUEST_SPAN, &request.id);
+        let parent = span_id_bytes(REQUEST_SPAN, request.id.as_str());
         spans.push(request_span(request, trace.clone(), parent.clone()));
         for row in by_request.get(request.id.as_str()).into_iter().flatten() {
             spans.push(tool_span(row, trace.clone(), parent.clone()));
@@ -115,7 +110,7 @@ pub fn to_spans(batch: &TraceBatch) -> Vec<Span> {
 fn request_span(row: &RequestRow, trace_id: Vec<u8>, span_id: Vec<u8>) -> Span {
     let mut attrs = Attrs::new();
     attrs
-        .text("systemprompt.request.id", &row.request_id)
+        .text("systemprompt.request.id", row.request_id.as_str())
         .text("systemprompt.request.kind", &row.request_kind)
         .text("systemprompt.request.status", &row.status)
         .text("enduser.id", row.user_id.as_str())
@@ -155,7 +150,15 @@ fn request_span(row: &RequestRow, trace_id: Vec<u8>, span_id: Vec<u8>) -> Span {
         )
         .text("systemprompt.client.kind", &row.client_kind)
         .text("systemprompt.wire_protocol", &row.wire_protocol)
-        .opt_str("systemprompt.instance.id", row.instance_id.as_deref());
+        .opt_str(
+            "systemprompt.instance.id",
+            row.instance_id.as_ref().map(InstanceId::as_str),
+        )
+        .opt_str(
+            "systemprompt.api_key.id",
+            row.api_key_id.as_ref().map(ApiKeyId::as_str),
+        )
+        .scopes(&row.attributions);
     let (code, message) = request_status(row);
     Span {
         trace_id,
@@ -190,21 +193,20 @@ fn request_status(row: &RequestRow) -> (StatusCode, String) {
 }
 
 fn tool_span(row: &LedgerRow, trace_id: Vec<u8>, parent_span_id: Vec<u8>) -> Span {
-    let key = row
-        .ai_tool_call_id
-        .as_deref()
-        .or(row.mcp_execution_id.as_deref())
-        .unwrap_or_default();
+    let tool_name = row.tool_name.as_ref().map(McpToolName::as_str);
+    let call_id = row.ai_tool_call_id.as_ref().map(AiToolCallId::as_str);
+    let execution_id = row.mcp_execution_id.as_ref().map(McpExecutionId::as_str);
+    let key = call_id.or(execution_id).unwrap_or_default();
     let (start, end) = tool_window(row);
     let mut attrs = Attrs::new();
     attrs
-        .opt_str("gen_ai.tool.name", row.tool_name.as_deref())
-        .opt_str("gen_ai.tool.call.id", row.ai_tool_call_id.as_deref())
-        .opt_str("systemprompt.mcp.server", row.server_name.as_deref())
+        .opt_str("gen_ai.tool.name", tool_name)
+        .opt_str("gen_ai.tool.call.id", call_id)
         .opt_str(
-            "systemprompt.mcp.execution_id",
-            row.mcp_execution_id.as_deref(),
+            "systemprompt.mcp.server",
+            row.server_name.as_ref().map(McpServerId::as_str),
         )
+        .opt_str("systemprompt.mcp.execution_id", execution_id)
         .opt_str("systemprompt.tool.state", row.state.as_deref())
         .opt_str("systemprompt.tool.source", row.source.as_deref())
         .opt_str("systemprompt.tool.status", row.execution_status.as_deref())
@@ -225,10 +227,7 @@ fn tool_span(row: &LedgerRow, trace_id: Vec<u8>, parent_span_id: Vec<u8>) -> Spa
         trace_id,
         span_id: span_id_bytes(TOOL_SPAN, key),
         parent_span_id,
-        name: format!(
-            "{TOOL_SPAN} {}",
-            row.tool_name.as_deref().unwrap_or("unknown")
-        ),
+        name: format!("{TOOL_SPAN} {}", tool_name.unwrap_or("unknown")),
         kind: SpanKind::Internal as i32,
         start_time_unix_nano: unix_nanos(start),
         end_time_unix_nano: unix_nanos(end),
@@ -265,7 +264,10 @@ fn governance_span(row: &GovernanceRow, trace_id: Vec<u8>, parent_span_id: Vec<u
         .text("systemprompt.governance.reason", &row.reason)
         .text("gen_ai.tool.name", &row.tool_name)
         .opt_str("gen_ai.tool.call.id", row.tool_use_id.as_deref())
-        .opt_str("systemprompt.plugin.id", row.plugin_id.as_deref())
+        .opt_str(
+            "systemprompt.plugin.id",
+            row.plugin_id.as_ref().map(PluginId::as_str),
+        )
         .text("systemprompt.actor.kind", &row.actor_kind)
         .text("systemprompt.actor.id", &row.actor_id);
     let at = unix_nanos(row.created_at);

@@ -5,6 +5,9 @@
 //! inputs and computes the same report but touches nothing, so a dry run and a
 //! real run cannot disagree about what would be written.
 //!
+//! A skill folder is copied through [`Sink::copy_skill_tree`], which drops the
+//! dev-only files the kit's [`DevFileFilter`] excludes.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,20 +17,23 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
+use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 
 #[derive(Debug)]
 pub(super) struct Sink {
     root: PathBuf,
     dry_run: bool,
+    dev_files: DevFileFilter,
     written: RefCell<BTreeSet<PathBuf>>,
 }
 
 impl Sink {
-    pub(super) fn new(root: &Path, dry_run: bool) -> Self {
+    pub(super) fn new(root: &Path, dry_run: bool, dev_files: DevFileFilter) -> Self {
         Self {
             root: root.to_path_buf(),
             dry_run,
+            dev_files,
             written: RefCell::new(BTreeSet::new()),
         }
     }
@@ -39,9 +45,9 @@ impl Sink {
         }
         let dest = self.root.join(rel);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, &e))?;
+            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, e))?;
         }
-        std::fs::write(&dest, bytes).map_err(|e| io_err(&dest, &e))
+        std::fs::write(&dest, bytes).map_err(|e| io_err(&dest, e))
     }
 
     pub(super) fn write_yaml<T: Serialize>(
@@ -49,10 +55,8 @@ impl Sink {
         rel: &Path,
         value: &T,
     ) -> Result<(), MarketplaceError> {
-        let text = serde_yaml::to_string(value).map_err(|e| MarketplaceError::Import {
-            path: rel.display().to_string(),
-            message: e.to_string(),
-        })?;
+        let text = serde_yaml::to_string(value)
+            .map_err(|e| MarketplaceError::import(rel, "serialise yaml", e))?;
         self.write_bytes(rel, text.as_bytes())
     }
 
@@ -69,29 +73,47 @@ impl Sink {
         }
         let dest = self.root.join(rel);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, &e))?;
+            std::fs::create_dir_all(parent).map_err(|e| io_err(parent, e))?;
         }
         std::fs::copy(src, &dest)
             .map(|_| ())
-            .map_err(|e| io_err(&dest, &e))
+            .map_err(|e| io_err(&dest, e))
     }
 
     pub(super) fn copy_tree(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
+        self.copy_filtered(src, src, rel, None)
+    }
+
+    pub(super) fn copy_skill_tree(&self, src: &Path, rel: &Path) -> Result<(), MarketplaceError> {
+        self.copy_filtered(src, src, rel, Some(&self.dev_files))
+    }
+
+    fn copy_filtered(
+        &self,
+        skill_root: &Path,
+        src: &Path,
+        rel: &Path,
+        filter: Option<&DevFileFilter>,
+    ) -> Result<(), MarketplaceError> {
         if !src.is_dir() {
             return Err(MarketplaceError::Import {
                 path: src.display().to_string(),
                 message: "expected a directory".to_owned(),
             });
         }
-        for entry in std::fs::read_dir(src).map_err(|e| io_err(src, &e))? {
-            let entry = entry.map_err(|e| io_err(src, &e))?;
+        for entry in std::fs::read_dir(src).map_err(|e| io_err(src, e))? {
+            let entry = entry.map_err(|e| io_err(src, e))?;
             let path = entry.path();
             let Some(name) = path.file_name() else {
                 continue;
             };
             let child = rel.join(name);
-            if path.is_dir() {
-                self.copy_tree(&path, &child)?;
+            let is_dir = path.is_dir();
+            if filter.is_some_and(|f| f.excludes_on_disk(skill_root, &path, is_dir)) {
+                continue;
+            }
+            if is_dir {
+                self.copy_filtered(skill_root, &path, &child, filter)?;
             } else {
                 self.copy_file(&path, &child)?;
             }
@@ -104,9 +126,6 @@ impl Sink {
     }
 }
 
-fn io_err(path: &Path, e: &std::io::Error) -> MarketplaceError {
-    MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    }
+fn io_err(path: &Path, e: std::io::Error) -> MarketplaceError {
+    MarketplaceError::import(path, "write", e)
 }

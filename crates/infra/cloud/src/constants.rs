@@ -8,10 +8,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use systemprompt_models::paths::constants::{build, dir_names, file_names, storage};
+pub use systemprompt_manifest::paths::constants::{build, dir_names, file_names, storage};
 
 pub mod container {
-    use systemprompt_models::paths::constants::cloud_container;
+    use systemprompt_manifest::paths::constants::cloud_container;
 
     pub const APP: &str = cloud_container::APP_ROOT;
     pub const APP_ROOT: &str = cloud_container::APP_ROOT;
@@ -148,7 +148,7 @@ pub mod proxies {
 }
 
 pub mod env_vars {
-    pub use systemprompt_models::paths::constants::env_vars::CUSTOM_SECRETS;
+    pub use systemprompt_manifest::paths::constants::env_vars::CUSTOM_SECRETS;
 
     pub const SYSTEM_MANAGED: &[&str] = &[
         systemprompt_models::subprocess::DEPLOYMENT_HOST_ENV,

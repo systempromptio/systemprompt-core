@@ -5,6 +5,7 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::JobRepository;
 use systemprompt_traits::Job;
 
@@ -14,8 +15,8 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct DisableArgs {
-    #[arg(help = "Job name to disable")]
-    pub job_name: String,
+    #[arg(value_parser = crate::shared::parse_job_name, help = "Job name to disable")]
+    pub job_name: JobName,
 }
 
 pub(super) async fn execute(args: DisableArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -32,7 +33,7 @@ pub(super) async fn execute(args: DisableArgs, ctx: &CommandContext) -> Result<C
     }
 
     let app = ctx.app_context().await?;
-    let repo = JobRepository::new(app.db_pool())?;
+    let repo = JobRepository::new(app.db_pool());
     repo.set_enabled(&args.job_name, false)
         .await
         .context("Failed to disable job")?;

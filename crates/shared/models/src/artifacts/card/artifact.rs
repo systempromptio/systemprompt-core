@@ -6,10 +6,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as JsonValue, json};
-use systemprompt_identifiers::SkillId;
+use systemprompt_identifiers::{McpExecutionId, SkillId, SkillName};
 
 use super::{CardCta, CardSection, CardTheme};
-use crate::artifacts::metadata::ExecutionMetadata;
+use crate::artifacts::metadata::ArtifactProvenance;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
@@ -28,14 +28,14 @@ pub struct PresentationCardArtifact {
     #[serde(default)]
     pub theme: CardTheme,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execution_id: Option<String>,
+    pub execution_id: Option<McpExecutionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_id: Option<SkillId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_name: Option<String>,
+    pub skill_name: Option<SkillName>,
     #[serde(skip)]
     #[schemars(skip)]
-    metadata: ExecutionMetadata,
+    metadata: ArtifactProvenance,
 }
 
 fn default_card_artifact_type() -> String {
@@ -56,12 +56,12 @@ impl PresentationCardArtifact {
             execution_id: None,
             skill_id: None,
             skill_name: None,
-            metadata: ExecutionMetadata::default(),
+            metadata: ArtifactProvenance::default(),
         }
     }
 
     pub fn with_request(mut self, ctx: &RequestContext) -> Self {
-        self.metadata = ExecutionMetadata::with_request(ctx);
+        self.metadata.set_request(ctx);
         self
     }
 
@@ -96,22 +96,16 @@ impl PresentationCardArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
-        let id_str = id.into();
-        self.execution_id = Some(id_str.clone());
-        self.metadata.execution_id = Some(id_str);
+    pub fn with_execution_id(mut self, id: McpExecutionId) -> Self {
+        self.execution_id = Some(id.clone());
+        self.metadata.set_execution_id(id);
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: impl Into<SkillId>,
-        skill_name: impl Into<String>,
-    ) -> Self {
-        let id = skill_id.into();
-        self.skill_id = Some(id.clone());
-        self.skill_name = Some(skill_name.into());
-        self.metadata.skill_id = Some(id);
+    pub fn with_skill(mut self, skill_id: SkillId, skill_name: SkillName) -> Self {
+        self.skill_id = Some(skill_id.clone());
+        self.skill_name = Some(skill_name.clone());
+        self.metadata.set_skill(skill_id, skill_name);
         self
     }
 }

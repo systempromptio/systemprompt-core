@@ -3,8 +3,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::wire::canonical::CanonicalUsage;
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::attribution::RequestAttribution;
+use systemprompt_models::origin::RequestOrigin;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 use super::request_kind::{RequestKind, RequestStatus};
 
@@ -13,20 +14,7 @@ use systemprompt_identifiers::{
     McpExecutionId, ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TokenInfo {
-    pub tokens_used: Option<i32>,
-    pub input_tokens: Option<i32>,
-    pub output_tokens: Option<i32>,
-    pub reasoning_tokens: Option<i32>,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CacheInfo {
-    pub hit: bool,
-    pub read_tokens: Option<i32>,
-    pub creation_tokens: Option<i32>,
-}
+pub use super::ai_request_usage::{CacheInfo, TokenInfo};
 
 #[derive(Debug, Clone)]
 pub struct AiRequestRecord {
@@ -55,6 +43,7 @@ pub struct AiRequestRecord {
     pub status: RequestStatus,
     pub error_message: Option<String>,
     pub instance_id: Option<InstanceId>,
+    pub attribution: RequestAttribution,
 }
 
 impl AiRequestRecord {
@@ -95,6 +84,7 @@ pub struct AiRequestRecordBuilder {
     status: RequestStatus,
     error_message: Option<String>,
     instance_id: Option<InstanceId>,
+    attribution: RequestAttribution,
 }
 
 impl AiRequestRecordBuilder {
@@ -130,12 +120,19 @@ impl AiRequestRecordBuilder {
             status: RequestStatus::Pending,
             error_message: None,
             instance_id: None,
+            attribution: RequestAttribution::none(),
         }
     }
 
     #[must_use]
     pub fn instance_id(mut self, instance_id: InstanceId) -> Self {
         self.instance_id = Some(instance_id);
+        self
+    }
+
+    #[must_use]
+    pub fn attribution(mut self, attribution: RequestAttribution) -> Self {
+        self.attribution = attribution;
         self
     }
 
@@ -288,6 +285,7 @@ impl AiRequestRecordBuilder {
             status: self.status,
             error_message: self.error_message,
             instance_id: self.instance_id,
+            attribution: self.attribution,
         }
     }
 }

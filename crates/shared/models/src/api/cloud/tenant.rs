@@ -6,6 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{CloudAppId, PriceId, TenantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -30,7 +31,7 @@ pub struct CloudPlanInfo {
 pub struct CloudPlan {
     pub id: String,
     pub name: String,
-    pub paddle_price_id: systemprompt_identifiers::PriceId,
+    pub paddle_price_id: PriceId,
     #[serde(default)]
     pub memory_mb_default: i32,
     #[serde(default)]
@@ -50,14 +51,14 @@ pub enum CloudTenantStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudTenantInfo {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscription_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscription_status: Option<SubscriptionStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<CloudAppId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -73,7 +74,7 @@ pub struct CloudTenantInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenant {
-    pub id: String,
+    pub id: TenantId,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fly_app_name: Option<String>,

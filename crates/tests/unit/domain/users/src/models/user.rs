@@ -2,7 +2,7 @@
 
 use chrono::Utc;
 use systemprompt_test_fixtures::fixture_user_id;
-use systemprompt_users::{User, UserRole};
+use systemprompt_users::{User, UserRole, UserStatus};
 
 mod user_tests {
     use super::*;
@@ -14,14 +14,14 @@ mod user_tests {
             email: "test@example.com".to_string(),
             full_name: Some("Test User".to_string()),
             display_name: Some("Test".to_string()),
-            status: Some("active".to_string()),
-            email_verified: Some(true),
+            status: UserStatus::Active,
+            email_verified: true,
             roles: vec!["user".to_string()],
             avatar_url: Some("https://example.com/avatar.png".to_string()),
             is_bot: false,
             is_scanner: false,
-            created_at: Some(Utc::now()),
-            updated_at: Some(Utc::now()),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         }
     }
 
@@ -34,21 +34,21 @@ mod user_tests {
     #[test]
     fn is_active_returns_false_for_inactive_status() {
         let mut user = create_test_user();
-        user.status = Some("inactive".to_string());
+        user.status = UserStatus::Inactive;
         assert!(!user.is_active());
     }
 
     #[test]
     fn is_active_returns_false_for_suspended_status() {
         let mut user = create_test_user();
-        user.status = Some("suspended".to_string());
+        user.status = UserStatus::Suspended;
         assert!(!user.is_active());
     }
 
     #[test]
-    fn is_active_returns_false_for_none_status() {
+    fn is_active_returns_false_for_temporary_status() {
         let mut user = create_test_user();
-        user.status = None;
+        user.status = UserStatus::Temporary;
         assert!(!user.is_active());
     }
 
@@ -146,22 +146,20 @@ mod user_tests {
             email: "minimal@example.com".to_string(),
             full_name: None,
             display_name: None,
-            status: None,
-            email_verified: None,
+            status: UserStatus::Pending,
+            email_verified: false,
             roles: vec![],
             avatar_url: None,
             is_bot: false,
             is_scanner: false,
-            created_at: None,
-            updated_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
 
         assert!(user.full_name.is_none());
         assert!(user.display_name.is_none());
-        assert!(user.status.is_none());
-        assert!(user.email_verified.is_none());
         assert!(user.avatar_url.is_none());
-        assert!(user.created_at.is_none());
-        assert!(user.updated_at.is_none());
+        assert!(!user.email_verified);
+        assert!(!user.is_active());
     }
 }

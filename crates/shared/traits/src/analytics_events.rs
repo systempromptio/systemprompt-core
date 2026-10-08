@@ -19,6 +19,7 @@ pub struct AnalyticsEventRecord {
     pub event_type: String,
     pub event_category: String,
     pub page_url: String,
+    // JSON: JSONB `event_data` column — client analytics payload, free-form per event type.
     pub event_data: serde_json::Value,
 }
 

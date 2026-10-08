@@ -10,15 +10,16 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{JwtToken, SessionId};
+use systemprompt_identifiers::SessionId;
 use systemprompt_models::bridge::manifest::{bridge_version_is_supported, min_bridge_version};
 use systemprompt_oauth::repository::UpsertBridgeSession;
 use systemprompt_runtime::AppContext;
 
-use super::messages::extract_credential;
+use super::bridge_error::{BridgeError, authenticate_bridge};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
 #[derive(Debug, Deserialize)]
@@ -48,31 +49,19 @@ pub async fn handle(
     ctx: AppContext,
     headers: HeaderMap,
     Json(payload): Json<BridgeHeartbeatRequest>,
-) -> Result<Json<BridgeHeartbeatResponse>, (StatusCode, String)> {
-    let credential = extract_credential(&headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    let (claims, _user) = jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+) -> Result<Json<BridgeHeartbeatResponse>, ApiHttpError> {
+    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
     // Why: client attestation joins ai_requests.session_id to the bridge
     // session it was reported under; a heartbeat that names another session
     // would let one bridge vouch for traffic it never carried.
-    if claims.session_id.as_str() != payload.session_id.as_str() {
+    if claims.session_id != payload.session_id {
         tracing::warn!(
             claimed_session = %claims.session_id,
             reported_session = %payload.session_id,
             "bridge heartbeat session does not match the token session; rejecting",
         );
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            "heartbeat session_id must match the authenticated session".to_owned(),
-        ));
+        return Err(BridgeError::SessionMismatch.into());
     }
 
     let repo = &ctx.oauth_repositories().bridge_sessions;
@@ -100,12 +89,7 @@ pub async fn handle(
         tokens_out_total: payload.tokens_out_total,
     })
     .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("bridge heartbeat upsert failed: {e}"),
-        )
-    })?;
+    .map_err(BridgeError::from)?;
 
     Ok(Json(BridgeHeartbeatResponse {
         min_bridge_version: floor.to_string(),

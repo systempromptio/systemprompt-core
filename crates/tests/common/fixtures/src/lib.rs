@@ -1,4 +1,12 @@
 //! Shared test fixtures for systemprompt-core test crates.
+//!
+//! A test that needs a database or a DB-backed fixture takes it from the
+//! panicking helpers — [`test_database_url`], [`test_db_pool`],
+//! [`test_pg_pool`], [`DisposableDb::empty`], [`DisposableDb::with_schema`],
+//! [`test_app_context`]. A missing prerequisite fails the test instead of
+//! skipping it, because a skipped test reports the same green as one that ran
+//! and CI and `just test-shard` always provide `DATABASE_URL`. There is no
+//! skip-on-missing form.
 
 pub mod agent;
 pub mod app_context;
@@ -13,9 +21,9 @@ pub mod net;
 pub mod oauth;
 pub mod orphans;
 pub mod paths;
+pub mod schema;
 pub mod secrets;
 pub mod service_row;
-pub mod skip;
 pub mod subprocess;
 pub mod usage;
 pub mod user;
@@ -26,10 +34,10 @@ pub use agent::{
     NotManagedSkills, ScriptedSkills, ToolExecutionLedger,
 };
 pub use app_context::{
-    default_governance_engine, fixture_analytics_repositories, fixture_app_context,
-    fixture_app_context_with, fixture_app_context_with_config, fixture_app_context_with_hook,
+    default_governance_engine, fixture_analytics_repositories, fixture_app_context_with,
+    fixture_app_context_with_config, fixture_app_context_with_hook,
     fixture_app_context_with_user_repository, fixture_artifact_ingest, fixture_config,
-    fixture_fingerprint_repository,
+    fixture_fingerprint_repository, test_app_context, FIXTURE_JWT_ISSUER,
 };
 pub use bootstrap::{
     ensure_messaging_bootstrap, ensure_test_bootstrap, init_isolated_bootstrap,
@@ -40,12 +48,10 @@ pub use bootstrap::{
     TEST_TEAMS_UNRESOLVABLE_APP_ID, TEST_TEAMS_UNRESOLVABLE_TENANT_ID,
 };
 pub use credential::{
-    seed_admin_credential, seed_bridge_credential, seed_user_row, seed_user_row_with_roles,
-    seed_user_session, AuthedFixture,
+    seed_admin_credential, seed_bridge_credential, seed_fixture_system_admin, seed_user_row,
+    seed_user_row_with_roles, seed_user_session, AuthedFixture,
 };
-pub use db::{
-    closed_db_pool, fixture_database_url, fixture_database_url_opt, fixture_db_pool, lazy_pg_pool,
-};
+pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
@@ -55,13 +61,16 @@ pub use oauth::{
     pkce_pair, seed_oauth_client, OAuthClientFixture, PkcePair, TEST_CLIENT_SECRET,
     TEST_CLIENT_SECRET_HASH, TEST_REDIRECT_URI,
 };
-pub use paths::{repo_path, repo_root};
+pub use paths::{canonical_tempdir, repo_path, repo_root};
+pub use schema::{install_extension_schemas, install_extension_schemas_with_config};
 pub use secrets::{ensure_test_secrets_bootstrap, install_named_secret};
 pub use service_row::seed_running_service;
-pub use skip::{ci, skip_or_panic};
 pub use subprocess::{
     announce_helper_ready, helper, spawn_marked_child, Helper, MarkedChild, HELPER_READY_ENV,
 };
 pub use usage::{usage, usage_update, UsageBuilder};
-pub use user::{fixture_actor, fixture_system_admin, fixture_user_id, unique_user_id};
+pub use user::{
+    fixture_actor, fixture_system_admin, fixture_user_id, merging_user_service, unique_user_id,
+    FIXTURE_USER_ID,
+};
 pub use web_config::{web_config, WEB_CONFIG_YAML};

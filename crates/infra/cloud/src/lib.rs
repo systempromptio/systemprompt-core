@@ -17,7 +17,7 @@
 //!   tenant-scoped sessions.
 //! - [`CloudPaths`] — XDG-aware discovery of credentials, sessions, tenants,
 //!   and project files.
-//! - [`profile_authoring`] — pure [`Profile`](systemprompt_models::Profile)
+//! - [`profile_authoring`] — pure [`Profile`](systemprompt_manifest::Profile)
 //!   construction for local and cloud deployment targets.
 //! - [`deploy`] — Dockerfile rendering ([`DockerfileBuilder`]) and validation
 //!   for the deployment image.
@@ -56,14 +56,16 @@ pub mod error;
 pub mod logout;
 pub mod oauth;
 pub mod paths;
+mod private_dir;
 pub mod profile_authoring;
 pub mod secrets_env;
 pub mod tenants;
 pub mod trusted_proxies;
 
 pub use api_client::{
-    CloudApiClient, DeployResponse, RegistryToken, StatusResponse, SubscriptionStatus, Tenant,
-    TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CloudApiClient, CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets,
+    CloudTenantStatusResponse, CloudUserInfo, DeployResponse, RegistryToken, SubscriptionStatus,
+    UserMeResponse,
 };
 pub use cli_session::{
     CliSession, LOCAL_SESSION_KEY, SessionBinding, SessionIdentity, SessionKey, SessionStore,

@@ -5,7 +5,7 @@
 //! - Custom CSP configuration
 //! - Enabled flag default
 
-use systemprompt_models::profile::SecurityHeadersConfig;
+use systemprompt_manifest::profile::SecurityHeadersConfig;
 
 #[test]
 fn default_enabled_is_true() {
@@ -36,7 +36,7 @@ fn default_frame_options_is_deny() {
     let config = SecurityHeadersConfig::default();
     assert_eq!(
         config.frame_options,
-        systemprompt_extension::FrameOptions::Deny
+        systemprompt_manifest::profile::FrameOptions::Deny
     );
 }
 

@@ -5,9 +5,10 @@
 //! the ILIKE filters isolate its own data.
 
 use chrono::{DateTime, Duration, Utc};
+use systemprompt_analytics::models::ToolCaller;
 use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 struct ExecutionSeed<'a> {
@@ -27,7 +28,7 @@ async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
     )
     .await
     .expect("retained tool user");
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         r"
         INSERT INTO mcp_tool_executions
@@ -49,7 +50,7 @@ async fn insert_execution(pool: &DbPool, seed: ExecutionSeed<'_>) {
 }
 
 async fn cleanup(pool: &DbPool, prefix: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM mcp_tool_executions WHERE tool_name LIKE $1")
         .bind(format!("{prefix}%"))
         .execute(p.as_ref())
@@ -104,12 +105,9 @@ async fn seed_two_tools(pool: &DbPool, prefix: &str, server: &str) {
 
 #[tokio::test]
 async fn list_tools_filtered_covers_all_sort_orders() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -128,7 +126,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
             .await
             .expect("list filtered");
         assert_eq!(rows.len(), 2, "sort_order={sort_order}");
-        assert!(rows.iter().all(|r| r.server_name == server));
+        assert!(rows.iter().all(|r| r.server_name.as_str() == server));
     }
 
     let by_count = repo
@@ -141,7 +139,7 @@ async fn list_tools_filtered_covers_all_sort_orders() {
         })
         .await
         .expect("list by count");
-    assert_eq!(by_count[0].tool_name, format!("{prefix}-fast"));
+    assert_eq!(by_count[0].tool_name.as_str(), format!("{prefix}-fast"));
     assert_eq!(by_count[0].execution_count, 2);
     assert_eq!(by_count[0].success_count, 2);
 
@@ -155,19 +153,16 @@ async fn list_tools_filtered_covers_all_sort_orders() {
         })
         .await
         .expect("list by avg time");
-    assert_eq!(by_avg_time[0].tool_name, format!("{prefix}-slow"));
+    assert_eq!(by_avg_time[0].tool_name.as_str(), format!("{prefix}-slow"));
 
     cleanup(&pool, &prefix).await;
 }
 
 #[tokio::test]
 async fn list_tools_unfiltered_covers_all_sort_orders() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -187,7 +182,7 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
             .expect("list unfiltered");
         let mine: Vec<_> = rows
             .iter()
-            .filter(|r| r.tool_name.starts_with(&prefix))
+            .filter(|r| r.tool_name.as_str().starts_with(&prefix))
             .collect();
         assert_eq!(mine.len(), 2, "sort_order={sort_order}");
     }
@@ -197,12 +192,9 @@ async fn list_tools_unfiltered_covers_all_sort_orders() {
 
 #[tokio::test]
 async fn get_stats_and_summary_report_seeded_executions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -245,12 +237,9 @@ async fn get_stats_and_summary_report_seeded_executions() {
 
 #[tokio::test]
 async fn detail_queries_break_down_status_errors_and_agents() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = ToolAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = ToolAnalyticsRepository::new(&pool);
 
     let prefix = format!("tool-{}", Uuid::new_v4());
     let server = format!("srv-{}", Uuid::new_v4());
@@ -276,7 +265,7 @@ async fn detail_queries_break_down_status_errors_and_agents() {
         .await
         .expect("agents");
     assert_eq!(agents.len(), 1);
-    assert_eq!(agents[0].agent_name.as_deref(), Some("Direct Call"));
+    assert_eq!(agents[0].caller, ToolCaller::DirectCall);
     assert_eq!(agents[0].usage_count, 3);
 
     let trends_filtered = repo

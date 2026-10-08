@@ -81,11 +81,11 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
 
     let users = if let Some(role_filter) = args.role {
         let role: UserRole = role_filter.into();
-        user_service.find_by_role(role).await?
+        user_service.list_by_role(role).await?
     } else if args.include_anonymous {
         user_service
             .list_including_anonymous(args.limit, args.offset)
@@ -96,11 +96,7 @@ pub(super) async fn execute_with_pool(
 
     let users: Vec<_> = if let Some(status_filter) = args.status {
         let status: UserStatus = status_filter.into();
-        let status_str = status.as_str();
-        users
-            .into_iter()
-            .filter(|u| u.status.as_deref() == Some(status_str))
-            .collect()
+        users.into_iter().filter(|u| u.status == status).collect()
     } else {
         users
     };
@@ -114,7 +110,7 @@ pub(super) async fn execute_with_pool(
                 id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
-                status: u.status.clone(),
+                status: u.status.to_string(),
                 roles: u.roles.clone(),
                 created_at: u.created_at,
             })

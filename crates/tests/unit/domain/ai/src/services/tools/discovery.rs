@@ -3,7 +3,7 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_ai::services::tools::ToolDiscovery;
-use systemprompt_identifiers::{AgentName, McpServerId};
+use systemprompt_identifiers::{Actor, AgentName, JwtToken, McpServerId, McpToolName, UserId};
 use systemprompt_test_fixtures::fixture_actor;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
@@ -66,10 +66,14 @@ impl ToolProvider for MockToolProvider {
     async fn find_tool(
         &self,
         _agent_name: &AgentName,
-        tool_name: &str,
+        tool_name: &McpToolName,
         _context: &ToolContext,
     ) -> ToolProviderResult<Option<ToolDefinition>> {
-        Ok(self.tools.iter().find(|t| t.name == tool_name).cloned())
+        Ok(self
+            .tools
+            .iter()
+            .find(|t| t.name == tool_name.as_str())
+            .cloned())
     }
 }
 
@@ -83,7 +87,7 @@ fn create_test_tool(name: &str, description: &str) -> ToolDefinition {
 }
 
 fn _create_test_context() -> ToolContext {
-    ToolContext::new(fixture_actor(), "test-token")
+    ToolContext::new(fixture_actor()).with_auth_token(JwtToken::new("test-token"))
 }
 
 mod tool_discovery_tests {
@@ -99,6 +103,7 @@ mod tool_discovery_tests {
             TraceId::new("test-trace".to_string()),
             ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
             AgentName::try_new("test-agent".to_string()).expect("valid AgentName"),
+            Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
         )
     }
 
@@ -152,7 +157,7 @@ mod tool_discovery_tests {
         let context = create_request_context();
 
         let result = discovery
-            .find_tool_for_agent(&agent_name, "nonexistent", &context)
+            .find_tool_for_agent(&agent_name, &McpToolName::new("nonexistent"), &context)
             .await;
 
         assert!(result.expect("should succeed").is_none());
@@ -167,7 +172,7 @@ mod tool_discovery_tests {
         let context = create_request_context();
 
         let result = discovery
-            .find_tool_for_agent(&agent_name, "search", &context)
+            .find_tool_for_agent(&agent_name, &McpToolName::new("search"), &context)
             .await;
 
         let tool = result.expect("should succeed");

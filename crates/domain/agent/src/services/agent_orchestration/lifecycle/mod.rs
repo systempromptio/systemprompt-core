@@ -1,10 +1,10 @@
 //! Agent process lifecycle: start, enable, disable, restart, and crash cleanup.
 //!
 //! [`AgentLifecycle`] owns the transitions for a single agent's worker process,
-//! coordinating the database service, optional event bus, and configured
-//! [`AppPaths`]. The free functions are thin entry points that build a
-//! lifecycle for one operation; the `operations` and `verification` submodules
-//! hold the spawn/teardown logic and startup health-check probing.
+//! coordinating the database service and configured [`AppPaths`]. The free
+//! functions are thin entry points that build a lifecycle for one operation;
+//! the `operations` and `verification` submodules hold the spawn/teardown
+//! logic and startup health-check probing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,18 +14,16 @@ mod verification;
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
+use systemprompt_identifiers::AgentName;
 use systemprompt_traits::StartupEventSender;
 
 use crate::repository::agent_service::AgentServiceRepository;
+use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::event_bus::AgentEventBus;
-use crate::services::agent_orchestration::events::AgentEvent;
-use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
 #[derive(Debug)]
 pub struct AgentLifecycle {
     pub(crate) db_service: AgentDatabaseService,
-    pub(crate) event_bus: Option<Arc<AgentEventBus>>,
     pub(crate) app_paths: Arc<AppPaths>,
 }
 
@@ -33,68 +31,51 @@ impl AgentLifecycle {
     pub fn new(
         agent_service_repo: AgentServiceRepository,
         app_paths: Arc<AppPaths>,
-    ) -> crate::error::AgentResult<Self> {
-        let db_service = AgentDatabaseService::new(agent_service_repo)
-            .map_err(|e| crate::error::AgentError::Internal(e.to_string()))?;
+    ) -> OrchestrationResult<Self> {
+        let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self {
             db_service,
-            event_bus: None,
             app_paths,
         })
-    }
-
-    pub fn with_event_bus(mut self, event_bus: Arc<AgentEventBus>) -> Self {
-        self.event_bus = Some(event_bus);
-        self
-    }
-
-    pub(crate) fn publish_event(&self, event: AgentEvent) {
-        if let Some(ref bus) = self.event_bus {
-            bus.publish(event);
-        }
     }
 }
 
 pub async fn start_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.start_agent(agent_name, events).await
 }
 
 pub async fn enable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.enable_agent(agent_name, events).await
 }
 
 pub async fn disable_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
 ) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.disable_agent(agent_name).await
 }
 
 pub async fn restart_agent(
     agent_service_repo: AgentServiceRepository,
     app_paths: Arc<AppPaths>,
-    agent_name: &str,
+    agent_name: &AgentName,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)
-        .map_err(|e| OrchestrationError::Generic(e.to_string()))?;
+    let lifecycle = AgentLifecycle::new(agent_service_repo, app_paths)?;
     lifecycle.restart_agent(agent_name, events).await
 }

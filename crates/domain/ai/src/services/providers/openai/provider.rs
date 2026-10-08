@@ -6,11 +6,11 @@
 use reqwest::{Client, Response};
 // JSON: protocol boundary — the rendered wire body is dynamic JSON.
 use serde_json::Value;
+use systemprompt_manifest::services::ProviderModel;
+use systemprompt_manifest::services::providers::upstream_model_in;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
-use systemprompt_models::services::providers::upstream_model_in;
-use systemprompt_models::services::{ProviderModel, WireProtocol};
-use systemprompt_models::wire::canonical::{CanonicalRequest, CanonicalResponse};
-use systemprompt_models::wire::{openai_chat, openai_responses};
+use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
+use systemprompt_wire::{WireProtocol, openai_chat, openai_responses};
 
 use crate::error::Result;
 use crate::services::providers::http_client::build_client;
@@ -57,6 +57,8 @@ impl OpenAiProvider {
         upstream_model_in(&self.models, requested)
     }
 
+    // JSON: OpenAI Chat Completions / Responses request body — upstream wire
+    // format.
     pub(crate) fn render(&self, canonical: &CanonicalRequest, upstream_model: &str) -> Value {
         match self.target.wire() {
             WireProtocol::OpenAiResponses => {
@@ -66,6 +68,8 @@ impl OpenAiProvider {
         }
     }
 
+    // JSON: OpenAI Chat Completions / Responses response body — upstream wire
+    // format.
     pub(crate) fn parse(&self, value: &Value, model: &str) -> Result<CanonicalResponse> {
         Ok(match self.target.wire() {
             WireProtocol::OpenAiResponses => openai_responses::parse_response_object(value, model)?,
@@ -73,6 +77,8 @@ impl OpenAiProvider {
         })
     }
 
+    // JSON: OpenAI Chat Completions / Responses request body — upstream wire
+    // format.
     pub(crate) async fn post(
         &self,
         wire: WireProtocol,

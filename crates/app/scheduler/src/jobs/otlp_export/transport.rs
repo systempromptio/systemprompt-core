@@ -13,8 +13,10 @@ use std::time::Duration;
 
 use prost::Message;
 use reqwest::StatusCode;
-use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
-use systemprompt_models::profile::{OtlpExportConfig, OtlpSignal};
+use reqwest::header::{
+    CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, InvalidHeaderName, InvalidHeaderValue,
+};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpSignal};
 
 pub const BATCHES_TOTAL: &str = "otlp_export_batches_total";
 const CONTENT_TYPE_PROTOBUF: &str = "application/x-protobuf";
@@ -44,8 +46,18 @@ pub fn is_retryable(status: Option<StatusCode>) -> bool {
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum TransportError {
-    #[error("invalid header {name}: {reason}")]
-    Header { name: String, reason: String },
+    #[error("invalid header name {name}: {source}")]
+    HeaderName {
+        name: String,
+        #[source]
+        source: InvalidHeaderName,
+    },
+    #[error("invalid value for header {name}: {source}")]
+    HeaderValue {
+        name: String,
+        #[source]
+        source: InvalidHeaderValue,
+    },
     #[error("collector answered {status}: {body}")]
     Status { status: StatusCode, body: String },
     #[error("request failed: {0}")]
@@ -72,13 +84,15 @@ pub(super) fn build_headers(config: &OtlpExportConfig) -> Result<HeaderMap, Tran
         HeaderValue::from_static(CONTENT_TYPE_PROTOBUF),
     );
     for (name, value) in &config.headers {
-        let key = HeaderName::from_bytes(name.as_bytes()).map_err(|e| TransportError::Header {
-            name: name.clone(),
-            reason: e.to_string(),
+        let key = HeaderName::from_bytes(name.as_bytes()).map_err(|source| {
+            TransportError::HeaderName {
+                name: name.clone(),
+                source,
+            }
         })?;
-        let value = HeaderValue::from_str(value).map_err(|e| TransportError::Header {
+        let value = HeaderValue::from_str(value).map_err(|source| TransportError::HeaderValue {
             name: name.clone(),
-            reason: e.to_string(),
+            source,
         })?;
         headers.insert(key, value);
     }
@@ -108,7 +122,7 @@ pub(super) async fn post_signal<M: Message>(
         let retry = match &error {
             TransportError::Status { status, .. } => is_retryable(Some(*status)),
             TransportError::Request(e) => is_retryable(e.status()),
-            TransportError::Header { .. } => false,
+            TransportError::HeaderName { .. } | TransportError::HeaderValue { .. } => false,
         };
         tracing::warn!(
             signal = %signal, attempt, retry, error = %error,

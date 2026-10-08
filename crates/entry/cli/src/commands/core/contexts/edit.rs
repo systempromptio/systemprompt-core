@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
     pool: &systemprompt_database::DbPool,
     config: &crate::cli_settings::CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContextRepository::new(pool)?;
+    let repo = ContextRepository::new(pool);
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
 

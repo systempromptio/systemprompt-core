@@ -15,11 +15,11 @@ use systemprompt_agent::repository::task::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    AgentId, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+    AgentId, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_models::{ExecutionStep, StepContent};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -47,9 +47,8 @@ struct E2EFixture {
 impl E2EFixture {
     async fn new() -> Result<Self> {
         let guard = acquire_serial().await;
-        let url = fixture_database_url()?;
-        let db = fixture_db_pool(&url).await?;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let db = test_db_pool().await;
+        let pool = db.pool().as_ref().clone();
 
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = UserId::new(format!("e2e_user_{tag}"));
@@ -104,7 +103,7 @@ impl E2EFixture {
             user_id: &self.user_id,
             session_id: &self.session_id,
             trace_id: &self.trace_id,
-            agent_name: "e2e-agent",
+            agent_name: &AgentName::new("e2e-agent"),
         })
         .await?;
         Ok(task_id)
@@ -137,7 +136,7 @@ async fn a2a_repositories_construct_and_share_pool() -> Result<()> {
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
     // Pool sanity: agent_services repo can query an empty result.
     let running = repos.agent_services.list_running_agents().await?;
-    assert!(running.iter().all(|r| !r.name.is_empty()));
+    assert!(running.iter().all(|r| !r.name.as_str().is_empty()));
     fx.cleanup().await?;
     Ok(())
 }
@@ -150,7 +149,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
     let t1 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
     let t2 = fx.insert_task(&repos.tasks, TaskState::Submitted).await?;
 
-    let got = repos.tasks.get_task(&t1).await?;
+    let got = repos.tasks.find_task(&t1).await?;
     assert!(got.is_some(), "task should be retrievable");
 
     let by_ctx = repos.tasks.list_tasks_by_context(&fx.context_id).await?;
@@ -165,7 +164,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 
     repos
         .tasks
-        .track_agent_in_context(&fx.context_id, "e2e-agent")
+        .track_agent_in_context(&fx.context_id, &AgentName::new("e2e-agent"))
         .await?;
 
     let now = Utc::now();
@@ -173,7 +172,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
         .tasks
         .update_task_state(&t1, TaskState::Working, &now)
         .await?;
-    let after = repos.tasks.get_task(&t1).await?.unwrap();
+    let after = repos.tasks.find_task(&t1).await?.unwrap();
     assert!(matches!(after.status.state, TaskState::Working));
 
     repos
@@ -184,7 +183,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
         .tasks
         .update_task_failed_with_error(&t2, "boom", &now)
         .await?;
-    let ctx_info = repos.tasks.get_task_context_info(&t1).await?;
+    let ctx_info = repos.tasks.find_task_context_info(&t1).await?;
     assert!(ctx_info.is_some());
 
     fx.cleanup().await?;
@@ -195,7 +194,7 @@ async fn task_repository_create_get_list_round_trip() -> Result<()> {
 async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let messages = MessageRepository::new(&fx.db)?;
+    let messages = MessageRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -258,7 +257,7 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
 async fn artifact_repository_create_and_query_paths() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let artifacts = ArtifactRepository::new(&fx.db)?;
+    let artifacts = ArtifactRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -295,14 +294,14 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
         .await?;
     assert!(by_user.iter().any(|a| a.id == artifact_id));
 
-    let by_id = artifacts.get_artifact_by_id(&artifact_id).await?;
+    let by_id = artifacts.find_artifact_by_id(&artifact_id).await?;
     assert!(by_id.is_some());
 
     let all = artifacts.get_all_artifacts(Some(10)).await?;
     assert!(all.iter().any(|a| a.id == artifact_id));
 
     artifacts.delete_artifact(&artifact_id).await?;
-    let after_delete = artifacts.get_artifact_by_id(&artifact_id).await?;
+    let after_delete = artifacts.find_artifact_by_id(&artifact_id).await?;
     assert!(after_delete.is_none());
 
     fx.cleanup().await?;
@@ -358,7 +357,7 @@ async fn execution_step_repository_lifecycle() -> Result<()> {
 #[tokio::test]
 async fn context_repository_crud_and_listing() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let ctx_repo = ContextRepository::new(&fx.db)?;
+    let ctx_repo = ContextRepository::new(&fx.db);
 
     let new_ctx = ctx_repo
         .create_context(&fx.user_id, None, "secondary-ctx", ContextKind::User)
@@ -399,7 +398,7 @@ async fn context_repository_crud_and_listing() -> Result<()> {
 #[tokio::test]
 async fn context_notification_repository_insert_and_broadcast() -> Result<()> {
     let fx = E2EFixture::new().await?;
-    let notif = ContextNotificationRepository::new(&fx.db)?;
+    let notif = ContextNotificationRepository::new(&fx.db);
 
     let agent_id = AgentId::new("e2e-agent");
     let id = notif
@@ -420,7 +419,7 @@ async fn context_notification_repository_insert_and_broadcast() -> Result<()> {
 async fn agent_service_repository_register_status_cycle() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let name = format!("e2e-svc-{}", fx.tag);
+    let name = systemprompt_identifiers::AgentName::new(format!("e2e-svc-{}", fx.tag));
 
     repos
         .agent_services
@@ -428,18 +427,15 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
         .await?;
     repos.agent_services.mark_running(&name).await?;
 
-    let status = repos.agent_services.get_agent_status(&name).await?;
+    let status = repos.agent_services.find_agent_status(&name).await?;
     assert!(status.is_some());
-    assert_eq!(status.unwrap().status, "running");
+    assert_eq!(
+        status.unwrap().status,
+        systemprompt_manifest::services::ServiceStatus::Running
+    );
 
-    repos
-        .agent_services
-        .update_health_status(&name, "running")
-        .await?;
     let running = repos.agent_services.list_running_agents().await?;
     assert!(running.iter().any(|r| r.name == name));
-    let running_pids = repos.agent_services.list_running_agent_pids().await?;
-    assert!(running_pids.iter().any(|r| r.name == name));
 
     repos.agent_services.mark_error(&name).await?;
     repos.agent_services.mark_stopped(&name).await?;
@@ -457,8 +453,8 @@ async fn agent_service_repository_register_status_cycle() -> Result<()> {
 async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result<()> {
     let fx = E2EFixture::new().await?;
     let repos = systemprompt_test_fixtures::a2a_repositories(&fx.db);
-    let messages = MessageRepository::new(&fx.db)?;
-    let artifacts = ArtifactRepository::new(&fx.db)?;
+    let messages = MessageRepository::new(&fx.db);
+    let artifacts = ArtifactRepository::new(&fx.db);
 
     let task_id = fx.insert_task(&repos.tasks, TaskState::Working).await?;
 
@@ -525,7 +521,7 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         .await?;
 
     // Now construct + verify
-    let ctor = TaskConstructor::new(&fx.db)?;
+    let ctor = TaskConstructor::new(&fx.db);
     let single = ctor
         .construct_task_from_task_id(&task_id)
         .await?
@@ -602,7 +598,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
         .await?;
 
     repos.tasks.delete_task(&task_id).await?;
-    assert!(repos.tasks.get_task(&task_id).await?.is_none());
+    assert!(repos.tasks.find_task(&task_id).await?.is_none());
 
     fx.cleanup().await?;
     Ok(())
@@ -631,7 +627,11 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
         extensions: None,
         reference_task_ids: None,
     };
-    let task = repos.tasks.get_task(&task_id).await?.expect("task present");
+    let task = repos
+        .tasks
+        .find_task(&task_id)
+        .await?
+        .expect("task present");
     repos
         .tasks
         .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {

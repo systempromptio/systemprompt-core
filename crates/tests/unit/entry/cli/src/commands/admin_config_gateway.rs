@@ -8,7 +8,8 @@ use systemprompt_cli::admin::config::gateway::{
     set_enabled, spec_mut, validate_gateway,
 };
 use systemprompt_cli::admin::config::services_io::GatewayFile;
-use systemprompt_models::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
+use systemprompt_identifiers::ProviderId;
+use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState, ProviderRegistry};
 
 fn file() -> GatewayFile {
     GatewayFile { gateway: None }
@@ -21,7 +22,7 @@ fn registry() -> ProviderRegistry {
 fn route_args(pattern: &str, provider: &str) -> RouteAddArgs {
     RouteAddArgs {
         model_pattern: pattern.to_string(),
-        provider: provider.to_string(),
+        provider: ProviderId::new(provider),
         upstream_model: None,
     }
 }
@@ -60,14 +61,16 @@ fn add_route_mints_an_id_and_upserts_by_pattern() {
     let mut f = file();
     let msg = add_route(&mut f, &route_args("claude-*", "anthropic")).unwrap();
     assert_eq!(msg, "Route claude-* -> anthropic added");
-    let first_id = spec(&f).routes[0].id.clone();
-    assert!(!first_id.as_str().is_empty());
+    let first_id = spec(&f).routes[0]
+        .declared_id()
+        .cloned()
+        .expect("add_route mints an id");
 
     add_route(&mut f, &route_args("claude-*", "openai")).unwrap();
     let routes = &spec(&f).routes;
     assert_eq!(routes.len(), 1);
     assert_eq!(routes[0].provider.as_str(), "openai");
-    assert_ne!(routes[0].id, first_id);
+    assert_ne!(routes[0].declared_id(), Some(&first_id));
 }
 
 #[test]
@@ -88,7 +91,7 @@ fn remove_route_deletes_matching_pattern_and_errors_when_absent() {
 #[test]
 fn default_provider_set_and_clear_round_trip() {
     let mut f = file();
-    let msg = set_default_provider(&mut f, "anthropic").unwrap();
+    let msg = set_default_provider(&mut f, &ProviderId::new("anthropic")).unwrap();
     assert_eq!(msg, "Gateway default provider set to anthropic");
     assert_eq!(
         spec(&f).default_provider.as_ref().unwrap().as_str(),
@@ -106,7 +109,7 @@ fn validate_gateway_passes_without_gateway_and_with_registry_providers() {
     validate_gateway(&f, &registry()).unwrap();
 
     add_route(&mut f, &route_args("claude-*", "anthropic")).unwrap();
-    set_default_provider(&mut f, "openai").unwrap();
+    set_default_provider(&mut f, &ProviderId::new("openai")).unwrap();
     validate_gateway(&f, &registry()).unwrap();
 }
 
@@ -125,7 +128,7 @@ fn validate_gateway_rejects_route_provider_missing_from_registry() {
 #[test]
 fn validate_gateway_rejects_unknown_default_provider() {
     let mut f = file();
-    set_default_provider(&mut f, "ghost").unwrap();
+    set_default_provider(&mut f, &ProviderId::new("ghost")).unwrap();
     let err = validate_gateway(&f, &registry()).unwrap_err().to_string();
     assert!(err.contains("ghost"), "unexpected error: {err}");
 }

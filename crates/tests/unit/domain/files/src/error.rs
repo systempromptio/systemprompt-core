@@ -1,14 +1,6 @@
 use systemprompt_files::error::FilesError;
 
 #[test]
-fn files_error_storage_variant_display() {
-    let err = FilesError::Storage("disk full".to_owned());
-    let s = format!("{err}");
-    assert!(s.contains("storage error"));
-    assert!(s.contains("disk full"));
-}
-
-#[test]
 fn files_error_io_variant_display() {
     let io = std::io::Error::other("perm denied");
     let err = FilesError::from(io);
@@ -51,10 +43,7 @@ fn from_sqlx_error_wraps_repository_variant() {
     let err = FilesError::from(sqlx::Error::RowNotFound);
     match &err {
         FilesError::Repository(inner) => {
-            assert!(
-                inner.to_string().contains("no rows returned"),
-                "unexpected repository error: {inner}"
-            );
+            assert!(inner.is_not_found(), "unexpected repository error: {inner}");
         },
         other => panic!("expected Repository, got {other:?}"),
     }

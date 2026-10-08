@@ -16,7 +16,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, FileId, UserId};
 use systemprompt_traits::{FileStorage, StoredFileId};
-use uuid::Uuid;
 
 use crate::config::{FilePersistenceMode, FilesConfig};
 use crate::models::{FileChecksums, FileMetadata};
@@ -98,7 +97,7 @@ impl FileUploadService {
 
         let category = self.validator.validate(&request.mime_type, size_bytes)?;
 
-        let file_id = FileId::new(Uuid::new_v4().to_string());
+        let file_id = FileId::generate();
         let extension = FileValidator::get_extension(&request.mime_type, request.name.as_deref());
         let filename = format!("{}.{}", file_id.as_str(), extension);
 
@@ -180,7 +179,7 @@ impl FileUploadService {
                     "Failed to clean up uploaded file after database error"
                 );
             }
-            return Err(FileUploadError::Database(e.to_string()));
+            return Err(FileUploadError::Database(e));
         }
 
         Ok(())

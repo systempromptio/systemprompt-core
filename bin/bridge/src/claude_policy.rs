@@ -19,24 +19,21 @@ const BRIDGE_KEYS: [&str; 3] = [
     "allowAllClaudeAiMcps",
 ];
 
+// JSON: Claude Code managed `settings.json` — foreign config, unknown keys must
+// be preserved.
 fn read_settings(path: &Path) -> Result<Option<Map<String, Value>>, std::io::Error> {
     let bytes = match fs::read(path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => {
-            return Err(std::io::Error::new(
-                e.kind(),
-                format!("{}: {e}", path.display()),
-            ));
-        },
+        Err(e) => return Err(crate::fsutil::io_context(path.display().to_string(), e)),
     };
     if bytes.iter().all(u8::is_ascii_whitespace) {
         return Ok(None);
     }
     let doc = serde_json::from_slice::<Value>(&bytes).map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("{}: {e}", path.display()),
+        crate::fsutil::io_context(
+            path.display().to_string(),
+            std::io::Error::new(std::io::ErrorKind::InvalidData, e),
         )
     })?;
     match doc {

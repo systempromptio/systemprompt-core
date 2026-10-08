@@ -25,7 +25,7 @@ const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
 
 #[derive(Serialize)]
 struct HeartbeatPayload<'a> {
-    session_id: &'a str,
+    session_id: &'a systemprompt_identifiers::SessionId,
     bridge_version: &'a str,
     os: &'a str,
     hostname: &'a str,
@@ -101,11 +101,11 @@ async fn send_one(
     let token = token_cache
         .current(HEARTBEAT_AUTH_THRESHOLD_SECS)
         .await
-        .map_err(|e| HeartbeatError::Auth(e.to_string()))?;
+        .map_err(HeartbeatError::Auth)?;
 
     let hostname = hostname_or_unknown();
     let payload = HeartbeatPayload {
-        session_id: session.session_id().as_str(),
+        session_id: session.session_id(),
         bridge_version: crate::brand::COMPAT_VERSION,
         os: std::env::consts::OS,
         hostname: &hostname,
@@ -132,9 +132,8 @@ async fn send_one(
         token_cache.reject_upstream("/v1/bridge/heartbeat").await;
     }
     if !status.is_success() {
-        return Err(HeartbeatError::Upstream {
-            status: status.as_u16(),
-        });
+        let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;
+        return Err(HeartbeatError::Upstream { status, rejection });
     }
     if let Ok(body) = response.json::<HeartbeatResponse>().await
         && !body.compatible
@@ -165,10 +164,13 @@ fn hostname_or_unknown() -> String {
 
 #[derive(Debug, thiserror::Error)]
 enum HeartbeatError {
-    #[error("authentication unavailable: {0}")]
-    Auth(String),
+    #[error(transparent)]
+    Auth(crate::proxy::forward::ForwardError),
     #[error("network: {0}")]
     Network(#[from] reqwest::Error),
-    #[error("upstream rejected heartbeat: status {status}")]
-    Upstream { status: u16 },
+    #[error("upstream rejected heartbeat: status {status}: {rejection}")]
+    Upstream {
+        status: reqwest::StatusCode,
+        rejection: Box<crate::gateway::GatewayRejection>,
+    },
 }

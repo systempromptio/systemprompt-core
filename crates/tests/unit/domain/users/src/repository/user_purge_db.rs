@@ -13,17 +13,15 @@ struct Ctx {
     raw: Arc<sqlx::PgPool>,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
-    let raw = fixture.pool.pool_arc().expect("raw pool");
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&fixture.pool).expect("user repository"),
-    ));
-    Some(Ctx {
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
+    let raw = fixture.pool.pool();
+    let service = UserService::new(Arc::new(UserRepository::new(&fixture.pool)));
+    Ctx {
         fixture,
         service,
         raw,
-    })
+    }
 }
 
 async fn create_user(ctx: &Ctx, prefix: &str) -> UserId {
@@ -90,9 +88,7 @@ fn digest(tag: &str) -> String {
 
 #[tokio::test]
 async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_user() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let victim = create_user(&ctx, "purge-own").await;
     let other = create_user(&ctx, "purge-other").await;
     let own = digest("a");
@@ -138,10 +134,41 @@ async fn purge_removes_the_users_own_payload_and_keeps_one_shared_with_another_u
 }
 
 #[tokio::test]
+async fn purge_leaves_payloads_the_user_never_referenced() {
+    let ctx = setup().await;
+    let victim = create_user(&ctx, "purge-scope").await;
+    let own = digest("c");
+    let unrelated = digest("d");
+    seed_payload(&ctx, &own).await;
+    seed_payload(&ctx, &unrelated).await;
+    seed_artifact(&ctx, &victim, &own).await;
+
+    let removed = ctx.service.delete(&victim).await.expect("delete");
+    let swept = removed
+        .iter()
+        .find(|c| c.table == "artifact_payloads")
+        .expect("delete reports the payload sweep");
+    assert_eq!(
+        swept.rows, 1,
+        "the sweep counts only the bodies this user's rows referenced"
+    );
+    assert!(!payload_exists(&ctx, &own).await);
+    assert!(
+        payload_exists(&ctx, &unrelated).await,
+        "an orphan body this user never referenced is not theirs to purge"
+    );
+
+    sqlx::query("DELETE FROM artifact_payloads WHERE sha256 = $1")
+        .bind(&unrelated)
+        .execute(ctx.raw.as_ref())
+        .await
+        .expect("cleanup unrelated payload");
+    ctx.fixture.finish().await;
+}
+
+#[tokio::test]
 async fn purge_removes_the_users_outbox_rows() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let victim = create_user(&ctx, "purge-outbox").await;
     let sha256 = digest("c");
     seed_payload(&ctx, &sha256).await;

@@ -32,7 +32,7 @@ pub(super) async fn stream_to_file(
         let chunk = response
             .chunk()
             .await
-            .map_err(|e| BundleError::fetch(source_name, e))?;
+            .map_err(|e| BundleError::fetch_cause(source_name, e))?;
         let Some(chunk) = chunk else { break };
         budget = budget
             .checked_sub(chunk.len() as u64)

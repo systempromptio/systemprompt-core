@@ -14,13 +14,45 @@ fn acknowledge_installation(outbox: &Outbox, key: &str, receipt: &str) {
         .unwrap();
 }
 
+fn seed_sessions(
+    path: &std::path::Path,
+    key: &str,
+    publication: &PublicationId,
+    sessions: impl Iterator<Item = String>,
+    completed: bool,
+) {
+    let mut state: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    for session in sessions {
+        let session_key = serde_json::to_string(&(EvaluatorClient::Codex, &session)).unwrap();
+        state["sessions"][&session_key] = serde_json::json!([publication]);
+        if completed {
+            state["completed_sessions"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!(session_key));
+        } else {
+            state["entries"][key]["session_bindings"][&session] = serde_json::json!(false);
+        }
+    }
+    std::fs::write(path, serde_json::to_vec(&state).unwrap()).unwrap();
+}
+
 #[test]
 fn completed_sessions_release_both_capacity_bounds_without_changing_receipt() {
     let (dir, receipt) = prepared(EvaluatorClient::Codex);
-    let outbox = Outbox::new(dir.path().join("outbox.json"), scope("device"));
+    let path = dir.path().join("outbox.json");
+    let outbox = Outbox::new(path.clone(), scope("device"));
     let key = outbox.enqueue(receipt.clone()).unwrap();
     acknowledge_installation(&outbox, &key, "receipt");
-    for index in 0..1025 {
+    seed_sessions(
+        &path,
+        &key,
+        &receipt.publication_id,
+        (0..1023).map(|index| format!("session-{index:04}")),
+        true,
+    );
+    for index in 1023..1025 {
         let session = format!("session-{index:04}");
         outbox
             .queue_session(EvaluatorClient::Codex, &session)
@@ -31,8 +63,12 @@ fn completed_sessions_release_both_capacity_bounds_without_changing_receipt() {
         assert!(outbox.entries().unwrap()[0].1.session_bindings.is_empty());
     }
     let persisted: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(dir.path().join("outbox.json")).unwrap()).unwrap();
-    assert_eq!(persisted["sessions"].as_object().unwrap().len(), 1024);
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let sessions = persisted["sessions"].as_object().unwrap();
+    assert_eq!(sessions.len(), 1024);
+    let session_key = |name: &str| serde_json::to_string(&(EvaluatorClient::Codex, name)).unwrap();
+    assert!(!sessions.contains_key(&session_key("session-0000")));
+    assert!(sessions.contains_key(&session_key("session-1024")));
     assert_eq!(outbox.enqueue(receipt.clone()).unwrap(), key);
     let mut conflict = receipt;
     conflict.runtime_files[0].digest = ContentDigest::of(b"tampered");
@@ -47,13 +83,19 @@ fn pending_capacity_rejects_atomically_and_restart_preserves_mixed_delivery() {
     let (dir, receipt) = prepared(EvaluatorClient::Codex);
     let path = dir.path().join("outbox.json");
     let outbox = Outbox::new(path.clone(), scope("device"));
+    let publication = receipt.publication_id.clone();
     let key = outbox.enqueue(receipt).unwrap();
     acknowledge_installation(&outbox, &key, "receipt");
-    for index in 0..256 {
-        outbox
-            .queue_session(EvaluatorClient::Codex, &format!("pending-{index}"))
-            .unwrap();
-    }
+    seed_sessions(
+        &path,
+        &key,
+        &publication,
+        (1..256).map(|index| format!("pending-{index}")),
+        false,
+    );
+    outbox
+        .queue_session(EvaluatorClient::Codex, "pending-0")
+        .unwrap();
     let before = std::fs::read(&path).unwrap();
     assert!(matches!(
         outbox.queue_session(EvaluatorClient::Codex, "overflow"),

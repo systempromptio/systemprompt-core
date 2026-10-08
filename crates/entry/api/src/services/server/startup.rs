@@ -23,16 +23,16 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
+use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::ShutdownRequest;
-use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
-use tokio::task::JoinHandle;
+use systemprompt_traits::{OwnedTask, StartupEvent, StartupEventExt, StartupEventSender};
 use tower::ServiceExt;
 
 #[derive(Debug)]
 pub struct EarlyServer {
     swap: Arc<RwLock<Router>>,
-    join: JoinHandle<Result<()>>,
+    join: OwnedTask<Result<()>>,
     local_addr: SocketAddr,
 }
 
@@ -47,7 +47,7 @@ impl EarlyServer {
     }
 
     pub async fn join(self) -> Result<()> {
-        self.join.await.context("API serve task panicked")?
+        self.join.join().await.context("API serve task panicked")?
     }
 }
 
@@ -82,7 +82,7 @@ pub async fn bind_and_serve(
         swap: Arc::clone(&swap),
     });
 
-    let join = tokio::spawn(async move {
+    let join = OwnedTask::spawn("api_serve", async move {
         axum::serve(
             listener,
             outer.into_make_service_with_connect_info::<SocketAddr>(),
@@ -123,11 +123,10 @@ async fn starting_readyz() -> impl IntoResponse {
     )
 }
 
-async fn starting_fallback() -> impl IntoResponse {
-    (
-        StatusCode::SERVICE_UNAVAILABLE,
-        Json(json!({ "error": "service starting" })),
-    )
+async fn starting_fallback() -> Response {
+    tracing::debug!("request answered with 503 while the service is starting");
+    let body = ApiError::service_unavailable("service starting").with_error_key("service_starting");
+    (StatusCode::SERVICE_UNAVAILABLE, Json(body)).into_response()
 }
 
 #[derive(Clone)]

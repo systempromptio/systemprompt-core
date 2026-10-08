@@ -53,7 +53,7 @@ pub async fn deliver(enrollment: &Enrollment, outbox: &Outbox) -> Result<()> {
                     },
                     Err(error) => {
                         let status = match error {
-                            FeedbackError::Rejected(status) => status,
+                            FeedbackError::Rejected { status, .. } => status,
                             _ => 0,
                         };
                         outbox.delivery(&key, Err(status))?;
@@ -202,36 +202,4 @@ fn current_installation(
                         && publication.bundle_digest == pending.publication.bundle_digest
                 })
         })
-}
-
-pub async fn recover_current_manifest(
-    gateway: &str,
-    manifest: &crate::gateway::manifest::SignedManifest,
-) -> Result<()> {
-    let root = super::metadata_root()?;
-    let enrollment = Enrollment::load(&root, gateway)?;
-    let outbox = Outbox::new(
-        enrollment.outbox_path(&root),
-        super::outbox::OutboxScope::from_enrollment(&enrollment),
-    );
-    recover_manifest_installations(&enrollment, &outbox, manifest).await
-}
-
-pub async fn recover_manifest_installations(
-    enrollment: &Enrollment,
-    outbox: &Outbox,
-    manifest: &crate::gateway::manifest::SignedManifest,
-) -> Result<()> {
-    outbox.require_enrollment(enrollment)?;
-    if enrollment.consumer_id != manifest.user_id {
-        return Err(FeedbackError::Scope);
-    }
-    let _lock = super::installation_lock().await?;
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    for host in &manifest.enabled_hosts {
-        if let Some(kind) = super::client_kind(host) {
-            recover_pending(enrollment, outbox, kind, manifest, deadline).await?;
-        }
-    }
-    Ok(())
 }

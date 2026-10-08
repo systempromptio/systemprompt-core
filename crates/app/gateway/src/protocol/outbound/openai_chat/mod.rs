@@ -1,0 +1,101 @@
+//! Outbound adapter targeting the `OpenAI` Chat Completions API.
+//!
+//! [`OpenAiChatOutbound`] orchestrates transport — auth headers, HTTP status
+//! handling, stream-vs-buffered dispatch — and delegates every wire concern
+//! (request build, response parse, SSE-to-event mapping) to the shared
+//! [`systemprompt_wire::openai_chat`] codec. Also serves
+//! OpenAI-compatible providers exposing the same surface.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use async_trait::async_trait;
+use serde_json::Value;
+use systemprompt_wire::{WireProtocol, openai_chat as codec};
+
+use super::{OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, PreparedBody};
+
+pub mod raw;
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct OpenAiChatOutbound;
+
+#[async_trait]
+impl OutboundAdapter for OpenAiChatOutbound {
+    fn build_body(&self, ctx: &OutboundCtx<'_>) -> Result<PreparedBody, OutboundError> {
+        if let Some(raw) = ctx.raw_body
+            && let Some(bytes) = raw::normalize_raw_body(raw, ctx)
+        {
+            return Ok(PreparedBody {
+                bytes,
+                raw_lane: true,
+            });
+        }
+        Ok(PreparedBody {
+            bytes: bytes::Bytes::from(
+                serde_json::to_vec(&codec::build_request_body(
+                    ctx.request,
+                    ctx.upstream_model,
+                    ctx.model_limits,
+                ))
+                .map_err(|source| OutboundError::RenderBody {
+                    wire: "openai-chat",
+                    source,
+                })?,
+            ),
+            raw_lane: false,
+        })
+    }
+
+    async fn send(
+        &self,
+        ctx: OutboundCtx<'_>,
+        body: &PreparedBody,
+    ) -> Result<OutboundOutcome, OutboundError> {
+        let url = ctx.upstream.url(
+            WireProtocol::OpenAiChat,
+            ctx.upstream_model,
+            ctx.request.stream,
+        );
+        let mut req = super::http_client().post(&url).body(body.bytes.clone());
+        for (name, value) in ctx.upstream.headers(WireProtocol::OpenAiChat) {
+            req = req.header(name, value);
+        }
+        for (name, value) in &ctx.route.extra_headers {
+            req = req.header(name.as_str(), value.as_str());
+        }
+        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
+
+        if ctx.request.stream {
+            let stream = upstream_response.bytes_stream();
+            let event_stream =
+                codec::sse_to_canonical_events(stream, ctx.request.model.to_string());
+            return Ok(OutboundOutcome::Streaming(event_stream));
+        }
+
+        let bytes = upstream_response
+            .bytes()
+            .await
+            .map_err(|source| OutboundError::ReadBody {
+                wire: "openai-chat",
+                source,
+            })?;
+        let value: Value =
+            serde_json::from_slice(&bytes).map_err(|source| OutboundError::DecodeBody {
+                wire: "openai-chat",
+                source,
+            })?;
+        if let Some(defect) = codec::buffered_defect(&value) {
+            return Err(super::reject_defective_body(
+                ctx.route.provider.as_str(),
+                "openai-chat",
+                &defect,
+                &bytes,
+            ));
+        }
+        let canon = codec::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
+            super::reject_unparsable_body(ctx.route.provider.as_str(), "openai-chat", &e, &bytes)
+        })?;
+        Ok(OutboundOutcome::Buffered(Box::new(canon)))
+    }
+}

@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::PluginId;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -37,7 +38,10 @@ pub enum AuthError {
     #[error(
         "hook token: plugin_id `{actual}` in claim does not match request plugin_id `{expected}`"
     )]
-    HookPluginIdMismatch { expected: String, actual: String },
+    HookPluginIdMismatch {
+        expected: PluginId,
+        actual: PluginId,
+    },
 
     #[error("token has unsupported algorithm `{got}`; only RS256 is accepted")]
     UnsupportedAlgorithm { got: String },
@@ -52,7 +56,7 @@ pub enum AuthError {
     UnknownKid(String),
 
     #[error("signing key lookup failed: {0}")]
-    KeyLookup(String),
+    KeyLookup(#[source] crate::keys::authority::TokenAuthorityError),
 
     #[error("issuer `{0}` is not trusted")]
     UntrustedIssuer(String),
@@ -69,6 +73,9 @@ pub enum AuthError {
 
     #[error("token is missing the `scope` claim")]
     MissingScope,
+
+    #[error("token `sub` is not a valid user id: {0}")]
+    InvalidSubject(#[source] systemprompt_identifiers::error::IdValidationError),
 
     #[error("token `user_type` claim `{claimed}` does not match permissions (derived `{derived}`)")]
     UserTypeMismatch {
@@ -94,25 +101,29 @@ pub enum JwtError {
     Encoding(#[from] jsonwebtoken::errors::Error),
 
     #[error("jwt signing key unavailable: {0}")]
-    Signing(String),
+    Signing(#[source] crate::keys::authority::TokenAuthorityError),
 }
 
 #[derive(Debug, Error)]
 pub enum ManifestSigningError {
     #[error("manifest signing seed unavailable: {0}")]
-    SeedUnavailable(String),
+    SeedUnavailable(#[source] systemprompt_config::SecretsBootstrapError),
 
     #[error("jcs canonicalize: {0}")]
-    Canonicalize(String),
+    Canonicalize(#[source] serde_json::Error),
 
     #[error("signing key missing after initialization")]
     KeyMissing,
 
-    #[error("invalid base64 in {field}: {message}")]
+    #[error("invalid base64 in {field}: {source}")]
     InvalidBase64 {
         field: &'static str,
-        message: String,
+        #[source]
+        source: base64::DecodeError,
     },
+
+    #[error("invalid ed25519 public key: {0}")]
+    InvalidPublicKey(#[source] ed25519_dalek::SignatureError),
 
     #[error("{field} decoded to {actual} bytes, expected {expected}")]
     InvalidKeyLength {

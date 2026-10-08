@@ -1,13 +1,15 @@
-//! Typed errors returned across the dyn-dispatched provider seams
+//! Typed errors returned across the provider seams
 //! ([`crate::ai::AiProvider`], [`crate::mcp::McpRegistry`] and friends).
 //!
 //! Each variant names the failure class a caller can act on; the concrete
 //! provider maps its own error hierarchy onto these before crossing the seam,
-//! so consumers never see a boxed, opaque error.
+//! keeping the provider's own error as the `#[source]` of the catch-all
+//! classes so the cause chain survives the seam.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -29,19 +31,19 @@ pub enum AiInferenceError {
     Unavailable { provider: String, message: String },
 
     #[error("inference request invalid: {0}")]
-    InvalidRequest(String),
+    InvalidRequest(#[source] BoxedSource),
 
     #[error("tool execution failed: {0}")]
-    Tool(String),
+    Tool(#[source] BoxedSource),
 
     #[error("configuration error: {0}")]
-    Configuration(String),
+    Configuration(#[source] BoxedSource),
 
     #[error("persistence failed: {0}")]
-    Storage(String),
+    Storage(#[source] BoxedSource),
 
     #[error("{0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 pub type AiInferenceResult<T> = Result<T, AiInferenceError>;
@@ -53,13 +55,13 @@ pub enum McpRegistryError {
     NotFound(String),
 
     #[error("MCP registry configuration error: {0}")]
-    Configuration(String),
+    Configuration(#[source] BoxedSource),
 
     #[error("MCP transport failure for server {server}: {message}")]
     Transport { server: String, message: String },
 
     #[error("{0}")]
-    Internal(String),
+    Internal(#[source] BoxedSource),
 }
 
 pub type McpRegistryResult<T> = Result<T, McpRegistryError>;

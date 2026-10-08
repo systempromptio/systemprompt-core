@@ -1,17 +1,13 @@
 //! Tests for Content, ContentSummary, and Tag types.
 
-#[test]
-fn test_content_links_metadata_valid() {
+fn content_with_links(
+    links: Vec<systemprompt_content::models::ContentLinkMetadata>,
+) -> systemprompt_content::models::Content {
     use chrono::Utc;
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
-    let links_json = serde_json::json!([
-        {"title": "Link 1", "url": "https://example.com/1"},
-        {"title": "Link 2", "url": "https://example.com/2"}
-    ]);
-
-    let content = Content {
+    Content {
         id: ContentId::new("content-1"),
         slug: "test-content".to_string(),
         locale: LocaleCode::english(),
@@ -27,77 +23,56 @@ fn test_content_links_metadata_valid() {
         source_id: SourceId::new("source"),
         version_hash: "hash".to_string(),
         public: true,
-        links: links_json,
+        links: sqlx::types::Json(links),
         updated_at: Utc::now(),
-    };
-
-    let result = content.links_metadata();
-    let links = result.expect("links_metadata should succeed");
-    assert_eq!(links.len(), 2);
-    assert_eq!(links[0].title, "Link 1");
-    assert_eq!(links[1].url, "https://example.com/2");
+    }
 }
 
 #[test]
-fn test_content_links_metadata_empty() {
-    use chrono::Utc;
-    use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
+fn test_content_links_serialize_as_plain_array() {
+    use systemprompt_content::models::ContentLinkMetadata;
 
-    let content = Content {
-        id: ContentId::new("content-2"),
-        slug: "no-links".to_string(),
-        locale: LocaleCode::english(),
-        title: "No Links".to_string(),
-        description: "Description".to_string(),
-        body: "Body".to_string(),
-        author: "Author".to_string(),
-        published_at: Utc::now(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category_id: None,
-        source_id: SourceId::new("source"),
-        version_hash: "hash".to_string(),
-        public: true,
-        links: serde_json::json!([]),
-        updated_at: Utc::now(),
-    };
+    let content = content_with_links(vec![
+        ContentLinkMetadata {
+            title: "Link 1".to_string(),
+            url: "https://example.com/1".to_string(),
+        },
+        ContentLinkMetadata {
+            title: "Link 2".to_string(),
+            url: "https://example.com/2".to_string(),
+        },
+    ]);
 
-    let result = content.links_metadata();
-    assert!(result.expect("empty links should succeed").is_empty());
+    let value = serde_json::to_value(&content).expect("serialize content");
+    assert_eq!(
+        value["links"],
+        serde_json::json!([
+            {"title": "Link 1", "url": "https://example.com/1"},
+            {"title": "Link 2", "url": "https://example.com/2"}
+        ])
+    );
 }
 
 #[test]
-fn test_content_links_metadata_invalid_json() {
-    use chrono::Utc;
+fn test_content_links_default_to_empty_when_absent() {
     use systemprompt_content::models::Content;
-    use systemprompt_identifiers::{ContentId, LocaleCode, SourceId};
 
-    let content = Content {
-        id: ContentId::new("content-3"),
-        slug: "invalid-links".to_string(),
-        locale: LocaleCode::english(),
-        title: "Invalid Links".to_string(),
-        description: "Description".to_string(),
-        body: "Body".to_string(),
-        author: "Author".to_string(),
-        published_at: Utc::now(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category_id: None,
-        source_id: SourceId::new("source"),
-        version_hash: "hash".to_string(),
-        public: true,
-        links: serde_json::json!({"not": "an array"}),
-        updated_at: Utc::now(),
-    };
+    let mut value = serde_json::to_value(content_with_links(Vec::new())).expect("serialize");
+    value.as_object_mut().expect("object").remove("links");
 
-    let result = content.links_metadata();
-    result.unwrap_err();
+    let content: Content = serde_json::from_value(value).expect("links is optional");
+    assert!(content.links.is_empty());
 }
 
+#[test]
+fn test_content_links_reject_non_array() {
+    use systemprompt_content::models::Content;
+
+    let mut value = serde_json::to_value(content_with_links(Vec::new())).expect("serialize");
+    value["links"] = serde_json::json!({"not": "an array"});
+
+    serde_json::from_value::<Content>(value).unwrap_err();
+}
 
 #[test]
 fn test_content_summary_creation() {

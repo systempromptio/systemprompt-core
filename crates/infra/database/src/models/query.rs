@@ -1,12 +1,10 @@
-//! Query primitives: selectors, dynamic results, typed row decoding.
+//! Query primitives: selectors and dynamic results.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::DatabaseResult;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::postgres::PgRow;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy)]
@@ -46,10 +44,6 @@ impl QuerySelector for DatabaseQuery {
     fn select_query(&self) -> &str {
         self.postgres()
     }
-}
-
-pub trait FromDatabaseRow: Sized {
-    fn from_postgres_row(row: &PgRow) -> DatabaseResult<Self>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

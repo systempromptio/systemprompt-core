@@ -9,13 +9,13 @@ use systemprompt_cli::cloud::profile::edit_settings::{
     edit_runtime_settings, edit_security_settings, edit_server_settings,
 };
 use systemprompt_cli::interactive::ScriptedPrompter;
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, Environment, ExtensionsConfig, LogLevel, PathsConfig, Profile,
     ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
     SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 fn scripted(answers: &[&str]) -> ScriptedPrompter {
     ScriptedPrompter::new(answers.iter().map(|s| (*s).to_owned()))
@@ -35,6 +35,7 @@ fn make_profile() -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: ServerConfig {
@@ -49,7 +50,9 @@ fn make_profile() -> Profile {
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
             metrics_port: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            role: Default::default(),
+            max_in_flight: None,
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
@@ -71,7 +74,7 @@ fn make_profile() -> Profile {
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         },
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),
@@ -181,4 +184,41 @@ fn edit_runtime_settings_exhausted_prompter_errors() {
 
     let err = edit_runtime_settings(&prompter, &mut profile).unwrap_err();
     assert!(err.to_string().contains("exhausted"));
+}
+
+const HOST_PLACEHOLDER: &str = "${SP_EDIT_DOC_UNSET_HOST:-127.0.0.1}";
+
+fn read_raw(path: &std::path::Path) -> serde_yaml::Value {
+    serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+}
+
+// Why: the edit used to save the interpolated struct, so every `${VAR}` in
+// the profile was replaced by the operator's shell value (or its default).
+#[test]
+fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
+    use systemprompt_cli::cloud::profile::edit_document::ProfileDocument;
+
+    let dir = tempfile::TempDir::new().unwrap();
+    let path = dir.path().join("profile.yaml");
+    let mut raw = serde_yaml::to_value(make_profile()).unwrap();
+    raw["server"]["host"] = serde_yaml::Value::String(HOST_PLACEHOLDER.to_owned());
+    let text = serde_yaml::to_string(&raw).unwrap();
+    std::fs::write(&path, &text).unwrap();
+
+    let before = Profile::from_yaml(&text, &path).unwrap();
+    assert_eq!(before.server.host, "127.0.0.1");
+    let mut after = before.clone();
+    after.server.port = 9090;
+
+    let mut document = ProfileDocument::open(&path).unwrap();
+    document.apply_changes(&before, &after).unwrap();
+    document.save().unwrap();
+
+    let saved = read_raw(&path);
+    assert_eq!(
+        saved["server"]["host"],
+        serde_yaml::Value::String(HOST_PLACEHOLDER.to_owned()),
+        "an untouched placeholder must survive the save"
+    );
+    assert_eq!(saved["server"]["port"], serde_yaml::Value::from(9090));
 }

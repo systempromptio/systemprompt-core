@@ -16,27 +16,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::RuleId;
+use sqlx::PgConnection;
 
 use crate::authz::error::AuthzResult;
-use crate::authz::types::{EntityKind, RuleType};
+use crate::authz::repository::ingestion::IngestionRepository;
+use crate::authz::types::EntityKind;
+
+pub(super) use crate::authz::repository::ingestion::IngestRule as Target;
 
 pub(super) const SOURCE_LABEL: &str = "ingestion:access_control_config";
 
 pub const DASHBOARD_SOURCE: &str = "dashboard";
 
 pub const YAML_SOURCE: &str = "yaml";
-
-#[derive(Debug)]
-pub(super) struct Target<'a> {
-    pub(super) entity_kind: EntityKind,
-    pub(super) entity_id: &'a str,
-    pub(super) rule_type: RuleType,
-    pub(super) rule_value: &'a str,
-    pub(super) access: &'static str,
-    pub(super) justification: Option<&'a str>,
-    pub(super) source: &'a str,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum UpsertOutcome {
@@ -47,123 +39,45 @@ pub(super) enum UpsertOutcome {
 }
 
 pub(super) async fn upsert_entity_row(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conn: &mut PgConnection,
     entity_kind: EntityKind,
     entity_id: &str,
     default_included: bool,
     source: &str,
 ) -> AuthzResult<()> {
-    sqlx::query!(
-        r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = EXCLUDED.default_included,
-                      source = EXCLUDED.source,
-                      updated_at = NOW()
-        "#,
-        entity_kind.as_str(),
-        entity_id,
-        default_included,
-        source,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
+    IngestionRepository::upsert_entity(conn, entity_kind, entity_id, default_included, source).await
 }
 
 pub(super) async fn upsert_marketplace_entity_row(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conn: &mut PgConnection,
     entity_id: &str,
     default_included: bool,
 ) -> AuthzResult<()> {
     let source = format!("marketplace:{entity_id}");
-    sqlx::query!(
-        r#"
-        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ('marketplace', $1, $2, $3)
-        ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = EXCLUDED.default_included,
-                      source = EXCLUDED.source
-        "#,
-        entity_id,
-        default_included,
-        source,
-    )
-    .execute(&mut **tx)
-    .await?;
-    Ok(())
+    IngestionRepository::upsert_marketplace_entity(conn, entity_id, default_included, &source).await
 }
 
 pub(super) async fn upsert_target(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    conn: &mut PgConnection,
     target: &Target<'_>,
     override_existing: bool,
 ) -> AuthzResult<UpsertOutcome> {
-    let existing = sqlx::query!(
-        r#"
-        SELECT id, access, justification, source
-        FROM access_control_rules
-        WHERE entity_type = $1 AND entity_id = $2
-          AND rule_type = $3 AND rule_value = $4
-        "#,
-        target.entity_kind.as_str(),
-        target.entity_id,
-        target.rule_type.to_string(),
-        target.rule_value,
-    )
-    .fetch_optional(&mut **tx)
-    .await?;
-
-    if let Some(row) = existing {
-        if row.source == DASHBOARD_SOURCE {
-            return Ok(UpsertOutcome::Protected);
-        }
-        if !override_existing {
-            return Ok(UpsertOutcome::Skipped);
-        }
-        let unchanged = row.access == target.access
-            && row.justification.as_deref() == target.justification
-            && row.source == target.source;
-        if unchanged {
-            return Ok(UpsertOutcome::Skipped);
-        }
-        sqlx::query!(
-            r#"
-            UPDATE access_control_rules
-            SET access = $2,
-                justification = $3,
-                source = $4,
-                updated_at = NOW()
-            WHERE id = $1
-            "#,
-            row.id,
-            target.access,
-            target.justification,
-            target.source,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(UpsertOutcome::Updated)
-    } else {
-        let id = RuleId::generate();
-        sqlx::query!(
-            r#"
-            INSERT INTO access_control_rules
-                (id, entity_type, entity_id, rule_type, rule_value, access, justification, source)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            "#,
-            id.as_str(),
-            target.entity_kind.as_str(),
-            target.entity_id,
-            target.rule_type.to_string(),
-            target.rule_value,
-            target.access,
-            target.justification,
-            target.source,
-        )
-        .execute(&mut **tx)
-        .await?;
-        Ok(UpsertOutcome::Inserted)
+    let Some(row) = IngestionRepository::find_rule(conn, target).await? else {
+        IngestionRepository::insert_rule(conn, target).await?;
+        return Ok(UpsertOutcome::Inserted);
+    };
+    if row.source == DASHBOARD_SOURCE {
+        return Ok(UpsertOutcome::Protected);
     }
+    if !override_existing {
+        return Ok(UpsertOutcome::Skipped);
+    }
+    let unchanged = row.access == target.access
+        && row.justification.as_deref() == target.justification
+        && row.source == target.source;
+    if unchanged {
+        return Ok(UpsertOutcome::Skipped);
+    }
+    IngestionRepository::update_rule(conn, &row.id, target).await?;
+    Ok(UpsertOutcome::Updated)
 }

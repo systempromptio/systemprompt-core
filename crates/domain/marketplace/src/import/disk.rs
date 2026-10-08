@@ -10,12 +10,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-use systemprompt_identifiers::HookId;
-use systemprompt_models::services::hooks::{HookCategory, HookEvent};
+use systemprompt_identifiers::{HookId, SkillId};
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 #[derive(Debug, Clone, Serialize)]
 pub(super) struct SkillDoc {
-    pub id: String,
+    pub id: SkillId,
     pub name: String,
     pub description: String,
     pub enabled: bool,
@@ -28,6 +28,8 @@ pub(super) struct SkillDoc {
     pub display_category: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub hosts: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frontmatter: Option<serde_yaml::Mapping>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -42,6 +44,8 @@ pub(super) struct HookDoc {
     pub command: String,
     #[serde(rename = "async")]
     pub is_async: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<u32>,
     pub category: HookCategory,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,

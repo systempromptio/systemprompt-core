@@ -13,38 +13,27 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use chrono::Utc;
-use systemprompt_identifiers::{JwtToken, UserId};
 use systemprompt_models::api::cloud::BridgeProfileUsage;
 
-use super::messages::extract_credential;
+use super::bridge_error::{BridgeError, authenticate_bridge};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: systemprompt_runtime::AppContext,
     headers: HeaderMap,
-) -> Result<Json<BridgeProfileUsage>, (StatusCode, String)> {
-    let credential = extract_credential(&headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    let (claims, _user) = jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-
-    let user_id = UserId::new(claims.user_id.to_string());
+) -> Result<Json<BridgeProfileUsage>, ApiHttpError> {
+    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
 
     let usage = ctx
         .analytics_service()
         .profile_usage()
-        .get_profile_usage(&user_id, Utc::now())
+        .get_profile_usage(&claims.user_id, Utc::now())
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| BridgeError::internal("profile usage lookup failed", e))?;
 
     Ok(Json(usage))
 }

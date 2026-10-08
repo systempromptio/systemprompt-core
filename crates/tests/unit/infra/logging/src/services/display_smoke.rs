@@ -1,18 +1,19 @@
-//! Smoke tests for `DisplayUtils`. Pure stderr output; we exercise the
+//! Smoke tests for the CLI display helpers. Pure stderr output; we exercise the
 //! rendering paths for coverage.
 
-use systemprompt_logging::services::cli::{DisplayUtils, MessageLevel};
+use systemprompt_logging::services::cli::MessageLevel;
+use systemprompt_logging::services::cli::display::{message, section_header, subsection_header};
 
 #[test]
-fn display_utils_messages_at_every_level() {
-    DisplayUtils::message(MessageLevel::Info, "info");
-    DisplayUtils::message(MessageLevel::Success, "ok");
-    DisplayUtils::message(MessageLevel::Warning, "warn");
-    DisplayUtils::message(MessageLevel::Error, "err");
+fn display_messages_at_every_level() {
+    message(MessageLevel::Info, "info");
+    message(MessageLevel::Success, "ok");
+    message(MessageLevel::Warning, "warn");
+    message(MessageLevel::Error, "err");
 }
 
 #[test]
-fn display_utils_section_headers() {
-    DisplayUtils::section_header("Section");
-    DisplayUtils::subsection_header("Sub");
+fn display_section_headers() {
+    section_header("Section");
+    subsection_header("Sub");
 }

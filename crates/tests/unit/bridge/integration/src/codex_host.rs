@@ -57,7 +57,10 @@ enabled = true
 #[test]
 fn an_absent_codex_config_probes_as_absent() {
     let snapshot = codex_sandbox(None, || CODEX_CLI_HOST.probe(&probe_env()));
-    assert_eq!(snapshot.host_id, "codex-cli");
+    assert_eq!(
+        snapshot.host_id,
+        systemprompt_models::bridge::host::HostKind::CodexCli
+    );
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "no config file means an absent profile, got {:?}",
@@ -246,11 +249,11 @@ fn installing_a_profile_merges_it_into_the_managed_config() {
 
 #[test]
 fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
-    use systemprompt_bridge::integration::host_app::{ConfigFormat, HostKind};
+    use systemprompt_bridge::integration::host_app::{ConfigFormat, HostAppKind};
 
     assert_eq!(CODEX_CLI_HOST.display_name(), "Codex CLI");
     assert_eq!(CODEX_CLI_HOST.icon_id(), "codex-cli");
-    assert_eq!(CODEX_CLI_HOST.kind(), HostKind::CliTool);
+    assert_eq!(CODEX_CLI_HOST.kind(), HostAppKind::CliTool);
     assert_eq!(CODEX_CLI_HOST.config_format(), ConfigFormat::Toml);
     assert!(
         CODEX_CLI_HOST.download_url().starts_with("https://"),

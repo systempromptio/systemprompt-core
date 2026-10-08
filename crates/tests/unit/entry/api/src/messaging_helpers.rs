@@ -92,22 +92,19 @@ fn dispatch_outcome_carries_its_payload() {
 
 #[test]
 fn messaging_error_display_is_descriptive() {
+    let rejected = MessagingError::AgentRejected {
+        code: -32000,
+        message: "down".to_owned(),
+    };
     assert_eq!(
-        MessagingError::Identity("bad".to_owned()).to_string(),
-        "identity resolution failed: bad"
+        rejected.to_string(),
+        "agent returned JSON-RPC error -32000: down"
     );
-    assert_eq!(
-        MessagingError::Token("nope".to_owned()).to_string(),
-        "token minting failed: nope"
-    );
-    assert_eq!(
-        MessagingError::Dispatch("down".to_owned()).to_string(),
-        "agent dispatch failed: down"
-    );
-    assert_eq!(
-        MessagingError::Response("junk".to_owned()).to_string(),
-        "malformed agent response: junk"
-    );
+
+    let decode = serde_json::from_str::<serde_json::Value>("junk").unwrap_err();
+    let response = MessagingError::Response(decode);
+    assert_eq!(response.to_string(), "malformed agent response");
+    assert!(std::error::Error::source(&response).is_some());
 }
 
 #[test]

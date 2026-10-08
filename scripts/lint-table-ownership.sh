@@ -83,7 +83,7 @@ def literal_at(src, i):
     return None
 
 CTE = re.compile(r"(?:\bWITH\s+(?:RECURSIVE\s+)?|,\s*)([a-z_][a-z0-9_]*)\s+AS\s*(?:(?:NOT\s+)?MATERIALIZED\s*)?\(", re.I)
-REF = re.compile(r"(?<!DISTINCT\s)\b(FROM|JOIN|INTO|UPDATE)\s+(?:ONLY\s+)?(?:([a-z_][a-z0-9_]*)\.)?([a-z_][a-z0-9_]*)\b(?!\s*\()", re.I)
+REF = re.compile(r"(?<!DISTINCT\s)\b(FROM|JOIN|INTO|UPDATE)\s+(?:ONLY\s+)?(?:([a-z_][a-z0-9_]*)\.)?([a-z_][a-z0-9_]*)(?![a-z0-9_.])(\s*\()?", re.I)
 SYSTEM_SCHEMAS = {"information_schema", "pg_catalog"}
 SCALAR_FROM = re.compile(r"\b(?:EXTRACT|SUBSTRING|TRIM|OVERLAY)\s*\([^()]*\)", re.I)
 NOT_TABLES = {"set", "only", "lateral", "skip", "nowait", "select", "values", "of", "where", "returning"}
@@ -92,7 +92,9 @@ def tables_in(sql):
     sql = SCALAR_FROM.sub(" ", sql)
     ctes = {name.lower() for name in CTE.findall(sql)}
     found = set()
-    for keyword, schema, name in REF.findall(sql):
+    for keyword, schema, name, call in REF.findall(sql):
+        if call and keyword.upper() != "INTO":
+            continue
         name = name.lower()
         if name in NOT_TABLES or name in ctes:
             continue

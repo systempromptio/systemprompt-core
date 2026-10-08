@@ -2,12 +2,12 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 use tower::ServiceExt;
 async fn routers() -> (Router, String) {
     let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url).await.unwrap();
-    let ctx = fixture_app_context(&db, &bootstrap.database_url).unwrap();
+    let db = test_db_pool().await;
+    let ctx = test_app_context(&db, &bootstrap.database_url);
     let origin = url::Url::parse(&ctx.config().api_external_url)
         .unwrap()
         .origin()

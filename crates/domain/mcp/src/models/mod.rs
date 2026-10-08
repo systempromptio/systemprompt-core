@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub(crate) mod rows;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
-use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
+use systemprompt_identifiers::{
+    AiToolCallId, ContextId, McpExecutionId, McpServerId, McpToolName, UserId,
+};
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionStatus {
@@ -83,8 +85,9 @@ impl std::fmt::Display for ValidationResultType {
 
 #[derive(Debug, Clone)]
 pub struct ToolExecutionRequest {
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the spec.
     pub input: serde_json::Value,
     pub started_at: DateTime<Utc>,
     pub context: systemprompt_models::RequestContext,
@@ -98,6 +101,7 @@ pub struct ToolExecutionRequest {
 /// vantage point measured the call's end.
 #[derive(Debug, Clone)]
 pub struct ToolExecutionResult {
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub output: Option<serde_json::Value>,
     pub output_schema: Option<serde_json::Value>,
     pub status: String,
@@ -106,38 +110,11 @@ pub struct ToolExecutionResult {
     pub completed_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct MCPService {
-    pub id: Uuid,
-    pub name: String,
-    pub module: String,
-    pub port: i32,
-    pub pid: Option<i32>,
-    pub status: String,
-    pub health: String,
-    pub restart_count: i32,
-    pub last_health_check: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-const HEALTHY: &str = "healthy";
-
-impl MCPService {
-    pub fn is_running(&self) -> bool {
-        self.status == crate::RUNNING
-    }
-
-    pub fn is_healthy(&self) -> bool {
-        self.health == HEALTHY
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolExecution {
     pub mcp_execution_id: McpExecutionId,
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub context_id: Option<ContextId>,
     pub ai_tool_call_id: Option<AiToolCallId>,
     pub user_id: UserId,

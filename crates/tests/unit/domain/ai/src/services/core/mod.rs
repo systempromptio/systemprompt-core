@@ -16,11 +16,11 @@ use std::sync::Arc;
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_manifest::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 use systemprompt_models::RequestContext;
-use systemprompt_models::services::{AiConfig, AiProviderConfig, ProviderRegistry};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, ensure_test_secrets_bootstrap, fixture_database_url, fixture_db_pool,
-    seed_user_row, seed_user_session, unique_user_id,
+    ensure_test_bootstrap, ensure_test_secrets_bootstrap, seed_user_row, seed_user_session,
+    test_db_pool, unique_user_id,
 };
 use systemprompt_traits::{
     AiProviderResult, AiSessionProvider, CreateAiSessionParams, DynAiSessionProvider,
@@ -89,12 +89,10 @@ pub(crate) fn ai_config(provider: &str) -> AiConfig {
     }
 }
 
-pub(crate) async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
+pub(crate) async fn bootstrapped_pool() -> DbPool {
     ensure_test_bootstrap();
     ensure_test_secrets_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(pool)
+    test_db_pool().await
 }
 
 // Build an AiService whose `provider` upstream points at `endpoint`, backed by
@@ -103,14 +101,13 @@ pub(crate) fn service(pool: &DbPool, provider: &str, endpoint: String) -> AiServ
     let registry = registry_with_endpoint(provider, endpoint);
     let config = ai_config(provider);
     AiService::new(
-        pool,
         &registry,
         &config,
         systemprompt_ai::AiServiceProviders {
             tools: Arc::new(NoopToolProvider::new()),
             sessions: noop_session_provider(),
         },
-        &systemprompt_ai::repository::AiRepositories::new(pool).expect("ai repositories"),
+        &systemprompt_ai::repository::AiRepositories::new(pool),
     )
     .expect("AiService builds")
 }
@@ -133,7 +130,7 @@ pub(crate) async fn seeded_context(pool: &DbPool) -> (UserId, RequestContext) {
         TraceId::generate(),
         ContextId::try_new(uuid::Uuid::new_v4().to_string()).expect("valid ContextId"),
         AgentName::try_new("ai-core-test").expect("valid AgentName"),
-    )
-    .with_actor(Actor::user(user_id.clone()));
+        Actor::user(user_id.clone()),
+    );
     (user_id, context)
 }

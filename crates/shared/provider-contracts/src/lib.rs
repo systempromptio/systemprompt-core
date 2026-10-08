@@ -11,6 +11,13 @@
 //! - Tool providers return [`ToolProviderError`].
 //! - All other providers return [`ProviderError`].
 //!
+//! # Host handles
+//!
+//! Job and prerender contexts carry the host's concrete handles (database
+//! pool, runtime context, paths, content configuration) in a [`Dependencies`]
+//! map this crate cannot otherwise name; `ctx.get::<T>()` returns the handle
+//! or a [`MissingDependency`], which converts into [`ProviderError`] with `?`.
+//!
 //! # `#[async_trait]`
 //!
 //! Every async trait in this crate — and the provider-style traits modelled on
@@ -39,8 +46,10 @@
 
 mod component;
 mod content_data;
+mod dependencies;
 mod error;
 mod extender;
+mod frame_options;
 mod frontmatter;
 mod job;
 mod page;
@@ -55,8 +64,10 @@ pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
+pub use dependencies::{Dependencies, MissingDependency};
 pub use error::{ProviderError, ProviderResult};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
+pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use job::{Job, JobContext, JobResult, JobScope};
 pub use page::{PageContext, PageDataProvider};

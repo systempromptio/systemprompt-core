@@ -4,20 +4,19 @@
 //! Profile/Secrets/Config singletons that downstream loaders (schema_sync's
 //! `ConfigLoader::load()`) require.
 
+use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 
-async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
+async fn make_orchestrator() -> McpOrchestrator {
     let _ = ensure_test_bootstrap();
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -29,209 +28,160 @@ async fn make_orchestrator_or_skip() -> Option<McpOrchestrator> {
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let service_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .ok()?;
-    McpOrchestrator::new(service_repo, app_paths, registry).ok()
+    let service_repo = ServiceRepository::new(&db, unique_instance());
+    McpOrchestrator::new(service_repo, app_paths, registry).expect("orchestrator")
 }
 
 #[tokio::test]
 async fn list_services_empty_registry_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.list_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn show_status_delegates_to_list_services() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.show_status().await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_database_state_empty_registry_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.sync_database_state().await.unwrap();
 }
 
 #[tokio::test]
 async fn reconcile_empty_registry_returns_zero() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let started = o.reconcile().await.unwrap();
     assert_eq!(started, 0);
 }
 
 #[tokio::test]
 async fn reconcile_with_events_none_returns_zero() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let started = o.reconcile_with_events(None).await.unwrap();
     assert_eq!(started, 0);
 }
 
 #[tokio::test]
 async fn validate_service_unknown_returns_server_not_found() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let r = o
-        .validate_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
+        .validate_service(&ServiceName::new(format!(
+            "missing-{}",
+            uuid::Uuid::new_v4().simple()
+        )))
         .await;
     assert!(r.is_err());
 }
 
 #[tokio::test]
 async fn start_services_empty_target_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.start_services(None).await.unwrap();
 }
 
 #[tokio::test]
-async fn start_services_all_keyword_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.start_services(Some("all".to_string())).await.unwrap();
-}
-
-#[tokio::test]
 async fn start_services_specific_missing_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.start_services(Some(format!("missing-{}", uuid::Uuid::new_v4().simple())))
-        .await
-        .unwrap();
+    let o = make_orchestrator().await;
+    o.start_services(Some(ServiceName::new(format!(
+        "missing-{}",
+        uuid::Uuid::new_v4().simple()
+    ))))
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn stop_services_none_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.stop_services(None).await.unwrap();
 }
 
 #[tokio::test]
-async fn stop_services_all_keyword_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.stop_services(Some("all".to_string())).await.unwrap();
-}
-
-#[tokio::test]
 async fn stop_services_specific_missing_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.stop_services(Some(format!("missing-{}", uuid::Uuid::new_v4().simple())))
+    let o = make_orchestrator().await;
+    o.stop_services(Some(ServiceName::new(format!(
+        "missing-{}",
+        uuid::Uuid::new_v4().simple()
+    ))))
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn restart_services_none_over_empty_registry_restarts_nothing() {
+    let o = make_orchestrator().await;
+    let outcomes = o.restart_services(None).await.unwrap();
+    assert!(outcomes.is_empty());
+}
+
+#[tokio::test]
+async fn restart_services_specific_missing_reports_no_outcome() {
+    let o = make_orchestrator().await;
+    let outcomes = o
+        .restart_services(Some(ServiceName::new(format!(
+            "x-{}",
+            uuid::Uuid::new_v4().simple()
+        ))))
         .await
         .unwrap();
-}
-
-#[tokio::test]
-async fn restart_services_none_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.restart_services(None).await.unwrap();
-}
-
-#[tokio::test]
-async fn restart_services_all_keyword_publishes_no_events() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.restart_services(Some("all".to_string())).await.unwrap();
-}
-
-#[tokio::test]
-async fn restart_services_sync_none_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.restart_services_sync(None).await.unwrap();
-}
-
-#[tokio::test]
-async fn restart_services_sync_specific_missing_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.restart_services_sync(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
-        .await
-        .unwrap();
+    assert!(outcomes.is_empty());
 }
 
 #[tokio::test]
 async fn build_services_empty_target_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.build_services(None).await.unwrap();
 }
 
 #[tokio::test]
 async fn build_services_specific_missing_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.build_services(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
-        .await
-        .unwrap();
+    let o = make_orchestrator().await;
+    o.build_services(Some(ServiceName::new(format!(
+        "x-{}",
+        uuid::Uuid::new_v4().simple()
+    ))))
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn build_and_restart_services_empty_target_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     o.build_and_restart_services(None).await.unwrap();
 }
 
 #[tokio::test]
-async fn build_and_restart_specific_missing_ok() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
-    o.build_and_restart_services(Some(format!("x-{}", uuid::Uuid::new_v4().simple())))
+async fn build_and_restart_specific_missing_selects_nothing() {
+    let o = make_orchestrator().await;
+    let restarted = o
+        .build_and_restart_services(Some(ServiceName::new(format!(
+            "x-{}",
+            uuid::Uuid::new_v4().simple()
+        ))))
         .await
         .unwrap();
+    assert_eq!(restarted, 0);
 }
 
 #[tokio::test]
 async fn subscribe_events_multiple_receivers() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let _rx1 = o.subscribe_events();
     let _rx2 = o.subscribe_events();
 }
 
 #[tokio::test]
 async fn get_running_servers_empty_db_returns_empty_vec() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let r = o.get_running_servers().await.unwrap();
     assert!(
         r.is_empty(),
@@ -241,9 +191,7 @@ async fn get_running_servers_empty_db_returns_empty_vec() {
 
 #[tokio::test]
 async fn registry_accessor_returns_reference() {
-    let Some(o) = make_orchestrator_or_skip().await else {
-        return;
-    };
+    let o = make_orchestrator().await;
     let r = o.registry();
     let _ = r.get_enabled_servers().unwrap_or_default();
 }

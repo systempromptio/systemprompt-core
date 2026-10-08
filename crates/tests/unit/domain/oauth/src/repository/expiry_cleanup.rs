@@ -2,14 +2,13 @@
 //! the seeded expired row and keeps the live one.
 
 use chrono::{Duration, Utc};
-use systemprompt_oauth::repository::OauthCleanupRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_oauth::repository::{OauthCleanupCounts, OauthCleanupRepository};
+use systemprompt_test_fixtures::{DisposableDb, test_db_pool};
 
-async fn repo_and_pool_or_skip() -> Option<(OauthCleanupRepository, sqlx::PgPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn repo_and_pool() -> (OauthCleanupRepository, sqlx::PgPool) {
+    let db = test_db_pool().await;
     let pg = db.write_pool();
-    Some((OauthCleanupRepository::new(&db).ok()?, (*pg).clone()))
+    (OauthCleanupRepository::new(&db), (*pg).clone())
 }
 
 fn unique(prefix: &str) -> String {
@@ -49,9 +48,7 @@ async fn remove_user_and_client(pool: &sqlx::PgPool, user_id: &str, client_id: &
 
 #[tokio::test]
 async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let expired = unique("expired_token");
     let live = unique("live_token");
@@ -89,9 +86,7 @@ async fn delete_expired_oauth_tokens_removes_expired_and_keeps_live() {
 
 #[tokio::test]
 async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let used = unique("used_code");
     let fresh = unique("fresh_code");
@@ -130,9 +125,7 @@ async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
 
 #[tokio::test]
 async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let hash = unique("state_hash");
     sqlx::query(
         "INSERT INTO oauth_state_bindings (state_token_hash, return_to, client_id, redirect_uri, \
@@ -162,16 +155,15 @@ async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
+    let (user_id, _) = seed_user_and_client(&pg).await;
     let jti = unique("jti");
     sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ($1, $2, NOW() - INTERVAL \
          '1 hour')",
     )
     .bind(&jti)
-    .bind(uuid::Uuid::new_v4())
+    .bind(&user_id)
     .execute(&pg)
     .await
     .expect("insert revocation fixture");
@@ -194,9 +186,7 @@ async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_id_jag_replays_removes_expired_rows() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let jti = unique("replay_jti");
     sqlx::query(
         "INSERT INTO id_jag_replay (jti, expires_at) VALUES ($1, NOW() - INTERVAL '1 hour')",
@@ -223,28 +213,95 @@ async fn delete_expired_id_jag_replays_removes_expired_rows() {
 
 #[tokio::test]
 async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
-    let jti = unique("sweep_replay");
+    let database = DisposableDb::with_schema("oauth_expiry_sweep").await;
+    let db = database.test_pool().await;
+    let repo = OauthCleanupRepository::new(&db);
+    let pg = db.write_pool();
+    let (user_id, client_id) = seed_user_and_client(&pg).await;
+    let expired = Utc::now() - Duration::hours(1);
+    let live = Utc::now() + Duration::hours(24);
+
+    for (token, expires_at) in [("sweep_expired_token", expired), ("sweep_live_token", live)] {
+        sqlx::query(
+            "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \
+             family_id) VALUES ($1, $2, $3, 'openid', $4, $1)",
+        )
+        .bind(token)
+        .bind(&client_id)
+        .bind(&user_id)
+        .bind(expires_at)
+        .execute(&*pg)
+        .await
+        .expect("insert token fixture");
+    }
     sqlx::query(
-        "INSERT INTO id_jag_replay (jti, expires_at) VALUES ($1, NOW() - INTERVAL '1 hour')",
+        "INSERT INTO oauth_auth_codes (code, client_id, user_id, redirect_uri, scope, expires_at, \
+         used_at) VALUES ('sweep_used_code', $1, $2, 'https://cb.test', 'openid', $3, NOW())",
     )
-    .bind(&jti)
-    .execute(&pg)
+    .bind(&client_id)
+    .bind(&user_id)
+    .bind(live)
+    .execute(&*pg)
     .await
-    .expect("insert replay fixture");
+    .expect("insert code fixture");
+    sqlx::query(
+        "INSERT INTO oauth_state_bindings (state_token_hash, return_to, client_id, redirect_uri, \
+         expires_at) VALUES ('sweep_state', '/', 'cleanup-client', 'https://cb.test', $1)",
+    )
+    .bind(expired)
+    .execute(&*pg)
+    .await
+    .expect("insert state binding fixture");
+    sqlx::query(
+        "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ('sweep_jti', $1, $2)",
+    )
+    .bind(&user_id)
+    .bind(expired)
+    .execute(&*pg)
+    .await
+    .expect("insert revocation fixture");
+    sqlx::query("INSERT INTO id_jag_replay (jti, expires_at) VALUES ('sweep_replay', $1)")
+        .bind(expired)
+        .execute(&*pg)
+        .await
+        .expect("insert replay fixture");
+    sqlx::query(
+        "INSERT INTO bridge_exchange_codes (code_hash, user_id, expires_at) VALUES \
+         ('sweep_exchange', $1, $2)",
+    )
+    .bind(&user_id)
+    .bind(expired)
+    .execute(&*pg)
+    .await
+    .expect("insert exchange code fixture");
 
     let counts = repo.delete_expired().await.expect("sweep");
-    assert!(counts.id_jag_replays >= 1);
-    assert!(counts.total() >= counts.id_jag_replays);
+    let surviving_tokens: Vec<String> =
+        sqlx::query_scalar("SELECT token_id FROM oauth_refresh_tokens")
+            .fetch_all(&*pg)
+            .await
+            .expect("remaining tokens");
+    database.drop_now().await;
+
+    assert_eq!(
+        counts,
+        OauthCleanupCounts {
+            codes: 1,
+            tokens: 1,
+            state_bindings: 1,
+            jti_revocations: 1,
+            id_jag_replays: 1,
+            bridge_exchange_codes: 1,
+            webauthn_challenges: 0,
+        }
+    );
+    assert_eq!(counts.total(), 6);
+    assert_eq!(surviving_tokens, vec!["sweep_live_token".to_owned()]);
 }
 
 #[tokio::test]
 async fn bridge_exchange_codes_are_swept_once_spent_or_expired() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let (user_id, client_id) = seed_user_and_client(&pg).await;
     let live = unique("code_live");
     let consumed = unique("code_consumed");

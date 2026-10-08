@@ -2,7 +2,7 @@
 //! (`find_federated`, `find_or_create_federated`).
 
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::FederatedIdentityClaims;
 use systemprompt_users::UserRepository;
 use uuid::Uuid;
@@ -13,17 +13,16 @@ struct Ctx {
     external_sub: String,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = UserRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = UserRepository::new(&pool);
     let tag = Uuid::new_v4();
-    Some(Ctx {
+    Ctx {
         repo,
         issuer: format!("https://idp-{prefix}-{tag}.example.com/realm"),
         external_sub: format!("sub-{prefix}-{tag}"),
-    })
+    }
 }
 
 fn claims(email: Option<&str>, verified: bool) -> FederatedIdentityClaims {
@@ -43,9 +42,7 @@ async fn cleanup(ctx: &Ctx, user_id: &UserId) {
 
 #[tokio::test]
 async fn find_federated_unknown_returns_none() {
-    let Some(ctx) = setup_or_skip("unknown").await else {
-        return;
-    };
+    let ctx = setup("unknown").await;
     let found = ctx
         .repo
         .find_federated(&ctx.issuer, &ctx.external_sub)
@@ -56,9 +53,7 @@ async fn find_federated_unknown_returns_none() {
 
 #[tokio::test]
 async fn create_then_find_and_reuse_identity() {
-    let Some(ctx) = setup_or_skip("create").await else {
-        return;
-    };
+    let ctx = setup("create").await;
 
     let email = format!("verified-{}@example.com", Uuid::new_v4().simple());
     let identity_claims = claims(Some(&email), true);
@@ -92,9 +87,7 @@ async fn create_then_find_and_reuse_identity() {
 
 #[tokio::test]
 async fn unverified_email_yields_synthetic_local_address() {
-    let Some(ctx) = setup_or_skip("unverified").await else {
-        return;
-    };
+    let ctx = setup("unverified").await;
 
     let user = ctx
         .repo
@@ -118,9 +111,7 @@ async fn unverified_email_yields_synthetic_local_address() {
 
 #[tokio::test]
 async fn missing_email_yields_synthetic_local_address() {
-    let Some(ctx) = setup_or_skip("noemail").await else {
-        return;
-    };
+    let ctx = setup("noemail").await;
 
     let user = ctx
         .repo

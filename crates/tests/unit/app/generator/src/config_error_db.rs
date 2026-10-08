@@ -7,14 +7,13 @@ use std::fs;
 use std::sync::Mutex;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::DbPool;
 use systemprompt_generator::{
     DefaultSitemapProvider, PublishError, generate_sitemap, get_templates_path, load_web_config,
     prerender_content,
 };
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
-    TestBootstrap, closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
+    TestBootstrap, closed_db_pool, ensure_test_bootstrap, test_db_pool,
 };
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
@@ -92,7 +91,6 @@ touchTargets: {{ default: "44px", sm: "32px", lg: "56px" }}
     )
 }
 
-
 const MINIMAL_SOURCES_YAML: &str = "content_sources: {}\n";
 
 fn write_content_config(boot: &TestBootstrap, yaml: &str) {
@@ -101,11 +99,6 @@ fn write_content_config(boot: &TestBootstrap, yaml: &str) {
 
 fn write_web_config(boot: &TestBootstrap, yaml: &str) {
     fs::write(boot.services_path.join("web/config.yaml"), yaml).expect("write web config");
-}
-
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
 }
 
 fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
@@ -119,7 +112,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths")
@@ -158,9 +151,7 @@ async fn sitemap_provider_malformed_content_config_is_parse_error() {
 async fn generate_sitemap_malformed_content_config_is_parse_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, ": not yaml [");
     let err = generate_sitemap(content_repo(&db), &boot.app_paths)
@@ -177,14 +168,17 @@ async fn generate_sitemap_malformed_content_config_is_parse_error() {
 async fn prerender_content_malformed_content_config_is_parse_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, "content_sources: [broken");
-    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect_err("malformed content config");
+    let err = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("malformed content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     assert!(
         matches!(err, PublishError::ContentConfigParse { .. }),
@@ -196,15 +190,18 @@ async fn prerender_content_malformed_content_config_is_parse_error() {
 async fn prerender_content_missing_content_config_is_read_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let cfg = boot.services_path.join("content/config.yaml");
     let _ = fs::remove_file(&cfg);
-    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect_err("missing content config");
+    let err = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("missing content config");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     assert!(
         matches!(err, PublishError::ContentConfigRead { .. }),
@@ -216,15 +213,18 @@ async fn prerender_content_missing_content_config_is_read_error() {
 async fn prerender_content_malformed_web_config_is_web_config_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     write_web_config(boot, "branding: [not a map");
-    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect_err("malformed web config");
+    let err = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("malformed web config");
     assert!(
         matches!(err, PublishError::WebConfig(_)),
         "unexpected error: {err:?}"
@@ -241,7 +241,10 @@ async fn load_web_config_missing_file_is_io_error() {
         .await
         .expect_err("missing web config");
     assert!(
-        matches!(err, systemprompt_models::WebConfigError::Io { .. }),
+        matches!(
+            err,
+            PublishError::WebConfig(systemprompt_models::WebConfigError::Io { .. })
+        ),
         "unexpected error: {err:?}"
     );
 }
@@ -258,7 +261,7 @@ async fn load_web_config_rejects_nonexistent_templates_path() {
         .await
         .expect_err("nonexistent templates path must be rejected");
     assert!(
-        matches!(err, systemprompt_models::WebConfigError::PathNotFound { ref field, .. } if field == "paths.templates"),
+        matches!(err, PublishError::WebConfig(systemprompt_models::WebConfigError::PathNotFound { ref field, .. }) if field == "paths.templates"),
         "unexpected error: {err:?}"
     );
 }
@@ -292,17 +295,20 @@ async fn get_templates_path_falls_back_to_web_root_when_unconfigured() {
 async fn prerender_content_missing_templates_dir_is_config_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
     let templates_dir = boot.app_paths.web().root().join("templates");
     let _ = fs::remove_dir_all(&templates_dir);
-    let err = prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect_err("missing templates dir");
+    let err = prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("missing templates dir");
     assert!(
         matches!(err, PublishError::Config { ref message, .. } if message.contains("Template directory not found")),
         "unexpected error: {err:?}"
@@ -313,9 +319,6 @@ async fn prerender_content_missing_templates_dir_is_config_error() {
 async fn prerender_content_with_closed_pool_is_fetch_error() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    if fixture_database_url().is_err() {
-        return;
-    }
 
     write_web_config(boot, &web_config_yaml_with_templates_path(""));
     write_content_config(
@@ -337,9 +340,14 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
 
     let closed = closed_db_pool().await;
-    let err = prerender_content(closed.clone(), content_repo(&closed), &boot.app_paths)
-        .await
-        .expect_err("closed pool must fail content fetch");
+    let err = prerender_content(
+        closed.clone(),
+        content_repo(&closed),
+        content_analytics(&closed),
+        &boot.app_paths,
+    )
+    .await
+    .expect_err("closed pool must fail content fetch");
     write_content_config(boot, MINIMAL_SOURCES_YAML);
     assert!(
         matches!(err, PublishError::FetchFailed { .. }),
@@ -348,5 +356,11 @@ async fn prerender_content_with_closed_pool_is_fetch_error() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
 }

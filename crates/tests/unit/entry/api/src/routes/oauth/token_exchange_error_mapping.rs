@@ -1,147 +1,102 @@
-//! Normalising the token-exchange grant's opaque `anyhow::Error` back into the
-//! endpoint's `TokenError` wire type.
-//!
-//! The exchange path builds its failures as `anyhow!(TokenError::…)`, so the
-//! RFC 6749 error code the client sees depends entirely on `map_exchange_error`
-//! recovering the original variant by downcast. Losing a variant silently
-//! downgrades a client-fixable `invalid_request` into a `server_error`, so
-//! every variant is round-tripped here.
+//! The token-exchange grant fails with the typed `IssuanceError`; its RFC 6749
+//! wire code is chosen by variant. A failure that carries an underlying cause
+//! answers with an authored description, never the cause text, because an
+//! OAuth `error_description` may be copied into a third-party redirect URI.
 
+use axum::body::to_bytes;
+use axum::response::IntoResponse;
+use http::StatusCode;
 use systemprompt_api::routes::oauth::OAuthHttpError;
-use systemprompt_api::routes::oauth::endpoints::token::TokenError;
-use systemprompt_api::routes::oauth::endpoints::token::handler::map_exchange_error;
+use systemprompt_oauth::services::validation::id_jag::IdJagError;
+use systemprompt_oauth_issuance::IssuanceError;
 
-fn round_trip(error: TokenError) -> TokenError {
-    map_exchange_error(&anyhow::Error::new(error))
+const SECRET_CAUSE: &str = "relation \"oauth_clients\" does not exist at 10.0.0.7:5432";
+
+async fn wire(error: IssuanceError) -> (StatusCode, serde_json::Value) {
+    let response = OAuthHttpError::from(error).into_response();
+    let status = response.status();
+    let body = to_bytes(response.into_body(), 65_536).await.unwrap();
+    (status, serde_json::from_slice(&body).unwrap())
 }
 
-#[test]
-fn an_invalid_request_keeps_its_field_and_message() {
-    let mapped = round_trip(TokenError::InvalidRequest {
-        field: "subject_token".to_owned(),
-        message: "is required".to_owned(),
-    });
-
-    match mapped {
-        TokenError::InvalidRequest { field, message } => {
-            assert_eq!(field, "subject_token");
-            assert_eq!(message, "is required");
-        },
-        other => panic!("expected InvalidRequest, got {other:?}"),
-    }
+fn description(json: &serde_json::Value) -> &str {
+    json["error_description"].as_str().unwrap_or_default()
 }
 
-#[test]
-fn an_invalid_target_survives_as_invalid_target_not_server_error() {
-    let mapped = round_trip(TokenError::InvalidTarget {
-        message: "'https://evil.test' not in allowed_resource_audiences".to_owned(),
-    });
+#[tokio::test]
+async fn an_internal_failure_never_puts_its_cause_into_the_error_description() {
+    let (status, json) = wire(IssuanceError::server(
+        "Failed to load client owner",
+        std::io::Error::other(SECRET_CAUSE),
+    ))
+    .await;
 
-    match mapped {
-        TokenError::InvalidTarget { message } => {
-            assert!(message.contains("https://evil.test"), "{message}");
-        },
-        other => panic!("expected InvalidTarget, got {other:?}"),
-    }
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(json["error"], "server_error");
+    assert!(!description(&json).contains("oauth_clients"), "{json}");
+    assert!(!description(&json).contains("10.0.0.7"), "{json}");
 }
 
-#[test]
-fn each_unit_variant_survives_the_downcast_intact() {
-    assert!(matches!(
-        round_trip(TokenError::InvalidClient),
-        TokenError::InvalidClient
-    ));
-    assert!(matches!(
-        round_trip(TokenError::InvalidCredentials),
-        TokenError::InvalidCredentials
-    ));
-    assert!(matches!(
-        round_trip(TokenError::InvalidClientSecret),
-        TokenError::InvalidClientSecret
-    ));
-    assert!(matches!(
-        round_trip(TokenError::ExpiredCode),
-        TokenError::ExpiredCode
-    ));
+#[tokio::test]
+async fn a_malformed_subject_token_answers_with_the_authored_reason_only() {
+    let (status, json) = wire(IssuanceError::malformed(
+        "subject_token",
+        "JWKS resolution failed",
+        std::io::Error::other(SECRET_CAUSE),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json["error"], "invalid_request");
+    assert_eq!(description(&json), "subject_token: JWKS resolution failed");
 }
 
-#[test]
-fn a_recovered_variant_reaches_the_client_as_its_own_oauth_error_code() {
-    let response = OAuthHttpError::from(round_trip(TokenError::InvalidTarget {
-        message: "unknown resource".to_owned(),
-    }));
+#[tokio::test]
+async fn a_rejected_grant_answers_invalid_grant_without_the_cause() {
+    let (status, json) = wire(IssuanceError::rejected_grant(
+        "ID-JAG rejected",
+        std::io::Error::other(SECRET_CAUSE),
+    ))
+    .await;
 
-    let direct = OAuthHttpError::from(TokenError::InvalidTarget {
-        message: "unknown resource".to_owned(),
-    });
-
-    assert_eq!(
-        format!("{response:?}"),
-        format!("{direct:?}"),
-        "a downcast variant must map to the same HTTP error as the variant itself"
-    );
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json["error"], "invalid_grant");
+    assert_eq!(description(&json), "ID-JAG rejected");
 }
 
-#[test]
-fn the_grant_and_scope_variants_keep_their_reason_text() {
-    match round_trip(TokenError::InvalidGrant {
-        reason: "ID-JAG has already been used (replay)".to_owned(),
-    }) {
-        TokenError::InvalidGrant { reason } => assert!(reason.contains("replay"), "{reason}"),
-        other => panic!("expected InvalidGrant, got {other:?}"),
-    }
+#[tokio::test]
+async fn an_id_jag_claim_violation_is_an_invalid_grant() {
+    let (_, json) = wire(IssuanceError::IdJagRejected(IdJagError::MissingClient)).await;
 
-    match round_trip(TokenError::InvalidScope {
+    assert_eq!(json["error"], "invalid_grant");
+    assert!(description(&json).contains("client_id"), "{json}");
+}
+
+#[tokio::test]
+async fn an_id_jag_bound_to_another_resource_is_an_invalid_target() {
+    let (_, json) = wire(IssuanceError::BoundResource(IdJagError::ResourceMismatch {
+        expected: "https://a.example".to_owned(),
+        found: "https://b.example".to_owned(),
+    }))
+    .await;
+
+    assert_eq!(json["error"], "invalid_target");
+}
+
+#[tokio::test]
+async fn client_mistakes_keep_their_own_oauth_error_codes() {
+    let (_, scope) = wire(IssuanceError::InvalidScope {
         message: "no overlap".to_owned(),
-    }) {
-        TokenError::InvalidScope { message } => assert_eq!(message, "no overlap"),
-        other => panic!("expected InvalidScope, got {other:?}"),
-    }
-
-    match round_trip(TokenError::InvalidRefreshToken {
-        reason: "rotated".to_owned(),
-    }) {
-        TokenError::InvalidRefreshToken { reason } => assert_eq!(reason, "rotated"),
-        other => panic!("expected InvalidRefreshToken, got {other:?}"),
-    }
-
-    match round_trip(TokenError::UnsupportedGrantType {
-        grant_type: "password".to_owned(),
-    }) {
-        TokenError::UnsupportedGrantType { grant_type } => assert_eq!(grant_type, "password"),
-        other => panic!("expected UnsupportedGrantType, got {other:?}"),
-    }
-}
-
-#[test]
-fn a_server_error_variant_keeps_its_own_message_rather_than_the_anyhow_display() {
-    match round_trip(TokenError::ServerError {
-        message: "signing key unavailable".to_owned(),
-    }) {
-        TokenError::ServerError { message } => assert_eq!(message, "signing key unavailable"),
-        other => panic!("expected ServerError, got {other:?}"),
-    }
-}
-
-#[test]
-fn a_foreign_error_becomes_a_server_error_carrying_its_display() {
-    match map_exchange_error(&anyhow::anyhow!("client owner is not active")) {
-        TokenError::ServerError { message } => {
-            assert_eq!(message, "client owner is not active");
-        },
-        other => panic!("expected ServerError, got {other:?}"),
-    }
-}
-
-#[test]
-fn a_context_wrapped_token_error_is_still_recovered_by_downcast() {
-    let wrapped = anyhow::Error::new(TokenError::InvalidGrant {
-        reason: "code expired".to_owned(),
     })
-    .context("while redeeming the authorization code");
+    .await;
+    assert_eq!(scope["error"], "invalid_scope");
 
-    match map_exchange_error(&wrapped) {
-        TokenError::InvalidGrant { reason } => assert_eq!(reason, "code expired"),
-        other => panic!("expected InvalidGrant, got {other:?}"),
-    }
+    let (_, target) = wire(IssuanceError::InvalidTarget {
+        message: "unknown resource".to_owned(),
+    })
+    .await;
+    assert_eq!(target["error"], "invalid_target");
+
+    let (_, client) = wire(IssuanceError::InvalidClient).await;
+    assert_eq!(client["error"], "invalid_client");
 }

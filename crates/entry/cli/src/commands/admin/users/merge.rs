@@ -33,7 +33,8 @@ pub(super) async fn execute(args: MergeArgs, ctx: &CommandContext) -> Result<Com
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)))
+        .with_owner_reassignments(systemprompt_runtime::owner_reassignments(&pool));
     let admin_service = UserAdminService::new(user_service.clone());
 
     let source_user = admin_service

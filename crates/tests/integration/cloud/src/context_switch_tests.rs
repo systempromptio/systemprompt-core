@@ -76,7 +76,7 @@ async fn resolved_tenant_record_matches_active_key() {
 async fn active_session_round_trips_through_disk() {
     let fx = TenantFixture::new();
     let mut store = seeded_session_store(&fx);
-    store.set_active_with_profile(&fx.key_b(), "profile-b");
+    store.set_active_with_profile(&fx.key_b(), &pname("profile-b"));
     store.save(&fx.sessions_dir).expect("save");
 
     let reloaded = systemprompt_cloud::SessionStore::load(&fx.sessions_dir)
@@ -86,5 +86,9 @@ async fn active_session_round_trips_through_disk() {
         .active_session_for_profile_discovery()
         .expect("active");
     assert_eq!(active.tenant_key.as_ref().unwrap().as_str(), "tenant-b");
-    assert_eq!(reloaded.active_profile_name.as_deref(), Some("profile-b"));
+    assert_eq!(reloaded.active_profile_name, Some(pname("profile-b")));
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

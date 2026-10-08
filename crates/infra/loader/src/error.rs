@@ -11,13 +11,14 @@
 //! All three implement `std::error::Error` and compose with upstream
 //! errors (`std::io::Error`, `serde_yaml::Error`,
 //! `systemprompt_config::ProfileBootstrapError`,
-//! `systemprompt_models::ServicesValidationError`,
-//! `systemprompt_models::ProfileValidationError`) via `#[from]`.
+//! `systemprompt_models::errors::ServicesValidationError`,
+//! `systemprompt_manifest::profile::ProfileError`) via `#[from]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
+use systemprompt_identifiers::AgentName;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -44,6 +45,13 @@ pub enum ConfigLoadError {
          remove it from the includes list."
     )]
     IncludeNotFound { include: PathBuf, referrer: PathBuf },
+
+    #[error("invalid identifier at {path}: {source}")]
+    InvalidId {
+        path: PathBuf,
+        #[source]
+        source: systemprompt_identifiers::error::IdValidationError,
+    },
 
     #[error("include cycle detected: {chain}")]
     IncludeCycle { chain: String },
@@ -85,7 +93,7 @@ pub enum ConfigLoadError {
     AlreadyInitialized,
 
     #[error("services config validation failed: {0}")]
-    Validation(String),
+    Validation(#[from] systemprompt_models::errors::ServicesValidationError),
 
     #[error(
         "include {path} sets `settings:` — settings are only valid in the root config file. Move \
@@ -110,7 +118,7 @@ pub enum ConfigWriteError {
     AgentFileExists(PathBuf),
 
     #[error("Agent '{0}' not found in any configuration file")]
-    AgentNotFound(String),
+    AgentNotFound(AgentName),
 }
 
 #[derive(Debug, Error)]
@@ -132,7 +140,7 @@ pub enum ProfileLoadError {
     },
 
     #[error(transparent)]
-    Profile(#[from] systemprompt_models::profile::ProfileError),
+    Profile(#[from] systemprompt_manifest::profile::ProfileError),
 }
 
 pub type ConfigLoadResult<T> = Result<T, ConfigLoadError>;

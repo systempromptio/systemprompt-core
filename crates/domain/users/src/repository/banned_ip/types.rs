@@ -6,6 +6,7 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::SessionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct BannedIp {
@@ -19,7 +20,7 @@ pub struct BannedIp {
     pub is_permanent: bool,
     pub source_fingerprint: Option<String>,
     pub ban_source: Option<String>,
-    pub associated_session_ids: Option<Vec<String>>,
+    pub associated_session_ids: Option<Vec<SessionId>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -39,6 +40,7 @@ impl BanDuration {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,
@@ -69,6 +71,7 @@ impl<'a> BanIpParams<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct BanIpWithMetadataParams<'a> {
     pub ip_address: &'a str,
     pub reason: &'a str,
@@ -77,7 +80,7 @@ pub struct BanIpWithMetadataParams<'a> {
     pub ban_source: &'a str,
     pub offense_path: Option<&'a str>,
     pub user_agent: Option<&'a str>,
-    pub session_id: Option<&'a str>,
+    pub session_id: Option<&'a SessionId>,
 }
 
 impl<'a> BanIpWithMetadataParams<'a> {
@@ -114,7 +117,7 @@ impl<'a> BanIpWithMetadataParams<'a> {
         self
     }
 
-    pub const fn with_session_id(mut self, session_id: &'a str) -> Self {
+    pub const fn with_session_id(mut self, session_id: &'a SessionId) -> Self {
         self.session_id = Some(session_id);
         self
     }

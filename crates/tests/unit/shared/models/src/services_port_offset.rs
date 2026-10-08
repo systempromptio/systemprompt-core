@@ -1,4 +1,4 @@
-use systemprompt_models::services::{ServicesConfig, Settings};
+use systemprompt_manifest::services::{ServicesConfig, Settings};
 
 fn config_yaml() -> &'static str {
     r"

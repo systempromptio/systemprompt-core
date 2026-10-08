@@ -9,10 +9,10 @@ use std::collections::BTreeMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use crate::integration::host_app::HostConfigSchema;
+use systemprompt_models::bridge::host::HostKind;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const HOST_ID: &str = "claude-desktop";
+use crate::integration::host_app::HostConfigSchema;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
@@ -29,6 +29,8 @@ pub(super) const REQUIRED_KEYS: &[&str] = &[
     "inferenceGatewayBaseUrl",
     API_KEY_KEY,
     "inferenceModels",
+    "modelPrefer1mContext",
+    "alwaysStartWithDefaultModel",
 ];
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -51,7 +53,7 @@ pub(super) fn secret_freshness(
     installed_api_key_fp: Option<&str>,
     env: &crate::integration::host_app::ProbeEnv,
 ) -> crate::integration::host_app::Freshness {
-    let live = env.host_token_fingerprint(&crate::ids::HostId::new(HOST_ID));
+    let live = env.host_token_fingerprint(HostKind::ClaudeDesktop);
     crate::integration::host_app::Freshness::compare(
         installed_api_key_fp,
         live.as_deref(),

@@ -34,7 +34,7 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(pool)));
 
     let users = if args.include_anonymous {
         user_service
@@ -52,7 +52,7 @@ pub(super) async fn execute_with_pool(
                 id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
-                status: u.status.clone(),
+                status: u.status.to_string(),
                 roles: u.roles.clone(),
                 created_at: u.created_at,
             })

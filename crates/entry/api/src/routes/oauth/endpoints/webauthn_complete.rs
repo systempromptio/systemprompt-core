@@ -15,10 +15,9 @@ use axum::extract::{Query, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect, Response};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use systemprompt_identifiers::{ClientId, UserId};
 use systemprompt_models::oauth::OAuthServerConfig;
@@ -26,7 +25,6 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{MintAuthCodeParams, OAuthRepository};
 use systemprompt_oauth::services::is_browser_request;
 use systemprompt_oauth::services::validation::validate_redirect_uri;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
@@ -53,12 +51,7 @@ async fn verify_completion(
         .as_deref()
         .ok_or_else(|| OAuthHttpError::invalid_request("Missing auth_token parameter"))?;
 
-    let webauthn_service =
-        WebAuthnRegistry::get_or_create_service(repo.clone(), Arc::clone(state.user_provider()))
-            .await
-            .map_err(|e| {
-                OAuthHttpError::server_error(format!("WebAuthn service initialization failed: {e}"))
-            })?;
+    let webauthn_service = state.webauthn()?;
 
     let verified_user_id = webauthn_service
         .consume_verified_authentication(auth_token)
@@ -88,7 +81,7 @@ async fn verify_completion(
         .and_then(|_valid| {
             OAuthRepository::validate_scopes_for_client(&client.scopes, &requested_scopes)
         })
-        .map_err(|e| OAuthHttpError::invalid_scope(e.to_string()))?;
+        .map_err(|e| internal::classify_validation(e, OAuthHttpError::invalid_scope))?;
 
     let has_challenge = params
         .code_challenge
@@ -127,8 +120,8 @@ pub async fn handle_webauthn_complete(
             user_id: &params.user_id,
             redirect_uri: &redirect_uri,
             scope: params.scope.as_deref(),
-            code_challenge: params.code_challenge.as_deref(),
-            code_challenge_method: params.code_challenge_method.as_deref(),
+            code_challenge: params.code_challenge.as_deref().unwrap_or_default(),
+            code_challenge_method: params.code_challenge_method.as_deref().unwrap_or_default(),
             resource: params.resource.as_deref(),
         })
         .await?;
@@ -138,9 +131,12 @@ pub async fn handle_webauthn_complete(
 
     Ok(create_successful_response(
         &headers,
-        &redirect_uri,
-        authorization_code.as_str(),
-        &params,
+        &CompletedAuthorization {
+            redirect_uri: &redirect_uri,
+            authorization_code: authorization_code.as_str(),
+            client_id,
+            state: params.state.as_deref(),
+        },
         &issuer,
     ))
 }
@@ -153,24 +149,31 @@ pub struct WebAuthnCompleteResponse {
     pub client_id: ClientId,
 }
 
+struct CompletedAuthorization<'a> {
+    redirect_uri: &'a str,
+    authorization_code: &'a str,
+    client_id: &'a ClientId,
+    state: Option<&'a str>,
+}
+
 fn create_successful_response(
     headers: &HeaderMap,
-    redirect_uri: &str,
-    authorization_code: &str,
-    params: &WebAuthnCompleteQuery,
+    completed: &CompletedAuthorization<'_>,
     issuer: &str,
 ) -> Response {
-    let state = params.state.as_deref().filter(|s| !s.is_empty());
+    let CompletedAuthorization {
+        redirect_uri,
+        authorization_code,
+        client_id,
+        state,
+    } = *completed;
+    let state = state.filter(|s| !s.is_empty());
 
     if is_browser_request(headers) {
-        let mut target = format!("{redirect_uri}?code={authorization_code}");
-
-        if let Some(client_id_val) = params.client_id.as_ref() {
-            target.push_str(&format!(
-                "&client_id={}",
-                urlencoding::encode(client_id_val.as_str())
-            ));
-        }
+        let mut target = format!(
+            "{redirect_uri}?code={authorization_code}&client_id={}",
+            urlencoding::encode(client_id.as_str())
+        );
 
         if let Some(state_val) = state {
             target.push_str(&format!("&state={}", urlencoding::encode(state_val)));
@@ -182,10 +185,7 @@ fn create_successful_response(
             authorization_code: authorization_code.to_owned(),
             state: state.unwrap_or("").to_owned(),
             redirect_uri: redirect_uri.to_owned(),
-            client_id: params
-                .client_id
-                .clone()
-                .unwrap_or_else(|| ClientId::new("")),
+            client_id: client_id.clone(),
         };
 
         Json(response_data).into_response()

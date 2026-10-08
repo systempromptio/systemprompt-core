@@ -79,6 +79,27 @@ fn write_pem_file_then_load_roundtrips_via_disk() {
     std::fs::remove_file(&path).ok();
 }
 
+#[cfg(unix)]
+#[test]
+fn write_pem_file_creates_the_private_key_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let key = systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
+    let path = temp_path("mode");
+    key.write_pem_file(&path).expect("write pem to disk");
+
+    let mode = std::fs::metadata(&path)
+        .expect("stat pem")
+        .permissions()
+        .mode()
+        & 0o777;
+    std::fs::remove_file(&path).ok();
+    assert_eq!(
+        mode, 0o600,
+        "the private key must never be readable by others"
+    );
+}
+
 #[test]
 fn load_from_missing_file_is_an_io_error() {
     let path = temp_path("missing");

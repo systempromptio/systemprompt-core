@@ -8,12 +8,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use systemprompt_models::errors::ParseEnumError;
 
 use sqlx::PgPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_traits::RepositoryError;
 
-use super::mutations::task_state_to_db_string;
 use crate::models::a2a::TaskState;
 
 pub async fn update_task_state(
@@ -22,9 +22,9 @@ pub async fn update_task_state(
     state: TaskState,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
+    let mut tx = pool.begin().await?;
     transition_in_tx(&mut tx, task_id, state, timestamp).await?;
-    tx.commit().await.map_err(RepositoryError::database)?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -42,18 +42,22 @@ pub(super) async fn transition_in_tx(
     }
 
     if !current_state.can_transition_to(&state) {
-        return Err(RepositoryError::ConstraintViolation(format!(
-            "invalid task state transition for {task_id_str}: {current_state:?} -> {state:?}"
-        )));
+        return Err(RepositoryError::conflict(
+            "task",
+            task_id_str,
+            format!("invalid state transition {current_state:?} -> {state:?}"),
+        ));
     }
 
     let rows_affected =
         execute_state_update(tx, state, timestamp, task_id_str, expected_version).await?;
 
     if rows_affected == 0 {
-        return Err(RepositoryError::ConstraintViolation(format!(
-            "stale task update for {task_id_str}: expected version {expected_version}"
-        )));
+        return Err(RepositoryError::conflict(
+            "task",
+            task_id_str,
+            format!("stale update, expected version {expected_version}"),
+        ));
     }
 
     Ok(())
@@ -68,13 +72,13 @@ async fn lock_task_state(
         task_id_str
     )
     .fetch_optional(&mut **tx)
-    .await
-    .map_err(RepositoryError::database)?
-    .ok_or_else(|| RepositoryError::NotFound(format!("task {task_id_str}")))?;
+    .await?
+    .ok_or_else(|| RepositoryError::not_found("task", task_id_str))?;
 
-    let current_state: TaskState = current.status.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("unrecognised stored task state: {e}"))
-    })?;
+    let current_state: TaskState = current
+        .status
+        .parse()
+        .map_err(|e: ParseEnumError| RepositoryError::decode("stored task state", e))?;
 
     Ok((current_state, current.version))
 }
@@ -86,7 +90,7 @@ async fn execute_state_update(
     task_id_str: &str,
     expected_version: i64,
 ) -> Result<u64, RepositoryError> {
-    let status = task_state_to_db_string(state);
+    let status = state.as_str();
 
     let result = if state == TaskState::Completed {
         sqlx::query!(
@@ -139,7 +143,7 @@ async fn execute_state_update(
         .await
     };
 
-    Ok(result.map_err(RepositoryError::database)?.rows_affected())
+    Ok(result?.rows_affected())
 }
 
 pub async fn apply_notification_status(
@@ -148,8 +152,8 @@ pub async fn apply_notification_status(
     state: &str,
     timestamp: &chrono::DateTime<chrono::Utc>,
 ) -> Result<(), RepositoryError> {
-    let parsed: TaskState = state.parse().map_err(|e: String| {
-        RepositoryError::InvalidData(format!("invalid notification task state {state:?}: {e}"))
+    let parsed: TaskState = state.parse().map_err(|_unknown: ParseEnumError| {
+        RepositoryError::invalid_argument("state", format!("unknown task state {state:?}"))
     })?;
     update_task_state(pool, task_id, parsed, timestamp).await
 }
@@ -162,19 +166,21 @@ pub async fn update_task_failed_with_error(
 ) -> Result<(), RepositoryError> {
     let task_id_str = task_id.as_str();
 
-    let mut tx = pool.begin().await.map_err(RepositoryError::database)?;
+    let mut tx = pool.begin().await?;
 
     let (current_state, expected_version) = lock_task_state(&mut tx, task_id_str).await?;
 
     if current_state == TaskState::Failed {
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
         return Ok(());
     }
 
     if !current_state.can_transition_to(&TaskState::Failed) {
-        return Err(RepositoryError::ConstraintViolation(format!(
-            "invalid task state transition for {task_id_str}: {current_state:?} -> Failed"
-        )));
+        return Err(RepositoryError::conflict(
+            "task",
+            task_id_str,
+            format!("invalid state transition {current_state:?} -> Failed"),
+        ));
     }
 
     let rows_affected = sqlx::query!(
@@ -194,16 +200,17 @@ pub async fn update_task_failed_with_error(
         expected_version
     )
     .execute(&mut *tx)
-    .await
-    .map_err(RepositoryError::database)?
+    .await?
     .rows_affected();
 
     if rows_affected == 0 {
-        return Err(RepositoryError::ConstraintViolation(format!(
-            "stale task update for {task_id_str}: expected version {expected_version}"
-        )));
+        return Err(RepositoryError::conflict(
+            "task",
+            task_id_str,
+            format!("stale update, expected version {expected_version}"),
+        ));
     }
 
-    tx.commit().await.map_err(RepositoryError::database)?;
+    tx.commit().await?;
     Ok(())
 }

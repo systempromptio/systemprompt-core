@@ -88,19 +88,19 @@ pub fn open(sealed: &str) -> Result<String, AtRestCipherError> {
     String::from_utf8(plaintext).map_err(|_e| AtRestCipherError::Malformed)
 }
 
-#[expect(
-    clippy::expect_used,
-    reason = "HMAC-SHA256 accepts any key length by construction; new_from_slice cannot fail here"
-)]
-pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> [u8; 32] {
-    let mut mac = HmacSha256::new_from_slice(pepper).expect("HMAC accepts any key length");
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("at-rest pepper was rejected as an HMAC-SHA256 key")]
+pub struct AtRestHashError(#[source] hmac::digest::InvalidLength);
+
+pub fn hmac_sha256(pepper: &[u8], value: &[u8]) -> Result<[u8; 32], AtRestHashError> {
+    let mut mac = HmacSha256::new_from_slice(pepper).map_err(AtRestHashError)?;
     mac.update(value);
     let result = mac.finalize().into_bytes();
     let mut out = [0u8; 32];
     out.copy_from_slice(&result);
-    out
+    Ok(out)
 }
 
-pub fn hmac_sha256_hex(pepper: &[u8], value: &[u8]) -> String {
-    hex::encode(hmac_sha256(pepper, value))
+pub fn hmac_sha256_hex(pepper: &[u8], value: &[u8]) -> Result<String, AtRestHashError> {
+    hmac_sha256(pepper, value).map(hex::encode)
 }

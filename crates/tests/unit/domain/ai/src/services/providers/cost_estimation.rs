@@ -8,7 +8,7 @@
 //! drift in either is caught.
 
 use systemprompt_ai::services::providers::catalog_pricing;
-use systemprompt_models::services::{ProviderModel, ProviderRegistry};
+use systemprompt_manifest::services::{ProviderModel, ProviderRegistry};
 use systemprompt_test_fixtures::usage;
 
 fn seed_models(provider: &str) -> Vec<ProviderModel> {

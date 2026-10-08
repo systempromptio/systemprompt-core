@@ -9,7 +9,7 @@
 //! inventory hooks, which `build_authz_hook` discovers through the pool.
 
 use systemprompt_identifiers::{RouteId, TraceId};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
@@ -20,10 +20,7 @@ use systemprompt_security::authz::{
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id};
 
 async fn pool() -> std::sync::Arc<sqlx::PgPool> {
-    closed_db_pool()
-        .await
-        .write_pool_arc()
-        .expect("closed pool still exposes a write handle")
+    closed_db_pool().await.write_pool()
 }
 
 fn fixture() -> AuthzRequest {

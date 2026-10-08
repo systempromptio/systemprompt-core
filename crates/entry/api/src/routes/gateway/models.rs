@@ -4,13 +4,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_loader::ServicesBootstrap;
-use systemprompt_models::bridge::profile::is_model_servable;
-use systemprompt_models::services::{ApiSurface, GatewayConfig, ProviderRegistry};
+use systemprompt_manifest::bridge_profile::is_model_servable;
+use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
+use systemprompt_models::api::ApiError;
+use systemprompt_models::providers::ApiSurface;
+
+use crate::error::ApiHttpError;
 
 #[derive(Debug, Serialize)]
 pub struct RootResponse {
@@ -87,24 +91,14 @@ pub struct OpenAiModelsResponse {
 pub async fn list(
     headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<ListQuery>,
-) -> Result<axum::response::Response, (StatusCode, String)> {
-    let services = ServicesBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Services config not ready: {e}"),
-        )
-    })?;
+) -> Result<axum::response::Response, ApiHttpError> {
+    let services = ServicesBootstrap::get()?;
 
     let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)
-        .ok_or_else(|| (StatusCode::NOT_FOUND, "Gateway not enabled".to_owned()))?;
-    let secrets = systemprompt_config::SecretsBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Secrets not ready: {e}"),
-        )
-    })?;
+        .ok_or_else(|| ApiHttpError::not_found("Gateway not enabled"))?;
+    let secrets = systemprompt_config::SecretsBootstrap::get()?;
 
     // Why: the `x-inference-protocol` header is advisory, not a filter. The
     // gateway transcodes every inbound wire to every provider wire, so a client
@@ -156,7 +150,21 @@ pub async fn list(
     )))
 }
 
-pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (StatusCode, String)> {
+#[derive(Debug, thiserror::Error)]
+#[error("unknown {INFERENCE_PROTOCOL} value: {tag}")]
+pub struct UnknownInferenceProtocol {
+    pub tag: String,
+}
+
+impl From<UnknownInferenceProtocol> for ApiHttpError {
+    fn from(err: UnknownInferenceProtocol) -> Self {
+        Self::from(ApiError::bad_request(err.to_string()))
+    }
+}
+
+pub fn surfaces_from_header(
+    headers: &HeaderMap,
+) -> Result<Vec<ApiSurface>, UnknownInferenceProtocol> {
     let Some(raw) = headers
         .get(INFERENCE_PROTOCOL)
         .and_then(|v| v.to_str().ok())
@@ -167,11 +175,8 @@ pub fn surfaces_from_header(headers: &HeaderMap) -> Result<Vec<ApiSurface>, (Sta
     for tag in raw.split(',').map(str::trim).filter(|t| !t.is_empty()) {
         let surface = ApiSurface::from_tag(tag)
             .filter(|s| *s != ApiSurface::Backend)
-            .ok_or_else(|| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    format!("unknown {INFERENCE_PROTOCOL} value: {tag}"),
-                )
+            .ok_or_else(|| UnknownInferenceProtocol {
+                tag: tag.to_owned(),
             })?;
         surfaces.push(surface);
     }

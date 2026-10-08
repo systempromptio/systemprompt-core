@@ -6,31 +6,35 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::SlackUserId;
-use systemprompt_models::services::SlackAppConfig;
+use systemprompt_manifest::services::SlackAppConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_slack::client::SlackClient;
 use systemprompt_traits::{FederatedIdentityClaims, SenderIdentity};
 
 use super::verify::bot_token;
 use crate::routes::messaging::{
-    DispatchOutcome, MessagingInbound, ReplyTarget, dispatch_messaging, guarded_http_client,
+    DispatchOutcome, MessagingConversation, MessagingInbound, ReplyTarget, dispatch_messaging,
+    guarded_http_client,
 };
 
 // Why: Slack requires acknowledgment within three seconds.
 pub(super) fn spawn_reply(ctx: AppContext, inbound: MessagingInbound, app: &SlackAppConfig) {
     let bot_token = bot_token(app);
     let link_by_email = app.authz.link_by_workspace_email;
-    tokio::spawn(async move {
+    let background = ctx.background_tasks().clone();
+    background.spawn("slack_reply", async move {
         let mut inbound = inbound;
-        if link_by_email && let Some(token) = bot_token.clone() {
-            inbound.sender =
-                workspace_sender(&token, &SlackUserId::new(inbound.external_user_id.clone())).await;
+        if link_by_email
+            && let Some(token) = bot_token.clone()
+            && let MessagingConversation::Slack { user_id, .. } = &inbound.conversation
+        {
+            inbound.sender = workspace_sender(&token, user_id).await;
         }
         let (text, ephemeral) = match dispatch_messaging(&ctx, inbound.clone()).await {
             Ok(DispatchOutcome::Replied(reply)) => (non_empty(reply), false),
             Ok(DispatchOutcome::Denied(reason)) => (format!("⛔ {reason}"), true),
             Err(err) => {
-                tracing::error!(error = %err, "slack dispatch failed");
+                tracing::error!(error = ?err, "slack dispatch failed");
                 (err.user_message(), true)
             },
         };

@@ -1,6 +1,6 @@
 # Clippy configuration for systemprompt.io code quality standards
 # This supplements the workspace lints in Cargo.toml
-# See: tests/validator/coding-standards.md
+# Standards: CLAUDE.md § Rust Standards (mirrors the rust-coding-standards skill)
 
 # Avoid false positives for common patterns
 avoid-breaking-exported-api = false
@@ -9,7 +9,7 @@ msrv = "1.96"
 # COGNITIVE COMPLEXITY - Keep code simple and maintainable.
 # Clippy charges for every `?` and early return, so idiomatic async/Result code
 # scores roughly double a conventional cognitive-complexity metric. 65 is an
-# enforced outlier gate, not a target — ratchet it down as the tail is cleaned up.
+# outlier gate, not a target; lower it by hand when the tail is cleaned up.
 cognitive-complexity-threshold = 65
 
 # TYPE COMPLEXITY - Avoid overly complex types

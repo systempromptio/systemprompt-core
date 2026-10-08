@@ -16,12 +16,12 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::routes::gateway::bridge_resolved::Freshness;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_identifiers::UserId;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::{MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError};
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, fixture_db_pool, init_isolated_bootstrap,
-    install_test_signing_key, seed_bridge_credential, seed_user_row,
+    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
+    seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -71,9 +71,7 @@ struct Harness {
 async fn harness(mailbox: &str) -> Harness {
     let boot = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    let pool = test_db_pool().await;
     let filter = Arc::new(CountingFilter::default());
     let ctx = fixture_app_context_with(
         &pool,
@@ -90,6 +88,7 @@ async fn harness(mailbox: &str) -> Harness {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, mailbox)
         .await

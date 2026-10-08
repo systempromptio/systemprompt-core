@@ -43,7 +43,9 @@ mod gate {
     use systemprompt_api::services::middleware::site_auth_gate;
     use systemprompt_extension::SiteAuthConfig;
     use systemprompt_identifiers::UserId;
-    use systemprompt_test_fixtures::{fixture_config, install_test_signing_key, mint_admin_jwt};
+    use systemprompt_test_fixtures::{
+        FIXTURE_JWT_ISSUER, fixture_config, install_test_signing_key, mint_admin_jwt,
+    };
     use tower::ServiceExt;
 
     const CONFIG: SiteAuthConfig = SiteAuthConfig {
@@ -57,7 +59,7 @@ mod gate {
         Router::new()
             .fallback(get(|| async { "handler-reached" }))
             .layer(middleware::from_fn(move |req, next| {
-                site_auth_gate(req, next, config.clone())
+                site_auth_gate(req, next, config.clone(), FIXTURE_JWT_ISSUER)
             }))
     }
 
@@ -76,7 +78,7 @@ mod gate {
         install_test_signing_key();
         let config = fixture_config("postgres://unused/unused");
         mint_admin_jwt(
-            &UserId::new("site-auth-admin"),
+            &UserId::new("00000000-0000-4000-8000-00000000517e"),
             "site-auth@example.invalid",
             &config.jwt_issuer,
         )

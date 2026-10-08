@@ -77,7 +77,7 @@ pub fn validate_typ(typ: Option<&str>) -> Result<(), IdJagError> {
 pub struct ClaimPolicy<'a> {
     pub expected_audience: &'a str,
     pub authenticated_client: &'a str,
-    pub allowed_client_ids: &'a [String],
+    pub allowed_client_ids: &'a [ClientId],
     pub now: i64,
     pub leeway: i64,
 }

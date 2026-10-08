@@ -10,8 +10,9 @@ use systemprompt_analytics::{
     CostAnalyticsRepository, ToolAnalyticsRepository, ToolListParams,
 };
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::SourceId;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -42,9 +43,8 @@ impl Fixture {
     async fn new() -> Result<Self> {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
-        let url = fixture_database_url()?;
-        let db = fixture_db_pool(&url).await?;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let db = test_db_pool().await;
+        let pool = db.pool().as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = format!("ext_u_{tag}");
         let context_id = format!("ext_c_{tag}");
@@ -207,7 +207,7 @@ async fn cli_session_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
     fx.insert_session(&format!("cli_s_{}_1", fx.tag)).await?;
     fx.insert_session(&format!("cli_s_{}_2", fx.tag)).await?;
-    let repo = CliSessionAnalyticsRepository::new(&fx.db)?;
+    let repo = CliSessionAnalyticsRepository::new(&fx.db);
     let stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     assert!(stats.total_sessions >= 2);
     let active_since = repo.get_active_session_count(fx.window_start).await?;
@@ -237,13 +237,13 @@ async fn agent_repository_smoke() -> Result<()> {
     let task_b = fx.insert_task(&agent).await?;
     fx.insert_ai_request_for_task(&task_a, 500).await?;
     fx.insert_ai_request_for_task(&task_b, 750).await?;
-    let repo = AgentAnalyticsRepository::new(&fx.db)?;
+    let repo = AgentAnalyticsRepository::new(&fx.db);
 
     for order in ["", "success_rate", "cost", "last_active", "task_count"] {
         let listed = repo
             .list_agents(fx.window_start, fx.window_end, 10, order)
             .await?;
-        assert!(listed.iter().any(|r| r.agent_name == agent));
+        assert!(listed.iter().any(|r| r.agent_name.as_str() == agent));
     }
 
     let exists = repo
@@ -286,7 +286,7 @@ async fn tool_repository_smoke() -> Result<()> {
     let tool = format!("tool-{}", fx.tag);
     fx.insert_tool_execution(&tool, "success").await?;
     fx.insert_tool_execution(&tool, "failed").await?;
-    let repo = ToolAnalyticsRepository::new(&fx.db)?;
+    let repo = ToolAnalyticsRepository::new(&fx.db);
 
     for order in ["call_count", "success_rate", "p95_latency", "unknown_sort"] {
         let listed = repo
@@ -299,7 +299,7 @@ async fn tool_repository_smoke() -> Result<()> {
             })
             .await?;
         assert!(
-            listed.iter().any(|r| r.tool_name == tool),
+            listed.iter().any(|r| r.tool_name.as_str() == tool),
             "seeded tool must surface in list_tools with sort order {order:?}"
         );
     }
@@ -313,7 +313,7 @@ async fn tool_repository_smoke() -> Result<()> {
             sort_order: "call_count",
         })
         .await?;
-    assert!(filtered.iter().any(|r| r.tool_name == tool));
+    assert!(filtered.iter().any(|r| r.tool_name.as_str() == tool));
 
     let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total_executions >= 2);
@@ -353,7 +353,7 @@ async fn cost_repository_per_user_paths() -> Result<()> {
     let task_a = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task_a, 1_000).await?;
     fx.insert_ai_request_for_task(&task_a, 2_000).await?;
-    let repo = CostAnalyticsRepository::new(&fx.db)?;
+    let repo = CostAnalyticsRepository::new(&fx.db);
     let summary = repo
         .get_summary_for_user(&fx.user_typed, fx.window_start, fx.window_end)
         .await?;
@@ -392,7 +392,7 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     let task = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task, 1_000).await?;
     fx.insert_rejected_ai_request().await?;
-    let repo = CostAnalyticsRepository::new(&fx.db)?;
+    let repo = CostAnalyticsRepository::new(&fx.db);
 
     let by_model = repo
         .get_breakdown_by_model(fx.window_start, fx.window_end, 10)
@@ -422,7 +422,7 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
 #[tokio::test]
 async fn content_analytics_repository_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ContentAnalyticsRepository::new(&fx.db)?;
+    let repo = ContentAnalyticsRepository::new(&fx.db);
     let _top = repo
         .get_top_content(fx.window_start, fx.window_end, 10)
         .await?;
@@ -430,6 +430,10 @@ async fn content_analytics_repository_smoke() -> Result<()> {
     let _trend = repo
         .get_content_for_trends(fx.window_start, fx.window_end)
         .await?;
+    let popular = repo
+        .popular_content_ids(&SourceId::new(format!("src-{}", Uuid::new_v4())), 30, 5)
+        .await?;
+    assert!(popular.is_empty());
 
     fx.cleanup().await?;
     Ok(())

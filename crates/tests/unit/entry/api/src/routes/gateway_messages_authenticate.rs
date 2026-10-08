@@ -14,7 +14,7 @@ use systemprompt_api::routes::gateway::messages::auth::authenticate;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_app_context, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
 use systemprompt_traits::AppContext as _;
 
 struct Harness {
@@ -24,28 +24,28 @@ struct Harness {
 
 async fn harness() -> Harness {
     let boot = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     let extractor = JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     );
     Harness { ctx, extractor }
 }
 
 async fn reject(credential: &str) -> (StatusCode, String) {
     let harness = harness().await;
-    authenticate(
+    let rejection = authenticate(
         credential,
         &SessionId::generate(),
         &harness.extractor,
         &harness.ctx,
     )
     .await
-    .expect_err("an unissued credential must never authenticate")
+    .expect_err("an unissued credential must never authenticate");
+    (rejection.status, rejection.message)
 }
 
 #[tokio::test]

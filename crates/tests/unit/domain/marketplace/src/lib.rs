@@ -13,13 +13,19 @@ mod catalog_batch;
 #[cfg(test)]
 mod catalog_rules;
 #[cfg(test)]
+mod dev_files;
+#[cfg(test)]
 mod errors;
 #[cfg(test)]
 mod helpers;
 #[cfg(test)]
+mod import_claude_code;
+#[cfg(test)]
 mod import_edges;
 #[cfg(test)]
 mod import_manifest_shapes;
+#[cfg(test)]
+mod import_remote;
 #[cfg(test)]
 mod import_round_trip;
 #[cfg(test)]
@@ -47,6 +53,8 @@ mod scope;
 #[cfg(test)]
 mod service;
 #[cfg(test)]
+mod skill_frontmatter;
+#[cfg(test)]
 mod trace;
 #[cfg(test)]
 mod view;
@@ -54,13 +62,15 @@ mod view;
 #[cfg(test)]
 use async_trait::async_trait;
 #[cfg(test)]
+use systemprompt_identifiers::PluginId;
+#[cfg(test)]
 use systemprompt_identifiers::UserId;
 #[cfg(test)]
 use systemprompt_marketplace::{
     AllowAllFilter, MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
 #[cfg(test)]
-use systemprompt_models::bridge::ids::{PluginId, Sha256Digest};
+use systemprompt_models::bridge::ids::Sha256Digest;
 #[cfg(test)]
 use systemprompt_models::bridge::manifest::PluginEntry;
 #[cfg(test)]

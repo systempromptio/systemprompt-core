@@ -1,22 +1,23 @@
 // End-to-end WebAuthn ceremonies driven by a softtoken authenticator:
 // registration finish (success + tampered), authentication finish (success,
-// counter persistence, replayed challenge), and setup-token link flows.
+// counter persistence and cloned-authenticator rejection, replayed
+// challenge), and setup-token link flows.
 
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ChallengeId, UserId};
 use systemprompt_oauth::error::OauthError;
 use systemprompt_oauth::repository::{
-    CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose, TokenValidationResult,
+    CreateSetupTokenParams, OAuthRepository, OauthCleanupRepository, SetupTokenPurpose,
+    TokenValidationResult,
 };
 use systemprompt_oauth::services::webauthn::{FinishRegistrationParams, hash_token};
 use systemprompt_oauth::services::{WebAuthnConfig, WebAuthnService};
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 use systemprompt_traits::{AuthResult, AuthUser, UserProvider};
+use systemprompt_users::{UserRepository, UserService};
 use url::Url;
 use uuid::Uuid;
 use webauthn_authenticator_rs::WebauthnAuthenticator;
@@ -24,15 +25,16 @@ use webauthn_authenticator_rs::softtoken::SoftToken;
 
 struct SeedingUserProvider {
     pool: DbPool,
+    users: UserService,
 }
 
 #[async_trait]
 impl UserProvider for SeedingUserProvider {
-    async fn find_by_id(&self, _id: &UserId) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_id(&self, id: &UserId) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_id(&self.users, id).await
     }
-    async fn find_by_email(&self, _email: &str) -> AuthResult<Option<AuthUser>> {
-        Ok(None)
+    async fn find_by_email(&self, email: &str) -> AuthResult<Option<AuthUser>> {
+        UserProvider::find_by_email(&self.users, email).await
     }
     async fn find_by_name(&self, _name: &str) -> AuthResult<Option<AuthUser>> {
         Ok(None)
@@ -46,7 +48,7 @@ impl UserProvider for SeedingUserProvider {
         let id = UserId::new(Uuid::new_v4().to_string());
         seed_user_row(&self.pool, &id, email)
             .await
-            .map_err(|e| systemprompt_traits::AuthProviderError::Internal(e.to_string()))?;
+            .map_err(|e| systemprompt_traits::AuthProviderError::Internal(e.into()))?;
         Ok(AuthUser {
             id,
             name: name.to_owned(),
@@ -102,18 +104,20 @@ struct Ctx {
     service: WebAuthnService,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup() -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = OAuthRepository::new(&pool).expect("repo");
-    let provider = Arc::new(SeedingUserProvider { pool: pool.clone() });
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
+    let provider = Arc::new(SeedingUserProvider {
+        pool: pool.clone(),
+        users: UserService::new(Arc::new(UserRepository::new(&pool))),
+    });
     let service = WebAuthnService::with_config(test_config(), repo.clone(), provider).expect("svc");
-    Some(Ctx {
+    Ctx {
         pool,
         repo,
         service,
-    })
+    }
 }
 
 fn authenticator() -> WebauthnAuthenticator<SoftToken> {
@@ -151,9 +155,7 @@ fn unique_email(tag: &str) -> String {
 
 #[tokio::test]
 async fn registration_then_authentication_roundtrip_succeeds() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("rt");
     let mut auth = authenticator();
     let user_id = register_user(&ctx, &mut auth, "rt-user", &email).await;
@@ -166,8 +168,8 @@ async fn registration_then_authentication_roundtrip_succeeds() {
     let assertion = auth
         .do_authentication(origin(), rcr)
         .expect("softtoken assertion");
-    ctx.service
-        .cleanup_expired_states()
+    OauthCleanupRepository::new(&ctx.pool)
+        .delete_expired_webauthn_challenges()
         .await
         .expect("fresh auth state must survive cleanup");
     let (authed_user, oauth_state) = ctx
@@ -182,9 +184,7 @@ async fn registration_then_authentication_roundtrip_succeeds() {
 
 #[tokio::test]
 async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("dup");
     let mut auth = authenticator();
     let user_id = register_user(&ctx, &mut auth, "dup-user", &email).await;
@@ -195,7 +195,7 @@ async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
         .await
         .expect("list credentials");
     assert_eq!(creds.len(), 1);
-    assert_eq!(creds[0].counter, 0);
+    assert_eq!(stored_counter(&creds[0].public_key), 0);
 
     let (ccr, _challenge) = ctx
         .service
@@ -208,9 +208,7 @@ async fn registered_credential_is_persisted_and_excluded_on_reregistration() {
 
 #[tokio::test]
 async fn finish_registration_unknown_challenge_is_state_expired() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("uc");
     let mut auth = authenticator();
     let (ccr, _challenge_id) = ctx
@@ -219,12 +217,12 @@ async fn finish_registration_unknown_challenge_is_state_expired() {
         .await
         .expect("start_registration");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let unknown = ChallengeId::new("no-such-challenge");
 
     let err = ctx
         .service
         .finish_registration(
-            FinishRegistrationParams::builder("no-such-challenge", "uc-user", &email, &cred)
-                .build(),
+            FinishRegistrationParams::builder(&unknown, "uc-user", &email, &cred).build(),
         )
         .await
         .expect_err("unknown challenge must fail");
@@ -233,9 +231,7 @@ async fn finish_registration_unknown_challenge_is_state_expired() {
 
 #[tokio::test]
 async fn finish_registration_with_mismatched_challenge_fails_verification() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("mm");
     let mut auth = authenticator();
     let (ccr_a, _challenge_a) = ctx
@@ -257,14 +253,15 @@ async fn finish_registration_with_mismatched_challenge_fails_verification() {
         )
         .await
         .expect_err("credential answering challenge A must not satisfy challenge B");
-    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+    assert!(
+        matches!(err, OauthError::WebAuthnCeremony(_)),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]
 async fn finish_authentication_unknown_challenge_errors() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("ua");
     let mut auth = authenticator();
     register_user(&ctx, &mut auth, "ua-user", &email).await;
@@ -277,17 +274,15 @@ async fn finish_authentication_unknown_challenge_errors() {
 
     let err = ctx
         .service
-        .finish_authentication("missing-challenge", &assertion)
+        .finish_authentication(&ChallengeId::new("missing-challenge"), &assertion)
         .await
         .expect_err("unknown auth challenge must fail");
-    assert!(matches!(err, OauthError::Internal(_)));
+    assert!(matches!(err, OauthError::ChallengeExpired));
 }
 
 #[tokio::test]
 async fn finish_authentication_with_mismatched_assertion_fails_verification() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("ma");
     let mut auth = authenticator();
     register_user(&ctx, &mut auth, "ma-user", &email).await;
@@ -309,7 +304,92 @@ async fn finish_authentication_with_mismatched_assertion_fails_verification() {
         .finish_authentication(&challenge_b, &assertion_for_a)
         .await
         .expect_err("assertion answering challenge A must not satisfy challenge B");
-    assert!(matches!(err, OauthError::WebAuthnVerificationFailed(_)));
+    assert!(
+        matches!(err, OauthError::WebAuthnCeremony(_)),
+        "got {err:?}"
+    );
+}
+
+fn stored_counter(passkey_blob: &[u8]) -> u64 {
+    let passkey: serde_json::Value = serde_json::from_slice(passkey_blob).expect("passkey json");
+    passkey["cred"]["counter"].as_u64().expect("counter")
+}
+
+async fn authenticate(
+    ctx: &Ctx,
+    auth: &mut WebauthnAuthenticator<SoftToken>,
+    email: &str,
+) -> Result<(UserId, Option<String>), OauthError> {
+    let (rcr, challenge) = ctx
+        .service
+        .start_authentication(email, None)
+        .await
+        .expect("start_authentication");
+    let assertion = auth.do_authentication(origin(), rcr).expect("assertion");
+    ctx.service
+        .finish_authentication(&challenge, &assertion)
+        .await
+}
+
+#[tokio::test]
+async fn authentication_persists_the_advanced_signature_counter() {
+    let ctx = setup().await;
+    let email = unique_email("ctr");
+    let mut auth = authenticator();
+    let user_id = register_user(&ctx, &mut auth, "ctr-user", &email).await;
+
+    for expected in 1..=2u64 {
+        authenticate(&ctx, &mut auth, &email)
+            .await
+            .expect("authentication");
+        let creds = ctx
+            .repo
+            .list_webauthn_credentials(&user_id)
+            .await
+            .expect("list credentials");
+        assert_eq!(
+            stored_counter(&creds[0].public_key),
+            expected,
+            "the stored passkey must carry the counter of the last assertion"
+        );
+        assert!(creds[0].last_used_at.is_some());
+    }
+}
+
+#[tokio::test]
+async fn assertion_behind_the_stored_counter_is_rejected_as_a_clone() {
+    let ctx = setup().await;
+    let email = unique_email("clone");
+    let mut auth = authenticator();
+    let user_id = register_user(&ctx, &mut auth, "clone-user", &email).await;
+    authenticate(&ctx, &mut auth, &email)
+        .await
+        .expect("first authentication");
+
+    let creds = ctx
+        .repo
+        .list_webauthn_credentials(&user_id)
+        .await
+        .expect("list credentials");
+    let mut ahead: serde_json::Value =
+        serde_json::from_slice(&creds[0].public_key).expect("passkey json");
+    ahead["cred"]["counter"] = serde_json::json!(100);
+    let ahead = serde_json::to_vec(&ahead).expect("encode passkey");
+    ctx.repo
+        .replace_webauthn_passkey(&creds[0].credential_id, &creds[0].public_key, &ahead)
+        .await
+        .expect("advance the stored counter past the authenticator");
+
+    let err = authenticate(&ctx, &mut auth, &email)
+        .await
+        .expect_err("an assertion at or below the stored counter must be refused");
+    assert!(
+        matches!(
+            err,
+            OauthError::WebAuthnCeremony(_) | OauthError::WebAuthnVerificationFailed(_)
+        ),
+        "got {err:?}"
+    );
 }
 
 async fn seed_uuid_user(pool: &DbPool, email: &str) -> UserId {
@@ -337,9 +417,7 @@ async fn store_link_token(
 
 #[tokio::test]
 async fn link_flow_registers_credential_and_consumes_token() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("link");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -378,9 +456,7 @@ async fn link_flow_registers_credential_and_consumes_token() {
 
 #[tokio::test]
 async fn link_flow_excludes_existing_credentials_on_second_link() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("link2");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let first_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -409,9 +485,7 @@ async fn link_flow_excludes_existing_credentials_on_second_link() {
 
 #[tokio::test]
 async fn start_link_rejects_unknown_expired_and_used_tokens() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("badtok");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
 
@@ -451,31 +525,35 @@ async fn start_link_rejects_unknown_expired_and_used_tokens() {
 }
 
 #[tokio::test]
-async fn start_link_rejects_non_uuid_user_id() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+async fn link_flow_accepts_non_uuid_user_id() {
+    let ctx = setup().await;
     let email = unique_email("nonuuid");
     let user_id = UserId::new(format!("not-a-uuid-{}", Uuid::new_v4().simple()));
     seed_user_row(&ctx.pool, &user_id, &email)
         .await
         .expect("seed");
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
+    let mut auth = authenticator();
 
-    let err = ctx
+    let (ccr, challenge_id, user_info) = ctx
         .service
         .start_registration_with_token(&raw_token)
         .await
-        .expect_err("non-uuid user id must fail");
-    let msg = err.to_string();
-    assert!(msg.contains("Invalid user UUID"), "got: {msg}");
+        .expect("an opaque user id can start a link");
+    assert_eq!(user_info.id, user_id);
+
+    let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let linked = ctx
+        .service
+        .finish_registration_with_token(&challenge_id, &raw_token, &cred)
+        .await
+        .expect("an opaque user id can finish a link");
+    assert_eq!(linked, user_id);
 }
 
 #[tokio::test]
 async fn finish_link_rejects_missing_session_and_invalid_token() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("linkerr");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -487,17 +565,21 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
         .await
         .expect("start link");
     let cred = auth.do_registration(origin(), ccr).expect("registration");
+    let missing = ChallengeId::new("missing-session");
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", &raw_token, &cred)
+        .finish_registration_with_token(&missing, &raw_token, &cred)
         .await
         .expect_err("missing session must fail");
-    assert!(err.to_string().contains("not found or expired"));
+    assert!(
+        matches!(err, OauthError::RegistrationStateExpired),
+        "got {err:?}"
+    );
 
     let err = ctx
         .service
-        .finish_registration_with_token("missing-session", "never-issued", &cred)
+        .finish_registration_with_token(&missing, "never-issued", &cred)
         .await
         .expect_err("invalid token must fail");
     assert!(err.to_string().contains("Invalid or expired setup token"));
@@ -505,9 +587,7 @@ async fn finish_link_rejects_missing_session_and_invalid_token() {
 
 #[tokio::test]
 async fn finish_link_rejects_token_swapped_between_sessions() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let email = unique_email("swap");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let token_a = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -526,7 +606,10 @@ async fn finish_link_rejects_token_swapped_between_sessions() {
         .finish_registration_with_token(&challenge_a, &token_b, &cred)
         .await
         .expect_err("finishing session A with token B must fail");
-    assert!(err.to_string().contains("Token mismatch"));
+    assert!(matches!(
+        err,
+        OauthError::SetupTokenRejected("Token mismatch")
+    ));
 }
 
 // The browser refuses a second concurrent `create()`, so a double-fired
@@ -534,7 +617,7 @@ async fn finish_link_rejects_token_swapped_between_sessions() {
 // response. Both starts must therefore describe the same ceremony.
 #[tokio::test]
 async fn overlapping_link_starts_share_one_challenge_and_either_id_finishes() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let email = unique_email("overlap");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -587,7 +670,7 @@ async fn overlapping_link_starts_share_one_challenge_and_either_id_finishes() {
 
 #[tokio::test]
 async fn link_start_after_a_failed_finish_mints_a_fresh_challenge() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let email = unique_email("refresh");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let raw_token = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -626,7 +709,7 @@ async fn link_start_after_a_failed_finish_mints_a_fresh_challenge() {
 
 #[tokio::test]
 async fn link_start_with_a_second_token_supersedes_the_first_ceremony() {
-    let ctx = setup_or_skip().await.expect("DATABASE_URL must be set");
+    let ctx = setup().await;
     let email = unique_email("supersede");
     let user_id = seed_uuid_user(&ctx.pool, &email).await;
     let token_a = store_link_token(&ctx.repo, &user_id, 600).await;
@@ -654,8 +737,8 @@ async fn link_start_with_a_second_token_supersedes_the_first_ceremony() {
         .await
         .expect_err("the superseded ceremony must be gone");
     assert!(
-        err.to_string().contains("not found or expired"),
-        "got: {err}"
+        matches!(err, OauthError::RegistrationStateExpired),
+        "got: {err:?}"
     );
 
     let cred_b = auth

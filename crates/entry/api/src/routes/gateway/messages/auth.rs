@@ -6,11 +6,14 @@
 use axum::http::StatusCode;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use systemprompt_identifiers::{Actor, ClientId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, ApiKeyId, ClientId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_models::attribution::ScopeBinding;
+use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
 use systemprompt_security::policy::types::AccessScope;
-use systemprompt_users::{API_KEY_PREFIX, ApiKeyService};
+use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
+use super::error::RejectionError;
 use crate::services::middleware::JwtContextExtractor;
 use crate::services::middleware::session::{SessionAttestationError, attest_session};
 use systemprompt_traits::AppContext as _;
@@ -29,6 +32,7 @@ pub struct JwtPrincipal {
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub roles: Vec<String>,
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and schema-less.
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub act_chain: Vec<Actor>,
     pub attested_session: SessionId,
@@ -37,6 +41,9 @@ pub struct JwtPrincipal {
 
 #[derive(Debug)]
 pub struct ApiKeyPrincipal {
+    pub api_key_id: ApiKeyId,
+    pub limits: ApiKeyLimits,
+    pub scopes: Vec<ScopeBinding>,
     pub user_id: UserId,
     pub trace_id: TraceId,
     pub attested_session: SessionId,
@@ -71,6 +78,8 @@ impl AuthedPrincipal {
         }
     }
 
+    // JSON: ABAC attribute bag — JWT claim values are policy-defined and
+    // schema-less.
     pub fn authz_attributes(
         &self,
     ) -> (Vec<String>, BTreeMap<String, serde_json::Value>, Vec<Actor>) {
@@ -87,6 +96,13 @@ impl AuthedPrincipal {
         }
     }
 
+    pub const fn api_key(&self) -> Option<&ApiKeyPrincipal> {
+        match self {
+            Self::Jwt(_) => None,
+            Self::ApiKey(p) => Some(p),
+        }
+    }
+
     pub fn is_bridge(&self) -> bool {
         match self {
             Self::Jwt(p) => p.client_id.as_ref() == Some(&ClientId::bridge()),
@@ -94,7 +110,7 @@ impl AuthedPrincipal {
         }
     }
 
-    pub fn enforce_session_binding(&self, header: &SessionId) -> Result<(), (StatusCode, String)> {
+    pub fn enforce_session_binding(&self, header: &SessionId) -> Result<(), RejectionError> {
         let (attested, credential) = match self {
             Self::Jwt(p) => (&p.attested_session, "bearer JWT session_id"),
             Self::ApiKey(p) => (&p.attested_session, "attested API-key session"),
@@ -109,9 +125,9 @@ impl AuthedPrincipal {
             credential = %credential,
             "X-Session-ID header does not match the attested session; rejecting"
         );
-        Err((
+        Err(RejectionError::client(
             StatusCode::UNAUTHORIZED,
-            "X-Session-ID does not match authenticated session".to_owned(),
+            "X-Session-ID does not match authenticated session",
         ))
     }
 }
@@ -121,7 +137,7 @@ pub async fn authenticate(
     session_id: &SessionId,
     jwt_extractor: &JwtContextExtractor,
     ctx: &AppContext,
-) -> Result<AuthedPrincipal, (StatusCode, String)> {
+) -> Result<AuthedPrincipal, RejectionError> {
     if credential.starts_with(API_KEY_PREFIX) {
         return authenticate_api_key(credential, session_id, ctx).await;
     }
@@ -132,41 +148,46 @@ async fn authenticate_api_key(
     credential: &str,
     session_id: &SessionId,
     ctx: &AppContext,
-) -> Result<AuthedPrincipal, (StatusCode, String)> {
+) -> Result<AuthedPrincipal, RejectionError> {
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let record = service.verify(credential).await.map_err(|e| {
-        (
+        RejectionError::server(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("API key verification failed: {e}"),
+            "API key verification failed",
         )
+        .with_cause(e)
     })?;
     let Some(rec) = record else {
-        return Err((
+        return Err(RejectionError::client(
             StatusCode::UNAUTHORIZED,
-            "Invalid or revoked API key".to_owned(),
+            "Invalid or revoked API key",
         ));
     };
 
     let analytics = ctx.session_provider().ok_or_else(|| {
-        (
+        RejectionError::server(
             StatusCode::INTERNAL_SERVER_ERROR,
-            "Analytics provider unavailable: cannot attest session".to_owned(),
+            "analytics provider unavailable: cannot attest session",
         )
     })?;
 
     attest_session(&analytics, session_id, &rec.user_id, "gateway/messages")
         .await
         .map_err(|e| match e {
-            SessionAttestationError::Lookup(message) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Session attestation failed: {message}"),
-            ),
             SessionAttestationError::Missing | SessionAttestationError::UserMismatch => {
-                (StatusCode::UNAUTHORIZED, UNKNOWN_SESSION_MESSAGE.to_owned())
+                RejectionError::client(StatusCode::UNAUTHORIZED, UNKNOWN_SESSION_MESSAGE)
             },
+            lookup @ SessionAttestationError::Lookup(..) => RejectionError::server(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "session attestation failed",
+            )
+            .with_cause(lookup),
         })?;
 
     Ok(AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        api_key_id: rec.id,
+        limits: rec.limits,
+        scopes: rec.scopes,
         user_id: rec.user_id,
         trace_id: TraceId::generate(),
         attested_session: session_id.clone(),
@@ -176,12 +197,12 @@ async fn authenticate_api_key(
 async fn authenticate_jwt(
     credential: &str,
     jwt_extractor: &JwtContextExtractor,
-) -> Result<AuthedPrincipal, (StatusCode, String)> {
+) -> Result<AuthedPrincipal, RejectionError> {
     let jwt_token = JwtToken::new(credential);
     let (claims, user) = jwt_extractor
         .decode_for_gateway(&jwt_token)
         .await
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+        .map_err(rejection_for_token)?;
 
     Ok(AuthedPrincipal::Jwt(JwtPrincipal {
         user_id: claims.user_id,
@@ -192,4 +213,15 @@ async fn authenticate_jwt(
         attested_session: claims.session_id,
         client_id: claims.client_id,
     }))
+}
+
+fn rejection_for_token(error: ContextExtractionError) -> RejectionError {
+    match error {
+        ContextExtractionError::DatabaseError { .. } => RejectionError::server(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "gateway credential lookup failed",
+        )
+        .with_cause(error),
+        other => RejectionError::invalid(StatusCode::UNAUTHORIZED, other),
+    }
 }

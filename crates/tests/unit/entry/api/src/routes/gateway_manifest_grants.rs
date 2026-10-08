@@ -16,6 +16,7 @@ use systemprompt_api::routes::gateway::bridge_manifest;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{DeviceCertId, ManagedResourceId, UserId};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, NewResource, NewRevision, PublicationAction,
     PublicationRequest, ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
@@ -28,11 +29,10 @@ use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, RuntimeFileReadback, SessionBindingRequest,
 };
 use systemprompt_models::feedback::{ContentDigest, EvaluatorClient};
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context_with, fixture_db_pool, init_isolated_bootstrap,
-    install_test_signing_key, seed_bridge_credential, seed_user_row,
+    TestBootstrap, fixture_app_context_with, init_isolated_bootstrap, install_test_signing_key,
+    seed_bridge_credential, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -120,9 +120,7 @@ struct Harness {
 async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let boot = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
+    let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(&pool, &boot.database_url, boot_paths(boot), filter)
         .expect("fixture context");
     let owner = ctx.system_admin().id();
@@ -133,6 +131,7 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     Harness {
         pool,
@@ -266,7 +265,7 @@ async fn grant_row(
     resource: &ManagedResourceId,
     consumer: &UserId,
 ) -> Option<bool> {
-    let inner = pool.pool_arc().expect("read pool");
+    let inner = pool.pool();
     sqlx::query_scalar::<_, bool>(
         "SELECT revoked_at IS NULL FROM managed_consumer_grants WHERE owner_id=$1 AND \
          resource_id=$2 AND consumer_id=$3",
@@ -351,7 +350,7 @@ async fn consumer_token(
     label: &str,
 ) -> (DeviceCertId, String) {
     let cert = DeviceCertId::generate();
-    let writer = harness.pool.write_pool_arc().expect("write pool");
+    let writer = harness.pool.write_pool();
     sqlx::query("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,$4)")
         .bind(cert.as_str())
         .bind(consumer.as_str())
@@ -400,7 +399,7 @@ async fn consumer_bundle_rejects_missing_and_malformed_credentials_before_granti
         "SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1",
     )
     .bind(owner.as_str()).bind(resource.as_str())
-    .fetch_one(harness.pool.pool_arc().unwrap().as_ref()).await.unwrap();
+    .fetch_one(harness.pool.pool().as_ref()).await.unwrap();
 
     for authorization in [
         None,
@@ -418,7 +417,7 @@ async fn consumer_bundle_rejects_missing_and_malformed_credentials_before_granti
     )
     .bind(owner.as_str())
     .bind(resource.as_str())
-    .fetch_one(harness.pool.pool_arc().unwrap().as_ref())
+    .fetch_one(harness.pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(grants, 0, "unauthenticated requests cannot persist a grant");
@@ -434,7 +433,7 @@ async fn revoked_consumer_credential_cannot_retain_a_catalog_grant() {
         .unwrap();
     let (cert, token) = consumer_token(&harness, &consumer.user_id, "revoked consumer").await;
     let publication: String = sqlx::query_scalar("SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1")
-        .bind(owner.as_str()).bind(resource.as_str()).fetch_one(harness.pool.pool_arc().unwrap().as_ref()).await.unwrap();
+        .bind(owner.as_str()).bind(resource.as_str()).fetch_one(harness.pool.pool().as_ref()).await.unwrap();
     harness
         .ctx
         .managed_repository()
@@ -484,7 +483,7 @@ async fn unknown_resource_id_cannot_be_used_to_mint_a_catalog_grant() {
     )
     .bind(resource.as_str())
     .bind(consumer.user_id.as_str())
-    .fetch_one(harness.pool.pool_arc().unwrap().as_ref())
+    .fetch_one(harness.pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(grants, 0);
@@ -500,7 +499,7 @@ async fn filtered_resource_cannot_be_recovered_by_guessing_its_bundle_url() {
         .unwrap();
     let (_, token) = consumer_token(&harness, &consumer.user_id, "filtered bundle").await;
     let publication: String = sqlx::query_scalar("SELECT id FROM managed_publications WHERE owner_id=$1 AND resource_id=$2 ORDER BY created_at DESC LIMIT 1")
-        .bind(owner.as_str()).bind(resource.as_str()).fetch_one(harness.pool.pool_arc().unwrap().as_ref()).await.unwrap();
+        .bind(owner.as_str()).bind(resource.as_str()).fetch_one(harness.pool.pool().as_ref()).await.unwrap();
 
     assert_eq!(
         consumer_bundle_status(
@@ -545,7 +544,7 @@ async fn consumer_bundle_enforces_host_scope_without_changing_the_catalog_grant(
     )
     .bind(owner.as_str())
     .bind(resource.as_str())
-    .fetch_one(harness.pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(harness.pool.pool().as_ref())
     .await
     .expect("publication");
     let authorization = format!("Bearer {token}");
@@ -612,7 +611,7 @@ async fn consumer_http_flow_binds_receipts_and_refuses_another_device() {
         .await
         .expect("consumer");
     let cert = DeviceCertId::generate();
-    let writer = harness.pool.write_pool_arc().expect("write pool");
+    let writer = harness.pool.write_pool();
     sqlx::query("INSERT INTO user_device_certs(id,user_id,fingerprint,label) VALUES($1,$2,$3,'consumer HTTP')")
         .bind(cert.as_str()).bind(consumer.user_id.as_str()).bind(cert.as_str())
         .execute(writer.as_ref()).await.expect("device");
@@ -783,10 +782,8 @@ struct PrivateConsumer {
 }
 
 async fn private_consumer(label: &str) -> PrivateConsumer {
-    let database = systemprompt_test_fixtures::DisposableDb::installed(label)
-        .await
-        .unwrap();
-    let pool = database.pool().await.unwrap();
+    let database = systemprompt_test_fixtures::DisposableDb::with_schema(label).await;
+    let pool = database.test_pool().await;
     let boot = boot();
     let ctx = fixture_app_context_with(
         &pool,
@@ -803,6 +800,7 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
         ctx.session_provider().unwrap(),
         ctx.user_provider().unwrap(),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let harness = Harness {
         pool,
@@ -905,7 +903,7 @@ async fn post_json(
 #[tokio::test]
 async fn receipt_storage_failure_leaves_no_partial_evidence_and_retry_commits_once() {
     let f = private_consumer("receipt_write_recovery").await;
-    let db = f.harness.pool.pool_arc().unwrap();
+    let db = f.harness.pool.pool();
     sqlx::query("CREATE FUNCTION reject_receipt() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'owned write failure'; END $$").execute(db.as_ref()).await.unwrap();
     sqlx::query("CREATE TRIGGER reject_receipt BEFORE INSERT ON managed_installation_receipts FOR EACH ROW EXECUTE FUNCTION reject_receipt()").execute(db.as_ref()).await.unwrap();
     let failed = post_json(
@@ -954,7 +952,7 @@ async fn receipt_storage_failure_leaves_no_partial_evidence_and_retry_commits_on
 #[tokio::test]
 async fn invalid_runtime_readback_is_rejected_without_receipt_and_corrected_retry_succeeds() {
     let f = private_consumer("receipt_readback_recovery").await;
-    let db = f.harness.pool.pool_arc().unwrap();
+    let db = f.harness.pool.pool();
     let mut invalid = f.request.clone();
     invalid.runtime_files[0].digest = ContentDigest::of(b"wrong bytes");
     assert_eq!(
@@ -1001,7 +999,7 @@ async fn invalid_runtime_readback_is_rejected_without_receipt_and_corrected_retr
 #[tokio::test]
 async fn session_binding_storage_failure_leaves_no_binding_and_retry_is_durable() {
     let f = private_consumer("binding_write_recovery").await;
-    let db = f.harness.pool.pool_arc().unwrap();
+    let db = f.harness.pool.pool();
     let receipt = post_json(
         consumer_router(&f),
         "/consumer/receipts",

@@ -257,18 +257,18 @@ fn dispatch_lifecycle(
     event: UiEvent,
 ) -> Result<(), Box<UiEvent>> {
     match event {
-        UiEvent::Quit => handlers::quit::on_quit(event_loop),
+        UiEvent::Quit => handlers::quit::on_quit(app, event_loop),
         UiEvent::SyncStarted => handlers::sync::on_sync_started(app),
         UiEvent::SyncStep(step) => crate::gui::emit::emit_sync_step(app, &step),
         UiEvent::StateRefreshed => handlers::state::on_state_refreshed(app),
         UiEvent::AgentUninstall { host_id, reply_to } => {
-            handlers::agents::on_uninstall(app, &host_id, reply_to);
+            handlers::agents::on_uninstall(app, host_id, reply_to);
         },
         UiEvent::AgentOpenConfig { host_id, reply_to } => {
-            handlers::agents::on_open_config(app, &host_id, reply_to);
+            handlers::agents::on_open_config(app, host_id, reply_to);
         },
         UiEvent::AgentOpen { host_id, reply_to } => {
-            handlers::agents::on_open(app, &host_id, reply_to);
+            handlers::agents::on_open(app, host_id, reply_to);
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
         UiEvent::FirstRunStart => crate::gui::first_run::handlers::on_start(app),

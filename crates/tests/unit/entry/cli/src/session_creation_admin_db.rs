@@ -16,16 +16,11 @@ use systemprompt_cli::session::creation::helpers::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-    install_test_signing_key, seed_user_row_with_roles,
+    closed_db_pool, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
+    test_db_pool,
 };
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the session creation tests need a reachable test database")
-}
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -40,7 +35,7 @@ async fn seed(pool: &DbPool, roles: &[&str], status: &str) -> (String, String) {
         .expect("seed user");
 
     if status != "active" {
-        let write = pool.write_pool_arc().expect("write pool");
+        let write = pool.write_pool();
         sqlx::query("UPDATE users SET status = $2 WHERE id = $1")
             .bind(&name)
             .bind(status)
@@ -56,7 +51,7 @@ async fn seed(pool: &DbPool, roles: &[&str], status: &str) -> (String, String) {
 // reason.
 #[tokio::test]
 async fn an_active_admin_resolves() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["admin"], "active").await;
 
     let user = resolve_local_admin(&pool, &name)
@@ -72,7 +67,7 @@ async fn an_active_admin_resolves() {
 // check holds.
 #[tokio::test]
 async fn an_inactive_user_is_refused_even_when_they_hold_the_admin_role() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["admin"], "inactive").await;
 
     let err = resolve_local_admin(&pool, &name)
@@ -89,7 +84,7 @@ async fn an_inactive_user_is_refused_even_when_they_hold_the_admin_role() {
 // plain user named as the session owner would be handed an admin token.
 #[tokio::test]
 async fn a_user_without_the_admin_role_is_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (name, _email) = seed(&pool, &["user"], "active").await;
 
     let err = resolve_local_admin(&pool, &name)
@@ -104,7 +99,7 @@ async fn a_user_without_the_admin_role_is_refused() {
 
 #[tokio::test]
 async fn an_unknown_name_is_refused_with_the_repair_instruction() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     let err = resolve_local_admin(&pool, &unique("nobody"))
         .await
@@ -121,7 +116,7 @@ async fn an_unknown_name_is_refused_with_the_repair_instruction() {
 // direction, is a decision rather than a side effect.
 #[tokio::test]
 async fn an_existing_non_admin_is_promoted_rather_than_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["user"], "active").await;
 
     let user = get_or_create_admin(&pool, &email, "test")
@@ -137,7 +132,7 @@ async fn an_existing_non_admin_is_promoted_rather_than_refused() {
 
 #[tokio::test]
 async fn an_existing_admin_comes_back_unchanged() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (name, email) = seed(&pool, &["admin"], "active").await;
 
     let user = get_or_create_admin(&pool, &email, "test")
@@ -153,7 +148,7 @@ async fn an_existing_admin_comes_back_unchanged() {
 // choose and cannot find again.
 #[tokio::test]
 async fn a_missing_user_is_provisioned_as_an_admin_named_for_the_address() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let local = unique("fresh");
     let email = format!("{local}@sessadmin.invalid");
 
@@ -181,7 +176,7 @@ async fn a_missing_user_is_provisioned_as_an_admin_named_for_the_address() {
 async fn the_minted_token_names_its_user_and_is_not_empty() {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let (_name, email) = seed(&pool, &["admin"], "active").await;
     let user = get_or_create_admin(&pool, &email, "test")
         .await
@@ -209,7 +204,7 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
 // requires a session email hint. Without that guard, any failed lookup would
 // silently open a session as someone else.
 mod tenant_fallback {
-    use super::{pool, seed, unique};
+    use super::{seed, test_db_pool, unique};
     use systemprompt_cli::session::creation::helpers::resolve_tenant_admin_with_fallback;
     use systemprompt_cloud::CloudCredentials;
     use systemprompt_identifiers::{CloudAuthToken, Email};
@@ -230,7 +225,7 @@ mod tenant_fallback {
 
     #[tokio::test]
     async fn a_resolvable_user_is_returned_without_consulting_the_credentials() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (_name, email) = seed(&pool, &["admin"], "active").await;
         let other = format!("{}@other.invalid", unique("creds"));
 
@@ -249,7 +244,7 @@ mod tenant_fallback {
     // resolving to whoever holds the cloud credentials.
     #[tokio::test]
     async fn without_a_session_hint_a_failure_is_reported_rather_than_falling_back() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let holder = format!("{}@holder.invalid", unique("creds"));
 
         let err =
@@ -268,7 +263,7 @@ mod tenant_fallback {
     // intended recovery.
     #[tokio::test]
     async fn with_a_session_hint_the_credential_holder_is_used_instead() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let holder = format!("{}@holder.invalid", unique("creds"));
         let requested = unresolvable_email();
 
@@ -293,7 +288,7 @@ mod tenant_fallback {
     // lookup being run twice.
     #[tokio::test]
     async fn no_fallback_is_attempted_when_the_credentials_name_the_same_address() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let same = unresolvable_email();
 
         let err = resolve_tenant_admin_with_fallback(&pool, &creds(&same), &same, Some(&same))
@@ -310,7 +305,7 @@ mod tenant_fallback {
 // worth asserting — keyed too loosely, one operator's CLI history surfaces in
 // another's.
 mod cli_context {
-    use super::{pool, seed};
+    use super::{pname, seed, test_db_pool};
     use systemprompt_cli::session::creation::helpers::{create_cli_context, get_or_create_admin};
     use systemprompt_database::DbPool;
     use systemprompt_identifiers::{SessionId, UserId};
@@ -328,7 +323,7 @@ mod cli_context {
 
     #[tokio::test]
     async fn the_same_user_and_profile_keep_one_context_across_sessions() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (_name, email) = seed(&pool, &["admin"], "active").await;
         let user = get_or_create_admin(&pool, &email, "test")
             .await
@@ -336,10 +331,10 @@ mod cli_context {
 
         let one = session_for(&pool, &user.id).await;
         let two = session_for(&pool, &user.id).await;
-        let first = create_cli_context(pool.clone(), &user, &one, "prof-a")
+        let first = create_cli_context(pool.clone(), &user, &one, &pname("prof-a"))
             .await
             .expect("first context");
-        let second = create_cli_context(pool.clone(), &user, &two, "prof-a")
+        let second = create_cli_context(pool.clone(), &user, &two, &pname("prof-a"))
             .await
             .expect("second context");
 
@@ -354,17 +349,17 @@ mod cli_context {
     // currently pointed at.
     #[tokio::test]
     async fn different_profiles_get_different_contexts() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (_name, email) = seed(&pool, &["admin"], "active").await;
         let user = get_or_create_admin(&pool, &email, "test")
             .await
             .expect("resolve admin");
         let session = session_for(&pool, &user.id).await;
 
-        let a = create_cli_context(pool.clone(), &user, &session, "prof-a")
+        let a = create_cli_context(pool.clone(), &user, &session, &pname("prof-a"))
             .await
             .expect("context a");
-        let b = create_cli_context(pool.clone(), &user, &session, "prof-b")
+        let b = create_cli_context(pool.clone(), &user, &session, &pname("prof-b"))
             .await
             .expect("context b");
 
@@ -375,7 +370,7 @@ mod cli_context {
     // would surface one operator's CLI history to another.
     #[tokio::test]
     async fn different_users_never_share_a_context() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let (_n1, email_one) = seed(&pool, &["admin"], "active").await;
         let (_n2, email_two) = seed(&pool, &["admin"], "active").await;
         let one = get_or_create_admin(&pool, &email_one, "test")
@@ -387,10 +382,10 @@ mod cli_context {
 
         let session_one = session_for(&pool, &one.id).await;
         let session_two = session_for(&pool, &two.id).await;
-        let context_one = create_cli_context(pool.clone(), &one, &session_one, "shared")
+        let context_one = create_cli_context(pool.clone(), &one, &session_one, &pname("shared"))
             .await
             .expect("context for the first user");
-        let context_two = create_cli_context(pool.clone(), &two, &session_two, "shared")
+        let context_two = create_cli_context(pool.clone(), &two, &session_two, &pname("shared"))
             .await
             .expect("context for the second user");
 
@@ -442,7 +437,7 @@ async fn a_lookup_with_no_hint_and_no_credentials_says_to_authenticate() {
 
 #[tokio::test]
 async fn an_address_with_no_user_behind_it_is_provisioned_as_an_admin() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let email = format!("{}@sessadmin.invalid", unique("fallback"));
 
     let user = resolve_admin_with_fallback(&pool, &email, None, "local")
@@ -491,4 +486,8 @@ async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
         format!("{err:#}").contains("Failed to query user by email"),
         "the lookup failure must be reported as-is, got: {err:#}"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

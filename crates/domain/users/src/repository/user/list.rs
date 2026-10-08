@@ -6,14 +6,17 @@
 use systemprompt_identifiers::UserId;
 
 use crate::error::{Result, UserError};
-use crate::models::{User, UserActivity, UserRole, UserStatus, UserWithSessions};
+use crate::models::{
+    User, UserActivity, UserActivityRow, UserRole, UserRow, UserStatus, UserWithSessions,
+    UserWithSessionsRow,
+};
 use crate::repository::{MAX_PAGE_SIZE, UserRepository};
 
 impl UserRepository {
     pub async fn find_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
-            UserWithSessions,
+            UserWithSessionsRow,
             r#"
             SELECT
                 u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
@@ -28,31 +31,33 @@ impl UserRepository {
             deleted_status
         )
         .fetch_optional(&*self.pool)
-        .await?;
+        .await?
+        .map(UserWithSessions::try_from)
+        .transpose()?;
 
         Ok(row)
     }
 
     pub async fn get_activity(&self, user_id: &UserId) -> Result<UserActivity> {
         let row = sqlx::query_as!(
-            UserActivity,
+            UserActivityRow,
             r#"
             SELECT
                 u.id as user_id,
                 MAX(s.last_activity_at) as last_active,
-                COUNT(DISTINCT s.session_id) as "session_count!",
-                COUNT(DISTINCT t.task_id) as "task_count!",
-                0::bigint as "message_count!"
+                COUNT(s.session_id) as "session_count!",
+                COALESCE(SUM(s.task_count), 0)::bigint as "task_count!",
+                COALESCE(SUM(s.message_count), 0)::bigint as "message_count!"
             FROM users u
             LEFT JOIN user_sessions s ON s.user_id = u.id
-            LEFT JOIN agent_tasks t ON t.user_id = u.id
             WHERE u.id = $1
             GROUP BY u.id
             "#,
             user_id.as_str()
         )
         .fetch_one(&*self.pool)
-        .await?;
+        .await
+        .map(UserActivity::from)?;
 
         Ok(row)
     }
@@ -75,7 +80,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -92,7 +97,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -101,7 +109,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -114,7 +122,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -138,7 +149,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -158,7 +169,10 @@ impl UserRepository {
             anonymous_role
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -190,16 +204,17 @@ impl UserRepository {
 
     pub async fn list_by_filter(
         &self,
-        status: Option<&str>,
+        status: Option<UserStatus>,
         role: Option<&str>,
         older_than_days: Option<i64>,
         limit: i64,
     ) -> Result<Vec<User>> {
         let safe_limit = limit.min(MAX_PAGE_SIZE);
         let deleted_status = UserStatus::Deleted.as_str();
+        let status = status.as_ref().map(UserStatus::as_str);
 
         let rows = sqlx::query_as!(
-            User,
+            UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
                    roles, avatar_url, is_bot, is_scanner, created_at, updated_at
@@ -218,7 +233,10 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(User::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }
@@ -248,7 +266,7 @@ impl UserRepository {
         let deleted_status = UserStatus::Deleted.as_str();
         let anonymous_role = UserRole::Anonymous.as_str();
         let rows = sqlx::query_as!(
-            UserWithSessions,
+            UserWithSessionsRow,
             r#"
             SELECT
                 u.id, u.name, u.email, u.full_name, u.status, u.roles, u.created_at,
@@ -267,7 +285,10 @@ impl UserRepository {
             safe_limit
         )
         .fetch_all(&*self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(UserWithSessions::try_from)
+        .collect::<Result<Vec<_>>>()?;
 
         Ok(rows)
     }

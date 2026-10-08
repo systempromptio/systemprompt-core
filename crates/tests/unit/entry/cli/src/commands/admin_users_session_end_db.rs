@@ -8,7 +8,7 @@ use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::{DEFAULT_CLI_SESSION_HOURS, create_local_session_row};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{fixture_app_context, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use systemprompt_users::{UserRepository, UserService};
 use uuid::Uuid;
 
@@ -24,20 +24,15 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).unwrap(),
+        test_app_context(pool, &url),
     )
 }
 
@@ -51,8 +46,8 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn end_specific_session_succeeds() {
-    let pool = pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let pool = test_db_pool().await;
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesend");
     let user = service.create(&n, &e, None, None).await.unwrap();
     let session_id = create_local_session_row(
@@ -76,7 +71,7 @@ async fn end_specific_session_succeeds() {
 
 #[tokio::test]
 async fn end_unknown_session_reports_not_found() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-sess-{}", Uuid::new_v4().simple());
     users::execute(parse(&["session", "end", &missing, "--yes"]), &ctx)
@@ -86,8 +81,8 @@ async fn end_unknown_session_reports_not_found() {
 
 #[tokio::test]
 async fn end_all_sessions_for_user() {
-    let pool = pool().await;
-    let service = UserService::new(Arc::new(UserRepository::new(&pool).unwrap()));
+    let pool = test_db_pool().await;
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let (n, e) = unique("sesall");
     let user = service.create(&n, &e, None, None).await.unwrap();
     create_local_session_row(
@@ -125,7 +120,7 @@ async fn end_all_sessions_for_user() {
 
 #[tokio::test]
 async fn end_without_confirmation_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["session", "end", "whatever"]), &ctx)
         .await
@@ -135,7 +130,7 @@ async fn end_without_confirmation_errors() {
 
 #[tokio::test]
 async fn end_all_without_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["session", "end", "--all", "--yes"]), &ctx)
         .await
@@ -145,7 +140,7 @@ async fn end_all_without_user_errors() {
 
 #[tokio::test]
 async fn end_all_missing_user_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let missing = format!("no-user-{}", Uuid::new_v4().simple());
     let err = users::execute(
@@ -159,7 +154,7 @@ async fn end_all_missing_user_errors() {
 
 #[tokio::test]
 async fn end_without_session_id_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let err = users::execute(parse(&["session", "end", "--yes"]), &ctx)
         .await

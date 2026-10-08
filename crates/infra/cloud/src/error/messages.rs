@@ -32,7 +32,6 @@ impl CloudError {
             Self::Docker { .. } => "Docker command failed",
             Self::Unauthorized => "Cloud API rejected this token",
             Self::HttpStatus { .. } => "Cloud API returned a non-success status",
-            Self::Other { .. } => "Cloud operation failed",
         }
     }
 
@@ -70,7 +69,7 @@ impl CloudError {
                 "Regenerate the Dockerfile with 'systemprompt cloud profile create'"
             },
             Self::Docker { .. } => "Check that Docker is installed and running",
-            Self::Deploy { .. } | Self::Other { .. } => "Inspect the error message and try again",
+            Self::Deploy { .. } => "Inspect the error message and try again",
         }
     }
 

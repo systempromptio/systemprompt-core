@@ -29,7 +29,7 @@ fn gateway() -> Gateway {
         Mock::given(method("GET"))
             .and(path("/v1/bridge/whoami"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "user_id": "user_1",
+                "user_id": "00000000-0000-4000-8000-000000000001",
                 "email": "person@example.com",
                 "roles": ["member"],
             })))
@@ -190,6 +190,10 @@ fn a_gateway_that_rejects_the_pat_leaves_no_oauth_client_behind() {
 }
 
 
+// Linux only: on macOS the sync provisions the system org-plugins root behind
+// an administrator password dialog no test can answer (see the sync-e2e
+// crate). This crate runs in the Linux shard only.
+#[cfg(target_os = "linux")]
 #[test]
 fn sync_through_dispatch_applies_the_manifest_and_writes_the_sentinel() {
     let runtime = tokio::runtime::Builder::new_current_thread()

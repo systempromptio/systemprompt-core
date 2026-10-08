@@ -13,7 +13,7 @@ use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tracing::{info, warn};
 
-use crate::error::{SchedulerError, SchedulerResult};
+use crate::error::SchedulerResult;
 use crate::repository::{IpSessionRecord, SecurityRepository};
 
 const HIGH_REQUEST_THRESHOLD: i64 = 100;
@@ -66,13 +66,10 @@ impl Job for MaliciousIpBlacklistJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
+        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
 
-        let security_repo = SecurityRepository::new(&db_pool)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
+        let security_repo = SecurityRepository::new(&db_pool);
+        let banned_ip_repo = BannedIpRepository::new(&db_pool);
 
         info!("Starting malicious IP blacklist job");
 

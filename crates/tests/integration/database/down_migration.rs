@@ -4,7 +4,6 @@
 //! `run_pending_migrations` re-applies it cleanly. Also covers the
 //! "missing down" rejection path.
 
-use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
@@ -12,15 +11,8 @@ use systemprompt_database::{Database, MigrationService};
 use systemprompt_extension::{
     Extension, ExtensionMetadata, LoaderError, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::test_database_url;
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn leak_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -107,11 +99,11 @@ async fn applied_versions(pool: &PgPool, ext_id: &str) -> Vec<i32> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn apply_revert_reapply_round_trip() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("revert_demo_{suffix}"));
@@ -182,11 +174,11 @@ async fn apply_revert_reapply_round_trip() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn revert_rejects_irreversible_migration() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("noundo_demo_{suffix}"));

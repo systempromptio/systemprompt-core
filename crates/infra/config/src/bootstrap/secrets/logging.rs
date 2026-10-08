@@ -3,25 +3,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::SecretsValidationMode;
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::secrets::Secrets;
 
 use crate::error::ConfigError;
 
-pub fn log_secrets_issue(e: &ConfigError, mode: SecretsValidationMode) {
-    match mode {
-        SecretsValidationMode::Warn => log_secrets_warn(e),
-        SecretsValidationMode::Skip => log_secrets_skip(e),
-        SecretsValidationMode::Strict => {},
-    }
-}
-
-pub fn log_secrets_warn(e: &ConfigError) {
-    tracing::warn!(error = %e, "secrets file issue");
-}
-
-pub fn log_secrets_skip(e: &ConfigError) {
-    tracing::debug!(error = %e, "skipping secrets file");
+pub(super) fn log_secrets_failure(e: &ConfigError) {
+    tracing::error!(error = %e, "secrets could not be loaded");
 }
 
 #[must_use]

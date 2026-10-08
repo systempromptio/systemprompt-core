@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use systemprompt_cli::admin::session::{SessionCommands, execute};
+use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::session::{
     clear_all_sessions, clear_session, get_or_create_session, load_session_store,
 };
@@ -9,23 +10,24 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CloudCredentials, SessionKey};
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_db_pool, install_test_signing_key, seed_user_row_with_roles,
+    ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles, test_db_pool,
 };
 
 struct Project {
     previous: PathBuf,
-    _root: tempfile::TempDir,
+    root: tempfile::TempDir,
     profile: PathBuf,
 }
 
 impl Project {
     fn new(username: &str, tenant: bool) -> Self {
         let boot = ensure_test_bootstrap();
-        let root = tempfile::tempdir().unwrap();
+        let root = systemprompt_test_fixtures::canonical_tempdir();
         let profile = root
             .path()
             .join(".systemprompt/profiles/coverage/profile.yaml");
         std::fs::create_dir_all(profile.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(root.path().join("services")).unwrap();
         let mut yaml = std::fs::read_to_string(&boot.profile_path)
             .unwrap()
             .replace("username: testadmin", &format!("username: {username}"));
@@ -37,9 +39,13 @@ impl Project {
         std::env::set_current_dir(root.path()).unwrap();
         Self {
             previous,
-            _root: root,
+            root,
             profile,
         }
+    }
+
+    fn paths(&self) -> ResolvedPaths {
+        ResolvedPaths::for_root(self.root.path())
     }
 
     fn context(&self, interactive: bool) -> CommandContext {
@@ -60,9 +66,9 @@ impl Drop for Project {
 }
 
 async fn admin() -> UserId {
-    let boot = ensure_test_bootstrap();
+    ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = fixture_db_pool(&boot.database_url).await.unwrap();
+    let pool = test_db_pool().await;
     let id = UserId::new(format!("sessionflow-{}", uuid::Uuid::new_v4().simple()));
     seed_user_row_with_roles(
         &pool,
@@ -99,7 +105,7 @@ async fn coverage_local_session_creation_persists_identity_and_reuses_the_sessio
     let second = get_or_create_session(&ctx).await.unwrap().session;
     assert_eq!(second.session_id, first.session_id);
     assert_eq!(second.context_id, first.context_id);
-    let stored = load_session_store().unwrap();
+    let stored = load_session_store(&project.paths()).unwrap();
     assert_eq!(
         stored.active_profile_name, None,
         "an explicit --profile is a one-shot target and never becomes the active session"
@@ -138,9 +144,9 @@ async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
         get_or_create_session(&project.context(false))
             .await
             .unwrap();
-        assert!(!load_session_store().unwrap().is_empty());
+        assert!(!load_session_store(&project.paths()).unwrap().is_empty());
         command(&project, args).await.unwrap();
-        assert!(load_session_store().unwrap().is_empty());
+        assert!(load_session_store(&project.paths()).unwrap().is_empty());
     }
 
     get_or_create_session(&project.context(false))
@@ -150,11 +156,11 @@ async fn coverage_logout_removes_active_and_explicit_profile_sessions() {
         .await
         .expect_err("a session minted under --profile is not the active session");
     assert!(format!("{err:#}").contains("No active session"), "{err:#}");
-    assert!(!load_session_store().unwrap().is_empty());
+    assert!(!load_session_store(&project.paths()).unwrap().is_empty());
     command(&project, &["logout", "--all", "--yes"])
         .await
         .unwrap();
-    assert!(load_session_store().unwrap().is_empty());
+    assert!(load_session_store(&project.paths()).unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -164,14 +170,14 @@ async fn coverage_clearing_sessions_is_persisted_and_idempotent() {
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
-    clear_session().unwrap();
-    assert!(load_session_store().unwrap().is_empty());
-    clear_session().unwrap();
+    clear_session(&project.paths()).unwrap();
+    assert!(load_session_store(&project.paths()).unwrap().is_empty());
+    clear_session(&project.paths()).unwrap();
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
-    clear_all_sessions().unwrap();
-    assert!(load_session_store().unwrap().is_empty());
+    clear_all_sessions(&project.paths()).unwrap();
+    assert!(load_session_store(&project.paths()).unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -285,7 +291,7 @@ async fn logout_confirmation_helper() {
     get_or_create_session(&project.context(false))
         .await
         .unwrap();
-    let before = load_session_store().unwrap().len();
+    let before = load_session_store(&project.paths()).unwrap().len();
 
     let mut single = project
         .context(true)
@@ -295,7 +301,7 @@ async fn logout_confirmation_helper() {
     let parsed = Args::try_parse_from(["session", "logout", "--profile", "coverage"]).unwrap();
     execute(parsed.command, &single).await.unwrap();
     println!("END_SINGLE_CANCEL");
-    assert_eq!(load_session_store().unwrap().len(), before);
+    assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 
     let mut all = project
         .context(true)
@@ -305,14 +311,14 @@ async fn logout_confirmation_helper() {
     let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
     execute(parsed.command, &all).await.unwrap();
     println!("END_ALL_CANCEL");
-    assert_eq!(load_session_store().unwrap().len(), before);
+    assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 
     let parsed = Args::try_parse_from(["session", "logout", "--all"]).unwrap();
     let error = execute(parsed.command, &project.context(false))
         .await
         .expect_err("non-interactive --all requires explicit confirmation");
     println!("NONINTERACTIVE_ERROR={error:#}");
-    assert_eq!(load_session_store().unwrap().len(), before);
+    assert_eq!(load_session_store(&project.paths()).unwrap().len(), before);
 }
 
 #[test]
@@ -372,14 +378,22 @@ fn coverage_deploy_selection_excludes_local_profiles_and_resolves_named_profiles
         selected.cloud.unwrap().tenant_id.unwrap().as_str(),
         "coverage-tenant"
     );
-    let (_, explicit) =
-        resolve_profile(&ScriptedPrompter::default(), Some("coverage"), &config).unwrap();
+    let (_, explicit) = resolve_profile(
+        &ScriptedPrompter::default(),
+        Some(&pname("coverage")),
+        &config,
+    )
+    .unwrap();
     assert_eq!(explicit, project.profile);
     assert!(
-        resolve_profile(&ScriptedPrompter::default(), Some("missing"), &config)
-            .unwrap_err()
-            .to_string()
-            .contains("not found")
+        resolve_profile(
+            &ScriptedPrompter::default(),
+            Some(&pname("missing")),
+            &config
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("not found")
     );
     let noninteractive = CliConfig::new().with_interactive(false);
     assert!(resolve_profile(&ScriptedPrompter::default(), None, &noninteractive).is_err());
@@ -434,7 +448,7 @@ async fn coverage_profile_menu_declining_deletion_preserves_profile_and_secrets(
 async fn coverage_profile_menu_confirmed_deletion_removes_only_selected_profile() {
     let project = Project::new("unused", false);
     let unrelated = project
-        ._root
+        .root
         .path()
         .join(".systemprompt/profiles/not-a-profile");
     std::fs::create_dir(&unrelated).unwrap();
@@ -521,7 +535,7 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::new();
     store.upsert_session(&key, session);
-    store.set_active_with_profile(&key, "malformed");
+    store.set_active_with_profile(&key, &pname("malformed"));
     store
         .save(&sessions_dir)
         .expect("persist malformed-profile session");
@@ -544,4 +558,8 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         before,
         "profile parse failure must preserve the bound session for repair"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

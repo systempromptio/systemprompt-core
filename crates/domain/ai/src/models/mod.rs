@@ -1,8 +1,8 @@
 //! Domain data types for the AI crate.
 //!
-//! Includes request records, message and tool-call rows, status enums,
-//! image-generation parameters, and provider request/response shapes used
-//! internally by the [`crate::services`] module.
+//! Includes request records, message and tool-call rows, status enums, and
+//! image-generation parameters used by the [`crate::services`] module. Vendor
+//! wire shapes live in `systemprompt-wire`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,8 +11,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{
-    AiRequestId, AiToolCallId, ContextId, GatewayConversationId, McpExecutionId, ProviderRequestId,
-    SessionId, TaskId, TraceId, UserId,
+    AiRequestId, AiToolCallId, ContextId, GatewayConversationId, McpExecutionId, McpToolName,
+    ProviderRequestId, SessionId, TaskId, TraceId, UserId,
 };
 
 pub use systemprompt_models::ai as ai_models;
@@ -26,13 +26,14 @@ pub mod tools {
 }
 
 pub mod ai_request_record;
+mod ai_request_usage;
 pub mod image_generation;
-pub mod providers;
 pub mod request_kind;
+pub(crate) mod rows;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
 pub use request_kind::{RequestKind, RequestStatus};
-pub use systemprompt_models::wire::origin::{
+pub use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, NativeMarker, RequestOrigin,
 };
 
@@ -90,7 +91,7 @@ pub struct AiRequestMessage {
 pub struct AiRequestToolCall {
     pub id: String,
     pub request_id: AiRequestId,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub tool_input: String,
     pub mcp_execution_id: Option<McpExecutionId>,
     pub sequence_number: i32,

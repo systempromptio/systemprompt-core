@@ -34,8 +34,7 @@ impl ContextRepository {
             now
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         Ok(context_id)
     }
@@ -70,14 +69,13 @@ impl ContextRepository {
             now
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         if result.rows_affected() != 1 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
         Ok(())
     }
@@ -91,7 +89,7 @@ impl ContextRepository {
         system_admin: &UserId,
     ) -> Result<(), RepositoryError> {
         let now = Utc::now();
-        let legacy = ContextId::legacy();
+        let legacy = ContextId::legacy_context_row();
         sqlx::query!(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
              updated_at)
@@ -106,8 +104,7 @@ impl ContextRepository {
             now
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
         Ok(())
     }
 
@@ -134,12 +131,12 @@ impl ContextRepository {
             name
         )
         .fetch_optional(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match adopted {
-            Some(context_id) => ContextId::try_new(context_id)
-                .map_err(|e| RepositoryError::InvalidData(e.to_string())),
+            Some(context_id) => {
+                ContextId::try_new(context_id).map_err(|e| RepositoryError::decode("context_id", e))
+            },
             None => {
                 self.create_context(user_id, Some(session_id), name, ContextKind::CliSession)
                     .await
@@ -158,15 +155,14 @@ impl ContextRepository {
             user_id.as_str()
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         match result {
             Some(_) => Ok(()),
-            None => Err(RepositoryError::NotFound(format!(
-                "Context {} not found or user {} does not have access",
-                context_id, user_id
-            ))),
+            None => Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            )),
         }
     }
 
@@ -187,14 +183,13 @@ impl ContextRepository {
             user_id.as_str()
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         if result.rows_affected() == 0 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
 
         Ok(())
@@ -211,14 +206,13 @@ impl ContextRepository {
             user_id.as_str()
         )
         .execute(&*self.write_pool)
-        .await
-        .map_err(RepositoryError::database)?;
+        .await?;
 
         if result.rows_affected() == 0 {
-            return Err(RepositoryError::NotFound(format!(
-                "Context {} not found for user {}",
-                context_id, user_id
-            )));
+            return Err(RepositoryError::not_found(
+                "context",
+                format!("{context_id} for user {user_id}"),
+            ));
         }
 
         Ok(())

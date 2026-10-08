@@ -6,7 +6,7 @@ fn manifest_for(host: &str) -> systemprompt_bridge::gateway::manifest::SignedMan
     serde_json::from_value(serde_json::json!({
         "min_schema_version": 1, "manifest_version": "2026-04-30T12:00:00Z-deadbeef",
         "issued_at":"2026-04-30T12:00:00Z", "not_before":"2026-04-30T12:00:00Z",
-        "user_id":"consumer", "plugins":[], "managed_mcp_servers":[], "revocations":[],
+        "user_id":"00000000-0000-4000-8000-00000000c0c0", "plugins":[], "managed_mcp_servers":[], "revocations":[],
         "enabled_hosts":[host],
         "skills":[{"id":"skill", "name":"Skill", "description":"", "tags":[], "file_path":"skill/SKILL.md",
                    "sha256":"0".repeat(64), "instructions":"", "publication":publication()}]
@@ -18,7 +18,7 @@ fn enrollment_for(gateway: &str) -> Enrollment {
     Enrollment::new(
         gateway,
         DeviceId::try_new("device").expect("nonempty fixture device"),
-        UserId::new("consumer"),
+        UserId::new("00000000-0000-4000-8000-00000000c0c0"),
         systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
     )
     .unwrap()

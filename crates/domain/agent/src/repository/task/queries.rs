@@ -12,7 +12,7 @@ use systemprompt_traits::RepositoryError;
 use super::constructor::TaskConstructor;
 use crate::models::a2a::Task;
 
-pub async fn get_task(
+pub async fn find_task(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Task>, RepositoryError> {
@@ -47,8 +47,7 @@ pub async fn list_tasks_by_context(
         context_id_str
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
@@ -91,8 +90,7 @@ pub async fn get_tasks_by_user_id(
         off
     )
     .fetch_all(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     let task_ids: Vec<TaskId> = rows.iter().map(|r| r.task_id.clone()).collect();
     let tasks = constructor.construct_tasks_batch(&task_ids).await?;
@@ -106,7 +104,7 @@ pub struct TaskContextInfo {
     pub user_id: Option<UserId>,
 }
 
-pub async fn get_task_context_info(
+pub async fn find_task_context_info(
     pool: &Arc<PgPool>,
     task_id: &TaskId,
 ) -> Result<Option<TaskContextInfo>, RepositoryError> {
@@ -119,8 +117,7 @@ pub async fn get_task_context_info(
         task_id_str
     )
     .fetch_optional(pool.as_ref())
-    .await
-    .map_err(RepositoryError::database)?;
+    .await?;
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,

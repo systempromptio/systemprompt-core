@@ -10,9 +10,9 @@
 use std::time::Instant;
 
 use serde_json::Value;
-use systemprompt_models::wire::anthropic;
-use systemprompt_models::wire::canonical::{CanonicalContent, ResponseFormat};
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
+use systemprompt_wire::anthropic;
+use systemprompt_wire::canonical::{CanonicalContent, ResponseFormat};
 
 use crate::error::{AiError, Result};
 use crate::models::ai::AiResponse;
@@ -32,7 +32,7 @@ pub(super) async fn generate(
     params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let canonical = CanonicalBuild::new(
         BridgeProvider::Anthropic,
         params.messages,
@@ -63,7 +63,7 @@ pub(super) async fn generate_with_tools(
     params: ToolGenerationParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let canonical = CanonicalBuild::new(
         BridgeProvider::Anthropic,
         params.base.messages,
@@ -97,7 +97,7 @@ pub(super) async fn generate_with_schema(
     params: SchemaGenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let response_format = ResponseFormat::JsonSchema {
         name: STRUCTURED_OUTPUT_TOOL.to_owned(),
         schema: params.response_schema,
@@ -142,10 +142,7 @@ pub(super) async fn generate_with_schema(
             provider: "anthropic".to_owned(),
             message: "structured-output response carried no tool_use block".to_owned(),
         })?
-        .map_err(|e| AiError::ProviderError {
-            provider: "anthropic".to_owned(),
-            message: format!("structured-output tool input is not serialisable: {e}"),
-        })?;
+        .map_err(AiError::SerializationError)?;
     ai_response.content = structured;
     ai_response.tool_calls = Vec::new();
     Ok(ai_response)

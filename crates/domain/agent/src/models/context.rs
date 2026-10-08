@@ -6,7 +6,10 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, SkillId, TaskId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, MessageId, SkillId, SkillName,
+    TaskId,
+};
 
 pub use systemprompt_models::{
     ContextKind, CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats,
@@ -33,8 +36,8 @@ pub enum ContextStateEvent {
     ToolExecutionCompleted {
         context_id: ContextId,
         execution_id: McpExecutionId,
-        tool_name: String,
-        server_name: String,
+        tool_name: McpToolName,
+        server_name: McpServerId,
         output: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         artifact: Option<super::a2a::Artifact>,
@@ -54,10 +57,10 @@ pub enum ContextStateEvent {
     },
     SkillLoaded {
         skill_id: SkillId,
-        skill_name: String,
+        skill_name: SkillName,
         description: String,
         request_context: systemprompt_models::execution::context::RequestContext,
-        tool_name: Option<String>,
+        tool_name: Option<McpToolName>,
         timestamp: DateTime<Utc>,
     },
     ContextCreated {
@@ -79,7 +82,7 @@ pub enum ContextStateEvent {
     },
     CurrentAgent {
         context_id: ContextId,
-        agent_name: Option<String>,
+        agent_name: Option<AgentName>,
         timestamp: DateTime<Utc>,
     },
 }

@@ -18,3 +18,5 @@ systemprompt-models = { workspace = true }
 inventory = "0.3"
 serde_json = { workspace = true }
 async-trait = { workspace = true }
+tempfile = { workspace = true }
+temp-env = { workspace = true }

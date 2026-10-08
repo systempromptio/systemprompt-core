@@ -1,20 +1,19 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::{MarketplaceRuleId, PluginId, RuleName};
+use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
 use systemprompt_marketplace::bundle::BundleContent;
 use systemprompt_marketplace::{PluginBundle, build_plugin_bundle};
-use systemprompt_models::bridge::ids::{RuleId, RuleName, Sha256Digest};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::RuleEntry;
-use systemprompt_models::services::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-};
+use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
 const NO_DISABLED: BTreeSet<String> = BTreeSet::new();
 
 fn rule(id: &str, body: &str) -> RuleEntry {
     RuleEntry {
-        id: RuleId::try_new(id).expect("rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("rule id"),
         name: RuleName::try_new(id.replace('_', " ")).expect("rule name"),
         description: format!("{id} description"),
         file_path: format!("/nonexistent/rules/{id}/index.md"),

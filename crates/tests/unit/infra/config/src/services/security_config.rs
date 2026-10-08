@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use systemprompt_config::{ConfigError, SecurityConfigService, SecurityUpdate};
-use systemprompt_models::profile::{SecurityConfig, TrustedIssuer, default_resource_audiences};
+use systemprompt_manifest::profile::{SecurityConfig, TrustedIssuer, default_resource_audiences};
 
 fn security() -> SecurityConfig {
     SecurityConfig {
@@ -17,7 +17,7 @@ fn security() -> SecurityConfig {
         login_page_url: None,
         signing_key_path: PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
-        id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+        id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
     }
 }
 

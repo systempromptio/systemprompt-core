@@ -1,6 +1,7 @@
 use http::HeaderMap;
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, headers,
+    Actor, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, SessionId, TaskId, TraceId,
+    UserId, headers,
 };
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::execution::{CallSource, RequestContext};
@@ -14,6 +15,7 @@ fn base_context() -> RequestContext {
         TraceId::new("trace-1"),
         ContextId::try_new(FIXED_CONTEXT).expect("valid ContextId"),
         AgentName::try_new("agent-one").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -24,7 +26,7 @@ fn round_trip_preserves_identity_and_execution_fields() {
         .with_ai_tool_call_id(AiToolCallId::new("call-3"))
         .with_call_source(CallSource::Agentic)
         .with_client_id(ClientId::new("client-7"))
-        .with_auth_token("tok123");
+        .with_auth_token(JwtToken::new("tok123"));
 
     let restored = RequestContext::from_headers(&ctx.to_headers()).unwrap();
 
@@ -39,7 +41,7 @@ fn round_trip_preserves_identity_and_execution_fields() {
     );
     assert_eq!(restored.call_source(), Some(CallSource::Agentic));
     assert_eq!(restored.client_id().map(ClientId::as_str), Some("client-7"));
-    assert_eq!(restored.auth_token().as_str(), "tok123");
+    assert_eq!(restored.auth_token().map(JwtToken::as_str), Some("tok123"));
 }
 
 #[test]
@@ -54,16 +56,44 @@ fn missing_required_header_is_an_error() {
 }
 
 #[test]
-fn empty_auth_token_omits_authorization_header() {
+fn a_context_without_a_bearer_injects_no_authorization_header() {
+    let ctx = base_context();
+    assert!(ctx.auth_token().is_none());
     let mut hdrs = HeaderMap::new();
-    base_context().inject_headers(&mut hdrs);
+    ctx.inject_headers(&mut hdrs);
     assert!(!hdrs.contains_key(headers::AUTHORIZATION));
     assert!(!hdrs.contains_key(headers::PROXY_VERIFIED));
 }
 
 #[test]
+fn an_empty_bearer_is_not_restored_as_a_token() {
+    let mut hdrs = base_context().to_headers();
+    hdrs.insert(headers::AUTHORIZATION, "Bearer ".parse().unwrap());
+    let restored = RequestContext::from_headers(&hdrs).unwrap();
+    assert!(restored.auth_token().is_none());
+}
+
+#[test]
+fn a_malformed_user_id_header_is_rejected() {
+    for raw in ["unset", "user 1", ""] {
+        let mut hdrs = base_context().to_headers();
+        hdrs.insert(headers::USER_ID, raw.parse().unwrap());
+        let err = RequestContext::from_headers(&hdrs).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ContextPropagationError::InvalidHeader { ref name, .. } if name == headers::USER_ID
+            ),
+            "{raw:?}: got {err:?}"
+        );
+    }
+}
+
+#[test]
 fn authorization_header_carries_bearer_prefix() {
-    let hdrs = base_context().with_auth_token("abc").to_headers();
+    let hdrs = base_context()
+        .with_auth_token(JwtToken::new("abc"))
+        .to_headers();
     assert_eq!(
         hdrs.get(headers::AUTHORIZATION).unwrap().to_str().unwrap(),
         "Bearer abc"
@@ -75,7 +105,7 @@ fn non_bearer_authorization_is_ignored_inbound() {
     let mut hdrs = base_context().to_headers();
     hdrs.insert(headers::AUTHORIZATION, "Basic xyz".parse().unwrap());
     let restored = RequestContext::from_headers(&hdrs).unwrap();
-    assert!(restored.auth_token().as_str().is_empty());
+    assert!(restored.auth_token().is_none());
 }
 
 #[test]
@@ -90,13 +120,13 @@ fn blank_context_id_header_mints_a_fresh_context() {
 #[test]
 fn proxy_verified_user_round_trips_permissions() {
     let user = AuthenticatedUser::new_with_roles(
-        uuid::Uuid::new_v4(),
+        UserId::generate(),
         "u".to_owned(),
         "u@example.com".to_owned(),
         vec![Permission::Admin, Permission::Mcp],
         vec!["admin".to_owned(), "analyst".to_owned()],
     );
-    let user_id = user.id;
+    let user_id = user.id.clone();
     let ctx = base_context().with_user(user);
 
     let hdrs = ctx.to_headers();
@@ -130,7 +160,7 @@ fn proxy_verified_user_round_trips_permissions() {
 #[test]
 fn proxy_verified_without_a_roles_header_carries_no_roles() {
     let user = AuthenticatedUser::new_with_roles(
-        uuid::Uuid::new_v4(),
+        UserId::generate(),
         "u".to_owned(),
         "u@example.com".to_owned(),
         vec![Permission::Mcp],
@@ -144,15 +174,15 @@ fn proxy_verified_without_a_roles_header_carries_no_roles() {
 }
 
 #[test]
-fn proxy_verified_with_invalid_user_uuid_is_an_error() {
+fn proxy_verified_with_malformed_user_id_is_an_error() {
     let user = AuthenticatedUser::new(
-        uuid::Uuid::new_v4(),
+        UserId::generate(),
         "u".to_owned(),
         "u@example.com".to_owned(),
         vec![Permission::User],
     );
     let mut hdrs = base_context().with_user(user).to_headers();
-    hdrs.insert(headers::USER_ID, "not-a-uuid".parse().unwrap());
+    hdrs.insert(headers::USER_ID, "unset".parse().unwrap());
     let err = RequestContext::from_headers(&hdrs).unwrap_err();
     assert!(matches!(
         err,
@@ -216,7 +246,7 @@ fn unknown_call_source_header_is_rejected() {
 #[test]
 fn proxy_verified_header_must_be_exactly_true() {
     let user = AuthenticatedUser::new(
-        uuid::Uuid::new_v4(),
+        UserId::generate(),
         "u".to_owned(),
         "u@example.com".to_owned(),
         vec![Permission::User],
@@ -234,6 +264,7 @@ fn invalid_header_value_is_skipped_not_panicked() {
         TraceId::new("trace-1"),
         ContextId::try_new(FIXED_CONTEXT).expect("valid ContextId"),
         AgentName::try_new("agent-one").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let hdrs = ctx.to_headers();
     assert!(!hdrs.contains_key(headers::SESSION_ID));
@@ -252,4 +283,12 @@ fn reserved_agent_name_header_is_an_invalid_header_error() {
         matches!(err, ContextPropagationError::InvalidHeader { ref name, .. } if name == headers::AGENT_NAME),
         "got {err:?}"
     );
+}
+
+#[test]
+fn a_non_uuid_user_id_header_is_accepted() {
+    let mut hdrs = base_context().to_headers();
+    hdrs.insert(headers::USER_ID, "seeded-admin".parse().unwrap());
+    let restored = RequestContext::from_headers(&hdrs).unwrap();
+    assert_eq!(restored.user_id().as_str(), "seeded-admin");
 }

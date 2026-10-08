@@ -17,17 +17,11 @@ fn missing_header_display_contains_name() {
 fn invalid_header_display_contains_name_and_message() {
     let e = ContextPropagationError::InvalidHeader {
         name: "x-user-id".to_owned(),
-        message: "not a valid UUID".to_owned(),
+        source: "not a valid UUID".into(),
     };
     let s = format!("{e}");
     assert!(s.contains("x-user-id"));
     assert!(s.contains("not a valid UUID"));
-}
-
-#[test]
-fn invalid_context_display_contains_detail() {
-    let e = ContextPropagationError::Invalid("context expired".to_owned());
-    assert!(format!("{e}").contains("context expired"));
 }
 
 #[test]
@@ -36,9 +30,8 @@ fn context_propagation_errors_are_debug() {
         ContextPropagationError::MissingHeader("h".into()),
         ContextPropagationError::InvalidHeader {
             name: "n".into(),
-            message: "m".into(),
+            source: "m".into(),
         },
-        ContextPropagationError::Invalid("i".into()),
     ];
     for e in variants {
         let s = format!("{e:?}");
@@ -63,7 +56,7 @@ fn result_alias_ok_carries_value() {
 
 #[test]
 fn result_alias_err_carries_error() {
-    let r: ContextPropagationResult<()> = Err(ContextPropagationError::Invalid("bad".into()));
+    let r: ContextPropagationResult<()> = Err(ContextPropagationError::MissingHeader("bad".into()));
     assert!(r.is_err());
 }
 

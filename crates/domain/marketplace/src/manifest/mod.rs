@@ -24,12 +24,12 @@ mod scoping;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::ids::{LibraryArtifactId, ManifestSignature, PluginId, SkillId};
+use systemprompt_identifiers::{LibraryArtifactId, SkillId, UserId};
+use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_models::bridge::ids::ManifestSignature;
 use systemprompt_models::bridge::manifest::{
-    ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
+    ManifestClaudeCode, ManifestMarketplace, SignedManifest, SignedManifestEnvelope,
 };
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::manifest_signing;
 
 use crate::candidate::MarketplaceCandidate;
@@ -104,13 +104,13 @@ impl ManifestService {
         } = *request;
         let hooks = load_hooks(services_root)?;
         let plugins = load_plugins(services, &catalog.as_content(), cache)?;
-        let skill_owners = skill_owners(services, &catalog.as_content())?;
-        let rule_owners = rule_owners(services, &catalog.as_content())?;
+        let skill_owners = skill_owners(services, &catalog.as_content());
+        let rule_owners = rule_owners(services, &catalog.as_content());
         let selected_skills: BTreeSet<SkillId> = skill_owners.keys().cloned().collect();
         let (skills, rules, agents, managed_mcp_servers, artifacts) = catalog.into_parts();
 
         let enabled = services.enabled_marketplaces();
-        let marketplaces = listed_marketplaces(services, &enabled)?;
+        let marketplaces = listed_marketplaces(services, &enabled);
         let (agents, managed_mcp_servers, artifacts) =
             scope_all(&enabled, agents, managed_mcp_servers, artifacts, trace);
         let membership =
@@ -161,10 +161,8 @@ impl ManifestService {
     }
 
     pub fn seal(manifest: &SignedManifest) -> Result<SignedManifestEnvelope, MarketplaceError> {
-        let payload = manifest_signing::canonicalize(manifest)
-            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
-        let signature = manifest_signing::sign_bytes(payload.as_bytes())
-            .map_err(|e| MarketplaceError::Signing(e.to_string()))?;
+        let payload = manifest_signing::canonicalize(manifest)?;
+        let signature = manifest_signing::sign_bytes(payload.as_bytes())?;
         Ok(SignedManifestEnvelope {
             payload,
             signature: ManifestSignature::new(signature),
@@ -175,27 +173,38 @@ impl ManifestService {
 fn listed_marketplaces(
     services: &ServicesConfig,
     enabled: &[&MarketplaceConfig],
-) -> Result<Vec<ManifestMarketplace>, MarketplaceError> {
+) -> Vec<ManifestMarketplace> {
     enabled
         .iter()
         .map(|marketplace| {
             let plugin_ids = services
                 .marketplace_plugin_configs(marketplace)
                 .iter()
-                .map(|p| {
-                    PluginId::try_new(p.id.as_str())
-                        .map_err(|e| MarketplaceError::Catalog(e.to_string()))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(ManifestMarketplace {
+                .map(|p| p.id.clone())
+                .collect();
+            ManifestMarketplace {
                 id: marketplace.id.clone(),
                 name: marketplace.name.clone(),
                 plugin_ids,
                 allow_cross_marketplace_dependencies_on: marketplace
                     .allow_cross_marketplace_dependencies_on
                     .clone(),
-                external_marketplaces: marketplace.external_marketplaces.clone(),
-            })
+                external_marketplaces: marketplace
+                    .external_marketplaces
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+                    .collect(),
+                external_plugins: marketplace
+                    .external_plugins
+                    .iter()
+                    .cloned()
+                    .map(Into::into)
+                    .collect(),
+                claude_code: marketplace.claude_code.map(|c| ManifestClaudeCode {
+                    skill_listing_budget_chars: c.skill_listing_budget_chars,
+                }),
+            }
         })
         .collect()
 }

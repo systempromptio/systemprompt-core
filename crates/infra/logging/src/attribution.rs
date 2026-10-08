@@ -15,7 +15,7 @@
 
 use std::sync::OnceLock;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::services::SystemAdmin;
+use systemprompt_manifest::services::SystemAdmin;
 use thiserror::Error;
 
 static PLATFORM_OWNER: OnceLock<SystemAdmin> = OnceLock::new();

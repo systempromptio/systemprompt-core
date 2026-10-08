@@ -12,6 +12,7 @@
 //! give each test a clean slate.
 
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::CloudAppId;
 
 use chrono::Utc;
 use serde_json::json;
@@ -47,7 +48,7 @@ async fn harness() -> &'static Harness {
 }
 
 async fn build_harness() -> Harness {
-    let tmp = tempfile::tempdir().expect("create harness tempdir");
+    let tmp = systemprompt_test_fixtures::canonical_tempdir();
     let root = tmp.path().to_path_buf();
     scaffold_project(&root);
 
@@ -134,7 +135,7 @@ pub(super) fn seed_tenants(root: &Path) {
     let cloud = StoredTenant::new_cloud(NewCloudTenantParams {
         id: TenantId::new(TENANT_ID),
         name: "Harness Prod".to_owned(),
-        app_id: Some("app-harness".to_owned()),
+        app_id: Some(CloudAppId::new("app-harness")),
         hostname: Some("harness.example.com".to_owned()),
         region: Some("iad".to_owned()),
         database_url: Some("postgres://ext/db".to_owned()),
@@ -441,7 +442,7 @@ async fn tenant_show_by_id_from_store() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Show {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
             }),
         },
         &json_ctx(),
@@ -456,7 +457,7 @@ async fn tenant_show_missing_id_errors() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Show {
-                id: Some("does-not-exist".to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new("does-not-exist")),
             }),
         },
         &json_ctx(),
@@ -478,7 +479,7 @@ async fn tenant_delete_cloud_tenant_calls_api() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Delete(TenantDeleteArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: true,
             })),
         },
@@ -494,7 +495,7 @@ async fn tenant_delete_without_yes_errors_non_interactive() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::Delete(TenantDeleteArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: false,
             })),
         },
@@ -524,7 +525,7 @@ async fn tenant_rotate_credentials_updates_store() {
     cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::RotateCredentials(TenantRotateArgs {
-                id: Some(TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(TENANT_ID)),
                 yes: true,
             })),
         },
@@ -540,7 +541,7 @@ async fn tenant_rotate_local_tenant_rejected() {
     let err = cloud::execute(
         CloudCommands::Tenant {
             command: Some(TenantCommands::RotateCredentials(TenantRotateArgs {
-                id: Some(OTHER_TENANT_ID.to_owned()),
+                id: Some(systemprompt_identifiers::TenantId::new(OTHER_TENANT_ID)),
                 yes: true,
             })),
         },

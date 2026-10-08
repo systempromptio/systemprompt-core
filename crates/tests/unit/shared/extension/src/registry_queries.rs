@@ -12,6 +12,7 @@ use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
     LoaderError, SchemaDefinition,
 };
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Job, JobContext, JobResult, ProviderResult};
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};
 
@@ -182,7 +183,7 @@ fn enabled_schema_extensions_excludes_disabled_and_non_schema() {
     let registry = registry_with(vec![Arc::new(a), Arc::new(b), Arc::new(CapExt::new("c"))]);
 
     let enabled = registry
-        .enabled_schema_extensions(&["a".to_string()])
+        .enabled_schema_extensions(&[ExtensionId::new("a")])
         .expect("a has no dependants");
     let ids: Vec<_> = enabled.iter().map(|e| e.id()).collect();
     assert_eq!(
@@ -239,7 +240,7 @@ fn job_extensions_and_enabled_job_extensions() {
     );
     assert!(
         registry
-            .enabled_job_extensions(&["worker".to_string()])
+            .enabled_job_extensions(&[ExtensionId::new("worker")])
             .expect("worker has no dependants")
             .is_empty()
     );
@@ -345,7 +346,7 @@ fn enabled_extensions_refuses_to_disable_required() {
     let registry = registry_with(vec![Arc::new(required), Arc::new(CapExt::new("optional"))]);
 
     let err = registry
-        .enabled_extensions(&["core".to_string(), "optional".to_string()])
+        .enabled_extensions(&[ExtensionId::new("core"), ExtensionId::new("optional")])
         .err()
         .expect("required extension cannot be disabled");
     assert!(matches!(err, LoaderError::RequiredExtensionDisabled(id) if id == "core"));

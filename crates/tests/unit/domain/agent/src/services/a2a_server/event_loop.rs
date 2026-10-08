@@ -6,6 +6,7 @@
 // exactly one `final: true` status frame.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
@@ -25,14 +26,15 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
 use super::a2a_helpers::{StubAiProvider, request_context};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &TaskId) -> String {
     sqlx::query_scalar::<_, Option<String>>(
         "SELECT error_message FROM agent_tasks WHERE task_id = $1",
     )
     .bind(task_id.as_str())
-    .fetch_one(pool.pool_arc().expect("pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("task error query")
     .expect("failed task error")
@@ -79,12 +81,12 @@ impl Default for LoopSpec<'_> {
     }
 }
 
-async fn spawn_loop_or_skip() -> Option<Loop> {
-    spawn_loop_with_or_skip(LoopSpec::default()).await
+async fn spawn_loop() -> Loop {
+    spawn_loop_with(LoopSpec::default()).await
 }
 
-async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
-    let pool = try_pool_or_skip().await?;
+async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -105,14 +107,14 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
         )
         .expect("processor"),
     );
-    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool)).expect("task repo");
+    let task_repo = TaskRepository::new(&pool, crate::session_usage(&pool));
     let request = request_context(&ctx, &session, &user, "loop-agent");
 
     let (sse_tx, sse_rx) = mpsc::channel::<Event>(64);
     let (event_tx, events) = mpsc::channel::<StreamEvent>(64);
     let stream = MessageStream {
         events,
-        worker: tokio::spawn(async {}),
+        worker: systemprompt_traits::OwnedTask::spawn("test_worker", async {}),
         cancel: CancellationToken::new(),
     };
 
@@ -123,7 +125,7 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
         context_id: ctx.clone(),
         message_id: MessageId::generate(),
         original_message: user_message(&ctx, &task_id),
-        agent_name: spec.agent_name.to_owned(),
+        agent_name: AgentName::new(spec.agent_name),
         context: request,
         task_repo,
         processor,
@@ -131,14 +133,14 @@ async fn spawn_loop_with_or_skip(spec: LoopSpec<'_>) -> Option<Loop> {
 
     let handle = tokio::spawn(process_events(params));
 
-    Some(Loop {
+    Loop {
         event_tx,
         sse_rx,
         handle,
         task_id,
         pool,
         rec,
-    })
+    }
 }
 
 fn a2a_for(rec: &RecordingWebhookBroadcaster, task_id: &TaskId) -> Vec<String> {
@@ -179,9 +181,7 @@ fn final_frames(frames: &[String]) -> Vec<&String> {
 
 #[tokio::test]
 async fn process_events_completion_path_persists_and_broadcasts() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Text("partial ".to_owned()))
@@ -209,7 +209,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -232,9 +232,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
 
 #[tokio::test]
 async fn process_events_error_path_fails_task_and_broadcasts() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Error("model exploded".to_owned()))
@@ -251,7 +249,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -273,9 +271,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
 
 #[tokio::test]
 async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame() {
-    let Some(mut ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let mut ctx = spawn_loop().await;
 
     ctx.event_tx
         .send(StreamEvent::Text("part".to_owned()))
@@ -296,7 +292,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -311,9 +307,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
 
 #[tokio::test]
 async fn process_events_broadcasts_tool_and_step_events() {
-    let Some(ctx) = spawn_loop_or_skip().await else {
-        return;
-    };
+    let ctx = spawn_loop().await;
 
     let call_id = AiToolCallId::generate();
     ctx.event_tx
@@ -369,14 +363,11 @@ async fn process_events_broadcasts_tool_and_step_events() {
 
 #[tokio::test]
 async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence() {
-    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
+    let mut ctx = spawn_loop_with(LoopSpec {
         agent_name: "",
         ..LoopSpec::default()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
 
     ctx.event_tx
         .send(StreamEvent::Complete {
@@ -390,7 +381,7 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
     let repos = repos(&ctx.pool);
     let stored = repos
         .tasks
-        .get_task(&ctx.task_id)
+        .find_task(&ctx.task_id)
         .await
         .expect("get task")
         .expect("task row");
@@ -400,8 +391,10 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
         "nothing marks the task completed before its messages are committed"
     );
     let diagnosis = persisted_task_error(&ctx.pool, &ctx.task_id).await;
-    assert!(diagnosis.contains("agent_name"), "{diagnosis}");
-    assert!(diagnosis.contains("is empty"), "{diagnosis}");
+    assert_eq!(
+        diagnosis, "Task metadata is invalid",
+        "the stored diagnosis is the fixed failure text, never the cause"
+    );
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
@@ -423,14 +416,11 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
 
 #[tokio::test]
 async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
-    let Some(mut ctx) = spawn_loop_with_or_skip(LoopSpec {
+    let mut ctx = spawn_loop_with(LoopSpec {
         persist_task_row: false,
         ..LoopSpec::default()
     })
-    .await
-    else {
-        return;
-    };
+    .await;
 
     ctx.event_tx
         .send(StreamEvent::Complete {
@@ -445,7 +435,7 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
     assert!(
         repos
             .tasks
-            .get_task(&ctx.task_id)
+            .find_task(&ctx.task_id)
             .await
             .expect("get task")
             .is_none(),

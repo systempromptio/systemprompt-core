@@ -14,7 +14,20 @@ pub mod tasks;
 
 use axum::Router;
 use axum::routing::get;
+use systemprompt_identifiers::ContextId;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
+
+use crate::error::ApiHttpError;
+
+#[expect(
+    clippy::result_large_err,
+    reason = "ApiHttpError is the handler error type; boxing it here would propagate to every \
+              caller for negligible gain"
+)]
+pub(crate) fn parse_context_id(raw: &str) -> Result<ContextId, ApiHttpError> {
+    ContextId::try_new(raw).map_err(|e| ApiHttpError::from(ApiError::from(e)))
+}
 
 pub fn registry_router(ctx: &AppContext) -> Router {
     registry::router(ctx)

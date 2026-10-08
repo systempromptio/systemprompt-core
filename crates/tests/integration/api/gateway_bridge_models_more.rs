@@ -10,34 +10,33 @@ use anyhow::Result;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
-use systemprompt_ai::SafetyConfig;
+use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
-use systemprompt_api::services::gateway::GatewayRequestContext;
-use systemprompt_api::services::gateway::audit::GatewayAudit;
-use systemprompt_api::services::gateway::audit::message_text::flatten_message_content;
-use systemprompt_api::services::gateway::protocol::{CanonicalContent, ImageSource};
-use systemprompt_api::services::gateway::registry::{
-    GatewayUpstreamRegistry, SafetyScannerRegistry,
-};
 use systemprompt_database::DbPool;
+use systemprompt_gateway::audit::GatewayAudit;
+use systemprompt_gateway::audit::message_text::flatten_message_content;
+use systemprompt_gateway::protocol::{CanonicalContent, ImageSource};
+use systemprompt_gateway::registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
+use systemprompt_gateway::{GatewayRequestContext, SafetyConfig};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::api::ErrorCode;
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -48,25 +47,21 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 }
 
 
-fn gw_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("gateway repos")
 }
 
 async fn router_and_pool() -> Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    let router = gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router available");
+    let router = gateway_router(&ctx).expect("gateway router builds");
     Ok((router, pool))
 }
 
@@ -119,16 +114,19 @@ fn surfaces_from_header_parses_known_tags() {
 #[test]
 fn surfaces_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
-    let (status, msg) = surfaces_from_header(&h).expect_err("unknown must fail");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(msg.contains("unknown"), "{msg}");
+    let err = surfaces_from_header(&h).expect_err("unknown must fail");
+    assert_eq!(err.tag, "quantum");
+    let err = ApiHttpError::from(err).into_inner();
+    assert_eq!(err.code, ErrorCode::BadRequest);
+    assert!(err.message.contains("unknown"), "{}", err.message);
 }
 
 #[test]
 fn surfaces_from_header_rejects_backend_surface() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "backend")]);
-    let (status, _msg) = surfaces_from_header(&h).expect_err("backend is not a client surface");
-    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let err = surfaces_from_header(&h).expect_err("backend is not a client surface");
+    let err = ApiHttpError::from(err).into_inner();
+    assert_eq!(err.code, ErrorCode::BadRequest);
 }
 
 #[test]
@@ -227,6 +225,8 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
             ClientAttestation::None,
         ),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }
@@ -237,7 +237,7 @@ async fn seed_ai_request(
     user: &UserId,
     model: &str,
 ) -> Result<()> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     sqlx::query(
         "INSERT INTO ai_requests (id, request_id, user_id, context_id, provider, model, cost_microdollars, \
          cache_hit, is_streaming, status, actor_kind, actor_id) VALUES ($1, $1, $2, '00000000-0000-0000-0000-00000000c0de', 'anthropic', \
@@ -252,7 +252,7 @@ async fn seed_ai_request(
 }
 
 async fn model_column(pool: &DbPool, id: &AiRequestId) -> Result<String> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (String,) = sqlx::query_as("SELECT model FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_one(pg.as_ref())
@@ -261,7 +261,7 @@ async fn model_column(pool: &DbPool, id: &AiRequestId) -> Result<String> {
 }
 
 async fn system_prompt_override_column(pool: &DbPool, id: &AiRequestId) -> Result<Option<String>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (Option<String>,) =
         sqlx::query_as("SELECT system_prompt_override FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
@@ -271,7 +271,7 @@ async fn system_prompt_override_column(pool: &DbPool, id: &AiRequestId) -> Resul
 }
 
 async fn route_match_column(pool: &DbPool, id: &AiRequestId) -> Result<Option<String>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: (Option<String>,) =
         sqlx::query_as("SELECT route_match FROM ai_requests WHERE id = $1")
             .bind(id.as_str())

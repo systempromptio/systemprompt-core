@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 
 use super::types::LogoutOutput;
@@ -16,7 +17,11 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {
-    #[arg(long, help = "Profile name to log out (defaults to active session)")]
+    #[arg(
+        long,
+        value_parser = crate::shared::parse_profile_name_arg,
+        help = "Profile name to log out (defaults to active session)"
+    )]
     pub profile: Option<String>,
 
     #[arg(short = 'y', long, help = "Skip confirmation prompt")]
@@ -138,8 +143,13 @@ fn resolve_target_key(
     paths: &ResolvedPaths,
     store: &SessionStore,
 ) -> Result<SessionKey> {
-    if let Some(ref profile_name) = args.profile {
-        let target_dir = paths.profiles_dir().join(profile_name);
+    if let Some(profile_name) = args
+        .profile
+        .as_deref()
+        .map(ProfileName::try_new)
+        .transpose()?
+    {
+        let target_dir = paths.profiles_dir().join(profile_name.as_str());
         let profile_config_path = ProfilePath::Config.resolve(&target_dir);
 
         if !profile_config_path.exists() {

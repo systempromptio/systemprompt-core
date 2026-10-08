@@ -3,7 +3,7 @@ use systemprompt_bridge::gateway::types::ProviderHealth;
 use systemprompt_bridge::install::mdm::claude_code_settings::model_picker::{
     PickerRow, is_claude_family, merged_picker, picker_rows,
 };
-use systemprompt_models::services::ApiSurface;
+use systemprompt_models::providers::ApiSurface;
 
 fn rows() -> Vec<PickerRow> {
     vec![PickerRow {

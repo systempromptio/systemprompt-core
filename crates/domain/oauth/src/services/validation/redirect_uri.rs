@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::AuthError;
+use systemprompt_models::AuthRequestError;
 use url::Url;
 
 use super::registration_redirect::is_loopback;
@@ -15,16 +15,16 @@ use super::registration_redirect::is_loopback;
 pub fn validate_redirect_uri(
     registered_uris: &[String],
     requested_uri: Option<&str>,
-) -> Result<String, AuthError> {
+) -> Result<String, AuthRequestError> {
     let uri = requested_uri
         .filter(|u| !u.is_empty())
-        .ok_or(AuthError::InvalidRedirectUri)?;
+        .ok_or(AuthRequestError::InvalidRedirectUri)?;
 
     if !registered_uris.contains(&uri.to_owned())
         && !matches_relative_uri(registered_uris, uri)
         && !matches_loopback_any_port(registered_uris, uri)
     {
-        return Err(AuthError::InvalidRequest {
+        return Err(AuthRequestError::InvalidRequest {
             reason: format!("Redirect URI '{uri}' not registered for this client"),
         });
     }

@@ -4,7 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::HeaderMap;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, JwtToken, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_security::{HeaderExtractor, JwtUserContext, TokenExtractor};
@@ -34,21 +36,28 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
         auth_token,
         user_type,
     } = params;
-    let mut ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
-        .with_actor(systemprompt_identifiers::Actor::user(user_id))
-        .with_user_type(user_type)
-        .with_act_chain(jwt_context.act_chain)
-        .with_jti(jwt_context.jti)
-        .with_token_exp(jwt_context.exp);
+    let mut ctx = RequestContext::new(
+        session_id,
+        trace_id,
+        context_id,
+        agent_name,
+        Actor::user(user_id),
+    )
+    .with_user_type(user_type)
+    .with_act_chain(jwt_context.act_chain)
+    .with_token_exp(jwt_context.exp);
 
+    if let Some(jti) = jwt_context.jti {
+        ctx = ctx.with_jti(jti);
+    }
     if let Some(client_id) = jwt_context.client_id {
         ctx = ctx.with_client_id(client_id);
     }
     if let Some(t_id) = task_id {
         ctx = ctx.with_task_id(t_id);
     }
-    if let Some(token) = auth_token {
-        ctx = ctx.with_auth_token(token);
+    if let Some(token) = auth_token.filter(|token| !token.is_empty()) {
+        ctx = ctx.with_auth_token(JwtToken::new(token));
     }
     ctx
 }

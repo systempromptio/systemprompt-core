@@ -8,6 +8,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandOutput;
 use anyhow::{Result, anyhow};
 use clap::Args;
+use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
@@ -56,19 +57,20 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
+    let content_analytics = ContentAnalyticsRepository::new(pool);
 
     let source = SourceId::new(args.source.clone());
     let days_i64 = parse_duration(&args.since)?;
     let days = i32::try_from(days_i64).map_err(|_e| anyhow!("Duration too large"))?;
 
-    let content_ids = repo
-        .get_popular_content_ids(&source, days, args.limit)
+    let content_ids = content_analytics
+        .popular_content_ids(&source, days, args.limit)
         .await?;
 
     let mut items = Vec::with_capacity(content_ids.len());
     for id in content_ids {
-        if let Some(content) = repo.get_by_id(&id).await? {
+        if let Some(content) = repo.find_by_id(&id).await? {
             items.push(ContentSummary {
                 id: content.id,
                 slug: content.slug,

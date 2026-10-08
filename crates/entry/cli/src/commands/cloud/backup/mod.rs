@@ -14,6 +14,7 @@ mod client;
 use std::path::PathBuf;
 
 use anyhow::{Result, anyhow, bail};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::bundle::{ExtractOptions, TarLayout, extract_bytes};
 use systemprompt_logging::CliService;
 
@@ -30,7 +31,7 @@ const BACKUP_DIRS: &[&str] = &[
 const MAX_BACKUP_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 pub(super) struct BackupArgs {
-    pub profile_name: Option<String>,
+    pub profile_name: Option<ProfileName>,
     pub output: Option<PathBuf>,
     pub list: bool,
 }
@@ -42,8 +43,8 @@ pub(super) async fn execute(
 ) -> Result<()> {
     CliService::section("systemprompt.io Cloud Backup");
 
-    let (profile, _profile_path) = resolve_profile(prompter, args.profile_name.as_deref(), config)?;
-    if profile.target != systemprompt_models::ProfileType::Cloud {
+    let (profile, _profile_path) = resolve_profile(prompter, args.profile_name.as_ref(), config)?;
+    if profile.target != systemprompt_manifest::ProfileType::Cloud {
         bail!("Cannot back up a local profile. Select a cloud profile with --profile <name>.");
     }
 

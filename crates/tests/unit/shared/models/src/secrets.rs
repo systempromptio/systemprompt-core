@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::secrets::Secrets;
 
 fn full_secrets() -> Secrets {
     let mut custom = HashMap::new();
@@ -125,7 +125,7 @@ fn parse_treats_blank_provider_keys_as_absent() {
 
 #[test]
 fn none_if_blank_filters_empty_and_whitespace() {
-    use systemprompt_models::none_if_blank;
+    use systemprompt_manifest::none_if_blank;
     assert_eq!(none_if_blank(None), None);
     assert_eq!(none_if_blank(Some(String::new())), None);
     assert_eq!(none_if_blank(Some("  ".to_owned())), None);

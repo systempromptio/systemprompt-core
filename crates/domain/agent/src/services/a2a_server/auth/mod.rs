@@ -13,4 +13,4 @@ pub mod validation;
 
 pub use middleware::{agent_oauth_middleware, agent_oauth_middleware_wrapper};
 pub use types::{AgentOAuthConfig, AgentOAuthState};
-pub use validation::{extract_bearer_token, validate_oauth_for_request};
+pub use validation::{AuthenticatedCaller, extract_bearer_token, validate_oauth_for_request};

@@ -52,8 +52,7 @@ impl FilesConfig {
     }
 
     pub fn from_profile(paths: &AppPaths) -> FilesResult<Self> {
-        let profile = ProfileBootstrap::get()
-            .map_err(|e| FilesError::Config(format!("Profile not initialized: {e}")))?;
+        let profile = ProfileBootstrap::get()?;
 
         let storage_root = profile
             .paths
@@ -79,19 +78,17 @@ impl FilesConfig {
             return Ok(FilesConfigYaml::default());
         }
 
-        let content = std::fs::read_to_string(&config_path).map_err(|e| {
-            FilesError::Config(format!(
-                "Failed to read files.yaml ({}): {e}",
-                config_path.display()
-            ))
-        })?;
+        let content =
+            std::fs::read_to_string(&config_path).map_err(|source| FilesError::ConfigRead {
+                path: config_path.clone(),
+                source,
+            })?;
 
-        let wrapper: FilesConfigWrapper = serde_yaml::from_str(&content).map_err(|e| {
-            FilesError::Config(format!(
-                "Failed to parse files.yaml ({}): {e}",
-                config_path.display()
-            ))
-        })?;
+        let wrapper: FilesConfigWrapper =
+            serde_yaml::from_str(&content).map_err(|source| FilesError::ConfigParse {
+                path: config_path,
+                source,
+            })?;
 
         Ok(wrapper.files)
     }

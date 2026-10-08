@@ -5,15 +5,14 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use sqlx::types::Json;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::metadata::FileMetadata;
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct File {
-    pub id: uuid::Uuid,
+    pub id: FileId,
     pub path: String,
     pub public_url: String,
     pub mime_type: String,
@@ -27,10 +26,4 @@ pub struct File {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
-}
-
-impl File {
-    pub fn id(&self) -> FileId {
-        FileId::new(self.id.to_string())
-    }
 }

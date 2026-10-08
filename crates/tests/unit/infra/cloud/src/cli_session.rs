@@ -157,20 +157,20 @@ fn test_cli_session_is_expired_true_for_past_expiry() {
 #[test]
 fn test_cli_session_is_valid_for_profile_true() {
     let session = create_test_builder().build();
-    assert!(session.is_valid_for_profile("test-profile"));
+    assert!(session.is_valid_for_profile(&pname("test-profile")));
 }
 
 #[test]
 fn test_cli_session_is_valid_for_profile_false_wrong_profile() {
     let session = create_test_builder().build();
-    assert!(!session.is_valid_for_profile("other-profile"));
+    assert!(!session.is_valid_for_profile(&pname("other-profile")));
 }
 
 #[test]
 fn test_cli_session_is_valid_for_profile_false_expired() {
     let mut session = create_test_builder().build();
     session.expires_at = Utc::now() - Duration::hours(1);
-    assert!(!session.is_valid_for_profile("test-profile"));
+    assert!(!session.is_valid_for_profile(&pname("test-profile")));
 }
 
 #[test]
@@ -401,4 +401,8 @@ fn test_cli_session_serialization() {
     assert!(json.contains("test-profile"));
     assert!(json.contains("session-123"));
     assert!(json.contains("version"));
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

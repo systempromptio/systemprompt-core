@@ -13,22 +13,24 @@ mod assembly;
 mod composition;
 mod core_layer;
 
+pub use composition::owner_reassignments;
 use composition::{build_data_plane, build_repositories, ensure_legacy_context};
 
 use std::sync::{Arc, OnceLock};
 
 use systemprompt_database::MigrationConfig;
+use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
+use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
 use crate::context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 use crate::error::RuntimeResult;
-use crate::registry::ModuleApiRegistry;
-pub use core_layer::discover_vertex_models as discover_models;
-use core_layer::{CoreLayer, init_core, init_extensions};
+pub use core_layer::discover_vertex_models;
+use core_layer::{CoreLayer, SchemaPolicy, init_core, init_extensions};
 
 /// Assembles an [`AppContext`], owning the bootstrap order described on the
 /// module.
@@ -44,9 +46,11 @@ pub struct AppContextBuilder {
     show_startup_warnings: bool,
     marketplace_filter: Option<Arc<dyn MarketplaceFilter>>,
     authz_hook: Option<SharedAuthzHook>,
-    install_schemas: bool,
+    schema: SchemaPolicy,
     migration_config: MigrationConfig,
     shutdown: Option<ShutdownRequest>,
+    background_tasks: Option<BackgroundTasks>,
+    event_router: Option<EventRouter>,
 }
 
 impl std::fmt::Debug for AppContextBuilder {
@@ -56,9 +60,12 @@ impl std::fmt::Debug for AppContextBuilder {
             .field("show_startup_warnings", &self.show_startup_warnings)
             .field("marketplace_filter", &self.marketplace_filter.is_some())
             .field("authz_hook", &self.authz_hook.is_some())
-            .field("install_schemas", &self.install_schemas)
+            .field("install_schemas", &self.schema.install)
+            .field("verify_schema", &self.schema.verify)
             .field("migration_config", &self.migration_config)
             .field("shutdown", &self.shutdown.is_some())
+            .field("background_tasks", &self.background_tasks.is_some())
+            .field("event_router", &self.event_router)
             .finish()
     }
 }
@@ -89,7 +96,13 @@ impl AppContextBuilder {
 
     #[must_use]
     pub const fn with_migrations(mut self, install: bool) -> Self {
-        self.install_schemas = install;
+        self.schema.install = install;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_schema_verification(mut self, verify: bool) -> Self {
+        self.schema.verify = verify;
         self
     }
 
@@ -115,13 +128,24 @@ impl AppContextBuilder {
     }
 
     #[must_use]
+    pub fn with_background_tasks(mut self, tasks: BackgroundTasks) -> Self {
+        self.background_tasks = Some(tasks);
+        self
+    }
+
+    #[must_use]
+    pub fn with_event_router(mut self, router: EventRouter) -> Self {
+        self.event_router = Some(router);
+        self
+    }
+
+    #[must_use]
     pub const fn with_migration_config(mut self, config: MigrationConfig) -> Self {
         self.migration_config = config;
         self
     }
 
     pub async fn build(self) -> RuntimeResult<AppContext> {
-        let shutdown = self.shutdown.unwrap_or_default();
         let CoreLayer {
             config,
             app_paths,
@@ -133,7 +157,7 @@ impl AppContextBuilder {
 
         let (extension_registry, schema_install) = init_extensions(
             self.extension_registry,
-            self.install_schemas,
+            self.schema,
             self.migration_config,
             &database,
         )
@@ -162,15 +186,19 @@ impl AppContextBuilder {
 
         let subsystems = Subsystems {
             ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
-            artifact_ingest: build_artifact_ingest(&database, &governance)?,
+            artifact_ingest: build_artifact_ingest(&database, &governance),
             system_admin,
             authz_hook,
             governance,
             schema_install: Arc::new(schema_install),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router: self
+                .event_router
+                .unwrap_or_else(|| outbox_router(&database, &config.instance_id)),
             geoip_reader,
             file_storage,
-            shutdown,
+            shutdown: self.shutdown.unwrap_or_default(),
+            background_tasks: self.background_tasks.unwrap_or_default(),
             publish_guard: Arc::default(),
         };
 
@@ -190,7 +218,6 @@ impl AppContextBuilder {
             },
             Plugins {
                 extension_registry,
-                api_registry: Arc::new(ModuleApiRegistry::new()),
                 mcp_registry,
                 marketplace_filter,
                 marketplace_cache: Arc::default(),
@@ -200,36 +227,42 @@ impl AppContextBuilder {
     }
 }
 
+fn outbox_router(
+    database: &systemprompt_database::DbPool,
+    instance_id: &systemprompt_identifiers::InstanceId,
+) -> EventRouter {
+    EventRouter::with_outbox(database.write_pool().as_ref().clone(), instance_id.clone())
+}
+
 fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
     governance: &systemprompt_security::policy::GovernanceEngine,
-) -> RuntimeResult<Arc<systemprompt_mcp::ArtifactIngest>> {
+) -> Arc<systemprompt_mcp::ArtifactIngest> {
     let ingest = systemprompt_mcp::ArtifactIngest::from_db(
         database,
         governance
             .secret_scanner()
             .map(|scanner| Arc::new(scanner.clone())),
-    )
-    .map_err(|e| crate::RuntimeError::Internal(format!("artifact ingest: {e}")))?;
-    Ok(Arc::new(ingest))
+    );
+    Arc::new(ingest)
 }
 
 async fn build_domain_layer(
-    config: &systemprompt_models::Config,
+    config: &systemprompt_manifest::Config,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
 ) -> RuntimeResult<(
     composition::RepositoryBundles,
     Arc<UserService>,
-    Arc<systemprompt_models::SystemAdmin>,
+    Arc<systemprompt_manifest::SystemAdmin>,
     RegistryService,
 )> {
-    let mut repositories = build_repositories(
-        database,
-        analytics_repositories,
-        systemprompt_identifiers::InstanceId::new(&config.instance_id),
-    )?;
-    let user_service = Arc::new(UserService::new(Arc::clone(&repositories.users)));
+    let mut repositories =
+        build_repositories(database, analytics_repositories, config.instance_id.clone());
+    let user_service = Arc::new(
+        UserService::new(Arc::clone(&repositories.users))
+            .with_owner_reassignments(owner_reassignments(database)),
+    );
     let system_admin = assembly::resolve_and_install_system_admin(config, &user_service).await?;
     repositories.install_organization_resolver(system_admin.id());
     let mcp_registry = RegistryService::new(system_admin.id().clone());

@@ -227,10 +227,10 @@ fn set_active_with_profile_stores_both() {
     let mut store = SessionStore::new();
     let key = SessionKey::Local;
     store.upsert_session(&key, build_session("prof-name"));
-    store.set_active_with_profile(&key, "prof-name");
+    store.set_active_with_profile(&key, &pname("prof-name"));
 
     assert_eq!(store.active_key, Some(LOCAL_SESSION_KEY.to_string()));
-    assert_eq!(store.active_profile_name, Some("prof-name".to_string()));
+    assert_eq!(store.active_profile_name, Some(pname("prof-name")));
 }
 
 #[test]
@@ -239,7 +239,11 @@ fn set_active_with_profile_path_updates_session() {
     let key = SessionKey::Local;
     store.upsert_session(&key, build_session("path-prof"));
 
-    store.set_active_with_profile_path(&key, "path-prof", PathBuf::from("/my/profile.yaml"));
+    store.set_active_with_profile_path(
+        &key,
+        &pname("path-prof"),
+        PathBuf::from("/my/profile.yaml"),
+    );
 
     let session = store.get_session(&key).unwrap();
     assert_eq!(
@@ -253,10 +257,10 @@ fn set_active_with_profile_path_nonexistent_session() {
     let mut store = SessionStore::new();
     let key = SessionKey::Tenant(TenantId::new("ghost"));
 
-    store.set_active_with_profile_path(&key, "ghost-prof", PathBuf::from("/ghost/path"));
+    store.set_active_with_profile_path(&key, &pname("ghost-prof"), PathBuf::from("/ghost/path"));
 
     assert_eq!(store.active_key, Some("tenant_ghost".to_string()));
-    assert_eq!(store.active_profile_name, Some("ghost-prof".to_string()));
+    assert_eq!(store.active_profile_name, Some(pname("ghost-prof")));
 }
 
 #[test]
@@ -456,13 +460,13 @@ fn save_and_load_roundtrip() {
     let mut store = SessionStore::new();
     store.upsert_session(&SessionKey::Local, build_session("saved"));
     store.set_active(&SessionKey::Local);
-    store.active_profile_name = Some("saved".to_string());
+    store.active_profile_name = Some(pname("saved"));
     store.save(&dir).unwrap();
 
     let loaded = SessionStore::load(&dir).unwrap().unwrap();
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded.active_key, Some(LOCAL_SESSION_KEY.to_string()));
-    assert_eq!(loaded.active_profile_name, Some("saved".to_string()));
+    assert_eq!(loaded.active_profile_name, Some(pname("saved")));
 }
 
 #[test]
@@ -540,7 +544,7 @@ fn serde_roundtrip_preserves_all_fields() {
     .with_profile_path("/serde/path.yaml")
     .build();
     store.upsert_session(&key, session);
-    store.set_active_with_profile(&key, "serde-prof");
+    store.set_active_with_profile(&key, &pname("serde-prof"));
 
     let json = serde_json::to_string(&store).unwrap();
     let deserialized: SessionStore = serde_json::from_str(&json).unwrap();
@@ -770,7 +774,7 @@ fn an_active_tenant_session_is_deselected_when_it_is_removed() {
     let mut store = SessionStore::new();
     let tenant = SessionKey::Tenant(TenantId::new("acme"));
     store.upsert_session(&tenant, build_tenant_session("acme", "acme"));
-    store.set_active_with_profile(&tenant, "acme");
+    store.set_active_with_profile(&tenant, &pname("acme"));
 
     store.remove_tenant_sessions();
 
@@ -795,7 +799,7 @@ fn an_active_local_session_survives_the_removal_of_tenant_sessions() {
         &SessionKey::Tenant(TenantId::new("acme")),
         build_tenant_session("acme", "acme"),
     );
-    store.set_active_with_profile(&local, "local");
+    store.set_active_with_profile(&local, &pname("local"));
 
     store.remove_tenant_sessions();
 
@@ -804,7 +808,7 @@ fn an_active_local_session_survives_the_removal_of_tenant_sessions() {
         Some(LOCAL_SESSION_KEY),
         "the local session was not removed, so it must stay selected"
     );
-    assert_eq!(store.active_profile_name.as_deref(), Some("local"));
+    assert_eq!(store.active_profile_name, Some(pname("local")));
 }
 
 // Why: with nothing to remove the store must not be marked dirty. `updated_at`
@@ -865,4 +869,8 @@ fn concurrent_saves_into_one_sessions_dir_all_land() {
         leftovers.is_empty(),
         "temp files left behind: {leftovers:?}"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

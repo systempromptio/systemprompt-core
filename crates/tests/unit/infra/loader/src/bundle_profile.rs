@@ -4,17 +4,17 @@
 
 use std::path::Path;
 
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, ServicesProfileConfig,
     ServicesSource, default_resource_audiences,
 };
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 pub fn https_source(name: &str, url: &str, keys: Vec<String>) -> ServicesSource {
     ServicesSource {
@@ -50,6 +50,7 @@ pub fn profile(
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_owned(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: ServerConfig {
@@ -64,7 +65,9 @@ pub fn profile(
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
             metrics_port: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            role: Default::default(),
+            max_in_flight: None,
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },
         paths: PathsConfig {
@@ -86,7 +89,7 @@ pub fn profile(
             login_page_url: None,
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         },
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),

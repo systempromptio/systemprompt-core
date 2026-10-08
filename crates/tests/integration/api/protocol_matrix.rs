@@ -5,12 +5,13 @@
 
 use bytes::Bytes;
 use futures::StreamExt;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalEvent, CanonicalRequest, CanonicalStopReason, ContentBlockKind,
     Role, SystemBlock, anthropic_messages, openai_responses as openai_responses_in,
     outbound_anthropic,
 };
 use systemprompt_identifiers::ModelId;
+use systemprompt_wire::error::WireStreamError;
 
 // -----------------------------------------------------------------------------
 // Inbound parsers
@@ -75,12 +76,10 @@ fn fixture_request(model: &str, stream: bool) -> CanonicalRequest {
         model: ModelId::new(model),
         cache_control: None,
         system: vec![SystemBlock::text("be brief".to_owned())],
-        messages: vec![
-            systemprompt_api::services::gateway::protocol::CanonicalMessage {
-                role: Role::User,
-                content: vec![CanonicalContent::text("hello".to_owned())],
-            },
-        ],
+        messages: vec![systemprompt_gateway::protocol::CanonicalMessage {
+            role: Role::User,
+            content: vec![CanonicalContent::text("hello".to_owned())],
+        }],
         max_tokens: 256,
         temperature: Some(0.5),
         top_p: None,
@@ -115,8 +114,7 @@ fn anthropic_outbound_request_builder_carries_model_and_messages() {
 #[test]
 fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
     let req = fixture_request("gpt-4o", true);
-    let body =
-        systemprompt_models::wire::openai_chat::build_request_body(&req, "gpt-4o-upstream", None);
+    let body = systemprompt_wire::openai_chat::build_request_body(&req, "gpt-4o-upstream", None);
     assert_eq!(body["model"], "gpt-4o-upstream");
     assert_eq!(body["stream"], true);
     assert!(body["messages"].is_array());
@@ -125,11 +123,8 @@ fn openai_chat_outbound_request_builder_renames_to_chat_completions_shape() {
 #[test]
 fn openai_responses_outbound_request_builder_uses_responses_shape() {
     let req = fixture_request("gpt-5", false);
-    let body = systemprompt_models::wire::openai_responses::build_request_body(
-        &req,
-        "gpt-5-upstream",
-        None,
-    );
+    let body =
+        systemprompt_wire::openai_responses::build_request_body(&req, "gpt-5-upstream", None);
     assert_eq!(body["model"], "gpt-5-upstream");
     assert!(body.get("input").is_some() || body.get("messages").is_some());
 }
@@ -184,8 +179,8 @@ fn openai_chat_response_parser_extracts_choice_content() {
         }],
         "usage": {"prompt_tokens": 5, "completion_tokens": 7}
     });
-    let canon = systemprompt_models::wire::openai_chat::parse_response(&resp, "fallback")
-        .expect("fixture parses");
+    let canon =
+        systemprompt_wire::openai_chat::parse_response(&resp, "fallback").expect("fixture parses");
     assert_eq!(canon.id, "chatcmpl_1");
     assert!(
         canon
@@ -208,9 +203,8 @@ fn openai_responses_object_parser_extracts_output_text() {
         }],
         "usage": {"input_tokens": 4, "output_tokens": 3}
     });
-    let canon =
-        systemprompt_models::wire::openai_responses::parse_response_object(&resp, "fallback")
-            .expect("fixture parses");
+    let canon = systemprompt_wire::openai_responses::parse_response_object(&resp, "fallback")
+        .expect("fixture parses");
     assert_eq!(canon.id, "resp_1");
     assert!(
         canon
@@ -238,7 +232,7 @@ fn byte_stream(
 
 async fn collect_events<S>(s: S) -> Vec<CanonicalEvent>
 where
-    S: futures::Stream<Item = Result<CanonicalEvent, String>> + Send + 'static,
+    S: futures::Stream<Item = Result<CanonicalEvent, WireStreamError>> + Send + 'static,
 {
     s.filter_map(|r| async move { r.ok() }).collect().await
 }
@@ -307,7 +301,7 @@ async fn openai_chat_streaming_decoder_emits_text_deltas() {
         "data: {\"id\":\"c_1\",\"choices\":[{\"index\":0,\"finish_reason\":\"stop\"}]}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream = systemprompt_models::wire::openai_chat::sse_to_canonical_events(
+    let stream = systemprompt_wire::openai_chat::sse_to_canonical_events(
         byte_stream(chunks),
         "gpt-4o".to_owned(),
     );
@@ -330,7 +324,7 @@ async fn openai_responses_streaming_decoder_recognises_response_created() {
          output_tokens\":5}}}\n\n",
         "data: [DONE]\n\n",
     ];
-    let stream = systemprompt_models::wire::openai_responses::sse_to_canonical_events(
+    let stream = systemprompt_wire::openai_responses::sse_to_canonical_events(
         byte_stream(chunks),
         "gpt-5".to_owned(),
     );
@@ -355,12 +349,12 @@ async fn streaming_decoder_yields_no_events_on_empty_stream() {
 
 #[test]
 fn anthropic_render_response_value_emits_id_model_content() {
-    let canon = systemprompt_api::services::gateway::protocol::CanonicalResponse {
+    let canon = systemprompt_gateway::protocol::CanonicalResponse {
         id: "msg_render_1".to_owned(),
         model: "claude-3-5".to_owned(),
         content: vec![CanonicalContent::text("done".to_owned())],
         stop_reason: Some(CanonicalStopReason::EndTurn),
-        usage: systemprompt_api::services::gateway::protocol::CanonicalUsage {
+        usage: systemprompt_gateway::protocol::CanonicalUsage {
             input_tokens: 1,
             output_tokens: 2,
             ..Default::default()

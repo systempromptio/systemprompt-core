@@ -2,8 +2,8 @@
 //! service both read. A platform either can reach is pinned here once.
 
 use serde_json::{Map, Value, json};
-use systemprompt_models::services::{Hosting, WireProtocol};
-use systemprompt_models::wire::upstream::{UpstreamDialect, VERTEX_ANTHROPIC_VERSION};
+use systemprompt_wire::upstream::{UpstreamDialect, VERTEX_ANTHROPIC_VERSION};
+use systemprompt_wire::{Hosting, WireProtocol};
 
 const VERTEX_ENDPOINT: &str =
     "https://aiplatform.googleapis.com/v1/projects/p/locations/global/publishers/anthropic";

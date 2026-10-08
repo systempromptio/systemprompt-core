@@ -135,19 +135,16 @@ mod stored_form {
     use systemprompt_identifiers::UserId;
     use systemprompt_oauth::repository::OAuthRepository;
     use systemprompt_oauth::services::issue_bridge_exchange_code;
-    use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
-    };
+    use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
     use uuid::Uuid;
 
     // Why: a copy of this table must not yield a working code. Storing the
     // plaintext would be invisible to every shape-based check.
     #[tokio::test]
     async fn the_row_holds_the_hash_of_the_issued_code_and_never_the_code() {
-        let url = fixture_database_url().expect("DATABASE_URL");
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
-        let repo = OAuthRepository::new(&pool).expect("oauth repo");
+        let pool = test_db_pool().await;
+        let repo = OAuthRepository::new(&pool);
 
         let id = format!("bridgehash-{}", Uuid::new_v4().simple());
         let user = UserId::new(&id);

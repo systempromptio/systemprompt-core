@@ -55,7 +55,6 @@ tsconfig.*.json
 
 # Cargo config (may contain local paths)
 .cargo/*
-!.cargo/audit.toml
 
 tests/validator
 
@@ -94,13 +93,9 @@ Thumbs.db
 audit.md
 audit.log
 audit.json
-audit/
-.audit/
-!crates/infra/security/src/authz/audit/
-!crates/shared/models/src/audit/
+/audit/
+/.audit/
 
-# Service implementations (moved to implementation repos)
-/crates/services/
 
 /plan
 /plan/*
@@ -125,8 +120,8 @@ scripts/*
 !scripts/collect-fallback-profraw.sh
 !scripts/quarantine-fallback-profraw.sh
 !scripts/test-collect-fallback-profraw.py
-# ...and the cargo-config surgery every compiling CI job applies before sccache.
-!scripts/ci-strip-cargo-config.py
+# ...and the bounded apt install every CI job that links system libraries runs.
+!scripts/ci-install-system-deps.sh
 # ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh
@@ -189,8 +184,6 @@ youtube-walkthrough.md
 ci/
 .sentrux/
 Screenshot*.png
-!crates/entry/api/src/services/gateway/audit/
-!crates/entry/api/src/services/proxy/audit/
 
 # rustc internal compiler error dumps
 rustc-ice-*.txt

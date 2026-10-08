@@ -1,7 +1,8 @@
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 use systemprompt_bridge::integration::host_app::{
-    ConfigFormat, HostApp, HostKind, ProbeEnv, ProfileState,
+    ConfigFormat, HostApp, HostAppKind, ProbeEnv, ProfileState,
 };
+use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 
 fn probe_env() -> ProbeEnv {
@@ -36,7 +37,7 @@ fn loopback_v1() -> String {
 #[test]
 fn an_absent_hermes_config_probes_as_absent() {
     let snapshot = hermes_sandbox(None, || HERMES_HOST.probe(&probe_env()));
-    assert_eq!(snapshot.host_id, "hermes");
+    assert_eq!(snapshot.host_id, HostKind::Hermes);
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
         "no config.yaml means an absent profile, got {:?}",
@@ -206,10 +207,10 @@ fn structured_owned_values_are_reported_without_panicking_and_repair_becomes_ins
 
 #[test]
 fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
-    assert_eq!(HERMES_HOST.id(), "hermes");
+    assert_eq!(HERMES_HOST.id(), HostKind::Hermes);
     assert_eq!(HERMES_HOST.display_name(), "Hermes");
     assert_eq!(HERMES_HOST.icon_id(), "hermes");
-    assert_eq!(HERMES_HOST.kind(), HostKind::DesktopApp);
+    assert_eq!(HERMES_HOST.kind(), HostAppKind::DesktopApp);
     assert_eq!(HERMES_HOST.config_format(), ConfigFormat::Yaml);
     assert!(
         HERMES_HOST.download_url().starts_with("https://"),

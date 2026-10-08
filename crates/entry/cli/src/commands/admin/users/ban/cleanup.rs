@@ -19,7 +19,7 @@ pub struct CleanupArgs {
 
 pub(super) async fn execute(args: CleanupArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let ban_repository = BannedIpRepository::new(&pool)?;
+    let ban_repository = BannedIpRepository::new(&pool);
 
     if !args.yes {
         return Err(anyhow!(

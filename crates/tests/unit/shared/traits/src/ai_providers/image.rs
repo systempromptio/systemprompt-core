@@ -1,5 +1,6 @@
 //! Tests for the image metadata / provenance value types.
 
+use systemprompt_identifiers::AiRequestId;
 use systemprompt_traits::{ImageGenerationInfo, ImageMetadata};
 
 #[test]
@@ -102,13 +103,13 @@ fn generation_info_builders_set_every_field() {
         .with_aspect_ratio("1:1")
         .with_generation_time(1500)
         .with_cost_estimate(0.04)
-        .with_request_id("req-123");
+        .with_request_id(AiRequestId::new("req-123"));
 
     assert_eq!(g.resolution.as_deref(), Some("512x512"));
     assert_eq!(g.aspect_ratio.as_deref(), Some("1:1"));
     assert_eq!(g.generation_time_ms, Some(1500));
     assert_eq!(g.cost_estimate, Some(0.04));
-    assert_eq!(g.request_id.as_deref(), Some("req-123"));
+    assert_eq!(g.request_id, Some(AiRequestId::new("req-123")));
 }
 
 #[test]

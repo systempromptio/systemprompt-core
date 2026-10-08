@@ -32,6 +32,7 @@ pub struct JwtContextExtractor {
     user_provider: Arc<dyn UserProvider>,
     user_cache: Arc<UserCache>,
     jti_revocation: JtiRevocationChecker,
+    issuer: String,
 }
 
 impl std::fmt::Debug for JwtContextExtractor {
@@ -47,6 +48,7 @@ impl JwtContextExtractor {
         session_provider: Arc<dyn SessionProvider>,
         user_provider: Arc<dyn UserProvider>,
         jti_revocation: JtiRevocationChecker,
+        issuer: String,
     ) -> Self {
         Self {
             token_extractor: TokenExtractor::browser_only(),
@@ -54,6 +56,7 @@ impl JwtContextExtractor {
             user_provider,
             user_cache: UserCache::new(),
             jti_revocation,
+            issuer,
         }
     }
 
@@ -65,8 +68,8 @@ impl JwtContextExtractor {
             .token_extractor
             .extract(headers)
             .map_err(|_e| ContextExtractionError::MissingAuthHeader)?;
-        extract_user_context(&token)
-            .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
+        extract_user_context(&token, &self.issuer)
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))
     }
 
     async fn validate(
@@ -88,9 +91,9 @@ impl JwtContextExtractor {
         )
         .await?;
         validate_session_exists(&self.session_provider, jwt_context, route_context).await?;
-        self.jti_revocation
-            .ensure_not_revoked(&jwt_context.jti)
-            .await?;
+        if let Some(jti) = &jwt_context.jti {
+            self.jti_revocation.ensure_not_revoked(jti).await?;
+        }
         Ok(validated.user)
     }
 
@@ -132,8 +135,8 @@ impl JwtContextExtractor {
         &self,
         jwt_token: &systemprompt_identifiers::JwtToken,
     ) -> Result<(JwtUserContext, systemprompt_traits::AuthUser), ContextExtractionError> {
-        let jwt_context = extract_user_context(jwt_token.as_str())
-            .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))?;
+        let jwt_context = extract_user_context(jwt_token.as_str(), &self.issuer)
+            .map_err(|e| ContextExtractionError::InvalidToken(e.into()))?;
 
         let user = self.validate(&jwt_context, "gateway").await?;
         Ok((jwt_context, user))
@@ -166,9 +169,11 @@ impl JwtContextExtractor {
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
             ContextIdSource::Direct(id) => (
-                ContextId::try_new(id).map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                    header: "contextId".to_owned(),
-                    reason: e.to_string(),
+                ContextId::try_new(id).map_err(|_invalid_id| {
+                    ContextExtractionError::InvalidHeaderValue {
+                        header: "contextId".to_owned(),
+                        reason: "not a valid context id".to_owned(),
+                    }
                 })?,
                 None,
             ),

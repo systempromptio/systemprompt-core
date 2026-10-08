@@ -209,9 +209,10 @@ fn a_missing_credential_identity_is_reported_before_the_refresh_runs() {
                     let counter = Arc::new(AtomicUsize::new(0));
                     let cache = TokenCache::new(counting_refresh(Arc::clone(&counter), 3600));
                     let err = cache.current(300).await.expect_err("nothing to bind to");
-                    let ForwardError::Auth(detail) = &err else {
+                    let ForwardError::CredentialIdentity(source) = &err else {
                         panic!("{err:?}");
                     };
+                    let detail = source.to_string();
                     assert!(
                         detail.contains("no credential identity configured"),
                         "{detail}"
@@ -658,9 +659,10 @@ fn a_credential_that_becomes_unreadable_is_never_served_from_the_cache() {
             .current(300)
             .await
             .expect_err("a token whose credential can no longer be identified is not served");
-        let ForwardError::Auth(detail) = &err else {
+        let ForwardError::CredentialIdentity(source) = &err else {
             panic!("an unbindable credential is an auth failure: {err:?}");
         };
+        let detail = source.to_string();
         assert!(
             detail.contains("read PAT") && detail.contains("systemprompt-bridge.pat"),
             "the failure names the credential file that went missing: {detail}"
@@ -761,7 +763,10 @@ fn runtime_cache_retries_a_gateway_outage_then_reuses_the_recovered_token() {
             .await;
 
         let first = cache.current(300).await.expect_err("gateway is offline");
-        assert!(matches!(first, ForwardError::AuthRetryable(_)), "{first:?}");
+        assert!(
+            matches!(&first, ForwardError::Chain(_)) && first.is_retryable_auth(),
+            "{first:?}"
+        );
         assert!(
             !cache.sign_in_required(),
             "an outage is retryable without login"
@@ -825,7 +830,10 @@ fn runtime_cache_terminal_rejection_stays_local_until_credentials_are_proven() {
             .mount(&server)
             .await;
         let rejected = cache.current(300).await.expect_err("PAT is rejected");
-        assert!(matches!(rejected, ForwardError::Auth(_)), "{rejected:?}");
+        assert!(
+            matches!(&rejected, ForwardError::Chain(_)) && rejected.is_credential_failure(),
+            "{rejected:?}"
+        );
         assert!(cache.sign_in_required());
 
         server.reset().await;

@@ -108,7 +108,9 @@ mod tooled_executor_tests {
     use std::sync::{Arc, Mutex};
     use systemprompt_ai::models::tools::McpTool;
     use systemprompt_ai::services::tooled::TooledExecutor;
-    use systemprompt_identifiers::{AgentName, ContextId, McpServerId, SessionId, TraceId};
+    use systemprompt_identifiers::{
+        Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
+    };
     use systemprompt_models::execution::context::RequestContext;
     use systemprompt_traits::{
         ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
@@ -173,7 +175,7 @@ mod tooled_executor_tests {
         async fn find_tool(
             &self,
             _agent_name: &AgentName,
-            _tool_name: &str,
+            _tool_name: &McpToolName,
             _context: &ToolContext,
         ) -> ToolProviderResult<Option<ToolDefinition>> {
             Ok(None)
@@ -186,6 +188,7 @@ mod tooled_executor_tests {
             TraceId::new("trace-exec"),
             ContextId::try_new("00000000-0000-4000-8000-0000000000ee").expect("valid ContextId"),
             AgentName::try_new("exec-agent").expect("valid AgentName"),
+            Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
         )
     }
 

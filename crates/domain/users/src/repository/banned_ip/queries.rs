@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
+use systemprompt_identifiers::SessionId;
 
 use super::BannedIpRepository;
 use super::types::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
@@ -41,7 +42,7 @@ impl BannedIpRepository {
                 is_permanent,
                 source_fingerprint,
                 ban_source,
-                associated_session_ids
+                associated_session_ids as "associated_session_ids: Vec<SessionId>"
             FROM banned_ips
             WHERE ip_address = $1
               AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
@@ -92,7 +93,7 @@ impl BannedIpRepository {
     pub async fn ban_ip_with_metadata(&self, params: BanIpWithMetadataParams<'_>) -> Result<()> {
         let expires_at = params.duration.to_expiry();
         let is_permanent = matches!(params.duration, BanDuration::Permanent);
-        let session_ids: Option<Vec<String>> = params.session_id.map(|s| vec![s.to_owned()]);
+        let session_ids: Option<Vec<String>> = params.session_id.map(|s| vec![s.to_string()]);
 
         sqlx::query!(
             r#"

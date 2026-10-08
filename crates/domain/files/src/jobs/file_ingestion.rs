@@ -12,6 +12,7 @@ use chrono::Utc;
 use std::path::Path;
 use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::FileId;
 use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use walkdir::WalkDir;
@@ -66,12 +67,12 @@ impl Job for FileIngestionJob {
         let start_time = std::time::Instant::now();
         tracing::info!("File ingestion job started");
 
-        let db_pool = ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("Database pool not available in job context".into())
-        })?;
+        let db_pool = ctx.get::<DbPool>()?;
 
-        let files_config =
-            FilesConfig::get().map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let files_config = FilesConfig::get().map_err(|e| ProviderError::ConfigurationLoad {
+            context: "files config".to_owned(),
+            source: Box::new(e),
+        })?;
         let images_dir = files_config.storage();
 
         if !images_dir.exists() {
@@ -81,8 +82,7 @@ impl Job for FileIngestionJob {
                 .with_duration(start_time.elapsed().as_millis() as u64));
         }
 
-        let file_repo = FileRepository::new(db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let file_repo = FileRepository::new(db_pool);
         let stats = process_image_files(&file_repo, files_config, images_dir).await;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -163,7 +163,7 @@ async fn process_single_file(
         return;
     }
 
-    let file = build_file_record(&file_path, &public_url, extension, path);
+    let file = build_file_record(&file_path, &public_url, extension, path).await;
     insert_file_record(ctx, &public_url, file, stats).await;
 }
 
@@ -214,22 +214,29 @@ async fn insert_file_record(
     }
 }
 
-fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
+async fn build_file_record(
+    file_path: &str,
+    public_url: &str,
+    extension: &str,
+    path: &Path,
+) -> File {
     let now = Utc::now();
+    let size_bytes = match tokio::fs::metadata(path).await {
+        Ok(metadata) => Some(metadata.len() as i64),
+        Err(e) => {
+            tracing::debug!(error = %e, path = %path.display(), "Failed to get file size");
+            None
+        },
+    };
 
     File {
-        id: uuid::Uuid::new_v4(),
+        id: FileId::generate(),
         path: file_path.to_owned(),
         public_url: public_url.to_owned(),
         mime_type: systemprompt_models::mime::from_extension(extension)
             .unwrap_or("application/octet-stream")
             .to_owned(),
-        size_bytes: std::fs::metadata(path)
-            .map(|m| m.len() as i64)
-            .inspect_err(
-                |e| tracing::debug!(error = %e, path = %path.display(), "Failed to get file size"),
-            )
-            .ok(),
+        size_bytes,
         ai_content: path.to_string_lossy().contains(storage::GENERATED),
         metadata: sqlx::types::Json(FileMetadata::default()),
         user_id: None,

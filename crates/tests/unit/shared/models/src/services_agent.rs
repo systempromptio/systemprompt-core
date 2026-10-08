@@ -1,8 +1,8 @@
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentSummary, CapabilitiesConfig,
     OAuthConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 fn empty_card() -> AgentCardConfig {
     AgentCardConfig {

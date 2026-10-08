@@ -49,24 +49,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Drop the Cranelift codegen-backend and sccache wrapper from the cargo
-      # configs: Cranelift is not available on these hosts and sccache serves
-      # uninstrumented rlibs, both of which break coverage instrumentation.
-      - name: Strip [unstable]/[profile.dev]/RUSTC_WRAPPER from cargo configs
-        shell: python
-        run: |
-          import re, pathlib
-          for path in (".cargo/config.toml", "crates/tests/.cargo/config.toml"):
-              p = pathlib.Path(path)
-              if not p.exists():
-                  continue
-              s = p.read_text()
-              s = re.sub(r'\n\[unstable\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\n\[profile\.dev\][^\[]*', '\n', s, flags=re.S)
-              s = re.sub(r'\nRUSTC_WRAPPER\s*=.*', '', s)
-              p.write_text(s)
-              print(f"--- {path} ---\n{p.read_text()}")
-
       - run: rustup show
 
       - uses: Swatinem/rust-cache@v2

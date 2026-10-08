@@ -14,13 +14,12 @@ use systemprompt_ai::services::providers::canonical_bridge::{
     BridgeProvider, CanonicalBuild, agent_response_format, event_to_chunk, text_content,
     to_ai_response, to_code_execution, to_search_grounded, tool_calls, tools_to_canonical,
 };
-use systemprompt_identifiers::McpServerId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_identifiers::{AiRequestId, McpServerId};
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalEvent, CanonicalResponse, CanonicalStopReason, CanonicalUsage,
     CanonicalUsageUpdate, CodeExecutionOutput, GroundedSource, Grounding, ImageSource,
     ResponseFormat,
 };
-use uuid::Uuid;
 
 fn msg(role: MessageRole, content: &str) -> AiMessage {
     AiMessage {
@@ -60,7 +59,7 @@ fn openai_o_series_requests_medium_reasoning() {
         let req = CanonicalBuild::new(BridgeProvider::OpenAi, &messages, model, 256).into_request();
         assert!(matches!(
             req.reasoning_effort,
-            Some(systemprompt_models::wire::canonical::ReasoningEffort::Medium)
+            Some(systemprompt_wire::canonical::ReasoningEffort::Medium)
         ));
     }
 }
@@ -167,7 +166,13 @@ fn to_ai_response_maps_tokens_and_cache() {
         total_tokens: 15,
     };
     let response = response_with(usage);
-    let ai = to_ai_response("openai", "gpt-4o", Uuid::nil(), Instant::now(), &response);
+    let ai = to_ai_response(
+        "openai",
+        "gpt-4o",
+        AiRequestId::generate(),
+        Instant::now(),
+        &response,
+    );
     assert_eq!(ai.content, "answer");
     assert_eq!(ai.tokens_used, Some(19), "tokens_used counts cache reads");
     assert_eq!(ai.input_tokens, Some(10));
@@ -191,7 +196,7 @@ fn to_ai_response_carries_reasoning_without_adding_it_to_tokens_used() {
     let ai = to_ai_response(
         "openai",
         "o4-mini",
-        Uuid::nil(),
+        AiRequestId::generate(),
         Instant::now(),
         &response_with(usage),
     );
@@ -213,7 +218,7 @@ fn to_ai_response_folds_reasoning_a_provider_reported_additionally() {
     let ai = to_ai_response(
         "cerebras",
         "gpt-oss-120b",
-        Uuid::nil(),
+        AiRequestId::generate(),
         Instant::now(),
         &response_with(usage),
     );
@@ -517,7 +522,7 @@ fn the_agent_path_records_the_same_tokens_used_the_gateway_would() {
     let ai = to_ai_response(
         "anthropic",
         "claude-sonnet-5",
-        Uuid::nil(),
+        AiRequestId::generate(),
         Instant::now(),
         &response_with(usage),
     );

@@ -3,14 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::profile::{SecretsValidationMode, VaultSecretsConfig};
-use systemprompt_models::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
+use systemprompt_manifest::profile::VaultSecretsConfig;
+use systemprompt_manifest::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
 
-use super::io::handle_load_error;
+use super::SecretsBootstrapError;
+use super::logging::log_secrets_failure;
 use super::provider::SecretsProvider;
 use super::resolve::{ResolvedSource, resolve_source};
 use super::vault::VaultKvProvider;
-use super::{SecretsBootstrapError, log_secrets_issue};
 use crate::bootstrap::profile::ProfileBootstrap;
 use crate::bootstrap::secrets::sources::{env, file};
 use crate::error::{ConfigError, ConfigResult};
@@ -27,8 +27,6 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
         Err(_e) if (is_subprocess || is_deployment_host) && has_valid_pepper_in_env => None,
         Err(_e) => return Err(SecretsBootstrapError::ProfileNotInitialized.into()),
     };
-    let validation = secrets_config.map_or_else(SecretsValidationMode::default, |c| c.validation);
-
     let resolved = resolve_source(
         secrets_config,
         is_subprocess,
@@ -56,28 +54,25 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
         },
         ResolvedSource::File(path) => {
             tracing::debug!("Loading secrets from file (profile source: file)");
-            file::resolve_and_load_file(path).or_else(|e| handle_load_error(e, validation))
+            file::resolve_and_load_file(path).inspect_err(log_secrets_failure)
         },
-        ResolvedSource::Vault(cfg) => load_from_vault(cfg, validation).await,
+        ResolvedSource::Vault(cfg) => load_from_vault(cfg).await,
     }
 }
 
-async fn load_from_vault(
-    cfg: &VaultSecretsConfig,
-    validation: SecretsValidationMode,
-) -> ConfigResult<Secrets> {
+async fn load_from_vault(cfg: &VaultSecretsConfig) -> ConfigResult<Secrets> {
     // Why: a Vault failure is never rescued by the environment — a downgraded
     // boot would run on whatever stale credentials the host happens to carry.
     let provider = match VaultKvProvider::from_config(cfg, |name| std::env::var(name).ok()) {
         Ok(provider) => provider,
-        Err(e) => return Err(fail_closed(SecretsBootstrapError::from(e), validation)),
+        Err(e) => return Err(fail_closed(SecretsBootstrapError::from(e))),
     };
 
     tracing::debug!(source = %provider.describe(), "loading secrets from vault");
 
     let document = match provider.fetch().await {
         Ok(document) => document,
-        Err(e) => return Err(fail_closed(e, validation)),
+        Err(e) => return Err(fail_closed(e)),
     };
     let key_names = document.key_names();
 
@@ -86,12 +81,12 @@ async fn load_from_vault(
             tracing::debug!(keys = ?key_names, "vault secrets document parsed");
             Ok(secrets)
         },
-        Err(e) => Err(fail_closed(e, validation)),
+        Err(e) => Err(fail_closed(e)),
     }
 }
 
-fn fail_closed(e: SecretsBootstrapError, validation: SecretsValidationMode) -> ConfigError {
+fn fail_closed(e: SecretsBootstrapError) -> ConfigError {
     let error = ConfigError::from(e);
-    log_secrets_issue(&error, validation);
+    log_secrets_failure(&error);
     error
 }

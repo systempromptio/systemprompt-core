@@ -9,16 +9,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
-
-use systemprompt_models::bridge::profile::AdvertisedLimits;
-
 use super::shared::ProfileGenInputs;
 use crate::install::mdm::MdmError;
 use crate::install::mdm::policy::{PolicyInputs, claude_desktop_policy, reg_values};
 use crate::install::reg_values::render_reg_values;
-
-const ONE_MILLION: u32 = 1_000_000;
 
 // Why: Claude Desktop sizes a gateway model's context from its id, not from
 // the gateway's advertised limits: it budgets 200k unless the id carries the
@@ -26,40 +20,16 @@ const ONE_MILLION: u32 = 1_000_000;
 // folds `<id>` and `<id>[1m]` into one row that may resolve to either, so a
 // Claude model the gateway serves at 1M is listed only as `<id>[1m]`. The
 // gateway strips the suffix before routing.
-#[must_use]
-pub fn with_context_variants(
-    models: &[String],
-    limits: &BTreeMap<String, AdvertisedLimits>,
-) -> Vec<String> {
-    let mut out = Vec::with_capacity(models.len());
-    for id in models {
-        let is_million = limits
-            .get(id)
-            .is_some_and(|limit| limit.context_window >= ONE_MILLION);
-        let listed = if is_million && !id.ends_with("[1m]") {
-            format!("{id}[1m]")
-        } else {
-            id.clone()
-        };
-        if !out.contains(&listed) {
-            out.push(listed);
-        }
-    }
-    out
-}
+pub use crate::gateway::model_view::with_context_variants;
 
 pub fn profile_entries(inputs: &ProfileGenInputs) -> Result<Vec<(&'static str, String)>, MdmError> {
-    let models = if inputs.models.is_empty() {
-        None
-    } else {
-        Some(
-            serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
-                .map_err(|e| MdmError::InvalidConfig {
-                    key: "inferenceModels",
-                    detail: e.to_string(),
-                })?,
-        )
-    };
+    let models = Some(
+        serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
+            .map_err(|source| MdmError::ConfigJson {
+                key: "inferenceModels",
+                source,
+            })?,
+    );
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: &inputs.gateway_base_url,
         host_token: &inputs.host_token,

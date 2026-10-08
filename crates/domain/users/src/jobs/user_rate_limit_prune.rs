@@ -35,9 +35,7 @@ impl Job for UserRateLimitPruneJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("DbPool not available in job context".into())
-        })?);
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
 
         info!("Job started");
 
@@ -46,12 +44,11 @@ impl Job for UserRateLimitPruneJob {
             .unwrap_or(DEFAULT_RETAIN_SECS);
         let before = Utc::now() - Duration::seconds(retain_secs);
 
-        let repository = UserRateLimitBucketRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let repository = UserRateLimitBucketRepository::new(&db_pool);
         let pruned = repository
             .prune(before)
             .await
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+            .map_err(|e| ProviderError::Internal(Box::new(e)))?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

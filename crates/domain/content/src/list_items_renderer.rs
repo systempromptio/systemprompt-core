@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use serde::Deserialize;
 use serde_json::Value;
 use systemprompt_provider_contracts::{
     ComponentContext, ComponentRenderer, ProviderResult, RenderedComponent,
@@ -57,27 +58,44 @@ impl ComponentRenderer for ListItemsCardRenderer {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct ListItemKind {
+    content_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ListItemCard {
+    title: String,
+    slug: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    image: Option<String>,
+    #[serde(default)]
+    published_at: Option<String>,
+}
+
 fn extract_url_prefix(ctx: &ComponentContext<'_>) -> String {
     ctx.all_items
         .and_then(|items| items.first())
-        .and_then(|item| item.get("content_type"))
-        .and_then(Value::as_str)
-        .map_or_else(String::new, |ct| {
+        .and_then(|item| ListItemKind::deserialize(item).ok())
+        .map_or_else(String::new, |kind| {
+            let ct = kind.content_type.as_str();
             format!("/{}", ct.strip_suffix("-list").unwrap_or(ct))
         })
 }
 
+// JSON: Handlebars page context item; only the card fields are decoded.
 fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
-    let title = item.get("title")?.as_str()?;
-    let slug = item.get("slug")?.as_str()?;
-    let description = item
-        .get("description")
-        .and_then(Value::as_str)
-        .unwrap_or("");
-    let image = item.get("image").and_then(Value::as_str);
-    let date = format_published_date(item);
+    let card = ListItemCard::deserialize(item)
+        .inspect_err(|e| tracing::debug!(error = %e, "Skipping list item without card fields"))
+        .ok()?;
+    let title = card.title.as_str();
+    let slug = card.slug.as_str();
+    let description = card.description.as_deref().unwrap_or("");
+    let date = format_published_date(card.published_at.as_deref());
 
-    let image_html = render_image_html(image, title);
+    let image_html = render_image_html(card.image.as_deref(), title);
 
     Some(format!(
         r#"<a href="{url_prefix}/{slug}" class="content-card-link">
@@ -95,12 +113,11 @@ fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
     ))
 }
 
-fn format_published_date(item: &Value) -> String {
-    item.get("published_at")
-        .and_then(Value::as_str)
+fn format_published_date(published_at: Option<&str>) -> String {
+    published_at
         .and_then(|d| {
             chrono::DateTime::parse_from_rfc3339(d)
-                .map_err(|e| tracing::debug!(date = d, error = %e, "discarding unparseable published_at"))
+                .inspect_err(|e| tracing::debug!(date = d, error = %e, "discarding unparseable published_at"))
                 .ok()
         })
         .map_or_else(String::new, |dt| dt.format("%B %d, %Y").to_string())

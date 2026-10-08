@@ -2,8 +2,8 @@
 //!
 //! The manifest signing key is a 32-byte secret used by the
 //! bridge/manifest pipeline to detach-sign module manifests. This
-//! module owns its base64 encoding and the atomic-write helper that
-//! persists rotated seeds back into the secrets file.
+//! module owns its base64 encoding and persists rotated seeds back into
+//! the secrets file through an owner-only atomic write.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +13,7 @@ use std::path::Path;
 use base64::Engine;
 use rand::Rng;
 
+use super::key_material::KeyMaterialError;
 use super::secrets::SecretsBootstrapError;
 use crate::error::{ConfigError, ConfigResult};
 
@@ -30,16 +31,14 @@ pub fn decode_seed(
 ) -> Result<[u8; MANIFEST_SIGNING_SEED_BYTES], SecretsBootstrapError> {
     let raw = base64::engine::general_purpose::STANDARD
         .decode(encoded.trim())
-        .map_err(|e| SecretsBootstrapError::ManifestSeedInvalid {
-            message: format!("base64 decode failed: {e}"),
-        })?;
+        .map_err(|e| SecretsBootstrapError::ManifestSeedInvalid(e.into()))?;
     if raw.len() != MANIFEST_SIGNING_SEED_BYTES {
-        return Err(SecretsBootstrapError::ManifestSeedInvalid {
-            message: format!(
-                "expected {MANIFEST_SIGNING_SEED_BYTES}-byte seed, got {}",
-                raw.len()
-            ),
-        });
+        return Err(SecretsBootstrapError::ManifestSeedInvalid(
+            KeyMaterialError::Length {
+                expected: MANIFEST_SIGNING_SEED_BYTES,
+                actual: raw.len(),
+            },
+        ));
     }
     let mut out = [0u8; MANIFEST_SIGNING_SEED_BYTES];
     out.copy_from_slice(&raw);
@@ -51,28 +50,16 @@ pub fn persist_seed(path: &Path, seed: &[u8; MANIFEST_SIGNING_SEED_BYTES]) -> Co
     let content = std::fs::read_to_string(path)?;
     // JSON: opaque secrets doc — must preserve unknown keys
     let mut value: serde_json::Value = serde_json::from_str(&content)?;
-    let object = value.as_object_mut().ok_or_else(|| {
-        ConfigError::other(format!(
-            "secrets file root is not a JSON object: {}",
-            path.display()
-        ))
-    })?;
+    let object = value
+        .as_object_mut()
+        .ok_or_else(|| ConfigError::SecretsFileNotObject {
+            path: path.to_path_buf(),
+        })?;
     object.insert(
         "manifest_signing_secret_seed".to_owned(),
         serde_json::Value::String(encoded),
     );
     let serialized = serde_json::to_string_pretty(&value)?;
-    write_atomic(path, serialized.as_bytes())?;
+    crate::private_file::write_private_atomic(path, serialized.as_bytes())?;
     Ok(())
-}
-
-fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let parent = path.parent().unwrap_or_else(|| Path::new("."));
-    let file_name = path.file_name().map_or_else(
-        || "secrets.json".to_owned(),
-        |n| n.to_string_lossy().into_owned(),
-    );
-    let tmp = parent.join(format!(".{file_name}.tmp"));
-    std::fs::write(&tmp, bytes)?;
-    std::fs::rename(&tmp, path)
 }

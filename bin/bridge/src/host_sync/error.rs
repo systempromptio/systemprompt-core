@@ -25,6 +25,12 @@ pub enum ApplyError {
         first: String,
         second: String,
     },
+    #[error("render frontmatter for skill {skill}: {source}")]
+    SkillFrontmatter {
+        skill: SkillId,
+        #[source]
+        source: serde_yaml::Error,
+    },
     #[error("unsafe agent name in manifest: {0}")]
     UnsafeAgentName(String),
     #[error("plugin fetch failed: {0}")]
@@ -40,6 +46,12 @@ pub enum ApplyError {
     Io {
         context: String,
         source: std::io::Error,
+    },
+    #[error("{context}: {source}")]
+    Step {
+        context: &'static str,
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
     #[error("serialize {what}: {source}")]
     Serialize {
@@ -78,10 +90,4 @@ pub struct ForeignShape {
     pub key: String,
     pub found: &'static str,
     pub expected: &'static str,
-}
-
-impl From<ForeignShape> for std::io::Error {
-    fn from(e: ForeignShape) -> Self {
-        Self::new(std::io::ErrorKind::InvalidData, e)
-    }
 }

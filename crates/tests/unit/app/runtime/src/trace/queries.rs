@@ -7,18 +7,13 @@
 //! Seeded-row mapping is covered in `seeded_queries.rs`.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use systemprompt_identifiers::{AiRequestId, TraceId};
+use systemprompt_identifiers::{AiRequestId, LogId, TraceId};
+use systemprompt_logging::LogLevel;
 use systemprompt_runtime::trace::{
     AiRequestFilter, LogSearchFilter, ToolExecutionFilter, TraceListFilter,
 };
-use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn pool_arc_or_skip() -> Option<std::sync::Arc<sqlx::PgPool>> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
-    db.pool_arc().ok()
-}
+use systemprompt_runtime::{AiTraceService, AuditPage, TraceQueryService, TraceRepository};
+use systemprompt_test_fixtures::test_pg_pool;
 
 fn nonexistent_tag() -> String {
     format!("no-such-{}", uuid::Uuid::new_v4().simple())
@@ -26,10 +21,8 @@ fn nonexistent_tag() -> String {
 
 #[tokio::test]
 async fn trace_service_get_methods_on_empty_trace_id() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let trace_id = TraceId::new(nonexistent_tag());
 
     assert!(svc.get_log_events(&trace_id).await.unwrap().is_empty());
@@ -84,10 +77,8 @@ async fn trace_service_get_methods_on_empty_trace_id() {
 
 #[tokio::test]
 async fn trace_service_list_traces_no_match_filters_yield_empty() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
 
     let f = TraceListFilter::new(5)
         .with_agent(nonexistent_tag())
@@ -105,10 +96,8 @@ async fn trace_service_list_traces_no_match_filters_yield_empty() {
 
 #[tokio::test]
 async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let f = ToolExecutionFilter::new(10)
         .with_name(nonexistent_tag())
         .with_server(nonexistent_tag())
@@ -119,10 +108,8 @@ async fn trace_service_list_tool_executions_no_match_filters_yield_empty() {
 
 #[tokio::test]
 async fn trace_service_search_finds_nothing_for_random_pattern() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let pattern = nonexistent_tag();
 
     assert!(
@@ -135,7 +122,7 @@ async fn trace_service_search_finds_nothing_for_random_pattern() {
         svc.search_logs(
             &pattern,
             Some(Utc::now() - ChronoDuration::hours(1)),
-            Some("INFO"),
+            Some(LogLevel::Info),
             10,
         )
         .await
@@ -158,10 +145,8 @@ async fn trace_service_search_finds_nothing_for_random_pattern() {
 
 #[tokio::test]
 async fn trace_service_ai_request_lookups_on_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let missing = nonexistent_tag();
 
     assert!(
@@ -229,13 +214,16 @@ async fn trace_service_ai_request_lookups_on_random_ids() {
 
 #[tokio::test]
 async fn trace_service_log_lookups_on_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let missing = nonexistent_tag();
 
-    assert!(svc.find_log_by_id(&missing).await.unwrap().is_none());
+    assert!(
+        svc.find_log_by_id(&LogId::generate())
+            .await
+            .unwrap()
+            .is_none()
+    );
     assert!(
         svc.find_log_by_partial_id(&missing)
             .await
@@ -243,10 +231,14 @@ async fn trace_service_log_lookups_on_random_ids() {
             .is_none()
     );
     assert!(
-        svc.list_logs_filtered(Some(Utc::now() + ChronoDuration::days(1)), Some("ERROR"), 5)
-            .await
-            .unwrap()
-            .is_empty()
+        svc.list_logs_filtered(
+            Some(Utc::now() + ChronoDuration::days(1)),
+            Some(LogLevel::Error),
+            5
+        )
+        .await
+        .unwrap()
+        .is_empty()
     );
     assert!(
         svc.list_logs_filtered(None, None, 10).await.unwrap().len() <= 10,
@@ -256,10 +248,8 @@ async fn trace_service_log_lookups_on_random_ids() {
 
 #[tokio::test]
 async fn trace_service_log_summaries_respect_future_since_bound() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = TraceQueryService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = TraceQueryService::new(TraceRepository::new(pool));
     let future = Utc::now() + ChronoDuration::days(1);
 
     assert!(
@@ -294,10 +284,8 @@ async fn trace_service_log_summaries_respect_future_since_bound() {
 
 #[tokio::test]
 async fn ai_trace_service_methods_with_random_ids() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
-    let svc = AiTraceService::new(pool);
+    let pool = std::sync::Arc::new(test_pg_pool().await);
+    let svc = AiTraceService::new(TraceRepository::new(pool));
     let task_id =
         systemprompt_identifiers::TaskId::new(format!("task-{}", uuid::Uuid::new_v4().simple()));
     let ctx_id = systemprompt_identifiers::ContextId::generate();
@@ -334,9 +322,9 @@ fn filter_builders_retain_limits() {
     assert_eq!(ai.provider.as_deref(), Some("p"));
     let since = Utc::now() - ChronoDuration::hours(1);
     let log = LogSearchFilter::new("p".to_owned(), 10)
-        .with_level("WARN".to_owned())
+        .with_level(LogLevel::Warn)
         .with_since(since);
-    assert_eq!(log.level.as_deref(), Some("WARN"));
+    assert_eq!(log.level, Some(LogLevel::Warn));
     assert_eq!(log.since, Some(since));
 }
 
@@ -385,9 +373,7 @@ async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
 
 #[tokio::test]
 async fn list_traces_derives_status_for_non_agent_traces() {
-    let Some(pool) = pool_arc_or_skip().await else {
-        return;
-    };
+    let pool = std::sync::Arc::new(test_pg_pool().await);
 
     let suffix = uuid::Uuid::new_v4().simple().to_string();
     let tid = |label: &str| format!("t-{label}-{suffix}");
@@ -408,7 +394,7 @@ async fn list_traces_derives_status_for_non_agent_traces() {
     insert_log(&pool, &log_err, "ERROR").await;
     insert_log(&pool, &log_info, "INFO").await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::clone(&pool));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::clone(&pool)));
     let items = svc.list_traces(&TraceListFilter::new(1000)).await.unwrap();
 
     let by_id: std::collections::HashMap<String, String> = items

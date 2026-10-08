@@ -26,8 +26,8 @@ use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, Session
 use systemprompt_models::auth::UserType;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, fixture_user_id, free_port_in_range,
-    init_services_bootstrap, install_test_signing_key,
+    TestBootstrap, fixture_user_id, free_port_in_range, init_services_bootstrap,
+    install_test_signing_key, seed_fixture_system_admin, test_app_context, test_db_pool,
 };
 
 const ENABLED: &str = "fixture_enabled_server";
@@ -97,7 +97,7 @@ fn seed_cli_session(b: &TestBootstrap) {
     let mut store =
         SessionStore::load_or_create(&sessions_dir).expect("load the CLI session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, profile_name_str.as_str());
+    store.set_active_with_profile(&SessionKey::Local, &pname(profile_name_str.as_str()));
     store
         .save(&sessions_dir)
         .expect("persist the CLI session store");
@@ -117,10 +117,11 @@ fn parse(args: &[&str]) -> McpCommands {
 
 async fn app() -> (DbPool, Arc<AppContext>) {
     let b = boot();
-    let pool = fixture_db_pool(&b.database_url)
+    let pool = test_db_pool().await;
+    seed_fixture_system_admin(&pool)
         .await
-        .expect("the mcp command tests need a reachable test database");
-    let app = fixture_app_context(&pool, &b.database_url).expect("fixture app context");
+        .expect("seed the configured system admin");
+    let app = test_app_context(&pool, &b.database_url);
     (pool, app)
 }
 
@@ -203,9 +204,14 @@ async fn listing_configured_servers_reads_the_same_config() {
 
 #[tokio::test]
 async fn the_service_alias_selects_the_same_server_as_the_positional_name() {
-    run(&["validate", "--service", ENABLED, "--timeout", "1"])
+    let err = run(&["validate", "--service", ENABLED, "--timeout", "1"])
         .await
-        .expect("--service is an alias for the positional server name");
+        .expect_err("the stopped server resolves but does not validate");
+    assert!(
+        message(&err).contains("MCP server validation failed"),
+        "--service must resolve the configured server, got: {}",
+        message(&err)
+    );
 }
 
 #[tokio::test]
@@ -257,21 +263,20 @@ const VALIDATE_EXTERNAL_HELPER: &str =
 #[tokio::test]
 #[ignore = "re-executed by running_external_validation_reports_its_configuration_error"]
 async fn validate_running_external_helper() {
-    use systemprompt_database::CreateServiceInput;
+    use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+    use systemprompt_identifiers::ServiceName;
     use systemprompt_test_fixtures::DisposableDb;
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_external")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let database = DisposableDb::with_schema("cli_mcp_validate_external").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     app.service_repository()
         .create_service(CreateServiceInput {
-            name: ENABLED,
-            module_name: "mcp",
-            status: "running",
+            name: &ServiceName::new(ENABLED),
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
             port: 1,
             binary_mtime: None,
         })
@@ -282,7 +287,7 @@ async fn validate_running_external_helper() {
     println!("BEGIN_VALIDATE_EXTERNAL");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
         .await
-        .expect("validation reports a structured configuration failure");
+        .expect_err("an invalid server renders its report and exits non-zero");
     println!("END_VALIDATE_EXTERNAL");
 
     drop(context);
@@ -420,19 +425,14 @@ async fn validate_closed_database_helper() {
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_closed_database")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
-    pool.pool_arc()
-        .expect("initialized SQLx pool")
-        .close()
-        .await;
+    let database = DisposableDb::with_schema("cli_mcp_validate_closed_database").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
+    pool.pool().close().await;
     println!("BEGIN_VALIDATE_CLOSED_DATABASE");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &ctx(&app))
         .await
-        .expect("database lookup failure renders structured validation output");
+        .expect_err("database lookup failure renders its report and exits non-zero");
     println!("END_VALIDATE_CLOSED_DATABASE");
     drop(app);
     database.drop_now().await;
@@ -477,21 +477,19 @@ async fn validate_stopped_outputs_helper() {
 
     boot();
     assert_configured();
-    let database = DisposableDb::installed("cli_mcp_validate_stopped_outputs")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let app = fixture_app_context(&pool, database.url()).expect("fixture app context");
+    let database = DisposableDb::with_schema("cli_mcp_validate_stopped_outputs").await;
+    let pool = database.test_pool().await;
+    let app = test_app_context(&pool, database.url());
     let context = ctx(&app);
     println!("BEGIN_VALIDATE_NAMED_STOPPED");
     mcp::execute(parse(&["validate", ENABLED, "--timeout", "1"]), &context)
         .await
-        .expect("named stopped validation renders structured output");
+        .expect_err("a stopped server renders its report and exits non-zero");
     println!("END_VALIDATE_NAMED_STOPPED");
     println!("BEGIN_VALIDATE_BATCH_STOPPED");
     mcp::execute(parse(&["validate", "--all", "--timeout", "1"]), &context)
         .await
-        .expect("batch stopped validation renders structured output");
+        .expect_err("a stopped batch renders its report and exits non-zero");
     println!("END_VALIDATE_BATCH_STOPPED");
     drop(context);
     drop(app);
@@ -546,4 +544,8 @@ fn validation_reports_exact_named_and_batch_stopped_results() {
             serde_json::json!(["Service is not currently running"])
         );
     }
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

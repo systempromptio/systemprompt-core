@@ -12,40 +12,21 @@ domain_error! {
         #[error("session owner: {0}")]
         SessionOwner(#[from] systemprompt_traits::AnalyticsProviderError),
 
-        #[error("Analytics event store failed: {0}")]
-        EventStore(#[from] systemprompt_traits::RepositoryError),
-
-        #[error("Session not found: {0}")]
-        SessionNotFound(String),
-
-        #[error("Invalid fingerprint hash: {0}")]
-        InvalidFingerprint(String),
-
-        #[error("Missing field: {0}")]
-        MissingField(String),
-
         #[error("Invalid argument: {0}")]
         InvalidArgument(String),
 
         #[error("Session expired")]
         SessionExpired,
-
-        #[error("Behavioral bot detected: {0}")]
-        BehavioralBotDetected(String),
     }
 }
 
 impl From<sqlx::Error> for AnalyticsError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }
 
 impl AnalyticsError {
-    pub fn missing_field<T: std::fmt::Display>(field: T) -> Self {
-        Self::MissingField(field.to_string())
-    }
-
     pub fn invalid_argument<T: Into<String>>(message: T) -> Self {
         Self::InvalidArgument(message.into())
     }

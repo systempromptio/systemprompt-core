@@ -1,9 +1,5 @@
 use super::*;
-use systemprompt_bridge::ids::HostId;
-
-fn host(id: &str) -> HostId {
-    HostId::new(id)
-}
+use systemprompt_models::bridge::host::HostKind;
 
 #[test]
 fn native_session_binding_does_not_invent_proxy_sessions_and_detects_conflicting_aliases() {
@@ -37,7 +33,7 @@ fn native_session_binding_does_not_invent_proxy_sessions_and_detects_conflicting
     let hermes = http::HeaderMap::new();
     assert_eq!(
         native_session(
-            Some(&host("hermes")),
+            Some(HostKind::Hermes),
             &hermes,
             br#"{"session_id":"hermes-session"}"#
         )
@@ -60,7 +56,7 @@ fn a_verified_host_token_names_the_host_over_body_and_user_agent() {
         EvaluatorClient::ClaudeCode,
         "on the secret path the body marker decides"
     );
-    let bound = native_session(Some(&host("opencode")), &headers, &claude).unwrap();
+    let bound = native_session(Some(HostKind::OpenCode), &headers, &claude).unwrap();
     assert_eq!(bound.host, EvaluatorClient::OpenCode);
     assert_eq!(
         bound.id.as_str(),
@@ -70,7 +66,7 @@ fn a_verified_host_token_names_the_host_over_body_and_user_agent() {
         "the session is read in the attested host's own shape"
     );
     assert_eq!(
-        native_session(Some(&host("codex-cli")), &headers, &claude).map(|s| s.host),
+        native_session(Some(HostKind::CodexCli), &headers, &claude).map(|s| s.host),
         None,
         "an attested host whose session shape is absent binds nothing rather than guessing"
     );
@@ -197,7 +193,7 @@ fn forwarded_hook_uses_protected_device_credential_and_strips_caller_credential(
         let enrollment = Enrollment::new(
             "https://example.invalid",
             DeviceId::try_new("device").expect("nonempty fixture device"),
-            UserId::new("consumer"),
+            UserId::new("00000000-0000-4000-8000-00000000c0c0"),
             systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
         )
         .unwrap();
@@ -270,7 +266,7 @@ fn observed_sessions_are_deduplicated_in_memory_and_written_only_by_flush() {
         let enrollment = Enrollment::new(
             "https://example.invalid",
             DeviceId::try_new("device").expect("nonempty fixture device"),
-            UserId::new("consumer"),
+            UserId::new("00000000-0000-4000-8000-00000000c0c0"),
             systemprompt_bridge::ids::BearerToken::new("sp_device_private"),
         )
         .unwrap();

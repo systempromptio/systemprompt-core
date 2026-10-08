@@ -2,6 +2,7 @@ use systemprompt_cli::admin::config::catalog::{
     self, CatalogCommands, ModelAddArgs, ModelCommands, ProviderAddArgs, ProviderCommands,
 };
 use systemprompt_cli::{CliConfig, OutputFormat};
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 
 const HELPER: &str = "commands::admin_config_catalog_lifecycle::catalog_file_lifecycle_helper";
 
@@ -54,11 +55,11 @@ providers:
     std::fs::write(&catalog_path, "providers: [\n").expect("write broken provider catalog");
     let malformed = catalog::execute(
         &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: "fixture-openai".to_owned(),
+            name: ProviderId::new("fixture-openai"),
             wire: "openai-chat".to_owned(),
             surface: "openai".to_owned(),
             endpoint: "https://models.example.invalid/v1/chat/completions".to_owned(),
-            api_key_secret: "fixture_openai_key".to_owned(),
+            api_key_secret: SecretName::new("fixture_openai_key"),
             headers: vec![],
         })),
         &json_config(),
@@ -75,11 +76,11 @@ providers:
     println!("BEGIN_PROVIDER_ADD");
     catalog::execute(
         &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: "fixture-openai".to_owned(),
+            name: ProviderId::new("fixture-openai"),
             wire: "openai-chat".to_owned(),
             surface: "openai".to_owned(),
             endpoint: "https://models.example.invalid/v1/chat/completions".to_owned(),
-            api_key_secret: "fixture_openai_key".to_owned(),
+            api_key_secret: SecretName::new("fixture_openai_key"),
             headers: vec!["X-Fixture=enabled".to_owned()],
         })),
         &json_config(),
@@ -100,27 +101,27 @@ providers:
     let before_invalid = std::fs::read_to_string(&catalog_path).unwrap();
     for args in [
         ProviderAddArgs {
-            name: "bad-wire".to_owned(),
+            name: ProviderId::new("bad-wire"),
             wire: "unknown-wire".to_owned(),
             surface: "openai".to_owned(),
             endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: "bad".to_owned(),
+            api_key_secret: SecretName::new("bad"),
             headers: vec![],
         },
         ProviderAddArgs {
-            name: "bad-surface".to_owned(),
+            name: ProviderId::new("bad-surface"),
             wire: "openai-chat".to_owned(),
             surface: "unknown-surface".to_owned(),
             endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: "bad".to_owned(),
+            api_key_secret: SecretName::new("bad"),
             headers: vec![],
         },
         ProviderAddArgs {
-            name: "bad-header".to_owned(),
+            name: ProviderId::new("bad-header"),
             wire: "openai-chat".to_owned(),
             surface: "openai".to_owned(),
             endpoint: "https://invalid.example".to_owned(),
-            api_key_secret: "bad".to_owned(),
+            api_key_secret: SecretName::new("bad"),
             headers: vec!["missing-separator".to_owned()],
         },
     ] {
@@ -141,9 +142,9 @@ providers:
     println!("BEGIN_MODEL_ADD");
     catalog::execute(
         &CatalogCommands::Model(ModelCommands::Add(ModelAddArgs {
-            provider: "fixture-openai".to_owned(),
-            id: "fixture-model".to_owned(),
-            aliases: vec!["fixture-latest".to_owned()],
+            provider: ProviderId::new("fixture-openai"),
+            id: ModelId::new("fixture-model"),
+            aliases: vec![ModelId::new("fixture-latest")],
             upstream_model: Some("vendor-model-2026".to_owned()),
         })),
         &json_config(),
@@ -159,11 +160,11 @@ providers:
 
     catalog::execute(
         &CatalogCommands::Provider(ProviderCommands::Add(ProviderAddArgs {
-            name: "fixture-openai".to_owned(),
+            name: ProviderId::new("fixture-openai"),
             wire: "openai-responses".to_owned(),
             surface: "openai".to_owned(),
             endpoint: "https://responses.example.invalid/v1/responses".to_owned(),
-            api_key_secret: "fixture_responses_key".to_owned(),
+            api_key_secret: SecretName::new("fixture_responses_key"),
             headers: vec![],
         })),
         &json_config(),
@@ -181,8 +182,8 @@ providers:
     let before_unknown = std::fs::read_to_string(&catalog_path).unwrap();
     let unknown = catalog::execute(
         &CatalogCommands::Model(ModelCommands::Add(ModelAddArgs {
-            provider: "absent-provider".to_owned(),
-            id: "orphan-model".to_owned(),
+            provider: ProviderId::new("absent-provider"),
+            id: ModelId::new("orphan-model"),
             aliases: vec![],
             upstream_model: None,
         })),
@@ -198,8 +199,8 @@ providers:
 
     let missing_model = catalog::execute(
         &CatalogCommands::Model(ModelCommands::Remove {
-            provider: "fixture-openai".to_owned(),
-            id: "absent-model".to_owned(),
+            provider: ProviderId::new("fixture-openai"),
+            id: ModelId::new("absent-model"),
         }),
         &json_config(),
     )
@@ -214,8 +215,8 @@ providers:
     println!("BEGIN_MODEL_REMOVE");
     catalog::execute(
         &CatalogCommands::Model(ModelCommands::Remove {
-            provider: "fixture-openai".to_owned(),
-            id: "fixture-model".to_owned(),
+            provider: ProviderId::new("fixture-openai"),
+            id: ModelId::new("fixture-model"),
         }),
         &json_config(),
     )
@@ -232,7 +233,7 @@ providers:
     println!("BEGIN_PROVIDER_REMOVE");
     catalog::execute(
         &CatalogCommands::Provider(ProviderCommands::Remove {
-            name: "fixture-openai".to_owned(),
+            name: ProviderId::new("fixture-openai"),
         }),
         &json_config(),
     )
@@ -249,7 +250,7 @@ providers:
     let empty_catalog = std::fs::read_to_string(&catalog_path).unwrap();
     let missing_provider = catalog::execute(
         &CatalogCommands::Provider(ProviderCommands::Remove {
-            name: "fixture-openai".to_owned(),
+            name: ProviderId::new("fixture-openai"),
         }),
         &json_config(),
     )
@@ -271,9 +272,7 @@ providers:
     use systemprompt_traits::{Job, JobContext};
     let context = JobContext::new(
         systemprompt_test_fixtures::fixture_actor(),
-        std::sync::Arc::new(()),
-        std::sync::Arc::new(()),
-        std::sync::Arc::new(()),
+        systemprompt_traits::Dependencies::new(),
     );
     let result = VertexDiscoveryJob
         .execute(&context)

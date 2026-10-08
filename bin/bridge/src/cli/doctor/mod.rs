@@ -13,6 +13,7 @@ use crate::{config, stdio};
 pub mod auth;
 pub mod claude_code;
 pub mod cowork;
+mod desktop_policy;
 pub mod filesystem;
 pub mod hooks;
 pub mod marketplace;
@@ -95,6 +96,7 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.push(auth::check_loopback_secret());
     checks.push(proxy::check_proxy_listening(proxy));
     checks.extend(proxy::check_proxy_client_config(&env));
+    checks.extend(desktop_policy::check_settings(&env));
     checks.extend(claude_code::check_settings(&proxy.loopback().origin()));
     if let Some(check) = opencode::check_admin_tier_models(bridge).await {
         checks.push(check);

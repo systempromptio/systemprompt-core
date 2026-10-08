@@ -14,7 +14,7 @@ fn test_mcp_error_server_not_found_display() {
 fn test_mcp_error_connection_failed_display() {
     let error = McpError::ConnectionFailed {
         server: "my-server".to_string(),
-        message: "connection refused".to_string(),
+        source: Box::new(std::io::Error::other("connection refused")),
     };
     let display = error.to_string();
     assert!(display.contains("my-server"));
@@ -40,17 +40,6 @@ fn test_mcp_error_registry_validation_display() {
     let error = McpError::RegistryValidation("missing required field".to_string());
     let display = error.to_string();
     assert!(display.contains("missing required field"));
-}
-
-#[test]
-fn test_mcp_error_process_spawn_display() {
-    let error = McpError::ProcessSpawn {
-        server: "worker-server".to_string(),
-        message: "binary not found".to_string(),
-    };
-    let display = error.to_string();
-    assert!(display.contains("worker-server"));
-    assert!(display.contains("binary not found"));
 }
 
 #[test]
@@ -80,10 +69,14 @@ fn test_mcp_error_auth_required_display() {
 }
 
 #[test]
-fn test_mcp_error_internal_display() {
-    let error = McpError::Internal("unexpected internal error".to_string());
-    let display = error.to_string();
-    assert!(display.contains("unexpected internal error"));
+fn test_mcp_error_service_row_missing_display() {
+    let error = McpError::ServiceRowMissing {
+        service: "github".to_string(),
+    };
+    assert_eq!(
+        error.to_string(),
+        "MCP server github started but has no registry row"
+    );
 }
 
 #[test]
@@ -141,7 +134,7 @@ fn test_mcp_error_empty_server_name() {
 fn test_mcp_error_empty_message() {
     let error = McpError::ConnectionFailed {
         server: "server".to_string(),
-        message: String::new(),
+        source: Box::new(std::io::Error::other(String::new())),
     };
     let display = error.to_string();
     assert!(display.contains("server"));
@@ -178,7 +171,7 @@ fn test_mcp_error_unicode_message() {
 #[test]
 fn test_mcp_error_long_message() {
     let long_message = "x".repeat(10000);
-    let error = McpError::Internal(long_message.clone());
+    let error = McpError::Configuration(long_message.clone());
     let display = error.to_string();
     assert!(display.contains(&long_message));
 }

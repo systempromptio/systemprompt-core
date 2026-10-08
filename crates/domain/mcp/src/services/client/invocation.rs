@@ -14,6 +14,8 @@ use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_T
 use tokio::time::timeout;
 
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 pub async fn execute_tool_call(
     transport: StreamableHttpClientTransport<HttpClientWithContext>,
     server: &str,
@@ -77,18 +79,21 @@ where
 {
     use rmcp::model::CallToolResponse;
 
-    match client.call_tool_once(params.clone()).await.map_err(|e| {
-        crate::error::McpDomainError::ToolExecutionFailed(format!("MCP tool call failed: {e}"))
-    })? {
+    match client
+        .call_tool_once(params.clone())
+        .await
+        .map_err(|e| crate::error::McpDomainError::tool_call("MCP tool call failed", e))?
+    {
         CallToolResponse::Complete(result) => Ok(result),
         CallToolResponse::Task(created) => {
             tasks::poll_task_to_completion(client, server, created).await
         },
         // Why: rmcp's MRTR retry assembly is private; SEP-2322 rounds are stateless,
         // so re-entering `call_tool` can repeat the initial round-trip.
-        CallToolResponse::InputRequired(_) => client.call_tool(params).await.map_err(|e| {
-            crate::error::McpDomainError::ToolExecutionFailed(format!("MCP tool call failed: {e}"))
-        }),
+        CallToolResponse::InputRequired(_) => client
+            .call_tool(params)
+            .await
+            .map_err(|e| crate::error::McpDomainError::tool_call("MCP tool call failed", e)),
         other => Err(crate::error::McpDomainError::ToolExecutionFailed(format!(
             "unexpected tools/call response variant: {other:?}"
         ))),

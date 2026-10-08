@@ -11,12 +11,12 @@ use systemprompt_ai::repository::{
     UpsertPayloadParams,
 };
 use systemprompt_identifiers::AiRequestId;
-use systemprompt_models::wire::origin::ClientEvidence;
+use systemprompt_models::origin::ClientEvidence;
 
 use super::extract::RejectionPartial;
 
 pub async fn persist_rejection(
-    repos: &crate::services::gateway::GatewayRepositories,
+    repos: &systemprompt_gateway::GatewayRepositories,
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
     status: StatusCode,
@@ -49,7 +49,7 @@ pub fn build_rejection_record(
 
     let context_id = partial.context_id.clone().unwrap_or_else(|| {
         partial.session_id.as_ref().map_or_else(
-            systemprompt_identifiers::ContextId::legacy,
+            systemprompt_identifiers::ContextId::generate,
             systemprompt_identifiers::ContextId::derived_from_session,
         )
     });
@@ -57,6 +57,7 @@ pub fn build_rejection_record(
         AiRequestRecord::builder(ai_request_id.clone(), user_id, context_id, partial.origin)
             .streaming(partial.is_streaming)
             .request_kind(RequestKind::classify(partial.max_tokens))
+            .attribution(partial.attribution.clone())
             .rejected();
     if let Some(cs) = &partial.client_session_id {
         builder = builder.client_session_id(cs.clone());
@@ -118,7 +119,7 @@ async fn write_rejection_payload(
     body: &Bytes,
 ) {
     let bytes_len = body.len().min(i32::MAX as usize) as i32;
-    let sha256 = crate::services::gateway::audit::payload::digest_hex(body);
+    let sha256 = systemprompt_gateway::audit::payload::digest_hex(body);
     let (body_json, excerpt) = match serde_json::from_slice::<serde_json::Value>(body) {
         Ok(json) => (Some(json), None),
         Err(_not_json) => (None, Some(String::from_utf8_lossy(body).to_string())),

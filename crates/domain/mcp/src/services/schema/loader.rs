@@ -23,10 +23,10 @@ impl SchemaLoader {
         }
 
         let content = fs::read_to_string(&schema_path).map_err(|e| {
-            McpDomainError::SchemaValidation(format!(
-                "Failed to read schema file {}: {e}",
-                schema_path.display()
-            ))
+            McpDomainError::operation(
+                format!("Failed to read schema file {}", schema_path.display()),
+                e,
+            )
         })?;
 
         if content.trim().is_empty() {
@@ -46,10 +46,10 @@ impl SchemaLoader {
         }
 
         let entries = fs::read_dir(&schema_dir).map_err(|e| {
-            McpDomainError::SchemaValidation(format!(
-                "Failed to read schema directory {}: {e}",
-                schema_dir.display()
-            ))
+            McpDomainError::operation(
+                format!("Failed to read schema directory {}", schema_dir.display()),
+                e,
+            )
         })?;
 
         Ok(entries

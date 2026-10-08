@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `ContentRepository::get_popular_content_ids` is removed; the ranking is `ContentAnalyticsRepository::popular_content_ids` over the analytics report views.
+- Lookups are renamed by return type: `ContentRepository::{get_by_id, get_by_slug, get_by_source_and_slug, find_sources_by_slug}` become `find_by_id`, `find_by_slug`, `find_by_source_and_slug` and `list_sources_by_slug`, and `get_link_by_short_code`, `get_link_by_id`, `get_link_performance` and `get_campaign_performance` on `LinkRepository`, `LinkGenerationService`, `LinkAnalyticsRepository` and `LinkAnalyticsService` take the `find_` prefix.
+- Providers read host handles through the typed `Dependencies` map (`ctx.get::<T>()?`) instead of the removed `db_pool::<T>()`/`app_context::<T>()` accessors.
+- `ContentError::Service` is removed (never produced). Content links and lane identifiers are typed; manifest types are imported from `systemprompt-manifest`.
+
+### Added
+
+- `OwnerReassignment` over `link_clicks`, so an account merge moves the content rows in this crate's own transaction.
+
+### Changed
+
+- Per-file ingestion inputs are bundled into one struct, list-card fields are deserialised into typed structs instead of walking `serde_json::Value`, and domain errors carry their sources.
+
+### Fixed
+
+- Ingestion reads markdown and file metadata through `tokio::fs` instead of blocking the async runtime.
+
 ## [0.60.0] - 2026-09-23
 
 ### Removed

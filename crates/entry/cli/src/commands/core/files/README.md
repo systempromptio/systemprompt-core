@@ -613,21 +613,3 @@ sp --json core files list | jq '.data.files[] | select(.ai_content == true)'
 sp --json core files list | jq '.data.files[] | select(.size_bytes > 100000)'
 sp --json core files search uploads | jq '.data.files[] | select(.mime_type | startswith("image/"))'
 ```
-
----
-
-## Compliance Checklist
-
-- [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandOutput` with proper artifact type
-- [x] `delete` commands require `--yes` / `-y` flag in non-interactive mode
-- [x] `--dry-run` support for destructive operations
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
-- [x] JSON output supported via `--json` flag
-- [x] Proper error messages for missing required flags
-- [x] Proper error messages for invalid UUID format
-
-
----

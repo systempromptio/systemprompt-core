@@ -7,11 +7,11 @@ use systemprompt_ai::services::providers::anthropic::{
     AnthropicProvider, search as anthropic_search,
 };
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     ToolGenerationParams,
 };
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 fn provider(endpoint: String) -> AnthropicProvider {
     AnthropicProvider::with_target(mock_http::api_key_target(

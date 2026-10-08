@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 use systemprompt_identifiers::LocaleCode;
 
+use crate::dependencies::{Dependencies, MissingDependency};
 use crate::error::ProviderResult;
 use crate::web_config::WebConfig;
 
@@ -21,24 +22,21 @@ use crate::web_config::WebConfig;
 pub struct PagePrepareContext<'a> {
     pub web_config: &'a WebConfig,
     pub locale: &'a LocaleCode,
-    content_config: &'a (dyn Any + Send + Sync),
-    db_pool: &'a (dyn Any + Send + Sync),
+    dependencies: &'a Dependencies,
     dist_dir: &'a std::path::Path,
 }
 
 impl<'a> PagePrepareContext<'a> {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         web_config: &'a WebConfig,
-        content_config: &'a (dyn Any + Send + Sync),
-        db_pool: &'a (dyn Any + Send + Sync),
+        dependencies: &'a Dependencies,
         dist_dir: &'a std::path::Path,
     ) -> Self {
         Self {
             web_config,
             locale: &web_config.i18n.default_locale,
-            content_config,
-            db_pool,
+            dependencies,
             dist_dir,
         }
     }
@@ -49,14 +47,8 @@ impl<'a> PagePrepareContext<'a> {
         self
     }
 
-    #[must_use]
-    pub fn content_config<T: 'static>(&self) -> Option<&T> {
-        self.content_config.downcast_ref::<T>()
-    }
-
-    #[must_use]
-    pub fn db_pool<T: 'static>(&self) -> Option<&T> {
-        self.db_pool.downcast_ref::<T>()
+    pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
+        self.dependencies.get::<T>()
     }
 
     #[must_use]
@@ -68,7 +60,7 @@ impl<'a> PagePrepareContext<'a> {
 #[derive(Debug, Clone)]
 pub struct PageRenderSpec {
     pub template_name: String,
-    // JSON: Tera template base context; the page data model is dynamic.
+    // JSON: Handlebars template base context; the page data model is dynamic.
     pub base_data: Value,
     pub output_path: PathBuf,
 }
@@ -77,7 +69,7 @@ impl PageRenderSpec {
     #[must_use]
     pub fn new(
         template_name: impl Into<String>,
-        // JSON: Tera template base context; the page data model is dynamic.
+        // JSON: Handlebars template base context; the page data model is dynamic.
         base_data: Value,
         output_path: impl Into<PathBuf>,
     ) -> Self {

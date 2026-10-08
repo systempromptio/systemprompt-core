@@ -1,5 +1,5 @@
 use systemprompt_config::SkillConfigValidator;
-use systemprompt_models::validators::{
+use systemprompt_manifest::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, WebConfigValidator,
 };
@@ -269,7 +269,7 @@ fn ai_has_highest_priority() {
 
 #[test]
 fn validation_config_provider_web_config_raw_deserializes_empty() {
-    use systemprompt_models::validators::WebConfigRaw;
+    use systemprompt_manifest::validators::WebConfigRaw;
     let raw: WebConfigRaw = serde_json::from_str("{}").unwrap();
     assert!(raw.site_name.is_none());
     assert!(raw.base_url.is_none());
@@ -280,7 +280,7 @@ fn validation_config_provider_web_config_raw_deserializes_empty() {
 
 #[test]
 fn validation_config_provider_web_config_raw_with_fields() {
-    use systemprompt_models::validators::WebConfigRaw;
+    use systemprompt_manifest::validators::WebConfigRaw;
     let json = r#"{"site_name": "MySite", "base_url": "https://example.com"}"#;
     let raw: WebConfigRaw = serde_json::from_str(json).unwrap();
     assert_eq!(raw.site_name, Some("MySite".to_string()));
@@ -289,7 +289,7 @@ fn validation_config_provider_web_config_raw_with_fields() {
 
 #[test]
 fn validation_config_provider_web_metadata_raw_deserializes_empty() {
-    use systemprompt_models::validators::WebMetadataRaw;
+    use systemprompt_manifest::validators::WebMetadataRaw;
     let raw: WebMetadataRaw = serde_json::from_str("{}").unwrap();
     assert!(raw.title.is_none());
     assert!(raw.description.is_none());
@@ -297,7 +297,7 @@ fn validation_config_provider_web_metadata_raw_deserializes_empty() {
 
 #[test]
 fn validation_config_provider_web_metadata_raw_with_fields() {
-    use systemprompt_models::validators::WebMetadataRaw;
+    use systemprompt_manifest::validators::WebMetadataRaw;
     let json = r#"{"title": "My Site", "description": "A description"}"#;
     let raw: WebMetadataRaw = serde_json::from_str(json).unwrap();
     assert_eq!(raw.title, Some("My Site".to_string()));

@@ -12,7 +12,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::services::AgentConfig;
+use systemprompt_identifiers::AgentName;
+use systemprompt_manifest::services::AgentConfig;
 
 use crate::error::{ConfigWriteError, ConfigWriteResult};
 
@@ -44,19 +45,19 @@ impl ConfigWriter {
     }
 
     pub fn update_agent(
-        name: &str,
+        name: &AgentName,
         agent: &AgentConfig,
         services_dir: &Path,
     ) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_owned()))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.clone()))?;
 
         Self::write_agent_file(&agent_file, agent)
     }
 
-    pub fn delete_agent(name: &str, services_dir: &Path) -> ConfigWriteResult<()> {
+    pub fn delete_agent(name: &AgentName, services_dir: &Path) -> ConfigWriteResult<()> {
         let agent_file = Self::find_agent_file(name, services_dir)?
-            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.to_owned()))?;
+            .ok_or_else(|| ConfigWriteError::AgentNotFound(name.clone()))?;
 
         fs::remove_file(&agent_file).map_err(|e| ConfigWriteError::Io {
             path: agent_file.clone(),
@@ -68,7 +69,10 @@ impl ConfigWriter {
         Self::remove_include(&include_path, &config_path)
     }
 
-    pub fn find_agent_file(name: &str, services_dir: &Path) -> ConfigWriteResult<Option<PathBuf>> {
+    pub fn find_agent_file(
+        name: &AgentName,
+        services_dir: &Path,
+    ) -> ConfigWriteResult<Option<PathBuf>> {
         let agents_dir = services_dir.join("agents");
 
         if !agents_dir.exists() {
@@ -103,7 +107,7 @@ impl ConfigWriter {
         Ok(None)
     }
 
-    fn file_contains_agent(path: &Path, agent_name: &str) -> ConfigWriteResult<bool> {
+    fn file_contains_agent(path: &Path, agent_name: &AgentName) -> ConfigWriteResult<bool> {
         let content = fs::read_to_string(path).map_err(|e| ConfigWriteError::Io {
             path: path.to_path_buf(),
             source: e,
@@ -111,7 +115,7 @@ impl ConfigWriter {
 
         let parsed: AgentFileContent = serde_yaml::from_str(&content)?;
 
-        Ok(parsed.agents.contains_key(agent_name))
+        Ok(parsed.agents.contains_key(agent_name.as_str()))
     }
 
     fn write_agent_file(path: &Path, agent: &AgentConfig) -> ConfigWriteResult<()> {

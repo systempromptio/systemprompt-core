@@ -13,7 +13,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::services::bundle::{
     BUNDLE_MANIFEST_FILE, ServicesBundleState, SignedBundleManifest,
 };
 
@@ -96,14 +96,14 @@ impl BundleCache {
             .join(BUNDLE_MANIFEST_FILE);
         let raw = fs::read_to_string(&path)?;
         serde_json::from_str(&raw).map_err(|e| {
-            BundleError::policy(format!("cached bundle.json for {name} does not parse: {e}"))
+            BundleError::policy_context(format!("cached bundle.json for {name} does not parse"), e)
         })
     }
 
     pub fn write_state(&self, state: &ServicesBundleState) -> BundleResult<()> {
         self.prepare()?;
         let body = serde_json::to_vec_pretty(state)
-            .map_err(|e| BundleError::policy(format!("state is not serialisable: {e}")))?;
+            .map_err(|e| BundleError::policy_context("state is not serialisable", e))?;
         let tmp = self
             .root
             .join(format!("{STATE_FILE}.tmp-{}", std::process::id()));

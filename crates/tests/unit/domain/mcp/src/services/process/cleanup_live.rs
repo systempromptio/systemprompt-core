@@ -1,72 +1,56 @@
-use std::net::TcpListener;
-use std::process::{Child, Command};
+//! `ProcessService::stop` against real children: a child carrying this
+//! service's marker is stopped and reaped, while a child marked for another
+//! service, or carrying no marker, is never signalled.
+
+use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
-use systemprompt_mcp::services::process::cleanup::{
-    cleanup_port_processes, force_kill, terminate_gracefully, terminate_gracefully_verified,
-};
-
-fn spawn_sleeper() -> Child {
-    let mut cmd = Command::new("sleep");
-    cmd.arg("30");
-    cmd.spawn().expect("spawn sleep")
-}
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{self, StopOutcome};
+use systemprompt_mcp::services::process::ProcessService;
 
 const MARKER_HELPER: &str = "services::process::cleanup_live::marker_helper";
 
 #[test]
-#[ignore = "re-executed as a child process by the verified-termination tests"]
+#[ignore = "re-executed as a child process by the verified-stop tests"]
 fn marker_helper() {
     systemprompt_test_fixtures::announce_helper_ready();
     std::thread::sleep(Duration::from_secs(30));
 }
 
-#[test]
-fn terminate_gracefully_sigterms_live_child() {
-    let mut child = spawn_sleeper();
-    let pid = child.id();
-
-    terminate_gracefully(pid).expect("signal ok");
-
-    let status = child.wait().expect("child reaped");
-    assert!(!status.success());
-}
-
-#[test]
-fn force_kill_sigkills_live_child() {
-    let mut child = spawn_sleeper();
-    let pid = child.id();
-
-    force_kill(pid).expect("kill ok");
-
-    let status = child.wait().expect("child reaped");
-    assert!(!status.success());
+fn spawn_sleeper() -> Child {
+    Command::new("sleep")
+        .arg("30")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn sleep")
 }
 
 #[tokio::test]
-async fn verified_termination_kills_marked_subprocess() {
-    let mut marked =
-        systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "cleanup-live-test");
+async fn stop_terminates_and_reaps_a_child_marked_for_the_service() {
+    let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "cleanup-live-test");
     let pid = marked.pid();
 
-    terminate_gracefully_verified(pid, "cleanup-live-test")
+    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
         .await
-        .expect("verified termination ok");
+        .expect("verified stop");
 
-    let status = marked.child.wait().expect("child reaped");
-    assert!(!status.success());
+    assert!(matches!(outcome, StopOutcome::Stopped(_)), "{outcome:?}");
+    assert!(!subprocess::is_running(pid).await);
 }
 
 #[tokio::test]
-async fn verified_termination_skips_child_with_wrong_service_marker() {
+async fn stop_leaves_a_child_marked_for_another_service_running() {
     let mut marked =
         systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, "some-other-service");
     let pid = marked.pid();
 
-    terminate_gracefully_verified(pid, "cleanup-live-test")
+    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
         .await
-        .expect("skip is ok");
+        .expect("an unowned pid is not a failure");
 
+    assert_eq!(outcome, StopOutcome::NotOurs);
     assert!(
         marked.child.try_wait().expect("try_wait").is_none(),
         "a child whose marker names another service is left running"
@@ -74,23 +58,16 @@ async fn verified_termination_skips_child_with_wrong_service_marker() {
 }
 
 #[tokio::test]
-async fn cleanup_port_processes_never_signals_the_caller() {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-    let port = listener.local_addr().expect("addr").port();
+async fn stop_leaves_an_unmarked_child_running() {
+    let mut child = spawn_sleeper();
+    let pid = child.id();
 
-    let killed = cleanup_port_processes(port).await.expect("cleanup ok");
+    let outcome = ProcessService::stop(pid, &ServiceName::new("cleanup-live-test"))
+        .await
+        .expect("an unowned pid is not a failure");
 
-    assert!(killed.contains(&std::process::id()));
-    assert!(listener.local_addr().is_ok());
-}
-
-#[tokio::test]
-async fn cleanup_port_processes_unused_port_returns_empty() {
-    let port = {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
-        listener.local_addr().expect("addr").port()
-    };
-
-    let killed = cleanup_port_processes(port).await.expect("cleanup ok");
-    assert!(killed.is_empty());
+    assert_eq!(outcome, StopOutcome::NotOurs);
+    assert!(child.try_wait().expect("try_wait").is_none());
+    child.kill().expect("kill sleeper");
+    child.wait().expect("reap sleeper");
 }

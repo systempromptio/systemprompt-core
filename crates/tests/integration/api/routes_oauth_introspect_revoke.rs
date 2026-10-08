@@ -7,8 +7,9 @@
 //! `client_id` matches the introspecting client returns the full claim set, and
 //! a valid token bound to a different client returns the minimal
 //! `active: true` disclosure. Revocation exercises the `token_type_hint`
-//! dispatch (refresh-token, access-token, and the unspecified fall-through)
-//! plus the access-token `jti` recording path.
+//! dispatch (refresh-token, access-token, and the unspecified fall-through),
+//! the access-token `jti` recording path, and the refusals: an unsigned token
+//! or another user's token is answered with 200 but never recorded.
 
 use std::sync::Once;
 
@@ -18,12 +19,12 @@ use axum::http::{Request, Response, StatusCode, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::authenticated_router;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, mint_admin_jwt, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    mint_admin_jwt, seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -47,8 +48,8 @@ fn ctx_for(user: &UserId) -> RequestContext {
         TraceId::new("introspect-revoke"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
@@ -74,10 +75,10 @@ async fn oauth_app(user: UserId) -> anyhow::Result<Router> {
 }
 
 async fn seeded_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@introspect.invalid", user.as_str()))
@@ -190,6 +191,26 @@ async fn introspect_valid_self_signed_token_reports_active() -> anyhow::Result<(
     Ok(())
 }
 
+fn token_jti(token: &str) -> anyhow::Result<String> {
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let payload = token
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("token has no payload segment"))?;
+    let claims: serde_json::Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload)?)?;
+    claims["jti"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| anyhow::anyhow!("token has no jti"))
+}
+
+async fn jti_revoked(jti: &str) -> anyhow::Result<bool> {
+    let (_pool, ctx) = setup_ctx().await?;
+    let jti = systemprompt_identifiers::AccessTokenId::try_new(jti)?;
+    Ok(ctx.oauth_repositories().oauth.is_jti_revoked(&jti).await?)
+}
+
 #[tokio::test]
 async fn revoke_access_token_hint_records_jti() -> anyhow::Result<()> {
     let (user, client) = seeded_client().await?;
@@ -203,6 +224,35 @@ async fn revoke_access_token_hint_records_jti() -> anyhow::Result<()> {
     ]);
     let resp = app.oneshot(form_post("/revoke", body)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    assert!(jti_revoked(&token_jti(&token)?).await?);
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoking_another_users_access_token_records_nothing() -> anyhow::Result<()> {
+    let (victim, _client) = seeded_client().await?;
+    let (attacker, _attacker_client) = seeded_client().await?;
+    let token = mint_access_token(&victim);
+    let app = oauth_app(attacker).await?;
+    let body = urlencode(&[("token", &token), ("token_type_hint", "access_token")]);
+    let resp = app.oneshot(form_post("/revoke", body)).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    assert!(!jti_revoked(&token_jti(&token)?).await?);
+    Ok(())
+}
+
+#[tokio::test]
+async fn revoking_an_unsigned_token_with_the_callers_subject_records_nothing() -> anyhow::Result<()>
+{
+    let (user, _client) = seeded_client().await?;
+    let mut claims = base_claims();
+    claims["sub"] = serde_json::Value::String(user.as_str().to_owned());
+    let token = unsigned_access_token(claims);
+    let app = oauth_app(user).await?;
+    let body = urlencode(&[("token", &token), ("token_type_hint", "access_token")]);
+    let resp = app.oneshot(form_post("/revoke", body)).await?;
+    assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    assert!(!jti_revoked(&token_jti(&token)?).await?);
     Ok(())
 }
 
@@ -248,9 +298,8 @@ async fn revoke_with_bad_client_secret_returns_invalid_client() -> anyhow::Resul
     Ok(())
 }
 
-// `revoke_access_token_jti` reads the token with `insecure_decode`, so the
-// signature is irrelevant and an unsigned token is enough to drive the claim
-// shapes it has to survive.
+// An unsigned token fails signature verification, so the endpoint records
+// nothing for it; these drive the claim shapes it must still answer 200 for.
 fn unsigned_access_token(claims: serde_json::Value) -> String {
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;

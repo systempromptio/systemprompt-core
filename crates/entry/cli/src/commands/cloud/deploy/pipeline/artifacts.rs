@@ -13,7 +13,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 use systemprompt_cloud::ProjectContext;
 use systemprompt_extension::{AssetPaths, ExtensionRegistry};
-use systemprompt_models::paths::constants::build;
+use systemprompt_identifiers::ProfileName;
+use systemprompt_manifest::paths::constants::build;
 
 struct ProjectAssetPaths {
     storage_files: PathBuf,
@@ -37,14 +38,14 @@ pub struct DeployArtifacts {
 }
 
 impl DeployArtifacts {
-    pub fn resolve(project_root: &Path, profile_name: &str) -> Result<Self> {
+    pub fn resolve(project_root: &Path, profile_name: &ProfileName) -> Result<Self> {
         let binary = project_root
             .join(build::CARGO_TARGET)
             .join("release")
             .join(build::BINARY_NAME);
 
         let ctx = ProjectContext::new(project_root.to_path_buf());
-        let dockerfile = ctx.profile_dockerfile(profile_name);
+        let dockerfile = ctx.profile_dockerfile(profile_name.as_str());
 
         let artifacts = Self {
             binary,

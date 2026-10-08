@@ -8,7 +8,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use systemprompt_cloud::{
-    CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates, TenantInfo, TenantStore,
+    CloudApiClient, CloudCredentials, CloudPath, CloudTenantInfo, OAuthTemplates, TenantStore,
     UserMeResponse, get_cloud_paths, run_oauth_flow,
 };
 use systemprompt_logging::CliService;
@@ -101,7 +101,7 @@ pub fn build_login_output(
     tenants_path: &std::path::Path,
 ) -> LoginOutput {
     let user = LoginUserInfo {
-        id: response.user.id.as_str().to_owned(),
+        id: response.user.id.clone(),
         email: response.user.email.clone(),
         name: response.user.name.clone(),
     };
@@ -153,12 +153,10 @@ fn print_login_result(response: &UserMeResponse) {
     print_tenants(&response.tenants);
 }
 
-fn print_tenants(tenants: &[TenantInfo]) {
+fn print_tenants(tenants: &[CloudTenantInfo]) {
     if tenants.is_empty() {
         CliService::info("No cloud tenants found.");
-        CliService::info(
-            "Run 'systemprompt cloud tenant create' (or 'just tenant') to create a local tenant.",
-        );
+        CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
         return;
     }
 
@@ -182,8 +180,6 @@ fn print_tenants(tenants: &[TenantInfo]) {
         }
     }
     CliService::info("");
-    CliService::info(
-        "Run 'systemprompt cloud tenant create' (or 'just tenant') to add a local tenant,",
-    );
+    CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
     CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
 }

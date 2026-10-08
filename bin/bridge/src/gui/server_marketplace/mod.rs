@@ -180,26 +180,20 @@ fn merge_external(
     merged
 }
 
-pub fn listing_to_value(
-    listing: &MarketplaceListing,
-) -> Result<serde_json::Value, serde_json::Error> {
-    serde_json::to_value(listing)
-}
-
 fn read_dir_optional(path: &std::path::Path) -> std::io::Result<Vec<std::fs::DirEntry>> {
     match std::fs::read_dir(path) {
         Ok(entries) => entries.collect(),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(e) => Err(std::io::Error::new(
-            e.kind(),
-            format!("read directory {}: {e}", path.display()),
+        Err(e) => Err(crate::fsutil::io_context(
+            format!("read directory {}", path.display()),
+            e,
         )),
     }
 }
 
 fn read_text(path: &std::path::Path) -> std::io::Result<String> {
     std::fs::read_to_string(path)
-        .map_err(|e| std::io::Error::new(e.kind(), format!("read {}: {e}", path.display())))
+        .map_err(|e| crate::fsutil::io_context(format!("read {}", path.display()), e))
 }
 
 fn read_optional_text(path: &std::path::Path) -> std::io::Result<Option<String>> {

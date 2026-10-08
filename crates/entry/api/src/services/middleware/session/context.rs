@@ -11,7 +11,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -22,6 +22,7 @@ use systemprompt_traits::SessionProvider;
 use uuid::Uuid;
 
 use super::{RequestMeta, SessionMiddleware, attest_session, lifecycle};
+use crate::error::ApiHttpError;
 
 const SESSION_ESTABLISH_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -75,9 +76,15 @@ impl SessionMiddleware {
     fn degraded_context(trace_id: systemprompt_identifiers::TraceId) -> RequestContext {
         let session_id = SessionId::new(format!("degraded_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
-        RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_user_type(UserType::Anon)
-            .with_tracked(false)
+        RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::anonymous(UserId::generate()),
+        )
+        .with_user_type(UserType::Anon)
+        .with_tracked(false)
     }
 
     async fn anonymous_context(
@@ -90,20 +97,20 @@ impl SessionMiddleware {
             .session_creation_service
             .ensure_anonymous_user(meta.analytics)
             .await
-            .map_err(|e| {
-                tracing::error!(error = %e, session_prefix, "Failed to ensure anonymous user");
-                ApiError::internal_error("Service temporarily unavailable")
-            })?;
+            .map_err(|e| ApiHttpError::from(e).into_inner())?;
 
         let session_id = SessionId::new(format!("{session_prefix}_{}", Uuid::new_v4()));
         let context_id = ContextId::derived_from_session(&session_id);
-        Ok(
-            RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-                .with_actor(systemprompt_identifiers::Actor::anonymous(user_id))
-                .with_user_type(UserType::Anon)
-                .with_tracked(false)
-                .with_fingerprint_hash(fingerprint),
+        Ok(RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::anonymous(user_id),
         )
+        .with_user_type(UserType::Anon)
+        .with_tracked(false)
+        .with_fingerprint_hash(fingerprint))
     }
 
     async fn tracked_context(
@@ -137,11 +144,16 @@ impl SessionMiddleware {
         let context_id = HeaderExtractor::extract_context_id(meta.headers)
             .unwrap_or_else(|| ContextId::derived_from_session(&session_id));
 
-        let mut ctx = RequestContext::new(session_id, trace_id, context_id, AgentName::system())
-            .with_actor(systemprompt_identifiers::Actor::user(user_id))
-            .with_auth_token(jwt_token)
-            .with_user_type(UserType::Anon)
-            .with_tracked(true);
+        let mut ctx = RequestContext::new(
+            session_id,
+            trace_id,
+            context_id,
+            AgentName::system(),
+            Actor::user(user_id),
+        )
+        .with_auth_token(JwtToken::new(jwt_token))
+        .with_user_type(UserType::Anon)
+        .with_tracked(true);
         if let Some(fp) = fingerprint_hash {
             ctx = ctx.with_fingerprint_hash(fp);
         }
@@ -160,15 +172,15 @@ impl SessionMiddleware {
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let Ok(jwt_context) = extract_user_context(&token) else {
+        let Ok(jwt_context) = extract_user_context(&token, &self.jwt_issuer) else {
             let (sid, uid, token, is_new, fp) =
                 lifecycle::create_new_session(&self.session_creation_service, meta).await?;
             let jwt_cookie = if is_new { Some(token.clone()) } else { None };
             return Ok((sid, uid, token, jwt_cookie, Some(fp)));
         };
 
-        let analytics_provider: Arc<dyn SessionProvider> =
-            self.analytics_service.session_repo().owner();
+        let session_store = Arc::clone(self.analytics_service.session_store());
+        let analytics_provider: Arc<dyn SessionProvider> = session_store;
 
         match attest_session(
             &analytics_provider,

@@ -16,18 +16,11 @@
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
+use systemprompt_test_fixtures::test_database_url;
 use uuid::Uuid;
 
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    std::env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
-
 async fn connect_pool() -> PgPool {
-    PgPool::connect(&database_url())
+    PgPool::connect(&test_database_url())
         .await
         .expect("connect to test database")
 }

@@ -4,13 +4,48 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::Outcome;
-use crate::context::BridgeContext;
+use systemprompt_models::bridge::host::HostKind;
 
-pub(super) const ID: &str = "claude-code";
+use super::{Outcome, Report};
+use crate::context::BridgeContext;
+use crate::integration::sync_only::{SyncOnlyAgent, sync_only_agent};
+
 pub(super) const LABEL: &str = "gateway keys merged into Claude Code's settings file";
 
-pub(super) fn enrol(bridge: &BridgeContext) -> Outcome {
+#[must_use]
+pub fn installed_agent() -> Option<&'static SyncOnlyAgent> {
+    if crate::integration::claude_code_cli::claude_cli_installed() {
+        sync_only_agent(HostKind::ClaudeCode)
+    } else {
+        None
+    }
+}
+
+#[must_use]
+pub fn enrol_report(bridge: &BridgeContext) -> Report {
+    report(enrol(bridge))
+}
+
+pub(super) fn not_enabled_report() -> Report {
+    report(Outcome::NotEnabled)
+}
+
+pub(super) fn removal_report() -> Report {
+    report(remove())
+}
+
+fn report(outcome: Outcome) -> Report {
+    Report {
+        host_id: HostKind::ClaudeCode,
+        display_name: sync_only_agent(HostKind::ClaudeCode)
+            .map_or("Claude Code", |agent| agent.display_name),
+        install_action_label: LABEL,
+        outcome,
+        warnings: Vec::new(),
+    }
+}
+
+fn enrol(bridge: &BridgeContext) -> Outcome {
     let gateway = bridge.proxy.loopback().origin();
     match crate::install::mdm::claude_code_settings::apply_managed_settings(&gateway) {
         Ok(report) => {
@@ -19,14 +54,14 @@ pub(super) fn enrol(bridge: &BridgeContext) -> Outcome {
             }
             Outcome::Installed
         },
-        Err(e) => Outcome::Failed(e.to_string()),
+        Err(e) => Outcome::Failed(e.into()),
     }
 }
 
-pub(super) fn remove() -> Outcome {
+fn remove() -> Outcome {
     match crate::install::mdm::claude_code_settings::remove_managed_settings() {
         Ok(lines) if lines.is_empty() => Outcome::NothingToRemove,
         Ok(_) => Outcome::Removed,
-        Err(e) => Outcome::Failed(e.to_string()),
+        Err(e) => Outcome::Failed(e.into()),
     }
 }

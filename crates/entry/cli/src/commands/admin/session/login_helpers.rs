@@ -40,7 +40,7 @@ pub(super) async fn try_use_existing_session(
     let user_email = session.user_email.to_string();
     let session_token = session.session_token.clone();
 
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
     let exists = user_service
         .session_exists(&session_id)
         .await
@@ -79,7 +79,7 @@ pub async fn fetch_admin_user(
     is_cloud_profile: bool,
     email_override: Option<&str>,
 ) -> Result<User> {
-    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(db_pool)));
 
     if let Some(user) = user_service
         .find_by_name(admin_name)
@@ -182,7 +182,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
         .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     let cli_session = CliSession::builder(
-        SessionBinding::new(profile_name, issuer.to_owned()),
+        SessionBinding::new(profile_name.clone(), issuer.to_owned()),
         session_token,
         session_id,
         context_id,
@@ -194,7 +194,7 @@ pub(super) fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()
     .build();
 
     store.upsert_session(session_key, cli_session);
-    store.set_active_with_profile(session_key, profile_name_str);
+    store.set_active_with_profile(session_key, &profile_name);
     store.save(sessions_dir)?;
 
     tracing::debug!(sessions_dir = %sessions_dir.display(), "session saved to index.json");

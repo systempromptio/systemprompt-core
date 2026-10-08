@@ -22,7 +22,13 @@ pub use command_result::{
     render_result,
 };
 pub use identity::{IdentityBundle, generate_identity};
-pub use parsers::{parse_email, parse_profile_name};
+pub use parsers::{
+    parse_agent_name, parse_ai_request_id, parse_api_key_id, parse_campaign_id, parse_category_id,
+    parse_email, parse_extension_id, parse_job_name, parse_link_click_id, parse_link_id,
+    parse_mcp_server_id, parse_mcp_tool_name, parse_model_id, parse_plugin_id, parse_profile_name,
+    parse_profile_name_arg, parse_provider_id, parse_secret_name, parse_service_name,
+    parse_skill_id, parse_tenant_id, parse_trace_id,
+};
 pub use profile::{
     ProfileResolutionError, ProfileSource, ResolvedProfile, is_path_input,
     resolve_profile_from_path, resolve_profile_path, resolve_profile_with_data,
@@ -57,7 +63,7 @@ macro_rules! define_pool_command {
             args: $args_ty,
             ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool_arc()?;
+            let pool = ctx.db_pool().await?.pool();
             execute_with_pool_inner(args, &pool, &ctx.cli).await
         }
     };
@@ -66,7 +72,7 @@ macro_rules! define_pool_command {
             args: $args_ty,
             ctx: &$crate::context::CommandContext,
         ) -> ::anyhow::Result<$ret_ty> {
-            let pool = ctx.db_pool().await?.pool_arc()?;
+            let pool = ctx.db_pool().await?.pool();
             execute_with_pool_inner(args, &pool).await
         }
     };

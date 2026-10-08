@@ -4,9 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
-use std::process::Command;
 use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
+use tokio::process::Command;
 
 use super::SetupArgs;
 use super::common::{
@@ -56,6 +56,18 @@ pub async fn setup_docker_postgres_non_interactive(
     enable_extensions(config).await?;
 
     Ok(config.clone())
+}
+
+async fn remove_container(container: &str) {
+    for action in ["stop", "rm"] {
+        if let Err(e) = Command::new("docker")
+            .args([action, container])
+            .output()
+            .await
+        {
+            tracing::warn!(container = %container, action, error = %e, "docker container removal step failed");
+        }
+    }
 }
 
 pub(super) async fn setup_docker_postgres_interactive(
@@ -132,12 +144,7 @@ pub(super) async fn setup_docker_postgres_interactive(
         }
 
         CliService::info("Stopping existing container...");
-        if let Err(e) = Command::new("docker").args(["stop", &container]).output() {
-            tracing::warn!(container = %container, error = %e, "docker stop failed");
-        }
-        if let Err(e) = Command::new("docker").args(["rm", &container]).output() {
-            tracing::warn!(container = %container, error = %e, "docker rm failed");
-        }
+        remove_container(&container).await;
     }
 
     ensure_port_free(&config)?;

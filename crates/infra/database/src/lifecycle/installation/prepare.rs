@@ -9,14 +9,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::{Extension, LoaderError};
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_traits::BoxedSource;
 use tracing::warn;
 
-use super::fk_deferral::{DeferredForeignKey, SplitCreateTable, split_foreign_keys};
+use super::classify::{Classified, classify_statement};
+use super::fk_deferral::DeferredForeignKey;
 use crate::services::SqlExecutor;
 use crate::services::schema_linter::{created_table_names, lint_declarative_schemas};
 
 pub(super) struct PreparedSchema {
-    pub(super) extension_id: String,
+    pub(super) extension_id: ExtensionId,
     pub(super) structural: Vec<String>,
     pub(super) routines: Vec<String>,
     pub(super) dependent: Vec<String>,
@@ -33,7 +36,7 @@ pub(super) struct ColumnsToValidate {
 
 pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSchema, LoaderError> {
     let schemas = ext.schemas();
-    let extension_id = ext.metadata().id.to_owned();
+    let extension_id = ExtensionId::new(ext.metadata().id);
 
     let mut all_sql = Vec::new();
     let mut columns_to_validate: Vec<ColumnsToValidate> = Vec::new();
@@ -57,12 +60,14 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
     require_declarative_schema(&extension_id, &lint_errors)?;
 
     let combined = all_sql.join("\n");
-    let parse_failed = |e: &dyn std::fmt::Display| LoaderError::SchemaInstallationFailed {
+    let parse_failed = |source: BoxedSource| LoaderError::SchemaInstallationStepFailed {
         extension: extension_id.clone(),
-        message: format!("SQL parse failed: {e}"),
+        context: "SQL parse failed".to_owned(),
+        source,
     };
-    let owned_tables = created_table_names(&combined).map_err(|e| parse_failed(&e))?;
-    let parsed = SqlExecutor::parse_sql_statements(&combined).map_err(|e| parse_failed(&e))?;
+    let owned_tables = created_table_names(&combined).map_err(|e| parse_failed(Box::new(e)))?;
+    let parsed =
+        SqlExecutor::parse_sql_statements(&combined).map_err(|e| parse_failed(Box::new(e)))?;
 
     let Phased {
         structural,
@@ -85,14 +90,14 @@ pub(super) fn prepare_extension_schema(ext: &dyn Extension) -> Result<PreparedSc
 // Why: one lint call over every file, so a foreign key in one file is
 // checked against the table another file of the same extension declares.
 fn lint_schemas(
-    extension_id: &str,
+    extension_id: &ExtensionId,
     schemas: &[systemprompt_extension::SchemaDefinition],
 ) -> Vec<String> {
     let lint_inputs: Vec<(&str, &str)> = schemas
         .iter()
         .map(|schema| {
             (
-                schema.table.as_deref().unwrap_or(extension_id),
+                schema.table.as_deref().unwrap_or(extension_id.as_str()),
                 schema.sql.as_str(),
             )
         })
@@ -122,7 +127,10 @@ struct Phased {
     foreign_keys: Vec<DeferredForeignKey>,
 }
 
-fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, LoaderError> {
+fn phase_statements(
+    extension_id: &ExtensionId,
+    parsed: Vec<String>,
+) -> Result<Phased, LoaderError> {
     let mut phased = Phased {
         structural: Vec::new(),
         routines: Vec::new(),
@@ -130,10 +138,11 @@ fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, L
         foreign_keys: Vec::new(),
     };
     for statement in parsed {
-        let classified = classify_statement(&statement).map_err(|message| {
-            LoaderError::SchemaInstallationFailed {
-                extension: extension_id.to_owned(),
-                message,
+        let classified = classify_statement(&statement).map_err(|e| {
+            LoaderError::SchemaInstallationStepFailed {
+                extension: extension_id.clone(),
+                context: "declarative statement rejected".to_owned(),
+                source: Box::new(e),
             }
         })?;
         match classified {
@@ -155,21 +164,15 @@ fn phase_statements(extension_id: &str, parsed: Vec<String>) -> Result<Phased, L
     Ok(phased)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StatementPhase {
-    Structural,
-    Dependent,
-}
-
 fn require_declarative_schema(
-    extension_id: &str,
+    extension_id: &ExtensionId,
     lint_errors: &[String],
 ) -> Result<(), LoaderError> {
     if lint_errors.is_empty() {
         return Ok(());
     }
     Err(LoaderError::SchemaInstallationFailed {
-        extension: extension_id.to_owned(),
+        extension: extension_id.clone(),
         message: format!(
             "Imperative SQL detected in declarative schema. Move offending statements to \
              schema/migrations/NNN_<name>.sql and declare them via \
@@ -177,105 +180,4 @@ fn require_declarative_schema(
             lint_errors.join("\n")
         ),
     })
-}
-
-enum Classified {
-    Structural,
-    Routine,
-    Dependent,
-    CreateTable(SplitCreateTable),
-}
-
-fn node_phase(node: &pg_query::NodeEnum) -> Result<StatementPhase, String> {
-    use pg_query::NodeEnum;
-
-    Ok(match node {
-        NodeEnum::CreateSchemaStmt(_)
-        | NodeEnum::CreateStmt(_)
-        | NodeEnum::CreateExtensionStmt(_)
-        | NodeEnum::CompositeTypeStmt(_)
-        | NodeEnum::CreateEnumStmt(_)
-        | NodeEnum::CreateRangeStmt(_)
-        | NodeEnum::CreateSeqStmt(_)
-        | NodeEnum::CreateDomainStmt(_)
-        | NodeEnum::DefineStmt(_)
-        | NodeEnum::CreateForeignTableStmt(_) => StatementPhase::Structural,
-
-        NodeEnum::IndexStmt(_)
-        | NodeEnum::ViewStmt(_)
-        | NodeEnum::CreateTableAsStmt(_)
-        | NodeEnum::CreateTrigStmt(_)
-        | NodeEnum::CreateFunctionStmt(_)
-        | NodeEnum::CreatePolicyStmt(_)
-        | NodeEnum::AlterPolicyStmt(_)
-        | NodeEnum::RuleStmt(_)
-        | NodeEnum::CreateStatsStmt(_)
-        | NodeEnum::CreateCastStmt(_)
-        | NodeEnum::CreateTransformStmt(_)
-        | NodeEnum::AlterTableStmt(_)
-        | NodeEnum::AlterEnumStmt(_)
-        | NodeEnum::AlterSeqStmt(_)
-        | NodeEnum::AlterDomainStmt(_)
-        | NodeEnum::AlterOwnerStmt(_)
-        | NodeEnum::AlterObjectSchemaStmt(_)
-        | NodeEnum::RenameStmt(_)
-        | NodeEnum::GrantStmt(_)
-        | NodeEnum::GrantRoleStmt(_)
-        | NodeEnum::CommentStmt(_)
-        | NodeEnum::DropStmt(_) => StatementPhase::Dependent,
-
-        other => return Err(format!("{other:?}")),
-    })
-}
-
-fn classify_statement(statement: &str) -> Result<Classified, String> {
-    use pg_query::NodeEnum;
-
-    let parsed = pg_query::parse(statement)
-        .map_err(|e| format!("SQL parse failed: {e}\nSQL:\n{statement}"))?;
-
-    let mut phase: Option<StatementPhase> = None;
-    let mut create_table: Option<SplitCreateTable> = None;
-    let mut routine = false;
-    for raw in parsed.protobuf.stmts {
-        let Some(node) = raw.stmt.and_then(|s| s.node) else {
-            continue;
-        };
-        if let NodeEnum::CreateFunctionStmt(create) = &node {
-            if !create.replace {
-                return Err(format!(
-                    "declarative functions must be CREATE OR REPLACE: the installer applies them \
-                     before migrations and again after\nSQL:\n{statement}"
-                ));
-            }
-            routine = true;
-        }
-        if let NodeEnum::CreateStmt(create) = &node
-            && create_table.is_none()
-        {
-            create_table = Some(
-                split_foreign_keys(statement, create)
-                    .map_err(|e| format!("{e}\nSQL:\n{statement}"))?,
-            );
-        }
-        let node_phase = node_phase(&node).map_err(|kind| {
-            format!(
-                "unrecognised statement type {kind} in declarative schema; classify it as \
-                 structural or dependent in classify_statement()\nSQL:\n{statement}"
-            )
-        })?;
-        phase = Some(match phase {
-            None | Some(StatementPhase::Structural) => node_phase,
-            Some(StatementPhase::Dependent) => StatementPhase::Dependent,
-        });
-    }
-
-    Ok(
-        match (phase.unwrap_or(StatementPhase::Dependent), create_table) {
-            (StatementPhase::Structural, Some(split)) => Classified::CreateTable(split),
-            (StatementPhase::Structural, None) => Classified::Structural,
-            (StatementPhase::Dependent, _) if routine => Classified::Routine,
-            (StatementPhase::Dependent, _) => Classified::Dependent,
-        },
-    )
 }

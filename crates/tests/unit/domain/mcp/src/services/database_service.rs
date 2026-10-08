@@ -3,15 +3,17 @@
 
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_mcp::services::ServiceLifecycleStatus;
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
+use systemprompt_manifest::services::ServiceStatus;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_database::DbPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+use crate::harness::unique_instance;
+
+async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRepository) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -23,31 +25,25 @@ async fn make_db_service_or_skip() -> Option<(DatabaseService, systemprompt_data
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let svc = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-        app_paths,
-        registry,
-    );
-    Some((svc, db))
+    let repo = systemprompt_database::ServiceRepository::new(&db, unique_instance());
+    let svc = DatabaseService::new(repo.clone(), app_paths, registry);
+    (svc, repo)
 }
 
 #[tokio::test]
 async fn get_service_by_name_missing_returns_none() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let r = svc
-        .get_service_by_name(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
+        .get_service_by_name(&ServiceName::new(format!(
+            "missing-{}",
+            uuid::Uuid::new_v4().simple()
+        )))
         .await
         .unwrap();
     assert!(r.is_none());
@@ -55,48 +51,35 @@ async fn get_service_by_name_missing_returns_none() {
 
 #[tokio::test]
 async fn cleanup_stale_services_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.cleanup_stale_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_crashed_services_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.delete_crashed_services().await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_state_empty_runs() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.sync_state(&[]).await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_disabled_services_removes_only_the_disabled_service() {
     use crate::harness::internal_mcp_config;
-    use systemprompt_database::{CreateServiceInput, ServiceRepository};
+    use systemprompt_database::{CreateServiceInput, ServiceModule};
 
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
-    let repo = ServiceRepository::new(
-        &_db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let keep = format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple());
-    let drop_name = format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple());
+    let (svc, repo) = make_db_service().await;
+    let keep = ServiceName::new(format!("dbsvc-keep-{}", uuid::Uuid::new_v4().simple()));
+    let drop_name = ServiceName::new(format!("dbsvc-drop-{}", uuid::Uuid::new_v4().simple()));
     for (name, port) in [(&keep, 65512u16), (&drop_name, 65511u16)] {
         repo.create_service(CreateServiceInput {
             name,
-            module_name: "mcp",
-            status: "stopped",
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Stopped,
             port,
             binary_mtime: None,
         })
@@ -104,9 +87,9 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         .unwrap();
     }
 
-    let enabled = [internal_mcp_config(&keep, 65512)];
+    let enabled = [internal_mcp_config(keep.as_str(), 65512)];
     let deleted = svc.delete_disabled_services(&enabled).await.unwrap();
-    assert!(deleted >= 1, "at least the disabled service is deleted");
+    assert_eq!(deleted, 1, "only the disabled service is deleted");
     assert!(
         repo.find_service_by_name(&keep).await.unwrap().is_some(),
         "the enabled service is preserved"
@@ -124,21 +107,17 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
 
 #[tokio::test]
 async fn get_running_servers_errors_when_registry_not_validated() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let r = svc.get_running_servers().await;
     let _ = r;
 }
 
 #[tokio::test]
 async fn update_service_status_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     svc.update_service_status(
-        &format!("missing-{}", uuid::Uuid::new_v4().simple()),
-        ServiceLifecycleStatus::Stopped,
+        &ServiceName::new(format!("missing-{}", uuid::Uuid::new_v4().simple())),
+        ServiceStatus::Stopped,
     )
     .await
     .unwrap();
@@ -146,29 +125,29 @@ async fn update_service_status_missing_no_panic() {
 
 #[tokio::test]
 async fn clear_service_pid_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
-    svc.clear_service_pid(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
-        .await
-        .unwrap();
+    let (svc, _db) = make_db_service().await;
+    svc.clear_service_pid(&ServiceName::new(format!(
+        "missing-{}",
+        uuid::Uuid::new_v4().simple()
+    )))
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn unregister_missing_no_panic() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
-    svc.unregister_service(&format!("missing-{}", uuid::Uuid::new_v4().simple()))
-        .await
-        .unwrap();
+    let (svc, _db) = make_db_service().await;
+    svc.unregister_service(&ServiceName::new(format!(
+        "missing-{}",
+        uuid::Uuid::new_v4().simple()
+    )))
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
 async fn accessors() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let _ = svc.app_paths();
     let _ = svc.clone();
     let _ = format!("{svc:?}");
@@ -176,9 +155,7 @@ async fn accessors() {
 
 #[tokio::test]
 async fn register_existing_process_creates_running_row_with_pid() {
-    let Some((svc, _db)) = make_db_service_or_skip().await else {
-        return;
-    };
+    let (svc, _db) = make_db_service().await;
     let name = format!("adopt-{}", uuid::Uuid::new_v4().simple());
     let config = crate::harness::internal_mcp_config(&name, 65410);
 
@@ -186,15 +163,15 @@ async fn register_existing_process_creates_running_row_with_pid() {
         .register_existing_process(&config, std::process::id())
         .await
         .expect("adoption registers");
-    assert_eq!(registered, name);
+    assert_eq!(registered.as_str(), name);
 
     let row = svc
-        .get_service_by_name(&name)
+        .get_service_by_name(&registered)
         .await
         .unwrap()
         .expect("row created");
-    svc.unregister_service(&name).await.unwrap();
+    svc.unregister_service(&registered).await.unwrap();
 
-    assert_eq!(row.status, "running");
+    assert_eq!(row.status, ServiceStatus::Running);
     assert_eq!(row.pid, Some(i32::try_from(std::process::id()).unwrap()));
 }

@@ -2,7 +2,8 @@
 //!
 //! Centralised [`Duration`] values for HTTP client configuration, TCP
 //! readiness probes, and long-poll image generation, so every caller
-//! uses the same tuned timeouts, plus [`validate_outbound_url`] — the
+//! uses the same tuned timeouts, the [`BUFFERED_BODY_LIMIT_BYTES`] cap on a
+//! buffered proxy request body, plus [`validate_outbound_url`] — the
 //! single parse-time SSRF guard applied to every outbound destination.
 //!
 //! Parse-time validation is a pre-filter, not the enforcement point: a
@@ -22,13 +23,28 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum OutboundUrlError {
     #[error("invalid url: {0}")]
-    Parse(String),
+    Parse(#[from] url::ParseError),
+    #[error("invalid url: missing host")]
+    MissingHost,
     #[error("unsupported url scheme: {0}")]
     Scheme(String),
     #[error("http url only permitted for loopback hosts")]
     NonLoopbackHttp,
     #[error("host {0} is in a blocked private range")]
     BlockedHost(String),
+}
+
+pub const BUFFERED_BODY_LIMIT_BYTES: usize = 8 * 1024 * 1024;
+pub const INFERENCE_BODY_LIMIT_BYTES: usize = 32 * 1024 * 1024;
+
+#[must_use]
+pub fn gateway_request_body_limit(path: &str) -> usize {
+    match path {
+        "/v1/messages" | "/v1/messages/count_tokens" | "/v1/chat/completions" | "/v1/responses" => {
+            INFERENCE_BODY_LIMIT_BYTES
+        },
+        _ => BUFFERED_BODY_LIMIT_BYTES,
+    }
 }
 
 pub const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -89,10 +105,8 @@ pub fn validate_outbound_url_with_trust(
     url: &str,
     trusted_http_hosts: &[impl AsRef<str>],
 ) -> Result<url::Url, OutboundUrlError> {
-    let parsed = url::Url::parse(url).map_err(|e| OutboundUrlError::Parse(e.to_string()))?;
-    let host = parsed
-        .host()
-        .ok_or_else(|| OutboundUrlError::Parse("missing host".to_owned()))?;
+    let parsed = url::Url::parse(url)?;
+    let host = parsed.host().ok_or(OutboundUrlError::MissingHost)?;
 
     let is_loopback_host = match &host {
         url::Host::Domain(d) => d.eq_ignore_ascii_case("localhost"),

@@ -19,8 +19,10 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gateway::manifest::SignedManifest;
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::proxy::LoopbackEndpoint;
 
 use super::config::codex_home;
@@ -41,11 +43,11 @@ pub struct CodexCliSync;
 
 #[async_trait]
 impl HostSync for CodexCliSync {
-    fn host_id(&self) -> &'static str {
-        "codex-cli"
+    fn host_id(&self) -> HostKind {
+        HostKind::CodexCli
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         let has_content =
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
@@ -55,7 +57,7 @@ impl HostSync for CodexCliSync {
             remove_marketplace_tree()?;
             write_config_blocks(ctx.loopback, false, &[])?;
         }
-        Ok(())
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
@@ -91,7 +93,7 @@ fn write_marketplace_tree(
 ) -> Result<(), ApplyError> {
     let root = marketplace_root();
     let plugin_dir = plugin_src_dir();
-    let version = bundle_version(loopback, manifest);
+    let version = bundle_version(loopback, manifest)?;
 
     let source_current = read_existing_version(&plugin_dir).as_deref() == Some(version.as_str())
         && root.join(".agents/plugins/marketplace.json").is_file();
@@ -173,12 +175,12 @@ pub(crate) fn feedback_skill_roots(
     loopback: &LoopbackEndpoint,
     manifest: &SignedManifest,
     skill: &crate::gateway::manifest::SkillEntry,
-) -> Vec<PathBuf> {
-    vec![
+) -> Result<Vec<PathBuf>, ApplyError> {
+    Ok(vec![
         plugin_src_dir().join("skills").join(skill.id.as_str()),
         cache_plugin_dir()
-            .join(bundle_version(loopback, manifest))
+            .join(bundle_version(loopback, manifest)?)
             .join("skills")
             .join(skill.id.as_str()),
-    ]
+    ])
 }

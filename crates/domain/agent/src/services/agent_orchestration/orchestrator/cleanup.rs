@@ -5,9 +5,10 @@
 
 use super::AgentOrchestrator;
 use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult};
+use systemprompt_identifiers::AgentName;
 
 impl AgentOrchestrator {
-    pub async fn delete_agent(&self, agent_name: &str) -> OrchestrationResult<()> {
+    pub async fn delete_agent(&self, agent_name: &AgentName) -> OrchestrationResult<()> {
         tracing::debug!(agent_name = %agent_name, "Deleting agent");
 
         if let Ok(AgentStatus::Running { .. }) = self.get_status(agent_name).await {
@@ -38,13 +39,13 @@ impl AgentOrchestrator {
         self.disable_all().await?;
 
         let mut deleted_count = 0;
-        for (agent_id, _) in agents {
-            match self.delete_agent(&agent_id).await {
+        for (agent_name, _) in agents {
+            match self.delete_agent(&agent_name).await {
                 Ok(()) => {
                     deleted_count += 1;
                 },
                 Err(e) => {
-                    tracing::error!(agent_id = %agent_id, error = %e, "Failed to delete agent");
+                    tracing::error!(agent_name = %agent_name, error = %e, "Failed to delete agent");
                 },
             }
         }

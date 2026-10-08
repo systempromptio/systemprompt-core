@@ -126,6 +126,7 @@ mod rate_limits_diff;
 mod rate_limits_dispatcher_fs;
 mod rate_limits_preset_commands;
 mod rate_limits_presets;
+mod scope_binding_verifier;
 mod setup_ai_config;
 mod setup_catalog;
 mod setup_ddl;

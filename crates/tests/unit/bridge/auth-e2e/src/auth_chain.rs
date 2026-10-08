@@ -231,7 +231,10 @@ fn pat_exchange_http_failure_names_the_failed_provider() {
             match err {
                 ChainError::Providers { failures, .. } => assert_eq!(
                     failures,
-                    vec!["pat: gateway returned status 401 Unauthorized from pat".to_owned()],
+                    vec![
+                        "pat: gateway returned status 401 Unauthorized from pat: no response body"
+                            .to_owned()
+                    ],
                     "the rejected provider is named so the operator knows which credential failed"
                 ),
                 other => panic!("expected ChainError::Providers, got {other:?}"),

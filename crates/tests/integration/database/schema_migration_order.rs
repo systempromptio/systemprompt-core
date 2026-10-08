@@ -6,23 +6,15 @@
 //! shape in the same boot — without tripping the schema linter that
 //! hard-rejects imperative SQL in schemas.
 
-use std::env;
 use std::sync::Arc;
 
 use sqlx::{PgPool, Row};
-use systemprompt_database::{Database, install_extension_schemas};
+use systemprompt_database::Database;
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, Migration, SchemaDefinition,
 };
+use systemprompt_test_fixtures::{install_extension_schemas, test_database_url};
 use uuid::Uuid;
-
-const DEFAULT_DATABASE_URL: &str = "postgres://systemprompt_admin:\
-                                    3e00fcdac26b5b731829e8737515db8f@localhost:5432/\
-                                    systemprompt-web";
-
-fn database_url() -> String {
-    env::var("DATABASE_URL").unwrap_or_else(|_| DEFAULT_DATABASE_URL.to_string())
-}
 
 fn leak_str(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -171,11 +163,11 @@ async fn view_definition(pool: &PgPool, view: &str) -> Option<String> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("logs_test_{suffix}"));
@@ -240,11 +232,11 @@ async fn migration_runs_before_schema_so_legacy_logs_get_new_column() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn view_in_schema_can_reference_column_added_by_migration() {
-    let url = database_url();
+    let url = test_database_url();
     let db = Database::new_postgres(&url)
         .await
         .expect("connect to test postgres");
-    let pool: PgPool = db.pool_arc().expect("pg pool").as_ref().clone();
+    let pool: PgPool = db.pool().as_ref().clone();
 
     let suffix = fresh_suffix();
     let table: &'static str = leak_str(format!("events_test_{suffix}"));

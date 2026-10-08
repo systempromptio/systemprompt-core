@@ -14,12 +14,14 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
+use systemprompt_identifiers::{McpExecutionId, McpToolName};
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 
 const TOOLS_CALL_METHOD: &str = "tools/call";
 
 #[derive(Deserialize)]
 struct RequestFrame {
+    // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     #[serde(default)]
     id: Option<Value>,
     method: String,
@@ -29,35 +31,76 @@ struct RequestFrame {
 
 #[derive(Deserialize)]
 struct ToolCallParams {
-    name: String,
+    // JSON: MCP JSON-RPC — the client-supplied tool name, validated below so a
+    // malformed one is classified rather than dropped as "not a tool call".
+    #[serde(default)]
+    name: Option<Value>,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     arguments: Option<Value>,
 }
 
+/// What a forwarded request frame is, as far as tool-call governance and
+/// audit are concerned.
+#[derive(Debug)]
+pub enum ToolCallFrame {
+    NotToolCall,
+    Call(ToolCallInvocation),
+    InvalidName { raw_name: Option<String> },
+}
+
 #[derive(Debug)]
 pub struct ToolCallInvocation {
+    // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
     pub id: Value,
-    pub tool_name: String,
+    pub tool_name: McpToolName,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub arguments: Value,
 }
 
 pub fn parse_tool_call(body: &[u8]) -> Option<ToolCallInvocation> {
-    let frame: RequestFrame = serde_json::from_slice(body).ok()?;
-    if frame.method != TOOLS_CALL_METHOD {
-        return None;
+    match classify_tool_call(body) {
+        ToolCallFrame::Call(invocation) => Some(invocation),
+        ToolCallFrame::NotToolCall | ToolCallFrame::InvalidName { .. } => None,
     }
-    let params = frame.params?;
-    Some(ToolCallInvocation {
-        id: frame.id.unwrap_or(Value::Null),
-        tool_name: params.name,
-        arguments: params.arguments.unwrap_or(Value::Null),
-    })
+}
+
+pub fn classify_tool_call(body: &[u8]) -> ToolCallFrame {
+    let Ok(frame) = serde_json::from_slice::<RequestFrame>(body) else {
+        return ToolCallFrame::NotToolCall;
+    };
+    if frame.method != TOOLS_CALL_METHOD {
+        return ToolCallFrame::NotToolCall;
+    }
+    let Some(params) = frame.params else {
+        return ToolCallFrame::InvalidName { raw_name: None };
+    };
+    let raw_name = match params.name {
+        Some(Value::String(name)) => name,
+        Some(other) => {
+            return ToolCallFrame::InvalidName {
+                raw_name: Some(other.to_string()),
+            };
+        },
+        None => return ToolCallFrame::InvalidName { raw_name: None },
+    };
+    match McpToolName::try_new(raw_name.as_str()) {
+        Ok(tool_name) => ToolCallFrame::Call(ToolCallInvocation {
+            id: frame.id.unwrap_or(Value::Null),
+            tool_name,
+            arguments: params.arguments.unwrap_or(Value::Null),
+        }),
+        Err(_) => ToolCallFrame::InvalidName {
+            raw_name: Some(raw_name),
+        },
+    }
 }
 
 #[derive(Deserialize)]
 struct ResponseFrame {
     #[serde(default)]
     result: Option<ToolCallResult>,
+    // JSON: MCP JSON-RPC `error` object — `data` is server-defined.
     #[serde(default)]
     error: Option<Value>,
 }
@@ -68,17 +111,21 @@ struct ToolCallResult {
     is_error: bool,
     #[serde(default, rename = "structuredContent")]
     structured_content: Option<Value>,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     #[serde(default)]
     content: Option<Value>,
 }
 
 #[derive(Debug)]
 pub struct ToolCallOutcome {
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub output: Option<Value>,
     pub error_message: Option<String>,
+    // JSON: MCP JSON-RPC — open-shaped `tools/call` payload per the MCP spec.
     pub result: Option<Value>,
 }
 
+// JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
 pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOutcome> {
     let frame: Value = serde_json::from_str(data).ok()?;
     if frame.get("id") != Some(request_id) {
@@ -104,13 +151,14 @@ pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOu
     })
 }
 
+// JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.
 pub fn frame_matches(data: &str, request_id: &Value) -> bool {
     serde_json::from_str::<Value>(data)
         .ok()
         .is_some_and(|frame| frame.get("id") == Some(request_id))
 }
 
-pub fn stamp_execution(data: &str, mcp_execution_id: &str) -> Option<String> {
+pub fn stamp_execution(data: &str, mcp_execution_id: &McpExecutionId) -> Option<String> {
     let mut frame: Value = serde_json::from_str(data).ok()?;
     let result = frame.get_mut("result")?.as_object_mut()?;
     let meta = result
@@ -123,7 +171,7 @@ pub fn stamp_execution(data: &str, mcp_execution_id: &str) -> Option<String> {
         .as_object_mut()?;
     execution
         .entry("mcp_execution_id")
-        .or_insert_with(|| Value::String(mcp_execution_id.to_owned()));
+        .or_insert_with(|| Value::String(mcp_execution_id.to_string()));
     serde_json::to_string(&frame).ok()
 }
 

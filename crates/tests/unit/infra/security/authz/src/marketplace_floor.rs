@@ -41,9 +41,10 @@ fn preserves_typed_payload_alongside_floor() {
 
 mod resolution {
     use systemprompt_identifiers::MarketplaceId;
-    use systemprompt_models::services::{
-        MarketplaceConfig, MarketplaceVisibility, PluginAuthor, PluginComponentRef, ServicesConfig,
+    use systemprompt_manifest::services::{
+        MarketplaceConfig, MarketplaceVisibility, PluginAuthor, ServicesConfig,
     };
+    use systemprompt_models::plugin::PluginComponentRef;
     use systemprompt_security::authz::member_attribute_floor;
     use systemprompt_security::authz::types::EntityKind;
 
@@ -68,6 +69,8 @@ mod resolution {
             access: Default::default(),
             allow_cross_marketplace_dependencies_on: vec![],
             external_marketplaces: vec![],
+            external_plugins: vec![],
+            claude_code: None,
         }
     }
 
@@ -107,7 +110,8 @@ mod resolution {
     #[test]
     fn covers_every_membership_kind() {
         use systemprompt_identifiers::PluginId;
-        use systemprompt_models::services::{ComponentSource, PluginConfig};
+        use systemprompt_manifest::services::PluginConfig;
+        use systemprompt_models::plugin::ComponentSource;
 
         let mut mp = marketplace("market");
         mp.agents = include(&["agent-a"]);

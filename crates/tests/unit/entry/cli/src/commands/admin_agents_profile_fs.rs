@@ -61,10 +61,8 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
 #[tokio::test]
 async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     use std::sync::Arc;
-    use systemprompt_agent::services::agent_orchestration::port_service::{
-        find_process_using_port, is_agent_process,
-    };
     use systemprompt_cli::infrastructure::services::restart;
+    use systemprompt_loader::subprocess::{self, ChildKind};
     use systemprompt_test_fixtures::{
         DisposableDb, fixture_app_context_with, install_test_signing_key,
     };
@@ -75,13 +73,18 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         .expect("an available owned agent port");
     let port = listener.local_addr().unwrap().port();
     assert_eq!(
-        find_process_using_port(port).unwrap(),
-        Some(std::process::id()),
+        subprocess::pids_listening_on(port).await.unwrap(),
+        vec![std::process::id()],
         "the occupied port must belong to this test process"
     );
     assert!(
-        !is_agent_process(std::process::id()).unwrap(),
-        "the production port cleanup classifier must reject the unit-test process"
+        !subprocess::owns(
+            std::process::id(),
+            ChildKind::Agent,
+            &systemprompt_identifiers::ServiceName::new("covlister"),
+        )
+        .await,
+        "the production port cleanup identity check must reject the unit-test process"
     );
     std::fs::write(
         root.join("agents/covlister.yaml"),
@@ -92,11 +95,9 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
 
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_restart_failed")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let paths = systemprompt_models::PathsConfig {
+    let database = DisposableDb::with_schema("cli_restart_failed").await;
+    let pool = database.test_pool().await;
+    let paths = systemprompt_manifest::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -113,7 +114,11 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     .unwrap();
     let services = &app.a2a_repositories().agent_services;
     services
-        .register_agent("covlister", 2_000_000_000, port)
+        .register_agent(
+            &systemprompt_identifiers::AgentName::new("covlister"),
+            2_000_000_000,
+            port,
+        )
         .await
         .expect("register an agent with a dead process id");
 
@@ -137,11 +142,11 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
     assert_eq!(count("restarted_count"), 0, "{value}");
     assert_eq!(count("failed_count"), 1, "{value}");
     let row = services
-        .get_agent_status("covlister")
+        .find_agent_status(&systemprompt_identifiers::AgentName::new("covlister"))
         .await
         .unwrap()
         .expect("failed restart retains its service record");
-    assert_eq!(row.status, "error");
+    assert_eq!(row.status.as_str(), "error");
     assert_eq!(row.port, i32::from(port));
     assert!(
         std::net::TcpStream::connect(("127.0.0.1", port)).is_ok(),
@@ -236,10 +241,14 @@ async fn show_renders_a_seeded_agent_and_rejects_unknown_ones() {
 }
 
 #[tokio::test]
-async fn validate_accepts_the_seeded_configuration() {
+async fn validate_fails_when_an_enabled_agent_names_an_unconfigured_provider() {
     seed_agents();
 
-    run(&["validate"]).await.unwrap();
+    let err = run(&["validate"]).await.unwrap_err();
+    assert!(
+        format!("{err:#}").contains("Agent validation failed"),
+        "{err:#}"
+    );
 }
 
 #[tokio::test]
@@ -323,6 +332,10 @@ async fn edit_rejects_an_unknown_agent() {
 async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
     let root = seed_agents();
     let agent_file = root.join("agents/covlister.yaml");
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
+    systemprompt_test_fixtures::seed_fixture_system_admin(&pool)
+        .await
+        .unwrap();
 
     run(&["delete", "covlister", "--yes"]).await.unwrap();
 
@@ -346,10 +359,8 @@ async fn delete_removes_the_selected_agent_and_reloads_the_profile_config() {
 #[tokio::test]
 async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_disabled_agents() {
     use std::sync::Arc;
-    use systemprompt_agent::services::agent_orchestration::port_service::{
-        find_process_using_port, is_agent_process,
-    };
     use systemprompt_cli::infrastructure::services::restart;
+    use systemprompt_loader::subprocess::{self, ChildKind};
     use systemprompt_test_fixtures::{
         DisposableDb, fixture_app_context_with, install_test_signing_key,
     };
@@ -360,12 +371,19 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         .expect("an available agent port");
     let port = listener.local_addr().unwrap().port();
     assert_eq!(
-        find_process_using_port(port).expect("inspect owned listener"),
-        Some(std::process::id()),
+        subprocess::pids_listening_on(port)
+            .await
+            .expect("inspect owned listener"),
+        vec![std::process::id()],
         "the occupied port must belong to this test process"
     );
     assert!(
-        !is_agent_process(std::process::id()).expect("classify test process"),
+        !subprocess::owns(
+            std::process::id(),
+            ChildKind::Agent,
+            &systemprompt_identifiers::ServiceName::new("covlister"),
+        )
+        .await,
         "production cleanup must reject the unit-test process"
     );
     std::fs::write(
@@ -376,11 +394,9 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     systemprompt_test_fixtures::refresh_services_config();
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_restart_all_agents")
-        .await
-        .expect("isolated installed database");
-    let pool = database.pool().await.expect("isolated database pool");
-    let paths = systemprompt_models::PathsConfig {
+    let database = DisposableDb::with_schema("cli_restart_all_agents").await;
+    let pool = database.test_pool().await;
+    let paths = systemprompt_manifest::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -430,13 +446,13 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
     assert!(
         app.a2a_repositories()
             .agent_services
-            .get_agent_status("covdormant")
+            .find_agent_status(&systemprompt_identifiers::AgentName::new("covdormant"))
             .await
             .unwrap()
             .is_none()
     );
     drop(app);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -457,11 +473,9 @@ async fn delete_all_agents_public_helper() {
     std::fs::write(&control, "control: preserved\n").expect("write unrelated control");
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     install_test_signing_key();
-    let database = DisposableDb::installed("cli_admin_delete_all")
-        .await
-        .expect("private delete-all database");
-    let pool = database.pool().await.expect("private delete-all pool");
-    let paths = systemprompt_models::PathsConfig {
+    let database = DisposableDb::with_schema("cli_admin_delete_all").await;
+    let pool = database.test_pool().await;
+    let paths = systemprompt_manifest::PathsConfig {
         system: boot.system_path.display().to_string(),
         services: root.display().to_string(),
         bin: boot.bin_path.display().to_string(),
@@ -501,7 +515,7 @@ async fn delete_all_agents_public_helper() {
         })
     );
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

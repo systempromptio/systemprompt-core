@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
+use systemprompt_identifiers::SessionId;
 
 use super::BannedIpRepository;
 use super::types::BannedIp;
@@ -24,7 +25,7 @@ impl BannedIpRepository {
                 is_permanent,
                 source_fingerprint,
                 ban_source,
-                associated_session_ids
+                associated_session_ids as "associated_session_ids: Vec<SessionId>"
             FROM banned_ips
             WHERE expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP
             ORDER BY banned_at DESC
@@ -53,7 +54,7 @@ impl BannedIpRepository {
                 is_permanent,
                 source_fingerprint,
                 ban_source,
-                associated_session_ids
+                associated_session_ids as "associated_session_ids: Vec<SessionId>"
             FROM banned_ips
             WHERE ban_source = $1
               AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
@@ -84,7 +85,7 @@ impl BannedIpRepository {
                 is_permanent,
                 source_fingerprint,
                 ban_source,
-                associated_session_ids
+                associated_session_ids as "associated_session_ids: Vec<SessionId>"
             FROM banned_ips
             WHERE source_fingerprint = $1
             ORDER BY banned_at DESC

@@ -1,16 +1,14 @@
 //! Trait abstractions over a database backend.
 //!
 //! [`DatabaseProvider`] is dyn-safe (callers hold `Arc<dyn DatabaseProvider>`)
-//! and uses `#[async_trait]`. [`DatabaseProviderExt`] is generic, never used
-//! through a trait object, and uses native `async fn`.
+//! and uses `#[async_trait]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::DatabaseResult;
 use crate::models::{
-    DatabaseInfo, DatabaseTransaction, FromDatabaseRow, JsonRow, QueryResult, QuerySelector,
-    ToDbValue,
+    DatabaseInfo, DatabaseTransaction, JsonRow, QueryResult, QuerySelector, ToDbValue,
 };
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -61,28 +59,4 @@ pub trait DatabaseProvider: Send + Sync + std::fmt::Debug {
         query: &dyn QuerySelector,
         params: &[&dyn ToDbValue],
     ) -> DatabaseResult<QueryResult>;
-}
-
-#[expect(
-    async_fn_in_trait,
-    reason = "internal extension trait used statically; no dyn dispatch, so no Send-bound concern"
-)]
-pub trait DatabaseProviderExt {
-    async fn fetch_typed_optional<T: FromDatabaseRow>(
-        &self,
-        query: &dyn QuerySelector,
-        params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<Option<T>>;
-
-    async fn fetch_typed_one<T: FromDatabaseRow>(
-        &self,
-        query: &dyn QuerySelector,
-        params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<T>;
-
-    async fn fetch_typed_all<T: FromDatabaseRow>(
-        &self,
-        query: &dyn QuerySelector,
-        params: &[&dyn ToDbValue],
-    ) -> DatabaseResult<Vec<T>>;
 }

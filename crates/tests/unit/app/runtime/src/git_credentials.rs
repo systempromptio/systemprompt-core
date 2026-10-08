@@ -3,20 +3,19 @@
 
 use systemprompt_identifiers::{ManagedResourceId, ResourceRevisionId, TraceId, UserId};
 use systemprompt_marketplace::managed::{GitSyncRequest, ManagedRepository, SourceSpec};
+use systemprompt_runtime::managed::OrchestrationError;
 use systemprompt_runtime::managed::git_sources::GitSourceOrchestrator;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 
 #[tokio::test]
 async fn missing_private_credentials_fail_initial_import_and_sync_without_launching_git() {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url)
-        .await
-        .expect("database");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let owner = UserId::new(format!("git-credentials-{}", TraceId::generate()));
     seed_user_row(&db, &owner, &format!("{owner}@credentials.invalid"))
         .await
         .expect("owner");
-    let repository = ManagedRepository::new(&db).expect("managed repository");
+    let repository = ManagedRepository::new(&db);
     let reference = format!("absent-private-reference-{}", TraceId::generate());
     let source = repository
         .register_source(
@@ -31,7 +30,7 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         )
         .await
         .expect("registered private source");
-    let orchestrator = GitSourceOrchestrator::new(repository);
+    let orchestrator = GitSourceOrchestrator::new(repository, std::env::temp_dir());
     let revision = ResourceRevisionId::generate();
     for base in [None, Some(revision.clone())] {
         let request = GitSyncRequest {
@@ -46,9 +45,12 @@ async fn missing_private_credentials_fail_initial_import_and_sync_without_launch
         )
         .await
         .expect("credential rejection before import/sync")
-        .expect_err("unresolved reference")
-        .to_string();
-        assert!(error.contains("Git credential"));
-        assert!(!error.contains(&reference));
+        .expect_err("unresolved reference");
+        assert!(matches!(
+            error,
+            OrchestrationError::CredentialUnresolved
+                | OrchestrationError::CredentialsUnavailable(_)
+        ));
+        assert!(!error.to_string().contains(&reference));
     }
 }

@@ -10,14 +10,14 @@ use systemprompt_runtime::AppContext;
 use systemprompt_slack::signature::sign;
 use systemprompt_test_fixtures::{
     TEST_SLACK_SIGNING_SECRET, TEST_SLACK_WORKSPACE_ID, ensure_messaging_bootstrap,
-    fixture_app_context, fixture_db_pool,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 
 async fn messaging_ctx() -> anyhow::Result<(DbPool, Arc<AppContext>)> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok((pool, ctx))
 }
 
@@ -31,7 +31,7 @@ fn now_ts() -> String {
 
 fn signed_post(path: &str, body: &str, secret: &str) -> Request<Body> {
     let ts = now_ts();
-    let signature = sign(secret.as_bytes(), &ts, body.as_bytes());
+    let signature = sign(secret.as_bytes(), &ts, body.as_bytes()).expect("sign");
     Request::builder()
         .method("POST")
         .uri(path)

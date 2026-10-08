@@ -80,7 +80,7 @@ pub enum SyncError {
         "gateway returned a manifest this bridge cannot parse ({0}) — the gateway and bridge \
          versions are out of step; upgrade whichever is older"
     )]
-    ManifestShape(String),
+    ManifestShape(#[source] ManifestShapeCause),
     #[error(
         "this bridge is {local} but the gateway requires {required} or newer — update the \
          bridge to sync against it"
@@ -134,6 +134,14 @@ pub enum SyncError {
         started_for: String,
         current: String,
     },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ManifestShapeCause {
+    #[error(transparent)]
+    Gateway(Box<crate::gateway::GatewayError>),
+    #[error(transparent)]
+    Manifest(#[from] crate::gateway::manifest::ManifestError),
 }
 
 #[derive(Debug, thiserror::Error)]

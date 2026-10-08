@@ -8,6 +8,7 @@
 //! router because the fixture profile leaves the gateway unmounted.
 
 use std::sync::Arc;
+use systemprompt_api::routes::gateway::messages::error::RejectionError;
 
 use anyhow::Result;
 use axum::body::Body;
@@ -25,11 +26,11 @@ use systemprompt_api::routes::gateway::messages::extract::{RejectionPartial, der
 use systemprompt_api::routes::gateway::messages::rejection::{
     build_rejection_record, persist_rejection,
 };
-use systemprompt_api::services::gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role,
 };
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{AllowAllHook, DenyAllHook, SharedAuthzHook};
@@ -38,7 +39,7 @@ use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
 use super::common::setup_ctx;
 
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 
@@ -50,8 +51,8 @@ fn test_partial() -> RejectionPartial {
     ))
 }
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -62,17 +63,15 @@ fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::Gat
 }
 
 
-fn gw_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+            systemprompt_agent::repository::ContextRepository::new(db),
         )),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("gateway repos")
 }
 
 fn header_map(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -138,7 +137,11 @@ fn require_session_id_trims_surrounding_whitespace() {
 
 #[test]
 fn require_session_id_missing_header_is_bad_request() {
-    let (status, msg) = require_session_id(&HeaderMap::new()).expect_err("missing must fail");
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = require_session_id(&HeaderMap::new()).expect_err("missing must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("missing"), "{msg}");
 }
@@ -146,7 +149,11 @@ fn require_session_id_missing_header_is_bad_request() {
 #[test]
 fn require_session_id_empty_header_is_bad_request() {
     let h = header_map(&[(SESSION_ID, "   ")]);
-    let (status, msg) = require_session_id(&h).expect_err("empty must fail");
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = require_session_id(&h).expect_err("empty must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert!(msg.contains("empty"), "{msg}");
 }
@@ -206,7 +213,7 @@ async fn read_gateway_body_rejects_unparseable_json() -> Result<()> {
         .body(Body::from("not json at all"))
         .expect("request");
     let mut partial = test_partial();
-    let (status, _msg) = read_gateway_body(&inbound, request, &mut partial)
+    let RejectionError { status, .. } = read_gateway_body(&inbound, request, &mut partial)
         .await
         .expect_err("garbage must fail");
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -253,7 +260,11 @@ fn derive_conversation_derives_from_messages_when_header_absent() {
 fn derive_conversation_without_messages_is_bad_request() {
     let request = canonical(vec![]);
     let mut partial = test_partial();
-    let (status, msg) = derive_conversation(
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = derive_conversation(
         &systemprompt_identifiers::UserId::new("owner-a"),
         None,
         &request,
@@ -266,15 +277,18 @@ fn derive_conversation_without_messages_is_bad_request() {
 
 fn api_key_principal(user: &str) -> AuthedPrincipal {
     AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+        api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
+        limits: systemprompt_users::ApiKeyLimits::default(),
+        scopes: Vec::new(),
         user_id: UserId::new(user),
         trace_id: TraceId::generate(),
         attested_session: SessionId::generate(),
     })
 }
 
-fn gateway_route() -> systemprompt_models::services::GatewayRoute {
-    let mut route = systemprompt_models::services::GatewayRoute {
-        id: systemprompt_identifiers::RouteId::new(""),
+fn gateway_route() -> systemprompt_manifest::services::GatewayRoute {
+    let mut route = systemprompt_manifest::services::GatewayRoute {
+        id: None,
         name: None,
         description: None,
         model_pattern: "claude-*".to_owned(),
@@ -284,8 +298,8 @@ fn gateway_route() -> systemprompt_models::services::GatewayRoute {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     route
@@ -300,7 +314,7 @@ async fn enforce_authz_allows_under_allow_all_hook() {
         &principal,
         &route,
         "claude-test",
-        &ContextId::legacy(),
+        &ContextId::generate(),
         &hook,
     )
     .await
@@ -312,11 +326,15 @@ async fn enforce_authz_denies_under_deny_all_hook() {
     let hook: SharedAuthzHook = Arc::new(DenyAllHook::null());
     let route = gateway_route();
     let principal = api_key_principal("authz-deny-user");
-    let (status, msg) = enforce_authz_pre_dispatch(
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = enforce_authz_pre_dispatch(
         &principal,
         &route,
         "claude-test",
-        &ContextId::legacy(),
+        &ContextId::generate(),
         &hook,
     )
     .await
@@ -330,12 +348,18 @@ fn jwt_extractor(
 ) -> Result<systemprompt_api::services::middleware::JwtContextExtractor> {
     use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
     use systemprompt_traits::UserProvider;
-    let analytics = ctx.analytics_repositories().sessions.owner();
+    let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));
     let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
-    Ok(JwtContextExtractor::new(analytics, user_provider, jti))
+    let issuer = ctx.config().jwt_issuer.clone();
+    Ok(JwtContextExtractor::new(
+        analytics,
+        user_provider,
+        jti,
+        issuer,
+    ))
 }
 
 #[tokio::test]
@@ -349,6 +373,8 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
             user_id: &cred.user_id,
             name: "gateway-auth-test",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 
@@ -376,12 +402,18 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
             user_id: &cred.user_id,
             name: "gateway-auth-forged-session",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 
     let extractor = jwt_extractor(&ctx)?;
     let forged = SessionId::new("not-a-real-session");
-    let (status, msg) = authenticate(&issued.secret, &forged, &extractor, &ctx)
+    let RejectionError {
+        status,
+        message: msg,
+        ..
+    } = authenticate(&issued.secret, &forged, &extractor, &ctx)
         .await
         .expect_err("a session the server never issued must not authenticate");
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -393,7 +425,7 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
 async fn authenticate_rejects_unknown_api_key() -> Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) = authenticate(
+    let RejectionError { status, .. } = authenticate(
         "sp-live-deadbeefdeadbeef",
         &SessionId::generate(),
         &extractor,
@@ -453,6 +485,20 @@ fn build_rejection_record_keeps_routing_it_did_resolve() {
     let record = build_rejection_record(&id, &partial).expect("record built");
     assert_eq!(record.provider, None);
     assert_eq!(record.model.as_deref(), Some("claude-test"));
+}
+
+#[test]
+fn build_rejection_record_without_a_context_gets_a_fresh_context_not_the_legacy_row() {
+    let mut partial = test_partial();
+    partial.user_id = Some(UserId::new("rej-user"));
+    partial.context_id = None;
+    partial.session_id = None;
+    let first = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
+    let second = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
+    let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
+    assert_ne!(first.context_id, legacy);
+    assert_ne!(second.context_id, legacy);
+    assert_ne!(first.context_id, second.context_id);
 }
 
 #[tokio::test]
@@ -516,7 +562,7 @@ async fn audit_routing_row(
     pool: &DbPool,
     id: &AiRequestId,
 ) -> Result<Option<(Option<String>, Option<String>, String)>> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: Option<(Option<String>, Option<String>, String)> =
         sqlx::query_as("SELECT provider, model, status FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
@@ -526,7 +572,7 @@ async fn audit_routing_row(
 }
 
 async fn audit_row_exists(pool: &DbPool, id: &AiRequestId) -> Result<bool> {
-    let pg = pool.pool_arc().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
+    let pg = pool.pool();
     let row: Option<(String,)> = sqlx::query_as("SELECT id FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
         .fetch_optional(pg.as_ref())

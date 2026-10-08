@@ -8,14 +8,18 @@
 
 use systemprompt_api::services::server::readiness::init_readiness;
 use systemprompt_api::services::server::shutdown;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
+use systemprompt_runtime::ShutdownRequest;
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
 #[tokio::test]
 async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
     init_readiness();
 
-    let outcome =
-        shutdown::join_within_drain_grace(async { Err(anyhow::anyhow!("bind lost")) }).await;
+    let outcome = shutdown::join_within_drain_grace(
+        async { Err(anyhow::anyhow!("bind lost")) },
+        &ShutdownRequest::default(),
+    )
+    .await;
 
     let error = outcome.expect_err("the server's failure is the caller's failure");
     assert_eq!(
@@ -32,7 +36,7 @@ async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
 async fn an_unreadable_service_registry_does_not_abort_child_termination() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
 
     let completed = tokio::time::timeout(
         std::time::Duration::from_secs(10),

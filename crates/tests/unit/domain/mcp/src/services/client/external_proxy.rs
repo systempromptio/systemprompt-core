@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_models::RequestContext;
@@ -53,6 +53,7 @@ fn context() -> RequestContext {
         TraceId::generate(),
         ContextId::try_new(uuid::Uuid::new_v4().to_string()).expect("valid ContextId"),
         AgentName::try_new("external-proxy-test").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -73,7 +74,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     systemprompt_test_fixtures::ensure_test_secrets_bootstrap();
     let config = external_config(true);
-    let ctx = context().with_auth_token("employee-jwt");
+    let ctx = context().with_auth_token(JwtToken::new("employee-jwt"));
 
     let err = McpClient::resolve_external_proxy_target(&config, &ctx)
         .await

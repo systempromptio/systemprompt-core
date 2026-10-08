@@ -6,9 +6,9 @@
 use std::fs;
 use std::path::Path;
 
-use super::private_file::{ensure_private_dir, write_private_atomic};
 use super::session::{CURRENT_VERSION, CliSession, MIN_SUPPORTED_VERSION};
 use crate::error::{CloudError, CloudResult};
+use crate::private_dir::write_private_json;
 
 impl CliSession {
     pub fn load_from_path(path: &Path) -> CloudResult<Self> {
@@ -18,8 +18,10 @@ impl CliSession {
 
         let content = fs::read_to_string(path)?;
 
-        let mut session: Self = serde_json::from_str(&content)
-            .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
+        let mut session: Self =
+            serde_json::from_str(&content).map_err(|e| CloudError::CredentialsCorrupted {
+                source: Box::new(e),
+            })?;
 
         if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
             return Err(CloudError::SessionVersionMismatch {
@@ -35,11 +37,7 @@ impl CliSession {
     }
 
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
-        if let Some(dir) = path.parent() {
-            ensure_private_dir(dir)?;
-        }
-        let content = serde_json::to_string_pretty(self)?;
-        write_private_atomic(path, &content)
+        write_private_json(path, self)
     }
 
     pub fn delete_from_path(path: &Path) -> CloudResult<()> {

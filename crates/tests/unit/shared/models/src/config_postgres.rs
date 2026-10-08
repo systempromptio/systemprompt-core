@@ -1,6 +1,6 @@
-//! Unit tests for `systemprompt_models::config::validate_postgres_url`.
+//! Unit tests for `systemprompt_manifest::config::validate_postgres_url`.
 
-use systemprompt_models::config::validate_postgres_url;
+use systemprompt_manifest::config::validate_postgres_url;
 
 #[test]
 fn valid_postgres_scheme() {

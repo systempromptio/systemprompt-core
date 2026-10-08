@@ -8,11 +8,11 @@
 //!
 //! | Feature | Pulls in | Use case |
 //! |---------|----------|----------|
-//! | `core` *(default)* | `traits`, `models`, `identifiers`, `extension`, `template-provider` | Author extensions, share types, no I/O. |
+//! | `core` *(default)* | `traits`, `models`, `wire`, `manifest`, `identifiers`, `extension`, `template-provider` | Author extensions, share types, no I/O. |
 //! | `database` | `systemprompt-database`, `sqlx` | SQLx-backed `DbPool` and repository helpers. |
 //! | `config` | `systemprompt-config` | Profile, secrets, and credential bootstrap loaders. |
-//! | `mcp` | `rmcp` | Implement Model Context Protocol servers. |
-//! | `api` | `systemprompt-api`, `systemprompt-runtime`, `axum` (implies `core` + `database`) | HTTP server, `AppContext`, Axum router. |
+//! | `mcp` | `rmcp` | Implement Model Context Protocol servers with `rmcp`. The `systemprompt::mcp` module (`systemprompt-mcp`) is gated on `full`, not on this flag. |
+//! | `api` | `systemprompt-api`, `systemprompt-gateway`, `systemprompt-runtime`, `systemprompt-oauth-issuance`, `axum` (implies `core` + `database`) | HTTP server, AI gateway, `AppContext`, Axum router, OAuth token issuance. `systemprompt-api` always compiles `systemprompt-slack`, `systemprompt-teams` and the runtime's `geolocation` (MaxMind) feature. |
 //! | `cloud` | `systemprompt-cloud` | Cloud API client, credentials bootstrap, OAuth. |
 //! | `logging` | `systemprompt-logging` | Tracing setup with the workspace's layer stack. |
 //! | `loader` | `systemprompt-loader` | Filesystem and module discovery. |
@@ -20,21 +20,24 @@
 //! | `storage` | `systemprompt-storage` | File storage backends and the shared-mount probe. |
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
 //! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
-//! | `cli` | `systemprompt-cli` | The `systemprompt` CLI as a library entry point. |
-//! | `runtime` | `cli` + extension injection | `RuntimeBuilder` for embedding with custom extensions. |
+//! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
+//! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding with custom extensions. |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
-//! | `slack` | `systemprompt-slack` | Slack Events API, slash commands, interactivity. Opt-in: not part of `full`. |
-//! | `teams` | `systemprompt-teams` | Microsoft Teams Bot Framework activities. Opt-in: not part of `full`. |
-//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. `slack` and `teams` stay opt-in. |
+//! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
+//! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
+//! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.62.0", features = ["full"] }
+//! systemprompt = { version = "0.63.0", features = ["full"] }
 //! ```
 //!
-//! Every crate is reachable as a module of the same name
-//! (`systemprompt::models`, `systemprompt::agent`, …) gated on its feature. The
-//! curated [`prelude`] is opt-in — `use systemprompt::prelude::*` — and is not
-//! re-exported at the crate root, so the root namespace stays the module map.
+//! Crates are reachable as a module of the same name (`systemprompt::models`,
+//! `systemprompt::agent`, …) gated on its feature, with three exceptions:
+//! `systemprompt-runtime` is `systemprompt::system`, `systemprompt::cli`
+//! re-exports only the CLI entry points, and `systemprompt-templates` is not
+//! re-exported. The curated [`prelude`] is opt-in — `use
+//! systemprompt::prelude::*` — and is not re-exported at the crate root, so the
+//! root namespace stays the module map.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -49,6 +52,18 @@ pub mod traits {
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod models {
     pub use systemprompt_models::*;
+}
+
+#[cfg(feature = "core")]
+#[cfg_attr(docsrs, doc(cfg(feature = "core")))]
+pub mod wire {
+    pub use systemprompt_wire::*;
+}
+
+#[cfg(feature = "core")]
+#[cfg_attr(docsrs, doc(cfg(feature = "core")))]
+pub mod manifest {
+    pub use systemprompt_manifest::*;
 }
 
 #[cfg(feature = "core")]
@@ -134,6 +149,15 @@ pub mod system {
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod api {
     pub use systemprompt_api::*;
+}
+
+/// The AI gateway: protocol translation, gateway policies and the
+/// safety-scanner, route-selector and system-prompt-override extension
+/// contracts.
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub mod gateway {
+    pub use systemprompt_gateway::*;
 }
 
 #[cfg(feature = "cli")]
@@ -230,6 +254,12 @@ pub mod generator {
     pub use systemprompt_generator::*;
 }
 
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub mod oauth_issuance {
+    pub use systemprompt_oauth_issuance::*;
+}
+
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod files {
@@ -256,7 +286,7 @@ pub mod profile {
     #[cfg(feature = "loader")]
     pub use systemprompt_loader::ServicesBootstrap;
 
-    pub use systemprompt_models::profile::{
+    pub use systemprompt_manifest::profile::{
         CloudConfig, CloudValidationMode, Profile, ProfileStyle,
     };
 }

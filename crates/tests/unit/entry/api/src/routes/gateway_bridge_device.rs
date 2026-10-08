@@ -7,13 +7,16 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, HeaderValue, StatusCode};
-use systemprompt_api::routes::gateway::bridge_device::{SelfEnrollRequest, enroll_self};
+use axum::http::{HeaderMap, HeaderValue};
+use systemprompt_api::error::ApiHttpError;
+use systemprompt_api::routes::gateway::bridge_device::enroll_self;
 use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+use systemprompt_models::api::ErrorCode;
+use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    AuthedFixture, ensure_test_bootstrap, fixture_app_context, fixture_database_url,
-    fixture_db_pool, seed_bridge_credential,
+    AuthedFixture, ensure_test_bootstrap, seed_bridge_credential, test_app_context,
+    test_database_url, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 
@@ -23,24 +26,25 @@ struct Harness {
     authed: AuthedFixture,
 }
 
-async fn harness_or_skip() -> Option<Harness> {
-    let url = fixture_database_url().ok()?;
+async fn harness() -> Harness {
+    let url = test_database_url();
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let ctx = fixture_app_context(&pool, &url).expect("app context");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let authed = seed_bridge_credential(&pool, "device@bridge-device.invalid")
         .await
         .expect("bridge credential");
-    Some(Harness {
+    Harness {
         ctx,
         extractor,
         authed,
-    })
+    }
 }
 
 fn bearer(token: &str) -> HeaderMap {
@@ -60,10 +64,7 @@ async fn enroll(
     h: &Harness,
     headers: HeaderMap,
     fingerprint: String,
-) -> Result<
-    Json<systemprompt_api::routes::gateway::bridge_device::SelfEnrollResponse>,
-    (StatusCode, String),
-> {
+) -> Result<Json<SelfEnrollResponse>, ApiHttpError> {
     enroll_self(
         Arc::clone(&h.extractor),
         (*h.ctx).clone(),
@@ -78,31 +79,40 @@ async fn enroll(
 
 #[tokio::test]
 async fn missing_bearer_is_unauthorized() {
-    let Some(h) = harness_or_skip().await else {
-        return;
-    };
-    let (status, _) = enroll(&h, HeaderMap::new(), fingerprint('a'))
+    let h = harness().await;
+    let error = enroll(&h, HeaderMap::new(), fingerprint('a'))
         .await
-        .expect_err("no credential must be refused");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+        .expect_err("no credential must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::Unauthorized);
+    assert_eq!(error.error_key.as_deref(), Some("missing_credential"));
 }
 
 #[tokio::test]
 async fn malformed_fingerprint_is_a_client_error() {
-    let Some(h) = harness_or_skip().await else {
-        return;
-    };
-    let (status, message) = enroll(&h, bearer(h.authed.jwt.as_str()), "deadbeef".to_owned())
+    let h = harness().await;
+    let error = enroll(&h, bearer(h.authed.jwt.as_str()), "deadbeef".to_owned())
         .await
-        .expect_err("short fingerprint must be refused");
-    assert_eq!(status, StatusCode::BAD_REQUEST, "{message}");
+        .expect_err("short fingerprint must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::BadRequest, "{}", error.message);
+}
+
+#[tokio::test]
+async fn a_rejected_credential_is_unauthorized_without_the_decoder_cause() {
+    let h = harness().await;
+    let error = enroll(&h, bearer("not-a-jwt"), fingerprint('b'))
+        .await
+        .expect_err("a forged credential must be refused")
+        .into_inner();
+    assert_eq!(error.code, ErrorCode::Unauthorized);
+    assert_eq!(error.error_key.as_deref(), Some("invalid_credential"));
+    assert_eq!(error.message, "Bridge credential rejected");
 }
 
 #[tokio::test]
 async fn self_enrolment_issues_a_device_credential_and_repeats_on_the_same_device() {
-    let Some(h) = harness_or_skip().await else {
-        return;
-    };
+    let h = harness().await;
     // Why: the fingerprint is globally unique, so each run must mint its own.
     let fingerprint =
         systemprompt_models::feedback::ContentDigest::of(h.authed.user_id.as_str().as_bytes())

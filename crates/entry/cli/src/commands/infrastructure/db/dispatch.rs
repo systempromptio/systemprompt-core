@@ -38,7 +38,7 @@ pub(super) async fn dispatch_profile_migration(
         } => admin::execute_migrate_repair(
             config,
             admin::RepairArgs {
-                extension: extension.as_deref(),
+                extension: extension.as_ref(),
                 apply,
                 reconcile_only,
                 json,
@@ -90,7 +90,7 @@ pub(super) async fn dispatch_standalone_migration(
             db_ctx,
             config,
             admin::RepairArgs {
-                extension: extension.as_deref(),
+                extension: extension.as_ref(),
                 apply,
                 reconcile_only,
                 json,
@@ -127,12 +127,12 @@ async fn dispatch_standalone_inspection(
             .await
             .map(|()| None),
         DbCommands::MigratePlan { extension, json } => {
-            admin::execute_migrate_plan_standalone(db_ctx, extension.as_deref(), json, config)
+            admin::execute_migrate_plan_standalone(db_ctx, extension.as_ref(), json, config)
                 .await
                 .map(|()| None)
         },
         DbCommands::MigrateStatus { extension, json } => {
-            admin::execute_migrate_status_standalone(db_ctx, extension.as_deref(), json, config)
+            admin::execute_migrate_status_standalone(db_ctx, extension.as_ref(), json, config)
                 .await
                 .map(|()| None)
         },

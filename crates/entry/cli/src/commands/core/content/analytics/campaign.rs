@@ -15,8 +15,8 @@ use systemprompt_identifiers::CampaignId;
 
 #[derive(Debug, Args)]
 pub struct CampaignArgs {
-    #[arg(help = "Campaign ID")]
-    pub campaign_id: String,
+    #[arg(help = "Campaign ID", value_parser = crate::shared::parse_campaign_id)]
+    pub campaign_id: CampaignId,
 }
 
 pub async fn execute(args: CampaignArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -28,12 +28,11 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repositories = ContentRepositories::new(pool)?;
+    let repositories = ContentRepositories::new(pool);
     let service = LinkAnalyticsService::new(repositories.link, repositories.link_analytics);
 
-    let campaign_id = CampaignId::new(args.campaign_id.clone());
     let performance = service
-        .get_campaign_performance(&campaign_id)
+        .find_campaign_performance(&args.campaign_id)
         .await?
         .ok_or_else(|| anyhow!("Campaign not found: {}", args.campaign_id))?;
 

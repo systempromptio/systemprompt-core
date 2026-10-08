@@ -11,11 +11,11 @@ use systemprompt_content::repository::{
 use systemprompt_content::{GenerateLinkParams, LinkAnalyticsService, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId, SourceId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
-    let repo = ContentRepository::new(pool).expect("repo");
+    let repo = ContentRepository::new(pool);
     let params = CreateContentParams::new(
         format!("an-src-{}", Uuid::new_v4()),
         "Analytics Source".to_owned(),
@@ -27,7 +27,7 @@ async fn seed_content(pool: &DbPool, source: &SourceId) -> ContentId {
 }
 
 async fn seed_link(pool: &DbPool, campaign: &CampaignId, content_id: Option<ContentId>) -> LinkId {
-    let svc = LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"));
+    let svc = LinkGenerationService::new(LinkRepository::new(pool));
     let link = svc
         .generate_link(GenerateLinkParams {
             target_url: format!("https://example.com/{}", Uuid::new_v4()),
@@ -63,13 +63,12 @@ fn track_params(link_id: &LinkId, session: &SessionId) -> TrackClickParams {
 }
 
 async fn cleanup(pool: &DbPool, link_id: &LinkId, source: Option<&SourceId>) {
-    LinkGenerationService::new(LinkRepository::new(pool).expect("link repo"))
+    LinkGenerationService::new(LinkRepository::new(pool))
         .delete_link(link_id)
         .await
         .expect("delete link");
     if let Some(source) = source {
         ContentRepository::new(pool)
-            .expect("repo")
             .delete_by_source(source)
             .await
             .expect("cleanup content");
@@ -78,16 +77,13 @@ async fn cleanup(pool: &DbPool, link_id: &LinkId, source: Option<&SourceId>) {
 
 #[tokio::test]
 async fn track_click_first_then_repeat_updates_counters() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     let session = SessionId::new(format!("sess-{}", Uuid::new_v4()));
@@ -112,7 +108,7 @@ async fn track_click_first_then_repeat_updates_counters() {
     );
 
     let perf = svc
-        .get_link_performance(&link_id)
+        .find_link_performance(&link_id)
         .await
         .expect("perf")
         .expect("present");
@@ -131,16 +127,13 @@ async fn track_click_first_then_repeat_updates_counters() {
 
 #[tokio::test]
 async fn distinct_sessions_each_count_as_unique() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     for _ in 0..3 {
@@ -151,7 +144,7 @@ async fn distinct_sessions_each_count_as_unique() {
     }
 
     let perf = svc
-        .get_link_performance(&link_id)
+        .find_link_performance(&link_id)
         .await
         .expect("perf")
         .expect("present");
@@ -163,17 +156,14 @@ async fn distinct_sessions_each_count_as_unique() {
 
 #[tokio::test]
 async fn campaign_performance_aggregates_links() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_a = seed_link(&pool, &campaign, None).await;
     let link_b = seed_link(&pool, &campaign, None).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     svc.track_click(&track_params(
@@ -190,7 +180,7 @@ async fn campaign_performance_aggregates_links() {
     .expect("click b");
 
     let perf = svc
-        .get_campaign_performance(&campaign)
+        .find_campaign_performance(&campaign)
         .await
         .expect("camp perf")
         .expect("present");
@@ -210,18 +200,15 @@ async fn campaign_performance_aggregates_links() {
 
 #[tokio::test]
 async fn journey_map_and_source_content_listing() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let source = SourceId::new(format!("an-journey-{}", Uuid::new_v4()));
     let content_id = seed_content(&pool, &source).await;
     let campaign = CampaignId::new(format!("camp-{}", Uuid::new_v4()));
     let link_id = seed_link(&pool, &campaign, Some(content_id.clone())).await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     svc.track_click(&track_params(
@@ -254,19 +241,16 @@ async fn journey_map_and_source_content_listing() {
 
 #[tokio::test]
 async fn performance_for_missing_link_is_none() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let svc = LinkAnalyticsService::new(
-        LinkRepository::new(&pool).expect("link repo"),
-        LinkAnalyticsRepository::new(&pool).expect("analytics repo"),
+        LinkRepository::new(&pool),
+        LinkAnalyticsRepository::new(&pool),
     );
 
     let missing = LinkId::new(format!("missing-{}", Uuid::new_v4()));
     assert!(
-        svc.get_link_performance(&missing)
+        svc.find_link_performance(&missing)
             .await
             .expect("query")
             .is_none()
@@ -274,7 +258,7 @@ async fn performance_for_missing_link_is_none() {
 
     let missing_campaign = CampaignId::new(format!("missing-c-{}", Uuid::new_v4()));
     assert!(
-        svc.get_campaign_performance(&missing_campaign)
+        svc.find_campaign_performance(&missing_campaign)
             .await
             .expect("query")
             .is_none()

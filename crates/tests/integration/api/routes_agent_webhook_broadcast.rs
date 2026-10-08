@@ -39,7 +39,7 @@ async fn seed_context(pool: &DbPool) -> anyhow::Result<Seeded> {
     seed_user_session(pool, &user_id, &session_id).await?;
 
     let context_id = ContextId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",
     )
@@ -57,7 +57,7 @@ async fn seed_context(pool: &DbPool) -> anyhow::Result<Seeded> {
 
 async fn seed_task(pool: &DbPool, s: &Seeded) -> anyhow::Result<TaskId> {
     let task_id = TaskId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO agent_tasks (task_id, context_id, status, status_timestamp, user_id, \
          agent_name) VALUES ($1, $2, 'TASK_STATE_WORKING', now(), $3, 'wh-agent')",
@@ -72,7 +72,7 @@ async fn seed_task(pool: &DbPool, s: &Seeded) -> anyhow::Result<TaskId> {
 
 async fn seed_artifact(pool: &DbPool, s: &Seeded, task_id: &TaskId) -> anyhow::Result<ArtifactId> {
     let artifact_id = ArtifactId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO task_artifacts (task_id, context_id, artifact_id, name, artifact_type) \
          VALUES ($1, $2, $3, $4, 'table')",
@@ -92,8 +92,8 @@ fn request_context_for(user: &UserId) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("wh-agent").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
@@ -352,7 +352,7 @@ async fn broadcast_task_created_empty_history_returns_400() -> anyhow::Result<()
 
 async fn seed_message(pool: &DbPool, s: &Seeded, task_id: &TaskId) -> anyhow::Result<MessageId> {
     let message_id = MessageId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO task_messages (task_id, message_id, role, context_id, user_id, \
          sequence_number) VALUES ($1, $2, 'user', $3, $4, 1)",
@@ -395,7 +395,7 @@ async fn broadcast_task_completed_with_messages_carries_history() -> anyhow::Res
         .await?;
     assert_eq!(resp.status().as_u16(), 200, "{}", resp.status());
 
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     let status: String = sqlx::query_scalar("SELECT status FROM agent_tasks WHERE task_id = $1")
         .bind(task_id.as_str())
         .fetch_one(handle.as_ref())

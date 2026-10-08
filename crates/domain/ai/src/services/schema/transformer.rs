@@ -14,7 +14,9 @@ use super::{ProviderCapabilities, SchemaSanitizer};
 use crate::error::Result;
 use crate::models::tools::McpTool;
 use serde_json::{Map, Value, json};
+use systemprompt_identifiers::McpToolName;
 
+// JSON: JSON Schema walk — `properties` of an arbitrary tool input schema.
 fn merge_properties_into(
     target: &mut Map<String, Value>,
     source: &Value,
@@ -32,6 +34,7 @@ fn merge_properties_into(
     }
 }
 
+// JSON: JSON Schema walk — `required` of an arbitrary tool input schema.
 fn collect_required_fields(base: &Value, variant: &Value, discriminator_field: &str) -> Vec<Value> {
     let mut all_required = Vec::new();
 
@@ -109,12 +112,13 @@ impl SchemaTransformer {
     }
 
     pub fn transform(&self, tool: &McpTool) -> Result<Vec<TransformedTool>> {
-        let schema = tool.input_schema.as_ref().ok_or_else(|| {
-            crate::error::AiError::Internal(format!(
-                "Tool '{}' missing required input_schema",
-                tool.name
-            ))
-        })?;
+        let schema =
+            tool.input_schema
+                .as_ref()
+                .ok_or_else(|| crate::error::AiError::MissingToolField {
+                    tool_name: McpToolName::new(tool.name.clone()),
+                    field: "input_schema".to_owned(),
+                })?;
 
         if !self.capabilities.requires_transformation(schema) {
             return Ok(vec![self.pass_through(tool)?]);
@@ -131,11 +135,9 @@ impl SchemaTransformer {
         let schema = tool
             .input_schema
             .as_ref()
-            .ok_or_else(|| {
-                crate::error::AiError::Internal(format!(
-                    "Tool '{}' missing required input_schema",
-                    tool.name
-                ))
+            .ok_or_else(|| crate::error::AiError::MissingToolField {
+                tool_name: McpToolName::new(tool.name.clone()),
+                field: "input_schema".to_owned(),
             })?
             .clone();
 
@@ -143,11 +145,8 @@ impl SchemaTransformer {
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| {
-                crate::error::AiError::Internal(format!(
-                    "Tool '{}' has empty or missing description",
-                    tool.name
-                ))
+            .ok_or_else(|| crate::error::AiError::EmptyToolDescription {
+                tool_name: McpToolName::new(tool.name.clone()),
             })?
             .clone();
 
@@ -171,11 +170,8 @@ impl SchemaTransformer {
             .description
             .as_ref()
             .filter(|d| !d.is_empty())
-            .ok_or_else(|| {
-                crate::error::AiError::Internal(format!(
-                    "Tool '{}' has empty or missing description",
-                    tool.name
-                ))
+            .ok_or_else(|| crate::error::AiError::EmptyToolDescription {
+                tool_name: McpToolName::new(tool.name.clone()),
             })?;
 
         let transformed_tools = union
@@ -201,6 +197,7 @@ impl SchemaTransformer {
         Ok(transformed_tools)
     }
 
+    // JSON: JSON Schema walk — an arbitrary tool input schema variant.
     fn build_variant_schema(
         &self,
         union: &DiscriminatedUnion,

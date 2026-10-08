@@ -1,19 +1,36 @@
 use systemprompt_identifiers::{ClientId, UserId};
-use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
+use systemprompt_oauth::models::OAuthClient;
+use systemprompt_oauth::repository::{
+    ClientRepository, CreateClientParams, OAuthRepository, UpdateClientParams,
+};
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
 use uuid::Uuid;
 
+fn full_update(client: &OAuthClient) -> UpdateClientParams {
+    UpdateClientParams {
+        client_id: client.client_id.clone(),
+        client_name: client.client_name.clone(),
+        redirect_uris: client.redirect_uris.clone(),
+        grant_types: Some(client.grant_types.clone()),
+        response_types: Some(client.response_types.clone()),
+        scopes: client.scopes.clone(),
+        token_endpoint_auth_method: Some(client.token_endpoint_auth_method.clone()),
+        client_uri: client.client_uri.clone(),
+        logo_uri: client.logo_uri.clone(),
+        contacts: client.contacts.clone(),
+    }
+}
+
 #[tokio::test]
 async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_commits() {
-    let database = DisposableDb::installed("oauth_contact_update_atomicity")
-        .await
-        .expect("isolated OAuth database");
-    let pool = database.pool().await.expect("OAuth database pool");
+    let database = DisposableDb::with_schema("oauth_contact_update_atomicity").await;
+    let pool = database.test_pool().await;
     let owner = UserId::new(format!("oauth-owner-{}", Uuid::new_v4().simple()));
     seed_user_row(&pool, &owner, &format!("{}@oauth.invalid", owner.as_str()))
         .await
         .expect("seed OAuth owner");
-    let repository = OAuthRepository::new(&pool).expect("OAuth repository");
+    let repository = OAuthRepository::new(&pool);
+    let clients = ClientRepository::new(&pool);
     let client_id = ClientId::new(format!("atomic-{}", Uuid::new_v4().simple()));
     let original = repository
         .create_client(CreateClientParams {
@@ -35,7 +52,7 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
         .await
         .expect("create original client");
 
-    let raw = pool.write_pool_arc().expect("OAuth write pool");
+    let raw = pool.write_pool();
     sqlx::query(
         "CREATE FUNCTION reject_oauth_contact() RETURNS trigger LANGUAGE plpgsql AS $$ \
          BEGIN RAISE EXCEPTION 'fixture contact association rejection'; END $$",
@@ -59,8 +76,8 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
     replacement.scopes = vec!["profile".to_owned()];
     replacement.contacts = Some(vec!["replacement@example.invalid".to_owned()]);
 
-    let error = repository
-        .update_client_full(&replacement)
+    let error = clients
+        .update(full_update(&replacement))
         .await
         .expect_err("late contact association failure must abort the update");
     assert!(
@@ -85,10 +102,11 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
         .execute(raw.as_ref())
         .await
         .expect("remove contact fault trigger");
-    let committed = repository
-        .update_client_full(&replacement)
+    let committed = clients
+        .update(full_update(&replacement))
         .await
-        .expect("retry client update");
+        .expect("retry client update")
+        .expect("client exists");
     assert_eq!(committed.client_name, "replacement-client");
     assert_eq!(committed.redirect_uris, replacement.redirect_uris);
     assert_eq!(committed.grant_types, replacement.grant_types);
@@ -107,9 +125,10 @@ async fn failed_contact_replacement_rolls_back_all_client_relations_then_retry_c
     assert_eq!(persisted.scopes, replacement.scopes);
     assert_eq!(persisted.contacts, replacement.contacts);
 
+    drop(clients);
     drop(repository);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

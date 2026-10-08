@@ -16,6 +16,8 @@ pub use self::trace::{
     mcp_tool_calls_table, task_artifacts_table, task_info_table, trace_events_table,
 };
 
+use std::fmt;
+
 use crate::shared::truncate_with_ellipsis;
 
 #[must_use]
@@ -28,6 +30,17 @@ pub(super) fn dash() -> String {
     "-".to_owned()
 }
 
-pub(super) fn millis(value: Option<impl std::fmt::Display>) -> String {
+pub(super) struct OrDash<T>(pub(super) Option<T>);
+
+impl<T: fmt::Display> fmt::Display for OrDash<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            Some(value) => fmt::Display::fmt(value, f),
+            None => f.write_str("-"),
+        }
+    }
+}
+
+pub(super) fn millis(value: Option<impl fmt::Display>) -> String {
     value.map_or_else(dash, |ms| format!("{ms}ms"))
 }

@@ -10,9 +10,9 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_identifiers::TraceId;
-use systemprompt_logging::CliService;
-use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService};
+use systemprompt_identifiers::{McpServerId, McpToolName, TraceId};
+use systemprompt_logging::{CliService, LogLevel};
+use systemprompt_runtime::{LogSearchItem, ToolExecutionItem, TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
@@ -26,7 +26,7 @@ pub struct SearchArgs {
     pub pattern: String,
 
     #[arg(long, help = "Filter by log level (error, warn, info, debug, trace)")]
-    pub level: Option<String>,
+    pub level: Option<LogLevel>,
 
     #[arg(long, help = "Filter by module name (partial match)")]
     pub module: Option<String>,
@@ -48,8 +48,8 @@ pub struct SearchArgs {
 pub struct ToolSearchResult {
     pub timestamp: String,
     pub trace_id: TraceId,
-    pub tool_name: String,
-    pub server: String,
+    pub tool_name: McpToolName,
+    pub server: Option<McpServerId>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<i64>,
@@ -72,18 +72,12 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<CommandOutput> {
     let since_timestamp = parse_since(args.since.as_ref())?;
-    let level_filter = args.level.as_deref().map(str::to_uppercase);
     let pattern = format!("%{}%", args.pattern);
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let rows = service
-        .search_logs(
-            &pattern,
-            since_timestamp,
-            level_filter.as_deref(),
-            args.limit,
-        )
+        .search_logs(&pattern, since_timestamp, args.level, args.limit)
         .await?;
 
     let tool_rows = if args.include_tools {
@@ -98,7 +92,7 @@ async fn execute_with_pool_inner(
     let tools = map_tool_rows(tool_rows);
 
     let filters = LogFilters {
-        level: args.level.clone(),
+        level: args.level,
         module: args.module.clone(),
         since: args.since.clone(),
         pattern: Some(args.pattern.clone()),
@@ -134,7 +128,7 @@ pub fn map_log_rows(rows: Vec<LogSearchItem>, module_filter: Option<&str>) -> Ve
             id: r.id,
             trace_id: r.trace_id,
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            level: r.level.to_uppercase(),
+            level: r.level,
             module: r.module,
             message: r.message,
             metadata: r.metadata.as_ref().and_then(|m| {
@@ -155,7 +149,7 @@ pub fn map_tool_rows(rows: Vec<ToolExecutionItem>) -> Vec<ToolSearchResult> {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
             trace_id: r.trace_id,
             tool_name: r.tool_name,
-            server: r.server_name.unwrap_or_else(|| "unknown".to_owned()),
+            server: r.server_name,
             status: r.status,
             duration_ms: r.execution_time_ms.map(i64::from),
         })
@@ -171,8 +165,8 @@ fn render_combined_results(
     CliService::section(&format!("Search Results: \"{}\"", pattern));
 
     if filters.level.is_some() || filters.module.is_some() || filters.since.is_some() {
-        if let Some(ref level) = filters.level {
-            CliService::key_value("Level", level);
+        if let Some(level) = filters.level {
+            CliService::key_value("Level", level.as_str());
         }
         if let Some(ref module) = filters.module {
             CliService::key_value("Module", module);
@@ -189,7 +183,7 @@ fn render_combined_results(
             let line = format!(
                 "{} {}/{} [{}]{}  trace:{}",
                 tool.timestamp,
-                tool.server,
+                tool.server.as_ref().map_or("unknown", McpServerId::as_str),
                 tool.tool_name,
                 tool.status,
                 duration.as_deref().unwrap_or(""),

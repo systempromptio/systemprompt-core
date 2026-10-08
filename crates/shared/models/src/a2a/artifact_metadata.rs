@@ -10,7 +10,7 @@
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ContextId, SkillId, TaskId};
+use systemprompt_identifiers::{ContextId, McpExecutionId, SkillId, TaskId};
 use systemprompt_traits::validation::{
     MetadataValidation, MetadataValidationError, Validate, ValidationResult,
 };
@@ -27,7 +27,7 @@ pub struct ArtifactMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mcp_execution_id: Option<String>,
+    pub mcp_execution_id: Option<McpExecutionId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // JSON: MCP `outputSchema` is a JSON Schema document owned by the server.
     pub mcp_schema: Option<serde_json::Value>,
@@ -76,7 +76,7 @@ impl ArtifactMetadata {
         self
     }
 
-    pub fn with_mcp_execution_id(mut self, id: String) -> Self {
+    pub fn with_mcp_execution_id(mut self, id: McpExecutionId) -> Self {
         self.mcp_execution_id = Some(id);
         self
     }

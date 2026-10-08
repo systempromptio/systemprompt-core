@@ -20,6 +20,7 @@ mod types;
 
 use clap::Subcommand;
 use systemprompt_config::ProfileBootstrap;
+use systemprompt_identifiers::McpServerId;
 
 pub use dispatch::{execute, load_service_configs};
 
@@ -39,7 +40,10 @@ pub enum StartTarget {
     #[command(about = "Start a single agent by name")]
     Agent { agent: String },
     #[command(about = "Start a single MCP server by name")]
-    Mcp { server_name: String },
+    Mcp {
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
+    },
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -52,11 +56,16 @@ pub enum StopTarget {
     },
     #[command(about = "Stop a single MCP server by name")]
     Mcp {
-        server_name: String,
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
         #[arg(long, help = "Force stop (SIGKILL)")]
         force: bool,
     },
 }
+
+const KILL_PORT_PROCESS_HELP: &str = "Signal the process holding the API port even when it is \
+                                      not a verified systemprompt API server (asks for \
+                                      confirmation naming the PID; refused when non-interactive)";
 
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
@@ -88,7 +97,7 @@ pub enum ServicesCommands {
         #[arg(long, help = "Skip database migrations")]
         skip_migrate: bool,
 
-        #[arg(long, help = "Kill process using the port if occupied")]
+        #[arg(long, help = KILL_PORT_PROCESS_HELP)]
         kill_port_process: bool,
     },
 
@@ -159,9 +168,37 @@ pub enum ServicesCommands {
         #[arg(long, help = "Run in foreground mode")]
         foreground: bool,
 
-        #[arg(long, help = "Kill process using the port if occupied")]
+        #[arg(long, help = KILL_PORT_PROCESS_HELP)]
         kill_port_process: bool,
+
+        #[arg(
+            long,
+            help = "Skip database migrations (the schema is still verified to be current)"
+        )]
+        skip_migrate: bool,
     },
+}
+
+impl ServicesCommands {
+    #[must_use]
+    pub const fn serves_api(&self) -> bool {
+        match self {
+            Self::Serve { .. }
+            | Self::Restart {
+                target: Some(RestartTarget::Api),
+                ..
+            } => true,
+            Self::Start {
+                target: None,
+                all,
+                api,
+                agents,
+                mcp,
+                ..
+            } => *all || *api || !(*agents || *mcp),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -172,7 +209,8 @@ pub enum RestartTarget {
     Agent { agent: String },
     #[command(about = "Restart a single MCP server by name")]
     Mcp {
-        server_name: String,
+        #[arg(value_parser = crate::shared::parse_mcp_server_id)]
+        server_name: McpServerId,
         #[arg(long, help = "Rebuild the binary before restarting")]
         build: bool,
     },

@@ -1,7 +1,7 @@
 use systemprompt_agent::models::AgentInfo;
 use systemprompt_agent::models::a2a::{AgentCapabilities, AgentCard, AgentSkill};
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 
 fn minimal_card(name: &str, version: &str) -> AgentCard {
     AgentCard {

@@ -5,13 +5,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use axum::http::StatusCode;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_runtime::AppContext;
 
 use super::super::bridge_data;
+use super::super::bridge_error::BridgeError;
 
 // Why: the recorded grant is the consumer's reach — a manifest whose grants
 // could not be written must not serve the skills it would grant.
@@ -19,7 +20,7 @@ pub(super) async fn record_catalog_grants(
     ctx: &AppContext,
     user_id: &UserId,
     candidate: &MarketplaceCandidate,
-) -> Result<(), (StatusCode, String)> {
+) -> Result<(), BridgeError> {
     let owner = ctx.system_admin().id();
     if user_id == owner {
         return Ok(());
@@ -33,16 +34,9 @@ pub(super) async fn record_catalog_grants(
         repository
             .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
             .await
-            .map_err(|error| {
-                tracing::error!(
-                    %error,
-                    resource = %publication.resource_id,
-                    "manifest: recording catalogue grant failed"
-                );
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("manifest: catalogue grant not recorded: {error}"),
-                )
+            .map_err(|source| BridgeError::CatalogGrant {
+                resource: publication.resource_id.clone(),
+                source,
             })?;
     }
     Ok(())
@@ -61,8 +55,8 @@ pub(super) struct PerUserContext {
 pub(super) async fn load_per_user_context(
     ctx: &AppContext,
     user_id: &UserId,
-    instance_hosts: Vec<String>,
-) -> Result<PerUserContext, (StatusCode, String)> {
+    instance_hosts: Vec<HostKind>,
+) -> Result<PerUserContext, BridgeError> {
     let user = match bridge_data::load_user(ctx, user_id).await {
         Ok(u) => u,
         Err(e) => {
@@ -73,31 +67,27 @@ pub(super) async fn load_per_user_context(
 
     let revocations = bridge_data::load_revocations(ctx, user_id)
         .await
-        .map_err(|error| {
-            tracing::error!(%error, "manifest: revocation load failed");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("manifest: revocations unavailable: {error}"),
-            )
-        })?;
+        .map_err(|e| BridgeError::internal("manifest: revocations unavailable", e))?;
 
     let enabled_hosts = match bridge_data::load_enabled_hosts(ctx, user_id).await {
-        Ok(rows) if rows.is_empty() => instance_hosts,
-        Ok(rows) => instance_hosts
+        Ok(prefs) => instance_hosts
             .into_iter()
-            .filter(|h| rows.iter().any(|r| r == h))
+            .filter(|host| prefs.admits(*host))
+            .map(|host| host.as_str().to_owned())
             .collect(),
-        Err(error) => {
-            tracing::error!(%error, "manifest: enabled_hosts load failed");
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("manifest: enabled hosts unavailable: {error}"),
+        Err(e) => {
+            return Err(BridgeError::internal(
+                "manifest: enabled hosts unavailable",
+                e,
             ));
         },
     };
 
     let host_model_protocols = match bridge_data::load_host_model_protocols(ctx, user_id).await {
-        Ok(rows) => rows.into_iter().collect(),
+        Ok(rows) => rows
+            .into_iter()
+            .map(|(host, protocols)| (host.as_str().to_owned(), protocols))
+            .collect(),
         Err(e) => {
             tracing::warn!(
                 error = %e,

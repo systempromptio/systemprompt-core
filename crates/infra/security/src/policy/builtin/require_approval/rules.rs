@@ -196,9 +196,10 @@ fn compile_one(entry: &YamlValue) -> Result<Rule, PolicyConfigurationError> {
                 conditions,
             })
         },
-        Err(error) => Err(PolicyConfigurationError(format!(
-            "malformed require_approval patterns entry: {error}"
-        ))),
+        Err(source) => Err(PolicyConfigurationError::Yaml {
+            context: "malformed require_approval patterns entry",
+            source,
+        }),
     }
 }
 
@@ -222,12 +223,11 @@ fn compile_condition(
         _ => !strings.is_empty(),
     };
     if !usable {
-        return Err(PolicyConfigurationError(format!(
-            "require_approval condition on `{tool}` at `{}` has no operand its `{}` operator can \
-             use",
-            spec.path,
-            spec.op.label()
-        )));
+        return Err(PolicyConfigurationError::UnusableCondition {
+            tool: tool.to_owned(),
+            path: spec.path,
+            operator: spec.op.label(),
+        });
     }
     Ok(Condition {
         path: spec.path,

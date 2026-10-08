@@ -23,7 +23,7 @@ fn read_existing_gateway(path: &Path) -> Result<Option<String>, SetupError> {
     };
     let doc: DocumentMut = contents.parse().map_err(|source| SetupError::ConfigParse {
         path: path.to_path_buf(),
-        source,
+        source: Box::new(source),
     })?;
     write::get(&doc, &["gateway_url"]).map_or_else(
         || Ok(None),
@@ -84,7 +84,7 @@ pub(super) fn merge_config_file(
 pub(super) fn strip_credential_sections(path: &Path, contents: &str) -> Result<String, SetupError> {
     let mut doc: DocumentMut = contents.parse().map_err(|source| SetupError::ConfigParse {
         path: path.to_path_buf(),
-        source,
+        source: Box::new(source),
     })?;
     for section in CREDENTIAL_SECTIONS {
         write::remove(&mut doc, &[section])?;

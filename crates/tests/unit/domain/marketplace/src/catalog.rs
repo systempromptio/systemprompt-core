@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 
+use systemprompt_manifest::services::{
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
+};
 use systemprompt_marketplace::catalog::{
     disabled_mcp_server_names, load_agents, load_artifacts, load_hooks, load_managed_mcp_servers,
     load_plugins, load_rules, load_skills,
@@ -10,9 +13,6 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::bridge::ids::ToolPolicy;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{Deployment, ExternalAuth, McpServerType};
-use systemprompt_models::services::{
-    AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
-};
 
 use crate::helpers::{config_with, warn_subscriber_guard};
 
@@ -331,6 +331,34 @@ fn load_hooks_dir_with_valid_hook() {
 
     let hooks = load_hooks(dir.path()).expect("load hooks");
     assert_eq!(hooks.len(), 1);
+}
+
+#[test]
+fn load_hooks_carries_the_authored_timeout_to_the_manifest_entry() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    for (name, body) in [
+        ("timed", "event: PreToolUse\ncommand: gate\ntimeout: 30\n"),
+        ("untimed", "event: PreToolUse\ncommand: plain\n"),
+    ] {
+        let hook_dir = dir.path().join("hooks").join(name);
+        fs::create_dir_all(&hook_dir).expect("create hook dir");
+        fs::write(hook_dir.join("config.yaml"), body).expect("write config");
+    }
+
+    let hooks = load_hooks(dir.path()).expect("load hooks");
+    let timed = hooks.iter().find(|h| h.command == "gate").expect("timed");
+    let untimed = hooks
+        .iter()
+        .find(|h| h.command == "plain")
+        .expect("untimed");
+    assert_eq!(timed.timeout, Some(30));
+    assert_eq!(untimed.timeout, None);
+    let wire = serde_json::to_value(untimed).expect("serialise");
+    assert!(wire.get("timeout").is_none(), "{wire}");
+    assert_eq!(
+        serde_json::to_value(timed).expect("serialise")["timeout"],
+        30
+    );
 }
 
 #[test]

@@ -5,7 +5,7 @@
 //! for a request that did not complete. All three are pinned here.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
-use systemprompt_models::wire::origin::RequestOrigin;
+use systemprompt_models::origin::RequestOrigin;
 
 use clap::Parser;
 use systemprompt_ai::models::AiRequestRecord;
@@ -15,9 +15,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{
-    fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
-};
+use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -31,11 +29,6 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("a test database url"))
-        .await
-        .expect("the audit command tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -44,7 +37,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().expect("a test database url"),
+        test_database_url(),
     )
 }
 
@@ -63,7 +56,6 @@ async fn seed_request(pool: &DbPool) -> AiRequestId {
     .model("claude-fixture-1")
     .build();
     AiRequestRepository::new(pool)
-        .expect("request repo")
         .insert(&record)
         .await
         .expect("seed an ai request")
@@ -98,7 +90,7 @@ fn audit_output(status: &str) -> AuditOutput {
 
 #[tokio::test]
 async fn auditing_a_seeded_request_renders_its_card() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let id = seed_request(&pool).await;
 
     logs::execute(parse(&["audit", id.as_str()]), &ctx(&pool))
@@ -108,7 +100,7 @@ async fn auditing_a_seeded_request_renders_its_card() {
 
 #[tokio::test]
 async fn audit_accepts_the_opt_in_payload_flags() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let id = seed_request(&pool).await;
 
     logs::execute(
@@ -132,7 +124,7 @@ async fn audit_accepts_the_opt_in_payload_flags() {
 
 #[tokio::test]
 async fn auditing_an_unknown_id_renders_a_notice_rather_than_failing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     logs::execute(
         parse(&["audit", "ai_req_that_does_not_exist_anywhere"]),

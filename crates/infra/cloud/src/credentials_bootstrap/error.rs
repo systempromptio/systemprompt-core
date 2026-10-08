@@ -21,14 +21,21 @@ pub enum CredentialsBootstrapError {
     #[error("Cloud credentials file not found: {path}")]
     FileNotFound { path: String },
 
-    #[error("Cloud credentials file invalid: {message}")]
-    InvalidCredentials { message: String },
+    #[error("Cloud credentials file invalid: {source}")]
+    InvalidCredentials {
+        #[source]
+        source: Box<CloudError>,
+    },
 
     #[error("Cloud token has expired. Run 'systemprompt cloud auth login' to refresh")]
     TokenExpired,
 
-    #[error("Cloud API validation failed: {message}")]
-    ApiValidationFailed { message: String },
+    #[error("Cloud API validation failed: {message}: {source}")]
+    ApiValidationFailed {
+        message: String,
+        #[source]
+        source: Box<CloudError>,
+    },
 }
 
 impl CredentialsBootstrapError {
@@ -46,12 +53,12 @@ impl From<CredentialsBootstrapError> for CloudError {
             CredentialsBootstrapError::FileNotFound { path } => {
                 Self::CredentialsFileNotFound { path }
             },
-            CredentialsBootstrapError::InvalidCredentials { message } => {
-                Self::InvalidCredentials { message }
+            CredentialsBootstrapError::InvalidCredentials { source } => {
+                Self::InvalidCredentials { source }
             },
             CredentialsBootstrapError::TokenExpired => Self::TokenExpired,
-            CredentialsBootstrapError::ApiValidationFailed { message } => {
-                Self::ApiValidationFailed { message }
+            CredentialsBootstrapError::ApiValidationFailed { message, source } => {
+                Self::ApiValidationFailed { message, source }
             },
         }
     }

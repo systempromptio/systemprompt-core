@@ -25,7 +25,9 @@ pub enum Permission {
     A2a,
     Mcp,
     Service,
+    #[serde(rename = "hook:govern")]
     HookGovern,
+    #[serde(rename = "hook:track")]
     HookTrack,
 }
 

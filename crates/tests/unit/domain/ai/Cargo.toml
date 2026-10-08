@@ -17,24 +17,20 @@ systemprompt-ai = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 tokio = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
 tempfile = { workspace = true }
 rmcp = { workspace = true }
 async-trait = { workspace = true }
-inventory = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 wiremock = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
 futures = { workspace = true }
-
-[package.metadata.cargo-machete]
-# inventory: used via the register_route_selector! macro (::inventory::submit!)
-ignored = ["inventory"]

@@ -12,14 +12,9 @@ use systemprompt_cli::shared::CommandOutput;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileRepository;
 use systemprompt_identifiers::FileId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn cfg() -> CliConfig {
     CliConfig::new().with_interactive(false)
@@ -38,7 +33,7 @@ async fn seed_file(pool: &DbPool, ai_content: bool, user_id: &str) -> String {
     .bind(&url)
     .bind(ai_content)
     .bind(user_id)
-    .execute(pool.pool_arc().unwrap().as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .unwrap();
     id.to_string()
@@ -64,7 +59,7 @@ fn list_args(limit: i64, user: Option<String>) -> ai::list::ListArgs {
 
 #[tokio::test]
 async fn ai_list_includes_ai_files_and_excludes_regular() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let ai_id = seed_file(&pool, true, &user).await;
     let plain_id = seed_file(&pool, false, &user).await;
@@ -82,7 +77,7 @@ async fn ai_list_includes_ai_files_and_excludes_regular() {
 
 #[tokio::test]
 async fn ai_list_filters_by_user() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let mine = format!("mine-{}", Uuid::new_v4().simple());
     let other = format!("other-{}", Uuid::new_v4().simple());
     let my_id = seed_file(&pool, true, &mine).await;
@@ -98,7 +93,7 @@ async fn ai_list_filters_by_user() {
 
 #[tokio::test]
 async fn ai_show_renders_ai_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, true, &user).await;
 
@@ -111,7 +106,7 @@ async fn ai_show_renders_ai_file() {
 
 #[tokio::test]
 async fn ai_show_rejects_non_ai_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -124,7 +119,7 @@ async fn ai_show_rejects_non_ai_file() {
 
 #[tokio::test]
 async fn ai_show_rejects_bad_uuid() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let err = ai::show::execute_with_pool(
         ai::show::ShowArgs {
             file: "not-a-uuid".to_owned(),
@@ -140,7 +135,7 @@ async fn ai_show_rejects_bad_uuid() {
 
 #[tokio::test]
 async fn ai_show_missing_file_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ghost = Uuid::new_v4().to_string();
     let err = ai::show::execute_with_pool(ai::show::ShowArgs { file: ghost }, &pool, &cfg())
         .await
@@ -158,7 +153,7 @@ fn delete_args(file: &str, yes: bool, dry_run: bool) -> delete::DeleteArgs {
 }
 
 async fn file_exists(pool: &DbPool, id: &str) -> bool {
-    let repo = FileRepository::new(pool).unwrap();
+    let repo = FileRepository::new(pool);
     repo.find_by_id(&FileId::new(id.to_owned()))
         .await
         .unwrap()
@@ -167,7 +162,7 @@ async fn file_exists(pool: &DbPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn delete_with_yes_removes_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -186,7 +181,7 @@ async fn delete_with_yes_removes_file() {
 
 #[tokio::test]
 async fn delete_dry_run_preserves_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -204,7 +199,7 @@ async fn delete_dry_run_preserves_file() {
 
 #[tokio::test]
 async fn delete_non_interactive_without_yes_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -223,7 +218,7 @@ async fn delete_non_interactive_without_yes_errors() {
 
 #[tokio::test]
 async fn delete_interactive_confirm_yes_removes_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -243,7 +238,7 @@ async fn delete_interactive_confirm_yes_removes_file() {
 
 #[tokio::test]
 async fn delete_interactive_confirm_no_preserves_file() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = format!("u-{}", Uuid::new_v4().simple());
     let id = seed_file(&pool, false, &user).await;
 
@@ -264,7 +259,7 @@ async fn delete_interactive_confirm_no_preserves_file() {
 
 #[tokio::test]
 async fn delete_missing_file_errors() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ghost = Uuid::new_v4().to_string();
     let err = delete::execute_with_pool(
         delete_args(&ghost, true, false),

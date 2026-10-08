@@ -3,53 +3,46 @@
 //! mutate live services (the mutation paths kill processes / bind ports, so
 //! they're not safe to drive from the test runner).
 
-use systemprompt_database::{CreateServiceInput, DbPool, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::{
     DesiredStatus, RuntimeStatus, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceStateVerifier, ServiceType,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn try_pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn get_services_by_type_surfaces_seeded_service() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repo = ServiceRepository::new(
         &pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .expect("repo");
-    let name = format!("gsbt_mcp_{}", uuid::Uuid::new_v4().simple());
+    );
+    let name = ServiceName::new(format!("gsbt_mcp_{}", uuid::Uuid::new_v4().simple()));
     repo.create_service(CreateServiceInput {
         name: &name,
-        module_name: "mcp",
-        status: "stopped",
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Stopped,
         port: 65515,
         binary_mtime: None,
     })
     .await
     .expect("seed service");
 
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-    );
-    let services = svc.get_services_by_type("mcp").await.expect("query");
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
+    let services = svc
+        .get_services_by_type(ServiceModule::Mcp)
+        .await
+        .expect("query");
     assert!(
         services.iter().any(|s| s.name == name),
         "seeded mcp service {name} must surface in get_services_by_type(\"mcp\")"
     );
     assert!(
-        services.iter().all(|s| s.module_name == "mcp"),
+        services.iter().all(|s| s.module_name == ServiceModule::Mcp),
         "get_services_by_type(\"mcp\") must return only mcp services"
     );
 
@@ -58,68 +51,51 @@ async fn get_services_by_type_surfaces_seeded_service() {
 
 #[tokio::test]
 async fn get_running_services_with_pid_returns_only_running() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-    );
+    let pool = test_db_pool().await;
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let services = svc.get_running_services_with_pid().await.expect("query");
     assert!(
-        services.iter().all(|s| s.status == "running"),
+        services.iter().all(|s| s.status == ServiceStatus::Running),
         "get_running_services_with_pid must only return running services"
     );
 }
 
 #[tokio::test]
 async fn cleanup_stale_entries_runs() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-    );
+    let pool = test_db_pool().await;
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
     let _ = cleaned;
 }
 
 #[tokio::test]
 async fn mark_service_stopped_for_unknown_succeeds() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
-    let svc = ServiceManagementService::new(
-        systemprompt_database::ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-    );
+    let pool = test_db_pool().await;
+    let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
+        &pool,
+        systemprompt_identifiers::InstanceId::new("test-instance"),
+    ));
     let result = svc
-        .mark_service_stopped("nonexistent-service-name-zzz")
+        .mark_service_stopped(&ServiceName::new("nonexistent-service-name-zzz"))
         .await;
     let _ = result;
 }
 
 #[tokio::test]
 async fn state_verifier_get_verified_states_handles_unknown_service() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_svc_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_svc_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,
@@ -133,15 +109,13 @@ async fn state_verifier_get_verified_states_handles_unknown_service() {
 
 #[tokio::test]
 async fn state_verifier_get_running_services_filters_correctly() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_running_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_running_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,
@@ -159,15 +133,13 @@ async fn state_verifier_get_running_services_filters_correctly() {
 
 #[tokio::test]
 async fn state_verifier_get_services_needing_action_filters() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),
     );
     let configs = vec![ServiceConfig {
-        name: format!("test_action_{}", uuid::Uuid::new_v4().simple()),
+        name: ServiceName::new(format!("test_action_{}", uuid::Uuid::new_v4().simple())),
         service_type: ServiceType::Mcp,
         port: 1,
         enabled: false,
@@ -193,9 +165,7 @@ async fn state_verifier_get_services_needing_action_filters() {
 
 #[tokio::test]
 async fn state_verifier_get_crashed_services_filters() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let verifier = ServiceStateVerifier::new(
         pool,
         systemprompt_identifiers::InstanceId::new("test-instance"),

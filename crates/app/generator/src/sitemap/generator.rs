@@ -10,7 +10,8 @@ use std::path::Path;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_models::{Config, ContentConfigRaw, ContentSourceConfigRaw, WebConfig};
+use systemprompt_manifest::{Config, WebConfig};
+use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
 use super::xml::{SitemapUrl, SitemapUrlAlternate, build_sitemap_index, build_sitemap_xml};
@@ -97,14 +98,14 @@ async fn collect_source_urls(
     let mut urls = fetch_urls_from_database(FetchParams {
         content_repo: &ctx.content_repo,
         web_config: &ctx.web_config,
-        source_id: source.source_id.as_str(),
+        source_id: &source.source_id,
         url_pattern: &sitemap_config.url_pattern,
         priority: sitemap_config.priority,
         changefreq: &sitemap_config.changefreq,
         base_url: &ctx.base_url,
     })
     .await
-    .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+    .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     urls.extend(build_parent_urls(
         sitemap_config,
@@ -236,7 +237,7 @@ async fn write_sitemap_index(
 struct FetchParams<'a> {
     content_repo: &'a ContentRepository,
     web_config: &'a WebConfig,
-    source_id: &'a str,
+    source_id: &'a SourceId,
     url_pattern: &'a str,
     priority: f32,
     changefreq: &'a str,
@@ -246,9 +247,8 @@ struct FetchParams<'a> {
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
     let repo = params.content_repo;
 
-    let source_id = SourceId::new(params.source_id);
     let pairs = repo
-        .list_slugs_with_locales_by_source(&source_id)
+        .list_slugs_with_locales_by_source(params.source_id)
         .await
         .map_err(|e| PublishError::content("Failed to fetch content for sitemap", e))?;
 

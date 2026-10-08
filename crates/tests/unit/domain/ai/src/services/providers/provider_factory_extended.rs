@@ -1,8 +1,7 @@
 use crate::services::providers::mock_http;
-use systemprompt_ai::services::providers::{AiProvider, ProviderClientParams, ProviderFactory};
-use systemprompt_models::services::{
-    ProviderModel, ProviderRegistry, ResilienceSettings, WireProtocol,
-};
+use systemprompt_ai::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
+use systemprompt_manifest::services::{ProviderModel, ProviderRegistry, ResilienceSettings};
+use systemprompt_wire::WireProtocol;
 
 fn seed_models(provider: &str) -> Vec<ProviderModel> {
     ProviderRegistry::default_seed()
@@ -18,7 +17,7 @@ fn create(
     wire: WireProtocol,
     endpoint: &str,
     google_search_enabled: bool,
-) -> std::sync::Arc<dyn AiProvider> {
+) -> std::sync::Arc<dyn ProviderClient> {
     let models = seed_models(name);
     let resilience = ResilienceSettings::default();
     let params = ProviderClientParams {
@@ -29,7 +28,7 @@ fn create(
         models: &models,
         default_model: None,
     };
-    ProviderFactory::create(&params, None).expect("factory creates the provider")
+    ProviderFactory::create(&params).expect("factory creates the provider")
 }
 
 mod web_search_enablement {

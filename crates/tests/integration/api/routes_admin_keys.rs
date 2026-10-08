@@ -44,8 +44,11 @@ async fn issue_key_then_list_then_revoke() -> anyhow::Result<()> {
         .to_bytes();
     let text = String::from_utf8_lossy(&bytes).into_owned();
     assert!(
-        status.is_success() || status.is_server_error(),
-        "issue failed {status}: {text}"
+        status.is_success()
+            || (status == axum::http::StatusCode::CONFLICT
+                && text.contains("\"error_key\":\"foreign_key_violation\"")
+                && !text.contains("_fkey")),
+        "issue for an unseeded owner is a 409 that names no constraint: {status}: {text}"
     );
 
     // List

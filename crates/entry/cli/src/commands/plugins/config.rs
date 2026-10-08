@@ -13,8 +13,11 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Clone, Args)]
 pub struct ConfigArgs {
-    #[arg(help = "Extension ID (optional - lists all if not specified)")]
-    pub id: Option<String>,
+    #[arg(
+        help = "Extension ID (optional - lists all if not specified)",
+        value_parser = crate::shared::parse_extension_id
+    )]
+    pub id: Option<systemprompt_identifiers::ExtensionId>,
 }
 
 pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> {
@@ -22,11 +25,11 @@ pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> 
 
     if let Some(id) = &args.id {
         let ext = registry
-            .get(id)
+            .get(id.as_str())
             .ok_or_else(|| anyhow!("Extension '{}' not found", id))?;
 
         let output = ExtensionConfigOutput {
-            extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
+            extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
             config_prefix: ext.config_prefix().map(String::from),
             config_schema: ext.config_schema(),
             has_config: ext.has_config(),
@@ -41,7 +44,7 @@ pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandOutput> 
             .extensions()
             .iter()
             .map(|ext| ExtensionConfigSummary {
-                extension_id: systemprompt_identifiers::PluginId::new(ext.id()),
+                extension_id: systemprompt_identifiers::ExtensionId::new(ext.id()),
                 config_prefix: ext.config_prefix().map(String::from),
                 has_config: ext.has_config(),
             })

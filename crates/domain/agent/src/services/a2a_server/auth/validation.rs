@@ -8,11 +8,26 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
+use serde::Serialize;
 use std::str::FromStr;
+use systemprompt_identifiers::UserId;
 use systemprompt_models::auth::Permission;
 use systemprompt_traits::AgentJwtClaims;
 
-use crate::services::a2a_server::errors::{forbidden_response, unauthorized_response};
+use crate::services::a2a_server::errors::{
+    JsonRpcErrorResponse, forbidden_response, unauthorized_response,
+};
+
+/// Identity of an authenticated A2A caller, projected from its JWT claims.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AuthenticatedCaller {
+    pub sub: UserId,
+    pub username: String,
+    pub user_type: String,
+    pub is_admin: bool,
+    pub permissions: Vec<String>,
+    pub audiences: Vec<String>,
+}
 
 pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     headers
@@ -38,7 +53,7 @@ pub async fn validate_oauth_for_request(
     request_id: &crate::models::a2a::jsonrpc::NumberOrString,
     required_scopes: &[Permission],
     jwt_provider: Option<&std::sync::Arc<dyn systemprompt_traits::JwtValidationProvider>>,
-) -> Result<Option<serde_json::Value>, (StatusCode, serde_json::Value)> {
+) -> Result<Option<AuthenticatedCaller>, (StatusCode, JsonRpcErrorResponse)> {
     let token = match extract_bearer_token(headers) {
         Some(t) if !t.is_empty() => t,
         _ => {
@@ -90,54 +105,60 @@ pub async fn validate_oauth_for_request(
         return Ok(Some(claims_payload(&claims)));
     }
 
-    ensure_required_scopes(&claims, required_scopes, request_id)?;
+    if let Some(reason) = missing_scopes_reason(&claims, required_scopes) {
+        return Err(forbidden_response(reason, request_id));
+    }
 
     Ok(Some(claims_payload(&claims)))
 }
 
-fn ensure_required_scopes(
+fn missing_scopes_reason(
     claims: &AgentJwtClaims,
     required_scopes: &[Permission],
-    request_id: &crate::models::a2a::jsonrpc::NumberOrString,
-) -> Result<(), (StatusCode, serde_json::Value)> {
+) -> Option<String> {
+    if required_scopes.is_empty() {
+        tracing::warn!(
+            username = %claims.username,
+            "Access denied: agent requires OAuth but declares no scopes"
+        );
+        return Some("Agent requires OAuth but declares no scopes".to_owned());
+    }
+
     let has_required_scope = required_scopes.iter().any(|required_scope| {
         claims.permissions.iter().any(|user_perm| {
             Permission::from_str(user_perm).is_ok_and(|p| p.implies(required_scope))
         })
     });
 
-    if !has_required_scope {
-        let required_scopes_str: Vec<String> =
-            required_scopes.iter().map(ToString::to_string).collect();
-
-        tracing::warn!(
-            username = %claims.username,
-            required = %required_scopes_str.join(", "),
-            has = %claims.permissions.join(", "),
-            "Access denied: User lacks required scopes"
-        );
-
-        return Err(forbidden_response(
-            format!(
-                "User {} lacks required permissions. Required: [{}], User has: [{}]",
-                claims.username,
-                required_scopes_str.join(", "),
-                claims.permissions.join(", ")
-            ),
-            request_id,
-        ));
+    if has_required_scope {
+        return None;
     }
 
-    Ok(())
+    let required_scopes_str: Vec<String> =
+        required_scopes.iter().map(ToString::to_string).collect();
+
+    tracing::warn!(
+        username = %claims.username,
+        required = %required_scopes_str.join(", "),
+        has = %claims.permissions.join(", "),
+        "Access denied: User lacks required scopes"
+    );
+
+    Some(format!(
+        "User {} lacks required permissions. Required: [{}], User has: [{}]",
+        claims.username,
+        required_scopes_str.join(", "),
+        claims.permissions.join(", ")
+    ))
 }
 
-fn claims_payload(claims: &AgentJwtClaims) -> serde_json::Value {
-    serde_json::json!({
-        "sub": claims.subject,
-        "username": claims.username,
-        "user_type": claims.user_type,
-        "is_admin": claims.is_admin,
-        "permissions": claims.permissions,
-        "audiences": claims.audiences
-    })
+fn claims_payload(claims: &AgentJwtClaims) -> AuthenticatedCaller {
+    AuthenticatedCaller {
+        sub: claims.subject.clone(),
+        username: claims.username.clone(),
+        user_type: claims.user_type.clone(),
+        is_admin: claims.is_admin,
+        permissions: claims.permissions.clone(),
+        audiences: claims.audiences.clone(),
+    }
 }

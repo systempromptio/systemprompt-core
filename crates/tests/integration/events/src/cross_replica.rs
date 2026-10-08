@@ -1,34 +1,48 @@
-//! Regression test for the cross-replica event relay (D2).
+//! Cross-replica event relay.
 //!
 //! Invariant under test: an event routed on one replica reaches an SSE
-//! subscriber attached to a *different* replica. The in-process broadcasters
-//! only fan out within a single process; [`EventRouter::route_a2a`] also
-//! appends an `event_outbox` row and emits a Postgres `NOTIFY`, and the
-//! [`PostgresEventBridge`] running on every replica consumes that
-//! notification and re-injects the event into its local broadcasters.
+//! subscriber attached to a *different* replica, and only the addressed user.
+//! [`EventRouter::route_a2a`] broadcasts in-process and appends an
+//! `event_outbox` row announced by `NOTIFY`; the [`PostgresEventBridge`] of
+//! every other replica loads that row and re-injects the event into its own
+//! broadcasters. A bridge skips rows its own instance wrote, because the
+//! local broadcast already delivered them.
 //!
-//! Before D2, `route_a2a` was local-only and this test fails: the subscriber
-//! on "replica B" never sees the event. After D2 it passes.
+//! One process plays both replicas. The router relays as `replica-a` and the
+//! bridge starts as `replica-b`, so every routed row is
+//! foreign to the bridge and is relayed. A subscriber therefore receives each
+//! event twice: once from the in-process broadcast and once through the
+//! relay. Only the second delivery proves the relay; without it the test
+//! would pass on the local broadcast alone.
 //!
-//! The test drives the relay entirely through the public surface — no
-//! `pub(crate)` internals are reached. "Replica A" is the `route_a2a` call;
-//! "replica B" is a subscriber on the process-global `A2A_BROADCASTER`, which
-//! is the broadcaster the bridge's local re-injection path writes to.
+//! Every wait on the database or on a delivery is bounded, so a regression
+//! fails within seconds.
 
+use std::future::Future;
 use std::time::Duration;
 
+use sqlx::PgPool;
 use systemprompt_events::{
-    A2A_BROADCASTER, Broadcaster, EventRouter, PostgresEventBridge, RelayOutcome,
+    A2A_BROADCASTER, Broadcaster, EventBridgeHandle, EventRouter, EventSender, PostgresEventBridge,
+    RelayOutcome,
 };
-use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, InstanceId, TaskId, UserId};
 use systemprompt_models::A2AEvent;
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::error::TryRecvError;
 
-use crate::{ensure_event_outbox, setup_test_pool, unique_user_id};
+use crate::{setup_test_pool, unique_user_id};
 
-fn unique_user() -> UserId {
-    unique_user_id("evt-relay")
+const BOUND: Duration = Duration::from_secs(10);
+
+type Delivery = Result<axum::response::sse::Event, std::convert::Infallible>;
+
+async fn bounded<T>(what: &str, future: impl Future<Output = T>) -> T {
+    tokio::time::timeout(BOUND, future)
+        .await
+        .unwrap_or_else(|_| panic!("{what} did not complete within {BOUND:?}"))
 }
 
 fn sample_event() -> A2AEvent {
@@ -43,126 +57,102 @@ fn sample_event() -> A2AEvent {
     }
 }
 
-#[tokio::test]
-async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
-    let pool = setup_test_pool().await;
-    ensure_event_outbox(&pool).await;
-
-    let user = unique_user();
-    let connection = ConnectionId::new("replica-b-conn");
-
-    let bridge = PostgresEventBridge::new(
-        (*pool).clone(),
-        systemprompt_identifiers::InstanceId::new("peer"),
-    );
-    let bridge_handle = bridge.start();
-
-    let (tx, mut rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
-    A2A_BROADCASTER.register(&user, &connection, tx).await;
-
-    let received = {
-        let mut delivered = None;
-        for _ in 0..20 {
-            let outcome = EventRouter::route_a2a(&user, sample_event()).await;
-            assert!(
-                matches!(outcome.relay, RelayOutcome::Relayed),
-                "replica A must hand the event to the outbox: {:?}",
-                outcome.relay
-            );
-
-            match tokio::time::timeout(Duration::from_millis(500), rx.recv()).await {
-                Ok(Some(item)) => {
-                    delivered = Some(item);
-                    break;
-                },
-                Ok(None) => panic!("broadcaster channel closed before delivery"),
-                Err(_) => {},
-            }
-        }
-        delivered
-    };
-
-    A2A_BROADCASTER.unregister(&user, &connection).await;
-    bridge_handle.shutdown().await;
-    let _ = sqlx::query("DELETE FROM event_outbox WHERE user_id = $1")
-        .bind(user.as_str())
-        .execute(pool.as_ref())
-        .await;
-
-    let item = received.expect(
-        "event routed on replica A never reached the subscriber on replica B — the cross-replica \
-         outbox relay is not delivering events",
-    );
+async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
+    let router = EventRouter::with_outbox(pool.clone(), InstanceId::new("replica-a"));
+    let bridge = PostgresEventBridge::new(pool.clone(), InstanceId::new("replica-b")).start();
     assert!(
-        item.is_ok(),
-        "the relayed SSE event must deserialize cleanly"
+        bounded("the replica-b relay LISTEN", bridge.listening()).await,
+        "the replica-b relay stopped before it was listening"
+    );
+    (router, bridge)
+}
+
+async fn subscribe(user: &UserId, connection: &str) -> (ConnectionId, Receiver<Delivery>) {
+    let connection = ConnectionId::new(connection);
+    let (tx, rx): (EventSender, _) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
+    assert!(A2A_BROADCASTER.register(user, &connection, tx).await);
+    (connection, rx)
+}
+
+async fn route_on_replica_a(router: &EventRouter, user: &UserId) {
+    let outcome = bounded("route_a2a", router.route_a2a(user, sample_event())).await;
+    assert!(
+        matches!(outcome.relay, RelayOutcome::Relayed),
+        "replica A must hand the event to the outbox: {:?}",
+        outcome.relay
     );
 }
 
+async fn next_delivery(rx: &mut Receiver<Delivery>, what: &str) {
+    let item = bounded(what, rx.recv())
+        .await
+        .unwrap_or_else(|| panic!("broadcaster channel closed before {what}"));
+    assert!(item.is_ok(), "{what} must encode as an SSE event");
+}
+
+async fn teardown(pool: &PgPool, bridge: EventBridgeHandle, users: &[&UserId]) {
+    bounded("relay shutdown", bridge.shutdown()).await;
+    let ids: Vec<String> = users.iter().map(|u| u.as_str().to_owned()).collect();
+    bounded(
+        "outbox cleanup",
+        sqlx::query("DELETE FROM event_outbox WHERE user_id = ANY($1)")
+            .bind(&ids)
+            .execute(pool),
+    )
+    .await
+    .expect("outbox cleanup");
+}
+
 #[tokio::test]
-#[ignore = "hangs indefinitely under multi-replica event-bus harness; pre-existing flake unrelated \
-            to 0.11.2 hardening — see findings F-T1f-001"]
+async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
+    let pool = setup_test_pool().await;
+    let (router, bridge) = start_peer_replica(&pool).await;
+    let user = unique_user_id("evt-relay");
+    let (connection, mut rx) = subscribe(&user, "replica-b-conn").await;
+
+    route_on_replica_a(&router, &user).await;
+    next_delivery(&mut rx, "the in-process delivery").await;
+    next_delivery(&mut rx, "the relayed delivery from replica A").await;
+
+    A2A_BROADCASTER.unregister(&user, &connection).await;
+    teardown(&pool, bridge, &[&user]).await;
+}
+
+#[tokio::test]
 async fn relayed_event_reaches_only_the_addressed_user() {
     let pool = setup_test_pool().await;
-    ensure_event_outbox(&pool).await;
+    let (router, bridge) = start_peer_replica(&pool).await;
+    let target = unique_user_id("evt-relay");
+    let bystander = unique_user_id("evt-relay");
+    let (target_conn, mut target_rx) = subscribe(&target, "target-conn").await;
+    let (bystander_conn, mut bystander_rx) = subscribe(&bystander, "bystander-conn").await;
 
-    let target = unique_user();
-    let bystander = unique_user();
+    route_on_replica_a(&router, &target).await;
+    next_delivery(&mut target_rx, "the target's in-process delivery").await;
+    next_delivery(&mut target_rx, "the target's relayed delivery").await;
 
-    let bridge = PostgresEventBridge::new(
-        (*pool).clone(),
-        systemprompt_identifiers::InstanceId::new("peer"),
-    );
-    let bridge_handle = bridge.start();
+    // Why: the relay re-injects notifications in commit order on one LISTEN
+    // session, so a leak of the target's relayed event would sit in the
+    // bystander's channel ahead of the fence's relayed copy.
+    route_on_replica_a(&router, &bystander).await;
+    next_delivery(&mut bystander_rx, "the fence's in-process delivery").await;
+    next_delivery(&mut bystander_rx, "the fence's relayed delivery").await;
 
-    let (target_tx, mut target_rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
-    let (bystander_tx, mut bystander_rx) =
-        tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
-    let target_conn = ConnectionId::new("target-conn");
-    let bystander_conn = ConnectionId::new("bystander-conn");
-    A2A_BROADCASTER
-        .register(&target, &target_conn, target_tx)
-        .await;
-    A2A_BROADCASTER
-        .register(&bystander, &bystander_conn, bystander_tx)
-        .await;
-
-    let mut delivered = false;
-    for _ in 0..20 {
-        let outcome = EventRouter::route_a2a(&target, sample_event()).await;
-        assert!(
-            matches!(outcome.relay, RelayOutcome::Relayed),
-            "{:?}",
-            outcome.relay
-        );
-        match tokio::time::timeout(Duration::from_millis(500), target_rx.recv()).await {
-            Ok(Some(_)) => {
-                delivered = true;
-                break;
-            },
-            Ok(None) => panic!("broadcaster channel closed before delivery"),
-            Err(_) => {},
-        }
-    }
-
-    let bystander_saw = bystander_rx.try_recv().is_ok();
+    let bystander_extra = bystander_rx.try_recv();
+    let target_extra = target_rx.try_recv();
 
     A2A_BROADCASTER.unregister(&target, &target_conn).await;
     A2A_BROADCASTER
         .unregister(&bystander, &bystander_conn)
         .await;
-    bridge_handle.shutdown().await;
-    let _ = sqlx::query("DELETE FROM event_outbox WHERE user_id = $1")
-        .bind(target.as_str())
-        .execute(pool.as_ref())
-        .await;
+    teardown(&pool, bridge, &[&target, &bystander]).await;
 
     assert!(
-        delivered,
-        "the addressed user must receive the relayed event"
+        matches!(bystander_extra, Err(TryRecvError::Empty)),
+        "an unrelated user must not receive another user's relayed event"
     );
     assert!(
-        !bystander_saw,
-        "an unrelated user must not receive another user's relayed event"
+        matches!(target_extra, Err(TryRecvError::Empty)),
+        "the addressed user must not receive the bystander's event"
     );
 }

@@ -5,13 +5,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::ids::BearerToken;
+use crate::ids::{BearerToken, PluginId};
 use std::time::Instant;
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::SignedManifestEnvelope;
 use crate::gateway::types::ReleaseManifest;
-use crate::gateway::{GatewayClient, record_span};
+use crate::gateway::{GatewayClient, ensure_success, record_span};
 
 /// Whether the gateway may answer a manifest fetch from its per-user memo.
 ///
@@ -46,12 +46,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::PubkeyFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "pubkey",
-            });
-        }
+        let resp = ensure_success(resp, "pubkey").await?;
         let body: PubkeyResponse = resp
             .json()
             .await
@@ -80,12 +75,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::ManifestFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "manifest",
-            });
-        }
+        let resp = ensure_success(resp, "manifest").await?;
         let body = resp
             .text()
             .await
@@ -106,7 +96,7 @@ impl GatewayClient {
     pub async fn fetch_plugin_file(
         &self,
         bearer: &BearerToken,
-        plugin_id: &str,
+        plugin_id: &PluginId,
         relative_path: &str,
     ) -> Result<Vec<u8>, GatewayError> {
         if relative_path.contains("..") || relative_path.starts_with('/') {
@@ -121,19 +111,14 @@ impl GatewayClient {
             .send()
             .await
             .map_err(|e| GatewayError::PluginFetch {
-                plugin_id: plugin_id.to_owned(),
+                plugin_id: plugin_id.clone(),
                 path: relative_path.to_owned(),
                 source: Box::new(e),
             })?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "plugin",
-            });
-        }
+        let resp = ensure_success(resp, "plugin").await?;
         let bytes = resp.bytes().await.map_err(|e| GatewayError::PluginRead {
-            plugin_id: plugin_id.to_owned(),
+            plugin_id: plugin_id.clone(),
             path: relative_path.to_owned(),
             source: Box::new(e),
         })?;
@@ -155,12 +140,7 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::HealthCheck(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            return Err(GatewayError::HttpStatus {
-                status: resp.status(),
-                endpoint: "health",
-            });
-        }
+        ensure_success(resp, "health").await?;
         Ok(())
     }
 
@@ -184,28 +164,9 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::ReleaseFetch(Box::new(e)))?;
         record_span(&resp, started);
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = rejection_excerpt(resp).await;
-            tracing::warn!(%status, body, "gateway refused the release lookup");
-            return Err(GatewayError::ReleaseRejected { status, body });
-        }
+        let resp = ensure_success(resp, "bridge-latest").await?;
         resp.json::<ReleaseManifest>()
             .await
             .map_err(|e| GatewayError::ReleaseDecode(Box::new(e)))
     }
-}
-
-const REJECTION_EXCERPT_CHARS: usize = 240;
-
-async fn rejection_excerpt(resp: reqwest::Response) -> String {
-    let body = resp.text().await.unwrap_or_else(|e| {
-        tracing::warn!(error = %e, "release rejection body unreadable");
-        String::new()
-    });
-    let trimmed = body.trim();
-    if trimmed.is_empty() {
-        return "no response body".to_owned();
-    }
-    trimmed.chars().take(REJECTION_EXCERPT_CHARS).collect()
 }

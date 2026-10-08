@@ -1,5 +1,5 @@
 use proptest::prelude::*;
-use systemprompt_models::wire::canonical::CanonicalStopReason;
+use systemprompt_wire::canonical::CanonicalStopReason;
 
 // Why: the mapping is the whole subject of the wire matrix, and every cell
 // there drives one hand-written string. These state the rules the mapping must

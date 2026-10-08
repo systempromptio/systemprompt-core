@@ -30,8 +30,8 @@ use super::{Descriptor, checked, status, wide};
 pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
     let before = super::describe(path).unwrap_or_else(|e| format!("<{e}>"));
     let path_w = wide(path)?;
-    refuse_reparse_point(path, &path_w).map_err(|e| step("check attributes", &e))?;
-    let owner = owner_sid_w(&path_w).map_err(|e| step("read owner", &e))?;
+    refuse_reparse_point(path, &path_w).map_err(|e| step("check attributes", e))?;
+    let owner = owner_sid_w(&path_w).map_err(|e| step("read owner", e))?;
     if owner != reader {
         return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
@@ -56,9 +56,9 @@ pub(crate) fn repair_private(path: &Path, reader: &str) -> io::Result<()> {
             acl,
             null_mut(),
         ))
-        .map_err(|e| step("set DACL", &e))?;
+        .map_err(|e| step("set DACL", e))?;
     }
-    verify_named(&path_w, &expected).map_err(|e| step("verify DACL", &e))?;
+    verify_named(&path_w, &expected).map_err(|e| step("verify DACL", e))?;
     tracing::warn!(
         path = %path.display(),
         before = %before,
@@ -128,7 +128,7 @@ pub(crate) fn reassign_private_dir(path: &Path, owner: &str) -> io::Result<()> {
         }
         Ok(())
     };
-    scoped(Scope::Directory, path).map_err(|e| step("reassign directory", &e))?;
+    scoped(Scope::Directory, path).map_err(|e| step("reassign directory", e))?;
     for entry in std::fs::read_dir(path)? {
         let child = entry?.path();
         let scope = if child.is_dir() {
@@ -136,7 +136,7 @@ pub(crate) fn reassign_private_dir(path: &Path, owner: &str) -> io::Result<()> {
         } else {
             Scope::File
         };
-        scoped(scope, &child).map_err(|e| step("reassign child", &e))?;
+        scoped(scope, &child).map_err(|e| step("reassign child", e))?;
     }
     drop(allocation);
     tracing::warn!(
@@ -200,6 +200,6 @@ fn verify_named(path_w: &[u16], expected: &Descriptor) -> io::Result<()> {
     compare_dacl(&actual, acl, expected)
 }
 
-fn step(action: &str, e: &io::Error) -> io::Error {
-    io::Error::new(e.kind(), format!("repair private file: {action}: {e}"))
+fn step(action: &str, e: io::Error) -> io::Error {
+    super::call_failed(format!("repair private file: {action}"), e)
 }

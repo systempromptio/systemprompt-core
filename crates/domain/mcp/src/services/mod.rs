@@ -8,6 +8,7 @@ pub mod auth;
 pub mod client;
 pub mod database;
 pub mod deployment;
+pub mod intent_claim;
 pub mod lifecycle;
 pub mod monitoring;
 pub mod network;
@@ -20,9 +21,10 @@ pub mod tool_provider;
 pub mod ui_renderer;
 
 pub use artifact_ingest::{ArtifactIngest, ArtifactScanner, IngestOutcome, IngestRequest};
-pub use database::{DatabaseService, ServiceInfo, ServiceLifecycleStatus};
+pub use database::{DatabaseService, ServiceInfo};
 pub use deployment::DeploymentService;
-pub use lifecycle::LifecycleOrchestrator;
+pub use intent_claim::IntentClaimService;
+pub use lifecycle::LifecycleService;
 pub use monitoring::MonitoringService;
 pub use monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
 pub use network::NetworkService;
@@ -31,5 +33,5 @@ pub use process::ProcessService;
 pub use registry::RegistryService;
 pub use spawn_target::SpawnTarget;
 
-pub use orchestrator::{EventBus, McpEvent};
+pub use orchestrator::{EventBus, McpEvent, McpRestartOutcome};
 pub use tool_provider::McpToolProvider;

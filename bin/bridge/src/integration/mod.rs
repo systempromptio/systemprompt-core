@@ -9,6 +9,7 @@ pub mod agent_fleet;
 pub mod agent_health;
 pub(crate) mod app_launch;
 pub mod claude_code_cli;
+pub mod claude_code_routing;
 pub mod claude_desktop;
 pub mod codex_cli;
 pub(crate) mod config_read;
@@ -35,7 +36,8 @@ pub use agent_health::{
     SyncOnlyAgent, sync_only_agent, verdict,
 };
 pub use host_app::{
-    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppSnapshot,
-    HostConfigSchema, ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
+    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError,
+    HostAppSnapshot, HostConfigSchema, ProfileGenInputs, ProfileProbe, ProfileState, StaleReason,
 };
 pub use registry::{ResolvedHost, find_host_by_id, host_apps, resolve_host};
+pub use systemprompt_models::bridge::host::HostKind;

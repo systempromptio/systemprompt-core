@@ -12,7 +12,7 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use std::time::Duration;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 use systemprompt_mcp::services::client::HttpClientWithContext;
 use systemprompt_models::ai::tools::CallToolResult;
 use tokio::time::timeout;
@@ -22,9 +22,10 @@ use crate::session::CliSessionContext;
 
 #[derive(Debug)]
 pub struct ToolCallParams<'a> {
-    pub server_name: &'a str,
+    pub server_name: &'a McpServerId,
     pub url: &'a str,
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
+    // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: Option<serde_json::Value>,
     pub session_ctx: &'a CliSessionContext,
     pub timeout_secs: u64,
@@ -61,7 +62,7 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
     .context("Connection timeout")?
     .context("Failed to connect to MCP server")?;
 
-    let mut params = CallToolRequestParams::new(tool_name.to_owned());
+    let mut params = CallToolRequestParams::new(String::from(tool_name));
     params.arguments = arguments.and_then(|v| v.as_object().cloned());
 
     let result = client.call_tool(params).await.map_err(|e| {
@@ -78,7 +79,7 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
 }
 
 pub async fn list_available_tools(
-    server_name: &str,
+    server_name: &McpServerId,
     url: &str,
     session_ctx: &CliSessionContext,
     timeout_secs: u64,

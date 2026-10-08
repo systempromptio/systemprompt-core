@@ -23,8 +23,8 @@ use axum::http::{Request, header};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
 use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_app_context, fixture_db_pool, init_services_bootstrap,
-    install_test_signing_key, seed_admin_credential,
+    TestBootstrap, init_services_bootstrap, install_test_signing_key, seed_admin_credential,
+    test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 
@@ -183,11 +183,9 @@ async fn zero_limit_is_an_explicit_empty_page_with_more_available() -> anyhow::R
 async fn app() -> anyhow::Result<Router> {
     let b = boot();
     install_test_signing_key();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
-    Ok(gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router available"))
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
+    Ok(gateway_router(&ctx).expect("gateway router builds"))
 }
 
 fn get(uri: &str) -> Request<Body> {
@@ -283,8 +281,8 @@ async fn a_request_with_no_credential_is_refused_before_anything_else() -> anyho
 
 #[tokio::test]
 async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-nosession@example.invalid").await?;
 
@@ -307,8 +305,8 @@ async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn a_model_no_route_matches_is_denied_rather_than_billed() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-unrouted@example.invalid").await?;
 
@@ -333,8 +331,8 @@ async fn a_model_no_route_matches_is_denied_rather_than_billed() -> anyhow::Resu
 
 #[tokio::test]
 async fn a_body_with_no_messages_cannot_derive_a_conversation() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-nomessages@example.invalid").await?;
 
@@ -360,8 +358,8 @@ async fn a_body_with_no_messages_cannot_derive_a_conversation() -> anyhow::Resul
 
 #[tokio::test]
 async fn a_malformed_conversation_header_is_refused() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-badconv@example.invalid").await?;
 
@@ -392,8 +390,8 @@ async fn a_malformed_conversation_header_is_refused() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn an_unparseable_body_is_refused_before_the_upstream_is_dialled() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-badbody@example.invalid").await?;
 
@@ -417,8 +415,8 @@ async fn an_unparseable_body_is_refused_before_the_upstream_is_dialled() -> anyh
 
 #[tokio::test]
 async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-dispatch@example.invalid").await?;
 
@@ -438,7 +436,8 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
     // extraction and route resolution and then fails closed at credential
     // resolution. A 5xx would make SDK clients retry a request that can never
     // succeed; 404 not_found_error is what upstream providers answer for a
-    // model they do not serve.
+    // model they do not serve. Which secret is missing is operator detail: it
+    // is the rejection's logged cause, not part of the answer.
     assert_eq!(
         status.as_u16(),
         404,
@@ -450,16 +449,20 @@ async fn a_routed_model_with_no_provider_key_fails_closed() -> anyhow::Result<()
         "the request must have got past the gateway gate: {body}"
     );
     assert!(
-        body.contains("not configured"),
-        "the failure must name the missing credential: {body}"
+        body.contains("The requested model is not served by this gateway"),
+        "the client sees the fixed unservable-model answer: {body}"
+    );
+    assert!(
+        !body.contains("not configured"),
+        "the missing credential is named in the log, never the client body: {body}"
     );
     Ok(())
 }
 
 #[tokio::test]
 async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-responses@example.invalid").await?;
 
@@ -505,8 +508,8 @@ async fn a_garbage_bearer_token_is_refused_by_the_gateway() -> anyhow::Result<()
 
 #[tokio::test]
 async fn a_session_bound_token_cannot_be_replayed_under_another_session() -> anyhow::Result<()> {
-    let b = boot();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    boot();
+    let pool = test_db_pool().await;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "gw-sessionbind@example.invalid").await?;
 

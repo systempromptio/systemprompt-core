@@ -14,7 +14,7 @@ use systemprompt_cli::shared::{
     ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,
     resolve_profile_with_data,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();

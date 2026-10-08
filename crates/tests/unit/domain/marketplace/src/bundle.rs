@@ -1,24 +1,24 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use systemprompt_identifiers::{AgentId, AgentName, PluginId, ValidatedUrl};
+use systemprompt_identifiers::{
+    AgentId, AgentName, LibraryArtifactId, MarketplaceRuleId, McpServerId, PluginId, RuleName,
+    SkillId, SkillName, ValidatedUrl,
+};
+use systemprompt_manifest::services::{PluginAuthor, PluginConfig, PluginScript, ServicesConfig};
 use systemprompt_marketplace::MarketplaceCache;
 use systemprompt_marketplace::bundle::{
     BundleContent, PluginBundle, build_plugin_bundle, bundle_has_content,
 };
 use systemprompt_marketplace::catalog::{load_plugins, plugin_bundles};
-use systemprompt_models::bridge::ids::{
-    LibraryArtifactId, ManagedMcpServerName, RuleId, RuleName, Sha256Digest, SkillId, SkillName,
-};
+use systemprompt_models::bridge::ids::Sha256Digest;
 use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, ManagedMcpServer, RuleEntry, SkillEntry,
 };
 use systemprompt_models::bridge::plugin_bundle::{
     PLUGIN_MANIFEST_RELPATH, PluginManifest, bundle_has_manifest,
 };
-use systemprompt_models::services::{
-    ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig, PluginScript, ServicesConfig,
-};
+use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
 use crate::helpers::{config_with, include, marketplace};
 
@@ -40,6 +40,7 @@ fn skill_entry(id: &str, description: &str, instructions: &str) -> SkillEntry {
         instructions: instructions.to_owned(),
         hosts: Vec::new(),
         plugins: Vec::new(),
+        frontmatter: None,
     }
 }
 
@@ -52,7 +53,7 @@ fn skill_entry_at(id: &str, description: &str, instructions: &str, file_path: &s
 fn mcp_server(name: &str, url: &str) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).expect("valid McpServerId"),
-        name: ManagedMcpServerName::try_new(name).expect("mcp name"),
+        name: McpServerId::try_new(name).expect("mcp name"),
         url: ValidatedUrl::try_new(url).expect("mcp url"),
         transport: Some("http".to_owned()),
         headers: None,
@@ -81,7 +82,7 @@ fn agent_entry(id: &str, description: &str, prompt: Option<&str>) -> AgentEntry 
     }
 }
 
-fn explicit(ids: &[&str]) -> PluginComponentRef {
+pub(crate) fn explicit(ids: &[&str]) -> PluginComponentRef {
     PluginComponentRef {
         source: ComponentSource::Explicit,
         include: ids.iter().map(|s| (*s).to_owned()).collect(),
@@ -89,7 +90,11 @@ fn explicit(ids: &[&str]) -> PluginComponentRef {
     }
 }
 
-fn plugin_config(id: &str, skills: PluginComponentRef, agents: PluginComponentRef) -> PluginConfig {
+pub(crate) fn plugin_config(
+    id: &str,
+    skills: PluginComponentRef,
+    agents: PluginComponentRef,
+) -> PluginConfig {
     PluginConfig {
         id: PluginId::new(id),
         name: format!("{id} plugin"),
@@ -351,7 +356,7 @@ fn plugin_bundles_scopes_to_the_marketplace_include_list() {
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     let ids: Vec<&str> = bundles
         .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .map(systemprompt_identifiers::PluginId::as_str)
         .collect();
     assert_eq!(
         ids,
@@ -396,7 +401,7 @@ fn plugin_bundles_unions_enabled_marketplaces() {
     let bundles = plugin_bundles(&services, &content).expect("plugin bundles");
     let ids: Vec<&str> = bundles
         .keys()
-        .map(systemprompt_models::bridge::ids::PluginId::as_str)
+        .map(systemprompt_identifiers::PluginId::as_str)
         .collect();
     assert_eq!(
         ids,
@@ -534,7 +539,7 @@ fn cached_bundles_match_the_uncached_build_and_track_input_changes() {
 
 fn comparable(
     bundles: &std::collections::BTreeMap<
-        systemprompt_models::bridge::ids::PluginId,
+        systemprompt_identifiers::PluginId,
         std::collections::BTreeMap<String, systemprompt_marketplace::bundle::BundleFile>,
     >,
 ) -> std::collections::BTreeMap<String, std::collections::BTreeMap<String, Vec<u8>>> {
@@ -551,12 +556,17 @@ fn comparable(
 }
 
 #[test]
-fn skill_md_carries_frontmatter_and_escapes_quotes() {
-    let skills = vec![skill_entry(
-        "quote_skill",
-        "a \"quoted\" desc",
-        "  trim me  ",
-    )];
+fn skill_md_emits_owned_keys_then_authored_frontmatter_and_escapes_quotes() {
+    let mut skill = skill_entry("quote_skill", "a \"quoted\" desc", "  trim me  ");
+    let mut frontmatter = serde_yaml::Mapping::new();
+    frontmatter.insert("disable-model-invocation".into(), true.into());
+    frontmatter.insert("title".into(), "Platform owned, never emitted".into());
+    frontmatter.insert(
+        "allowed-tools".into(),
+        serde_yaml::Value::Sequence(vec!["Read".into(), "Bash(git *)".into()]),
+    );
+    skill.frontmatter = Some(frontmatter);
+    let skills = vec![skill];
     let content = BundleContent {
         skills: &skills,
         rules: &[],
@@ -577,8 +587,10 @@ fn skill_md_carries_frontmatter_and_escapes_quotes() {
     let md = String::from_utf8(bundle["skills/quote-skill/SKILL.md"].bytes.clone())
         .expect("utf8 SKILL.md");
     assert_eq!(
-        md, "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n---\n\ntrim me\n",
-        "SKILL.md must carry escaped description and trimmed instructions",
+        md,
+        "---\nname: quote-skill\ndescription: \"a \\\"quoted\\\" desc\"\n\
+         disable-model-invocation: true\nallowed-tools:\n- Read\n- Bash(git *)\n---\n\ntrim me\n",
+        "SKILL.md carries name and description, then the authored keys in order, never an owned key",
     );
 }
 
@@ -1326,7 +1338,7 @@ fn a_bundle_ships_an_install_manifest_and_the_raw_page_beside_each_record() {
 
 fn rule_entry(id: &str, description: &str, instructions: &str) -> RuleEntry {
     RuleEntry {
-        id: RuleId::try_new(id).expect("rule id"),
+        id: MarketplaceRuleId::try_new(id).expect("rule id"),
         name: RuleName::try_new(id.replace('_', " ")).expect("rule name"),
         description: description.to_owned(),
         file_path: format!("/nonexistent/rules/{id}/index.md"),

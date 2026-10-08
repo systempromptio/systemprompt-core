@@ -7,17 +7,19 @@
 //! established path, and the test fails on a database nothing is visibly
 //! wrong with. A database created for the test cannot carry that history.
 //!
-//! [`DisposableDb::create`] hands back an empty database; [`DisposableDb::
-//! installed`] hands back one with every registered extension's schema
-//! applied. Both are dropped by [`DisposableDb::drop_now`], and any a test
-//! never dropped is removed by a later run once its owner has exited
-//! ([`crate::orphans`]).
+//! [`DisposableDb::empty`] hands back an empty database; [`DisposableDb::
+//! with_schema`] hands back one with every registered extension's schema
+//! applied; [`DisposableDb::test_pool`] connects to it. All three panic on
+//! failure: a test that cannot get its database fails rather than skips (see
+//! [`crate::db`]). Each database is dropped by [`DisposableDb::drop_now`],
+//! and any a test never dropped is removed by a later run once its owner has
+//! exited ([`crate::orphans`]).
 
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 
-use crate::db::{fixture_database_url, fixture_db_pool};
+use crate::db::{connect, test_database_url};
 
 pub struct DisposableDb {
     admin: sqlx::PgPool,
@@ -30,14 +32,9 @@ impl DisposableDb {
     // suite made it, its owner's PID so a later run can drop it once that
     // process is gone (a panicking test never reaches `drop_now`), and a
     // random suffix so parallel tests never collide.
-    pub async fn create(prefix: &str) -> Result<Self> {
-        let base_url = fixture_database_url()?;
-        let admin = fixture_db_pool(&base_url)
-            .await?
-            .pool_arc()
-            .context("the maintenance pool must expose a raw handle")?
-            .as_ref()
-            .clone();
+    async fn create(prefix: &str) -> Result<Self> {
+        let base_url = test_database_url();
+        let admin = connect(&base_url).await?.pool().as_ref().clone();
 
         crate::orphans::sweep_databases(&admin).await;
         let name = crate::orphans::database_name(prefix);
@@ -56,16 +53,39 @@ impl DisposableDb {
     // Why: the schema is installed through the same entry point the server
     // boots with, so the database a test starts from is the shape a real
     // fresh install produces -- baseline stamps included.
-    pub async fn installed(prefix: &str) -> Result<Self> {
+    async fn installed(prefix: &str) -> Result<Self> {
         let db = Self::create(prefix).await?;
-        let pool = db.pool().await?;
-        systemprompt_database::install_extension_schemas(
+        let pool = connect(&db.url).await?;
+        systemprompt_database::install_extension_schemas_full(
             &ExtensionRegistry::discover().context("extension registry discovery")?,
             pool.write(),
+            &[],
+            systemprompt_database::MigrationConfig::default(),
         )
         .await
         .context("failed to install the extension schemas into the disposable database")?;
         Ok(db)
+    }
+
+    pub async fn empty(prefix: &str) -> Self {
+        Self::create(prefix)
+            .await
+            .unwrap_or_else(|e| panic!("disposable database `{prefix}`: {e:#}"))
+    }
+
+    pub async fn with_schema(prefix: &str) -> Self {
+        Self::installed(prefix)
+            .await
+            .unwrap_or_else(|e| panic!("installed disposable database `{prefix}`: {e:#}"))
+    }
+
+    // Why: a pool per caller rather than one held on the struct -- a sqlx
+    // connection belongs to the runtime that opened it, so a pool shared
+    // across `#[tokio::test]` runtimes hands out dead sockets.
+    pub async fn test_pool(&self) -> DbPool {
+        connect(&self.url)
+            .await
+            .unwrap_or_else(|e| panic!("disposable database `{}`: {e:#}", self.name))
     }
 
     #[must_use]
@@ -76,13 +96,6 @@ impl DisposableDb {
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    // Why: a pool per caller rather than one held on the struct -- a sqlx
-    // connection belongs to the runtime that opened it, so a pool shared
-    // across `#[tokio::test]` runtimes hands out dead sockets.
-    pub async fn pool(&self) -> Result<DbPool> {
-        fixture_db_pool(&self.url).await
     }
 
     // Why: a drop that fails silently leaks a database per run, and the leak

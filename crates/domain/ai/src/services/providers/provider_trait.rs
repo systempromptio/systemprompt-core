@@ -1,12 +1,12 @@
-//! The [`AiProvider`] abstraction and its request parameter types.
+//! The [`ProviderClient`] abstraction and its request parameter types.
 //!
-//! Every LLM backend implements [`AiProvider`], a `dyn`-dispatched trait
+//! Every LLM backend implements [`ProviderClient`], a `dyn`-dispatched trait
 //! covering plain generation, tool calling, structured/schema output, search
 //! grounding, and streaming. The borrowed parameter structs
 //! ([`GenerationParams`], [`ToolGenerationParams`], [`SchemaGenerationParams`],
 //! [`StructuredGenerationParams`], [`SearchGenerationParams`],
 //! [`ToolResultsParams`]) keep large call signatures readable.
-//! [`systemprompt_models::services::ai::ModelPricing`] is re-exported here as
+//! [`systemprompt_manifest::services::ai::ModelPricing`] is re-exported here as
 //! the single pricing type for usage accounting.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,8 +23,8 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_models::services::ProviderModel;
-pub use systemprompt_models::services::ai::ModelPricing;
+use systemprompt_manifest::services::ProviderModel;
+pub use systemprompt_manifest::services::ai::ModelPricing;
 
 #[must_use]
 pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
@@ -113,6 +113,7 @@ pub struct SchemaGenerationParams<'a> {
 }
 
 impl<'a> SchemaGenerationParams<'a> {
+    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
     pub const fn new(base: GenerationParams<'a>, response_schema: serde_json::Value) -> Self {
         Self {
             base,
@@ -158,6 +159,7 @@ impl<'a> SearchGenerationParams<'a> {
         self
     }
 
+    // JSON: JSON Schema for structured output — caller-supplied, arbitrary.
     pub fn with_response_schema(mut self, schema: serde_json::Value) -> Self {
         self.response_schema = Some(schema);
         self
@@ -167,10 +169,8 @@ impl<'a> SearchGenerationParams<'a> {
 // Why: Native async trait methods are not dyn-compatible; boxed providers
 // require `async_trait`.
 #[async_trait]
-pub trait AiProvider: Send + Sync {
+pub trait ProviderClient: Send + Sync {
     fn name(&self) -> &str;
-
-    fn as_any(&self) -> &dyn std::any::Any;
 
     fn capabilities(&self) -> ProviderCapabilities;
 
@@ -254,27 +254,27 @@ pub trait AiProvider: Send + Sync {
     }
 
     fn supports_structured_output(&self) -> bool {
-        true
+        false
     }
 
     async fn generate_stream(
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::Internal(format!(
-            "Streaming not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::Streaming,
+        })
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::Internal(format!(
-            "Tool streaming not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::ToolStreaming,
+        })
     }
 
     fn supports_streaming(&self) -> bool {
@@ -289,9 +289,9 @@ pub trait AiProvider: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(crate::error::AiError::Internal(format!(
-            "Google Search not supported by provider {}",
-            self.name()
-        )))
+        Err(crate::error::AiError::CapabilityUnsupported {
+            provider: self.name().to_owned(),
+            capability: crate::error::ProviderCapability::GoogleSearch,
+        })
     }
 }

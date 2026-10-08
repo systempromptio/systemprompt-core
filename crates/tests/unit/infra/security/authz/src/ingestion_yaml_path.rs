@@ -10,13 +10,8 @@ use systemprompt_database::DbPool;
 use systemprompt_security::authz::{
     AccessControlIngestionService, IngestOptions, RegisteredEntities,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
-
-async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -29,7 +24,7 @@ fn write_temp_yaml(contents: &str) -> PathBuf {
 }
 
 async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(entity_type)
         .bind(entity_id)
@@ -45,7 +40,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 }
 
 async fn role_rule_count(db: &DbPool, entity_id: &str) -> i64 {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM access_control_rules WHERE entity_id = $1 AND rule_type = 'role'",
     )
@@ -57,10 +52,8 @@ async fn role_rule_count(db: &DbPool, entity_id: &str) -> i64 {
 
 #[tokio::test]
 async fn a_yaml_file_on_disk_is_ingested_the_same_as_a_parsed_config() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let db = test_db_pool().await;
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("ing-path");
     let path = write_temp_yaml(&format!(
         "rules:\n  - entity_type: gateway_route\n    entity_id: {id}\n    access: allow\n    \
@@ -85,10 +78,8 @@ async fn a_yaml_file_on_disk_is_ingested_the_same_as_a_parsed_config() {
 
 #[tokio::test]
 async fn a_missing_yaml_file_is_a_validation_error_naming_the_path() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let db = test_db_pool().await;
+    let svc = AccessControlIngestionService::new(&db);
     let path = std::env::temp_dir().join(format!("absent-{}.yaml", Uuid::new_v4().simple()));
 
     let err = svc
@@ -109,10 +100,8 @@ async fn a_missing_yaml_file_is_a_validation_error_naming_the_path() {
 
 #[tokio::test]
 async fn a_yaml_file_that_is_not_an_access_control_config_is_rejected() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let db = test_db_pool().await;
+    let svc = AccessControlIngestionService::new(&db);
     let path = write_temp_yaml("rules: \"this is not a sequence\"\n");
 
     let err = svc
@@ -135,10 +124,8 @@ async fn a_yaml_file_that_is_not_an_access_control_config_is_rejected() {
 
 #[tokio::test]
 async fn delete_orphans_clears_stale_role_grants_before_reapplying_the_config() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
-    let svc = AccessControlIngestionService::new(&db).expect("ingestion service");
+    let db = test_db_pool().await;
+    let svc = AccessControlIngestionService::new(&db);
     let id = unique_id("ing-orphan");
 
     let two_roles = format!(

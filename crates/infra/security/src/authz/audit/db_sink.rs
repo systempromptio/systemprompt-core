@@ -8,7 +8,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{ClientId, ContextId, SessionId, TaskId};
+use systemprompt_identifiers::ContextId;
 
 use super::repository::{GovernanceDecisionRecord, GovernanceDecisionRepository};
 use super::{AuthzAuditSink, AuthzSource};
@@ -53,12 +53,12 @@ impl AuthzAuditSink for DbAuditSink {
         let context_id = req.context_id.clone().unwrap_or_else(|| {
             req.session_id
                 .as_ref()
-                .map_or_else(ContextId::legacy, ContextId::derived_from_session)
+                .map_or_else(ContextId::generate, ContextId::derived_from_session)
         });
         let record = GovernanceDecisionRecord {
             id: &id,
             actor: &actor,
-            session_id: req.session_id.as_ref().map_or("", SessionId::as_str),
+            session_id: req.session_id.as_ref(),
             tool_name: entity_id,
             agent_id: req.verified_agent_id(),
             agent_scope: req.access_scope,
@@ -68,10 +68,10 @@ impl AuthzAuditSink for DbAuditSink {
             evaluated_rules: &evaluated,
             plugin_id: None,
             act_chain: &req.act_chain,
-            context_id: context_id.as_str(),
-            task_id: req.task_id.as_ref().map(TaskId::as_str),
-            trace_id: Some(req.trace_id.as_str()),
-            client_id: req.client_id.as_ref().map(ClientId::as_str),
+            context_id: &context_id,
+            task_id: req.task_id.as_ref(),
+            trace_id: Some(&req.trace_id),
+            client_id: req.client_id.as_ref(),
             tool_use_id: None,
         };
         if let Err(err) = self.repo.insert(&record).await {

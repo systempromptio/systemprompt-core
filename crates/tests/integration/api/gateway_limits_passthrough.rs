@@ -17,16 +17,16 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use serde_json::{Value, json};
-use systemprompt_api::services::gateway::protocol::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_models::services::ai::ModelLimits;
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-    WireProtocol,
+use systemprompt_gateway::protocol::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::service::GatewayService;
+use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_test_fixtures::seed_admin_credential;
+use systemprompt_wire::{ModelLimits, WireProtocol};
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -68,7 +68,7 @@ fn registry(endpoint: &str, limits: ModelLimits) -> ProviderRegistry {
 
 fn config() -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: CATALOG_ID.to_owned(),
@@ -78,8 +78,8 @@ fn config() -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     GatewayConfig {

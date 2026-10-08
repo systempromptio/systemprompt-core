@@ -1,4 +1,12 @@
-use systemprompt_bridge::integration::reapply::{Outcome, Report, render};
+use systemprompt_bridge::integration::HostAppError;
+use systemprompt_bridge::integration::reapply::{Outcome, ProfileFailure, Report, render};
+
+fn failure(message: &str) -> std::sync::Arc<ProfileFailure> {
+    std::sync::Arc::new(ProfileFailure::Host(HostAppError::Io(
+        std::io::Error::other(message.to_owned()),
+    )))
+}
+
 
 fn report(display_name: &'static str, outcome: Outcome) -> Report {
     Report {
@@ -58,7 +66,7 @@ fn a_declined_elevation_is_reported_as_a_decision_not_a_failure() {
 fn a_failure_carries_its_own_error_text() {
     let out = render(&[report(
         "Hermes",
-        Outcome::Failed("loopback secret: no key on disk".to_owned()),
+        Outcome::Failed(failure("loopback secret: no key on disk")),
     )]);
     assert!(
         out.contains("[failed  ] Hermes — loopback secret: no key on disk"),
@@ -70,7 +78,7 @@ fn a_failure_carries_its_own_error_text() {
 fn every_report_gets_its_own_line_under_one_header() {
     let out = render(&[
         report("Codex CLI", Outcome::Reapplied),
-        report("Hermes", Outcome::Failed("boom".to_owned())),
+        report("Hermes", Outcome::Failed(failure("boom"))),
         report("OpenCode", Outcome::Declined),
     ]);
     let lines: Vec<&str> = out.lines().collect();
@@ -86,13 +94,17 @@ fn a_per_user_override_still_narrows_a_host_that_declares_no_surfaces() {
     use std::collections::BTreeMap;
 
     use systemprompt_bridge::gateway::model_view::effective_surfaces;
-    use systemprompt_models::services::ApiSurface;
+    use systemprompt_models::providers::ApiSurface;
 
     let mut overrides: BTreeMap<String, Vec<String>> = BTreeMap::new();
     overrides.insert("opencode".to_owned(), vec!["anthropic".to_owned()]);
 
     assert_eq!(
-        effective_surfaces("opencode", &[], &overrides),
+        effective_surfaces(
+            systemprompt_models::bridge::host::HostKind::OpenCode,
+            &[],
+            &overrides
+        ),
         vec![ApiSurface::Anthropic],
         "an empty host default means 'everything', and an override still narrows it"
     );

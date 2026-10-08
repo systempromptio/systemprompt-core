@@ -7,8 +7,8 @@ use std::path::Path;
 use predicates::prelude::*;
 use serde_json::json;
 use systemprompt_cli_integration_tests::full_bootstrap::{
-    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, command_or_skip, fixture_mcp_server,
-    fixture_or_skip,
+    FIXTURE_AGENT, FIXTURE_DELETE_AGENT, FIXTURE_EDIT_AGENT, cli_command, fixture_mcp_server,
+    full_fixture,
 };
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
 use wiremock::matchers::{method, path};
@@ -84,12 +84,12 @@ fn spawn_server(mocks: Vec<Mock>) -> u16 {
     rx.recv().expect("receive mock port")
 }
 
-fn home_cmd_or_skip(home: &Path, args: &[&str]) -> Option<assert_cmd::Command> {
-    let mut cmd = command_or_skip()?;
+fn home_cmd(home: &Path, args: &[&str]) -> assert_cmd::Command {
+    let mut cmd = cli_command();
     cmd.env("HOME", home);
     cmd.current_dir(home);
     cmd.args(args);
-    Some(cmd)
+    cmd
 }
 
 fn completed_task_json() -> serde_json::Value {
@@ -116,9 +116,7 @@ fn completed_task_json() -> serde_json::Value {
 
 #[test]
 fn registry_parses_agent_cards() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let port = spawn_server_from(|| {
         let body = json!({
             "data": [
@@ -154,9 +152,7 @@ fn registry_parses_agent_cards() {
     });
     let url = format!("http://127.0.0.1:{port}");
     for extra in [vec![], vec!["--running"], vec!["--verbose"], vec!["--json"]] {
-        let Some(mut cmd) = command_or_skip() else {
-            return;
-        };
+        let mut cmd = cli_command();
         if extra.contains(&"--json") {
             cmd.arg("--json");
         }
@@ -178,18 +174,14 @@ fn registry_parses_agent_cards() {
 
 #[test]
 fn registry_error_paths() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let port = spawn_server_from(|| {
         let mock = Mock::given(method("GET"))
             .and(path("/api/v1/agents/registry"))
             .respond_with(ResponseTemplate::new(500).set_body_string("boom"));
         vec![mock]
     });
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args([
         "admin",
         "agents",
@@ -199,18 +191,14 @@ fn registry_error_paths() {
     ]);
     cmd.assert().failure();
 
-    let Some(mut unreachable) = command_or_skip() else {
-        return;
-    };
+    let mut unreachable = cli_command();
     unreachable.args(["admin", "agents", "registry", "--url", "http://127.0.0.1:9"]);
     unreachable.assert().failure();
 }
 
 #[test]
 fn message_non_streaming_roundtrip() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let home = tempfile::tempdir().expect("home");
     let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
     let port = spawn_server_from(move || {
@@ -225,7 +213,7 @@ fn message_non_streaming_roundtrip() {
         vec![mock]
     });
     let url = format!("http://127.0.0.1:{port}");
-    let Some(mut cmd) = home_cmd_or_skip(
+    let mut cmd = home_cmd(
         home.path(),
         &[
             "admin",
@@ -237,15 +225,12 @@ fn message_non_streaming_roundtrip() {
             "--url",
             &url,
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("hello from fixture"));
 
-    let Some(mut blocking) = home_cmd_or_skip(
+    let mut blocking = home_cmd(
         home.path(),
         &[
             "admin",
@@ -259,10 +244,7 @@ fn message_non_streaming_roundtrip() {
             "--url",
             &url,
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     blocking
         .assert()
         .success()
@@ -271,9 +253,7 @@ fn message_non_streaming_roundtrip() {
 
 #[test]
 fn message_error_and_missing_agent() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let home = tempfile::tempdir().expect("home");
     let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
     let port = spawn_server_from(move || {
@@ -288,7 +268,7 @@ fn message_error_and_missing_agent() {
         vec![mock]
     });
     let url = format!("http://127.0.0.1:{port}");
-    let Some(mut cmd) = home_cmd_or_skip(
+    let mut cmd = home_cmd(
         home.path(),
         &[
             "admin",
@@ -300,33 +280,22 @@ fn message_error_and_missing_agent() {
             "--url",
             &url,
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert().failure();
 
-    let Some(mut missing) = home_cmd_or_skip(
+    let mut missing = home_cmd(
         home.path(),
         &["admin", "agents", "message", "no_such_agent", "-m", "hi"],
-    ) else {
-        return;
-    };
+    );
     missing.assert().failure();
 
-    let Some(mut no_text) =
-        home_cmd_or_skip(home.path(), &["admin", "agents", "message", FIXTURE_AGENT])
-    else {
-        return;
-    };
+    let mut no_text = home_cmd(home.path(), &["admin", "agents", "message", FIXTURE_AGENT]);
     no_text.assert().failure();
 }
 
 #[test]
 fn message_streaming_roundtrip() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let home = tempfile::tempdir().expect("home");
     let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
     let port = spawn_server_from(move || {
@@ -384,7 +353,7 @@ fn message_streaming_roundtrip() {
             );
         vec![mock]
     });
-    let Some(mut cmd) = home_cmd_or_skip(
+    let mut cmd = home_cmd(
         home.path(),
         &[
             "admin",
@@ -397,10 +366,7 @@ fn message_streaming_roundtrip() {
             "--url",
             &format!("http://127.0.0.1:{port}"),
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("chunk two"));
@@ -408,9 +374,7 @@ fn message_streaming_roundtrip() {
 
 #[test]
 fn task_get_roundtrip() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
+    full_fixture();
     let home = tempfile::tempdir().expect("home");
     let agent_path = format!("/api/v1/agents/{FIXTURE_AGENT}");
     let port = spawn_server_from(move || {
@@ -424,7 +388,7 @@ fn task_get_roundtrip() {
             .respond_with(ResponseTemplate::new(200).set_body_json(body));
         vec![mock]
     });
-    let Some(mut cmd) = home_cmd_or_skip(
+    let mut cmd = home_cmd(
         home.path(),
         &[
             "admin",
@@ -436,35 +400,23 @@ fn task_get_roundtrip() {
             "--url",
             &format!("http://127.0.0.1:{port}"),
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     cmd.assert()
         .success()
         .stdout(predicate::str::contains("task-cov-1"));
 
-    let Some(mut missing_task) =
-        home_cmd_or_skip(home.path(), &["admin", "agents", "task", FIXTURE_AGENT])
-    else {
-        return;
-    };
+    let mut missing_task = home_cmd(home.path(), &["admin", "agents", "task", FIXTURE_AGENT]);
     missing_task.assert().failure();
 }
 
 #[test]
 fn tools_lists_stub_mcp_tools() {
-    if stub_port().is_none() {
-        return;
-    }
+    stub_port();
     let home = tempfile::tempdir().expect("home");
-    let Some(mut cmd) = home_cmd_or_skip(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT])
-    else {
-        return;
-    };
+    let mut cmd = home_cmd(home.path(), &["admin", "agents", "tools", FIXTURE_AGENT]);
     cmd.assert().success();
 
-    let Some(mut detailed) = home_cmd_or_skip(
+    let mut detailed = home_cmd(
         home.path(),
         &[
             "--json",
@@ -474,30 +426,20 @@ fn tools_lists_stub_mcp_tools() {
             FIXTURE_AGENT,
             "--detailed",
         ],
-        // skip-ok: the systemprompt binary is not built in this checkout
-    ) else {
-        return;
-    };
+    );
     detailed
         .assert()
         .success()
         .stdout(predicate::str::contains("echo"));
 
-    let Some(mut missing) = home_cmd_or_skip(home.path(), &["admin", "agents", "tools", "nope"])
-    else {
-        return;
-    };
+    let mut missing = home_cmd(home.path(), &["admin", "agents", "tools", "nope"]);
     missing.assert().failure();
 }
 
 #[test]
 fn edit_apply_covers_field_groups() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
-    let Some(mut edit) = command_or_skip() else {
-        return;
-    };
+    full_fixture();
+    let mut edit = cli_command();
     edit.args([
         "admin",
         "agents",
@@ -538,9 +480,7 @@ fn edit_apply_covers_field_groups() {
     ]);
     edit.assert().success();
 
-    let Some(mut edit2) = command_or_skip() else {
-        return;
-    };
+    let mut edit2 = cli_command();
     edit2.args([
         "admin",
         "agents",
@@ -556,15 +496,11 @@ fn edit_apply_covers_field_groups() {
     ]);
     edit2.assert().success();
 
-    let Some(mut edit3) = command_or_skip() else {
-        return;
-    };
+    let mut edit3 = cli_command();
     edit3.args(["admin", "agents", "edit", FIXTURE_EDIT_AGENT, "--enable"]);
     edit3.assert().success();
 
-    let Some(mut bad_set) = command_or_skip() else {
-        return;
-    };
+    let mut bad_set = cli_command();
     bad_set.args([
         "admin",
         "agents",
@@ -575,27 +511,19 @@ fn edit_apply_covers_field_groups() {
     ]);
     bad_set.assert().failure();
 
-    let Some(mut delete) = command_or_skip() else {
-        return;
-    };
+    let mut delete = cli_command();
     delete.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
     delete.assert().success();
 
-    let Some(mut delete_missing) = command_or_skip() else {
-        return;
-    };
+    let mut delete_missing = cli_command();
     delete_missing.args(["admin", "agents", "delete", FIXTURE_EDIT_AGENT, "--yes"]);
     delete_missing.assert().failure();
 }
 
 #[test]
 fn delete_all_and_validate() {
-    if fixture_or_skip().is_none() {
-        return;
-    }
-    let Some(mut create) = command_or_skip() else {
-        return;
-    };
+    full_fixture();
+    let mut create = cli_command();
     create.args([
         "admin",
         "agents",
@@ -611,9 +539,7 @@ fn delete_all_and_validate() {
     ]);
     create.assert().success();
 
-    let Some(mut dup) = command_or_skip() else {
-        return;
-    };
+    let mut dup = cli_command();
     dup.args([
         "admin",
         "agents",
@@ -624,15 +550,11 @@ fn delete_all_and_validate() {
         "4782",
     ]);
     dup.assert().failure();
-    let Some(mut validate) = command_or_skip() else {
-        return;
-    };
+    let mut validate = cli_command();
     validate.args(["admin", "agents", "validate"]);
     let _ = validate.assert();
 
-    let Some(mut delete) = command_or_skip() else {
-        return;
-    };
+    let mut delete = cli_command();
     delete.args([
         "admin",
         "agents",
@@ -705,7 +627,7 @@ async fn assert_stream_request(server: &MockServer, expected_text: &str) {
 }
 
 fn configure_owned_web_paths() {
-    let fixture = fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+    let fixture = full_fixture();
     let templates = fixture.services_dir.join("web/templates");
     let assets = fixture.services_dir.join("web/assets");
     std::fs::create_dir_all(&templates).expect("create owned web templates");
@@ -723,7 +645,7 @@ fn configure_owned_web_paths() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_details() {
     tokio::task::spawn_blocking(|| {
-        fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+        full_fixture();
         configure_owned_web_paths();
     })
     .await
@@ -754,7 +676,7 @@ async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_detail
         .mount(&server)
         .await;
     let url = server.uri();
-    let mut command = home_cmd_or_skip(
+    let mut command = home_cmd(
         home.path(),
         &[
             "admin",
@@ -767,8 +689,7 @@ async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_detail
             "--url",
             &url,
         ],
-    )
-    .expect("systemprompt test binary and full fixture");
+    );
     let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
         .await
         .expect("join CLI subprocess");
@@ -785,7 +706,7 @@ async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_detail
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn message_streaming_rejects_eof_without_a_final_task() {
     tokio::task::spawn_blocking(|| {
-        fixture_or_skip().expect("full CLI fixture requires DATABASE_URL");
+        full_fixture();
         configure_owned_web_paths();
     })
     .await
@@ -828,7 +749,7 @@ async fn message_streaming_rejects_eof_without_a_final_task() {
         .mount(&server)
         .await;
     let url = server.uri();
-    let mut command = home_cmd_or_skip(
+    let mut command = home_cmd(
         home.path(),
         &[
             "admin",
@@ -841,8 +762,7 @@ async fn message_streaming_rejects_eof_without_a_final_task() {
             "--url",
             &url,
         ],
-    )
-    .expect("systemprompt test binary and full fixture");
+    );
     let output = tokio::task::spawn_blocking(move || command.output().expect("bounded CLI output"))
         .await
         .expect("join CLI subprocess");

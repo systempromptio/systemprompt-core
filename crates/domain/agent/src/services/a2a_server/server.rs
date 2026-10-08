@@ -13,8 +13,10 @@ use axum::routing::{get, post};
 use axum::{Router, middleware};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::AgentName;
+use systemprompt_manifest::AgentConfig;
+use systemprompt_models::ai::DynAiProvider;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::{AgentConfig, AiProvider};
 use tokio::sync::{RwLock, Semaphore};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 
@@ -35,16 +37,15 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
             continue;
         }
         let value = trimmed.parse::<HeaderValue>().map_err(|e| {
-            crate::error::AgentError::Config(format!(
-                "invalid cors_allowed_origins entry {origin:?}: {e}"
-            ))
+            crate::error::AgentError::invalid_config(
+                format!("invalid cors_allowed_origins entry {origin:?}"),
+                e,
+            )
         })?;
         allowed.push(value);
     }
     if allowed.is_empty() {
-        return Err(crate::error::AgentError::Config(
-            "cors_allowed_origins must contain at least one valid origin".to_owned(),
-        ));
+        return Err(crate::error::AgentError::EmptyCorsAllowlist);
     }
     Ok(CorsLayer::new()
         .allow_origin(AllowOrigin::list(allowed))
@@ -61,7 +62,7 @@ pub struct Server {
     config: Arc<RwLock<AgentConfig>>,
     oauth_state: Arc<AgentOAuthState>,
     agent_state: Arc<AgentState>,
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     stream_semaphore: Arc<Semaphore>,
     active_tasks: ActiveTasks,
     cors: CorsLayer,
@@ -74,7 +75,7 @@ impl std::fmt::Debug for Server {
             .field("config", &"Arc<RwLock<AgentConfig>>")
             .field("oauth_state", &"Arc<AgentOAuthState>")
             .field("agent_state", &"Arc<AgentState>")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .field(
                 "stream_semaphore",
                 &self.stream_semaphore.available_permits(),
@@ -89,24 +90,14 @@ impl Server {
     pub async fn new(
         db_pool: DbPool,
         agent_state: Arc<AgentState>,
-        ai_service: Arc<dyn AiProvider>,
-        agent_name: Option<String>,
+        ai_service: DynAiProvider,
+        agent_name: &AgentName,
         port: u16,
     ) -> Result<Self, crate::error::AgentError> {
         use crate::services::registry::AgentRegistry;
 
-        let mut config = if let Some(name) = agent_name {
-            let registry = AgentRegistry::new()
-                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
-            registry
-                .get_agent(&name)
-                .await
-                .map_err(|e| crate::error::AgentError::Server(e.to_string()))?
-        } else {
-            return Err(crate::error::AgentError::Validation(
-                "Agent name is required".to_owned(),
-            ));
-        };
+        let registry = AgentRegistry::new()?;
+        let mut config = registry.get_agent(agent_name.as_str()).await?;
 
         config.extract_oauth_scopes_from_card();
 
@@ -183,8 +174,7 @@ impl Server {
 
         axum::serve(listener, app)
             .with_graceful_shutdown(shutdown)
-            .await
-            .map_err(|e| crate::error::AgentError::Server(e.to_string()))?;
+            .await?;
 
         self.active_tasks.tracker().close();
         self.active_tasks.tracker().wait().await;

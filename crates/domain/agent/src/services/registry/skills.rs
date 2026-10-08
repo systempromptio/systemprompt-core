@@ -36,11 +36,10 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
     let skill_path = skill_dir.join(SKILL_FILENAME);
 
     if !skill_path.exists() {
-        return Err(AgentServiceError::Internal(format!(
-            "Skill directory or {} not found: {}",
-            SKILL_FILENAME,
-            skill_path.display()
-        )));
+        return Err(AgentServiceError::SkillNotOnDisk {
+            skill_id: skill_id.clone(),
+            path: skill_path,
+        });
     }
 
     let content = fs::read_to_string(&skill_path)?;
@@ -50,7 +49,7 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
     let config = if config_path.exists() {
         let config_text = fs::read_to_string(&config_path)?;
         serde_yaml::from_str::<SkillConfig>(&config_text).map_err(|e| {
-            AgentServiceError::Internal(format!("Failed to parse {CONFIG_FILENAME}: {e}"))
+            AgentServiceError::operation(format!("Failed to parse {CONFIG_FILENAME}"), e)
         })?
     } else {
         SkillConfig {

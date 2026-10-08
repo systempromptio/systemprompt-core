@@ -29,16 +29,10 @@ pub fn build_execution_steps(
     let mut result = Vec::with_capacity(steps.len());
     for row in steps {
         let status = row.status.parse::<StepStatus>().map_err(|e| {
-            RepositoryError::InvalidData(format!(
-                "execution step {} has an invalid status: {e}",
-                row.step_id
-            ))
+            RepositoryError::decode(format!("execution step {} status", row.step_id), e)
         })?;
         let content: StepContent = serde_json::from_value(row.content.clone()).map_err(|e| {
-            RepositoryError::InvalidData(format!(
-                "execution step {} has invalid content: {e}",
-                row.step_id
-            ))
+            RepositoryError::decode(format!("execution step {} content", row.step_id), e)
         })?;
 
         result.push(ExecutionStep {

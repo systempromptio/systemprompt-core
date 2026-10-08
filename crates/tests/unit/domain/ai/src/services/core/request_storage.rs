@@ -8,11 +8,10 @@ use systemprompt_ai::models::ai::{AiMessage, AiRequest, AiResponse};
 use systemprompt_ai::repository::{AiRequestPayloadRepository, AiRequestRepository};
 use systemprompt_ai::services::core::request_storage::{RequestStorage, StoreParams};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{AiRequestId, SessionId, UserId};
 use systemprompt_traits::{AiProviderResult, AiSessionProvider, CreateAiSessionParams};
-use uuid::Uuid;
 
-use super::{pool_or_skip, seeded_context};
+use super::{bootstrapped_pool, seeded_context};
 
 #[derive(Default)]
 struct RecordingSessionProvider {
@@ -63,7 +62,7 @@ fn request(ctx: systemprompt_models::RequestContext) -> AiRequest {
     .build()
 }
 
-fn response(request_id: Uuid, content: &str) -> AiResponse {
+fn response(request_id: AiRequestId, content: &str) -> AiResponse {
     let mut response = AiResponse::new(
         request_id,
         content.to_owned(),
@@ -78,8 +77,8 @@ fn response(request_id: Uuid, content: &str) -> AiResponse {
 
 fn storage(pool: &DbPool, provider: Arc<RecordingSessionProvider>) -> RequestStorage {
     RequestStorage::new(
-        AiRequestRepository::new(pool).expect("repo"),
-        AiRequestPayloadRepository::new(pool).expect("payloads"),
+        AiRequestRepository::new(pool),
+        AiRequestPayloadRepository::new(pool),
         provider,
     )
 }
@@ -100,16 +99,14 @@ async fn store(storage: &RequestStorage, request: &AiRequest, response: &AiRespo
 
 #[tokio::test]
 async fn session_is_touched_then_usage_incremented() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (_user, ctx) = seeded_context(&pool).await;
     let session_id = ctx.session_id().as_str().to_owned();
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider.clone());
 
     let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer");
+    let response = response(AiRequestId::generate(), "answer");
     store(&storage, &request, &response, 1234).await;
 
     assert_eq!(
@@ -124,9 +121,7 @@ async fn session_is_touched_then_usage_incremented() {
 
 #[tokio::test]
 async fn system_user_skips_usage_accounting_but_touches_session() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let system_user = UserId::new("system");
     systemprompt_test_fixtures::seed_user_row(&pool, &system_user, "system@ai-storage.invalid")
         .await
@@ -138,7 +133,7 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
     let storage = storage(&pool, provider.clone());
 
     let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer");
+    let response = response(AiRequestId::generate(), "answer");
     store(&storage, &request, &response, 7).await;
 
     assert_eq!(*provider.created.lock().expect("lock"), vec![session_id]);
@@ -147,18 +142,16 @@ async fn system_user_skips_usage_accounting_but_touches_session() {
 
 #[tokio::test]
 async fn stored_request_persists_messages_and_assistant_reply() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (_user, ctx) = seeded_context(&pool).await;
     let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()));
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
 
     let request = request(ctx);
-    let response = response(request_id, "final answer");
+    let response = response(request_id.clone(), "final answer");
     store(&storage, &request, &response, 55).await;
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let roles: Vec<String> = sqlx::query_scalar!(
         "SELECT m.role FROM ai_request_messages m
          JOIN ai_requests r ON r.id = m.request_id
@@ -207,18 +200,19 @@ impl AiSessionProvider for FailingSessionProvider {
 
 #[tokio::test]
 async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let storage = RequestStorage::new(
-        AiRequestRepository::new(&pool).expect("repo"),
-        AiRequestPayloadRepository::new(&pool).expect("payloads"),
+        AiRequestRepository::new(&pool),
+        AiRequestPayloadRepository::new(&pool),
         Arc::new(FailingSessionProvider),
     );
 
     let request = request(ctx);
-    let response = response(Uuid::new_v4(), "answer despite a broken session store");
+    let response = response(
+        AiRequestId::generate(),
+        "answer despite a broken session store",
+    );
 
     // Session accounting is best-effort: both the create and the increment
     // fail here, and neither may take the audit write down with it.
@@ -238,7 +232,7 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap()
     .unwrap_or(0);
@@ -250,11 +244,9 @@ async fn a_session_provider_that_fails_does_not_lose_the_audit_row() {
 
 #[tokio::test]
 async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
-    let raw = pool.pool_arc().expect("read pool").as_ref().clone();
+    let raw = pool.pool().as_ref().clone();
 
     // `ai_requests.task_id` and `.mcp_execution_id` are foreign keys, so the
     // rows they point at have to exist before the audit write.
@@ -305,14 +297,14 @@ async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() 
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider);
     let request = request(ctx);
-    let response = response(Uuid::new_v4(), "attributed");
+    let response = response(AiRequestId::generate(), "attributed");
     store(&storage, &request, &response, 5).await;
 
     let row = sqlx::query!(
         "SELECT task_id, trace_id, mcp_execution_id FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row");
 
@@ -334,9 +326,7 @@ async fn a_fully_attributed_context_records_every_identifier_on_the_audit_row() 
 
 #[tokio::test]
 async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider);
@@ -345,7 +335,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
     storage
         .store(&StoreParams {
             request: &request,
-            response: &response(Uuid::new_v4(), ""),
+            response: &response(AiRequestId::generate(), ""),
             context: &request.context,
             status: RequestStatus::Failed,
             error_message: Some("upstream refused"),
@@ -358,7 +348,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
         "SELECT status, error_message FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("audit row");
 
@@ -372,9 +362,7 @@ async fn a_failed_status_records_the_error_text_and_a_rejected_one_does_not() {
 
 #[tokio::test]
 async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let provider = Arc::new(RecordingSessionProvider::default());
     let storage = storage(&pool, provider);
@@ -383,7 +371,7 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
     storage
         .store(&StoreParams {
             request: &request,
-            response: &response(Uuid::new_v4(), ""),
+            response: &response(AiRequestId::generate(), ""),
             context: &request.context,
             status: RequestStatus::Failed,
             error_message: None,
@@ -396,7 +384,7 @@ async fn a_failed_status_with_no_message_falls_back_to_a_placeholder() {
         "SELECT error_message FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(
@@ -427,16 +415,14 @@ impl systemprompt_traits::ContextMaterializer for FailingContextMaterializer {
             params.kind.to_owned(),
         ));
         Err(systemprompt_traits::ContextProviderError::Database(
-            "derived context store unavailable".to_owned(),
+            "derived context store unavailable".into(),
         ))
     }
 }
 
 #[tokio::test]
 async fn failed_derived_context_materialization_preserves_the_audit_and_messages() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI request storage database fixture");
+    let pool = bootstrapped_pool().await;
     let (user, ctx) = seeded_context(&pool).await;
     let expected = (
         ctx.context_id().as_str().to_owned(),
@@ -448,14 +434,17 @@ async fn failed_derived_context_materialization_preserves_the_audit_and_messages
     let materializer = Arc::new(FailingContextMaterializer::default());
     let storage = storage(&pool, Arc::new(RecordingSessionProvider::default()))
         .with_context_materializer(materializer.clone());
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let request = request(ctx);
-    let response = response(request_id, "durable despite materialization failure");
+    let response = response(
+        request_id.clone(),
+        "durable despite materialization failure",
+    );
 
     store(&storage, &request, &response, 17).await;
 
     assert_eq!(*materializer.calls.lock().expect("lock"), vec![expected]);
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let stored: (String, i64) =
         sqlx::query_as("SELECT status, cost_microdollars FROM ai_requests WHERE request_id = $1")
             .bind(request_id.to_string())

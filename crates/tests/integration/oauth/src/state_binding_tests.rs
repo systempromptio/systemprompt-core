@@ -3,7 +3,7 @@
 use crate::setup_test_db;
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
+use systemprompt_oauth::repository::{OAuthRepository, OauthCleanupRepository, StateBindingParams};
 use uuid::Uuid;
 
 fn unique_token() -> String {
@@ -13,15 +13,13 @@ fn unique_token() -> String {
 #[tokio::test]
 async fn roundtrip_consumes_once() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/dashboard")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
@@ -47,15 +45,13 @@ async fn roundtrip_consumes_once() {
 #[tokio::test]
 async fn expired_row_rejected() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test_expired");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/x")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(1))
             .build(),
     )
@@ -72,15 +68,13 @@ async fn expired_row_rejected() {
 #[tokio::test]
 async fn tampered_state_rejected() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let token = unique_token();
     let client_id = ClientId::new("client_state_test_tamper");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://example.invalid/cb")
             .with_return_to("/orig")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
@@ -96,34 +90,30 @@ async fn tampered_state_rejected() {
 #[tokio::test]
 async fn cleanup_expired_removes_only_expired() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let live = unique_token();
     let dead = unique_token();
     let live_client_id = ClientId::new("cleanup_live");
     let dead_client_id = ClientId::new("cleanup_dead");
 
     repo.store_state_binding(
-        StateBindingParams::builder(&live)
+        StateBindingParams::builder(&live, &live_client_id, "https://example.invalid/cb")
             .with_return_to("/")
-            .with_client_id(&live_client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .build(),
     )
     .await
     .expect("store live");
     repo.store_state_binding(
-        StateBindingParams::builder(&dead)
+        StateBindingParams::builder(&dead, &dead_client_id, "https://example.invalid/cb")
             .with_return_to("/")
-            .with_client_id(&dead_client_id)
-            .with_redirect_uri("https://example.invalid/cb")
             .with_expires_at(Utc::now() - Duration::seconds(60))
             .build(),
     )
     .await
     .expect("store dead");
 
-    let removed = repo
-        .cleanup_expired_state_bindings()
+    let removed = OauthCleanupRepository::new(&db)
+        .delete_expired_state_bindings()
         .await
         .expect("cleanup ok");
     assert!(removed >= 1, "cleanup must reap at least the dead row");

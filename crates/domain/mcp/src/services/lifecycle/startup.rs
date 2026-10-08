@@ -1,6 +1,6 @@
 //! Startup sequencing for a single MCP server.
 //!
-//! Drives the [`LifecycleOrchestrator`] through binary verification, port
+//! Drives the [`LifecycleService`] through binary verification, port
 //! preparation, spawn, and a bounded health-check poll loop before registering
 //! the running service. Emits [`StartupEventSender`] progress events and treats
 //! a degraded-but-listening server as ready once attempts are nearly exhausted.
@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::LifecycleOrchestrator;
+use super::LifecycleService;
 use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::monitoring::health::{HealthStatus, perform_health_check};
@@ -20,7 +20,7 @@ use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 pub async fn start_server(
-    manager: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     config: &McpServerConfig,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
@@ -31,20 +31,23 @@ pub async fn start_server(
         tx.mcp_starting(&config.name, port);
     }
 
-    ProcessService::verify_binary(manager.app_paths(), config)?;
+    ProcessService::verify_binary(lifecycle.app_paths(), config)?;
 
-    manager.network().prepare_port(port, &config.name).await?;
-
-    manager
+    lifecycle
         .network()
-        .wait_for_port_release_with_retry(port, &config.name, MAX_PORT_CLEANUP_ATTEMPTS)
+        .prepare_port(port, &config.service_name())
         .await?;
 
-    let pid = ProcessService::spawn_server(manager.app_paths(), config)?;
+    lifecycle
+        .network()
+        .wait_for_port_release_with_retry(port, &config.service_name(), MAX_PORT_CLEANUP_ATTEMPTS)
+        .await?;
+
+    let pid = ProcessService::spawn_server(lifecycle.app_paths(), config)?;
 
     wait_for_startup(config, pid, events).await?;
 
-    manager.database().register_service(config, pid).await?;
+    lifecycle.database().register_service(config, pid).await?;
 
     tracing::info!(server = %config.name, port, "MCP server started");
 
@@ -70,10 +73,11 @@ pub async fn wait_for_startup(
             tx.mcp_health_check(&config.name, attempt as u8, max_attempts as u8);
         }
 
-        if !ProcessService::is_running(expected_pid) {
-            return Err(crate::error::McpDomainError::Internal(format!(
-                "Process {expected_pid} died during startup"
-            )));
+        if !ProcessService::is_running(expected_pid).await {
+            return Err(crate::error::McpDomainError::ProcessDiedDuringStartup {
+                pid: expected_pid,
+                service: config.name.clone(),
+            });
         }
 
         if !NetworkService::is_port_responsive(config.spawn_port()?).await {
@@ -87,16 +91,16 @@ pub async fn wait_for_startup(
         }
     }
 
-    let error_msg = format!(
-        "Service {} failed health validation after {} attempts",
-        config.name, max_attempts
-    );
+    let error = crate::error::McpDomainError::HealthValidationFailed {
+        service: config.name.clone(),
+        attempts: max_attempts,
+    };
 
     if let Some(tx) = events {
-        tx.mcp_failed(&config.name, &error_msg);
+        tx.mcp_failed(&config.name, error.to_string());
     }
 
-    Err(crate::error::McpDomainError::Internal(error_msg))
+    Err(error)
 }
 
 pub fn calculate_delay(attempt: u32, base_delay: Duration) -> Duration {

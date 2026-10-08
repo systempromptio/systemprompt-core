@@ -3,9 +3,7 @@
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 use systemprompt_users::{
     API_KEY_PREFIX, ApiKeyService, IssueApiKeyParams, UserError, UserRepository,
 };
@@ -17,33 +15,30 @@ struct Ctx {
     user_id: UserId,
 }
 
-async fn setup_or_skip(prefix: &str) -> Option<Ctx> {
-    let url = fixture_database_url().ok()?;
+async fn setup(prefix: &str) -> Ctx {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
+    let pool = test_db_pool().await;
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{prefix}-{}@key.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
-    Some(Ctx {
-        service: ApiKeyService::new(Arc::new(
-            UserRepository::new(&pool).expect("user repository"),
-        )),
-        repo: UserRepository::new(&pool).expect("repo"),
+    Ctx {
+        service: ApiKeyService::new(Arc::new(UserRepository::new(&pool))),
+        repo: UserRepository::new(&pool),
         user_id,
-    })
+    }
 }
 
 #[tokio::test]
 async fn issue_then_verify_round_trip_touches_usage() {
-    let Some(ctx) = setup_or_skip("issue").await else {
-        return;
-    };
+    let ctx = setup("issue").await;
     let minted = ctx
         .service
         .issue(IssueApiKeyParams {
             user_id: &ctx.user_id,
             name: "  primary  ",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -71,15 +66,15 @@ async fn issue_then_verify_round_trip_touches_usage() {
 
 #[tokio::test]
 async fn issue_rejects_blank_name() {
-    let Some(ctx) = setup_or_skip("blank").await else {
-        return;
-    };
+    let ctx = setup("blank").await;
     let result = ctx
         .service
         .issue(IssueApiKeyParams {
             user_id: &ctx.user_id,
             name: "   ",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await;
     assert!(matches!(result, Err(UserError::Validation(_))));
@@ -87,15 +82,15 @@ async fn issue_rejects_blank_name() {
 
 #[tokio::test]
 async fn verify_rejects_malformed_and_mismatched_secrets() {
-    let Some(ctx) = setup_or_skip("reject").await else {
-        return;
-    };
+    let ctx = setup("reject").await;
     let minted = ctx
         .service
         .issue(IssueApiKeyParams {
             user_id: &ctx.user_id,
             name: "victim",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -128,15 +123,15 @@ async fn verify_rejects_malformed_and_mismatched_secrets() {
 
 #[tokio::test]
 async fn expired_key_fails_verification() {
-    let Some(ctx) = setup_or_skip("expired").await else {
-        return;
-    };
+    let ctx = setup("expired").await;
     let minted = ctx
         .service
         .issue(IssueApiKeyParams {
             user_id: &ctx.user_id,
             name: "short-lived",
             expires_at: Some(Utc::now() - Duration::hours(1)),
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");
@@ -152,15 +147,15 @@ async fn expired_key_fails_verification() {
 
 #[tokio::test]
 async fn revoke_disables_key_and_is_idempotent() {
-    let Some(ctx) = setup_or_skip("revoke").await else {
-        return;
-    };
+    let ctx = setup("revoke").await;
     let minted = ctx
         .service
         .issue(IssueApiKeyParams {
             user_id: &ctx.user_id,
             name: "revocable",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await
         .expect("issue");

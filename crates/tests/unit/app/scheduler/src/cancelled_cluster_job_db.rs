@@ -1,10 +1,11 @@
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::JobName;
 
-use systemprompt_models::SchedulerConfig;
+use systemprompt_manifest::SchedulerConfig;
 use systemprompt_scheduler::{JobStatus, SchedulerRepository, SchedulerService};
-use systemprompt_test_fixtures::{DisposableDb, fixture_app_context};
+use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tracing_subscriber::layer::SubscriberExt;
 
 use crate::test_jobs::{
@@ -41,29 +42,24 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
             .with_writer(diagnostics.clone()),
     );
     let _subscriber = tracing::subscriber::set_default(subscriber);
-    let database = DisposableDb::installed("scheduler_cancelled_cluster_job")
-        .await
-        .unwrap();
-    let pool = database.pool().await.unwrap();
-    let context = fixture_app_context(&pool, database.url()).unwrap();
-    let repository = SchedulerRepository::new(&pool).unwrap();
+    let database = DisposableDb::with_schema("scheduler_cancelled_cluster_job").await;
+    let pool = database.test_pool().await;
+    let context = test_app_context(&pool, database.url());
+    let repository = SchedulerRepository::new(&pool);
     repository
-        .upsert_job(CANCELLABLE_CLUSTER_JOB, "", true)
+        .upsert_job(&JobName::new(CANCELLABLE_CLUSTER_JOB), "", true)
         .await
         .unwrap();
-    let service = Arc::new(
-        SchedulerService::new(
-            SchedulerConfig {
-                enabled: true,
-                jobs: Vec::new(),
-                bootstrap_jobs: vec![CANCELLABLE_CLUSTER_JOB.to_owned()],
-                distributed_lock: true,
-            },
-            Arc::clone(&pool),
-            context,
-        )
-        .unwrap(),
-    );
+    let service = Arc::new(SchedulerService::new(
+        SchedulerConfig {
+            enabled: true,
+            jobs: Vec::new(),
+            bootstrap_jobs: vec![JobName::new(CANCELLABLE_CLUSTER_JOB)],
+            distributed_lock: true,
+        },
+        Arc::clone(&pool),
+        context,
+    ));
 
     CANCELLABLE_CLUSTER_JOB_RUNS.store(0, Ordering::SeqCst);
     let started = cancellable_cluster_job_started().notified();
@@ -81,7 +77,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
     );
 
     let cancelled = repository
-        .find_job(CANCELLABLE_CLUSTER_JOB)
+        .find_job(&JobName::new(CANCELLABLE_CLUSTER_JOB))
         .await
         .unwrap()
         .unwrap();
@@ -120,7 +116,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         }
     }
     let recovered = repository
-        .find_job(CANCELLABLE_CLUSTER_JOB)
+        .find_job(&JobName::new(CANCELLABLE_CLUSTER_JOB))
         .await
         .unwrap()
         .unwrap();
@@ -133,7 +129,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
         "neither the cancelled run nor lock-skipped retries count as runs"
     );
 
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     drop(repository);
     drop(service);
     drop(pool);

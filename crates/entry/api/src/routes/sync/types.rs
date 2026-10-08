@@ -4,12 +4,29 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
+use systemprompt_loader::BundleError;
 use systemprompt_models::api::ApiError;
 
 pub(super) type ApiResult<T> = Result<T, ApiError>;
 
-pub(super) fn to_api_error(e: impl std::fmt::Display) -> ApiError {
-    ApiError::internal_error(e.to_string())
+#[derive(Debug, thiserror::Error)]
+pub(super) enum SyncError {
+    #[error("services path not configured")]
+    ServicesPathMissing,
+    #[error("failed to walk the services tree")]
+    Walk(#[source] std::io::Error),
+    #[error("failed to pack the services tarball")]
+    Pack(#[source] BundleError),
+    #[error("blocking file-sync task failed")]
+    Join(#[source] tokio::task::JoinError),
+    #[error("failed to build the download response")]
+    Response(#[source] http::Error),
+}
+
+impl From<SyncError> for ApiError {
+    fn from(error: SyncError) -> Self {
+        Self::internal("File sync operation failed", error)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,7 +55,7 @@ impl FilesQuery {
     }
 }
 
-pub(super) use systemprompt_models::services::FileEntry;
+pub(super) use systemprompt_manifest::services::FileEntry;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct FileManifest {

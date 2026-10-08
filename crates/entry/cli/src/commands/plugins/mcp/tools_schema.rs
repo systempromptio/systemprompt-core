@@ -30,6 +30,7 @@ pub(super) fn print_schema_view(tools: &[McpToolEntry]) {
     }
 }
 
+// JSON: MCP `inputSchema` — JSON Schema owned by the server.
 fn print_schema_properties(schema: &serde_json::Value, indent: &str) {
     let properties = schema.get("properties").and_then(|p| p.as_object());
     let required = schema

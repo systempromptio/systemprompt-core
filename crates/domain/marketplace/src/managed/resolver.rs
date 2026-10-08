@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{SkillId, UserId};
-use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
+use systemprompt_manifest::{DiskSkillConfig, strip_frontmatter};
 use systemprompt_traits::{
     ManagedSkillResolver, ManagedSkillResolverError, ResolvedManagedSkill, SkillResolution,
     WithheldReason,
@@ -60,6 +60,7 @@ pub struct ManagedSkill {
     pub name: String,
     pub description: String,
     pub instructions: String,
+    pub frontmatter: Option<serde_yaml::Mapping>,
     pub files: super::RevisionFiles,
     pub generation: i64,
     pub bundle_digest: super::AssetDigest,
@@ -173,7 +174,7 @@ pub(crate) fn managed_skill_from_bundle(
     let config_file = files.0.get("config.yaml").ok_or(ManagedError::Integrity)?;
     let config: DiskSkillConfig =
         serde_yaml::from_slice(&config_file.bytes).map_err(|_corrupt| ManagedError::Integrity)?;
-    if !config.enabled || (!config.id.as_str().is_empty() && config.id.as_str() != key) {
+    if !config.enabled || config.id.as_ref().is_some_and(|id| id.as_str() != key) {
         return Err(ManagedError::Integrity);
     }
     let content = files
@@ -187,11 +188,7 @@ pub(crate) fn managed_skill_from_bundle(
         revision_id,
         hosts: config.hosts.clone(),
         tags: config.tags.clone(),
-        id: if config.id.as_str().is_empty() {
-            SkillId::new(key.to_owned())
-        } else {
-            config.id
-        },
+        id: config.id.unwrap_or_else(|| SkillId::new(key.to_owned())),
         name: if config.name.is_empty() {
             key.to_owned()
         } else {
@@ -199,6 +196,7 @@ pub(crate) fn managed_skill_from_bundle(
         },
         description: config.description,
         instructions: strip_frontmatter(raw),
+        frontmatter: config.frontmatter,
         files,
         generation,
         bundle_digest,
@@ -223,6 +221,6 @@ pub(super) fn runtime_resolution(
         Err(ManagedError::Integrity) => Err(ManagedSkillResolverError::Integrity {
             key: key.to_owned(),
         }),
-        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.to_string())),
+        Err(error) => Err(ManagedSkillResolverError::Unavailable(error.into())),
     }
 }

@@ -4,6 +4,7 @@
 // the direct-vs-agentic message-creation branch.
 
 use std::sync::Arc;
+use systemprompt_identifiers::McpToolName;
 
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::repository::A2ARepositories;
@@ -13,7 +14,7 @@ use systemprompt_agent::services::artifact_publishing::{
     ArtifactPublishingService, PublishFromMcpParams,
 };
 use systemprompt_identifiers::{
-    Actor, AgentName, ArtifactId, ContextId, SessionId, TaskId, TraceId, UserId,
+    Actor, AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::execution::context::RequestContext;
@@ -23,7 +24,8 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_test_mocks::recording_webhooks;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 async fn publishing_service(pool: &systemprompt_database::DbPool) -> ArtifactPublishingService {
     service_with_ledger(pool, ToolExecutionLedger::Absent).await
@@ -37,8 +39,8 @@ async fn service_with_ledger(
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
     let mut deps = a2a_dependencies(pool);
     deps.tool_executions = tool_execution_ledger(ledger);
-    let repositories = A2ARepositories::new(pool, deps).expect("repositories");
-    let steps = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let repositories = A2ARepositories::new(pool, deps);
+    let steps = Arc::new(ExecutionStepRepository::new(pool));
     let skills = Arc::new(
         SkillService::new(not_managed_skills(), steps, recording_webhooks()).expect("skills"),
     );
@@ -53,7 +55,7 @@ fn artifact(
 ) -> Artifact {
     let mut metadata = ArtifactMetadata::new("text".to_owned(), ctx.clone(), tid.clone());
     if let Some(exec) = mcp_execution_id {
-        metadata = metadata.with_mcp_execution_id(exec.to_owned());
+        metadata = metadata.with_mcp_execution_id(McpExecutionId::new(exec));
     }
     Artifact {
         id: id.clone(),
@@ -73,6 +75,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
         TraceId::generate(),
         ctx.clone(),
         AgentName::try_new("pub-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     rc.auth.actor = Actor::user(user.clone());
     rc
@@ -80,9 +83,7 @@ fn request_context(ctx: &ContextId, session: &SessionId, user: &UserId) -> Reque
 
 #[tokio::test]
 async fn publish_from_a2a_persists_artifact() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -96,7 +97,7 @@ async fn publish_from_a2a_persists_artifact() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
@@ -107,9 +108,7 @@ async fn publish_from_a2a_persists_artifact() {
 
 #[tokio::test]
 async fn publish_from_a2a_nulls_unknown_execution_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -124,7 +123,7 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
     let repo = r.artifacts.clone();
     let fetched = repo
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
@@ -135,16 +134,14 @@ async fn publish_from_a2a_nulls_unknown_execution_id() {
 
 #[tokio::test]
 async fn publish_from_a2a_keeps_a_known_execution_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Exists).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
     let (ctx, tid) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     let exec_id = format!("exec-{}", uuid::Uuid::new_v4().simple());
-    let sqlx_pool = pool.pool_arc().expect("sqlx pool");
+    let sqlx_pool = pool.pool();
     sqlx::query(
         "INSERT INTO mcp_tool_executions (mcp_execution_id, tool_name, server_name, started_at, \
          input, user_id) VALUES ($1, 'echo', 'test-server', NOW(), '{}', $2)",
@@ -163,12 +160,16 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
     let fetched = r
         .artifacts
-        .get_artifact_by_id(&id)
+        .find_artifact_by_id(&id)
         .await
         .expect("get")
         .expect("present");
     assert_eq!(
-        fetched.metadata.mcp_execution_id.as_deref(),
+        fetched
+            .metadata
+            .mcp_execution_id
+            .as_ref()
+            .map(|id| id.as_str()),
         Some(exec_id.as_str())
     );
 
@@ -177,9 +178,7 @@ async fn publish_from_a2a_keeps_a_known_execution_id() {
 
 #[tokio::test]
 async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = service_with_ledger(&pool, ToolExecutionLedger::Unavailable).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -193,7 +192,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
         .expect_err("an unreachable ledger is an error, not an unknown execution");
     assert!(err.to_string().contains("exec-while-down"), "{err}");
 
-    let fetched = r.artifacts.get_artifact_by_id(&id).await.expect("get");
+    let fetched = r.artifacts.find_artifact_by_id(&id).await.expect("get");
     assert!(
         fetched.is_none(),
         "nothing is persisted with a detached execution id"
@@ -204,9 +203,7 @@ async fn an_unreachable_execution_ledger_fails_the_publish_and_keeps_the_id() {
 
 #[tokio::test]
 async fn publish_from_mcp_agentic_skips_messages() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -220,7 +217,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
         artifact: &art,
         task_id: &tid,
         context_id: &ctx,
-        tool_name: "tool-x",
+        tool_name: &McpToolName::new("tool-x"),
         tool_args: &args,
         request_context: &rc,
         call_source: CallSource::Agentic,
@@ -237,9 +234,7 @@ async fn publish_from_mcp_agentic_skips_messages() {
 
 #[tokio::test]
 async fn publish_from_mcp_direct_creates_messages() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let svc = publishing_service(&pool).await;
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let r = repos(&pool);
@@ -253,7 +248,7 @@ async fn publish_from_mcp_direct_creates_messages() {
         artifact: &art,
         task_id: &tid,
         context_id: &ctx,
-        tool_name: "tool-direct",
+        tool_name: &McpToolName::new("tool-direct"),
         tool_args: &args,
         request_context: &rc,
         call_source: CallSource::Direct,

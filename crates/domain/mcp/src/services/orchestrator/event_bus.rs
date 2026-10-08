@@ -1,4 +1,4 @@
-//! Event bus dispatching MCP orchestration events to registered handlers.
+//! Event bus dispatching MCP orchestration events to registered subscribers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,10 +8,10 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use super::events::McpEvent;
-use super::handlers::EventHandler;
+use super::subscribers::EventSubscriber;
 
 pub struct EventBus {
-    handlers: Vec<Arc<dyn EventHandler>>,
+    subscribers: Vec<Arc<dyn EventSubscriber>>,
     sender: broadcast::Sender<McpEvent>,
 }
 
@@ -20,13 +20,13 @@ impl EventBus {
         let (sender, _) = broadcast::channel(capacity);
 
         Self {
-            handlers: Vec::new(),
+            subscribers: Vec::new(),
             sender,
         }
     }
 
-    pub fn register_handler(&mut self, handler: Arc<dyn EventHandler>) {
-        self.handlers.push(handler);
+    pub fn register_subscriber(&mut self, subscriber: Arc<dyn EventSubscriber>) {
+        self.subscribers.push(subscriber);
     }
 
     pub async fn publish(&self, event: McpEvent) -> McpDomainResult<()> {
@@ -34,9 +34,9 @@ impl EventBus {
             tracing::debug!("No broadcast subscribers for event");
         }
 
-        for handler in &self.handlers {
-            if handler.handles(&event) {
-                handler.handle(&event).await?;
+        for subscriber in &self.subscribers {
+            if subscriber.handles(&event) {
+                subscriber.handle(&event).await?;
             }
         }
 
@@ -46,16 +46,12 @@ impl EventBus {
     pub fn subscribe(&self) -> broadcast::Receiver<McpEvent> {
         self.sender.subscribe()
     }
-
-    pub fn sender(&self) -> broadcast::Sender<McpEvent> {
-        self.sender.clone()
-    }
 }
 
 impl std::fmt::Debug for EventBus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EventBus")
-            .field("handlers_count", &self.handlers.len())
+            .field("subscribers_count", &self.subscribers.len())
             .field("sender", &"<broadcast channel>")
             .finish()
     }

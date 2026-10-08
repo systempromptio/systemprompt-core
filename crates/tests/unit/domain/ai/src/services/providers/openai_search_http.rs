@@ -6,9 +6,9 @@ use serde_json::json;
 use systemprompt_ai::models::ai::{AiMessage, SamplingParams};
 use systemprompt_ai::services::providers::openai::OpenAiProvider;
 use systemprompt_ai::services::providers::provider_trait::{
-    AiProvider, GenerationParams, SearchGenerationParams,
+    GenerationParams, ProviderClient, SearchGenerationParams,
 };
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

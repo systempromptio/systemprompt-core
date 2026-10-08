@@ -15,8 +15,8 @@ use std::path::Path;
 
 use flate2::read::GzDecoder;
 use sha2::{Digest, Sha256};
-use systemprompt_models::profile::BundleVerification;
-use systemprompt_models::services::bundle::{
+use systemprompt_manifest::profile::BundleVerification;
+use systemprompt_manifest::services::bundle::{
     BUNDLE_ALLOWED_DIRS, BUNDLE_FORMAT_VERSION, BUNDLE_MANIFEST_FILE, BUNDLE_SIGNATURE_ALG,
     ServicesBundleManifest, SignedBundleManifest,
 };
@@ -47,6 +47,9 @@ pub fn verify_bundle(
     verification: &BundleVerification,
     core_version: &str,
 ) -> BundleResult<SignedBundleManifest> {
+    if verification.is_empty() {
+        return Err(VerifyFailure::NoVerification.into());
+    }
     if let Some(expected) = verification.sha256.as_deref() {
         let actual = file_digest(archive)?;
         if !actual.eq_ignore_ascii_case(expected) {
@@ -72,7 +75,7 @@ pub fn verify_bundle(
     let satisfied = signed
         .manifest
         .core_satisfies(core_version)
-        .map_err(|e| BundleError::policy(format!("requires_core is not a semver range: {e}")))?;
+        .map_err(|e| BundleError::policy_context("requires_core is not a semver range", e))?;
     if !satisfied {
         return Err(VerifyFailure::RequiresCore {
             required: signed.manifest.requires_core,
@@ -95,7 +98,7 @@ pub fn read_manifest(archive: &Path) -> BundleResult<SignedBundleManifest> {
         let mut raw = String::new();
         entry.read_to_string(&mut raw)?;
         return serde_json::from_str(&raw)
-            .map_err(|e| BundleError::policy(format!("bundle.json does not parse: {e}")));
+            .map_err(|e| BundleError::policy_context("bundle.json does not parse", e));
     }
     Err(VerifyFailure::MissingManifest.into())
 }
@@ -115,7 +118,7 @@ fn verify_signature(signed: &SignedBundleManifest, pinned_keys: &[String]) -> Bu
     }
 
     let payload = canonical_manifest_bytes(&signed.manifest)
-        .map_err(|e| BundleError::policy(format!("manifest cannot be canonicalised: {e}")))?;
+        .map_err(|e| BundleError::policy_context("manifest cannot be canonicalised", e))?;
 
     let matching: Vec<&String> = pinned_keys
         .iter()
@@ -168,7 +171,8 @@ pub fn verify_extracted(root: &Path, manifest: &ServicesBundleManifest) -> Bundl
 
 pub fn require_marketplace_only(manifest: &ServicesBundleManifest) -> BundleResult<()> {
     for dir in &manifest.owns.dirs {
-        if !systemprompt_models::services::bundle::MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str()) {
+        if !systemprompt_manifest::services::bundle::MARKETPLACE_BUNDLE_DIRS.contains(&dir.as_str())
+        {
             return Err(VerifyFailure::NotMarketplaceOnly { dir: dir.clone() }.into());
         }
     }

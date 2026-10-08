@@ -1,12 +1,13 @@
-//! Shared seeding helpers for the session-repository DB tests. Sessions are
+//! Shared seeding helpers for the session-signal DB tests. Sessions are
 //! created with `user_id = None` to avoid the `users(id)` foreign key, and
 //! `analytics_events` / `engagement_events` rows are inserted directly so the
 //! behavioural read queries have data to aggregate.
 
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_analytics::{CreateSessionParams, SessionRepository};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource};
+use systemprompt_traits::SessionStore;
+use systemprompt_traits::session_store::CreateSessionParams;
 use uuid::Uuid;
 
 pub fn unique_session_id() -> SessionId {
@@ -48,13 +49,13 @@ pub fn base_params<'a>(
     }
 }
 
-pub async fn seed_session(repo: &SessionRepository, session_id: &SessionId, fingerprint: &str) {
+pub async fn seed_session(store: &dyn SessionStore, session_id: &SessionId, fingerprint: &str) {
     let params = base_params(
         session_id,
         Some(fingerprint),
         Utc::now() + Duration::hours(1),
     );
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 }
 
 // Insert an `analytics_events` row directly. The session FK must already
@@ -67,7 +68,7 @@ pub async fn insert_analytics_event(
     ts: DateTime<Utc>,
 ) {
     let id = format!("evt-{}", Uuid::new_v4());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         r#"
         INSERT INTO analytics_events
@@ -89,7 +90,7 @@ pub async fn insert_analytics_event(
 // Insert an `engagement_events` row (no session FK required).
 pub async fn insert_engagement_event(pool: &DbPool, session_id: &SessionId) {
     let id = format!("eng-{}", Uuid::new_v4());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query(
         r#"
         INSERT INTO engagement_events (id, session_id, user_id, page_url)
@@ -104,7 +105,7 @@ pub async fn insert_engagement_event(pool: &DbPool, session_id: &SessionId) {
 }
 
 pub async fn delete_session(pool: &DbPool, session_id: &SessionId) {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM analytics_events WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())

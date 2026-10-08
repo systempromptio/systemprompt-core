@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- `OAuthRepository::{find_user_by_email, get_authenticated_user}` and `OAuthUser` are removed; users are read through `UserProvider`, and `services::load_authenticated_user(&dyn UserProvider, &UserId)` resolves a user id to an `AuthenticatedUser` (a user without permissions is refused). `issue_bridge_access` no longer takes an `OAuthRepository` and, like `exchange_bridge_session_code`, takes a `&dyn UserProvider` after the session provider.
+- `AuthCodeParams::builder` is removed; build `AuthCodeParams` as a struct literal (`resource: None` when unbound).
+- `OauthError` gains `AtRestHash(AtRestHashError)` (`OauthErrorKind::ServerError`); `OauthError::Config` wraps `GlobalConfigError`; the re-exported `AuthError` is `AuthRequestError`. The OAuth error taxonomy is typed and carries sources.
+- `BridgeHostPrefsRepository::list_enabled` is renamed `get_enabled_prefs` and returns `EnabledHostPrefs`.
+- Delegated-token generation takes `DelegatedJwtParams`; repository lookups follow the `find_`/`list_`/`get_` return-type prefixes; identifiers (`UserId`, session ids) are typed. Manifest types come from `systemprompt-manifest`.
+
+### Changed
+
+- Every authorization code carries an S256 challenge: minting refuses a missing challenge or another method, and redemption always compares `redirect_uri` and verifies the verifier. A client row without `is_active` is inactive.
+- A successful WebAuthn assertion refreshes the stored passkey with a compare-and-swap, and a non-advancing counter is refused; migration `018_drop_webauthn_credential_counter` drops the write-only counter column. The WebAuthn service is built once at the composition root and carried in `OAuthState`; challenge expiry joins the `oauth_cleanup` job.
+- Migration `019_jti_revocation_user_text` stores the revocation user id as text (`UserId` is an opaque id, not a UUID).
+- `reserve_link_challenge` serialises per-user reservations with a transaction advisory lock instead of `SELECT … FROM users FOR UPDATE`.
+
+### Fixed
+
+- Anonymous-session reuse only returns a session owned by an anonymous user, with session and user id from one row.
+- Unparseable token permissions or audiences and an empty audience list are errors; `generate_token` rejects an audience outside the first-party set.
+- WebAuthn registration fails with `server_error` when the global configuration is unavailable, and the authorize form hides registration.
+- A stored host preference naming an unknown host is skipped with a warning at read time and never widens a user's hosts.
+
+### Removed
+
+- The alias `systemprompt_oauth::OAuthConfig` (use `systemprompt_models::oauth::OAuthServerConfig`), the non-consuming `validate_refresh_token`, client analytics models, cleanup/listing duplicates of `OauthCleanupRepository`, and orphan query/seed SQL.
+
 ## [0.59.0] - 2026-09-22
 
 ### Breaking

@@ -8,7 +8,7 @@ use nix::unistd::Pid;
 use systemprompt_cli_integration_tests::full_bootstrap::{
     TEST_MANIFEST_SIGNING_SEED, TEST_OAUTH_AT_REST_PEPPER, isolated_fixture,
 };
-use systemprompt_scheduler::ProcessCleanup;
+use systemprompt_loader::subprocess;
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row_with_roles};
 
 const TEST_ENCRYPTION_MASTER_KEY: &str =
@@ -23,7 +23,6 @@ struct OwnedServer {
 
 struct OwnedAgent {
     name: String,
-    port: u16,
     observed_pids: Vec<u32>,
     log_file: std::path::PathBuf,
 }
@@ -52,9 +51,6 @@ impl Drop for OwnedServer {
         }
         if let Some(agent) = &self.cleanup_agent {
             let mut candidates = agent.observed_pids.clone();
-            if let Some(pid) = ProcessCleanup::check_port(agent.port) {
-                candidates.push(pid);
-            }
             candidates.extend(agent_pids(&agent.name));
             candidates.sort_unstable();
             candidates.dedup();
@@ -62,11 +58,11 @@ impl Drop for OwnedServer {
                 if systemprompt_loader::subprocess::live_pid_is_subprocess(
                     pid,
                     "AGENT_NAME",
-                    &agent.name,
+                    &systemprompt_identifiers::ServiceName::new(&agent.name),
                 ) {
-                    ProcessCleanup::kill_process(pid);
+                    let _ = kill(Pid::from_raw(pid as i32), Signal::SIGKILL);
                     for _ in 0..40 {
-                        if !ProcessCleanup::process_exists(pid)
+                        if kill(Pid::from_raw(pid as i32), None).is_err()
                             || systemprompt_loader::subprocess::is_zombie(pid)
                         {
                             break;
@@ -79,6 +75,20 @@ impl Drop for OwnedServer {
     }
 }
 
+async fn port_holder(port: u16) -> Option<u32> {
+    systemprompt_scheduler::port_holders(port)
+        .await
+        .expect("read port holders")
+        .first()
+        .copied()
+}
+
+async fn port_released(port: u16, within: Duration) -> bool {
+    systemprompt_scheduler::wait_for_port_free(port, within)
+        .await
+        .is_ok()
+}
+
 fn agent_pids(name: &str) -> Vec<u32> {
     let Ok(output) = Command::new("ps").args(["-axo", "pid="]).output() else {
         return Vec::new();
@@ -87,7 +97,11 @@ fn agent_pids(name: &str) -> Vec<u32> {
         .split_whitespace()
         .filter_map(|value| value.parse().ok())
         .filter(|pid| {
-            systemprompt_loader::subprocess::live_pid_is_subprocess(*pid, "AGENT_NAME", name)
+            systemprompt_loader::subprocess::live_pid_is_subprocess(
+                *pid,
+                "AGENT_NAME",
+                &systemprompt_identifiers::ServiceName::new(name),
+            )
         })
         .collect()
 }
@@ -245,7 +259,7 @@ async fn wait_for_exit(server: &mut OwnedServer) -> std::process::ExitStatus {
 async fn wait_for_owned_listener(port: u16, expected_pid: u32) {
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {
-        let holder = ProcessCleanup::check_port(port);
+        let holder = port_holder(port).await;
         if holder == Some(expected_pid) {
             return;
         }
@@ -259,10 +273,8 @@ async fn wait_for_owned_listener(port: u16, expected_pid: u32) {
 
 #[tokio::test]
 async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
-    let database = DisposableDb::installed("cli_serve_vertical")
-        .await
-        .expect("dedicated installed database");
-    let pool = database.pool().await.expect("dedicated database pool");
+    let database = DisposableDb::with_schema("cli_serve_vertical").await;
+    let pool = database.test_pool().await;
     let admin_id = systemprompt_identifiers::UserId::new(format!(
         "serve-admin-{}",
         uuid::Uuid::new_v4().simple()
@@ -275,7 +287,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
     )
     .await
     .expect("seed profile administrator");
-    let raw_pool = pool.pool_arc().expect("raw dedicated database pool");
+    let raw_pool = pool.pool();
     sqlx::query("UPDATE users SET name = 'testadmin' WHERE id = $1")
         .bind(admin_id.as_str())
         .execute(raw_pool.as_ref())
@@ -284,7 +296,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
 
     let reservation = std::net::TcpListener::bind("127.0.0.1:0").expect("reserve API port");
     let port = reservation.local_addr().unwrap().port();
-    assert_eq!(ProcessCleanup::check_port(port), Some(std::process::id()));
+    assert_eq!(port_holder(port).await, Some(std::process::id()));
     let fixture = isolated_fixture(port);
     complete_fixture_web_paths(&fixture);
     drop(reservation);
@@ -330,7 +342,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
     wait_until_ready(&client, &base, &mut server).await;
     wait_for_owned_listener(port, server.child.id()).await;
     assert_eq!(
-        ProcessCleanup::check_port(port),
+        port_holder(port).await,
         Some(server.child.id()),
         "only the owned CLI child may hold the API port"
     );
@@ -383,11 +395,7 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
     assert_eq!(api_stopped["content"], true, "{stop}");
     let status = wait_for_exit(&mut server).await;
     assert!(status.success(), "graceful API exit: {status}");
-    assert!(
-        ProcessCleanup::wait_for_port_free(port, 20, 50)
-            .await
-            .is_ok()
-    );
+    assert!(port_released(port, Duration::from_secs(1)).await);
     assert!(
         sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM user_sessions WHERE user_id = $1")
             .bind(admin_id.as_str())
@@ -404,11 +412,9 @@ async fn cli_serve_reaches_authenticated_health_and_shuts_down_gracefully() {
 }
 #[tokio::test]
 async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
-    let database = DisposableDb::installed("cli_serve_agent_vertical")
-        .await
-        .expect("dedicated installed database");
-    let pool = database.pool().await.expect("dedicated database pool");
-    let raw_pool = pool.pool_arc().expect("raw dedicated database pool");
+    let database = DisposableDb::with_schema("cli_serve_agent_vertical").await;
+    let pool = database.test_pool().await;
+    let raw_pool = pool.pool();
     let admin_id = systemprompt_identifiers::UserId::new(format!(
         "serve-agent-admin-{}",
         uuid::Uuid::new_v4().simple()
@@ -434,14 +440,8 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let api_port = api_reservation.local_addr().unwrap().port();
     let agent_port = agent_reservation.local_addr().unwrap().port();
     assert_ne!(api_port, agent_port);
-    assert_eq!(
-        ProcessCleanup::check_port(api_port),
-        Some(std::process::id())
-    );
-    assert_eq!(
-        ProcessCleanup::check_port(agent_port),
-        Some(std::process::id())
-    );
+    assert_eq!(port_holder(api_port).await, Some(std::process::id()));
+    assert_eq!(port_holder(agent_port).await, Some(std::process::id()));
     let agent_name = format!(
         "covagent_{}",
         &uuid::Uuid::new_v4().simple().to_string()[..12]
@@ -483,7 +483,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: Vec::new(),
             log_file: fixture
                 .system_dir
@@ -498,10 +497,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         .expect("HTTP client");
     wait_until_ready(&client, &base, &mut server).await;
     wait_for_owned_listener(api_port, server.child.id()).await;
-    assert_eq!(
-        ProcessCleanup::check_port(api_port),
-        Some(server.child.id())
-    );
+    assert_eq!(port_holder(api_port).await, Some(server.child.id()));
 
     let (status, pid, stored_port): (String, Option<i32>, i32) =
         sqlx::query_as("SELECT status, pid, port FROM services WHERE name = $1")
@@ -522,7 +518,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             agent_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "database PID must identify the owned agent"
     );
@@ -601,7 +597,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
 
     wait_for_owned_listener(api_port, server.child.id()).await;
     assert_eq!(
-        ProcessCleanup::check_port(api_port),
+        port_holder(api_port).await,
         Some(server.child.id()),
         "restart may only target the owned API process"
     );
@@ -626,7 +622,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr: replacement_stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: vec![agent_pid],
             log_file: fixture
                 .system_dir
@@ -641,7 +636,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let mut server = replacement;
     wait_for_owned_listener(api_port, server.child.id()).await;
     assert_eq!(
-        ProcessCleanup::check_port(api_port),
+        port_holder(api_port).await,
         Some(server.child.id()),
         "restart command must become the replacement API process"
     );
@@ -665,13 +660,12 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             replacement_agent_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "replacement database PID must identify the owned agent"
     );
     assert!(
-        !ProcessCleanup::process_exists(agent_pid)
-            || systemprompt_loader::subprocess::is_zombie(agent_pid),
+        !subprocess::is_running(agent_pid).await,
         "restart must terminate the original agent child"
     );
 
@@ -721,12 +715,11 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stop_field("message"),
         format!("Agent {agent_name} stopped successfully")
     );
-    ProcessCleanup::wait_for_port_free(agent_port, 40, 50)
+    systemprompt_scheduler::wait_for_port_free(agent_port, Duration::from_secs(2))
         .await
         .expect("public stop releases the owned agent listener");
     assert!(
-        !ProcessCleanup::process_exists(replacement_agent_pid)
-            || systemprompt_loader::subprocess::is_zombie(replacement_agent_pid),
+        !subprocess::is_running(replacement_agent_pid).await,
         "public stop must reap the replacement agent process"
     );
     let remaining_service_rows: i64 =
@@ -744,7 +737,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
 
     wait_for_owned_listener(api_port, server.child.id()).await;
     assert_eq!(
-        ProcessCleanup::check_port(api_port),
+        port_holder(api_port).await,
         Some(server.child.id()),
         "recovery restart may only target the owned API process"
     );
@@ -769,7 +762,6 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         stderr: recovery_stderr,
         cleanup_agent: Some(OwnedAgent {
             name: agent_name.clone(),
-            port: agent_port,
             observed_pids: vec![replacement_agent_pid],
             log_file: fixture
                 .system_dir
@@ -784,7 +776,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
     let mut server = recovery;
     wait_for_owned_listener(api_port, server.child.id()).await;
     assert_eq!(
-        ProcessCleanup::check_port(api_port),
+        port_holder(api_port).await,
         Some(server.child.id()),
         "recovery restart must own the API port"
     );
@@ -802,7 +794,7 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         systemprompt_loader::subprocess::live_pid_is_subprocess(
             restarted_after_stop_pid,
             "AGENT_NAME",
-            &agent_name
+            &systemprompt_identifiers::ServiceName::new(&agent_name)
         ),
         "recovery API must register the new owned agent process"
     );
@@ -818,19 +810,10 @@ async fn cli_serve_starts_routes_and_stops_an_owned_agent() {
         .expect("signal owned API parent");
     let status = wait_for_exit(&mut server).await;
     assert!(status.success(), "graceful API exit: {status}");
+    assert!(port_released(api_port, Duration::from_secs(1)).await);
+    assert!(port_released(agent_port, Duration::from_secs(2)).await);
     assert!(
-        ProcessCleanup::wait_for_port_free(api_port, 20, 50)
-            .await
-            .is_ok()
-    );
-    assert!(
-        ProcessCleanup::wait_for_port_free(agent_port, 40, 50)
-            .await
-            .is_ok()
-    );
-    assert!(
-        !ProcessCleanup::process_exists(restarted_after_stop_pid)
-            || systemprompt_loader::subprocess::is_zombie(restarted_after_stop_pid),
+        !subprocess::is_running(restarted_after_stop_pid).await,
         "API shutdown must terminate the agent restarted after the named stop"
     );
 

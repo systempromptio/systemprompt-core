@@ -8,26 +8,30 @@ use clap::Args;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
+use super::types::{McpBatchValidateOutput, McpValidateOutput, McpValidateSummary};
+pub use super::validate_output::{FailureDetail, failure_output, success_output};
 use crate::context::CommandContext;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::client::{McpConnectionResult, validate_connection_with_auth};
+use systemprompt_manifest::services::ServiceStatus;
+use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_models::Deployment;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
-    #[arg(help = "MCP server name")]
-    pub server: Option<String>,
+    #[arg(help = "MCP server name", value_parser = crate::shared::parse_service_name)]
+    pub server: Option<ServiceName>,
 
     #[arg(
         long = "service",
         conflicts_with = "server",
-        help = "Alias for the positional MCP server name"
+        help = "Alias for the positional MCP server name",
+        value_parser = crate::shared::parse_service_name
     )]
-    pub service: Option<String>,
+    pub service: Option<ServiceName>,
 
     #[arg(long, help = "Validate all configured servers")]
     pub all: bool,
@@ -36,7 +40,10 @@ pub struct ValidateArgs {
     pub timeout: u64,
 }
 
-pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
+pub(super) async fn execute(
+    args: ValidateArgs,
+    ctx: &CommandContext,
+) -> Result<(CommandOutput, bool)> {
     let prompter = ctx.prompter();
     let config = &ctx.cli;
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
@@ -54,15 +61,19 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
 
     let server_arg = args.server.or(args.service);
 
-    let servers_to_validate: Vec<String> =
+    let servers_to_validate: Vec<ServiceName> =
         if args.all || (server_arg.is_none() && !config.is_interactive()) {
-            services_config.mcp_servers.keys().cloned().collect()
+            services_config
+                .mcp_servers
+                .keys()
+                .map(ServiceName::new)
+                .collect()
         } else {
             let service = resolve_required(server_arg, "server", config, || {
                 prompt_server_selection(prompter, &services_config)
             })?;
 
-            if !services_config.mcp_servers.contains_key(&service) {
+            if !services_config.mcp_servers.contains_key(service.as_str()) {
                 return Err(anyhow!("MCP server '{}' not found", service));
             }
 
@@ -78,6 +89,7 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
     }
 
     let valid_count = results.iter().filter(|r| r.valid).count();
+    let all_valid = valid_count == results.len();
     let healthy_count = results
         .iter()
         .filter(|r| r.health_status == "healthy")
@@ -101,20 +113,20 @@ pub(super) async fn execute(args: ValidateArgs, ctx: &CommandContext) -> Result<
             "MCP Validation: {}",
             servers_to_validate
                 .first()
-                .map_or("unknown", String::as_str)
+                .map_or("unknown", ServiceName::as_str)
         )
     };
 
-    Ok(CommandOutput::card_value(title, &output))
+    Ok((CommandOutput::card_value(title, &output), all_valid))
 }
 
 async fn validate_single_service(
-    service_name: &str,
-    services_config: &systemprompt_models::ServicesConfig,
+    service_name: &ServiceName,
+    services_config: &systemprompt_manifest::ServicesConfig,
     database: &DatabaseService,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let Some(server) = services_config.mcp_servers.get(service_name) else {
+    let Some(server) = services_config.mcp_servers.get(service_name.as_str()) else {
         return failure_output(
             service_name,
             FailureDetail {
@@ -145,7 +157,7 @@ async fn validate_single_service(
 
     let is_running = service_info
         .as_ref()
-        .is_some_and(|info| info.status == "running");
+        .is_some_and(|info| info.status == ServiceStatus::Running);
 
     if !is_running {
         return failure_output(
@@ -177,7 +189,7 @@ async fn validate_single_service(
 }
 
 pub async fn run_connection_validation(
-    service_name: &str,
+    service_name: &ServiceName,
     server: &Deployment,
     port: u16,
     timeout_secs: u64,
@@ -218,65 +230,10 @@ pub async fn run_connection_validation(
     success_output(service_name, validation_result)
 }
 
-#[derive(Debug)]
-pub struct FailureDetail {
-    pub health_status: &'static str,
-    pub validation_type: &'static str,
-    pub latency_ms: u32,
-    pub issue: String,
-    pub message: String,
-}
-
-pub fn failure_output(service_name: &str, detail: FailureDetail) -> McpValidateOutput {
-    McpValidateOutput {
-        server: service_name.to_owned(),
-        valid: false,
-        health_status: detail.health_status.to_owned(),
-        validation_type: detail.validation_type.to_owned(),
-        tools_count: None,
-        latency_ms: detail.latency_ms,
-        server_info: None,
-        issues: vec![detail.issue],
-        message: detail.message,
-    }
-}
-
-pub fn success_output(
-    service_name: &str,
-    validation_result: McpConnectionResult,
-) -> McpValidateOutput {
-    let health_status = validation_result.health_status().to_owned();
-    let message = validation_result.status_description();
-
-    let server_info = validation_result.server_info.map(|info| McpServerInfo {
-        name: info.server_name,
-        version: info.version,
-        protocol_version: info.protocol_version,
-    });
-
-    let issues = validation_result
-        .error_message
-        .as_ref()
-        .filter(|e| !e.is_empty())
-        .map_or_else(Vec::new, |e| vec![e.clone()]);
-
-    McpValidateOutput {
-        server: service_name.to_owned(),
-        valid: validation_result.success,
-        health_status,
-        validation_type: validation_result.validation_type,
-        tools_count: validation_result.tools_count,
-        latency_ms: validation_result.connection_time_ms,
-        server_info,
-        issues,
-        message,
-    }
-}
-
 pub fn prompt_server_selection(
     prompter: &dyn Prompter,
-    config: &systemprompt_models::ServicesConfig,
-) -> Result<String> {
+    config: &systemprompt_manifest::ServicesConfig,
+) -> Result<ServiceName> {
     let mut servers: Vec<String> = config.mcp_servers.keys().cloned().collect();
     servers.sort();
 
@@ -285,5 +242,5 @@ pub fn prompt_server_selection(
     }
 
     let selection = prompter.select("Select MCP server to validate", &servers)?;
-    Ok(servers[selection].clone())
+    Ok(ServiceName::new(servers[selection].clone()))
 }

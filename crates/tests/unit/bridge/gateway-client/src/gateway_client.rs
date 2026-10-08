@@ -7,7 +7,8 @@
 use systemprompt_bridge::gateway::manifest::decode_payload;
 use systemprompt_bridge::gateway::{Freshness, GatewayClient, GatewayError};
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_identifiers::ValidatedUrl;
+use systemprompt_bridge::integration::HostKind;
+use systemprompt_identifiers::{PluginId, ValidatedUrl};
 use wiremock::matchers::{header, header_exists, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -29,7 +30,7 @@ fn manifest_json() -> serde_json::Value {
         "manifest_version": "2026-06-03T00:00:00Z-deadbeef",
         "issued_at": "2026-06-03T00:00:00Z",
         "not_before": "2026-06-03T00:00:00Z",
-        "user_id": "user_abc",
+        "user_id": "00000000-0000-4000-8000-0000000000ab",
         "tenant_id": null,
         "plugins": [],
         "managed_mcp_servers": [],
@@ -65,11 +66,13 @@ async fn health_503_maps_to_http_status() {
 
     let err = client(&server).health().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 503);
             assert_eq!(endpoint, "health");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -115,11 +118,13 @@ async fn fetch_pubkey_404_maps_to_http_status() {
 
     let err = client(&server).fetch_pubkey().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 404);
             assert_eq!(endpoint, "pubkey");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -155,7 +160,10 @@ async fn fetch_manifest_ok() {
         .unwrap();
     assert!(envelope.signature.as_str().is_empty());
     let manifest = decode_payload(&envelope).unwrap();
-    assert_eq!(manifest.user_id.as_str(), "user_abc");
+    assert_eq!(
+        manifest.user_id.as_str(),
+        "00000000-0000-4000-8000-0000000000ab"
+    );
     assert!(manifest.plugins.is_empty());
 }
 
@@ -211,11 +219,13 @@ async fn fetch_manifest_401_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 401);
             assert_eq!(endpoint, "manifest");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -273,7 +283,7 @@ async fn fetch_whoami_ok() {
         .and(path("/v1/bridge/whoami"))
         .and(header("authorization", format!("Bearer {BEARER}").as_str()))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-            "user_id": "user_abc",
+            "user_id": "00000000-0000-4000-8000-0000000000ab",
             "email": "ed@example.com",
             "roles": ["admin", "member"]
         })))
@@ -296,11 +306,13 @@ async fn fetch_whoami_403_maps_to_http_status() {
 
     let err = client(&server).fetch_whoami(&bearer()).await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 403);
             assert_eq!(endpoint, "whoami");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -353,11 +365,13 @@ async fn fetch_bridge_profile_500_maps_to_http_status() {
 
     let err = client(&server).fetch_bridge_profile().await.unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 500);
             assert_eq!(endpoint, "profile");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -418,11 +432,13 @@ async fn fetch_profile_usage_502_maps_to_http_status() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 502);
             assert_eq!(endpoint, "profile_usage");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -457,7 +473,7 @@ async fn fetch_plugin_file_ok() {
         .await;
 
     let bytes = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "dist/index.js")
         .await
         .unwrap();
     assert_eq!(bytes, payload);
@@ -473,15 +489,17 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "missing.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "missing.js")
         .await
         .unwrap_err();
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 404);
             assert_eq!(endpoint, "plugin");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -489,7 +507,7 @@ async fn fetch_plugin_file_404_maps_to_http_status() {
 async fn fetch_plugin_file_traversal_path_maps_to_unsafe_path() {
     let server = MockServer::start().await;
     let err = client(&server)
-        .fetch_plugin_file(&bearer(), "my-plugin", "../etc/passwd")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "../etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -511,7 +529,7 @@ async fn set_host_model_filter_posts_the_host_and_protocol_list() {
     client(&server)
         .set_host_model_filter(
             &BearerToken::new("bearer-token"),
-            "codex-cli",
+            HostKind::CodexCli,
             Some(&["responses".to_owned()]),
         )
         .await
@@ -540,7 +558,11 @@ async fn clearing_the_host_model_filter_sends_a_null_protocol_list() {
         .await;
 
     client(&server)
-        .set_host_model_filter(&BearerToken::new("bearer-token"), "claude-desktop", None)
+        .set_host_model_filter(
+            &BearerToken::new("bearer-token"),
+            HostKind::ClaudeDesktop,
+            None,
+        )
         .await
         .expect("clearing is accepted");
 
@@ -589,7 +611,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::HealthCheck(_)
     ));
     assert!(matches!(
-        c.set_host_model_filter(&bearer(), "codex-cli", None)
+        c.set_host_model_filter(&bearer(), HostKind::CodexCli, None)
             .await
             .unwrap_err(),
         GatewayError::PostRequest(_)
@@ -599,7 +621,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
 #[tokio::test]
 async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
     let err = dead_client()
-        .fetch_plugin_file(&bearer(), "my-plugin", "dist/index.js")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "dist/index.js")
         .await
         .unwrap_err();
     match err {
@@ -616,7 +638,7 @@ async fn a_plugin_file_connection_failure_carries_the_plugin_and_path() {
 #[tokio::test]
 async fn an_absolute_plugin_path_is_refused_before_any_request() {
     let err = dead_client()
-        .fetch_plugin_file(&bearer(), "my-plugin", "/etc/passwd")
+        .fetch_plugin_file(&bearer(), &PluginId::new("my-plugin"), "/etc/passwd")
         .await
         .unwrap_err();
     match err {
@@ -635,15 +657,21 @@ async fn a_rejected_host_model_filter_maps_to_http_status() {
         .await;
 
     let err = client(&server)
-        .set_host_model_filter(&BearerToken::new("bearer-token"), "codex-cli", Some(&[]))
+        .set_host_model_filter(
+            &BearerToken::new("bearer-token"),
+            HostKind::CodexCli,
+            Some(&[]),
+        )
         .await
         .expect_err("a 422 must surface");
     match err {
-        GatewayError::HttpStatus { status, endpoint } => {
+        GatewayError::Rejected {
+            status, endpoint, ..
+        } => {
             assert_eq!(status.as_u16(), 422);
             assert_eq!(endpoint, "host-model-filter");
         },
-        other => panic!("expected HttpStatus, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -664,14 +692,20 @@ async fn a_refused_release_lookup_carries_the_gateway_reason() {
         .await
         .unwrap_err();
     match &err {
-        GatewayError::ReleaseRejected { status, body } => {
+        GatewayError::Rejected {
+            status,
+            endpoint,
+            rejection,
+        } => {
             assert_eq!(status.as_u16(), 503);
+            assert_eq!(*endpoint, "bridge-latest");
             assert_eq!(
-                body,
+                rejection.excerpt,
                 "bridge release token secret SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN is not configured"
             );
+            assert_eq!(rejection.code, None);
         },
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
     assert_eq!(
         err.to_string(),
@@ -693,11 +727,14 @@ async fn a_refused_release_lookup_with_no_body_says_so() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::ReleaseRejected { status, body } => {
+        GatewayError::Rejected {
+            status, rejection, ..
+        } => {
             assert_eq!(status.as_u16(), 502);
-            assert_eq!(body, "no response body");
+            assert!(rejection.excerpt.is_empty());
+            assert_eq!(rejection.to_string(), "no response body");
         },
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }
 
@@ -715,7 +752,9 @@ async fn a_long_release_rejection_body_is_bounded() {
         .await
         .unwrap_err();
     match err {
-        GatewayError::ReleaseRejected { body, .. } => assert_eq!(body.len(), 240),
-        other => panic!("expected ReleaseRejected, got {other:?}"),
+        GatewayError::Rejected { rejection, .. } => {
+            assert_eq!(rejection.excerpt.chars().count(), 240);
+        },
+        other => panic!("expected Rejected, got {other:?}"),
     }
 }

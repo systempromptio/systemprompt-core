@@ -16,6 +16,7 @@ use std::path::Path;
 use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_cloud::{CloudError, SessionStore};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 
 use crate::context::CommandContext;
@@ -28,7 +29,10 @@ pub enum SessionCommands {
     Show,
 
     #[command(about = "Switch to a different profile")]
-    Switch { profile_name: String },
+    Switch {
+        #[arg(value_parser = crate::shared::parse_profile_name)]
+        profile_name: ProfileName,
+    },
 
     #[command(about = "List available profiles")]
     List,

@@ -9,4 +9,6 @@
 
 pub mod jsonrpc;
 
-pub use jsonrpc::{JsonRpcErrorBuilder, forbidden_response, unauthorized_response};
+pub use jsonrpc::{
+    JsonRpcErrorBuilder, JsonRpcErrorResponse, forbidden_response, unauthorized_response,
+};

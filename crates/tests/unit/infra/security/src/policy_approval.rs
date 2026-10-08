@@ -16,19 +16,17 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::{CallId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, McpServerId, McpToolName, SessionId, TraceId, UserId};
 use systemprompt_security::policy::{
     ApprovalOutcome, ApprovalRepository, ApprovalStatus, ApprovalVerdict, NewApprovalRequest,
     args_digest, wait_for_decision,
 };
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
 async fn repo() -> ApprovalRepository {
-    let b = ensure_test_bootstrap();
-    let db = fixture_db_pool(&b.database_url)
-        .await
-        .expect("the approval tests need a reachable test database");
-    let pool = db.pool_arc().expect("read pool");
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
+    let pool = db.pool();
     ApprovalRepository::new((*pool).clone())
 }
 
@@ -44,14 +42,17 @@ async fn open_pending(repo: &ApprovalRepository, call: &CallId, expires_in_secon
     let args = arguments();
     let user = UserId::new("approval-test-user");
     let session = SessionId::new("sess-approval-test");
+    let tool = McpToolName::new("email_send");
+    let server = McpServerId::new("test-server");
+    let trace = TraceId::new("trace-approval-test");
     repo.open(&NewApprovalRequest {
         call_id: call,
-        tool_name: "email_send",
-        server_name: "test-server",
+        tool_name: &tool,
+        server_name: &server,
         arguments: &args,
         requested_by: &user,
         session_id: Some(&session),
-        trace_id: Some("trace-approval-test"),
+        trace_id: Some(&trace),
         rule: "require_approval",
         expires_in_seconds,
     })
@@ -160,13 +161,7 @@ async fn a_call_id_that_was_never_opened_is_not_released() {
     let call = call_id();
 
     match wait_for_decision(&repo, &call, SHORT_HOLD).await {
-        ApprovalOutcome::Expired(request) => {
-            assert_eq!(
-                request.status,
-                ApprovalStatus::Expired,
-                "the placeholder must not look like an approval"
-            );
-        },
+        ApprovalOutcome::Missing => {},
         other => panic!("a call with no approval row must not be released, got {other:?}"),
     }
 }
@@ -273,7 +268,10 @@ async fn coverage_recent_decisions_preserve_audit_fields_and_exclude_pending_cal
         row.session_id.as_ref().map(SessionId::as_str),
         Some("sess-approval-test")
     );
-    assert_eq!(row.trace_id.as_deref(), Some("trace-approval-test"));
+    assert_eq!(
+        row.trace_id.as_ref().map(TraceId::as_str),
+        Some("trace-approval-test")
+    );
     assert_eq!(row.rule, "require_approval");
     assert_eq!(
         row.approver_id.as_ref().map(UserId::as_str),

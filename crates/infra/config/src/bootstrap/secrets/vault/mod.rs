@@ -19,12 +19,12 @@ mod kv;
 
 use std::collections::BTreeMap;
 
-use systemprompt_models::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
+use systemprompt_manifest::profile::{VaultAuth, VaultKeyRef, VaultSecretsConfig};
 
 use super::SecretsBootstrapError;
 use super::provider::{SecretsDocument, SecretsProvider};
 use client::VaultHttp;
-pub use error::VaultError;
+pub use error::{VaultAttemptFailure, VaultError};
 
 pub(super) type EnvLookup = Box<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
@@ -85,11 +85,10 @@ impl VaultKvProvider {
             let entry =
                 kv::read_entry(&self.http, &session.token, &self.mount, &reference.path).await?;
             let value = entry.fields.get(&reference.field).cloned().ok_or_else(|| {
-                VaultError::Malformed {
-                    message: format!(
-                        "{}/{} has no field '{}' for override key '{key}'",
-                        self.mount, reference.path, reference.field
-                    ),
+                VaultError::MissingField {
+                    location: format!("{}/{}", self.mount, reference.path),
+                    field: reference.field.clone(),
+                    key: key.clone(),
                 }
             })?;
             document.merge_field(key.clone(), value);

@@ -10,8 +10,9 @@ use systemprompt_database::{
     Database, MigrationConfig, MigrationService, install_extension_schemas_full,
 };
 use systemprompt_extension::{ExtensionRegistry, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
-use systemprompt_models::Config;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
@@ -29,7 +30,10 @@ pub(super) async fn execute_migrate(
     if config.should_show_verbose() {
         CliService::info(&format!("System path: {}", sys_config.system_path));
         CliService::info(&format!("Database type: {}", sys_config.database_type));
-        CliService::info(&format!("Database URL: {}", sys_config.database_url));
+        CliService::info(&format!(
+            "Database URL: {}",
+            Profile::mask_database_url(&sys_config.database_url)
+        ));
     }
 
     let database = Arc::new(
@@ -183,11 +187,14 @@ fn failure(error: &LoaderError) -> anyhow::Error {
 
 pub(super) fn select_extensions(
     registry: &ExtensionRegistry,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
 ) -> Result<Vec<Arc<dyn systemprompt_extension::Extension>>> {
     let all = registry.schema_extensions();
     if let Some(ext_id) = extension {
-        let filtered: Vec<_> = all.into_iter().filter(|e| e.id() == ext_id).collect();
+        let filtered: Vec<_> = all
+            .into_iter()
+            .filter(|e| e.id() == ext_id.as_str())
+            .collect();
         if filtered.is_empty() {
             return Err(anyhow!("Extension '{}' not found or has no schema", ext_id));
         }

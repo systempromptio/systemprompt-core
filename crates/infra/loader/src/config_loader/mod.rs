@@ -38,7 +38,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::{ApiSurface, ServicesConfig};
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::providers::ApiSurface;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 use crate::services_root::ServicesRootBootstrap;
@@ -190,16 +191,12 @@ impl ConfigLoader {
         if let Ok(profile) = ProfileBootstrap::get()
             && !profile.services.is_identity()
         {
-            merged
-                .apply_port_offset(profile.services.port_offset)
-                .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
+            merged.apply_port_offset(profile.services.port_offset)?;
         }
 
         demote_providers_without_credentials(&mut merged);
 
-        merged
-            .validate()
-            .map_err(|e| ConfigLoadError::Validation(e.to_string()))?;
+        merged.validate()?;
 
         Ok(merged)
     }

@@ -12,10 +12,12 @@ mod bootstrap;
 mod db_url;
 pub mod profile_routing;
 pub mod routing;
+pub mod routing_decision;
 mod structured_output;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
+use systemprompt_loader::subprocess::{self, ApiServerStamp};
 use systemprompt_logging::set_startup_mode;
 use systemprompt_runtime::DatabaseContext;
 
@@ -33,6 +35,7 @@ pub async fn run() -> Result<()> {
 
 async fn run_inner() -> Result<()> {
     let cli = args::Cli::parse();
+    stamp_api_server_identity(&cli)?;
 
     set_startup_mode(cli.command.is_none());
 
@@ -156,8 +159,19 @@ async fn run_with_database_url(
         .await
         .context("Failed to connect to database")?;
 
-    systemprompt_logging::init_logging(db_ctx.db_pool_arc());
+    systemprompt_logging::init_logging(&db_ctx.db_pool_arc());
 
     let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned());
     Box::pin(dispatch_command(command, &ctx)).await
+}
+
+fn stamp_api_server_identity(cli: &args::Cli) -> Result<()> {
+    if !cli.command.as_ref().is_some_and(args::Commands::serves_api) {
+        return Ok(());
+    }
+    match subprocess::stamp_api_server()
+        .context("Failed to re-execute the API server with its identity marker")?
+    {
+        ApiServerStamp::Stamped | ApiServerStamp::Unverifiable => Ok(()),
+    }
 }

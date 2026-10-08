@@ -10,7 +10,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_test_fixtures::{
-    ScriptedSkills, ensure_test_bootstrap, not_managed_skills, scripted_skills,
+    ScriptedSkills, ensure_test_bootstrap, not_managed_skills, scripted_skills, test_db_pool,
 };
 use systemprompt_test_mocks::recording_webhooks;
 use systemprompt_traits::{DynManagedSkillResolver, ResolvedManagedSkill, WithheldReason};
@@ -21,6 +21,7 @@ fn make_ctx() -> RequestContext {
         TraceId::new("skill-svc-trace"),
         ContextId::generate(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-test-user"));
     ctx
@@ -47,21 +48,19 @@ fn skills_root() -> std::path::PathBuf {
 
 fn service_with(pool: &DbPool, managed: DynManagedSkillResolver) -> SkillService {
     ensure_test_bootstrap();
-    let repo = Arc::new(ExecutionStepRepository::new(pool).expect("step repo"));
+    let repo = Arc::new(ExecutionStepRepository::new(pool));
     SkillService::new(managed, repo, recording_webhooks()).expect("skill service")
 }
 
-async fn disk_service() -> Option<(DbPool, SkillService)> {
-    let pool = crate::repository::try_pool_or_skip().await?;
+async fn disk_service() -> (DbPool, SkillService) {
+    let pool = test_db_pool().await;
     let svc = service_with(&pool, not_managed_skills());
-    Some((pool, svc))
+    (pool, svc)
 }
 
 #[tokio::test]
 async fn skill_service_load_skill_metadata_with_name_field() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -80,23 +79,26 @@ async fn skill_service_load_skill_metadata_with_name_field() {
 
 #[tokio::test]
 async fn skill_service_load_skill_metadata_missing_returns_err() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let _root = skills_root();
     let id = SkillId::new("__does_not_exist_xyz__");
     let err = svc
         .load_skill_metadata(&id, &owner())
         .await
         .expect_err("should fail");
-    assert!(format!("{err}").contains("Skill not found"));
+    assert!(
+        matches!(
+            &err,
+            systemprompt_agent::services::shared::AgentServiceError::SkillNotOnDisk { skill_id, .. }
+                if *skill_id == id
+        ),
+        "a skill with no file on disk must be reported as missing: {err}"
+    );
 }
 
 #[tokio::test]
 async fn skill_service_load_skill_returns_instructions_without_frontmatter() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -112,9 +114,7 @@ async fn skill_service_load_skill_returns_instructions_without_frontmatter() {
 
 #[tokio::test]
 async fn skill_service_load_skill_empty_body_when_content_missing() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -130,9 +130,7 @@ async fn skill_service_load_skill_empty_body_when_content_missing() {
 
 #[tokio::test]
 async fn skill_service_load_skill_resolves_id_from_config_when_set() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -151,9 +149,7 @@ async fn skill_service_load_skill_resolves_id_from_config_when_set() {
 
 #[tokio::test]
 async fn skill_service_load_skill_uses_dir_name_when_empty_name() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -168,9 +164,7 @@ async fn skill_service_load_skill_uses_dir_name_when_empty_name() {
 
 #[tokio::test]
 async fn skill_service_load_skill_custom_content_file() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     let dir = root.join("custom_file_skill");
     fs::create_dir_all(&dir).expect("dir");
@@ -189,9 +183,7 @@ async fn skill_service_load_skill_custom_content_file() {
 
 #[tokio::test]
 async fn skill_service_load_skill_invalid_yaml_errors() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let _skills_fixture_write = crate::SKILLS_FIXTURE_LOCK.write().await;
     let root = skills_root();
     let dir = root.join("invalid_yaml_skill");
@@ -211,9 +203,7 @@ async fn skill_service_load_skill_invalid_yaml_errors() {
 
 #[tokio::test]
 async fn skill_service_load_skill_id_field_empty_uses_supplied_id() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     let dir = root.join("empty_id_skill");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -236,6 +226,7 @@ fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
         TraceId::new("skill-track-trace"),
         context_id.clone(),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     ctx.auth.actor = Actor::user(UserId::new("skill-track-user"));
     ctx.with_task_id(task_id.clone())
@@ -243,9 +234,7 @@ fn ctx_with_task(context_id: &ContextId, task_id: &TaskId) -> RequestContext {
 
 #[tokio::test]
 async fn load_skill_without_a_task_id_still_returns_instructions() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     let id = format!("notrack{}", uuid::Uuid::new_v4().simple());
     write_skill(
@@ -268,9 +257,7 @@ async fn load_skill_without_a_task_id_still_returns_instructions() {
 
 #[tokio::test]
 async fn load_skill_records_an_execution_step_for_the_task() {
-    let Some(pool) = crate::repository::try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let repos = crate::repository::repos(&pool);
     let (user, session) = crate::repository::seed_user_and_session(&pool).await;
     let (context_id, task_id) =
@@ -285,7 +272,7 @@ async fn load_skill_records_an_execution_step_for_the_task() {
         Some("Tracked body.\n"),
     );
 
-    let step_repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let step_repo = Arc::new(ExecutionStepRepository::new(&pool));
     let svc = SkillService::new(
         not_managed_skills(),
         Arc::clone(&step_repo),
@@ -311,9 +298,7 @@ async fn load_skill_records_an_execution_step_for_the_task() {
 
 #[tokio::test]
 async fn a_published_managed_skill_is_served_without_touching_the_disk_catalogue() {
-    let Some(pool) = crate::repository::try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let _root = skills_root();
     let published = ResolvedManagedSkill {
         id: SkillId::new("managed-only"),
@@ -338,9 +323,7 @@ async fn a_published_managed_skill_is_served_without_touching_the_disk_catalogue
 
 #[tokio::test]
 async fn a_withheld_managed_skill_is_an_error_even_when_a_disk_copy_exists() {
-    let Some(pool) = crate::repository::try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -369,9 +352,7 @@ async fn a_withheld_managed_skill_is_an_error_even_when_a_disk_copy_exists() {
 
 #[tokio::test]
 async fn an_unavailable_authority_fails_the_load() {
-    let Some(pool) = crate::repository::try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let root = skills_root();
     write_skill(
         &root,
@@ -391,23 +372,16 @@ async fn an_unavailable_authority_fails_the_load() {
 #[test]
 fn coverage_skill_service_requires_a_profile_before_loading_disk_content() {
     assert!(ProfileBootstrap::get().is_err());
-    let Ok(url) = systemprompt_test_fixtures::fixture_database_url() else {
-        return;
-    };
     let rt = tokio::runtime::Runtime::new().expect("runtime");
-    let Ok(pool) = rt.block_on(systemprompt_test_fixtures::fixture_db_pool(&url)) else {
-        return;
-    };
-    let repo = Arc::new(ExecutionStepRepository::new(&pool).expect("step repo"));
+    let pool = rt.block_on(test_db_pool());
+    let repo = Arc::new(ExecutionStepRepository::new(&pool));
     let err = SkillService::new(not_managed_skills(), repo, recording_webhooks()).unwrap_err();
     assert!(err.to_string().contains("Profile not initialized"));
 }
 
 #[tokio::test]
 async fn coverage_skill_config_read_failure_names_the_file() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     fs::create_dir_all(root.join("blocked/config.yaml")).unwrap();
     let err = svc
@@ -420,9 +394,7 @@ async fn coverage_skill_config_read_failure_names_the_file() {
 
 #[tokio::test]
 async fn coverage_skill_content_read_failure_is_not_empty_instructions() {
-    let Some((_pool, svc)) = disk_service().await else {
-        return;
-    };
+    let (_pool, svc) = disk_service().await;
     let root = skills_root();
     write_skill(
         &root,

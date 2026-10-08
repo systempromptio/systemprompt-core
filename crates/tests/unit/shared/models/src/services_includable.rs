@@ -1,4 +1,4 @@
-use systemprompt_models::services::IncludableString;
+use systemprompt_manifest::services::IncludableString;
 
 #[test]
 fn includable_string_inline_from_plain_string() {

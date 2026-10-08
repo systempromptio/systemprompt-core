@@ -27,7 +27,9 @@ pub(super) struct RenderSingleItemParams<'a> {
     pub source_name: &'a str,
     pub sitemap_config: &'a SitemapConfig,
     pub locale_prefix: &'a str,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub item: &'a serde_json::Value,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     pub all_items: &'a [serde_json::Value],
     pub popular_ids: &'a [String],
     pub config_value: &'a serde_yaml::Value,
@@ -87,9 +89,7 @@ pub(super) async fn render_single_item(params: &RenderSingleItemParams<'_>) -> G
     let html = ctx
         .template_registry
         .render(template_name, &template_data)
-        .map_err(|e| {
-            PublishError::render_failed(template_name, Some(slug.to_owned()), e.to_string())
-        })?;
+        .map_err(|e| PublishError::render_failed(template_name, Some(slug.to_owned()), e))?;
 
     write_rendered_page(
         &ctx.dist_dir,
@@ -110,6 +110,7 @@ struct BuildTemplateDataParams<'a> {
     toc_html: &'a str,
 }
 
+// JSON: Handlebars template variables; the page data model is dynamic.
 async fn build_template_data(
     args: &BuildTemplateDataParams<'_>,
 ) -> GeneratorResult<serde_json::Value> {
@@ -133,7 +134,7 @@ async fn build_template_data(
         "locale": locale.as_str(),
     });
 
-    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.dependencies)
         .with_content_item(item)
         .with_all_items(all_items)
         .with_locale(locale);
@@ -142,7 +143,7 @@ async fn build_template_data(
         let data = provider
             .provide_page_data(&page_ctx)
             .await
-            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e))?;
         merge_json_data(&mut template_data, &data);
     }
 
@@ -156,12 +157,17 @@ async fn build_template_data(
     )
     .await;
 
-    let extender_ctx =
-        ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
-            .with_content_html(args.content_html)
-            .with_url_pattern(&sitemap_config.url_pattern)
-            .with_source_name(source_name)
-            .build();
+    let extender_ctx = ExtenderContext::builder(
+        item,
+        all_items,
+        config_value,
+        &ctx.web_config,
+        &ctx.dependencies,
+    )
+    .with_content_html(args.content_html)
+    .with_url_pattern(&sitemap_config.url_pattern)
+    .with_source_name(source_name)
+    .build();
 
     for extender in ctx.template_registry.extenders_for(content_type) {
         if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {

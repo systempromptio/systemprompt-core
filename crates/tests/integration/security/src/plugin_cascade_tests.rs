@@ -14,7 +14,7 @@ use systemprompt_security::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     NO_SUBJECT_ATTRIBUTES, ParentChainIndex, allowed_ids,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use uuid::Uuid;
 
 struct Fixture {
@@ -88,9 +88,8 @@ impl Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
-    let pg = db.pool_arc().expect("read pool");
+    let db = test_db_pool().await;
+    let pg = db.pool();
     let tag = Uuid::new_v4();
     let fixture = Fixture {
         db,
@@ -149,7 +148,7 @@ async fn grant(fixture: &Fixture, kind: &str, id: &str, role: &str, default_incl
 }
 
 async fn visible_skills(fixture: &Fixture, roles: &[&str]) -> HashSet<String> {
-    let repo = AccessControlRepository::new(&fixture.db).expect("repo");
+    let repo = AccessControlRepository::new(&fixture.db);
     let index = ParentChainIndex::load(&repo, std::sync::Arc::new(fixture.sources()))
         .await
         .expect("load chain index");
@@ -218,7 +217,7 @@ async fn a_skill_reachable_through_either_of_two_marketplaces_is_visible() {
     )
     .await;
 
-    let repo = AccessControlRepository::new(&fixture.db).expect("repo");
+    let repo = AccessControlRepository::new(&fixture.db);
     let sources = fixture.sources_in(&[&fixture.market, &fixture.market2]);
     let index = ParentChainIndex::load(&repo, std::sync::Arc::new(sources))
         .await

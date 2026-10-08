@@ -6,16 +6,18 @@
 use std::path::PathBuf;
 
 use systemprompt_config::{ConfigError, validate_database_config};
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 
 fn base_config() -> Config {
     Config {
-        instance_id: "t".to_string(),
+        instance_id: systemprompt_identifiers::InstanceId::new("t"),
         metrics_port: None,
         max_concurrent_streams: 16,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://user:pass@localhost/db".to_string(),
@@ -48,7 +50,7 @@ fn base_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,
@@ -103,7 +105,7 @@ fn validate_database_config_rejects_non_postgres_url() {
 
     let err = validate_database_config(&cfg).unwrap_err();
     assert!(
-        matches!(err, ConfigError::InvalidDatabaseUrl { .. }),
+        matches!(err, ConfigError::InvalidDatabaseUrl(_)),
         "expected InvalidDatabaseUrl, got: {err:?}"
     );
 }

@@ -30,11 +30,13 @@ pub struct McpToolInput(
 
 impl McpToolInput {
     #[must_use]
+    // JSON: MCP tool arguments — schema-less by the MCP spec.
     pub const fn new(value: serde_json::Value) -> Self {
         Self(value)
     }
 
     #[must_use]
+    // JSON: MCP tool arguments — schema-less by the MCP spec.
     pub const fn as_value(&self) -> &serde_json::Value {
         &self.0
     }
@@ -115,6 +117,7 @@ pub struct GovernedString<'a> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GovernedScalar<'a> {
     pub path: String,
+    // JSON: MCP tool-call arguments walked for governed scalar values.
     pub value: &'a serde_json::Value,
 }
 
@@ -198,6 +201,7 @@ impl GovernedInput {
 
 const PROMPT_PATH: &str = "text";
 
+// JSON: MCP tool-call arguments walked for governed scalar values.
 fn collect_scalars<'a>(
     value: &'a serde_json::Value,
     path: &mut String,

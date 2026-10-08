@@ -34,6 +34,10 @@ const AUDIT_LOG_QUERY: DatabaseQuery = DatabaseQuery::new(
      MIN(created_at) as oldest, MAX(created_at) as newest FROM audit_log",
 );
 
+pub use super::health_stats::{
+    AuditLogStats, DatabaseStats, DiskUsage, ProcessMemory, SystemStats, TableStats,
+};
+
 #[cfg(target_os = "linux")]
 pub fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
     content
@@ -47,22 +51,22 @@ pub fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
 }
 
 #[cfg(target_os = "linux")]
-pub(super) fn get_process_memory() -> Option<serde_json::Value> {
+pub(super) fn get_process_memory() -> Option<ProcessMemory> {
     let content = std::fs::read_to_string("/proc/self/status").ok()?;
 
     let rss_kb = parse_proc_status_kb(&content, "VmRSS:");
     let virt_kb = parse_proc_status_kb(&content, "VmSize:");
     let peak_kb = parse_proc_status_kb(&content, "VmPeak:");
 
-    Some(json!({
-        "rss_mb": rss_kb.map(|kb| kb / 1024),
-        "virtual_mb": virt_kb.map(|kb| kb / 1024),
-        "peak_mb": peak_kb.map(|kb| kb / 1024)
-    }))
+    Some(ProcessMemory {
+        rss: rss_kb.map(|kb| kb / 1024),
+        virtual_size: virt_kb.map(|kb| kb / 1024),
+        peak: peak_kb.map(|kb| kb / 1024),
+    })
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(super) const fn get_process_memory() -> Option<serde_json::Value> {
+pub(super) const fn get_process_memory() -> Option<ProcessMemory> {
     None
 }
 
@@ -83,7 +87,7 @@ fn widen(value: impl Into<u64>) -> u64 {
     value.into()
 }
 
-fn get_disk_usage() -> Option<serde_json::Value> {
+fn get_disk_usage() -> Option<DiskUsage> {
     let stat = nix::sys::statvfs::statvfs(".").ok()?;
 
     let block_size = widen(stat.fragment_size());
@@ -98,17 +102,17 @@ fn get_disk_usage() -> Option<serde_json::Value> {
         0.0
     };
 
-    Some(json!({
-        "total": human_bytes(total as i64),
-        "used": human_bytes(used as i64),
-        "available": human_bytes(available as i64),
-        "usage_percent": (usage_pct * 10.0).round() / 10.0
-    }))
+    Some(DiskUsage {
+        total: human_bytes(total as i64),
+        used: human_bytes(used as i64),
+        available: human_bytes(available as i64),
+        usage_percent: (usage_pct * 10.0).round() / 10.0,
+    })
 }
 
 pub(super) async fn get_system_stats(
     db: &dyn systemprompt_database::DatabaseProvider,
-) -> Option<serde_json::Value> {
+) -> Option<SystemStats> {
     let db_size_fut = db.fetch_one(&DB_SIZE_QUERY, &[]);
     let table_sizes_fut = db.fetch_all(&TABLE_SIZES_QUERY, &[]);
     let table_count_fut = db.fetch_one(&TABLE_COUNT_QUERY, &[]);
@@ -125,20 +129,24 @@ pub(super) async fn get_system_stats(
             None
         };
 
-    let logs = audit.ok().flatten().map(|row| audit_log_stats(&row));
+    let logs = audit
+        .inspect_err(|error| tracing::warn!(%error, "Audit log stats query failed"))
+        .ok()
+        .flatten()
+        .map(|row| audit_log_stats(&row));
 
-    Some(json!({
-        "database": database,
-        "disk": disk,
-        "logs": logs
-    }))
+    Some(SystemStats {
+        database,
+        disk,
+        logs,
+    })
 }
 
 pub fn database_stats(
     size_row: &JsonRow,
     tables: &[JsonRow],
     count_row: &JsonRow,
-) -> serde_json::Value {
+) -> DatabaseStats {
     let size_bytes = size_row
         .get("size_bytes")
         .and_then(serde_json::Value::as_i64)
@@ -152,18 +160,16 @@ pub fn database_stats(
         .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
 
-    let top_tables: Vec<serde_json::Value> = tables.iter().map(table_stats).collect();
-
-    json!({
-        "name": db_name,
-        "total_size": human_bytes(size_bytes),
-        "total_size_bytes": size_bytes,
-        "table_count": tbl_count,
-        "top_tables": top_tables
-    })
+    DatabaseStats {
+        name: db_name.to_owned(),
+        total_size: human_bytes(size_bytes),
+        total_size_bytes: size_bytes,
+        table_count: tbl_count,
+        top_tables: tables.iter().map(table_stats).collect(),
+    }
 }
 
-pub fn table_stats(row: &JsonRow) -> serde_json::Value {
+pub fn table_stats(row: &JsonRow) -> TableStats {
     let name = row
         .get("table_name")
         .and_then(serde_json::Value::as_str)
@@ -176,15 +182,15 @@ pub fn table_stats(row: &JsonRow) -> serde_json::Value {
         .get("row_estimate")
         .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
-    json!({
-        "table_name": name,
-        "total_size": human_bytes(total),
-        "total_size_bytes": total,
-        "row_estimate": rows
-    })
+    TableStats {
+        table_name: name.to_owned(),
+        total_size: human_bytes(total),
+        total_size_bytes: total,
+        row_estimate: rows,
+    }
 }
 
-pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
+pub fn audit_log_stats(row: &JsonRow) -> AuditLogStats {
     let row_count = row
         .get("row_count")
         .and_then(serde_json::Value::as_i64)
@@ -193,13 +199,13 @@ pub fn audit_log_stats(row: &JsonRow) -> serde_json::Value {
         .get("size_bytes")
         .and_then(serde_json::Value::as_i64)
         .unwrap_or(0);
-    json!({
-        "audit_rows": row_count,
-        "audit_size": human_bytes(size_bytes),
-        "audit_size_bytes": size_bytes,
-        "oldest": row.get("oldest"),
-        "newest": row.get("newest")
-    })
+    AuditLogStats {
+        audit_rows: row_count,
+        audit_size: human_bytes(size_bytes),
+        audit_size_bytes: size_bytes,
+        oldest: row.get("oldest").cloned(),
+        newest: row.get("newest").cloned(),
+    }
 }
 
 pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);

@@ -6,98 +6,28 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod discovery;
+mod executions;
+
+pub use executions::{ExecutionsState, ToolExecutionResponse, executions_router};
 
 use crate::services::proxy::ProxyEngine;
+use axum::Router;
 use axum::extract::{Path, State};
-use axum::response::IntoResponse;
 use axum::routing::{any, get};
-use axum::{Json, Router};
-use serde::Serialize;
-use std::sync::Arc;
-use systemprompt_identifiers::McpExecutionId;
-use systemprompt_mcp::repository::ToolUsageRepository;
-use systemprompt_models::ApiError;
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_runtime::{AppContext, ServiceCategory};
+use systemprompt_identifiers::McpServerId;
+use systemprompt_runtime::AppContext;
 use systemprompt_traits::McpRegistryProvider;
-
-#[derive(Debug, Serialize)]
-pub struct ToolExecutionResponse {
-    pub id: McpExecutionId,
-    pub tool_name: String,
-    pub server_name: String,
-    pub server_endpoint: String,
-    pub input: serde_json::Value,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub output: Option<serde_json::Value>,
-    pub status: String,
-}
 
 #[derive(Clone, Debug)]
 pub struct McpState {
     pub ctx: AppContext,
-    pub repo: Arc<ToolUsageRepository>,
-}
-
-pub async fn handle_get_execution(
-    Path(execution_id): Path<String>,
-    State(state): State<McpState>,
-) -> impl IntoResponse {
-    tracing::info!(execution_id = %execution_id, "Fetching execution");
-
-    let execution_id_typed = McpExecutionId::new(&execution_id);
-    match state.repo.find_by_id(&execution_id_typed).await {
-        Ok(Some(execution)) => {
-            let server_endpoint = ApiPaths::mcp_server_endpoint(&execution.server_name);
-
-            let input = match serde_json::from_str(&execution.input) {
-                Ok(v) => v,
-                Err(e) => {
-                    tracing::error!(execution_id = %execution_id, error = %e, "Invalid input JSON");
-                    return ApiError::internal_error(format!("Invalid input JSON: {e}"))
-                        .into_response();
-                },
-            };
-
-            let response = ToolExecutionResponse {
-                id: execution.mcp_execution_id,
-                tool_name: execution.tool_name,
-                server_name: execution.server_name.clone(),
-                server_endpoint,
-                input,
-                output: execution.output.as_deref().and_then(|s| {
-                    serde_json::from_str(s)
-                        .map_err(|e| {
-                            tracing::warn!(
-                                execution_id = %execution_id,
-                                error = %e,
-                                "Failed to parse execution output JSON"
-                            );
-                            e
-                        })
-                        .ok()
-                }),
-                status: execution.status,
-            };
-
-            tracing::info!(execution_id = %execution_id, "Execution found");
-            Json(response).into_response()
-        },
-        Ok(None) => {
-            ApiError::not_found(format!("Execution not found: {execution_id}")).into_response()
-        },
-        Err(e) => {
-            tracing::error!(execution_id = %execution_id, error = %e, "Failed to get execution");
-            ApiError::internal_error(format!("Failed to get execution: {e}")).into_response()
-        },
-    }
 }
 
 pub(in crate::routes) async fn get_mcp_server_scopes(
     registry: &dyn McpRegistryProvider,
-    service_name: &str,
+    server: &McpServerId,
 ) -> Option<Vec<String>> {
-    match registry.get_server(service_name).await {
+    match registry.get_server(server.as_str()).await {
         Ok(server_info) if server_info.oauth.required => {
             let scopes: Vec<String> = server_info
                 .oauth
@@ -125,36 +55,20 @@ pub(in crate::routes) async fn get_mcp_server_scopes_from_resource(
     if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
         return None;
     }
-    let server_name = parts[4];
-    get_mcp_server_scopes(registry, server_name).await
+    let server = McpServerId::try_new(parts[4]).ok()?;
+    get_mcp_server_scopes(registry, &server).await
 }
 
 pub fn router(ctx: &AppContext) -> Router {
-    let repo = match crate::repository::tool_usage(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize MCP tool usage repository");
-            return Router::new();
-        },
-    };
-    let identities = match crate::repository::proxy_identities(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize MCP proxy identity repository");
-            return Router::new();
-        },
-    };
+    let repo = crate::repository::tool_usage(ctx.db_pool());
+    let identities = crate::repository::proxy_identities(ctx.db_pool());
     let engine = ProxyEngine::new(identities)
-        .with_tool_usage_repo(Arc::clone(&repo))
+        .with_tool_usage_repo(repo, ctx.tool_call_intents())
         .with_artifact_ingest(ctx.artifact_ingest_arc());
 
-    let state = McpState {
-        ctx: ctx.clone(),
-        repo,
-    };
+    let state = McpState { ctx: ctx.clone() };
 
     Router::new()
-        .route("/executions/{id}", get(handle_get_execution))
         .route(
             "/{service_name}/mcp/.well-known/oauth-protected-resource",
             get(discovery::handle_mcp_protected_resource),
@@ -184,11 +98,3 @@ pub fn router(ctx: &AppContext) -> Router {
         )
         .with_state(state)
 }
-
-systemprompt_runtime::register_module_api!(
-    "mcp",
-    ServiceCategory::Mcp,
-    router,
-    true,
-    systemprompt_runtime::ModuleType::Proxy
-);

@@ -5,9 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU8, Ordering};
 
-use tokio::task::JoinHandle;
+use systemprompt_traits::OwnedTask;
+use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
@@ -21,59 +21,57 @@ pub enum RelayStatus {
 }
 
 impl RelayStatus {
-    const fn as_u8(self) -> u8 {
-        match self {
-            Self::NotStarted => 0,
-            Self::Listening => 1,
-            Self::Reconnecting => 2,
-            Self::Stopped => 3,
-        }
-    }
-
-    const fn from_u8(raw: u8) -> Self {
-        match raw {
-            1 => Self::Listening,
-            2 => Self::Reconnecting,
-            3 => Self::Stopped,
-            _ => Self::NotStarted,
-        }
-    }
-
     #[must_use]
     pub const fn is_listening(self) -> bool {
         matches!(self, Self::Listening)
     }
 }
 
-#[derive(Debug, Default)]
-pub(super) struct StatusCell(AtomicU8);
+#[derive(Debug)]
+pub(super) struct StatusCell(watch::Sender<RelayStatus>);
+
+impl Default for StatusCell {
+    fn default() -> Self {
+        Self(watch::Sender::new(RelayStatus::NotStarted))
+    }
+}
 
 impl StatusCell {
     pub(super) fn set(&self, status: RelayStatus) {
-        self.0.store(status.as_u8(), Ordering::Release);
+        self.0.send_replace(status);
     }
 
     pub(super) fn get(&self) -> RelayStatus {
-        RelayStatus::from_u8(self.0.load(Ordering::Acquire))
+        *self.0.borrow()
+    }
+
+    async fn listening(&self) -> bool {
+        let mut status = self.0.subscribe();
+        status
+            .wait_for(|s| matches!(s, RelayStatus::Listening | RelayStatus::Stopped))
+            .await
+            .is_ok_and(|s| s.is_listening())
     }
 }
 
 /// The running relay: its task, its status and the token that stops it.
 ///
-/// Dropping the handle does not stop the task; call
-/// [`EventBridgeHandle::shutdown`] so the listener session closes before
-/// the pool does. `shutdown` takes `&self` so the handle can live in a
-/// shared `OnceLock`; a second call is a no-op.
+/// [`listening`](Self::listening) resolves once the relay's `LISTEN` is in
+/// place, so a notification committed afterwards is guaranteed to reach it,
+/// or with `false` once the relay has stopped. Dropping the handle aborts the
+/// task; call [`EventBridgeHandle::shutdown`] so the listener session closes
+/// cleanly before the pool does. `shutdown` takes `&self` so the handle can
+/// live in a shared `OnceLock`; a second call is a no-op.
 #[derive(Debug)]
 pub struct EventBridgeHandle {
-    task: tokio::sync::Mutex<Option<JoinHandle<()>>>,
+    task: tokio::sync::Mutex<Option<OwnedTask<()>>>,
     status: Arc<StatusCell>,
     cancel: CancellationToken,
 }
 
 impl EventBridgeHandle {
     pub(super) fn new(
-        task: JoinHandle<()>,
+        task: OwnedTask<()>,
         status: Arc<StatusCell>,
         cancel: CancellationToken,
     ) -> Self {
@@ -89,11 +87,15 @@ impl EventBridgeHandle {
         self.status.get()
     }
 
+    pub async fn listening(&self) -> bool {
+        self.status.listening().await
+    }
+
     pub async fn shutdown(&self) {
         self.cancel.cancel();
         let task = self.task.lock().await.take();
         if let Some(task) = task
-            && let Err(error) = task.await
+            && let Err(error) = task.join().await
         {
             warn!(error = %error, "event bridge task did not exit cleanly");
         }

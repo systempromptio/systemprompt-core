@@ -12,6 +12,7 @@ pub(super) struct ParseStepParams {
     pub step_id: String,
     pub task_id: TaskId,
     pub status: String,
+    // JSON: JSONB `content` column — decoded into `StepContent` here.
     pub content: serde_json::Value,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
@@ -32,9 +33,9 @@ pub(super) fn parse_step(params: ParseStepParams) -> Result<ExecutionStep, Repos
     } = params;
     let status = status
         .parse::<StepStatus>()
-        .map_err(|e| RepositoryError::Internal(format!("Invalid status: {e}")))?;
+        .map_err(|e| RepositoryError::decode("execution step status", e))?;
     let content: StepContent = serde_json::from_value(content)
-        .map_err(|e| RepositoryError::Internal(format!("Invalid content: {e}")))?;
+        .map_err(|e| RepositoryError::decode("execution step content", e))?;
     Ok(ExecutionStep {
         step_id: StepId(step_id),
         task_id,

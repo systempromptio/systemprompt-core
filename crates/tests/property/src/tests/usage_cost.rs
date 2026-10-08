@@ -1,6 +1,6 @@
 use proptest::prelude::*;
-use systemprompt_models::services::ModelPricing;
-use systemprompt_models::wire::canonical::CanonicalUsage;
+use systemprompt_manifest::services::ModelPricing;
+use systemprompt_wire::canonical::CanonicalUsage;
 
 prop_compose! {
     fn arb_usage()(

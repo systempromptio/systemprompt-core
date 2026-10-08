@@ -4,11 +4,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
 
 use crate::models::RequestStatus;
 use crate::models::ai::{AiRequest, AiResponse};
-use crate::services::providers::{AiProvider, GenerationParams, SchemaGenerationParams};
+use crate::services::providers::{GenerationParams, ProviderClient, SchemaGenerationParams};
 
 use super::super::request_logging;
 use super::super::request_storage::StoreParams;
@@ -17,7 +17,7 @@ use super::service::AiService;
 #[derive(Debug)]
 struct FinalizeResponseParams<'a> {
     result: Result<AiResponse>,
-    request_id: Uuid,
+    request_id: AiRequestId,
     latency_ms: u64,
     request: &'a AiRequest,
     model: &'a str,
@@ -25,12 +25,12 @@ struct FinalizeResponseParams<'a> {
 
 impl AiService {
     pub async fn generate(&self, request: &AiRequest) -> Result<AiResponse> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
         let model = request.model();
 
-        request_logging::log_request_start(request_id, request, request.provider(), model);
+        request_logging::log_request_start(&request_id, request, request.provider(), model);
 
         let result = self
             .execute_generate(request, provider.as_ref(), model)
@@ -50,7 +50,7 @@ impl AiService {
     async fn execute_generate(
         &self,
         request: &AiRequest,
-        provider: &dyn AiProvider,
+        provider: &dyn ProviderClient,
         model: &str,
     ) -> Result<AiResponse> {
         let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
@@ -114,7 +114,12 @@ impl AiService {
                     cost_microdollars: 0,
                 })
                 .await;
-                request_logging::log_request_error(request_id, request.provider(), latency_ms, &e);
+                request_logging::log_request_error(
+                    &error_response.request_id,
+                    request.provider(),
+                    latency_ms,
+                    &e,
+                );
                 Err(e)
             },
         }

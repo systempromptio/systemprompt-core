@@ -28,6 +28,7 @@ pub enum CommandOutcome {
     Async,
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(crate) fn dispatch(
     app: &GuiApp,
     target: ReplyTarget,
@@ -63,14 +64,18 @@ pub(crate) fn dispatch(
     )))
 }
 
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
 pub(super) fn parse<T: serde::de::DeserializeOwned>(args: Value) -> Result<T, BridgeError> {
-    serde_json::from_value(args).map_err(|e| BridgeError::invalid_args(e.to_string()))
+    serde_json::from_value(args)
+        .map_err(|e| BridgeError::from_error(ErrorScope::Internal, ErrorCode::InvalidArgs, &e))
 }
 
 pub(super) fn send(app: &GuiApp, event: UiEvent) {
     app.proxy.send_event(event);
 }
 
+// JSON: webview IPC reply — each command's typed result serialized at the call
+// site.
 pub(crate) fn reply_for_value(result: Result<Value, BridgeError>) -> IpcReplyPayload {
     match result {
         Ok(v) => IpcReplyPayload::ok(v),

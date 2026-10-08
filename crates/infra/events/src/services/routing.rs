@@ -1,8 +1,8 @@
-//! Static event broadcasters and the [`EventRouter`] facade.
+//! Static event broadcasters and the [`EventRouter`].
 //!
 //! The four `LazyLock<…>` statics are the canonical fan-out points for
 //! each event kind in the system; service code should always go through
-//! [`EventRouter`] rather than reaching for the underlying broadcaster
+//! an [`EventRouter`] rather than reaching for the underlying broadcaster
 //! directly so that derived events (e.g. AG-UI events also being placed on
 //! the unified context stream) are routed consistently.
 //!
@@ -17,14 +17,15 @@
 //! through the *local-only* path (`route_*_local`) — never back through
 //! the outbox, which would loop forever.
 //!
-//! The relay pool is installed once at startup via
-//! [`EventRouter::install_relay`]. Before installation (or in deployments
-//! without Postgres) routing is local-only.
+//! An [`EventRouter`] is a value built once at the composition root and
+//! handed to whatever routes events: [`EventRouter::with_outbox`] relays
+//! through the given pool, [`EventRouter::local_only`] never touches the
+//! outbox and reports [`RelayOutcome::NotInstalled`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{LazyLock, OnceLock};
+use std::sync::LazyLock;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
@@ -43,8 +44,6 @@ pub static AGUI_BROADCASTER: LazyLock<AgUiBroadcaster> = LazyLock::new(AgUiBroad
 pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcaster::new);
 pub static ANALYTICS_BROADCASTER: LazyLock<AnalyticsBroadcaster> =
     LazyLock::new(AnalyticsBroadcaster::new);
-
-static OUTBOX_REPO: OnceLock<EventOutboxRepository> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutboxChannel {
@@ -77,25 +76,37 @@ impl OutboxChannel {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct EventRouter;
+/// Routes events to local subscribers and, when built with an outbox, to the
+/// other replicas.
+#[derive(Debug, Clone)]
+pub struct EventRouter {
+    outbox: Option<EventOutboxRepository>,
+}
 
 impl EventRouter {
-    pub fn install_relay(pool: sqlx::PgPool, instance_id: InstanceId) {
-        if OUTBOX_REPO
-            .set(EventOutboxRepository::new(pool, instance_id))
-            .is_err()
-        {
-            debug!("EventRouter relay pool already installed; ignoring");
+    #[must_use]
+    pub const fn local_only() -> Self {
+        Self { outbox: None }
+    }
+
+    #[must_use]
+    pub const fn with_outbox(pool: sqlx::PgPool, instance_id: InstanceId) -> Self {
+        Self::from_outbox(EventOutboxRepository::new(pool, instance_id))
+    }
+
+    pub(super) const fn from_outbox(outbox: EventOutboxRepository) -> Self {
+        Self {
+            outbox: Some(outbox),
         }
     }
 
     async fn enqueue_outbox<T: serde::Serialize + Sync>(
+        &self,
         channel: OutboxChannel,
         user_id: &UserId,
         event: &T,
     ) -> RelayOutcome {
-        let Some(repo) = OUTBOX_REPO.get() else {
+        let Some(repo) = &self.outbox else {
             return RelayOutcome::NotInstalled;
         };
         match Self::relay(repo, channel, user_id, event).await {
@@ -157,26 +168,46 @@ impl EventRouter {
         ANALYTICS_BROADCASTER.broadcast(user_id, event).await
     }
 
-    pub async fn route_agui(user_id: &UserId, event: AgUiEvent) -> RouteOutcome<(usize, usize)> {
-        let relay = Self::enqueue_outbox(OutboxChannel::AgUi, user_id, &event).await;
+    pub async fn route_agui(
+        &self,
+        user_id: &UserId,
+        event: AgUiEvent,
+    ) -> RouteOutcome<(usize, usize)> {
+        let relay = self
+            .enqueue_outbox(OutboxChannel::AgUi, user_id, &event)
+            .await;
         let local = Self::route_agui_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
-    pub async fn route_a2a(user_id: &UserId, event: A2AEvent) -> RouteOutcome<(usize, usize)> {
-        let relay = Self::enqueue_outbox(OutboxChannel::A2A, user_id, &event).await;
+    pub async fn route_a2a(
+        &self,
+        user_id: &UserId,
+        event: A2AEvent,
+    ) -> RouteOutcome<(usize, usize)> {
+        let relay = self
+            .enqueue_outbox(OutboxChannel::A2A, user_id, &event)
+            .await;
         let local = Self::route_a2a_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
-    pub async fn route_system(user_id: &UserId, event: SystemEvent) -> RouteOutcome<usize> {
-        let relay = Self::enqueue_outbox(OutboxChannel::System, user_id, &event).await;
+    pub async fn route_system(&self, user_id: &UserId, event: SystemEvent) -> RouteOutcome<usize> {
+        let relay = self
+            .enqueue_outbox(OutboxChannel::System, user_id, &event)
+            .await;
         let local = Self::route_system_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
-    pub async fn route_analytics(user_id: &UserId, event: AnalyticsEvent) -> RouteOutcome<usize> {
-        let relay = Self::enqueue_outbox(OutboxChannel::Analytics, user_id, &event).await;
+    pub async fn route_analytics(
+        &self,
+        user_id: &UserId,
+        event: AnalyticsEvent,
+    ) -> RouteOutcome<usize> {
+        let relay = self
+            .enqueue_outbox(OutboxChannel::Analytics, user_id, &event)
+            .await;
         let local = Self::route_analytics_local(user_id, event).await;
         RouteOutcome { local, relay }
     }

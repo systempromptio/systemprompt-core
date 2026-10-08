@@ -9,7 +9,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TraceId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRepository};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, unique_user_id};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool, unique_user_id};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -23,18 +23,13 @@ fn parse(args: &[&str]) -> LogsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
         CliConfig::new().with_interactive(false),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -46,7 +41,6 @@ async fn seed_log(pool: &DbPool, message: &str) -> LogEntry {
     );
     let entry = LogEntry::new(LogLevel::Error, "cli.tests", message, actor);
     LoggingRepository::new(pool)
-        .unwrap()
         .log(entry.clone())
         .await
         .unwrap();
@@ -55,7 +49,7 @@ async fn seed_log(pool: &DbPool, message: &str) -> LogEntry {
 
 #[tokio::test]
 async fn show_resolves_full_and_partial_ids() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let entry = seed_log(&pool, "unmistakable show message").await;
     let ctx = ctx(&pool);
 
@@ -77,7 +71,7 @@ async fn show_resolves_full_and_partial_ids() {
 
 #[tokio::test]
 async fn view_and_search_filter_entries() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_log(&pool, "needle-for-search-test").await;
     let ctx = ctx(&pool);
 
@@ -118,7 +112,7 @@ async fn view_and_search_filter_entries() {
 
 #[tokio::test]
 async fn summary_reports_counts() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_log(&pool, "summary seed").await;
     let ctx = ctx(&pool);
 
@@ -130,7 +124,7 @@ async fn summary_reports_counts() {
 
 #[tokio::test]
 async fn export_writes_json_and_csv_files() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     seed_log(&pool, "export seed").await;
     let ctx = ctx(&pool);
     let dir = tempfile::tempdir().unwrap();
@@ -168,7 +162,7 @@ async fn export_writes_json_and_csv_files() {
 
 #[tokio::test]
 async fn audit_reports_missing_id_gracefully() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     let result = logs::execute(parse(&["audit", "no-such-request-id"]), &ctx).await;
     assert!(result.is_ok() || !result.unwrap_err().to_string().is_empty());
@@ -176,7 +170,7 @@ async fn audit_reports_missing_id_gracefully() {
 
 #[tokio::test]
 async fn audit_resolves_seeded_trace() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let entry = seed_log(&pool, "audit seed").await;
     let ctx = ctx(&pool);
     let result = logs::execute(parse(&["audit", entry.trace_id.as_str()]), &ctx).await;
@@ -185,7 +179,7 @@ async fn audit_resolves_seeded_trace() {
 
 #[tokio::test]
 async fn profile_only_commands_refuse_database_scope() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     for args in [vec!["stream"], vec!["cleanup"], vec!["delete", "--yes"]] {
         let err = logs::execute(parse(&args), &ctx).await.unwrap_err();
@@ -195,7 +189,7 @@ async fn profile_only_commands_refuse_database_scope() {
 
 #[tokio::test]
 async fn trace_and_tools_listings_run() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let entry = seed_log(&pool, "trace seed").await;
     let ctx = ctx(&pool);
 

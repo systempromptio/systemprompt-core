@@ -11,7 +11,8 @@ use systemprompt_agent::repository::content::artifact::{
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_traits::RepositoryError;
 
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn data_part(value: serde_json::Value) -> Part {
     let serde_json::Value::Object(map) = value else {
@@ -22,13 +23,11 @@ fn data_part(value: serde_json::Value) -> Part {
 
 #[tokio::test]
 async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     let artifact_id = ArtifactId::generate();
 
     sqlx::query("INSERT INTO task_artifacts (artifact_id, task_id, context_id, artifact_type) VALUES ($1, $2, $3, 'text')")
@@ -89,13 +88,11 @@ async fn persist_and_read_back_all_part_kinds_in_sequence_order() {
 
 #[tokio::test]
 async fn get_parts_rejects_non_object_data_content() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
     let artifact_id = ArtifactId::generate();
 
     sqlx::query("INSERT INTO task_artifacts (artifact_id, task_id, context_id, artifact_type) VALUES ($1, $2, $3, 'text')")
@@ -119,7 +116,10 @@ async fn get_parts_rejects_non_object_data_content() {
         .await
         .expect_err("non-object data must be rejected");
     match err {
-        RepositoryError::InvalidData(msg) => assert!(msg.contains("JSON object")),
+        RepositoryError::InvalidData { field, reason } => {
+            assert_eq!(field, "data_content");
+            assert!(reason.contains("JSON object"));
+        },
         other => panic!("expected InvalidData, got {other:?}"),
     }
 
@@ -128,13 +128,11 @@ async fn get_parts_rejects_non_object_data_content() {
 
 #[tokio::test]
 async fn get_parts_empty_for_unknown_artifact() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
-    let pg = pool.pool_arc().expect("pg pool");
+    let pg = pool.pool();
 
     let parts = get_artifact_parts(pg.as_ref(), &ArtifactId::generate(), &context_id)
         .await

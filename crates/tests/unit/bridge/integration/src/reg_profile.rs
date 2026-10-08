@@ -13,7 +13,9 @@ const ORG_UUID: &str = "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40";
 
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
-        model_limits: Default::default(),
+        model_limits: [("claude-opus-4-7".to_owned(), limit(1_000_000))]
+            .into_iter()
+            .collect(),
         gateway_base_url: "https://gateway.example.com".to_string(),
         host_token: HostToken::new("sp-secret-key"),
         models: vec!["claude-opus-4-7".to_string()],
@@ -50,11 +52,14 @@ fn profile_entries_carry_required_policy_keys() {
         "sp-secret-key",
         "the registry profile carries the host token it was handed"
     );
-    assert_eq!(value_of(&owned, "inferenceModels"), "[\"claude-opus-4-7\"]");
+    assert_eq!(
+        value_of(&owned, "inferenceModels"),
+        "[\"claude-opus-4-7[1m]\"]"
+    );
 }
 
 #[test]
-fn empty_models_falls_back_to_defaults() {
+fn empty_models_never_invent_a_gateway_catalog() {
     let mut probe = inputs();
     probe.models = vec![];
     let entries: Vec<(String, String)> = profile_entries(&probe)
@@ -65,10 +70,9 @@ fn empty_models_falls_back_to_defaults() {
     let parsed: Vec<String> = serde_json::from_str(value_of(&entries, "inferenceModels"))
         .expect("models is a json array");
     assert!(
-        parsed.len() >= 2,
-        "expected default model list, got {parsed:?}"
+        parsed.is_empty(),
+        "no advertised model means no desktop model"
     );
-    assert!(parsed.iter().any(|m| m == "claude-opus-5"));
 }
 
 #[test]
@@ -116,26 +120,12 @@ fn hklm_profile_parses_to_the_whole_policy() {
     let rendered = render_reg(true, &inputs()).expect("profile renders");
     assert!(rendered.contains(r"[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Claude]"));
     let parsed = parse_reg_entries(&rendered).expect("rendered profile parses");
-    let names: Vec<&str> = parsed.iter().map(|(k, _)| k.as_str()).collect();
-    assert_eq!(
-        names,
-        vec![
-            "inferenceProvider",
-            "inferenceGatewayBaseUrl",
-            "inferenceGatewayApiKey",
-            "inferenceGatewayAuthScheme",
-            "inferenceModels",
-            "disableEssentialTelemetry",
-            "disableNonessentialTelemetry",
-            "disableNonessentialServices",
-            "disableAutoUpdates",
-            "disableDeploymentModeChooser",
-            "isLocalDevMcpEnabled",
-            "allowedWorkspaceFolders",
-            "deploymentOrganizationUuid",
-            "managedMcpServers",
-        ]
-    );
+    let expected: Vec<(String, String)> = profile_entries(&inputs())
+        .expect("profile renders")
+        .into_iter()
+        .map(|(key, value)| (key.to_owned(), value))
+        .collect();
+    assert_eq!(parsed, expected);
 }
 
 fn mcp_servers() -> Vec<McpServerEntry> {
@@ -168,7 +158,10 @@ fn profile_key_set_equals_the_enforced_policy_key_set() {
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: &probe.gateway_base_url,
         host_token: &probe.host_token,
-        models: Some(serde_json::to_string(&probe.models).expect("json")),
+        models: Some(
+            serde_json::to_string(&with_context_variants(&probe.models, &probe.model_limits))
+                .expect("json"),
+        ),
         headers: &probe.headers,
         egress_allowed_hosts: None,
         org_uuid: probe.organization_uuid.as_deref(),
@@ -311,7 +304,7 @@ fn million_context_models_are_listed_only_as_the_1m_variant() {
     .collect();
     assert_eq!(
         with_context_variants(&models, &limits),
-        vec!["claude-sonnet-5[1m]", "claude-haiku-4-5"],
+        vec!["claude-sonnet-5[1m]"],
     );
 }
 

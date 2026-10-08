@@ -7,14 +7,14 @@
 //! dying inside `run_validation()` or `AppContext::new()`.
 //!
 //! The fixture is process-global (`OnceLock`); `admin bootstrap` is run once
-//! against `DATABASE_URL` to satisfy the system-admin lookup. All helpers
-//! return `None` when `DATABASE_URL` is unset so the suite degrades to a
-//! no-op on machines without a test database.
+//! against `DATABASE_URL` to satisfy the system-admin lookup. Building it
+//! without `DATABASE_URL` fails the test.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use assert_cmd::Command;
+use systemprompt_test_fixtures::test_database_url;
 use tempfile::TempDir;
 
 pub const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
@@ -52,15 +52,13 @@ pub struct FullBootstrap {
     pub system_dir: PathBuf,
 }
 
-static FULL: OnceLock<Option<FullBootstrap>> = OnceLock::new();
+static FULL: OnceLock<FullBootstrap> = OnceLock::new();
 
-pub fn database_url_or_skip() -> Option<String> {
-    std::env::var("DATABASE_URL").ok().filter(|v| !v.is_empty())
-}
-
-pub fn fixture_or_skip() -> Option<&'static FullBootstrap> {
-    FULL.get_or_init(|| database_url_or_skip().map(|_| build()))
-        .as_ref()
+pub fn full_fixture() -> &'static FullBootstrap {
+    FULL.get_or_init(|| {
+        test_database_url();
+        build()
+    })
 }
 
 pub fn systemprompt_bin() -> PathBuf {
@@ -88,8 +86,8 @@ pub fn systemprompt_bin() -> PathBuf {
     );
 }
 
-pub fn command_bare_or_skip() -> Option<Command> {
-    fixture_or_skip()?;
+pub fn cli_command_bare() -> Command {
+    full_fixture();
     let mut c = Command::new(systemprompt_bin());
     c.env_remove("RUST_LOG");
     c.env_remove("SYSTEMPROMPT_PROFILE");
@@ -101,11 +99,11 @@ pub fn command_bare_or_skip() -> Option<Command> {
     c.arg("--non-interactive");
     c.arg("--no-color");
     c.timeout(std::time::Duration::from_secs(120));
-    Some(c)
+    c
 }
 
-pub fn command_or_skip() -> Option<Command> {
-    let fixture = fixture_or_skip()?;
+pub fn cli_command() -> Command {
+    let fixture = full_fixture();
     let mut c = Command::new(systemprompt_bin());
     c.env_remove("RUST_LOG");
     c.env_remove("SYSTEMPROMPT_PROFILE");
@@ -118,13 +116,11 @@ pub fn command_or_skip() -> Option<Command> {
     c.arg("--no-color");
     c.arg("--profile").arg(&fixture.profile_path);
     c.timeout(std::time::Duration::from_secs(120));
-    Some(c)
+    c
 }
 
 pub fn run(args: &[&str]) {
-    let Some(mut cmd) = command_or_skip() else {
-        return;
-    };
+    let mut cmd = cli_command();
     cmd.args(args);
     let _ = cmd.assert();
 }
@@ -132,9 +128,7 @@ pub fn run(args: &[&str]) {
 pub fn run_with_formats(args: &[&str]) {
     run(args);
     for format in ["--json", "--yaml"] {
-        let Some(mut cmd) = command_or_skip() else {
-            return;
-        };
+        let mut cmd = cli_command();
         cmd.arg(format);
         cmd.args(args);
         let _ = cmd.assert();
@@ -253,9 +247,7 @@ fn bootstrap_system_admin(fixture: &FullBootstrap) {
 // A pre-existing `testadmin` row keeps its original email through bootstrap;
 // session-token generation rejects dot-less domains, so repair it in place.
 fn normalize_admin_email() {
-    let Some(url) = database_url_or_skip() else {
-        return;
-    };
+    let url = test_database_url();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

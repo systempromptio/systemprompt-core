@@ -1,8 +1,9 @@
-use super::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use super::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{
     Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
 };
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn make_artifact(
     artifact_id: &ArtifactId,
@@ -24,9 +25,7 @@ fn make_artifact(
 
 #[tokio::test]
 async fn create_and_get_artifact_by_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -47,7 +46,7 @@ async fn create_and_get_artifact_by_id() {
         .expect("create");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -61,13 +60,11 @@ async fn create_and_get_artifact_by_id() {
 
 #[tokio::test]
 async fn get_artifact_by_id_unknown_returns_none() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let artifacts = r.artifacts.clone();
     let result = artifacts
-        .get_artifact_by_id(&ArtifactId::generate())
+        .find_artifact_by_id(&ArtifactId::generate())
         .await
         .expect("get");
     assert!(result.is_none());
@@ -75,9 +72,7 @@ async fn get_artifact_by_id_unknown_returns_none() {
 
 #[tokio::test]
 async fn artifact_with_all_part_kinds_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -111,7 +106,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         .expect("create");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -125,9 +120,7 @@ async fn artifact_with_all_part_kinds_roundtrip() {
 
 #[tokio::test]
 async fn create_artifact_upserts_on_conflict() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -157,7 +150,7 @@ async fn create_artifact_upserts_on_conflict() {
         .expect("upsert");
 
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get")
         .expect("present");
@@ -173,9 +166,7 @@ async fn create_artifact_upserts_on_conflict() {
 
 #[tokio::test]
 async fn list_artifacts_by_task_context_and_user() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -221,9 +212,7 @@ async fn list_artifacts_by_task_context_and_user() {
 
 #[tokio::test]
 async fn validate_artifact_ownership() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -254,7 +243,7 @@ async fn validate_artifact_ownership() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -262,9 +251,7 @@ async fn validate_artifact_ownership() {
 
 #[tokio::test]
 async fn delete_artifact() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -289,7 +276,7 @@ async fn delete_artifact() {
         .await
         .expect("delete");
     let fetched = artifacts
-        .get_artifact_by_id(&artifact_id)
+        .find_artifact_by_id(&artifact_id)
         .await
         .expect("get");
     assert!(fetched.is_none());

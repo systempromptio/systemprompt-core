@@ -6,9 +6,9 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_test_fixtures::fixture_user_id;
+use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 use systemprompt_traits::AuthUser;
-use systemprompt_users::User;
+use systemprompt_users::{User, UserStatus};
 
 fn create_test_user() -> User {
     User {
@@ -17,14 +17,14 @@ fn create_test_user() -> User {
         email: "test@example.com".to_string(),
         full_name: Some("Test User".to_string()),
         display_name: Some("Test".to_string()),
-        status: Some("active".to_string()),
-        email_verified: Some(true),
+        status: UserStatus::Active,
+        email_verified: true,
         roles: vec!["user".to_string()],
         avatar_url: Some("https://example.com/avatar.png".to_string()),
         is_bot: false,
         is_scanner: false,
-        created_at: Some(Utc::now()),
-        updated_at: Some(Utc::now()),
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
     }
 }
 
@@ -36,7 +36,7 @@ mod auth_user_conversion_tests {
         let user = create_test_user();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_sets_is_active_false_for_inactive_status() {
         let mut user = create_test_user();
-        user.status = Some("inactive".to_string());
+        user.status = UserStatus::Inactive;
         let auth_user: AuthUser = user.into();
 
         assert!(!auth_user.is_active);
@@ -86,7 +86,7 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_sets_is_active_false_for_suspended_status() {
         let mut user = create_test_user();
-        user.status = Some("suspended".to_string());
+        user.status = UserStatus::Suspended;
         let auth_user: AuthUser = user.into();
 
         assert!(!auth_user.is_active);
@@ -95,7 +95,7 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_sets_is_active_false_for_pending_status() {
         let mut user = create_test_user();
-        user.status = Some("pending".to_string());
+        user.status = UserStatus::Pending;
         let auth_user: AuthUser = user.into();
 
         assert!(!auth_user.is_active);
@@ -104,16 +104,7 @@ mod auth_user_conversion_tests {
     #[test]
     fn conversion_sets_is_active_false_for_deleted_status() {
         let mut user = create_test_user();
-        user.status = Some("deleted".to_string());
-        let auth_user: AuthUser = user.into();
-
-        assert!(!auth_user.is_active);
-    }
-
-    #[test]
-    fn conversion_sets_is_active_false_for_none_status() {
-        let mut user = create_test_user();
-        user.status = None;
+        user.status = UserStatus::Deleted;
         let auth_user: AuthUser = user.into();
 
         assert!(!auth_user.is_active);
@@ -167,7 +158,7 @@ mod auth_user_conversion_tests {
         user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 
     #[test]
@@ -176,7 +167,7 @@ mod auth_user_conversion_tests {
         user.id = fixture_user_id();
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
     }
 }
 
@@ -208,58 +199,29 @@ mod edge_case_tests {
             email: "".to_string(),
             full_name: None,
             display_name: None,
-            status: Some("active".to_string()),
-            email_verified: None,
+            status: UserStatus::Active,
+            email_verified: false,
             roles: vec![],
             avatar_url: None,
             is_bot: false,
             is_scanner: false,
-            created_at: None,
-            updated_at: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
 
         let auth_user: AuthUser = user.into();
 
-        assert_eq!(auth_user.id, "test-user");
+        assert_eq!(auth_user.id, FIXTURE_USER_ID);
         assert_eq!(auth_user.name, "");
         assert_eq!(auth_user.email, "");
         assert!(auth_user.is_active);
     }
 
     #[test]
-    fn conversion_with_unknown_status() {
-        let mut user = create_test_user();
-        user.status = Some("unknown_status".to_string());
-        let auth_user: AuthUser = user.into();
-
-        assert!(!auth_user.is_active);
-    }
-
-    #[test]
-    fn conversion_with_uppercase_active_status() {
-        let mut user = create_test_user();
-        user.status = Some("ACTIVE".to_string());
-        let auth_user: AuthUser = user.into();
-
-        assert!(!auth_user.is_active);
-    }
-
-    #[test]
-    fn conversion_with_mixed_case_active_status() {
-        let mut user = create_test_user();
-        user.status = Some("Active".to_string());
-        let auth_user: AuthUser = user.into();
-
-        assert!(!auth_user.is_active);
-    }
-
-    #[test]
-    fn conversion_with_whitespace_in_status() {
-        let mut user = create_test_user();
-        user.status = Some(" active ".to_string());
-        let auth_user: AuthUser = user.into();
-
-        assert!(!auth_user.is_active);
+    fn unknown_status_strings_do_not_parse() {
+        for raw in ["unknown_status", "ACTIVE", "Active", " active "] {
+            assert!(raw.parse::<UserStatus>().is_err(), "{raw}");
+        }
     }
 
     #[test]

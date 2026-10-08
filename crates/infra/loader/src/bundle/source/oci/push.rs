@@ -12,7 +12,7 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use systemprompt_models::services::bundle::BUNDLE_MEDIA_TYPE;
+use systemprompt_manifest::services::bundle::BUNDLE_MEDIA_TYPE;
 
 use super::RegistryClient;
 use super::pull::{OCI_MANIFEST_MEDIA_TYPE, OciDescriptor, OciManifest};
@@ -97,16 +97,16 @@ async fn upload_blob(
 fn absolute_location(registry: &RegistryClient, location: &str) -> BundleResult<url::Url> {
     if location.starts_with("http://") || location.starts_with("https://") {
         return url::Url::parse(location)
-            .map_err(|e| BundleError::fetch(&registry.name, format!("bad upload location: {e}")));
+            .map_err(|e| BundleError::fetch_context(&registry.name, "bad upload location", e));
     }
     let base = registry.url("")?;
     base.join(location)
-        .map_err(|e| BundleError::fetch(&registry.name, format!("bad upload location: {e}")))
+        .map_err(|e| BundleError::fetch_context(&registry.name, "bad upload location", e))
 }
 
 async fn put_manifest(registry: &RegistryClient, manifest: &OciManifest) -> BundleResult<String> {
     let body = serde_json::to_vec(manifest)
-        .map_err(|e| BundleError::policy(format!("manifest is not serialisable: {e}")))?;
+        .map_err(|e| BundleError::policy_context("manifest is not serialisable", e))?;
     let digest = format!("sha256:{}", hex::encode(Sha256::digest(&body)));
     let url = registry.url(&format!("/manifests/{}", registry.manifest_ref()))?;
 

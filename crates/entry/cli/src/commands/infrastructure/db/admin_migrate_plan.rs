@@ -3,10 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result};
 use systemprompt_database::MigrationService;
 use systemprompt_database::services::DatabaseProvider;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -18,7 +19,7 @@ use super::types::{MigratePlanOutput, PendingMigrationInfo};
 
 pub(super) async fn execute_migrate_plan(
     ctx: &AppContext,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -29,7 +30,7 @@ pub(super) async fn execute_migrate_plan(
 
 pub(super) async fn execute_migrate_plan_standalone(
     db_ctx: &DatabaseContext,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -41,7 +42,7 @@ pub(super) async fn execute_migrate_plan_standalone(
 async fn run_migrate_plan(
     db: &dyn DatabaseProvider,
     registry: &ExtensionRegistry,
-    extension: Option<&str>,
+    extension: Option<&ExtensionId>,
     json: bool,
     config: &CliConfig,
 ) -> Result<()> {
@@ -53,10 +54,10 @@ async fn run_migrate_plan(
         let pending = migration_service
             .plan_pending(ext.as_ref())
             .await
-            .map_err(|e| anyhow!("Failed to plan migrations: {}", e))?;
+            .context("Failed to plan migrations")?;
         for p in pending {
             pending_rows.push(PendingMigrationInfo {
-                extension_id: p.extension_id,
+                extension_id: ExtensionId::new(p.extension_id),
                 version: p.version,
                 name: p.name,
                 checksum: p.checksum,

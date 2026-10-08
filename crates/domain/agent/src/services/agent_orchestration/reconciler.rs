@@ -1,15 +1,16 @@
 //! Reconciliation of recorded agent state against the actual process table.
 //!
 //! [`AgentReconciler`] detects drift — agents marked running whose process has
-//! died, and orphaned processes — produces a [`ConsistencyReport`], and repairs
-//! the discrepancies by marking affected agents failed.
+//! died — produces a [`ConsistencyReport`], and repairs the discrepancies by
+//! marking affected agents failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::repository::agent_service::AgentServiceRepository;
+use crate::services::agent_orchestration::OrchestrationResult;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::{OrchestrationResult, process};
+use systemprompt_identifiers::AgentName;
 
 #[derive(Debug)]
 pub struct AgentReconciler {
@@ -34,16 +35,16 @@ impl AgentReconciler {
         let all_agents = self.db_service.list_all_agents().await?;
         let mut reconciled = 0;
 
-        for (agent_id, status) in all_agents {
+        for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
-                    if !process::process_exists(pid) {
+                    if !systemprompt_loader::subprocess::is_running(pid).await {
                         tracing::warn!(
-                            agent_id = %agent_id,
+                            agent_name = %agent_name,
                             pid = %pid,
                             "Agent marked as running but process not found - marking as failed"
                         );
-                        self.db_service.mark_failed(&agent_id).await?;
+                        self.db_service.mark_failed(&agent_name).await?;
                         reconciled += 1;
                     }
                 },
@@ -66,43 +67,23 @@ impl AgentReconciler {
         let mut report = ConsistencyReport::new();
         let all_agents = self.db_service.list_all_agents().await?;
 
-        for (agent_id, status) in all_agents {
+        for (agent_name, status) in all_agents {
             match status {
                 crate::services::agent_orchestration::AgentStatus::Running { pid, .. } => {
-                    if process::process_exists(pid) {
-                        report.consistent_running.push(agent_id);
+                    if systemprompt_loader::subprocess::is_running(pid).await {
+                        report.consistent_running.push(agent_name);
                     } else {
-                        report.inconsistent_running.push((agent_id, pid));
+                        report.inconsistent_running.push((agent_name, pid));
                     }
                 },
                 crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
-                    report.failed.push(agent_id);
+                    report.failed.push(agent_name);
                 },
             }
         }
 
-        self.find_orphaned_processes(&mut report).await?;
-
         report.log_summary();
         Ok(report)
-    }
-
-    async fn find_orphaned_processes(
-        &self,
-        report: &mut ConsistencyReport,
-    ) -> OrchestrationResult<()> {
-        let running_pids = self.db_service.list_running_agents().await?;
-
-        for agent_id in running_pids {
-            let status = self.db_service.get_status(&agent_id).await?;
-            if let crate::services::agent_orchestration::AgentStatus::Running { pid, .. } = status
-                && !process::process_exists(pid)
-            {
-                report.orphaned_processes.push((agent_id, pid));
-            }
-        }
-
-        Ok(())
     }
 
     pub async fn fix_inconsistencies(
@@ -111,15 +92,9 @@ impl AgentReconciler {
     ) -> OrchestrationResult<u32> {
         let mut fixed = 0;
 
-        for (agent_id, pid) in &report.inconsistent_running {
-            tracing::warn!(agent_id = %agent_id, pid = %pid, "Fixing inconsistent agent");
-            self.db_service.mark_failed(agent_id).await?;
-            fixed += 1;
-        }
-
-        for (agent_id, pid) in &report.orphaned_processes {
-            tracing::warn!(agent_id = %agent_id, pid = %pid, "Cleaning up orphaned process for agent");
-            self.db_service.mark_failed(agent_id).await?;
+        for (agent_name, pid) in &report.inconsistent_running {
+            tracing::warn!(agent_name = %agent_name, pid = %pid, "Fixing inconsistent agent");
+            self.db_service.mark_failed(agent_name).await?;
             fixed += 1;
         }
 
@@ -133,10 +108,9 @@ impl AgentReconciler {
 
 #[derive(Debug)]
 pub struct ConsistencyReport {
-    pub consistent_running: Vec<String>,
-    pub inconsistent_running: Vec<(String, u32)>,
-    pub failed: Vec<String>,
-    pub orphaned_processes: Vec<(String, u32)>,
+    pub consistent_running: Vec<AgentName>,
+    pub inconsistent_running: Vec<(AgentName, u32)>,
+    pub failed: Vec<AgentName>,
 }
 
 impl Default for ConsistencyReport {
@@ -151,12 +125,11 @@ impl ConsistencyReport {
             consistent_running: Vec::new(),
             inconsistent_running: Vec::new(),
             failed: Vec::new(),
-            orphaned_processes: Vec::new(),
         }
     }
 
     pub const fn has_inconsistencies(&self) -> bool {
-        !self.inconsistent_running.is_empty() || !self.orphaned_processes.is_empty()
+        !self.inconsistent_running.is_empty()
     }
 
     pub const fn total_agents(&self) -> usize {
@@ -168,7 +141,6 @@ impl ConsistencyReport {
             consistent_running = %self.consistent_running.len(),
             inconsistent_running = %self.inconsistent_running.len(),
             failed = %self.failed.len(),
-            orphaned_processes = %self.orphaned_processes.len(),
             "Consistency check results"
         );
 

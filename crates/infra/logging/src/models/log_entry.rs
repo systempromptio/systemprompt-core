@@ -58,6 +58,7 @@ pub struct LogEntry {
     pub level: LogLevel,
     pub module: String,
     pub message: String,
+    // JSON: JSONB log `metadata` column — structured tracing fields, open-shaped.
     pub metadata: Option<serde_json::Value>,
     pub user_id: UserId,
     pub session_id: SessionId,
@@ -93,6 +94,7 @@ impl LogEntry {
     }
 
     #[must_use]
+    // JSON: JSONB log `metadata` column — structured tracing fields, open-shaped.
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.metadata = Some(metadata);
         self

@@ -9,7 +9,7 @@ use systemprompt_api::routes::gateway::bridge_data::load_services_config;
 use systemprompt_api::routes::gateway::bridge_plugin_file::{content_type, relative_path_is_safe};
 use systemprompt_api::routes::gateway::gateway_router;
 use systemprompt_database::DbPool;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential};
+use systemprompt_test_fixtures::{install_test_signing_key, seed_bridge_credential, test_db_pool};
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
@@ -17,12 +17,7 @@ use super::common::setup_ctx;
 async fn router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
-    Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 fn authed_get(uri: &str, token: &str) -> Request<Body> {
@@ -129,8 +124,8 @@ pub(crate) fn seed_plugin_tree() {
 pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)> {
     let b = systemprompt_test_fixtures::ensure_test_bootstrap();
     seed_plugin_tree();
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;
-    let paths = systemprompt_models::profile::PathsConfig {
+    let pool = test_db_pool().await;
+    let paths = systemprompt_manifest::profile::PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
         bin: b.bin_path.to_string_lossy().into_owned(),
@@ -145,12 +140,7 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
         std::sync::Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
     install_test_signing_key();
-    Ok((
-        gateway_router(&ctx)
-            .expect("gateway journal opens")
-            .expect("gateway router"),
-        pool,
-    ))
+    Ok((gateway_router(&ctx).expect("gateway router builds"), pool))
 }
 
 #[tokio::test]

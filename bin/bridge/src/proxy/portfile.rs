@@ -49,8 +49,12 @@ pub fn read(ours: &InstallId) -> std::io::Result<Option<PortRecord>> {
     let Some(body) = crate::fsutil::read_optional(&path)? else {
         return Ok(None);
     };
-    let record: PortRecord = serde_json::from_str(&body)
-        .map_err(|e| std::io::Error::other(format!("parse {}: {e}", path.display())))?;
+    let record: PortRecord = serde_json::from_str(&body).map_err(|source| {
+        std::io::Error::other(PortRecordParseError {
+            path: path.clone(),
+            source,
+        })
+    })?;
     if record.schema != SCHEMA {
         return Err(std::io::Error::other(format!(
             "{}: unsupported port record schema {}",
@@ -102,4 +106,12 @@ pub fn clear(ours: &InstallId) -> std::io::Result<()> {
         crate::fsutil::remove_verified(&path)?;
     }
     Ok(())
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("parse {}: {source}", path.display())]
+struct PortRecordParseError {
+    path: PathBuf,
+    #[source]
+    source: serde_json::Error,
 }

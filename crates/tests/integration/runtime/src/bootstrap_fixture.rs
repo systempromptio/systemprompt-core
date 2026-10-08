@@ -20,7 +20,7 @@ fn bootstrap_initialises_all_globals() {
     let secrets = systemprompt_config::SecretsBootstrap::get().expect("secrets initialised");
     assert!(!secrets.database_url.is_empty());
 
-    let cfg = systemprompt_models::Config::get().expect("config initialised");
+    let cfg = systemprompt_manifest::Config::get().expect("config initialised");
     assert_eq!(cfg.system_admin_username, "testadmin");
     assert_eq!(cfg.sitename, "testsite");
 

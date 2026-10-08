@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use futures::{StreamExt, stream};
-use std::any::Any;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -14,12 +13,13 @@ use systemprompt_ai::models::tools::{McpTool, ToolCall};
 use systemprompt_ai::services::providers::anthropic::AnthropicProvider;
 use systemprompt_ai::services::providers::resilient_provider::ResilientProvider;
 use systemprompt_ai::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, StructuredGenerationParams,
-    ToolGenerationParams, ToolResultsParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams,
+    StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 use systemprompt_ai::services::schema::ProviderCapabilities;
-use systemprompt_identifiers::McpServerId;
-use systemprompt_models::services::{ResilienceSettings, WireProtocol};
+use systemprompt_identifiers::{AiRequestId, McpServerId};
+use systemprompt_manifest::services::ResilienceSettings;
+use systemprompt_wire::WireProtocol;
 
 fn settings() -> ResilienceSettings {
     ResilienceSettings::default()
@@ -41,7 +41,7 @@ async fn delegates_generate_to_inner() {
             .await;
     let inner = anthropic(&server.uri()).with_models(mock_http::seed_models("anthropic"));
     let s = settings();
-    let resilient: Arc<dyn AiProvider> =
+    let resilient: Arc<dyn ProviderClient> =
         Arc::new(ResilientProvider::new("anthropic", Arc::new(inner), &s));
 
     let messages = vec![AiMessage::user("hi")];
@@ -68,7 +68,6 @@ async fn delegates_metadata() {
     let _ = r.supports_structured_output();
     let _ = r.supports_google_search();
     let _ = r.supports_sampling(None);
-    let _ = r.as_any();
 }
 
 #[tokio::test]
@@ -311,12 +310,9 @@ struct SequencedStreamProvider {
 }
 
 #[async_trait]
-impl AiProvider for SequencedStreamProvider {
+impl ProviderClient for SequencedStreamProvider {
     fn name(&self) -> &str {
         "sequenced"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
     fn capabilities(&self) -> ProviderCapabilities {
         ProviderCapabilities::anthropic()
@@ -338,18 +334,36 @@ impl AiProvider for SequencedStreamProvider {
     }
 
     async fn generate(&self, _: GenerationParams<'_>) -> Result<AiResponse> {
-        Ok(AiResponse::default())
+        Ok(AiResponse::new(
+            AiRequestId::generate(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ))
     }
 
     async fn generate_with_tools(
         &self,
         _: ToolGenerationParams<'_>,
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        Ok((AiResponse::default(), Vec::new()))
+        Ok((
+            AiResponse::new(
+                AiRequestId::generate(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ),
+            Vec::new(),
+        ))
     }
 
     async fn generate_with_schema(&self, _: SchemaGenerationParams<'_>) -> Result<AiResponse> {
-        Ok(AiResponse::default())
+        Ok(AiResponse::new(
+            AiRequestId::generate(),
+            String::new(),
+            String::new(),
+            String::new(),
+        ))
     }
 
     async fn generate_stream(

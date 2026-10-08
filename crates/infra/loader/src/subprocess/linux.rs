@@ -7,6 +7,8 @@
 use std::process::Command;
 use std::time::Duration;
 
+use systemprompt_identifiers::ServiceName;
+
 #[expect(
     unsafe_code,
     reason = "std::os::unix::process::CommandExt::pre_exec is an unsafe fn; there is no safe way \
@@ -40,7 +42,13 @@ const IDENTITY_ATTEMPTS: u32 = 20;
 const IDENTITY_RETRY: Duration = Duration::from_millis(5);
 
 #[must_use]
-pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> bool {
+pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &ServiceName) -> bool {
+    live_environ(pid).is_some_and(|environ| {
+        systemprompt_models::subprocess::environ_identifies_child(&environ, name_key, service_name)
+    })
+}
+
+pub(super) fn live_environ(pid: u32) -> Option<Vec<u8>> {
     // Why: inside execve a process's `/proc/<pid>/environ` is briefly empty or
     // unreadable. Reading that as "not ours" made callers skip the signal and
     // report a stop they never made, so a live process whose environment is
@@ -50,23 +58,17 @@ pub fn live_pid_is_subprocess(pid: u32, name_key: &str, service_name: &str) -> b
     for attempt in 1..=IDENTITY_ATTEMPTS {
         let settling = attempt < IDENTITY_ATTEMPTS && process_present(pid) && !is_zombie(pid);
         match std::fs::read(format!("/proc/{pid}/environ")) {
-            Ok(environ) if !environ.is_empty() => {
-                return systemprompt_models::subprocess::environ_identifies_child(
-                    &environ,
-                    name_key,
-                    service_name,
-                );
-            },
-            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return false,
+            Ok(environ) if !environ.is_empty() => return Some(environ),
+            Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => return None,
             Ok(_) | Err(_) if settling => std::thread::sleep(IDENTITY_RETRY),
-            Ok(_) => return false,
+            Ok(_) => return None,
             Err(e) => {
                 tracing::warn!(pid, error = %e, "Could not read process environ to verify child identity");
-                return false;
+                return None;
             },
         }
     }
-    false
+    None
 }
 
 fn process_present(pid: u32) -> bool {

@@ -8,7 +8,7 @@
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{CostAnalyticsRepository, RequestAnalyticsRepository};
 use systemprompt_identifiers::UserId;
-use systemprompt_test_fixtures::db_pool_or_skip;
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 const TOKENS_USED: i32 = 9_999;
@@ -20,8 +20,8 @@ const CACHE_CREATION: i32 = 30;
 
 #[tokio::test]
 async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
-    let (db, _url) = db_pool_or_skip!();
-    let pool = db.pool_arc().expect("write pool");
+    let db = test_db_pool().await;
+    let pool = db.pool();
 
     let nonce = Uuid::new_v4().simple().to_string();
     let user_id = UserId::new(format!("user-{nonce}"));
@@ -61,7 +61,7 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
     let start = created_at - Duration::seconds(1);
     let end = created_at + Duration::seconds(1);
 
-    let costs = CostAnalyticsRepository::new(&db).expect("cost repository");
+    let costs = CostAnalyticsRepository::new(&db);
     let summary = costs
         .get_summary_for_user(&user_id, start, end)
         .await
@@ -80,7 +80,7 @@ async fn summary_and_stats_report_reasoning_and_keep_tokens_used_intact() {
         Some(i64::from(CACHE_CREATION))
     );
 
-    let requests = RequestAnalyticsRepository::new(&db).expect("request repository");
+    let requests = RequestAnalyticsRepository::new(&db);
     let stats = requests
         .get_stats(start, end, Some("gpt-test"))
         .await

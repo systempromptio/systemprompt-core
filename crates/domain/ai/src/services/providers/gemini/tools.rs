@@ -12,11 +12,11 @@ use std::time::Instant;
 
 use rmcp::model::ContentBlock;
 use serde_json::Value;
-use systemprompt_models::wire::canonical::{
+use systemprompt_identifiers::AiRequestId;
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalToolChoice, Role, SearchConfig,
 };
-use systemprompt_models::wire::gemini;
-use uuid::Uuid;
+use systemprompt_wire::gemini;
 
 use crate::error::Result;
 use crate::models::ai::AiResponse;
@@ -34,7 +34,7 @@ pub(super) async fn generate_with_tools(
     params: ToolRequestParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let mut mapper = ToolNameMapper::new();
     let canonical_tools = convert_tools(&mut mapper, params.tools.to_vec())?;
     let has_tools = !canonical_tools.is_empty();
@@ -75,7 +75,7 @@ pub(super) async fn generate_with_tool_results(
     params: ToolResultParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
-    let request_id = Uuid::new_v4();
+    let request_id = AiRequestId::generate();
     let mut canonical = CanonicalBuild::new(
         BridgeProvider::Gemini,
         params.conversation_history,
@@ -149,6 +149,7 @@ fn tool_result_content(result: &CallToolResult) -> Vec<CanonicalContent> {
         .collect()
 }
 
+// JSON: MCP result `_meta` — the spec types it as an open object.
 fn tool_result_meta(result: &CallToolResult) -> Option<Value> {
     result
         .meta

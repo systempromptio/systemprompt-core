@@ -8,12 +8,13 @@
 use std::time::Duration;
 
 use futures::StreamExt;
+use systemprompt_ai::error::AiError;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::ai::StreamChunk;
 
-use super::{pool_or_skip, seeded_context, service};
+use super::{bootstrapped_pool, seeded_context, service};
 use crate::services::providers::mock_http;
 
 const ANTHROPIC: &str = "anthropic";
@@ -53,10 +54,7 @@ async fn truncated_sse_server() -> (String, OwnedSseServer) {
         .expect("bind owned truncated-SSE server");
     let address = listener.local_addr().expect("owned server address");
     let task = tokio::spawn(async move {
-        let (mut socket, _) = tokio::time::timeout(Duration::from_secs(10), listener.accept())
-            .await
-            .expect("provider request arrives")
-            .expect("accept provider request");
+        let (mut socket, _) = listener.accept().await.expect("accept provider request");
         let mut request = Vec::new();
         let header_end = tokio::time::timeout(Duration::from_secs(10), async {
             loop {
@@ -142,7 +140,7 @@ fn request(context: systemprompt_models::RequestContext) -> AiRequest {
 }
 
 async fn wait_for_audit(pool: &DbPool, user_id: &UserId, status: &str) -> i64 {
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let mut count = 0_i64;
     for _ in 0..100 {
         count = sqlx::query_scalar!(
@@ -164,9 +162,7 @@ async fn wait_for_audit(pool: &DbPool, user_id: &UserId, status: &str) -> i64 {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -201,7 +197,7 @@ async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
         "SELECT output_tokens FROM ai_requests WHERE user_id = $1",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap();
     assert_eq!(
@@ -213,9 +209,7 @@ async fn a_completed_stream_audits_once_with_the_accumulated_text_and_usage() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usage() {
-    let pool = pool_or_skip()
-        .await
-        .expect("AI stream audit database fixture");
+    let pool = bootstrapped_pool().await;
     let (endpoint, mut provider) = truncated_sse_server().await;
     let svc = service(&pool, ANTHROPIC, endpoint);
     let (user, context) = seeded_context(&pool).await;
@@ -243,7 +237,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
     assert_eq!(text, "partial");
     let diagnosis = error.to_string();
     assert!(
-        diagnosis.contains("Stream error:") && diagnosis.contains("body"),
+        matches!(error, AiError::Stream(_)) && diagnosis.contains("body"),
         "transport truncation retains the response-body diagnosis: {diagnosis}"
     );
     drop(stream);
@@ -269,7 +263,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
          FROM ai_requests WHERE user_id=$1",
     )
     .bind(user.as_str())
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("failed stream audit row");
     assert_eq!(row.0, "failed");
@@ -287,7 +281,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
          WHERE r.user_id=$1 AND m.role='assistant'",
     )
     .bind(user.as_str())
-    .fetch_one(pool.pool_arc().expect("read pool").as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .expect("count assistant messages");
     assert_eq!(
@@ -298,9 +292,7 @@ async fn a_truncated_stream_surfaces_the_error_and_persists_failed_zero_cost_usa
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_tooled_stream_wrapper_audits_on_the_same_terms() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -326,9 +318,7 @@ async fn the_tooled_stream_wrapper_audits_on_the_same_terms() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_stream_dropped_before_completion_does_not_audit_a_completion() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(COMPLETE_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;
@@ -348,7 +338,7 @@ async fn a_stream_dropped_before_completion_does_not_audit_a_completion() {
         "SELECT COUNT(*) FROM ai_requests WHERE user_id = $1 AND status = 'completed'",
         user.as_str()
     )
-    .fetch_one(pool.pool_arc().unwrap().as_ref())
+    .fetch_one(pool.pool().as_ref())
     .await
     .unwrap()
     .unwrap_or(0);
@@ -366,9 +356,7 @@ const NOISY_SSE: &str = ": keepalive\n\nevent: message_start\ndata: {\"type\":\"
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sse_framing_noise_is_skipped_without_breaking_the_stream() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let server = mock_http::anthropic_messages_stream(NOISY_SSE).await;
     let svc = service(&pool, ANTHROPIC, server.uri());
     let (user, context) = seeded_context(&pool).await;

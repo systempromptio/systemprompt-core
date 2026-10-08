@@ -18,9 +18,7 @@ use systemprompt_content::models::CreateContentParams;
 use systemprompt_database::DbPool;
 use systemprompt_generator::generate_sitemap;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 // Serialises this module's tests so each one can write the shared
 // `web/config.yaml` + `content/config.yaml`, run the generator, and read back
@@ -174,13 +172,8 @@ fn install_config(boot: &TestBootstrap) {
     fs::create_dir_all(boot.app_paths.web().dist()).ok();
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 async fn seed_two_locale_post(db: &DbPool) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
 
     repo.delete_by_source(&source_id)
@@ -202,7 +195,7 @@ async fn seed_two_locale_post(db: &DbPool) {
 }
 
 async fn cleanup(db: &DbPool) {
-    let repo = ContentRepository::new(db).expect("content repository");
+    let repo = ContentRepository::new(db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     let _ = repo.delete_by_source(&source_id).await;
 }
@@ -211,9 +204,7 @@ async fn cleanup(db: &DbPool) {
 async fn generate_sitemap_emits_per_slug_urls_with_hreflang_alternates() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     seed_two_locale_post(&db).await;
     install_config(boot);
@@ -265,9 +256,7 @@ async fn generate_sitemap_emits_per_slug_urls_with_hreflang_alternates() {
 async fn generate_sitemap_emits_parent_route_urls_for_each_locale() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     seed_two_locale_post(&db).await;
     install_config(boot);
@@ -306,11 +295,9 @@ async fn generate_sitemap_emits_parent_route_urls_for_each_locale() {
 async fn generate_sitemap_excludes_non_public_rows() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let source_id = SourceId::new(TEST_SOURCE_ID);
     repo.delete_by_source(&source_id)
         .await
@@ -350,5 +337,5 @@ async fn generate_sitemap_excludes_non_public_rows() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
 }

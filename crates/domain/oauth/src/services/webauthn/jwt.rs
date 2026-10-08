@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::TokenValidator;
-use systemprompt_models::auth::{AuthError, AuthenticatedUser, JwtAudience};
-use uuid::Uuid;
+use crate::error::OauthError;
+use systemprompt_identifiers::UserId;
+use systemprompt_models::auth::{AuthRequestError, AuthenticatedUser, JwtAudience};
 
 use crate::services::validation::jwt;
 
@@ -20,11 +21,13 @@ impl JwtTokenValidator {
         Self { issuer, audiences }
     }
 
-    pub fn from_config() -> Result<Self, AuthError> {
-        let config =
-            systemprompt_models::Config::get().map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("Failed to get config: {e}"),
-            })?;
+    pub fn from_config() -> Result<Self, AuthRequestError> {
+        let config = systemprompt_manifest::Config::get().map_err(|error| {
+            tracing::error!(%error, "JWT validator could not read the configuration");
+            AuthRequestError::AuthenticationFailed {
+                message: "token validator is not configured".to_owned(),
+            }
+        })?;
         Ok(Self {
             issuer: config.jwt_issuer.clone(),
             audiences: config.jwt_audiences.clone(),
@@ -38,18 +41,22 @@ impl TokenValidator for JwtTokenValidator {
         reason = "async signature required by the TokenValidator trait; this \
                   validator decodes the JWT synchronously"
     )]
-    async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError> {
+    async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthRequestError> {
         let claims =
-            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|e| {
-                AuthError::AuthenticationFailed {
-                    message: format!("JWT validation failed: {e}"),
+            jwt::validate_jwt_token(token, &self.issuer, &self.audiences).map_err(|error| {
+                match error {
+                    OauthError::Expired(_) => AuthRequestError::TokenExpired,
+                    other => {
+                        tracing::debug!(error = %other, "JWT validation failed");
+                        AuthRequestError::AuthenticationFailed {
+                            message: "JWT validation failed".to_owned(),
+                        }
+                    },
                 }
             })?;
 
-        let user_id =
-            Uuid::parse_str(&claims.sub).map_err(|e| AuthError::AuthenticationFailed {
-                message: format!("Invalid user ID in token: {e}"),
-            })?;
+        let user_id = UserId::try_new(claims.sub.as_str())
+            .map_err(|_invalid| AuthRequestError::InvalidTokenFormat)?;
 
         let permissions = claims.get_permissions();
         let roles = claims.roles().to_vec();

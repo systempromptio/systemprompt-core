@@ -14,9 +14,19 @@ use toml_edit::{DocumentMut, Item, Value};
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigWriteError {
     #[error(
-        "gateway changed while signing trust was being established: {0}; retry against the current gateway"
+        "gateway changed while signing trust was being established: expected {expected}, \
+         configured {configured}; retry against the current gateway"
     )]
-    GatewayChanged(String),
+    GatewayChanged {
+        expected: String,
+        configured: String,
+    },
+    #[error("configured gateway {configured} cannot anchor signing trust: {source}")]
+    GatewayUnparseable {
+        configured: String,
+        #[source]
+        source: Box<super::TrustError>,
+    },
     #[error("config path unresolvable on this platform")]
     PathUnresolvable,
     #[error("config key {key}: expected a nonempty path through TOML tables")]

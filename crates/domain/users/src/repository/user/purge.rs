@@ -7,10 +7,12 @@
 //! [`systemprompt_extension::purge`] registry and the delete runs them here,
 //! inside the same transaction that deletes the `users` row. Content
 //! the user's rows referenced but did not own — an artifact body shared by
-//! digest — is declared as an orphan sweep and cleared once the user-keyed
-//! tables are gone, in the same transaction. The same lists, counted instead
-//! of deleted, are the dry-run report: what a deletion would remove, table by
-//! table — and, run against a user who no longer exists, an orphan report.
+//! digest — is declared as an orphan sweep: the keys the user's rows reference
+//! are captured first, and once the user-keyed tables are gone only those keys
+//! that nothing references any more are cleared, in the same transaction. The
+//! same lists, counted instead of deleted, are the dry-run report: what a
+//! deletion would remove, table by table — and, run against a user who no
+//! longer exists, an orphan report.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -69,9 +71,12 @@ pub struct PurgeCount {
     pub rows: i64,
 }
 
-fn identifier(kind: &str, raw: &str) -> Result<SafeIdentifier> {
-    SafeIdentifier::parse(raw)
-        .map_err(|e| UserError::Validation(format!("purge {kind} {raw}: {e}")))
+fn identifier(kind: &'static str, raw: &str) -> Result<SafeIdentifier> {
+    SafeIdentifier::parse(raw).map_err(|source| UserError::PurgeIdentifier {
+        kind,
+        name: raw.to_owned(),
+        source,
+    })
 }
 
 // Why: the predicate is a fixed fragment from a crate's registration, never
@@ -94,8 +99,8 @@ fn predicate(entry: &UserPurgeTable) -> Result<String> {
 fn purge_where(entry: &UserPurgeTable) -> Result<String> {
     let table = identifier("table", entry.table)?;
     let column = identifier("column", entry.column)?;
-    // Why: `$1::text` comparison — one purge table keys on a uuid column and
-    // a text bind would not coerce.
+    // Why: `::text` comparison — purge tables key on TEXT and VARCHAR
+    // columns, and the cast keeps one text bind valid for every one of them.
     Ok(format!(
         "FROM {} WHERE {}::text = $1{}",
         table.quoted(),
@@ -105,6 +110,7 @@ fn purge_where(entry: &UserPurgeTable) -> Result<String> {
 }
 
 struct SweepSql {
+    candidates: String,
     delete: String,
     preview: String,
 }
@@ -117,7 +123,13 @@ fn sweep_sql(sweep: &OrphanSweep) -> Result<SweepSql> {
     let user = identifier("sweep user column", sweep.user_column)?.quoted();
     let referrer = format!("SELECT 1 FROM {referenced_by} r WHERE r.{via} = t.{key}");
     Ok(SweepSql {
-        delete: format!("DELETE FROM {table} t WHERE NOT EXISTS ({referrer})"),
+        candidates: format!(
+            "SELECT DISTINCT r.{via}::text FROM {referenced_by} r \
+             WHERE r.{user}::text = $1 AND r.{via} IS NOT NULL"
+        ),
+        delete: format!(
+            "DELETE FROM {table} t WHERE t.{key}::text = ANY($1) AND NOT EXISTS ({referrer})"
+        ),
         preview: format!(
             "SELECT COUNT(*) FROM {table} t \
              WHERE EXISTS ({referrer} AND r.{user}::text = $1) \
@@ -131,6 +143,15 @@ impl UserRepository {
         tx: &mut Transaction<'_, Postgres>,
         id: &UserId,
     ) -> Result<Vec<PurgeCount>> {
+        let mut sweeps = Vec::new();
+        for sweep in registered_orphan_sweeps() {
+            let sql = sweep_sql(sweep)?;
+            let keys: Vec<String> = sqlx::query_scalar(AssertSqlSafe(sql.candidates))
+                .bind(id.as_str())
+                .fetch_all(&mut **tx)
+                .await?;
+            sweeps.push((sweep, sql.delete, keys));
+        }
         let mut removed = Vec::new();
         for entry in registered_user_purge_tables() {
             let sql = format!("DELETE {}", purge_where(entry)?);
@@ -144,8 +165,9 @@ impl UserRepository {
                 rows: i64::try_from(result.rows_affected()).unwrap_or(i64::MAX),
             });
         }
-        for sweep in registered_orphan_sweeps() {
-            let result = sqlx::query(AssertSqlSafe(sweep_sql(sweep)?.delete))
+        for (sweep, delete, keys) in sweeps {
+            let result = sqlx::query(AssertSqlSafe(delete))
+                .bind(keys)
                 .execute(&mut **tx)
                 .await?;
             removed.push(PurgeCount {

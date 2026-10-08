@@ -11,9 +11,10 @@
 //! - A [`JobExecutionService`] that runs jobs on demand outside the cron loop
 //!   and records each run.
 //! - Process- and database-level service reconciliation primitives
-//!   ([`ProcessCleanup`], [`ServiceReconciler`], [`ServiceStateVerifier`]),
-//!   plus pure start/restart planning ([`StartupPlan`], [`RestartPlan`]) for
-//!   composition roots.
+//!   ([`ServiceReconciler`], [`ServiceStateVerifier`], and the marker-verified
+//!   stops in [`services::orchestration::supervision`]), plus pure
+//!   start/restart planning ([`StartupPlan`], [`RestartPlan`]) for composition
+//!   roots.
 //!
 //! # Public error surface
 //!
@@ -33,9 +34,8 @@
 //! # Feature flags
 //!
 //! This crate has no Cargo feature gates of its own — all functionality is
-//! always compiled. Conditional compilation is limited to platform-specific
-//! `#[cfg(unix)]` / `#[cfg(windows)]` shims inside
-//! [`services::orchestration::ProcessCleanup`].
+//! always compiled. It has no platform-specific code: process and port
+//! supervision is [`systemprompt_loader::subprocess`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,21 +52,23 @@ pub use error::{SchedulerError, SchedulerResult};
 pub use extension::SchedulerExtension;
 
 pub use jobs::otlp_export::{
-    ExportReport as OtlpExportReport, OtlpExportState, OtlpExportStateRepository,
-    SignalReport as OtlpSignalReport, export_now as otlp_export_now,
+    ExportReport as OtlpExportReport, SignalReport as OtlpSignalReport,
+    export_now as otlp_export_now,
 };
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
     GhostSessionCleanupJob, MaliciousIpBlacklistJob, NoJsCleanupJob, OtlpExportJob,
+    UsageAnomalyScanJob,
 };
 pub use models::{JobConfig, JobRunRecord, JobStatus, ScheduledJob, SchedulerConfig, SkippedJob};
+pub use repository::otlp::{OtlpExportState, OtlpExportStateRepository};
 pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
-    DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService, JobRunReport,
-    JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ProcessCleanup,
-    ProcessInfo, ReconciliationResult, RestartPlan, RestartScope, RestartTarget, RuntimeStatus,
-    SchedulerHandle, SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig,
-    ServiceManagementService, ServiceReconciler, ServiceSnapshot, ServiceStateVerifier,
-    ServiceType, StartupPlan, StartupRequest, VerifiedServiceState, parse_job_parameters,
-    unknown_job_names,
+    ApiListenerStop, DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService,
+    JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome,
+    ReconciliationResult, RestartPlan, RestartScope, RestartTarget, RuntimeStatus, SchedulerHandle,
+    SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
+    ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
+    StartupRequest, VerifiedServiceState, child_kind, parse_job_parameters, port_holders,
+    stop_api_listeners, stop_owned_port_holders, unknown_job_names, wait_for_port_free,
 };

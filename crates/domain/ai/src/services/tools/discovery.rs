@@ -9,7 +9,7 @@
 
 use crate::error::{AiError, Result};
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, McpToolName};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{ToolDefinition, ToolProvider};
 
@@ -65,7 +65,7 @@ impl ToolDiscovery {
     pub async fn find_tool_for_agent(
         &self,
         agent_name: &AgentName,
-        tool_name: &str,
+        tool_name: &McpToolName,
         context: &RequestContext,
     ) -> Result<Option<McpTool>> {
         let tool_context = request_context_to_tool_context(context);

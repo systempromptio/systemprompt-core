@@ -18,6 +18,7 @@ use std::collections::BTreeSet;
 
 use serde::Serialize;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
 
 use crate::services::DatabaseProvider;
 
@@ -30,7 +31,7 @@ pub struct UndeclaredTable {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct OrphanMigrationLedger {
-    pub extension_id: String,
+    pub extension_id: ExtensionId,
     pub rows: i64,
 }
 
@@ -50,7 +51,7 @@ impl SchemaResidue {
 pub async fn audit_schema_residue(
     db: &dyn DatabaseProvider,
     owned: &[String],
-    extension_ids: &[String],
+    extension_ids: &[ExtensionId],
 ) -> Result<SchemaResidue, LoaderError> {
     let declared: BTreeSet<String> = owned.iter().map(|t| qualify(t)).collect();
     let namespaces: BTreeSet<String> = declared
@@ -68,9 +69,9 @@ pub async fn audit_schema_residue(
             });
         }
     }
-    let registered: BTreeSet<&str> = extension_ids.iter().map(String::as_str).collect();
+    let registered: BTreeSet<&ExtensionId> = extension_ids.iter().collect();
     for (extension_id, rows) in migration_ledgers(db).await? {
-        if !registered.contains(extension_id.as_str()) {
+        if !registered.contains(&extension_id) {
             residue
                 .orphan_migration_ledgers
                 .push(OrphanMigrationLedger { extension_id, rows });
@@ -81,6 +82,7 @@ pub async fn audit_schema_residue(
 
 // Why: a bigint reaches the JSON row as a number or, past 2^53, as a
 // string; both spellings are a count.
+// JSON: `DatabaseProvider` runtime row cell — catalog queries return JSON rows.
 fn as_count(value: &serde_json::Value) -> i64 {
     value
         .as_i64()
@@ -115,9 +117,10 @@ async fn live_tables(db: &dyn DatabaseProvider) -> Result<Vec<(String, String, i
             &[],
         )
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: "schema-residue".to_owned(),
-            message: format!("could not list live tables: {e}"),
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
+            extension: ExtensionId::new("schema-residue"),
+            context: "could not list live tables".to_owned(),
+            source: Box::new(e),
         })?;
     Ok(result
         .rows
@@ -131,7 +134,9 @@ async fn live_tables(db: &dyn DatabaseProvider) -> Result<Vec<(String, String, i
         .collect())
 }
 
-async fn migration_ledgers(db: &dyn DatabaseProvider) -> Result<Vec<(String, i64)>, LoaderError> {
+async fn migration_ledgers(
+    db: &dyn DatabaseProvider,
+) -> Result<Vec<(ExtensionId, i64)>, LoaderError> {
     let result = db
         .query_raw_with(
             &"SELECT extension_id, COUNT(*)::bigint AS rows \
@@ -139,15 +144,16 @@ async fn migration_ledgers(db: &dyn DatabaseProvider) -> Result<Vec<(String, i64
             &[],
         )
         .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: "schema-residue".to_owned(),
-            message: format!("could not read extension_migrations: {e}"),
+        .map_err(|e| LoaderError::SchemaInstallationStepFailed {
+            extension: ExtensionId::new("schema-residue"),
+            context: "could not read extension_migrations".to_owned(),
+            source: Box::new(e),
         })?;
     Ok(result
         .rows
         .iter()
         .filter_map(|row| {
-            let id = row.get("extension_id")?.as_str()?.to_owned();
+            let id = ExtensionId::new(row.get("extension_id")?.as_str()?);
             Some((id, row.get("rows").map_or(0, as_count)))
         })
         .collect())

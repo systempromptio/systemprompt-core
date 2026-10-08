@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::net::AGENT_READINESS_TCP_TIMEOUT;
 
 use super::AgentLifecycle;
@@ -13,35 +14,36 @@ use crate::services::agent_orchestration::{
 };
 
 impl AgentLifecycle {
-    pub async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {
+    pub async fn validate_prerequisites(
+        &self,
+        agent_name: &AgentName,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         use super::super::port_service::PortService;
 
-        let port_service = PortService::new();
-
         if process::is_port_in_use(port) {
-            match port_service.cleanup_port_if_needed(port).await {
-                Ok(()) => {
-                    tracing::info!(port = %port, "Cleaned up port");
-                },
-                Err(e) => {
-                    tracing::error!(error = %e, port = %port, "Port is in use and cleanup failed");
-                    return Err(e);
-                },
-            }
+            PortService::new()
+                .cleanup_port_if_needed(port, agent_name)
+                .await?;
+            tracing::info!(port = %port, "Cleaned up port");
         }
 
         Ok(())
     }
 
-    pub(super) fn spawn_detached_process(
+    pub(super) async fn spawn_detached_process(
         &self,
-        agent_name: &str,
+        agent_name: &AgentName,
         port: u16,
     ) -> OrchestrationResult<u32> {
-        process::spawn_detached(&self.app_paths, agent_name, port)
+        process::spawn_detached(&self.app_paths, agent_name, port).await
     }
 
-    pub async fn verify_startup(&self, agent_name: &str, port: u16) -> OrchestrationResult<()> {
+    pub async fn verify_startup(
+        &self,
+        agent_name: &AgentName,
+        port: u16,
+    ) -> OrchestrationResult<()> {
         const MAX_ATTEMPTS: u32 = 5;
         const SLEEP_MS: u64 = 1000;
 
@@ -76,9 +78,8 @@ impl AgentLifecycle {
         }
 
         self.log_startup_failure(agent_name, port).await;
-        self.db_service.mark_failed(agent_name).await?;
         Err(OrchestrationError::HealthCheckTimeout(
-            agent_name.to_owned(),
+            agent_name.to_string(),
         ))
     }
 
@@ -106,8 +107,8 @@ impl AgentLifecycle {
         }
     }
 
-    pub async fn log_startup_failure(&self, agent_name: &str, port: u16) {
-        let log_path = match systemprompt_models::Config::get() {
+    pub async fn log_startup_failure(&self, agent_name: &AgentName, port: u16) {
+        let log_path = match systemprompt_manifest::Config::get() {
             Ok(config) => format!("{}/agent-{}.log", config.logs_path(), agent_name),
             Err(e) => {
                 tracing::error!(
@@ -121,7 +122,7 @@ impl AgentLifecycle {
 
         match self.db_service.get_status(agent_name).await {
             Ok(AgentStatus::Running { pid, .. }) => {
-                if process::process_exists(pid) {
+                if systemprompt_loader::subprocess::is_running(pid).await {
                     tracing::error!(
                         agent = %agent_name,
                         pid,

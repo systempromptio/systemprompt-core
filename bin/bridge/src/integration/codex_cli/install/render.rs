@@ -6,6 +6,7 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use systemprompt_models::bridge::host::HostKind;
 
 use super::super::config::{
     ANALYTICS_ENABLED, APPROVAL_POLICY, APPROVAL_POLICY_VALUE, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT,
@@ -15,12 +16,12 @@ use super::super::config::{
 };
 use super::super::probe::write_dotted;
 use crate::integration::config_read::ForeignShape;
-use crate::integration::host_app::ProfileGenInputs;
+use crate::integration::host_app::{HostAppError, ProfileGenInputs};
 
 const PROVIDER_ID: &str = "systemprompt";
 const MOBILECONFIG_TMPL: &str = include_str!("../templates/codex_managed.mobileconfig.tmpl");
 
-pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String> {
+pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> Result<String, HostAppError> {
     let exe = std::env::current_exe()?;
     let helper_bin = exe.canonicalize().unwrap_or(exe).display().to_string();
     let tenant = inputs.organization_uuid.clone().unwrap_or_default();
@@ -32,7 +33,8 @@ pub(super) fn managed_toml(inputs: &ProfileGenInputs) -> std::io::Result<String>
     write_otel_block(&mut value, gateway)?;
     write_models_block(&mut value, &inputs.models)?;
 
-    toml::to_string(&value).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    toml::to_string(&value)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e).into())
 }
 
 #[expect(
@@ -85,7 +87,7 @@ fn write_provider_block(
         toml::Value::Array(vec![
             toml::Value::String("credential-helper".to_owned()),
             toml::Value::String("--host".to_owned()),
-            toml::Value::String("codex-cli".to_owned()),
+            toml::Value::String(HostKind::CodexCli.as_str().to_owned()),
         ]),
     )?;
     write_dotted(

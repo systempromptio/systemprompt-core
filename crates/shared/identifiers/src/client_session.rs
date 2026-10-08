@@ -18,8 +18,8 @@ use crate::error::IdValidationError;
 const SESSION_SEGMENT: &str = "_session_";
 
 fn validate(value: &str) -> Result<(), IdValidationError> {
-    let parsed = uuid::Uuid::parse_str(value)
-        .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+    let parsed =
+        uuid::Uuid::parse_str(value).map_err(|e| IdValidationError::uuid("ClientSessionId", e))?;
     if parsed.hyphenated().to_string() != value {
         return Err(IdValidationError::invalid(
             "ClientSessionId",
@@ -31,24 +31,19 @@ fn validate(value: &str) -> Result<(), IdValidationError> {
 
 crate::define_id!(ClientSessionId, validated, schema, validate);
 
+#[derive(serde::Deserialize)]
+struct MetadataUserId {
+    #[serde(rename = "session_id")]
+    raw_session: String,
+}
+
 impl ClientSessionId {
     pub fn from_metadata_user_id(value: &str) -> Result<Option<Self>, IdValidationError> {
         let value = value.trim();
         let session = if value.starts_with('{') {
-            let metadata: serde_json::Value = serde_json::from_str(value)
-                .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
-            Some(
-                metadata
-                    .get("session_id")
-                    .and_then(serde_json::Value::as_str)
-                    .ok_or_else(|| {
-                        IdValidationError::invalid(
-                            "ClientSessionId",
-                            "metadata requires a string session_id",
-                        )
-                    })?
-                    .to_owned(),
-            )
+            let metadata: MetadataUserId = serde_json::from_str(value)
+                .map_err(|e| IdValidationError::json("ClientSessionId", e))?;
+            Some(metadata.raw_session)
         } else {
             value
                 .rsplit_once(SESSION_SEGMENT)
@@ -57,7 +52,7 @@ impl ClientSessionId {
         session
             .map(|value| {
                 let parsed = uuid::Uuid::parse_str(value.trim())
-                    .map_err(|e| IdValidationError::invalid("ClientSessionId", e.to_string()))?;
+                    .map_err(|e| IdValidationError::uuid("ClientSessionId", e))?;
                 Self::try_new(parsed.hyphenated().to_string())
             })
             .transpose()

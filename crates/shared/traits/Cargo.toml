@@ -20,6 +20,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints]
 workspace = true
 
+[features]
+default = []
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -35,6 +39,6 @@ serde = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 xxhash-rust = { workspace = true }
-
-[dev-dependencies]
-tokio = { workspace = true }
+sqlx = { workspace = true, optional = true }
+tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync"] }
+tokio-util = { workspace = true }

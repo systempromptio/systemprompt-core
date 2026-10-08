@@ -18,7 +18,7 @@ use crate::context::CommandContext;
 use crate::interactive::Prompter;
 use crate::session::get_or_create_session;
 use crate::shared::CommandOutput;
-use systemprompt_identifiers::SessionToken;
+use systemprompt_identifiers::{McpServerId, SessionToken};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::McpOrchestrator;
@@ -36,7 +36,7 @@ pub struct ToolsArgs {
 }
 
 struct ToolQuery<'a> {
-    services_config: &'a systemprompt_models::ServicesConfig,
+    services_config: &'a systemprompt_manifest::ServicesConfig,
     running_servers: &'a [McpServerConfig],
     session_token: &'a SessionToken,
     detailed: bool,
@@ -124,7 +124,7 @@ fn resolve_agent_name(
     name: Option<String>,
     prompter: &dyn Prompter,
     config: &CliConfig,
-    services_config: &systemprompt_models::ServicesConfig,
+    services_config: &systemprompt_manifest::ServicesConfig,
 ) -> Result<String> {
     match name {
         Some(n) => Ok(n),
@@ -183,12 +183,12 @@ async fn collect_tools(configured_servers: &[String], query: &ToolQuery<'_>) -> 
         let server_config = query.services_config.mcp_servers.get(server_name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
+        let server_id = McpServerId::new(server_name.clone());
         let tools_result = match direct_url(server) {
             Ok(url) if requires_auth => {
-                list_tools_authenticated(server_name, &url, query.session_token, query.timeout)
-                    .await
+                list_tools_authenticated(&server_id, &url, query.session_token, query.timeout).await
             },
-            Ok(url) => list_tools_unauthenticated(server_name, &url, query.timeout).await,
+            Ok(url) => list_tools_unauthenticated(&server_id, &url, query.timeout).await,
             Err(e) => Err(e),
         };
 

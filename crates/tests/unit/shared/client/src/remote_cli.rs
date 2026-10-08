@@ -225,7 +225,7 @@ async fn an_undecodable_cli_event_is_a_failure_not_a_zero_exit() {
         .await
         .expect_err("a corrupted frame may have been the exit code");
 
-    assert!(matches!(err, ClientError::ServerUnavailable(_)), "{err}");
+    assert!(matches!(err, ClientError::UndecodableEvent(_)), "{err}");
     assert_eq!(sink.stdout, "partial");
 }
 

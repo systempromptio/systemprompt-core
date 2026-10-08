@@ -13,9 +13,9 @@ use systemprompt_cloud::{
 };
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{Email, ProfileName, SessionToken};
+use systemprompt_identifiers::{Email, ProfileName};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
 
 use super::ProfileContext;
@@ -37,7 +37,7 @@ pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<Cli
     let email = Email::try_new("remote@cli.local").ok()?;
     let session = CliSession::builder(
         SessionBinding::new(profile_name, profile.security.issuer.clone()),
-        SessionToken::new(auth_token),
+        auth_token,
         session_id,
         context_id,
         SessionIdentity::new(user_id, email, UserType::Admin),
@@ -50,15 +50,16 @@ pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<Cli
     })
 }
 
-pub fn extract_profile_name(profile_path: &Path) -> Result<String> {
+pub fn extract_profile_name(profile_path: &Path) -> Result<ProfileName> {
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid profile path: no parent directory"))?;
-    profile_dir
+    let dir_name = profile_dir
         .file_name()
         .and_then(|n| n.to_str())
-        .map(String::from)
-        .ok_or_else(|| anyhow::anyhow!("Invalid profile directory name"))
+        .ok_or_else(|| anyhow::anyhow!("Invalid profile directory name"))?;
+    ProfileName::try_new(dir_name)
+        .with_context(|| format!("Profile directory '{dir_name}' is not a valid profile name"))
 }
 
 pub(super) async fn create_new_session(
@@ -107,10 +108,10 @@ pub(super) async fn create_new_session(
 
 pub fn resolve_profile_path_from_session(
     session: &CliSession,
-    active_profile: Option<&str>,
+    active_profile: Option<&ProfileName>,
 ) -> Result<Option<PathBuf>> {
     if let Some(expected) = active_profile
-        && session.profile_name.as_str() != expected
+        && session.profile_name != *expected
     {
         anyhow::bail!(
             "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \
@@ -128,10 +129,10 @@ pub fn resolve_profile_path_without_session(
     paths: &ResolvedPaths,
     store: &SessionStore,
     active_key: &SessionKey,
-    active_profile: Option<&str>,
+    active_profile: Option<&ProfileName>,
 ) -> Result<PathBuf> {
     if let Some(profile_name) = active_profile {
-        let profile_dir = paths.profiles_dir().join(profile_name);
+        let profile_dir = paths.profiles_dir().join(profile_name.as_str());
         let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
         if config_path.exists() {
             anyhow::bail!(
@@ -149,7 +150,7 @@ pub fn resolve_profile_path_without_session(
         .filter(|p| p.exists())
         .cloned()
         .ok_or_else(|| {
-            let profile_hint = active_profile.unwrap_or("unknown");
+            let profile_hint = active_profile.map_or("unknown", ProfileName::as_str);
             anyhow::anyhow!(
                 "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \
                  authenticate, or 'systemprompt admin session switch <profile>' to change \
@@ -180,7 +181,7 @@ pub(super) async fn initialize_profile_bootstraps(profile_path: &Path) -> Result
 
 pub(super) async fn try_validate_context(
     session: &mut CliSession,
-    profile_name: &str,
+    profile_name: &ProfileName,
 ) -> Option<CliSession> {
     let secrets = SecretsBootstrap::get()
         .map_err(|e| tracing::debug!(error = %e, "Failed to get secrets for context validation"))
@@ -198,11 +199,9 @@ pub(super) async fn try_validate_context(
 pub async fn revalidate_context(
     db_pool: &DbPool,
     session: &mut CliSession,
-    profile_name: &str,
+    profile_name: &ProfileName,
 ) -> Option<CliSession> {
-    let context_repo = ContextRepository::new(db_pool)
-        .map_err(|e| tracing::debug!(error = %e, "Failed to build context repository"))
-        .ok()?;
+    let context_repo = ContextRepository::new(db_pool);
 
     let is_valid = context_repo
         .validate_context_ownership(&session.context_id, &session.user_id)

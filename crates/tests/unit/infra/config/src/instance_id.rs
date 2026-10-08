@@ -3,7 +3,7 @@
 //! per-boot id is only tolerated for local profiles.
 
 use systemprompt_config::{ConfigError, resolve_instance_id};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use crate::fixture;
 
@@ -48,5 +48,23 @@ fn cloud_profile_without_any_stable_id_is_refused() {
 fn local_profile_may_use_a_random_id() {
     fixture::remove_env("HOSTNAME");
     let id = resolve_instance_id(&profile("local", None)).unwrap();
-    assert!(id.starts_with("instance-"), "{id}");
+    assert!(id.as_str().starts_with("instance-"), "{id}");
+}
+
+#[test]
+fn blank_instance_id_is_treated_as_absent() {
+    fixture::set_env("HOSTNAME", "host-from-env");
+    let profile = profile("cloud", Some("\"   \""));
+    assert!(profile.server.instance_id.is_none());
+    assert_eq!(resolve_instance_id(&profile).unwrap(), "host-from-env");
+    fixture::remove_env("HOSTNAME");
+}
+
+#[test]
+fn explicit_instance_id_is_trimmed_at_load() {
+    let profile = profile("cloud", Some("\" node-a \""));
+    assert_eq!(
+        profile.server.instance_id.as_ref().map(|id| id.as_str()),
+        Some("node-a")
+    );
 }

@@ -3,9 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::RepositoryError;
+use crate::models::rows::AiRequestToolCallRow;
 use crate::models::{AiRequestMessage, AiRequestToolCall};
-use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId};
+use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpToolName};
+use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
 use super::repository::AiRequestRepository;
@@ -14,7 +15,7 @@ use super::repository::AiRequestRepository;
 pub struct InsertToolCallParams<'a> {
     pub request_id: &'a AiRequestId,
     pub ai_tool_call_id: &'a AiToolCallId,
-    pub tool_name: &'a str,
+    pub tool_name: &'a McpToolName,
     pub tool_input: &'a str,
     pub sequence_number: i32,
 }
@@ -77,7 +78,7 @@ impl AiRequestRepository {
         let request_id_str = params.request_id.as_str();
 
         sqlx::query_as!(
-            AiRequestToolCall,
+            AiRequestToolCallRow,
             r#"
             INSERT INTO ai_request_tool_calls (id, request_id, ai_tool_call_id, tool_name, tool_input, sequence_number, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -86,12 +87,13 @@ impl AiRequestRepository {
             id,
             request_id_str,
             params.ai_tool_call_id.as_str(),
-            params.tool_name,
+            params.tool_name.as_str(),
             params.tool_input,
             params.sequence_number
         )
         .fetch_one(self.write_pool())
         .await
+        .map(AiRequestToolCall::from)
         .map_err(RepositoryError::from)
     }
 
@@ -102,7 +104,7 @@ impl AiRequestRepository {
         let request_id_str = request_id.as_str();
 
         sqlx::query_as!(
-            AiRequestToolCall,
+            AiRequestToolCallRow,
             r#"
             SELECT id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             FROM ai_request_tool_calls
@@ -113,6 +115,7 @@ impl AiRequestRepository {
         )
         .fetch_all(self.pool())
         .await
+        .map(|rows| rows.into_iter().map(AiRequestToolCall::from).collect())
         .map_err(RepositoryError::from)
     }
 
@@ -121,7 +124,7 @@ impl AiRequestRepository {
         ai_tool_call_id: &AiToolCallId,
     ) -> Result<Option<AiRequestToolCall>, RepositoryError> {
         sqlx::query_as!(
-            AiRequestToolCall,
+            AiRequestToolCallRow,
             r#"
             SELECT id, request_id as "request_id!: AiRequestId", tool_name, tool_input, mcp_execution_id as "mcp_execution_id: McpExecutionId", sequence_number, ai_tool_call_id as "ai_tool_call_id: AiToolCallId", created_at, updated_at
             FROM ai_request_tool_calls
@@ -133,6 +136,7 @@ impl AiRequestRepository {
         )
         .fetch_optional(self.pool())
         .await
+        .map(|row| row.map(AiRequestToolCall::from))
         .map_err(RepositoryError::from)
     }
 }

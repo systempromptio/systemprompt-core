@@ -29,6 +29,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-models = { workspace = true, features = ["web", "sqlx"] }
+systemprompt-manifest = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-traits = { workspace = true }
 inventory = { workspace = true }
@@ -69,7 +70,6 @@ tracing = { workspace = true }
 
 
 # Utilities
-uuid = { workspace = true }
 chrono = { workspace = true }
 
 # HTTP client
@@ -82,9 +82,6 @@ hex = { workspace = true }
 
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true }
-
-# Unix system utilities
-nix = { workspace = true }
 
 # File walking
 

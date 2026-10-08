@@ -9,7 +9,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use std::sync::Arc;
-use systemprompt_models::Config;
+use systemprompt_identifiers::AgentName;
+use systemprompt_manifest::Config;
 
 use super::state::AgentHandlerState;
 use crate::error::AgentResult;
@@ -17,7 +18,7 @@ use crate::services::registry::AgentRegistry;
 
 pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> impl IntoResponse {
     let config = state.config.read().await;
-    let agent_name = config.name.clone();
+    let agent_name = AgentName::new(config.name.clone());
     drop(config);
 
     tracing::info!(agent_name = %agent_name, "Fetching agent card");
@@ -32,11 +33,11 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
 
 pub async fn agent_card_response(
     registry: AgentResult<AgentRegistry>,
-    agent_name: &str,
+    agent_name: &AgentName,
     base_url: &str,
 ) -> Response {
     match registry {
-        Ok(registry) => match registry.get_agent(agent_name).await {
+        Ok(registry) => match registry.get_agent(agent_name.as_str()).await {
             Ok(agent_config) => {
                 match registry
                     .to_agent_card(&agent_config.name, base_url, vec![], None)

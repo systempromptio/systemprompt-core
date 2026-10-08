@@ -4,22 +4,17 @@ use std::collections::HashMap;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{MarketplaceConfig, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
 use systemprompt_security::authz::{IngestScope, reconcile_services_authz};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
-
-async fn pool_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique_id(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
 }
 
 async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query("DELETE FROM access_control_rules WHERE entity_type = $1 AND entity_id = $2")
         .bind(entity_type)
         .bind(entity_id)
@@ -36,9 +31,7 @@ async fn cleanup(db: &DbPool, entity_type: &str, entity_id: &str) {
 
 #[tokio::test]
 async fn reconcile_projects_roles_yaml_and_marketplace_access() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let route = unique_id("rec-route");
     let market = unique_id("rec-mkt");
 

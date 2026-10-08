@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 
 use hyper::HeaderMap;
 use systemprompt_identifiers::{GatewayConversationId, SessionId, headers as sp_headers};
-use systemprompt_models::wire::origin::{ClientAttestation, ClientKind};
+use systemprompt_models::origin::{ClientAttestation, ClientKind};
 
-use super::{ForwardError, ForwardResult};
+use super::{ForwardError, ForwardResult, HeaderBuildError};
 use crate::proxy::credential::LoopbackCredential;
 
 const HOP_BY_HOP: &[&str] = &[
@@ -65,18 +65,17 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
     stamp_attestation(&mut headers, attest)?;
 
     let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
-        .map_err(|e| ForwardError::BadHeader(format!("authorization: {e}")))?;
+        .map_err(|e| invalid_header("authorization", e))?;
     headers.insert(reqwest::header::AUTHORIZATION, bearer);
     let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
-        .map_err(|e| ForwardError::BadHeader(format!("{}: {e}", sp_headers::SESSION_ID)))?;
+        .map_err(|e| invalid_header(sp_headers::SESSION_ID, e))?;
     headers.insert(
         reqwest::header::HeaderName::from_static(sp_headers::SESSION_ID),
         session_value,
     );
     if let Some(id) = gateway_conversation_id {
-        let value = reqwest::header::HeaderValue::try_from(id.as_str()).map_err(|e| {
-            ForwardError::BadHeader(format!("{}: {e}", sp_headers::GATEWAY_CONVERSATION_ID))
-        })?;
+        let value = reqwest::header::HeaderValue::try_from(id.as_str())
+            .map_err(|e| invalid_header(sp_headers::GATEWAY_CONVERSATION_ID, e))?;
         headers.insert(
             reqwest::header::HeaderName::from_static(sp_headers::GATEWAY_CONVERSATION_ID),
             value,
@@ -85,9 +84,8 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
 
     for (k, v) in extra {
         let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
-            .map_err(|e| ForwardError::BadHeader(format!("{k}: {e}")))?;
-        let value = reqwest::header::HeaderValue::try_from(v)
-            .map_err(|e| ForwardError::BadHeader(format!("{k}: {e}")))?;
+            .map_err(|e| invalid_header(k, e))?;
+        let value = reqwest::header::HeaderValue::try_from(v).map_err(|e| invalid_header(k, e))?;
         headers.insert(name, value);
     }
 
@@ -169,12 +167,19 @@ pub(super) fn ensure_ingestion_delivery_id(
     if request_path.starts_with("/api/public/hooks/")
         && !headers.contains_key("x-ingestion-event-id")
     {
-        let value = uuid::Uuid::new_v4()
+        let value: http::HeaderValue = uuid::Uuid::new_v4()
             .to_string()
             .parse()
-            .map_err(|error| ForwardError::BadHeader(format!("ingestion event ID: {error}")))?;
+            .map_err(|e| invalid_header("ingestion event ID", e))?;
         headers.insert("x-ingestion-event-id", value);
     }
 
     Ok(())
+}
+
+fn invalid_header(name: &str, source: impl Into<HeaderBuildError>) -> ForwardError {
+    ForwardError::InvalidHeader {
+        name: name.to_owned(),
+        source: source.into(),
+    }
 }

@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::errors::ConfigValidationError;
+use crate::errors::ServicesValidationError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -48,10 +48,10 @@ impl ConnectorConfig {
     pub const ALLOWED_AUTHORIZATION_PARAMS: [&'static str; 4] =
         ["access_type", "prompt", "login_hint", "hd"];
 
-    pub fn validate(&self, name: &str) -> Result<(), ConfigValidationError> {
+    pub fn validate(&self, name: &str) -> Result<(), ServicesValidationError> {
         for (key, value) in &self.authorization_params {
             if !Self::ALLOWED_AUTHORIZATION_PARAMS.contains(&key.as_str()) {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "MCP server '{name}': connector authorization_params.{key} is not an \
                      allowed parameter (allowed: {})",
                     Self::ALLOWED_AUTHORIZATION_PARAMS.join(", ")
@@ -62,7 +62,7 @@ impl ConnectorConfig {
                     .chars()
                     .any(|c| c.is_whitespace() || "&=#".contains(c))
             {
-                return Err(ConfigValidationError::invalid_field(format!(
+                return Err(ServicesValidationError::invalid_field(format!(
                     "MCP server '{name}': connector authorization_params.{key} must be a \
                      single non-empty token"
                 )));
@@ -71,7 +71,7 @@ impl ConnectorConfig {
         if self.identity == Some(ConnectorIdentity::Userinfo)
             && !self.scopes.iter().any(|scope| scope == "openid")
         {
-            return Err(ConfigValidationError::invalid_field(format!(
+            return Err(ServicesValidationError::invalid_field(format!(
                 "MCP server '{name}': connector identity: userinfo requires the openid scope"
             )));
         }

@@ -75,13 +75,13 @@ mod recorded {
             TraceId::generate(),
             ContextId::generate(),
             AgentName::try_new("engagement-test").expect("valid AgentName"),
-        )
-        .with_actor(Actor::user(user));
+            Actor::user(user),
+        );
         Ok(Seeded { req_ctx, session })
     }
 
     async fn converted(db: &DbPool, session: &SessionId) -> Result<bool> {
-        let p = db.pool_arc()?;
+        let p = db.pool();
         let row: (Option<chrono::DateTime<chrono::Utc>>,) =
             sqlx::query_as("SELECT converted_at FROM user_sessions WHERE session_id = $1")
                 .bind(session.as_str())

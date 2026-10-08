@@ -2,13 +2,13 @@
 
 use base64::Engine;
 use jsonwebtoken::decode_header;
-use systemprompt_identifiers::ClientId;
+use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_oauth::services::generation::{IdJagGrant, mint_id_jag};
 use systemprompt_oauth::services::validation::id_jag::{ID_JAG_TYP, IdJagClaims};
 use systemprompt_oauth::services::{
-    JwtConfig, generate_access_token_jti, generate_client_secret, generate_secure_token,
-    hash_client_secret, verify_client_secret,
+    JwtConfig, generate_client_secret, generate_secure_token, hash_client_secret,
+    verify_client_secret,
 };
 use systemprompt_test_fixtures::install_test_signing_key;
 
@@ -78,23 +78,23 @@ fn test_generate_client_secret_unique() {
 }
 
 #[test]
-fn test_generate_access_token_jti_is_uuid() {
-    let jti = generate_access_token_jti();
-    assert_eq!(jti.len(), 36);
-    assert!(jti.contains('-'));
+fn test_access_token_id_generate_is_uuid() {
+    let jti = AccessTokenId::generate();
+    assert_eq!(jti.as_str().len(), 36);
+    assert!(jti.as_str().contains('-'));
 }
 
 #[test]
-fn test_generate_access_token_jti_unique() {
-    let jti1 = generate_access_token_jti();
-    let jti2 = generate_access_token_jti();
+fn test_access_token_id_generate_unique() {
+    let jti1 = AccessTokenId::generate();
+    let jti2 = AccessTokenId::generate();
     assert_ne!(jti1, jti2);
 }
 
 #[test]
-fn test_generate_access_token_jti_valid_uuid_format() {
-    let jti = generate_access_token_jti();
-    let parts: Vec<&str> = jti.split('-').collect();
+fn test_access_token_id_generate_valid_uuid_format() {
+    let jti = AccessTokenId::generate();
+    let parts: Vec<&str> = jti.as_str().split('-').collect();
     assert_eq!(parts.len(), 5);
     assert_eq!(parts[0].len(), 8);
     assert_eq!(parts[1].len(), 4);
@@ -104,9 +104,9 @@ fn test_generate_access_token_jti_valid_uuid_format() {
 }
 
 #[test]
-fn test_generate_access_token_jti_parseable_as_uuid() {
-    let jti = generate_access_token_jti();
-    let parsed = uuid::Uuid::parse_str(&jti);
+fn test_access_token_id_generate_parseable_as_uuid() {
+    let jti = AccessTokenId::generate();
+    let parsed = uuid::Uuid::parse_str(jti.as_str());
     parsed.expect("expected success");
 }
 
@@ -335,21 +335,21 @@ fn defaults_optional_claims_to_none() {
 }
 
 mod jwt_minting {
-    use systemprompt_identifiers::{ClientId, SessionId, UserId};
+    use systemprompt_identifiers::{AccessTokenId, ClientId, SessionId, UserId};
     use systemprompt_models::auth::{
         ActClaim, AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
     };
     use systemprompt_oauth::services::{
-        JwtConfig, JwtSigningParams, generate_anonymous_jwt, generate_anonymous_jwt_with_expiry,
-        generate_jwt, generate_jwt_with_act,
+        DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_anonymous_jwt,
+        generate_anonymous_jwt_with_expiry, generate_jwt, generate_jwt_with_act,
     };
-    use systemprompt_oauth::validate_jwt_token;
+    use systemprompt_oauth::{OauthError, validate_jwt_token};
     use systemprompt_test_fixtures::{ensure_test_bootstrap, install_test_signing_key};
     use uuid::Uuid;
 
     fn test_user() -> AuthenticatedUser {
         AuthenticatedUser::new_with_roles(
-            Uuid::new_v4(),
+            systemprompt_identifiers::UserId::generate(),
             "gen-user".to_owned(),
             "gen@test.invalid".to_owned(),
             vec![Permission::User],
@@ -371,7 +371,7 @@ mod jwt_minting {
         let token = generate_jwt(
             &user,
             JwtConfig::default(),
-            "jti-gen-1".to_owned(),
+            AccessTokenId::new("jti-gen-1"),
             &session,
             &signing(),
         )
@@ -403,7 +403,7 @@ mod jwt_minting {
         let token = generate_jwt(
             &test_user(),
             config,
-            "jti-gen-res".to_owned(),
+            AccessTokenId::new("jti-gen-res"),
             &SessionId::generate(),
             &signing(),
         )
@@ -432,7 +432,7 @@ mod jwt_minting {
         let token = generate_jwt(
             &test_user(),
             config,
-            "jti-gen-client".to_owned(),
+            AccessTokenId::new("jti-gen-client"),
             &SessionId::generate(),
             &signing(),
         )
@@ -458,12 +458,12 @@ mod jwt_minting {
             let err = generate_jwt(
                 &test_user(),
                 config,
-                "jti-bad".to_owned(),
+                AccessTokenId::new("jti-bad"),
                 &SessionId::generate(),
                 &signing(),
             )
             .expect_err("invalid expiry must be rejected");
-            assert!(err.to_string().contains("Invalid token expiry"));
+            assert!(matches!(err, OauthError::InvalidTokenLifetime { .. }));
         }
     }
 
@@ -477,14 +477,14 @@ mod jwt_minting {
             act: Box::new(None),
         };
 
-        let token = generate_jwt_with_act(
-            &test_user(),
-            JwtConfig::default(),
-            "jti-act".to_owned(),
-            &SessionId::generate(),
-            &signing(),
+        let token = generate_jwt_with_act(DelegatedJwtParams {
+            user: &test_user(),
+            config: JwtConfig::default(),
+            jti: AccessTokenId::new("jti-act"),
+            session_id: &SessionId::generate(),
+            signing: &signing(),
             act,
-        )
+        })
         .expect("mint");
 
         let claims = validate_jwt_token(&token, "test", &[JwtAudience::Api]).expect("decode");
@@ -526,7 +526,7 @@ mod jwt_minting {
             366 * 24 * 3600,
         )
         .expect_err("expiry beyond one year must fail");
-        assert!(err.to_string().contains("Invalid token expiry"));
+        assert!(matches!(err, OauthError::InvalidTokenLifetime { .. }));
     }
 
     #[test]

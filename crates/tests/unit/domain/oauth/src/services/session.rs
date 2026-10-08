@@ -5,7 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use http::HeaderMap;
 
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{JwtToken, SessionId, UserId};
 use systemprompt_oauth::services::session::AuthenticatedSessionInfo;
 use systemprompt_oauth::services::{
     generate_client_secret, hash_client_secret, verify_client_secret,
@@ -174,7 +174,7 @@ fn create_test_anonymous_session_info() -> AnonymousSessionInfo {
         session_id: SessionId::new(TEST_SESSION_ID.to_string()),
         user_id: UserId::new(TEST_USER_ID.to_string()),
         is_new: true,
-        jwt_token: TEST_JWT_TOKEN.to_string(),
+        jwt_token: JwtToken::new(TEST_JWT_TOKEN),
         fingerprint_hash: TEST_FINGERPRINT_HASH.to_string(),
     }
 }
@@ -186,7 +186,7 @@ fn test_anonymous_session_info_fields() {
     assert_eq!(info.session_id.as_str(), TEST_SESSION_ID);
     assert_eq!(info.user_id.as_str(), TEST_USER_ID);
     assert!(info.is_new);
-    assert_eq!(info.jwt_token, TEST_JWT_TOKEN);
+    assert_eq!(info.jwt_token.as_str(), TEST_JWT_TOKEN);
     assert_eq!(info.fingerprint_hash, TEST_FINGERPRINT_HASH);
 }
 
@@ -224,7 +224,7 @@ fn test_session_creation_error_user_not_found() {
 
 #[test]
 fn test_session_creation_error_internal() {
-    let error = SessionCreationError::Internal("database connection lost".to_string());
+    let error = SessionCreationError::Internal("database connection lost".into());
     let message = error.to_string();
 
     assert!(message.contains("database connection lost"));
@@ -235,7 +235,7 @@ fn test_session_creation_error_display() {
     let user_error = SessionCreationError::UserNotFound {
         user_id: fixture_user_id(),
     };
-    let internal_error = SessionCreationError::Internal("timeout".to_string());
+    let internal_error = SessionCreationError::Internal("timeout".into());
 
     let user_display = format!("{}", user_error);
     let internal_display = format!("{}", internal_error);
@@ -247,7 +247,7 @@ fn test_session_creation_error_display() {
 
 #[test]
 fn test_session_creation_error_is_std_error() {
-    let error = SessionCreationError::Internal("test".to_string());
+    let error = SessionCreationError::Internal("test".into());
     let std_error: &dyn std::error::Error = &error;
 
     assert!(std_error.to_string().contains("test"));

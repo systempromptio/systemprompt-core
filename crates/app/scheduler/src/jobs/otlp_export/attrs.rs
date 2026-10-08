@@ -6,6 +6,8 @@
 use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::common::v1::{AnyValue, InstrumentationScope, KeyValue};
 use opentelemetry_proto::tonic::resource::v1::Resource;
+use systemprompt_identifiers::InstanceId;
+use systemprompt_models::attribution::AttributionEntry;
 
 pub(super) const SERVICE_NAME: &str = "systemprompt";
 pub(super) const SCOPE_NAME: &str = "systemprompt.gateway";
@@ -53,6 +55,15 @@ impl Attrs {
         self
     }
 
+    pub(super) fn scopes(&mut self, entries: &[AttributionEntry]) -> &mut Self {
+        for entry in entries {
+            let key = format!("systemprompt.scope.{}", entry.dimension);
+            self.text(&key, &entry.value)
+                .text(&format!("{key}.source"), entry.source.as_str());
+        }
+        self
+    }
+
     fn push(&mut self, key: &str, value: Value) {
         self.0.push(KeyValue {
             key: key.to_owned(),
@@ -68,12 +79,12 @@ impl Attrs {
 }
 
 #[must_use]
-pub(super) fn resource(instance_id: Option<&str>) -> Resource {
+pub(super) fn resource(instance_id: Option<&InstanceId>) -> Resource {
     let mut attrs = Attrs::new();
     attrs
         .text("service.name", SERVICE_NAME)
         .text("service.version", env!("CARGO_PKG_VERSION"))
-        .opt_str("service.instance.id", instance_id);
+        .opt_str("service.instance.id", instance_id.map(InstanceId::as_str));
     Resource {
         attributes: attrs.finish(),
         dropped_attributes_count: 0,

@@ -10,6 +10,7 @@ use crate::Result;
 use chrono::{DateTime, Utc};
 
 use super::ToolAnalyticsRepository;
+use crate::models::ToolListDbRow;
 use crate::models::reporting::ToolListRow;
 
 #[derive(Debug)]
@@ -23,19 +24,20 @@ pub struct ToolListParams<'a> {
 
 impl ToolAnalyticsRepository {
     pub async fn list_tools(&self, params: ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
-        if let Some(server) = params.server_filter {
+        let rows = if let Some(server) = params.server_filter {
             let pattern = format!("%{}%", server);
             self.list_tools_with_filter(&params, &pattern).await
         } else {
             self.list_tools_unfiltered(&params).await
-        }
+        }?;
+        Ok(rows.into_iter().map(ToolListRow::from).collect())
     }
 
     async fn list_tools_with_filter(
         &self,
         params: &ToolListParams<'_>,
         pattern: &str,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         let ToolListParams {
             start,
             end,
@@ -59,9 +61,9 @@ impl ToolAnalyticsRepository {
         end: DateTime<Utc>,
         pattern: &str,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",
@@ -95,9 +97,9 @@ impl ToolAnalyticsRepository {
         end: DateTime<Utc>,
         pattern: &str,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",
@@ -129,9 +131,9 @@ impl ToolAnalyticsRepository {
         end: DateTime<Utc>,
         pattern: &str,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",
@@ -157,7 +159,10 @@ impl ToolAnalyticsRepository {
         .map_err(Into::into)
     }
 
-    async fn list_tools_unfiltered(&self, params: &ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
+    async fn list_tools_unfiltered(
+        &self,
+        params: &ToolListParams<'_>,
+    ) -> Result<Vec<ToolListDbRow>> {
         let ToolListParams {
             start,
             end,
@@ -177,9 +182,9 @@ impl ToolAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",
@@ -211,9 +216,9 @@ impl ToolAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",
@@ -243,9 +248,9 @@ impl ToolAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
         limit: i64,
-    ) -> Result<Vec<ToolListRow>> {
+    ) -> Result<Vec<ToolListDbRow>> {
         sqlx::query_as!(
-            ToolListRow,
+            ToolListDbRow,
             r#"
             SELECT
                 tool_name as "tool_name!",

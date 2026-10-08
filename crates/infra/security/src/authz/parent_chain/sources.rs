@@ -14,7 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
-use systemprompt_models::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
+use systemprompt_manifest::services::{MarketplaceConfig, MarketplaceMemberKind, ServicesConfig};
 
 use crate::authz::types::EntityKind;
 

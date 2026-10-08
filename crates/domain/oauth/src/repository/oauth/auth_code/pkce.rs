@@ -11,12 +11,14 @@ use subtle::ConstantTimeEq;
 pub(super) fn verify_pkce(
     challenge: &str,
     method: Option<&str>,
-    code_verifier: Option<&str>,
+    verifier: &str,
 ) -> OauthResult<()> {
-    let verifier = code_verifier.ok_or_else(|| {
+    if verifier.is_empty() {
         tracing::warn!("Missing code_verifier for PKCE challenge");
-        OauthError::Validation("Invalid authorization code".to_owned())
-    })?;
+        return Err(OauthError::Validation(
+            "Invalid authorization code".to_owned(),
+        ));
+    }
 
     let method = method.ok_or_else(|| {
         tracing::warn!("Missing code_challenge_method for PKCE challenge");

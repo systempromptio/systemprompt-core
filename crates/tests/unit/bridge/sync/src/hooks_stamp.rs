@@ -3,6 +3,7 @@
 use std::path::Path;
 
 use systemprompt_bridge::host_sync::stamp_hooks_file;
+use systemprompt_models::bridge::host::HostKind;
 
 const HOOKS: &str = r#"{
   "hooks": {
@@ -41,6 +42,11 @@ const HOOKS: &str = r#"{
             "command": "echo hi",
             "timeout": 10,
             "event": "Stop"
+          },
+          {
+            "type": "command",
+            "command": "echo untimed",
+            "event": "Stop"
           }
         ]
       }
@@ -70,7 +76,7 @@ fn http_entries(doc: &serde_json::Value) -> Vec<&serde_json::Value> {
 fn every_http_entry_is_stamped_and_the_device_credential_is_dropped() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_fixture(dir.path());
-    stamp_hooks_file(&path, "claude-code").unwrap();
+    stamp_hooks_file(&path, HostKind::ClaudeCode).unwrap();
     let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     let entries = http_entries(&doc);
     assert_eq!(entries.len(), 2, "{doc}");
@@ -95,20 +101,24 @@ fn every_http_entry_is_stamped_and_the_device_credential_is_dropped() {
 fn command_entries_are_left_alone() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_fixture(dir.path());
-    stamp_hooks_file(&path, "claude-desktop").unwrap();
+    stamp_hooks_file(&path, HostKind::ClaudeDesktop).unwrap();
     let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     let command = &doc["hooks"]["Stop"][0]["hooks"][1];
     assert_eq!(command["type"], "command", "{doc}");
     assert_eq!(command["command"], "echo hi");
+    assert_eq!(command["timeout"], 10, "{doc}");
     assert!(command.get("headers").is_none(), "{doc}");
+    let untimed = &doc["hooks"]["Stop"][0]["hooks"][2];
+    assert_eq!(untimed["command"], "echo untimed", "{doc}");
+    assert!(untimed.get("timeout").is_none(), "{doc}");
 }
 
 #[test]
 fn restamping_for_another_host_replaces_the_stamp() {
     let dir = tempfile::tempdir().unwrap();
     let path = write_fixture(dir.path());
-    stamp_hooks_file(&path, "claude-code").unwrap();
-    stamp_hooks_file(&path, "claude-desktop").unwrap();
+    stamp_hooks_file(&path, HostKind::ClaudeCode).unwrap();
+    stamp_hooks_file(&path, HostKind::ClaudeDesktop).unwrap();
     let doc: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     for entry in http_entries(&doc) {
         assert_eq!(entry["headers"]["x-systemprompt-host"], "claude-desktop");
@@ -119,6 +129,6 @@ fn restamping_for_another_host_replaces_the_stamp() {
 fn a_missing_file_is_a_no_op() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("hooks").join("hooks.json");
-    stamp_hooks_file(&path, "claude-code").unwrap();
+    stamp_hooks_file(&path, HostKind::ClaudeCode).unwrap();
     assert!(!path.exists());
 }

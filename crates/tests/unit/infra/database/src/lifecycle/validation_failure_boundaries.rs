@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use serde_json::json;
 use systemprompt_database::{
     DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-    QuerySelector, RepositoryError, ToDbValue, replica_status, validate_column_exists,
-    validate_table_exists,
+    QuerySelector, ToDbValue, replica_status, validate_column_exists, validate_table_exists,
 };
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
 struct ResultProvider {
@@ -66,10 +66,14 @@ impl DatabaseProvider for ResultProvider {
         Ok(None)
     }
     async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
-        Err(RepositoryError::internal("unused fixture transaction"))
+        Err(RepositoryError::database(std::io::Error::other(
+            "unused fixture transaction",
+        )))
     }
     async fn get_database_info(&self) -> DatabaseResult<DatabaseInfo> {
-        Err(RepositoryError::internal("unused fixture info"))
+        Err(RepositoryError::database(std::io::Error::other(
+            "unused fixture info",
+        )))
     }
     async fn test_connection(&self) -> DatabaseResult<()> {
         Ok(())
@@ -102,11 +106,11 @@ async fn replica_probe_rejects_missing_or_untyped_recovery_state() {
         (ResultProvider::new(Vec::new()), "returned no row"),
         (
             ResultProvider::new(vec![row(&[("lag_secs", json!(2.5))])]),
-            "lacks in_recovery",
+            "returned no boolean",
         ),
         (
             ResultProvider::new(vec![row(&[("in_recovery", json!("false"))])]),
-            "lacks in_recovery",
+            "returned no boolean",
         ),
     ] {
         let error = replica_status(&provider)

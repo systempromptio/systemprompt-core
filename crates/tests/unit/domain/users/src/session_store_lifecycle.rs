@@ -42,16 +42,14 @@ async fn isolated(
     systemprompt_database::DbPool,
     SessionRepository,
 ) {
-    let database = DisposableDb::installed(prefix)
-        .await
-        .expect("installed disposable DB");
-    let pool = database.pool().await.expect("disposable pool");
-    let repository = SessionRepository::new(&pool).expect("session repository");
+    let database = DisposableDb::with_schema(prefix).await;
+    let pool = database.test_pool().await;
+    let repository = SessionRepository::new(&pool);
     (database, pool, repository)
 }
 
 async fn cleanup(database: DisposableDb, pool: systemprompt_database::DbPool) {
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     database.drop_now().await;
 }
 
@@ -101,7 +99,7 @@ async fn trait_object_session_lifecycle_persists_usage_behavior_and_terminal_sta
         "SELECT total_tokens_used, total_ai_cost_microdollars FROM user_sessions WHERE session_id = $1",
     )
     .bind(session_id.as_str())
-    .fetch_one(pool.write_pool_arc().expect("write pool").as_ref())
+    .fetch_one(pool.write_pool().as_ref())
     .await
     .expect("persisted AI usage totals");
     assert_eq!(tokens, 90);
@@ -207,7 +205,7 @@ async fn trait_object_scanner_and_threshold_transitions_are_observable() {
         "SELECT converted_at IS NOT NULL FROM user_sessions WHERE session_id = $1",
     )
     .bind(session_id.as_str())
-    .fetch_one(pool.write_pool_arc().expect("write pool").as_ref())
+    .fetch_one(pool.write_pool().as_ref())
     .await
     .expect("persisted conversion timestamp");
     assert!(converted);
@@ -236,7 +234,7 @@ async fn trait_object_scanner_and_threshold_transitions_are_observable() {
 #[tokio::test]
 async fn trait_object_maps_read_write_behavioral_and_geo_pool_failures() {
     let pool = systemprompt_test_fixtures::closed_db_pool().await;
-    let repository = SessionRepository::new(&pool).expect("repository retains closed pool");
+    let repository = SessionRepository::new(&pool);
     let store: &dyn SessionStore = &repository;
     let session_id = SessionId::new("closed-store-session");
 

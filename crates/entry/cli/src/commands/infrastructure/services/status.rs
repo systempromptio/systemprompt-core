@@ -52,7 +52,7 @@ pub struct StatusSummary {
 impl From<&VerifiedServiceState> for ServiceStatusRow {
     fn from(state: &VerifiedServiceState) -> Self {
         Self {
-            name: state.name.clone(),
+            name: state.name.to_string(),
             service_type: state.service_type.to_string(),
             status: state.status_display().to_owned(),
             pid: state.pid,
@@ -75,7 +75,7 @@ pub fn health_label(health: HealthStatus) -> String {
 
 pub fn external_row(status: &McpServiceStatus) -> ServiceStatusRow {
     ServiceStatusRow {
-        name: status.name.clone(),
+        name: status.name.to_string(),
         service_type: "mcp".to_owned(),
         status: "remote".to_owned(),
         pid: None,
@@ -133,7 +133,7 @@ pub fn managed_health_label<S: BuildHasher>(
 ) -> String {
     if state.service_type == ServiceType::Mcp {
         return mcp_health
-            .get(&state.name)
+            .get(state.name.as_str())
             .map_or_else(|| "DEGRADED".to_owned(), |h| health_label(*h));
     }
     if state.is_healthy() {
@@ -162,17 +162,15 @@ pub(super) async fn execute(
         return Err(anyhow::anyhow!("Failed to load service configs"));
     };
 
-    let state_manager = ServiceStateVerifier::new(
-        Arc::clone(ctx.db_pool()),
-        systemprompt_identifiers::InstanceId::new(&ctx.config().instance_id),
-    );
+    let state_manager =
+        ServiceStateVerifier::new(Arc::clone(ctx.db_pool()), ctx.config().instance_id.clone());
     let states = state_manager.get_verified_states(&configs).await?;
 
     let mcp_statuses = mcp_service_statuses(&ctx).await?;
     let mcp_health: HashMap<String, HealthStatus> = mcp_statuses
         .iter()
         .filter(|s| s.server_type == McpServerType::Internal)
-        .map(|s| (s.name.clone(), s.health))
+        .map(|s| (s.name.to_string(), s.health))
         .collect();
     let external: Vec<ServiceStatusRow> = mcp_statuses
         .iter()
@@ -250,7 +248,7 @@ fn output_detailed(
     include_health: bool,
 ) {
     for state in states {
-        CliService::section(&state.name);
+        CliService::section(state.name.as_str());
         CliService::key_value("Type", &state.service_type.to_string());
         CliService::key_value("Status", state.status_display());
         CliService::key_value("Port", &state.port.to_string());

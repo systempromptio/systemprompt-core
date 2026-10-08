@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use systemprompt_logging::set_startup_mode;
-use systemprompt_models::Config;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
 use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
@@ -19,9 +19,11 @@ static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 
 fn minimal_config() -> Config {
     Config {
-        instance_id: "test-instance".to_string(),
+        instance_id: systemprompt_manifest::config::InstanceId::new("test-instance"),
         metrics_port: None,
         max_concurrent_streams: 256,
+        role: Default::default(),
+        max_in_flight: None,
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://u:p@localhost:5432/t".to_string(),
@@ -53,7 +55,7 @@ fn minimal_config() -> Config {
         signing_key_path: PathBuf::new(),
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
-        retention: systemprompt_models::profile::RetentionConfig::default(),
+        retention: systemprompt_manifest::profile::RetentionConfig::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

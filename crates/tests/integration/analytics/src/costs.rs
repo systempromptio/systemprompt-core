@@ -1,9 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{Duration, TimeZone, Utc};
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::UserId;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -36,10 +36,8 @@ impl Fixture {
     async fn new() -> Result<Self> {
         // The in-process guard orders tests inside one process.
         let guard = acquire_serial().await;
-        let url = fixture_database_url()
-            .context("DATABASE_URL must be set for cost reconciliation tests")?;
-        let db = fixture_db_pool(&url).await?;
-        let pool = db.pool_arc()?.as_ref().clone();
+        let db = test_db_pool().await;
+        let pool = db.pool().as_ref().clone();
         let tag = Uuid::new_v4().simple().to_string();
         let user_id = format!("test_user_{tag}");
         let context_id = format!("test_ctx_{tag}");
@@ -121,7 +119,7 @@ impl Fixture {
     }
 
     async fn repo(&self) -> Result<CostAnalyticsRepository> {
-        Ok(CostAnalyticsRepository::new(&self.db)?)
+        Ok(CostAnalyticsRepository::new(&self.db))
     }
 
     async fn cleanup(&self) -> Result<()> {

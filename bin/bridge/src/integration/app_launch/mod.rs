@@ -116,6 +116,23 @@ pub(crate) fn is_installed(
     }
 }
 
+// Why: a Start-menu lookup shells out to PowerShell, so a per-render "can this
+// host be opened" question is answered from the filesystem alone.
+#[cfg(target_os = "macos")]
+pub(crate) fn desktop_present_on_disk(loc: &AppLocator<'_>) -> bool {
+    macos_bundles(loc.macos_name).iter().any(|p| p.exists())
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn desktop_present_on_disk(loc: &AppLocator<'_>) -> bool {
+    loc.windows_candidates.iter().any(|p| p.exists())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(crate) const fn desktop_present_on_disk(_loc: &AppLocator<'_>) -> bool {
+    false
+}
+
 #[cfg(target_os = "macos")]
 fn macos_bundles(name: &str) -> Vec<PathBuf> {
     let mut out = vec![PathBuf::from(format!("/Applications/{name}.app"))];

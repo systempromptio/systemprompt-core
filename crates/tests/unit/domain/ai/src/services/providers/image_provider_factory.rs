@@ -1,8 +1,7 @@
 use systemprompt_ai::UpstreamTarget;
 use systemprompt_ai::services::providers::{ImageProviderFactory, ImageProviderParams};
-use systemprompt_models::services::{
-    AiProviderConfig, ProviderEntry, ProviderRegistry, WireProtocol,
-};
+use systemprompt_manifest::services::{AiProviderConfig, ProviderEntry, ProviderRegistry};
+use systemprompt_wire::WireProtocol;
 
 fn entry(name: &str) -> ProviderEntry {
     ProviderRegistry::default_seed()

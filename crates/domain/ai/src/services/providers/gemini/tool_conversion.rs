@@ -12,7 +12,7 @@
 use std::collections::HashSet;
 
 use systemprompt_identifiers::AiToolCallId;
-use systemprompt_models::wire::canonical::{
+use systemprompt_wire::canonical::{
     CanonicalContent, CanonicalResponse, CanonicalTool, ThinkingConfig,
 };
 
@@ -53,6 +53,7 @@ pub(super) fn convert_tools(
         .flatten()
         .filter(|tool| seen_names.insert(tool.name.clone()))
         .map(|tool| CanonicalTool {
+            anthropic_definition: None,
             name: tool.name,
             description: Some(tool.description),
             input_schema: tool.input_schema,

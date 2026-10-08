@@ -11,7 +11,7 @@ use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::session::api::create_local_session_row;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, install_test_signing_key,
+    DisposableDb, ensure_test_bootstrap, install_test_signing_key, test_app_context,
 };
 use systemprompt_users::{UserRepository, UserService};
 
@@ -31,9 +31,7 @@ fn parse(args: &[&str]) -> UsersCommands {
 #[tokio::test]
 #[ignore = "re-executed by deletion_preview_reports_owned_rows_and_preserves_target_and_sibling"]
 async fn delete_preview_helper() {
-    let database = DisposableDb::installed("cli_user_delete_preview")
-        .await
-        .expect("private database");
+    let database = DisposableDb::with_schema("cli_user_delete_preview").await;
     // SAFETY: the ignored helper is process-isolated and configuration is not
     // initialized.
     unsafe {
@@ -42,10 +40,8 @@ async fn delete_preview_helper() {
     }
     ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private pool");
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let pool = database.test_pool().await;
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let target = service
         .create(
             "preview-target",
@@ -67,7 +63,7 @@ async fn delete_preview_helper() {
     let session = create_local_session_row(&pool, &target.id, chrono::Duration::hours(1))
         .await
         .expect("target session");
-    let raw = pool.pool_arc().expect("SQL pool");
+    let raw = pool.pool();
     let users_before: Vec<(String, String, String, Vec<String>)> = sqlx::query_as(
         "SELECT id, name, status, roles FROM users WHERE id IN ($1, $2) ORDER BY id",
     )
@@ -87,7 +83,7 @@ async fn delete_preview_helper() {
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(&pool, database.url()).expect("full app context"),
+        test_app_context(&pool, database.url()),
     );
     println!("BEGIN_PREVIEW");
     users::execute(
@@ -116,7 +112,7 @@ async fn delete_preview_helper() {
         serde_json::json!({"users_before": users_before, "users_after": users_after, "session_owner_before": session_owner_before, "session_owner_after": session_owner_after, "target": target.id.as_str(), "sibling": sibling.id.as_str()})
     );
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

@@ -1,7 +1,7 @@
 //! Display primitives for CLI output.
 //!
-//! Defines the [`Display`] trait and the [`DisplayUtils`] helpers (levelled
-//! messages, section headers). All output goes to stderr via this sanctioned
+//! Defines the [`Display`] trait and the levelled-message and section-header
+//! helpers. All output goes to stderr via this sanctioned
 //! display sink.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,33 +23,28 @@ const fn message_level_str(level: MessageLevel) -> &'static str {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct DisplayUtils;
-
-impl DisplayUtils {
-    pub fn message(level: MessageLevel, text: &str) {
-        if crate::services::output::is_structured_output() {
-            crate::services::output::buffer_notice(message_level_str(level), text);
-            return;
-        }
-        stderr_writeln(format_args!(
-            "{} {}",
-            Theme::icon(level),
-            Theme::color(text, level)
-        ));
+pub fn message(level: MessageLevel, text: &str) {
+    if crate::services::output::is_structured_output() {
+        crate::services::output::buffer_notice(message_level_str(level), text);
+        return;
     }
+    stderr_writeln(format_args!(
+        "{} {}",
+        Theme::icon(level),
+        Theme::color(text, level)
+    ));
+}
 
-    pub fn section_header(title: &str) {
-        stderr_writeln(format_args!(
-            "\n{}",
-            Theme::color(title, EmphasisType::Underlined)
-        ));
-    }
+pub fn section_header(title: &str) {
+    stderr_writeln(format_args!(
+        "\n{}",
+        Theme::color(title, EmphasisType::Underlined)
+    ));
+}
 
-    pub fn subsection_header(title: &str) {
-        stderr_writeln(format_args!(
-            "\n  {}",
-            Theme::color(title, EmphasisType::Bold)
-        ));
-    }
+pub fn subsection_header(title: &str) {
+    stderr_writeln(format_args!(
+        "\n  {}",
+        Theme::color(title, EmphasisType::Bold)
+    ));
 }

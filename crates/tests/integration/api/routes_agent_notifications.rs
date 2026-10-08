@@ -23,7 +23,7 @@ async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     seed_user_session(pool, &user_id, &session_id).await?;
 
     let context_id = ContextId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",
     )
@@ -42,7 +42,7 @@ async fn seed_task(
     context_id: &ContextId,
 ) -> anyhow::Result<TaskId> {
     let task_id = TaskId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO agent_tasks (task_id, context_id, status, status_timestamp, user_id, \
          agent_name) VALUES ($1, $2, 'TASK_STATE_WORKING', now(), $3, 'notif-agent')",
@@ -165,7 +165,14 @@ async fn unknown_method_type_rejected_by_persistence() -> anyhow::Result<()> {
     });
     let uri = format!("/{}/notifications", context_id.as_str());
     let resp = app(&ctx).oneshot(json_post(&uri, body)).await?;
-    assert!(resp.status().is_server_error(), "{}", resp.status());
+    assert_eq!(resp.status().as_u16(), 400, "{}", resp.status());
+    let bytes = axum::body::to_bytes(resp.into_body(), 64 * 1024).await?;
+    let json: serde_json::Value = serde_json::from_slice(&bytes)?;
+    assert_eq!(json["error_key"], "check_violation", "{json}");
+    assert!(
+        !json.to_string().contains("notification_type_check"),
+        "the constraint name stays internal: {json}"
+    );
     Ok(())
 }
 

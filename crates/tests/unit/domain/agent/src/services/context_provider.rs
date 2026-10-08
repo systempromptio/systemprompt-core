@@ -7,16 +7,14 @@ use systemprompt_agent::services::ContextProviderService;
 use systemprompt_identifiers::ContextId;
 use systemprompt_traits::{ContextProvider, ContextProviderError};
 
-use crate::repository::{seed_user_and_session, try_pool_or_skip};
+use crate::repository::seed_user_and_session;
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn context_lifecycle_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let (user, session) = seed_user_and_session(&pool).await;
-    let provider =
-        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
+    let provider = ContextProviderService::new(ContextRepository::new(&pool));
 
     let ctx_id = provider
         .create_context(&user, Some(&session), "provider ctx")
@@ -61,12 +59,9 @@ async fn context_lifecycle_roundtrip() {
 
 #[tokio::test]
 async fn unknown_context_lookups_map_to_not_found() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let (user, _session) = seed_user_and_session(&pool).await;
-    let provider =
-        ContextProviderService::new(ContextRepository::new(&pool).expect("context repo"));
+    let provider = ContextProviderService::new(ContextRepository::new(&pool));
     let ghost = ContextId::generate();
 
     let get = provider.get_context(&ghost, &user).await;

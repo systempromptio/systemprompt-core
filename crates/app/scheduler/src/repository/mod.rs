@@ -1,25 +1,34 @@
 //! Persistence layer for the scheduler crate.
 //!
 //! [`SchedulerRepository`] is the composite façade combining the per-domain
-//! repositories ([`JobRepository`], [`AnalyticsRepository`]); it is the type
-//! consumed by [`crate::services::SchedulerService`] and by the API
-//! lifecycle bootstrap path.
+//! repositories ([`JobRepository`], [`AnalyticsRepository`]) and the
+//! cross-replica job advisory lock; it is the type consumed by
+//! [`crate::services::SchedulerService`] and by the API lifecycle bootstrap
+//! path.
 //!
 //! [`SecurityRepository`] / [`IpSessionRecord`] are exposed for direct use by
-//! the `crate::jobs::malicious_ip_blacklist` job.
+//! the `crate::jobs::malicious_ip_blacklist` job; the retention statements
+//! back `database_cleanup` and [`otlp`] backs the OTLP exporter.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
+mod job_lock;
 mod jobs;
+pub mod otlp;
+mod retention;
 mod security;
 
 pub use analytics::AnalyticsRepository;
+pub(crate) use job_lock::JobLockGuard;
+use job_lock::JobLockRepository;
 pub use jobs::JobRepository;
+pub(crate) use retention::{BATCH_ROWS as RETENTION_BATCH_ROWS, RetentionRepository};
 pub use security::{IpSessionRecord, SecurityRepository};
 
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::JobName;
 
 use crate::error::SchedulerResult;
 use crate::models::{JobRunRecord, ScheduledJob};
@@ -28,30 +37,39 @@ use crate::models::{JobRunRecord, ScheduledJob};
 pub struct SchedulerRepository {
     jobs: JobRepository,
     analytics: AnalyticsRepository,
+    locks: JobLockRepository,
 }
 
 impl SchedulerRepository {
-    pub fn new(db: &DbPool) -> SchedulerResult<Self> {
-        Ok(Self {
-            jobs: JobRepository::new(db)?,
-            analytics: AnalyticsRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            jobs: JobRepository::new(db),
+            analytics: AnalyticsRepository::new(db),
+            locks: JobLockRepository::new(db),
+        }
+    }
+
+    pub(crate) async fn try_acquire_job_lock(
+        &self,
+        job_name: &JobName,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        self.locks.try_acquire(job_name).await
     }
 
     pub async fn upsert_job(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         schedule: &str,
         enabled: bool,
     ) -> SchedulerResult<()> {
         self.jobs.upsert_job(job_name, schedule, enabled).await
     }
 
-    pub async fn delete_jobs_not_in(&self, known: &[String]) -> SchedulerResult<u64> {
+    pub async fn delete_jobs_not_in(&self, known: &[JobName]) -> SchedulerResult<u64> {
         self.jobs.delete_jobs_not_in(known).await
     }
 
-    pub async fn find_job(&self, job_name: &str) -> SchedulerResult<Option<ScheduledJob>> {
+    pub async fn find_job(&self, job_name: &JobName) -> SchedulerResult<Option<ScheduledJob>> {
         self.jobs.find_job(job_name).await
     }
 
@@ -61,7 +79,7 @@ impl SchedulerRepository {
 
     pub async fn update_job_execution(
         &self,
-        job_name: &str,
+        job_name: &JobName,
         record: JobRunRecord<'_>,
     ) -> SchedulerResult<()> {
         self.jobs.update_job_execution(job_name, record).await

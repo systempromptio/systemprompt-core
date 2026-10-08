@@ -19,7 +19,7 @@ use super::types::{MessageRow, ToolCallRow};
 use crate::context::CommandContext;
 use crate::shared::{CommandOutput, render_result};
 use serde_json::Value as JsonValue;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_models::artifacts::{Column, ColumnType, NoticeLine, TableArtifact};
 
 pub use stats::{RequestStatsOutput, build_request_stats};
@@ -99,7 +99,7 @@ pub enum RequestCommands {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestListRow {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub timestamp: String,
     pub cursor: String,
     pub user_id: UserId,
@@ -118,7 +118,7 @@ pub struct RequestListRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestShowOutput {
-    pub request_id: String,
+    pub request_id: AiRequestId,
     pub user_id: UserId,
     pub actor_kind: String,
     pub actor_id: String,

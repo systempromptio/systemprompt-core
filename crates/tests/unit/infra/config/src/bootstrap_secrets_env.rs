@@ -61,7 +61,7 @@ async fn env_source_does_not_fall_back_past_a_malformed_secrets_file() {
     assert!(
         matches!(
             err,
-            ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile { .. })
+            ConfigError::Secrets(SecretsBootstrapError::InvalidSecretsFile(_))
         ),
         "a corrupt secrets file must surface, not boot on the environment: {err}"
     );

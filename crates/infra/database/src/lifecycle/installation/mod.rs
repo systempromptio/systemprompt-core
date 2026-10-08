@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod classify;
 mod extension;
 mod fk_deferral;
 mod migration_cost;
@@ -14,10 +15,8 @@ mod routine_refs;
 mod seeds;
 mod undeclared;
 
-pub use extension::{
-    install_extension_schemas, install_extension_schemas_full,
-    install_extension_schemas_with_config,
-};
+pub use extension::current::{SchemaCurrency, schema_currency};
+pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{
     DeferredForeignKey, FkDeferralError, SplitCreateTable, split_create_table_foreign_keys,
 };

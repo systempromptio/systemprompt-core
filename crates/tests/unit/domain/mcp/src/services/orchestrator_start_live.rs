@@ -7,17 +7,16 @@
 use std::sync::Arc;
 
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::{McpEvent, McpOrchestrator};
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{
-    TestBootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 
 use crate::harness::{
     bootstrap_with_services, config_with_servers, install_stub_binary, internal_server_block,
-    register_internal_extension,
+    register_internal_extension, unique_instance,
 };
 
 // Internal MCP servers are validated against the 5000-5999 range, so an
@@ -44,24 +43,20 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
 
 struct LiveServer {
     orchestrator: McpOrchestrator,
-    name: String,
+    id: ServiceName,
     repo: ServiceRepository,
 }
 
 impl LiveServer {
     async fn teardown(&self) {
-        let _ = self
-            .orchestrator
-            .stop_services(Some(self.name.clone()))
-            .await;
-        let _ = self.repo.delete_service(&self.name).await;
+        let _ = self.orchestrator.stop_services(Some(self.id.clone())).await;
+        let _ = self.repo.delete_service(&self.id).await;
     }
 }
 
-async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
+async fn live_server(prefix: &str) -> LiveServer {
     let name = unique(prefix);
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+    let db = test_db_pool().await;
     let bootstrap = bootstrap_with_services(&config_with_servers(&[internal_server_block(
         &name,
         free_port(),
@@ -72,42 +67,36 @@ async fn live_server_or_skip(prefix: &str) -> Option<LiveServer> {
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &profile_paths(bootstrap),
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .ok()?;
+    let repo = ServiceRepository::new(&db, unique_instance());
     let orchestrator = McpOrchestrator::new(
         repo.clone(),
         app_paths,
         RegistryService::new(fixture_user_id()),
     )
-    .ok()?;
+    .expect("orchestrator");
 
-    Some(LiveServer {
+    LiveServer {
         orchestrator,
-        name,
+        id: ServiceName::new(name.as_str()),
         repo,
-    })
+    }
 }
 
 #[tokio::test]
 async fn start_services_registers_a_listening_server_and_publishes_started() {
-    let Some(live) = live_server_or_skip("startlive").await else {
-        return;
-    };
+    let live = live_server("startlive").await;
     let mut rx = live.orchestrator.subscribe_events();
 
     let result = live
         .orchestrator
-        .start_services(Some(live.name.clone()))
+        .start_services(Some(live.id.clone()))
         .await;
-    let row = live.repo.find_service_by_name(&live.name).await;
+    let row = live.repo.find_service_by_name(&live.id).await;
     live.teardown().await;
 
     result.expect("a listening stub starts cleanly");
@@ -115,7 +104,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
     let row = row
         .expect("service lookup succeeds")
         .expect("a started server is registered");
-    assert_eq!(row.status, "running");
+    assert_eq!(row.status, ServiceStatus::Running);
     assert!(row.pid.is_some_and(|p| p > 0), "the pid is recorded");
 
     let mut saw_started = false;
@@ -125,7 +114,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
             process_id,
             ..
         } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_started = true;
             assert!(
@@ -139,9 +128,7 @@ async fn start_services_registers_a_listening_server_and_publishes_started() {
 
 #[tokio::test]
 async fn reconcile_starts_a_listening_server_and_reports_completion() {
-    let Some(live) = live_server_or_skip("reclive").await else {
-        return;
-    };
+    let live = live_server("reclive").await;
     let mut rx = live.orchestrator.subscribe_events();
 
     let (tx, mut startup_rx) = systemprompt_traits::startup_channel();
@@ -160,7 +147,7 @@ async fn reconcile_starts_a_listening_server_and_reports_completion() {
             error,
             ..
         } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_completed = true;
             assert!(success, "the start succeeded");
@@ -187,14 +174,12 @@ async fn reconcile_starts_a_listening_server_and_reports_completion() {
 
 #[tokio::test]
 async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() {
-    let Some(live) = live_server_or_skip("recidem").await else {
-        return;
-    };
+    let live = live_server("recidem").await;
 
     let first = live.orchestrator.reconcile().await;
     let first_pid = live
         .repo
-        .find_service_by_name(&live.name)
+        .find_service_by_name(&live.id)
         .await
         .ok()
         .flatten()
@@ -203,7 +188,7 @@ async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() 
     let second = live.orchestrator.reconcile().await;
     let second_pid = live
         .repo
-        .find_service_by_name(&live.name)
+        .find_service_by_name(&live.id)
         .await
         .ok()
         .flatten()
@@ -223,37 +208,78 @@ async fn a_second_reconcile_kills_the_previous_process_and_starts_a_fresh_one() 
 
 #[tokio::test]
 async fn stop_services_terminates_a_running_server_and_publishes_stopped() {
-    let Some(live) = live_server_or_skip("stoplive").await else {
-        return;
-    };
+    let live = live_server("stoplive").await;
 
     live.orchestrator
-        .start_services(Some(live.name.clone()))
+        .start_services(Some(live.id.clone()))
         .await
         .expect("stub starts");
     let mut rx = live.orchestrator.subscribe_events();
 
-    let result = live
-        .orchestrator
-        .stop_services(Some(live.name.clone()))
-        .await;
-    let row = live.repo.find_service_by_name(&live.name).await;
-    let _ = live.repo.delete_service(&live.name).await;
+    let result = live.orchestrator.stop_services(Some(live.id.clone())).await;
+    let row = live.repo.find_service_by_name(&live.id).await;
+    let _ = live.repo.delete_service(&live.id).await;
 
     result.expect("a running server stops cleanly");
     assert_ne!(
-        row.expect("lookup succeeds").map(|r| r.status).as_deref(),
-        Some("running"),
+        row.expect("lookup succeeds").map(|r| r.status),
+        Some(ServiceStatus::Running),
         "the stopped server is no longer marked running"
     );
 
     let mut saw_stopped = false;
     while let Ok(event) = rx.try_recv() {
         if let McpEvent::ServiceStopped { service_name, .. } = event
-            && service_name == live.name
+            && service_name == live.id
         {
             saw_stopped = true;
         }
     }
     assert!(saw_stopped, "stopping publishes ServiceStopped");
+}
+
+#[tokio::test]
+async fn restart_services_replaces_the_running_process_and_reports_it() {
+    let live = live_server("restartlive").await;
+
+    live.orchestrator
+        .start_services(Some(live.id.clone()))
+        .await
+        .expect("stub starts");
+    let first_pid = live
+        .repo
+        .find_service_by_name(&live.id)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.pid);
+
+    let outcomes = live
+        .orchestrator
+        .restart_services(Some(live.id.clone()))
+        .await;
+    let second_pid = live
+        .repo
+        .find_service_by_name(&live.id)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|r| r.pid);
+    live.teardown().await;
+
+    let outcomes = outcomes.expect("target listing succeeds");
+    assert_eq!(outcomes.len(), 1, "one outcome per targeted server");
+    assert_eq!(outcomes[0].service_name, live.id);
+    assert!(
+        outcomes[0].is_restarted(),
+        "restart failed: {:?}",
+        outcomes[0].result
+    );
+
+    let first_pid = first_pid.expect("first start registered a pid");
+    let second_pid = second_pid.expect("restart registered a pid");
+    assert_ne!(
+        first_pid, second_pid,
+        "restart replaces the process instead of only announcing it"
+    );
 }

@@ -7,7 +7,7 @@ use systemprompt_cli::analytics::{self, AnalyticsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 #[derive(Debug, Parser)]
 struct Harness {
@@ -21,11 +21,6 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
     CommandContext::with_database(
@@ -34,7 +29,7 @@ fn ctx(pool: &DbPool) -> CommandContext {
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
 }
 
@@ -47,14 +42,14 @@ async fn run_tolerant(args: &[&str], ctx: &CommandContext) {
 
 #[tokio::test]
 async fn overview_renders_on_empty_database() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     run_tolerant(&["overview"], &ctx).await;
 }
 
 #[tokio::test]
 async fn agents_analytics_run_on_empty_database() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     run_tolerant(&["agents", "stats"], &ctx).await;
     run_tolerant(&["agents", "list"], &ctx).await;
@@ -64,7 +59,7 @@ async fn agents_analytics_run_on_empty_database() {
 
 #[tokio::test]
 async fn tools_analytics_run_on_empty_database() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     run_tolerant(&["tools", "stats"], &ctx).await;
     run_tolerant(&["tools", "list"], &ctx).await;
@@ -74,7 +69,7 @@ async fn tools_analytics_run_on_empty_database() {
 
 #[tokio::test]
 async fn sessions_and_conversations_run_on_empty_database() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     run_tolerant(&["sessions", "stats"], &ctx).await;
     run_tolerant(&["sessions", "trends"], &ctx).await;
@@ -86,7 +81,7 @@ async fn sessions_and_conversations_run_on_empty_database() {
 
 #[tokio::test]
 async fn content_traffic_costs_requests_run_on_empty_database() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let ctx = ctx(&pool);
     run_tolerant(&["content", "stats"], &ctx).await;
     run_tolerant(&["content", "top"], &ctx).await;

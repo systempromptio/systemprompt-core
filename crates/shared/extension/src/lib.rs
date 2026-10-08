@@ -77,7 +77,7 @@ pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use cost::{CostDirective, CostDirectiveError, TriggerPolicy};
 pub use error::{ExtensionConfigError, LoaderError};
-pub use frame_options::{FrameOptions, FrameOptionsOverride, stamp_frame_options};
+pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
     GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
@@ -103,13 +103,13 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::seed::Seed;
     pub use crate::{
-        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, FrameOptions, Migration,
-        SchemaDefinition, SiteAuthConfig, extension_migrations, register_extension,
-        register_gateway_guard, stamp_frame_options, user_purge_tables,
+        Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter, Migration, SchemaDefinition,
+        SiteAuthConfig, extension_migrations, register_extension, register_gateway_guard,
+        stamp_frame_options, user_purge_tables,
     };
 
     pub use systemprompt_provider_contracts::{
-        ComponentContext, ComponentRenderer, ContentDataContext, ContentDataProvider,
+        ComponentContext, ComponentRenderer, ContentDataContext, ContentDataProvider, FrameOptions,
         FrontmatterContext, FrontmatterProcessor, PageContext, PageDataProvider,
         PagePrepareContext, PagePrerenderer, PageRenderSpec, PlaceholderMapping, RenderedComponent,
         RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,

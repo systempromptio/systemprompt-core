@@ -65,7 +65,11 @@ basic_id_tests!(authorization_code, AuthorizationCode, "code_abc");
 basic_id_tests!(challenge_id, ChallengeId, "chal_1");
 basic_id_tests!(marketplace_id, MarketplaceId, "mkt_default");
 basic_id_tests!(tenant_id, TenantId, "tenant_acme");
-basic_id_tests!(webhook_endpoint_id, WebhookEndpointId, "whk_1");
+basic_id_tests!(
+    webhook_endpoint_id,
+    WebhookEndpointId,
+    "6f1c2a3e-8b4d-4c5e-9f60-7a8b9c0d1e2f"
+);
 basic_id_tests!(hook_id, HookId, "hook_1");
 basic_id_tests!(plugin_id, PluginId, "plugin_core");
 basic_id_tests!(policy_version, PolicyVersion, "v1");
@@ -140,3 +144,27 @@ mod secret_pattern_id {
         );
     }
 }
+
+macro_rules! checked_non_empty_tests {
+    ($mod:ident, $ty:ident) => {
+        mod $mod {
+            use super::*;
+            use std::str::FromStr;
+
+            #[test]
+            fn try_new_rejects_blank() {
+                assert!($ty::try_new("").is_err());
+                assert!($ty::try_new("   ").is_err());
+            }
+
+            #[test]
+            fn deserialize_and_from_str_validate() {
+                assert!(serde_json::from_str::<$ty>("\"\"").is_err());
+                assert!($ty::from_str("").is_err());
+            }
+        }
+    };
+}
+
+checked_non_empty_tests!(tenant_id_checked, TenantId);
+checked_non_empty_tests!(price_id_checked, PriceId);

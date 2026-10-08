@@ -9,7 +9,7 @@
 use axum::Router;
 use systemprompt_api::routes::wellknown_router;
 use systemprompt_test_fixtures::{
-    ensure_messaging_bootstrap, fixture_app_context, fixture_db_pool, test_messaging_agent,
+    ensure_messaging_bootstrap, test_app_context, test_db_pool, test_messaging_agent,
 };
 use tower::ServiceExt;
 
@@ -17,8 +17,8 @@ use super::common::{body_to_string, empty_get};
 
 async fn app() -> anyhow::Result<Router> {
     let b = ensure_messaging_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let ctx = fixture_app_context(&pool, &b.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &b.database_url);
     Ok(wellknown_router(&ctx)?)
 }
 

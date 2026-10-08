@@ -1,9 +1,10 @@
 //! Router assembly for the API server.
 //!
-//! [`configure_routes`] composes the full route tree: protocol surfaces (OAuth,
-//! agent, MCP, stream, content), extension-mounted routes, discovery and
-//! well-known endpoints, static content, and the global IP-ban and metrics
-//! layers. Each surface is gated with its `AuthzPolicy` at mount time.
+//! `configure_routes` composes the route tree for this node's role: protocol
+//! surfaces (OAuth, agent, MCP, stream, content, gateway), extension-mounted
+//! routes, discovery and well-known endpoints, static content, and the global
+//! IP-ban and metrics layers. [`role::route_groups`] decides which groups a
+//! role mounts. Each surface is gated with its `AuthzPolicy` at mount time.
 //!
 //! The static router is merged after the IP-ban layer is applied, so public
 //! pages and assets are served without a ban-list lookup; only the API routes
@@ -12,15 +13,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 mod extension_mount;
 mod gateway;
 mod managed;
 mod protocol;
+pub mod role;
 mod static_setup;
 
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_manifest::profile::NodeRole;
+
+pub(super) use error::RouteMountError;
+use role::RouteGroup;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
@@ -34,18 +42,32 @@ use crate::services::middleware::{
 pub(super) fn configure_routes(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
-) -> Result<Router, LoaderError> {
+) -> Result<Router, RouteMountError> {
+    build_routes(ctx, ctx.config().role, events)
+}
+
+pub fn configure_routes_for_role(
+    ctx: &AppContext,
+    role: NodeRole,
+    events: Option<&StartupEventSender>,
+) -> anyhow::Result<Router> {
+    Ok(build_routes(ctx, role, events)?)
+}
+
+fn build_routes(
+    ctx: &AppContext,
+    role: NodeRole,
+    events: Option<&StartupEventSender>,
+) -> Result<Router, RouteMountError> {
+    let groups = role::route_groups(role);
+    let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
 
-    super::metrics::install_recorder(&ctx.config().instance_id).map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "prometheus_metrics".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    super::metrics::install_recorder(&ctx.config().instance_id)
+        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
-    let limits = RateLimitState::from_context(ctx)?;
+    let limits = RateLimitState::from_context(ctx);
 
     let public_middleware = PublicContextMiddleware::new();
     let user_middleware = UserOnlyContextMiddleware::new(jwt_extractor.clone());
@@ -58,40 +80,49 @@ pub(super) fn configure_routes(
         public_middleware: &public_middleware,
         user_middleware: &user_middleware,
     };
-    router = protocol::mount_oauth(router, &mount)?;
-    router = protocol::mount_agent(router, &mount, a2a_middleware)?;
-    router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
-    router = protocol::mount_content_and_misc(router, &mount)?;
-    router = protocol::mount_messaging(router, &mount)?;
+    if serves(RouteGroup::Oauth) {
+        router = protocol::mount_oauth(router, &mount)?;
+    }
+    if serves(RouteGroup::Agent) {
+        router = protocol::mount_agent(router, &mount, a2a_middleware)?;
+    }
+    if serves(RouteGroup::McpAndStream) {
+        router = protocol::mount_mcp_and_stream(router, &mount, mcp_middleware)?;
+    }
+    if serves(RouteGroup::ContentAndMisc) {
+        router = protocol::mount_content_and_misc(router, &mount)?;
+    }
+    if serves(RouteGroup::Managed) {
+        router = managed::mount(router, &mount)?;
+    }
+    if serves(RouteGroup::Gateway) {
+        router = gateway::mount_gateway(router, &mount)?;
+    }
+    if serves(RouteGroup::Messaging) {
+        router = protocol::mount_messaging(router, &mount)?;
+    }
+    if serves(RouteGroup::Extensions) {
+        router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
+    }
+    if serves(RouteGroup::Discovery) {
+        router =
+            router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
+    }
+    if serves(RouteGroup::AuthenticatedDiscovery) {
+        router = router.merge(
+            authenticated_discovery_router(ctx)
+                .with_auth(user_middleware, AuthzPolicy::authenticated()),
+        );
+    }
+    if serves(RouteGroup::WellKnown) {
+        router = router
+            .merge(wellknown_router(ctx)?.with_auth(public_middleware, AuthzPolicy::public()));
+    }
+    if serves(RouteGroup::Oauth) {
+        router = router.merge(link_passkey_router(ctx, &limits, public_middleware)?);
+    }
 
-    router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
-
-    router =
-        router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
-    router = router.merge(
-        authenticated_discovery_router(ctx)
-            .with_auth(user_middleware, AuthzPolicy::authenticated()),
-    );
-    router =
-        router.merge(wellknown_router(ctx)?.with_auth(public_middleware, AuthzPolicy::public()));
-
-    let rate_config = &ctx.config().rate_limits;
-    router = router.merge(
-        Router::new()
-            .route(
-                "/auth/link-passkey",
-                axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
-            )
-            .with_rate_limit(&limits, rate_config.oauth_public_per_second, "oauth_public")?
-            .with_auth(public_middleware, AuthzPolicy::public()),
-    );
-
-    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool()).map_err(|e| {
-        LoaderError::InitializationFailed {
-            extension: "ip_ban_middleware".to_owned(),
-            message: e.to_string(),
-        }
-    })?;
+    let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());
 
     router = router.layer(axum::middleware::from_fn(move |req, next| {
@@ -100,26 +131,46 @@ pub(super) fn configure_routes(
         async move { ip_ban_middleware(req, next, repo, proxies).await }
     }));
 
-    router = router.merge(static_setup::build_static_router(
-        ctx,
-        public_middleware,
-        events,
-    ));
+    if serves(RouteGroup::Static) {
+        router = router.merge(static_setup::build_static_router(
+            ctx,
+            public_middleware,
+            events,
+        ));
+    }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
+}
+
+fn link_passkey_router(
+    ctx: &AppContext,
+    limits: &RateLimitState,
+    public_middleware: PublicContextMiddleware,
+) -> Result<Router, LoaderError> {
+    Ok(Router::new()
+        .route(
+            "/auth/link-passkey",
+            axum::routing::get(crate::routes::oauth::webauthn::link::link_passkey_page),
+        )
+        .with_rate_limit(
+            limits,
+            ctx.config().rate_limits.oauth_public_per_second,
+            "oauth_public",
+        )?
+        .with_auth(public_middleware, AuthzPolicy::public()))
 }
 
 fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderError> {
     let analytics = ctx
         .session_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_owned(),
+            extension: ExtensionId::new("jwt"),
             message: "SessionProvider is required for JWT session enforcement".to_owned(),
         })?;
     let user_provider = ctx
         .user_provider()
         .ok_or_else(|| LoaderError::InitializationFailed {
-            extension: "jwt".to_owned(),
+            extension: ExtensionId::new("jwt"),
             message: "UserProvider is required for JWT validation".to_owned(),
         })?;
     let jti_revocation =
@@ -128,6 +179,7 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
         analytics,
         user_provider,
         jti_revocation,
+        ctx.config().jwt_issuer.clone(),
     ))
 }
 

@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use systemprompt_models::ai::ToolModelOverrides;
-use systemprompt_models::services::PluginComponentRef;
+use systemprompt_models::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -25,8 +25,8 @@ pub struct AgentRuntimeInfo {
     pub tool_model_overrides: ToolModelOverrides,
 }
 
-impl From<systemprompt_models::AgentConfig> for AgentRuntimeInfo {
-    fn from(config: systemprompt_models::AgentConfig) -> Self {
+impl From<systemprompt_manifest::AgentConfig> for AgentRuntimeInfo {
+    fn from(config: systemprompt_manifest::AgentConfig) -> Self {
         Self {
             name: config.name,
             port: config.port,

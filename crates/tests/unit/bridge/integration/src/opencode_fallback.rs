@@ -25,7 +25,8 @@ const PROVIDER_BLOCK: &str = r#"{
       "npm": "@ai-sdk/openai-compatible",
       "options": { "baseURL": "http://127.0.0.1:48217/v1" }
     }
-  }
+  },
+  "enabled_providers": ["systemprompt"]
 }"#;
 
 fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
@@ -98,7 +99,8 @@ fn the_managed_tier_still_wins_over_the_user_tier() {
           "npm": "@ai-sdk/openai-compatible",
           "options": { "baseURL": "http://127.0.0.1:1/v1" }
         }
-      }
+      },
+      "enabled_providers": ["systemprompt"]
     }"#;
     let snapshot = sandbox(Some(stale), Some(PROVIDER_BLOCK), |_| {
         OPENCODE_HOST.probe(&probe_env())

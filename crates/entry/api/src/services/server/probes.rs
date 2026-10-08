@@ -1,17 +1,20 @@
 //! Liveness and readiness probes for balancers and orchestrators.
 //!
 //! `/livez` answers as soon as the port is bound; `/readyz` is the admission
-//! signal and answers 503 before boot completes, after the drain signal, and
-//! whenever the database probe fails.
+//! signal and answers 503 before boot completes, after the drain signal, while
+//! the in-flight ceiling is saturated, and whenever the database probe fails.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
 
 use axum::Json;
 use serde_json::json;
 use systemprompt_runtime::AppContext;
 
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
+use crate::services::middleware::LoadShed;
 
 pub(crate) async fn handle_livez(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -25,6 +28,7 @@ pub(crate) async fn handle_livez(
 
 pub(crate) async fn handle_readyz(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
+    shed: Option<axum::Extension<Arc<LoadShed>>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
@@ -36,6 +40,21 @@ pub(crate) async fn handle_readyz(
         return (
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({ "status": "draining", "instance": instance, "version": version })),
+        );
+    }
+
+    if let Some(axum::Extension(shed)) = shed
+        && shed.saturated()
+    {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "status": "saturated",
+                "in_flight": shed.in_flight(),
+                "limit": shed.limit(),
+                "instance": instance,
+                "version": version
+            })),
         );
     }
 

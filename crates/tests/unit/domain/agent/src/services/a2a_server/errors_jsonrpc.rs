@@ -1,11 +1,15 @@
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::services::a2a_server::errors::jsonrpc::{
-    JsonRpcErrorBuilder, forbidden_response, unauthorized_response,
+    JsonRpcErrorBuilder, JsonRpcErrorResponse, forbidden_response, unauthorized_response,
 };
 use systemprompt_logging::LogLevel;
 
 fn string_request_id() -> NumberOrString {
     NumberOrString::String("req-1".to_string())
+}
+
+fn to_json(response: JsonRpcErrorResponse) -> serde_json::Value {
+    serde_json::to_value(response).expect("serialize JSON-RPC response")
 }
 
 fn number_request_id() -> NumberOrString {
@@ -15,7 +19,7 @@ fn number_request_id() -> NumberOrString {
 #[test]
 fn builder_new_sets_code_and_message() {
     let builder = JsonRpcErrorBuilder::new(-32000, "Custom error");
-    let result = builder.build(&string_request_id());
+    let result = to_json(builder.build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32000);
     assert_eq!(result["error"]["message"], "Custom error");
     assert_eq!(result["jsonrpc"], "2.0");
@@ -25,84 +29,87 @@ fn builder_new_sets_code_and_message() {
 #[test]
 fn builder_with_data_includes_data_field() {
     let data = serde_json::json!({"detail": "something"});
-    let result = JsonRpcErrorBuilder::new(-32000, "err")
-        .with_data(data.clone())
-        .build(&string_request_id());
+    let result = to_json(
+        JsonRpcErrorBuilder::new(-32000, "err")
+            .with_data(data.clone())
+            .build(&string_request_id()),
+    );
     assert_eq!(result["error"]["data"], data);
 }
 
 #[test]
 fn builder_without_data_omits_data_field() {
-    let result = JsonRpcErrorBuilder::new(-32000, "err").build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::new(-32000, "err").build(&string_request_id()));
     assert!(result["error"]["data"].is_null());
 }
 
 #[test]
 fn builder_with_log_sets_message_and_level() {
     let builder = JsonRpcErrorBuilder::new(-32000, "err").with_log("log msg", LogLevel::Info);
-    let result = builder.build(&string_request_id());
+    let result = to_json(builder.build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32000);
 }
 
 #[test]
 fn builder_log_error_sets_error_level() {
     let builder = JsonRpcErrorBuilder::new(-32000, "err").log_error("an error");
-    let result = builder.build(&string_request_id());
+    let result = to_json(builder.build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32000);
 }
 
 #[test]
 fn builder_log_warn_sets_warn_level() {
     let builder = JsonRpcErrorBuilder::new(-32000, "err").log_warn("a warning");
-    let result = builder.build(&string_request_id());
+    let result = to_json(builder.build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32000);
 }
 
 #[test]
 fn builder_build_with_numeric_id() {
-    let result = JsonRpcErrorBuilder::new(-32000, "err").build(&number_request_id());
+    let result = to_json(JsonRpcErrorBuilder::new(-32000, "err").build(&number_request_id()));
     assert_eq!(result["id"], 42);
     assert_eq!(result["jsonrpc"], "2.0");
 }
 
 #[test]
 fn factory_invalid_request_code_and_message() {
-    let result = JsonRpcErrorBuilder::invalid_request().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::invalid_request().build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32600);
     assert_eq!(result["error"]["message"], "Invalid Request");
 }
 
 #[test]
 fn factory_method_not_found_code_and_message() {
-    let result = JsonRpcErrorBuilder::method_not_found().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::method_not_found().build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32601);
     assert_eq!(result["error"]["message"], "Method not found");
 }
 
 #[test]
 fn factory_invalid_params_code_and_message() {
-    let result = JsonRpcErrorBuilder::invalid_params().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::invalid_params().build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32602);
     assert_eq!(result["error"]["message"], "Invalid params");
 }
 
 #[test]
 fn factory_internal_error_code_and_message() {
-    let result = JsonRpcErrorBuilder::internal_error().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::internal_error().build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32603);
     assert_eq!(result["error"]["message"], "Internal error");
 }
 
 #[test]
 fn factory_parse_error_code_and_message() {
-    let result = JsonRpcErrorBuilder::parse_error().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::parse_error().build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32700);
     assert_eq!(result["error"]["message"], "Parse error");
 }
 
 #[test]
 fn factory_unauthorized_includes_reason_data() {
-    let result = JsonRpcErrorBuilder::unauthorized("bad token").build(&string_request_id());
+    let result =
+        to_json(JsonRpcErrorBuilder::unauthorized("bad token").build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32600);
     assert_eq!(result["error"]["message"], "Unauthorized");
     assert_eq!(result["error"]["data"]["reason"], "bad token");
@@ -110,7 +117,8 @@ fn factory_unauthorized_includes_reason_data() {
 
 #[test]
 fn factory_forbidden_includes_reason_data() {
-    let result = JsonRpcErrorBuilder::forbidden("access denied").build(&string_request_id());
+    let result =
+        to_json(JsonRpcErrorBuilder::forbidden("access denied").build(&string_request_id()));
     assert_eq!(result["error"]["code"], -32600);
     assert_eq!(result["error"]["message"], "Forbidden");
     assert_eq!(result["error"]["data"]["reason"], "access denied");
@@ -120,6 +128,7 @@ fn factory_forbidden_includes_reason_data() {
 fn build_with_status_invalid_request_returns_bad_request() {
     let (status, body) =
         JsonRpcErrorBuilder::invalid_request().build_with_status(&string_request_id());
+    let body = to_json(body);
     assert_eq!(status.as_u16(), 400);
     assert_eq!(body["error"]["code"], -32600);
 }
@@ -159,6 +168,7 @@ fn build_with_status_unknown_code_returns_500() {
 #[test]
 fn unauthorized_response_returns_401_status() {
     let (status, body) = unauthorized_response("expired token", &string_request_id());
+    let body = to_json(body);
     assert_eq!(status.as_u16(), 401);
     assert_eq!(body["error"]["message"], "Unauthorized");
     assert_eq!(body["error"]["data"]["reason"], "expired token");
@@ -167,6 +177,7 @@ fn unauthorized_response_returns_401_status() {
 #[test]
 fn forbidden_response_returns_403_status() {
     let (status, body) = forbidden_response("not allowed", &string_request_id());
+    let body = to_json(body);
     assert_eq!(status.as_u16(), 403);
     assert_eq!(body["error"]["message"], "Forbidden");
     assert_eq!(body["error"]["data"]["reason"], "not allowed");
@@ -175,10 +186,12 @@ fn forbidden_response_returns_403_status() {
 #[test]
 fn builder_chaining_data_then_log() {
     let data = serde_json::json!({"extra": true});
-    let result = JsonRpcErrorBuilder::new(-32000, "chained")
-        .with_data(data.clone())
-        .log_warn("warn msg")
-        .build(&string_request_id());
+    let result = to_json(
+        JsonRpcErrorBuilder::new(-32000, "chained")
+            .with_data(data.clone())
+            .log_warn("warn msg")
+            .build(&string_request_id()),
+    );
     assert_eq!(result["error"]["data"], data);
     assert_eq!(result["error"]["message"], "chained");
 }
@@ -193,7 +206,7 @@ fn builder_debug_impl() {
 
 #[test]
 fn builder_response_structure_is_valid_jsonrpc() {
-    let result = JsonRpcErrorBuilder::internal_error().build(&string_request_id());
+    let result = to_json(JsonRpcErrorBuilder::internal_error().build(&string_request_id()));
     assert!(result.get("jsonrpc").is_some());
     assert!(result.get("error").is_some());
     assert!(result.get("id").is_some());

@@ -78,6 +78,8 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
             user_id: &user,
             name: "bridge pat",
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 
@@ -162,6 +164,7 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
         .await
@@ -177,6 +180,7 @@ fn jwt_extractor(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
         JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        ctx.config().jwt_issuer.clone(),
     )))
 }
 
@@ -189,7 +193,7 @@ async fn seed_exchange_code(
     systemprompt_test_fixtures::seed_user_row(pool, &user, &format!("ex-{uniq}@example.invalid"))
         .await?;
     let code = format!("code-{uniq}");
-    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool())?;
+    let repo = systemprompt_oauth::OAuthRepository::new(ctx.db_pool());
     repo.create_bridge_exchange_code(systemprompt_oauth::repository::CreateExchangeCodeParams {
         code_hash: &systemprompt_oauth::services::hash_exchange_code(&code),
         user_id: &user,
@@ -237,10 +241,13 @@ async fn session_with_valid_code_issues_bridge_access() -> Result<()> {
 async fn manifest_without_credential_is_unauthorized() -> Result<()> {
     let (_db, ctx) = setup_ctx().await?;
     let extractor = jwt_extractor(&ctx)?;
-    let (status, _msg) = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
+    let error = bridge_manifest::manifest(extractor, (*ctx).clone(), HeaderMap::new())
         .await
         .expect_err("missing credential must error");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        error.into_inner().code.status_code(),
+        StatusCode::UNAUTHORIZED
+    );
     Ok(())
 }
 
@@ -373,10 +380,10 @@ async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     .await?;
     let extractor = jwt_extractor(&auth_ctx)?;
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
-    let offline_ctx = systemprompt_test_fixtures::fixture_app_context(
+    let offline_ctx = systemprompt_test_fixtures::test_app_context(
         &closed,
         "postgres://closed:closed@localhost/closed",
-    )?;
+    );
     let mut headers = HeaderMap::new();
     headers.insert(
         http::header::AUTHORIZATION,
@@ -385,11 +392,15 @@ async fn coverage_manifest_database_failure_fails_closed() -> Result<()> {
     let error = bridge_manifest::manifest(extractor, (*offline_ctx).clone(), headers)
         .await
         .expect_err("managed-resource authority must be available");
-    assert_eq!(error.0, StatusCode::INTERNAL_SERVER_ERROR);
+    let error = error.into_inner();
+    assert_eq!(
+        error.code.status_code(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "a storage failure must surface as a server error, got: {error:?}"
+    );
     assert!(
-        error.1.contains("managed resource resolution failed"),
-        "a storage failure must surface as the managed authority being unavailable, got: {}",
-        error.1
+        error.source().is_some(),
+        "the storage failure must be kept as the logged cause, got: {error:?}"
     );
     Ok(())
 }

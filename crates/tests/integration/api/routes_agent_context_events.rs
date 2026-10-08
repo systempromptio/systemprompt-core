@@ -3,7 +3,7 @@
 //! Seeds a user-owned context and drives all three `ContextEvent` arms
 //! (AG-UI, A2A, System) past ownership validation into the event router, which
 //! returns zero broadcasts with no subscribers. The foreign-user and unknown
-//! context arms drive the ownership-403 branch.
+//! context arms drive the ownership-404 branch.
 
 use axum::Extension;
 use systemprompt_api::routes::contexts_router;
@@ -26,7 +26,7 @@ async fn seed_context(pool: &DbPool) -> anyhow::Result<(UserId, ContextId)> {
     seed_user_session(pool, &user_id, &session_id).await?;
 
     let context_id = ContextId::generate();
-    let handle = pool.pool_arc()?;
+    let handle = pool.pool();
     sqlx::query(
         "INSERT INTO user_contexts (context_id, user_id, session_id, name) VALUES ($1, $2, $3, $4)",
     )
@@ -45,8 +45,8 @@ fn request_context_for(user: &UserId) -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("evt-agent").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
 }
 
 fn app(ctx: &systemprompt_runtime::AppContext, user: &UserId) -> axum::Router {
@@ -107,7 +107,7 @@ async fn forward_system_event_succeeds() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn forward_event_foreign_user_returns_403() -> anyhow::Result<()> {
+async fn forward_event_foreign_user_returns_404() -> anyhow::Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     let (_owner, context_id) = seed_context(&pool).await?;
     let intruder = unique_user_id("evt-intruder");
@@ -117,12 +117,12 @@ async fn forward_event_foreign_user_returns_403() -> anyhow::Result<()> {
     let resp = app(&ctx, &intruder)
         .oneshot(json_post(&uri, serde_json::to_value(&event)?))
         .await?;
-    assert_eq!(resp.status().as_u16(), 403, "{}", resp.status());
+    assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
     Ok(())
 }
 
 #[tokio::test]
-async fn forward_event_unknown_context_returns_403() -> anyhow::Result<()> {
+async fn forward_event_unknown_context_returns_404() -> anyhow::Result<()> {
     let (_pool, ctx) = setup_ctx().await?;
     let user_id = unique_user_id("evt-nobody");
     let missing = ContextId::generate();
@@ -132,6 +132,6 @@ async fn forward_event_unknown_context_returns_403() -> anyhow::Result<()> {
     let resp = app(&ctx, &user_id)
         .oneshot(json_post(&uri, serde_json::to_value(&event)?))
         .await?;
-    assert_eq!(resp.status().as_u16(), 403, "{}", resp.status());
+    assert_eq!(resp.status().as_u16(), 404, "{}", resp.status());
     Ok(())
 }

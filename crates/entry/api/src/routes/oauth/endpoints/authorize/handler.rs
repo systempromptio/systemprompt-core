@@ -16,12 +16,13 @@ use super::validation::{
     validate_authorize_request, validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::request_base_url::RequestBaseUrl;
 use axum::extract::{Extension, Form, Query, State};
 use axum::response::{Html, IntoResponse, Response};
-use systemprompt_models::{Config, RequestContext};
+use systemprompt_manifest::Config;
+use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
 use systemprompt_oauth::services::generate_secure_token;
@@ -48,15 +49,13 @@ async fn issue_server_state(
     params: &AuthorizeQuery,
 ) -> Result<String, OAuthHttpError> {
     let server_state = generate_secure_token("state");
-    let binding = StateBindingParams::builder(&server_state)
+    let redirect_uri = params.redirect_uri.as_deref().unwrap_or("");
+    let binding = StateBindingParams::builder(&server_state, &params.client_id, redirect_uri)
         .with_return_to(return_to)
-        .with_client_id(&params.client_id)
-        .with_redirect_uri(params.redirect_uri.as_deref().unwrap_or(""))
         .build();
-    repo.store_state_binding(binding).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to persist OAuth state binding");
-        OAuthHttpError::server_error("Failed to persist authorization state")
-    })?;
+    repo.store_state_binding(binding)
+        .await
+        .map_err(|e| internal::server_error("Failed to persist authorization state", e))?;
     Ok(server_state)
 }
 
@@ -73,21 +72,11 @@ fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpErr
 
 fn resolve_self_origins(base: &RequestBaseUrl) -> Result<SelfOrigins, OAuthHttpError> {
     let primary_origin = Config::get()
-        .map_err(|e| {
-            tracing::error!(error = %e, "Failed to load config for OAuth self-origin");
-            OAuthHttpError::server_error("Configuration unavailable")
-        })
+        .map_err(|e| internal::server_error("Configuration unavailable", e))
         .and_then(|c| {
             reqwest::Url::parse(&c.api_external_url)
                 .map(|u| u.origin())
-                .map_err(|e| {
-                    tracing::error!(
-                        error = %e,
-                        api_external_url = %c.api_external_url,
-                        "api_external_url is not a valid URL — bootstrap validation should have caught this"
-                    );
-                    OAuthHttpError::server_error("Configuration invalid")
-                })
+                .map_err(|e| internal::server_error("Configuration invalid", e))
         })?;
     Ok(SelfOrigins::new(primary_origin, base.origin().clone()))
 }
@@ -200,7 +189,9 @@ pub async fn handle_authorize_get(
     let self_origins = resolve_self_origins(&base)?;
 
     if let Err(validation_error) = validate_oauth_parameters(&params, &self_origins) {
-        return Err(attach(OAuthHttpError::invalid_request(validation_error)));
+        return Err(attach(OAuthHttpError::invalid_request(
+            validation_error.to_string(),
+        )));
     }
 
     match validate_authorize_request(&state, &params, &repo).await {
@@ -227,7 +218,7 @@ pub async fn handle_authorize_get(
                 redirect_uri = ?params.redirect_uri,
                 "Authorization request denied"
             );
-            Err(attach(OAuthHttpError::invalid_request(error.to_string())))
+            Err(attach(OAuthHttpError::from(error)))
         },
     }
 }
@@ -254,7 +245,7 @@ pub async fn handle_authorize_post(
     let attach = |err| RegisteredRedirect::attach_if_registered(redirect.as_ref(), err);
 
     if let Err(error) = validate_authorize_request(&state, &query, &repo).await {
-        return Err(attach(OAuthHttpError::invalid_request(error.to_string())));
+        return Err(attach(OAuthHttpError::from(error)));
     }
 
     if !is_user_consent_granted(&form) {

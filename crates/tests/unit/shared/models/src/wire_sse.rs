@@ -1,4 +1,4 @@
-use systemprompt_models::wire::sse::frame_end;
+use systemprompt_wire::sse::frame_end;
 
 #[test]
 fn lf_terminator() {

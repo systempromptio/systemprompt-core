@@ -2,8 +2,8 @@
 //! its natural expiry. The handler reads the authenticated `RequestContext`
 //! (jti, token_exp, user id), so we inject it as a request extension directly.
 //! We cover the successful 204 revocation (writing to `oauth_jti_revocations`
-//! and clearing the cookie), plus the missing-jti, non-UUID user, and
-//! out-of-range expiry error branches.
+//! and clearing the cookie), a non-UUID user logging out the same way, plus
+//! the missing-jti and out-of-range expiry error branches.
 
 use std::sync::Once;
 
@@ -11,14 +11,16 @@ use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::routes::oauth::authenticated_router;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::Config;
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{
+use systemprompt_identifiers::{
+    AccessTokenId, Actor, AgentName, ContextId, SessionId, TraceId, UserId,
+};
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -30,9 +32,11 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
+            role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
@@ -64,7 +68,7 @@ fn ensure_config() {
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,
@@ -94,9 +98,9 @@ async fn logout_app() -> anyhow::Result<Router> {
 }
 
 async fn seed_user(user: &UserId) -> anyhow::Result<()> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let p = pool.pool_arc().expect("read pool");
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@logout.invalid", user.as_str()))
@@ -111,9 +115,9 @@ fn ctx_with(user: UserId, jti: &str, token_exp: i64) -> RequestContext {
         TraceId::new("test-trace"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(user),
     )
-    .with_actor(Actor::user(user))
-    .with_jti(jti.to_owned())
+    .with_jti(AccessTokenId::new(jti))
     .with_token_exp(token_exp)
 }
 
@@ -149,19 +153,37 @@ async fn logout_valid_bearer_revokes_and_returns_204() -> anyhow::Result<()> {
 async fn logout_missing_jti_returns_invalid_request() -> anyhow::Result<()> {
     let user = UserId::new(Uuid::new_v4().to_string());
     let app = logout_app().await?;
-    let resp = app
-        .oneshot(logout_request(ctx_with(user, "", FUTURE_EXP)))
-        .await?;
+    let ctx = RequestContext::new(
+        SessionId::generate(),
+        TraceId::new("test-trace"),
+        ContextId::generate(),
+        AgentName::system(),
+        Actor::user(user),
+    )
+    .with_token_exp(FUTURE_EXP);
+    let resp = app.oneshot(logout_request(ctx)).await?;
     assert!(resp.status().is_client_error(), "{}", resp.status());
     Ok(())
 }
 
 #[tokio::test]
-async fn logout_non_uuid_user_returns_invalid_request() -> anyhow::Result<()> {
+async fn logout_non_uuid_user_revokes_and_returns_204() -> anyhow::Result<()> {
+    let user = UserId::new(format!("seeded-admin-{}", Uuid::new_v4().simple()));
+    seed_user(&user).await?;
     let app = logout_app().await?;
-    let ctx = ctx_with(UserId::new("not-a-uuid"), "some-jti", FUTURE_EXP);
-    let resp = app.oneshot(logout_request(ctx)).await?;
-    assert!(resp.status().is_client_error(), "{}", resp.status());
+    let jti = format!("jti-{}", Uuid::new_v4());
+    let resp = app
+        .oneshot(logout_request(ctx_with(user, &jti, FUTURE_EXP)))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT, "{}", resp.status());
+
+    let (_pool, ctx) = setup_ctx().await?;
+    let revoked = ctx
+        .oauth_repositories()
+        .oauth
+        .is_jti_revoked(&AccessTokenId::new(jti))
+        .await?;
+    assert!(revoked, "a non-UUID user's logout must record the jti");
     Ok(())
 }
 

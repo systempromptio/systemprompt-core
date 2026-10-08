@@ -37,7 +37,11 @@ fn unpack(archive: &Path, into: &Path) -> Result<PathBuf, UpdateError> {
         .arg("-C")
         .arg(into)
         .output()
-        .map_err(|e| UpdateError::Unpack(format!("could not run tar: {e}")))?;
+        .map_err(|source| UpdateError::Tool {
+            stage: "unpacking the download",
+            tool: "tar",
+            source,
+        })?;
     if !out.status.success() {
         return Err(UpdateError::Unpack(format!(
             "tar failed: {}",

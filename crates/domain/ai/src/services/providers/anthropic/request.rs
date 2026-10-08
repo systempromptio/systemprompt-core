@@ -2,7 +2,7 @@
 //! trip shared by every driver entry point. Where the request goes and how it
 //! authenticates come from the provider's [`UpstreamTarget`], so the same
 //! driver reaches `api.anthropic.com` and Claude on Vertex AI alike; the body
-//! is rendered by the shared `systemprompt_models::wire` codec.
+//! is rendered by the shared `systemprompt_wire` codec.
 //!
 //! [`UpstreamTarget`]: crate::services::upstream::UpstreamTarget
 //!
@@ -11,11 +11,12 @@
 
 use reqwest::Response;
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::provider::AnthropicProvider;
 use crate::error::Result;
 
+// JSON: Anthropic Messages API request body — upstream wire format.
 pub(super) async fn post_body(
     provider: &AnthropicProvider,
     mut body: Value,

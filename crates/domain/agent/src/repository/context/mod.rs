@@ -14,7 +14,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-use crate::error::AgentError;
 use crate::repository::task::TaskConstructor;
 
 #[derive(Debug, Clone)]
@@ -25,15 +24,13 @@ pub struct ContextRepository {
 }
 
 impl ContextRepository {
-    pub fn new(db: &DbPool) -> Result<Self, AgentError> {
-        let pool = db.pool_arc().map_err(|e| AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| AgentError::Init(e.to_string()))?;
-        Ok(Self {
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self {
             pool,
             write_pool,
-            tasks: TaskConstructor::new(db)?,
-        })
+            tasks: TaskConstructor::new(db),
+        }
     }
 }

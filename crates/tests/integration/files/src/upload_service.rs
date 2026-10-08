@@ -6,24 +6,20 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use systemprompt_database::DbPool;
 use systemprompt_files::{
     FileUploadError, FileUploadRequest, FileUploadService, FileValidator, FilesConfig,
 };
 use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::profile::StorageBackend;
 use systemprompt_storage::build_file_storage;
 use systemprompt_traits::FileStorage;
 
 use crate::bootstrap::test_env;
+use systemprompt_test_fixtures::test_db_pool;
 
 fn local_storage(files_config: &FilesConfig) -> std::sync::Arc<dyn FileStorage> {
-    build_file_storage(StorageBackend::Local, files_config.storage_root())
-}
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
+    build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+        root: files_config.storage_root().to_path_buf(),
+    })
 }
 
 fn one_pixel_png_base64() -> String {
@@ -43,15 +39,12 @@ fn unique_context_id(_suffix: &str) -> ContextId {
 
 #[tokio::test]
 async fn upload_service_new_and_is_enabled() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
 
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -67,14 +60,11 @@ async fn upload_service_new_and_is_enabled() {
 
 #[tokio::test]
 async fn upload_service_uploads_png_successfully() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -98,14 +88,11 @@ async fn upload_service_uploads_png_successfully() {
 
 #[tokio::test]
 async fn upload_service_rejects_blocked_mime_type() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -123,14 +110,11 @@ async fn upload_service_rejects_blocked_mime_type() {
 
 #[tokio::test]
 async fn upload_service_rejects_oversized_base64() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );
@@ -144,14 +128,11 @@ async fn upload_service_rejects_oversized_base64() {
 
 #[tokio::test]
 async fn upload_service_rejects_unknown_mime_type() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping (no db)");
-        return;
-    };
+    let db = test_db_pool().await;
     let _env = test_env();
     let files_config = FilesConfig::get().expect("FilesConfig::get").clone();
     let service = FileUploadService::new(
-        systemprompt_files::FileRepository::new(&db).expect("file repository"),
+        systemprompt_files::FileRepository::new(&db),
         files_config.clone(),
         local_storage(&files_config),
     );

@@ -9,13 +9,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use thiserror::Error;
 
 /// A credential could not be parsed, scoped, or exchanged for a header.
 #[derive(Debug, Error)]
 pub enum CredentialError {
     #[error("service-account key is malformed: {0}")]
-    Malformed(String),
+    Malformed(#[source] serde_json::Error),
 
     #[error(
         "endpoint '{endpoint}' needs a {field} to fill `{placeholder}`, but the secret is not a \
@@ -28,23 +30,27 @@ pub enum CredentialError {
     },
 
     #[error("service-account private_key is not a valid RSA PEM: {0}")]
-    SigningKey(String),
+    SigningKey(#[source] jsonwebtoken::errors::Error),
 
     #[error("could not sign the assertion: {0}")]
-    Sign(String),
+    Sign(#[source] jsonwebtoken::errors::Error),
 
     #[error("system clock is before the unix epoch: {0}")]
-    Clock(String),
+    Clock(#[source] std::time::SystemTimeError),
 
     #[error("could not build the token-exchange client: {0}")]
-    Client(String),
+    Client(#[source] Arc<reqwest::Error>),
 
-    #[error("token endpoint {uri} unreachable: {reason}")]
-    Unreachable { uri: String, reason: String },
+    #[error("token endpoint {uri} unreachable: {source}")]
+    Unreachable {
+        uri: String,
+        #[source]
+        source: reqwest::Error,
+    },
 
     #[error("token endpoint returned {status}: {body}")]
     Rejected { status: String, body: String },
 
     #[error("token endpoint returned an unreadable body: {0}")]
-    UnreadableBody(String),
+    UnreadableBody(#[source] serde_json::Error),
 }

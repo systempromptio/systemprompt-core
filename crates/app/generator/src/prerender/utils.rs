@@ -9,6 +9,9 @@ use std::collections::HashSet;
 use systemprompt_template_provider::{ComponentContext, RenderedComponent};
 use systemprompt_templates::TemplateRegistry;
 
+use crate::error::{GeneratorResult, PublishError};
+
+// JSON: Handlebars template variables — provider JSON deep-merged in.
 pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
     match (base, extension) {
         (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
@@ -27,6 +30,7 @@ pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Val
     }
 }
 
+// JSON: Handlebars template variables; components are inserted by name.
 pub(super) async fn render_components(
     template_registry: &TemplateRegistry,
     target_type: &str,
@@ -48,17 +52,17 @@ pub(super) async fn render_components(
             continue;
         }
 
-        let result: Result<RenderedComponent, String> =
+        let result: GeneratorResult<RenderedComponent> =
             if let Some(partial) = component.partial_template() {
                 template_registry
                     .render_partial(&partial.name, data)
                     .map(|html| RenderedComponent::new(component.variable_name(), html))
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| PublishError::render_failed(&partial.name, None, e))
             } else {
                 component
                     .render(component_ctx)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| PublishError::provider_failed(component.component_id(), e))
             };
 
         match result {

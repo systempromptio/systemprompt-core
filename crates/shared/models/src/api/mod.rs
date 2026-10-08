@@ -23,7 +23,7 @@ pub use contexts::{
     ContextKind, CreateContextRequest, ParseContextKindError, UpdateContextRequest, UserContext,
     UserContextWithStats,
 };
-pub use errors::{ApiError, ErrorCode, ErrorResponse, ValidationError};
+pub use errors::{ApiError, ErrorCode, ValidationError};
 pub use ext::ApiErrorExt;
 pub use modules::ModuleInfo;
 pub use pagination::{

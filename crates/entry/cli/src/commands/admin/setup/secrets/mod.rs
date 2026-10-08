@@ -13,6 +13,7 @@ pub mod prompts;
 
 use anyhow::{Context, Result};
 use std::path::Path;
+use systemprompt_config::write_private_atomic;
 use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
@@ -127,23 +128,13 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
 }
 
 pub(super) fn save(secrets: &SecretsData, secrets_path: &Path) -> Result<()> {
-    if let Some(parent) = secrets_path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
-    }
-
     let content = serde_json::to_string_pretty(secrets).context("Failed to serialize secrets")?;
-
-    std::fs::write(secrets_path, content)
-        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let permissions = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(secrets_path, permissions)
-            .with_context(|| format!("Failed to set permissions on {}", secrets_path.display()))?;
+    if let Some(parent) = secrets_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create {}", parent.display()))?;
     }
+    write_private_atomic(secrets_path, content.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
 
     CliService::success(&format!("Saved secrets to {}", secrets_path.display()));
 

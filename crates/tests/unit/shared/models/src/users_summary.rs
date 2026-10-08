@@ -8,33 +8,34 @@ fn user_summary_fields_round_trip_via_serde() {
         id: UserId::new("usr_1"),
         name: "Alice".to_owned(),
         email: "alice@example.com".to_owned(),
-        status: Some("active".to_owned()),
+        status: "active".to_owned(),
         roles: vec!["admin".to_owned(), "user".to_owned()],
-        created_at: Some(Utc::now()),
+        created_at: Utc::now(),
     };
     let json = serde_json::to_string(&original).unwrap();
     let decoded: UserSummary = serde_json::from_str(&json).unwrap();
     assert_eq!(decoded.id, original.id);
     assert_eq!(decoded.name, "Alice");
     assert_eq!(decoded.email, "alice@example.com");
-    assert_eq!(decoded.status.as_deref(), Some("active"));
+    assert_eq!(decoded.status, "active");
     assert_eq!(decoded.roles.len(), 2);
 }
 
 #[test]
-fn user_summary_optional_fields_can_be_none() {
+fn user_summary_without_roles_round_trips() {
+    let created_at = Utc::now();
     let u = UserSummary {
         id: UserId::new("usr_2"),
         name: "Bob".to_owned(),
         email: "bob@example.com".to_owned(),
-        status: None,
+        status: "suspended".to_owned(),
         roles: vec![],
-        created_at: None,
+        created_at,
     };
     let json = serde_json::to_string(&u).unwrap();
     let decoded: UserSummary = serde_json::from_str(&json).unwrap();
-    assert!(decoded.status.is_none());
-    assert!(decoded.created_at.is_none());
+    assert_eq!(decoded.status, "suspended");
+    assert_eq!(decoded.created_at, created_at);
     assert!(decoded.roles.is_empty());
 }
 

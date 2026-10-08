@@ -5,15 +5,18 @@
 //! that reads back with the values written, and a dead pool propagates the
 //! typed `sqlx::Error` rather than silently swallowing it.
 
-use systemprompt_identifiers::{Actor, UserId};
+use std::sync::LazyLock;
+
+use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
 use systemprompt_security::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
     list_trace_ids_with_decision,
 };
-use systemprompt_test_fixtures::{
-    DisposableDb, closed_db_pool, fixture_database_url, fixture_db_pool, seed_user_row,
-};
+use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, seed_user_row, test_db_pool};
 use uuid::Uuid;
+
+static SESSION: LazyLock<SessionId> = LazyLock::new(|| SessionId::new("sess-audit"));
+static CONTEXT: LazyLock<ContextId> = LazyLock::new(|| ContextId::from_uuid(Uuid::from_u128(1)));
 
 fn record<'a>(
     id: &'a str,
@@ -23,7 +26,7 @@ fn record<'a>(
     GovernanceDecisionRecord {
         id,
         actor,
-        session_id: "sess-audit",
+        session_id: Some(&SESSION),
         tool_name: "audit-tool",
         agent_id: None,
         agent_scope: None,
@@ -33,7 +36,7 @@ fn record<'a>(
         evaluated_rules: evaluated,
         plugin_id: None,
         act_chain: &[],
-        context_id: "ctx_unit_test",
+        context_id: &CONTEXT,
         task_id: None,
         trace_id: None,
         client_id: None,
@@ -55,9 +58,7 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
     // id, session id, policy, decision) are evaluated on the failure path.
     let _guard = error_subscriber_guard();
     let db = closed_db_pool().await;
-    let pool = db
-        .write_pool_arc()
-        .expect("closed pool still exposes a write handle");
+    let pool = db.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool);
 
     let id = Uuid::new_v4().to_string();
@@ -70,21 +71,15 @@ async fn insert_through_closed_pool_propagates_sqlx_error() {
     assert!(
         matches!(
             err,
-            systemprompt_database::RepositoryError::Database(sqlx::Error::PoolClosed)
+            systemprompt_models::errors::RepositoryError::Database { sqlstate: None, .. }
         ),
-        "expected PoolClosed, got {err:?}"
+        "expected the closed pool as an unclassified database error, got {err:?}"
     );
 }
 
 #[tokio::test]
 async fn insert_persists_a_decision_row() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let repo = GovernanceDecisionRepository::from_pool(pool.clone());
 
     // pool() exposes the same handle the repository writes through.
@@ -119,18 +114,20 @@ async fn insert_persists_a_decision_row() {
 #[tokio::test]
 async fn trace_lookup_is_distinct_and_filters_by_decision_and_time()
 -> Result<(), Box<dyn std::error::Error>> {
-    let owned = DisposableDb::installed("governance_trace_lookup").await?;
-    let db = owned.pool().await?;
-    let pool = db.write_pool_arc().expect("write pool");
+    let owned = DisposableDb::with_schema("governance_trace_lookup").await;
+    let db = owned.test_pool().await;
+    let pool = db.write_pool();
     let actor = Actor::user(UserId::new("audit-trace-user"));
     seed_user_row(&db, &actor.user_id, "audit-trace-user@example.invalid").await?;
     let evaluated = serde_json::json!([]);
     let cutoff = chrono::Utc::now() - chrono::Duration::hours(1);
 
+    let recent = TraceId::new("trace-recent");
+    let allow = TraceId::new("trace-allow");
     for (id, decision, trace_id) in [
-        ("recent-deny-a", DecisionTag::Deny, Some("trace-recent")),
-        ("recent-deny-b", DecisionTag::Deny, Some("trace-recent")),
-        ("recent-allow", DecisionTag::Allow, Some("trace-allow")),
+        ("recent-deny-a", DecisionTag::Deny, Some(&recent)),
+        ("recent-deny-b", DecisionTag::Deny, Some(&recent)),
+        ("recent-allow", DecisionTag::Allow, Some(&allow)),
         ("null-deny", DecisionTag::Deny, None),
     ] {
         let mut row = record(id, &actor, &evaluated);

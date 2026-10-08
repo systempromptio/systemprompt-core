@@ -158,7 +158,7 @@ runtime:
         bin = root.join("bin").display(),
         web = root.join("system/web").display(),
         storage = root.join("storage").display(),
-        ack = systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT,
+        ack = systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT,
     )
 }
 

@@ -97,7 +97,7 @@ impl ProfileUsageService {
                         last_activity: r.last_activity,
                         ai_requests: r.ai_requests,
                         model: r.model,
-                        agent_name: r.agent_name,
+                        agent_name: r.agent_name.map(String::from),
                         context_name: r.context_name,
                     })
                     .collect(),

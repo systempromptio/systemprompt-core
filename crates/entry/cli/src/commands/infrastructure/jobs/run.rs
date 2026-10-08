@@ -12,6 +12,7 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{
     JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
@@ -22,8 +23,12 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct RunArgs {
-    #[arg(help = "Job name(s) to run", num_args = 1..)]
-    pub job_names: Vec<String>,
+    #[arg(
+        value_parser = crate::shared::parse_job_name,
+        help = "Job name(s) to run",
+        num_args = 1..
+    )]
+    pub job_names: Vec<JobName>,
 
     #[arg(long, help = "Run all enabled jobs")]
     pub all: bool,
@@ -64,13 +69,13 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
     };
 
     let scheduler_config = systemprompt_loader::ConfigLoader::load().map_or_else(
-        |_| systemprompt_models::SchedulerConfig::with_system_admin(),
+        |_| systemprompt_manifest::SchedulerConfig::with_system_admin(),
         |c| {
             c.scheduler
-                .unwrap_or_else(systemprompt_models::SchedulerConfig::with_system_admin)
+                .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin)
         },
     );
-    let service = JobExecutionService::new(app, registry, scheduler_config)?;
+    let service = JobExecutionService::new(app, registry, scheduler_config);
     let batch = service.run_jobs(&selection, &parameters).await?;
 
     let jobs_run: Vec<JobRunOutput> = batch.runs.into_iter().map(into_output).collect();

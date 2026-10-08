@@ -32,7 +32,7 @@ pub struct CreateArgs {
 
 pub(super) async fn execute(args: CreateArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     if args.name.trim().is_empty() {
         return Err(anyhow!("Name cannot be empty"));

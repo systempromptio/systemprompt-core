@@ -1,4 +1,4 @@
-use systemprompt_files::FileUploadError;
+use systemprompt_files::{FileUploadError, FilesError};
 
 #[test]
 fn io_error_variant_display() {
@@ -13,8 +13,10 @@ fn io_error_variant_display() {
 fn all_string_variants_display_correctly() {
     let cases: &[(&str, FileUploadError)] = &[
         ("persistence", FileUploadError::PersistenceDisabled),
-        ("db error", FileUploadError::Database("db error".to_owned())),
-        ("cfg error", FileUploadError::Config("cfg error".to_owned())),
+        (
+            "db error",
+            FileUploadError::Database(FilesError::NotFound("db error".to_owned())),
+        ),
         (
             "bad path",
             FileUploadError::PathValidation("bad path".to_owned()),
@@ -46,8 +48,9 @@ fn all_upload_error_variants_are_debug() {
         Box::new(FileUploadError::Validation(
             FileValidationError::UploadsDisabled,
         )),
-        Box::new(FileUploadError::Database("db err".to_owned())),
-        Box::new(FileUploadError::Config("cfg err".to_owned())),
+        Box::new(FileUploadError::Database(FilesError::NotFound(
+            "db err".to_owned(),
+        ))),
         Box::new(FileUploadError::Base64TooLarge { encoded_size: 99 }),
         Box::new(FileUploadError::PathValidation("bad path".to_owned())),
         Box::new(FileUploadError::Io(std::io::Error::other("io"))),

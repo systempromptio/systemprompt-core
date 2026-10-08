@@ -143,7 +143,7 @@ fn recover_secret(
         .collect::<Vec<_>>()
         .join(", ");
     let reason = DenyReason::PolicyViolation {
-        policy: entry.config.id.clone(),
+        policy: String::from(&entry.config.id),
         detail: Cow::Owned(format!(
             "Sanitized {} secret findings: {detail}",
             findings.len()

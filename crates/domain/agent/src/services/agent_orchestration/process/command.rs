@@ -8,7 +8,10 @@ use crate::services::shared::Result;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_models::{CliPaths, Config, Secrets};
+use systemprompt_identifiers::{AgentName, ServiceName};
+use systemprompt_loader::subprocess::ChildKind;
+use systemprompt_manifest::{Config, Secrets};
+use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -24,7 +27,7 @@ pub fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> OrchestrationResult<File> {
+pub fn prepare_agent_log_file(agent_name: &AgentName, log_dir: &Path) -> OrchestrationResult<File> {
     if let Err(e) = fs::create_dir_all(log_dir) {
         tracing::error!(
             error = %e,
@@ -47,18 +50,17 @@ pub fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> Orchestration
         .append(true)
         .open(&log_file_path)
         .map_err(|e| {
-            OrchestrationError::ProcessSpawnFailed(format!(
-                "Failed to create log file {}: {}",
-                log_file_path.display(),
-                e
-            ))
+            OrchestrationError::spawn(
+                format!("Failed to create log file {}", log_file_path.display()),
+                e,
+            )
         })
 }
 
 #[derive(Debug)]
 pub struct BuildAgentCommandParams<'a> {
     pub binary_path: &'a PathBuf,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub port: u16,
     pub profile_path: &'a str,
     pub secrets: &'a Secrets,
@@ -67,7 +69,6 @@ pub struct BuildAgentCommandParams<'a> {
 }
 
 pub struct AgentEnvironmentParams<'a> {
-    pub agent_name: &'a str,
     pub port: u16,
     pub profile_path: &'a str,
     pub database_type: &'a str,
@@ -77,7 +78,6 @@ pub struct AgentEnvironmentParams<'a> {
 impl std::fmt::Debug for AgentEnvironmentParams<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AgentEnvironmentParams")
-            .field("agent_name", &self.agent_name)
             .field("port", &self.port)
             .field("profile_path", &self.profile_path)
             .field("database_type", &self.database_type)
@@ -90,7 +90,6 @@ pub fn build_agent_environment(
     lookup: impl Fn(&str) -> Option<String>,
 ) -> Vec<(String, String)> {
     let AgentEnvironmentParams {
-        agent_name,
         port,
         profile_path,
         database_type,
@@ -99,14 +98,6 @@ pub fn build_agent_environment(
     let mut env = systemprompt_models::subprocess::inherited_parent_env(lookup);
 
     env.push(("SYSTEMPROMPT_PROFILE".to_owned(), profile_path.to_owned()));
-    env.push((
-        systemprompt_models::subprocess::SUBPROCESS_MARKER_ENV.to_owned(),
-        "1".to_owned(),
-    ));
-    env.push((
-        systemprompt_models::subprocess::AGENT_NAME_ENV.to_owned(),
-        agent_name.to_owned(),
-    ));
     env.push(("AGENT_PORT".to_owned(), port.to_string()));
     env.push(("DATABASE_TYPE".to_owned(), database_type.to_owned()));
     env.extend(secrets.to_subprocess_env());
@@ -130,13 +121,12 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     }
     command
         .arg("--agent-name")
-        .arg(agent_name)
+        .arg(agent_name.as_str())
         .arg("--port")
         .arg(port.to_string())
         .env_clear();
 
     let environment = AgentEnvironmentParams {
-        agent_name,
         port,
         profile_path,
         database_type: &config.database_type,
@@ -151,6 +141,11 @@ pub fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .stderr(std::process::Stdio::from(log_file))
         .stdin(std::process::Stdio::null());
 
+    systemprompt_loader::subprocess::mark_child(
+        &mut command,
+        ChildKind::Agent,
+        &ServiceName::of_agent(agent_name),
+    );
     systemprompt_loader::subprocess::place_in_own_process_group(&mut command);
 
     command

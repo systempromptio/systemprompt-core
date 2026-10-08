@@ -16,17 +16,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_identifiers::{JwtToken, headers};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::auth::BEARER_PREFIX;
+use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::services::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
     exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
     provision_bridge_oauth_client,
 };
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{AnalyticsProvider, AppContext as _};
+use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
 use systemprompt_users::{ApiKeyService, IssueApiKeyParams};
 
+use super::bridge_error::BridgeError;
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use crate::services::middleware::client_addr::{ClientIp, client_ip_from_request};
@@ -72,11 +74,6 @@ pub struct SessionPatBody {
     pub device_name: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct DevicePatResponse {
-    pub pat: String,
-}
-
 pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>, ApiHttpError> {
     let pat_token = extract_bearer(request.headers())
         .ok_or_else(|| ApiHttpError::unauthorized("Missing Authorization: Bearer <pat>"))?;
@@ -89,12 +86,13 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
 
     let analytics = require_analytics(&ctx)?;
     let caller_ip = client_ip_from_request(&request);
+    let users = require_user_provider(&ctx)?;
     let result = issue_bridge_access(
-        &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
+        users.as_ref(),
         BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id),
     )
     .await?;
@@ -113,12 +111,14 @@ pub async fn session(
     }
 
     let analytics = require_analytics(&ctx)?;
+    let users = require_user_provider(&ctx)?;
     let result = exchange_bridge_session_code(
         &ctx.oauth_repositories().oauth,
         analytics.as_ref(),
         ctx.session_provider()
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
+        users.as_ref(),
         BridgeExchangeRequest {
             request_headers: &headers,
             caller_ip,
@@ -172,6 +172,8 @@ async fn mint_device_pat(
             user_id: &user_id,
             name: device_name,
             expires_at: None,
+            limits: &systemprompt_users::ApiKeyLimits::default(),
+            scopes: &[],
         })
         .await?;
 
@@ -208,9 +210,9 @@ pub async fn provision_oauth_client(
               propagate to every caller for negligible gain"
 )]
 fn build_token_endpoint(headers: &HeaderMap) -> Result<String, ApiHttpError> {
-    let cfg = Config::get().map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+    let cfg = Config::get()?;
     let configured = url::Url::parse(&cfg.api_external_url)
-        .map_err(|e| ApiHttpError::internal_error(e.to_string()))?;
+        .map_err(|e| BridgeError::internal("Configured external URL is invalid", e))?;
     let raw_host = headers.get(header::HOST).and_then(|v| v.to_str().ok());
     let base = request_base_url::resolve(raw_host, &configured);
     Ok(format!("{}/api/v1/core/oauth/token", base.as_str()))
@@ -230,4 +232,14 @@ fn extract_bearer(hdrs: &HeaderMap) -> Option<String> {
 fn require_analytics(ctx: &AppContext) -> Result<Arc<dyn AnalyticsProvider>, ApiHttpError> {
     ctx.analytics_provider()
         .ok_or_else(|| ApiHttpError::internal_error("analytics provider unavailable"))
+}
+
+#[expect(
+    clippy::result_large_err,
+    reason = "ApiError carries response context that is intentionally large; boxing here would \
+              propagate to every caller for negligible gain"
+)]
+fn require_user_provider(ctx: &AppContext) -> Result<Arc<dyn UserProvider>, ApiHttpError> {
+    ctx.user_provider()
+        .ok_or_else(|| ApiHttpError::internal_error("User provider unavailable"))
 }

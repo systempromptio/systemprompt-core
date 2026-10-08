@@ -3,12 +3,11 @@ use std::sync::Once;
 
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
-use systemprompt_identifiers::{MarketplaceId, UserId};
+use systemprompt_identifiers::{LibraryArtifactId, MarketplaceId, UserId};
 use systemprompt_marketplace::{
     AllowAllFilter, AssembleRequest, EntryKeepSets, ManifestService, MarketplaceCache,
     MarketplaceCandidate, MarketplaceFilter, MarketplaceFilterError,
 };
-use systemprompt_models::bridge::ids::LibraryArtifactId;
 use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_VERSION, SignedManifest};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_security::manifest_signing;
@@ -23,23 +22,18 @@ static INIT_SECRETS: Once = Once::new();
 
 fn ensure_bootstrap() {
     INIT_SECRETS.call_once(|| {
-        unsafe {
-            std::env::set_var("SYSTEMPROMPT_SUBPROCESS", "1");
-            std::env::set_var(
-                "JWT_SECRET",
-                "marketplace-manifest-test-secret-must-be-32-bytes-or-longer",
-            );
-            std::env::set_var(
-                "DATABASE_URL",
-                "postgres://placeholder:placeholder@localhost/placeholder",
-            );
-            std::env::set_var(
-                "MANIFEST_SIGNING_SECRET_SEED",
-                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
-            );
+        if std::env::var("DATABASE_URL").is_err() {
+            // SAFETY: runs once, before the secrets singleton reads the
+            // environment.
+            unsafe {
+                std::env::set_var(
+                    "DATABASE_URL",
+                    "postgres://placeholder:placeholder@localhost/placeholder",
+                );
+            }
         }
-        let _ = systemprompt_test_fixtures::secrets::block_on_secrets_init();
     });
+    systemprompt_test_fixtures::secrets::ensure_test_secrets_bootstrap();
 }
 
 #[tokio::test]
@@ -115,7 +109,9 @@ fn keep_everything(candidate: &MarketplaceCandidate) -> EntryKeepSets {
 
 // Two marketplaces over two plugins: `alpha` carries only `plugin-a`, `beta`
 // carries both. Each plugin ships one on-disk skill so it resolves to content.
-fn two_marketplace_config(dir: &std::path::Path) -> systemprompt_models::services::ServicesConfig {
+fn two_marketplace_config(
+    dir: &std::path::Path,
+) -> systemprompt_manifest::services::ServicesConfig {
     write_skill_on_disk(dir, "skill_a");
     write_skill_on_disk(dir, "skill_b");
     let mut alpha = marketplace("alpha");
@@ -284,7 +280,7 @@ async fn assemble_candidate_unscoped_without_marketplace() {
 // The artifact fixtures below declare `mcp__x__y`, and catalogue assembly now
 // rejects an artifact naming an mcp_server the deployment does not run, so the
 // server has to exist for the assertion under test to be the one that fires.
-fn register_artifact_mcp_server(config: &mut systemprompt_models::services::ServicesConfig) {
+fn register_artifact_mcp_server(config: &mut systemprompt_manifest::services::ServicesConfig) {
     config.mcp_servers.insert(
         "x".to_owned(),
         enabled_deployment(Some("https://x.example.com/mcp")),
@@ -525,9 +521,8 @@ async fn assemble_candidate_scopes_managed_mcp_servers_to_marketplace_include() 
 #[tokio::test]
 async fn assemble_candidate_keeps_artifact_owned_by_enabled_plugin() {
     use systemprompt_identifiers::PluginId;
-    use systemprompt_models::services::{
-        ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    };
+    use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
+    use systemprompt_models::plugin::{ComponentSource, PluginComponentRef};
 
     let dir = tempfile::tempdir().expect("temp services root");
 
@@ -630,6 +625,7 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -639,13 +635,8 @@ fn sample_manifest(version: &ManifestVersion) -> SignedManifest {
 #[test]
 fn seal_round_trips_against_published_pubkey() {
     ensure_bootstrap();
-    let pubkey_b64 = match manifest_signing::pubkey_b64() {
-        Ok(k) => k,
-        Err(e) => {
-            eprintln!("skipping: secrets bootstrap unavailable in this env: {e}");
-            return;
-        },
-    };
+    let pubkey_b64 = manifest_signing::pubkey_b64()
+        .expect("ensure_bootstrap installs the manifest signing secret");
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
@@ -680,10 +671,7 @@ fn seal_round_trips_against_published_pubkey() {
 #[test]
 fn seal_is_deterministic_for_identical_manifests() {
     ensure_bootstrap();
-    if manifest_signing::pubkey_b64().is_err() {
-        eprintln!("skipping: secrets bootstrap unavailable in this env");
-        return;
-    }
+    manifest_signing::pubkey_b64().expect("ensure_bootstrap installs the manifest signing secret");
 
     let version =
         ManifestVersion::try_new("2026-05-29T00:00:00Z-deadbeef").expect("valid manifest version");
@@ -856,7 +844,7 @@ async fn assemble_candidate_records_which_plugins_own_each_skill() {
 
     let owners: BTreeSet<&str> = candidate
         .skill_owners
-        .get(&systemprompt_models::bridge::ids::SkillId::try_new("shared_skill").expect("id"))
+        .get(&systemprompt_identifiers::SkillId::try_new("shared_skill").expect("id"))
         .expect("the shipped skill is owned")
         .iter()
         .map(|p| p.as_str())
@@ -1158,11 +1146,11 @@ async fn traced_manifest_prunes_only_resources_orphaned_by_the_access_filter() {
 }
 #[test]
 fn marketplace_agent_include_is_exact_while_empty_include_admits_the_catalogue() {
-    use systemprompt_marketplace::MarketplaceMembership;
-    use systemprompt_marketplace::catalog::load_agents;
-    use systemprompt_models::services::{
+    use systemprompt_manifest::services::{
         AgentCardConfig, AgentConfig, AgentMetadataConfig, OAuthConfig, ServicesConfig,
     };
+    use systemprompt_marketplace::MarketplaceMembership;
+    use systemprompt_marketplace::catalog::load_agents;
 
     fn agent(name: &str) -> AgentConfig {
         AgentConfig {

@@ -10,12 +10,13 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::MarketplaceId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     MarketplaceAccess, MarketplaceAccessRule, MarketplaceConfig, MarketplaceRuleAccess,
-    MarketplaceVisibility, PluginAuthor, PluginComponentRef,
+    MarketplaceVisibility, PluginAuthor,
 };
+use systemprompt_models::plugin::PluginComponentRef;
 use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
 struct Fixture {
@@ -25,9 +26,8 @@ struct Fixture {
 }
 
 async fn setup() -> Fixture {
-    let url = fixture_database_url().expect("DATABASE_URL");
-    let db = fixture_db_pool(&url).await.expect("connect test database");
-    let pg = db.pool_arc().expect("read pool");
+    let db = test_db_pool().await;
+    let pg = db.pool();
     let id = MarketplaceId::new(format!("mp-test-{}", Uuid::new_v4()));
     cleanup(&pg, &id).await;
     Fixture { db, pg, id }
@@ -71,6 +71,8 @@ fn marketplace(id: &MarketplaceId, access: MarketplaceAccess) -> MarketplaceConf
         access,
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 
@@ -129,7 +131,7 @@ async fn role_values(pg: &PgPool, id: &MarketplaceId) -> Vec<String> {
 #[tokio::test]
 async fn happy_path_projects_entity_and_rules() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     let report = service
         .ingest_marketplace_access(
@@ -174,7 +176,7 @@ async fn happy_path_projects_entity_and_rules() {
 #[tokio::test]
 async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_marketplace_access(
@@ -210,7 +212,7 @@ async fn delete_orphans_drops_roles_absent_from_the_new_pass() {
 #[tokio::test]
 async fn override_existing_updates_justification() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
 
     service
         .ingest_marketplace_access(
@@ -258,7 +260,7 @@ async fn override_existing_updates_justification() {
 #[tokio::test]
 async fn attribute_rules_project_to_extension_rule_type_rows() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&[], true, None);
     block.rules = vec![rule(
         "adfs_group",
@@ -286,7 +288,7 @@ async fn attribute_rules_project_to_extension_rule_type_rows() {
 #[tokio::test]
 async fn deny_rule_writes_access_deny() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&[], true, None);
     block.rules = vec![rule(
         "project",
@@ -312,7 +314,7 @@ async fn deny_rule_writes_access_deny() {
 #[tokio::test]
 async fn delete_orphans_only_touches_declared_bands() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let options = IngestOptions {
         delete_orphans: true,
         ..IngestOptions::default()
@@ -351,7 +353,7 @@ async fn delete_orphans_only_touches_declared_bands() {
 #[tokio::test]
 async fn invalid_rule_type_slug_is_rejected_before_any_write() {
     let f = setup().await;
-    let service = AccessControlIngestionService::new(&f.db).expect("service");
+    let service = AccessControlIngestionService::new(&f.db);
     let mut block = access(&["engineer"], true, None);
     block.rules = vec![rule("Bad-Slug", &["x"], MarketplaceRuleAccess::Allow)];
 

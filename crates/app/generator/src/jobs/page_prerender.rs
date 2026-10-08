@@ -38,22 +38,17 @@ impl Job for PagePrerenderJob {
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
-        let db_pool = Arc::clone(ctx.db_pool::<DbPool>().ok_or_else(|| {
-            ProviderError::Configuration("DbPool not available in job context".into())
-        })?);
-        let paths = ctx
-            .app_paths::<Arc<AppPaths>>()
-            .ok_or_else(|| {
-                ProviderError::Configuration("AppPaths not available in job context".into())
-            })?
-            .as_ref();
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
+        let paths = ctx.get::<Arc<AppPaths>>()?.as_ref();
 
         tracing::info!("Job started");
-        let content_repo = ContentRepository::new(&db_pool)
-            .map_err(|e| ProviderError::Configuration(e.to_string()))?;
+        let content_repo = ContentRepository::new(&db_pool);
         let results = prerender_pages(db_pool, content_repo, paths)
             .await
-            .map_err(|e| ProviderError::RenderFailed(e.to_string()))?;
+            .map_err(|e| ProviderError::Rendering {
+                context: "page prerender".to_owned(),
+                source: Box::new(e),
+            })?;
         let pages_rendered = results.len() as u64;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

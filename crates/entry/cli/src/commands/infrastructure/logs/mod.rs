@@ -40,6 +40,7 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{LogId, TraceId};
+use systemprompt_logging::LogLevel;
 
 use crate::context::CommandContext;
 use crate::shared::render_result;
@@ -123,17 +124,20 @@ pub struct LogEntryRow {
     pub id: LogId,
     pub trace_id: TraceId,
     pub timestamp: String,
-    pub level: String,
+    #[schemars(with = "String")]
+    pub level: LogLevel,
     pub module: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    // JSON: JSONB log `metadata` column — structured tracing fields, open-shaped.
     pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogFilters {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub level: Option<String>,
+    #[schemars(with = "Option<String>")]
+    pub level: Option<LogLevel>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub module: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

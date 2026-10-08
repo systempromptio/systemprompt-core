@@ -3,29 +3,27 @@
 //! a real database can still enrich it.
 
 use chrono::{Duration, Utc};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{base_params, delete_session, unique_session_id};
 
 #[tokio::test]
 async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
+    let signals = &repositories.session_signals;
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
     let mut params = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(1));
     params.ip_address = Some("8.8.8.8");
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 
-    let missing = repo
+    let missing = signals
         .count_sessions_missing_geo()
         .await
         .expect("count candidates");
@@ -34,7 +32,7 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
         "a session with an IP and no country must be counted as a backfill candidate"
     );
 
-    let updated = repo
+    let updated = signals
         .backfill_session_geo(None, 100)
         .await
         .expect("backfill runs");
@@ -43,19 +41,24 @@ async fn backfill_without_a_reader_updates_nothing_and_is_idempotent() {
         "with no GeoIP reader every candidate must be skipped"
     );
 
-    let row = repo.find_by_id(&sid).await.expect("find").expect("present");
+    let row = store
+        .find_by_id(&sid)
+        .await
+        .expect("find")
+        .expect("present");
     assert!(
         row.country.is_none(),
         "a skipped row must keep its NULL country so a later run can enrich it"
     );
 
-    let second = repo
+    let second = signals
         .backfill_session_geo(None, 100)
         .await
         .expect("second backfill runs");
     assert_eq!(second, 0, "the sweep must be idempotent");
     assert!(
-        repo.count_sessions_missing_geo()
+        signals
+            .count_sessions_missing_geo()
             .await
             .expect("recount candidates")
             >= 1,

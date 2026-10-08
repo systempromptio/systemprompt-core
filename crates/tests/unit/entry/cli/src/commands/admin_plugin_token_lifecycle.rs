@@ -3,13 +3,14 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
+use systemprompt_identifiers::PluginId;
 
 use base64::Engine;
 use clap::Parser;
 use systemprompt_cli::admin::keys::{self, KeysCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_security::HookTokenValidator;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, install_test_signing_key, seed_user_row_with_roles,
@@ -33,9 +34,7 @@ fn parse(args: &[&str]) -> KeysCommands {
 #[tokio::test]
 #[ignore = "re-executed by plugin_token_requires_admin_and_persists_its_backing_session"]
 async fn plugin_token_helper() {
-    let database = DisposableDb::installed("cli_plugin_token")
-        .await
-        .expect("private plugin-token database");
+    let database = DisposableDb::with_schema("cli_plugin_token").await;
     // SAFETY: nextest gives the ignored helper its own process and configuration is
     // not yet read.
     unsafe {
@@ -44,7 +43,7 @@ async fn plugin_token_helper() {
     }
     ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private plugin-token pool");
+    let pool = database.test_pool().await;
     let admin = UserId::new(uuid::Uuid::new_v4().to_string());
     let member = UserId::new(uuid::Uuid::new_v4().to_string());
     let admin_email = "plugin-admin@example.invalid";
@@ -80,7 +79,7 @@ async fn plugin_token_helper() {
     println!("END_PLUGIN_TOKEN");
 
     let before_refusal: i64 = sqlx::query_scalar("SELECT count(*) FROM user_sessions")
-        .fetch_one(pool.pool_arc().expect("private SQL pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions before refusal");
     let refusal = keys::execute(
@@ -98,13 +97,13 @@ async fn plugin_token_helper() {
     .await
     .expect_err("non-admin token subject must be refused");
     let after_refusal: i64 = sqlx::query_scalar("SELECT count(*) FROM user_sessions")
-        .fetch_one(pool.pool_arc().expect("private SQL pool").as_ref())
+        .fetch_one(pool.pool().as_ref())
         .await
         .expect("count sessions after refusal");
     let sessions: Vec<(String, String)> = sqlx::query_as(
         "SELECT session_id, user_id FROM user_sessions ORDER BY started_at, session_id",
     )
-    .fetch_all(pool.pool_arc().expect("private SQL pool").as_ref())
+    .fetch_all(pool.pool().as_ref())
     .await
     .expect("read token backing sessions");
     println!(
@@ -119,7 +118,7 @@ async fn plugin_token_helper() {
     );
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -198,10 +197,10 @@ fn plugin_token_requires_admin_and_persists_its_backing_session() {
             .clone(),
     );
     let govern = validator
-        .validate_govern(&token, Some(PLUGIN))
+        .validate_govern(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, govern scope, and plugin");
     let track = validator
-        .validate_track(&token, Some(PLUGIN))
+        .validate_track(&token, Some(&PluginId::new(PLUGIN)))
         .expect("issued token has a valid signature, issuer, audience, track scope, and plugin");
     assert_eq!(claims["plugin_id"], PLUGIN);
     assert_eq!(claims["aud"], serde_json::json!(["hook", "plugin"]));

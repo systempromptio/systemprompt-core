@@ -6,7 +6,9 @@
 use std::fs;
 use std::path::Path;
 
-use crate::gateway::manifest::{SignedManifest, SkillEntry};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::gateway::manifest::{SignedManifest, SkillEntry, skill_targets_host};
 use crate::hash::{safe_id_segment, sha256_hex};
 use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::skill_markdown;
@@ -14,13 +16,13 @@ use crate::integration::managed_skills::skill_markdown;
 use super::io_err;
 
 pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
-    skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == "codex" || h == "codex-cli")
+    skill_targets_host(skill, HostKind::CodexCli)
 }
 
 pub(super) fn bundle_version(
     loopback: &crate::proxy::LoopbackEndpoint,
     manifest: &SignedManifest,
-) -> String {
+) -> Result<String, ApplyError> {
     let mut skills: Vec<&SkillEntry> = manifest
         .skills
         .iter()
@@ -32,7 +34,7 @@ pub(super) fn bundle_version(
     for s in skills {
         buf.push_str(s.id.as_str());
         buf.push('\u{0}');
-        buf.push_str(&skill_markdown(s));
+        buf.push_str(&skill_markdown(s)?);
         buf.push('\u{0}');
     }
     buf.push('\u{1}');
@@ -54,7 +56,7 @@ pub(super) fn bundle_version(
         buf.push('\u{0}');
     }
 
-    sha256_hex(buf.as_bytes())[..16].to_owned()
+    Ok(sha256_hex(buf.as_bytes())[..16].to_owned())
 }
 
 pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), ApplyError> {
@@ -64,5 +66,6 @@ pub(super) fn write_skill(plugin_dir: &Path, skill: &SkillEntry) -> Result<(), A
     let dir = plugin_dir.join("skills").join(skill.id.as_str());
     fs::create_dir_all(&dir).map_err(|e| io_err("create skill dir", &dir, e))?;
     let path = dir.join("SKILL.md");
-    fs::write(&path, skill_markdown(skill)).map_err(|e| io_err("write SKILL.md", &path, e))
+    crate::fsutil::atomic_write_0644(&path, skill_markdown(skill)?.as_bytes())
+        .map_err(|e| io_err("write SKILL.md", &path, e))
 }

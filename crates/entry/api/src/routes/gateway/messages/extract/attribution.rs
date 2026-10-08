@@ -2,7 +2,7 @@
 //! the body is consumed, and the classification that runs once the body and
 //! the principal are known.
 //!
-//! The ladder itself is `systemprompt_models::wire::origin::classify`; this
+//! The ladder itself is `systemprompt_models::origin::classify`; this
 //! module only feeds it and records the outcome on the rejection partial.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -10,11 +10,12 @@
 
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClassificationInput, ClientAttestation, ClientEvidence, ClientKind, StainlessHeaders, classify,
 };
 
 use super::RejectionPartial;
+use crate::routes::gateway::messages::error::RejectionError;
 
 /// Copies of the attribution headers, taken before `read_gateway_body`
 /// consumes the request.
@@ -75,7 +76,7 @@ pub fn classify_client(
     principal_is_bridge: bool,
     body: &[u8],
     partial: &mut RejectionPartial,
-) -> Result<ClientEvidence, (StatusCode, String)> {
+) -> Result<ClientEvidence, RejectionError> {
     let input = ClassificationInput {
         principal_is_bridge,
         declared_client: attribution.declared_client.as_deref(),
@@ -105,7 +106,7 @@ pub fn classify_client(
             partial.origin.client = ClientKind::Other;
             partial.origin.attestation = ClientAttestation::None;
             partial.evidence = Some(rejection.evidence().clone());
-            Err((StatusCode::BAD_REQUEST, rejection.to_string()))
+            Err(RejectionError::invalid(StatusCode::BAD_REQUEST, rejection))
         },
     }
 }

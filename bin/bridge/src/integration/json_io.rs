@@ -24,6 +24,8 @@ fn io_err(context: impl Into<String>, source: std::io::Error) -> ApplyError {
     }
 }
 
+// JSON: open-schema host file (Claude CLI, `opencode.json`) — keep unknown
+// keys.
 pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, ApplyError> {
     let Some(text) =
         fsutil::read_optional(path).map_err(|e| io_err(format!("read {}", path.display()), e))?
@@ -50,6 +52,8 @@ pub fn read_optional_object(path: &Path) -> Result<Option<Map<String, Value>>, A
     }
 }
 
+// JSON: open-schema host file (Claude CLI, `opencode.json`) — keep unknown
+// keys.
 pub(crate) fn read_json_object(path: &Path) -> Result<Map<String, Value>, ApplyError> {
     Ok(read_optional_object(path)?.unwrap_or_default())
 }
@@ -84,6 +88,8 @@ const fn json_kind(value: &Value) -> &'static str {
     }
 }
 
+// JSON: open-schema host file (Claude CLI, `opencode.json`) — keep unknown
+// keys.
 pub(crate) fn write_json(path: &Path, value: &Value) -> Result<(), ApplyError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)

@@ -3,13 +3,12 @@
 use axum::body::Body;
 use axum::http::Request;
 use systemprompt_api::routes::proxy::mcp;
-use systemprompt_identifiers::{AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, JwtToken, SessionId, TraceId, UserId};
 use systemprompt_mcp::repository::{McpProxyIdentityRepository, ProxyIdentityRow};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{Permission, UserType};
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_db_pool, init_services_bootstrap, seed_running_service,
-    seed_user_row,
+    init_services_bootstrap, seed_running_service, seed_user_row, test_app_context, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -53,8 +52,8 @@ settings:
         manifest_dir.join("manifest.yaml"),
         "extension:\n  type: mcp\n  name: fixture\n  binary: fixture\n",
     )?;
-    let pool = fixture_db_pool(&boot.database_url).await?;
-    let ctx = fixture_app_context(&pool, &boot.database_url)?;
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
     seed_running_service(&pool, &name, "mcp", backend.address().port()).await?;
 
     let session_id = SessionId::new(format!("followup-{}", Uuid::new_v4().simple()));
@@ -65,7 +64,7 @@ settings:
         &format!("{}@proxy.invalid", user_id.as_str()),
     )
     .await?;
-    McpProxyIdentityRepository::new(&pool)?
+    McpProxyIdentityRepository::new(&pool)
         .upsert(
             &session_id,
             &ProxyIdentityRow {
@@ -104,6 +103,7 @@ settings:
         TraceId::generate(),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
 
     let response = mcp::router(&ctx).oneshot(request).await?;

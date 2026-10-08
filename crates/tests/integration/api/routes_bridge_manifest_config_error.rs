@@ -1,14 +1,15 @@
 //! `GET /bridge/manifest` when the services config on disk is malformed — the
-//! candidate assembly must fail closed with a 500 naming the services-config
-//! load, not serve an unsigned or partial manifest.
+//! candidate assembly must fail closed with a 500, not serve an unsigned or
+//! partial manifest. The body is the fixed server-error envelope: which load
+//! failed is logged, never sent to the client.
 
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, header};
 use http::StatusCode;
 use std::sync::Arc;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
+use systemprompt_manifest::profile::PathsConfig;
+use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential, test_db_pool};
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -17,7 +18,7 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         "http://127.0.0.1",
         "mcp_servers: [this is not a map\n",
     );
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&b.database_url).await?;
+    let pool = test_db_pool().await;
     let paths = PathsConfig {
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
@@ -33,9 +34,7 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         Arc::new(systemprompt_marketplace::AllowAllFilter),
     )?;
     install_test_signing_key();
-    let app = gateway_router(&ctx)
-        .expect("gateway journal opens")
-        .expect("gateway router");
+    let app = gateway_router(&ctx).expect("gateway router builds");
     let cred = seed_admin_credential(&pool, "manifest-badcfg@example.invalid").await?;
 
     let resp = app
@@ -53,6 +52,9 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
     let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
     let body = String::from_utf8_lossy(&bytes).into_owned();
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
-    assert!(body.contains("services"), "{body}");
+    let json: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(json["code"], "internal_error", "{body}");
+    assert_eq!(json["message"], "Internal server error", "{body}");
+    assert!(!body.contains("mcp_servers"), "{body}");
     Ok(())
 }

@@ -15,8 +15,8 @@ pub use systemprompt_models::a2a::{
     AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
     AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact, ArtifactMetadata,
     DataPart, FileContent, FilePart, McpServerMetadata, McpToolsParams, Message, MessageMetadata,
-    MessageRole, OAuth2Flow, OAuth2Flows, Part, SecurityScheme, Task, TaskState, TaskStatus,
-    TextPart, TransportProtocol,
+    MessageRole, OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme, Task, TaskState,
+    TaskStatus, TextPart,
 };
 
 pub use protocol::{

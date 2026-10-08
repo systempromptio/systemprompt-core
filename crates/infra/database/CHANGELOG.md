@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- **Breaking:** the crate's own `RepositoryError` is removed; repositories return `systemprompt_traits::RepositoryError`, which classifies `sqlx::Error` by SQLSTATE (missing row → `NotFound`, unique/foreign-key violation → `Constraint`). `RepositoryError::Internal` is replaced by `TransactionConsumed` for a statement on a committed or rolled-back `PostgresTransaction`; primary, replica and existence probes return `InvalidArgument`/`InvalidData`.
+- **Breaking:** the migration status types (`AppliedMigration`, `PendingMigration`, `OrphanedMigration`, `TombstonedSlot`, `SlotCollision`, `ChecksumDrift`, `ExtensionMigrationStatus`, `MigrationStatus`, `MarkAppliedOutcome`, `ForeignKeyDrift`, `MigrationCost`, `OrphanMigrationLedger`) carry `ExtensionId`; `MigrationService::get_applied_migrations`, `assess_freshness` and `audit_one` take `&ExtensionId`, and `install_extension_schemas_full` and `audit_schema_residue` take `&[ExtensionId]`. `ExtensionMigrationStatus` no longer implements `Default`. Migrate by passing typed ids.
+- **Breaking:** `ServiceRepository::claim_instance` returns an `InstanceClaim` (released with `release().await`, or by dropping it) or `InstanceClaimError::Claimed { instance_id }`; `INSTANCE_CLAIM_CLASS` is its advisory-lock class. `delete_dead_instances` no longer reaps an instance whose claim is held.
+- **Breaking:** removed `pool_arc`/`write_pool_arc`, the scope/RLS helpers, `with_transaction`, `scoped_transaction`, `DatabaseProviderExt`/`FromDatabaseRow`, the `install_extension_schemas{,_with_config}` wrappers and the identifier/sqlx re-exports. Repository constructors are infallible.
+- **Breaking:** the services registry columns are typed (`ServiceModule`, `ServiceStatus`).
+
+### Added
+
+- `schema_currency` / `SchemaCurrency` report whether every extension is installed, no migration is pending and no applied checksum drifted, for `serve --skip-migrate`.
+- `ServiceRepository::upsert_service_process` (`UpsertServiceProcessInput`) atomically upserts a service's pid, port and status; `list_running_services_by_module` lists one module's rows.
+- Typed migration and schema-step failures (`MigrationStepError`, `LoaderError::{MigrationStepFailed, SchemaInstallationStepFailed}`).
+
+### Fixed
+
+- Concurrent replica boots sharing one instance id no longer delete each other's service rows as stale: a replica claims its instance id with a session advisory lock before touching the registry and refuses to boot when the id is live, and the dead-instance reaper skips claimed ids.
+- The hot-table estimate probe logs the failure it turns into an absent value.
+
 ## [0.61.0] - 2026-09-24
 
 ### Added

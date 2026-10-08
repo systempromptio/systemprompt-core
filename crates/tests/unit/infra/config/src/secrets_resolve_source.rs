@@ -1,5 +1,5 @@
 use systemprompt_config::{ResolvedSource, SecretsBootstrapError, resolve_source};
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth, VaultSecretsConfig,
 };
 
@@ -109,7 +109,7 @@ fn a_missing_secrets_path_is_reported_rather_than_substituted() {
     let err = resolve_source(Some(&cfg), false, false, false).unwrap_err();
     assert!(matches!(
         err,
-        SecretsBootstrapError::SecretsConfigInvalid { .. }
+        SecretsBootstrapError::SecretsConfigInvalid(_)
     ));
 }
 

@@ -4,6 +4,7 @@
 //! secret the scanner matched.
 
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, McpToolName};
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, ResourceContents};
 use serde_json::json;
@@ -16,16 +17,11 @@ use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 const PATTERNS: &str =
     "patterns:\n  - id: recovery-key\n    name: Recovery Key\n    regex: 'XRECOVERY-[0-9]+'\n";
 const KEY: &str = "XRECOVERY-1234567890";
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -50,8 +46,8 @@ fn ctx(session: &str, user: &UserId) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("ingest-tests").expect("valid AgentName"),
+        Actor::user(user.clone()),
     )
-    .with_actor(Actor::user(user.clone()))
     .with_user_type(UserType::User)
 }
 
@@ -64,8 +60,8 @@ fn request(
 ) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "Read".to_owned(),
-        server_name: Some("tests".to_owned()),
+        tool_name: McpToolName::new("Read"),
+        server_name: Some(McpServerId::new("tests")),
         ai_tool_call_id: call.cloned(),
         mcp_execution_id: None,
         ctx: ctx(session, user),
@@ -78,8 +74,8 @@ fn request(
 
 #[tokio::test]
 async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -132,8 +128,8 @@ async fn a_call_seen_from_two_vantage_points_is_one_execution_and_one_artifact()
 
 #[tokio::test]
 async fn a_server_execution_key_in_meta_joins_exactly() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -173,8 +169,8 @@ async fn a_server_execution_key_in_meta_joins_exactly() {
 
 #[tokio::test]
 async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let session = unique("sess");
     let user = caller();
     let body = unique("same-body");
@@ -206,8 +202,8 @@ async fn a_hook_with_no_key_is_matched_by_fingerprint_and_marked_inferred() {
 
 #[tokio::test]
 async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, Some(scanner())).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, Some(scanner()));
     let session = unique("sess");
     let user = caller();
     let call = AiToolCallId::new(unique("toolu"));
@@ -258,8 +254,8 @@ async fn a_secret_in_the_result_is_redacted_before_the_body_is_stored() {
 
 #[tokio::test]
 async fn an_identical_body_is_stored_once_by_digest() {
-    let Some(db) = db_or_skip().await else { return };
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let body = unique("shared-body");
     let mut ids = Vec::new();
     for _ in 0..2 {
@@ -300,10 +296,8 @@ async fn an_identical_body_is_stored_once_by_digest() {
 
 #[tokio::test]
 async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_artifact_id() {
-    let db = db_or_skip()
-        .await
-        .expect("artifact ingest fixture database");
-    let ingest = ArtifactIngest::from_db(&db, None).expect("ingest");
+    let db = test_db_pool().await;
+    let ingest = ArtifactIngest::from_db(&db, None);
     let artifact_id = unique("artifact");
     let mut result = CallToolResult::error(vec![
         ContentBlock::text("tool reported an error"),

@@ -66,7 +66,7 @@ fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
 // snapshot, so the snapshot is rebuilt from what the front end actually sees.
 fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: "fixture",
+        host_id: systemprompt_models::bridge::host::HostKind::Hermes,
         display_name: "fixture",
         profile_state: profile_state_of(host, v),
         profile_source: None,
@@ -159,6 +159,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .is_some_and(|u| !u.is_empty()),
             surface: AgentSurface::LocalProfile,
             manifest_synced,
+            gateway_routed: true,
             can_open: host
                 .get("can_open")
                 .and_then(Value::as_bool)
@@ -199,6 +200,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             has_download_url: false,
             surface: AgentSurface::SyncOnly,
             manifest_synced,
+            gateway_routed: true,
             can_open: false,
         });
         // Why: read from the same `HostCapabilities` the real payload uses

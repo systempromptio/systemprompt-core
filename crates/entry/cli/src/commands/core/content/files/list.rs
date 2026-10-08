@@ -35,7 +35,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     match (&args.content, &args.file) {
         (Some(content_id_str), None) => {
@@ -45,7 +45,7 @@ pub async fn execute_with_pool(
             let files: Vec<ContentFileRow> = files
                 .into_iter()
                 .map(|(file, content_file)| ContentFileRow {
-                    file_id: FileId::new(file.id.to_string()),
+                    file_id: file.id,
                     path: file.path,
                     mime_type: file.mime_type,
                     role: content_file.role.to_string(),
@@ -94,12 +94,11 @@ pub async fn execute_with_pool(
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {
-    uuid::Uuid::parse_str(id).map_err(|_e| {
+    FileId::try_new(id).map_err(|_e| {
         anyhow!(
             "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
              got '{}'",
             id
         )
-    })?;
-    Ok(FileId::new(id.to_owned()))
+    })
 }

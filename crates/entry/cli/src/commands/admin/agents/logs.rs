@@ -45,7 +45,7 @@ pub(super) async fn execute(
     let logs_path = match args.logs_dir.as_deref() {
         Some(dir) => PathBuf::from(dir),
         None => PathBuf::from(
-            systemprompt_models::Config::get()
+            systemprompt_manifest::Config::get()
                 .context("agent log directory requires an initialised profile")?
                 .logs_path(),
         ),

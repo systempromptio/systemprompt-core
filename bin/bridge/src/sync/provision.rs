@@ -34,7 +34,7 @@ pub enum ProvisionError {
     Elevated {
         path: PathBuf,
         #[source]
-        source: std::io::Error,
+        source: crate::install::approval::GatedChangeError,
     },
     #[error("stage {path}: {source}")]
     Stage {

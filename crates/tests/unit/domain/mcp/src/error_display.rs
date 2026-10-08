@@ -38,37 +38,35 @@ fn manifest_display_contains_message() {
 
 #[test]
 fn transport_display_contains_message() {
-    let e = McpDomainError::Transport("broken pipe".to_owned());
+    let e = McpDomainError::transport("reading frame", std::io::Error::other("broken pipe"));
     let s = e.to_string();
     assert!(s.contains("broken pipe"));
 }
 
 #[test]
 fn config_validation_display_contains_message() {
-    let e = McpDomainError::ConfigValidation("missing field x".to_owned());
+    let e = McpDomainError::from(
+        systemprompt_models::errors::ServicesValidationError::Required(
+            "missing field x".to_owned(),
+        ),
+    );
     let s = e.to_string();
     assert!(s.contains("missing field x"));
 }
 
 #[test]
-fn client_initialize_display_contains_message() {
-    let e = McpDomainError::ClientInitialize("init failed".to_owned());
-    let s = e.to_string();
-    assert!(s.contains("init failed"));
-}
-
-#[test]
 fn service_error_display_contains_message() {
-    let e = McpDomainError::ServiceError {
-        message: "service down".to_owned(),
-    };
+    let e = McpDomainError::from(rmcp::ServiceError::TransportClosed);
     let s = e.to_string();
-    assert!(s.contains("service down"));
+    assert!(s.contains("Transport closed"));
 }
 
 #[test]
 fn path_display_contains_path() {
-    let e = McpDomainError::Path("/no/such/path".to_owned());
+    let e = McpDomainError::from(systemprompt_config::PathError::NotFound {
+        path: "/no/such/path".into(),
+        field: "system",
+    });
     let s = e.to_string();
     assert!(s.contains("/no/such/path"));
 }

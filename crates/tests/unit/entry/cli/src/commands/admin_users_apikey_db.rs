@@ -12,10 +12,12 @@ use clap::Parser;
 use systemprompt_cli::admin::users::{self, UsersCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{ScopeDimension, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_row,
+    seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
+use systemprompt_users::ApiKeyLimits;
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -30,20 +32,15 @@ fn parse(args: &[&str]) -> UsersCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the apikey tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).expect("app context"),
+        test_app_context(pool, &url),
     )
 }
 
@@ -70,7 +67,7 @@ struct StoredKey {
 
 /// `execute` renders to stdout, so the row is where the outcome is visible.
 async fn stored_keys(pool: &DbPool, user: &str) -> Vec<StoredKey> {
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query_as::<
         _,
         (
@@ -108,7 +105,7 @@ async fn stored_keys(pool: &DbPool, user: &str) -> Vec<StoredKey> {
 // database read must never yield anything a caller could authenticate with.
 #[tokio::test]
 async fn issuing_stores_a_hash_and_a_prefix_but_never_the_secret() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -136,7 +133,7 @@ async fn issuing_stores_a_hash_and_a_prefix_but_never_the_secret() {
 
 #[tokio::test]
 async fn revoking_marks_the_row_rather_than_deleting_it() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -170,7 +167,7 @@ async fn revoking_marks_the_row_rather_than_deleting_it() {
 // not make it pass.
 #[tokio::test]
 async fn a_key_with_a_blank_name_is_refused() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     let err = run(
@@ -212,7 +209,7 @@ async fn an_expiry_that_is_not_rfc3339_is_rejected_at_parse_time() {
 
 #[tokio::test]
 async fn an_explicit_rfc3339_expiry_is_accepted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(
@@ -244,7 +241,7 @@ async fn an_explicit_rfc3339_expiry_is_accepted() {
 // credential has been withdrawn when it has not.
 #[tokio::test]
 async fn revoking_a_key_that_does_not_exist_is_reported() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     let err = run(
@@ -269,7 +266,7 @@ async fn revoking_a_key_that_does_not_exist_is_reported() {
 
 #[tokio::test]
 async fn listing_a_user_with_no_keys_is_an_empty_report_rather_than_an_error() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     run(&pool, &["api-key", "list", "--user", &user])
@@ -277,4 +274,168 @@ async fn listing_a_user_with_no_keys_is_an_empty_report_rather_than_an_error() {
         .expect("a user with no keys lists nothing, which is not a failure");
 
     assert!(stored_keys(&pool, &user).await.is_empty());
+}
+
+fn issue_args(extra: &[&str]) -> users::ApiKeyIssueArgs {
+    let mut args = vec!["api-key", "issue", "--user", "someone", "--name", "ci"];
+    args.extend_from_slice(extra);
+    match parse(&args) {
+        UsersCommands::ApiKey(users::ApiKeyCommands::Issue(issue)) => issue,
+        other => panic!("expected api-key issue, got {other:?}"),
+    }
+}
+
+#[test]
+fn no_limit_flags_issue_an_unlimited_unscoped_key() {
+    let args = issue_args(&[]);
+    assert_eq!(args.limits(), ApiKeyLimits::default());
+    assert!(args.scopes.is_empty());
+}
+
+#[test]
+fn every_limit_flag_lands_on_the_typed_limits() {
+    let args = issue_args(&[
+        "--model",
+        "claude-a",
+        "--model",
+        "claude-b",
+        "--budget-microdollars",
+        "5000000",
+        "--max-requests",
+        "100",
+        "--window-seconds",
+        "3600",
+        "--scope",
+        "project=p-primary",
+        "--scope",
+        "cost_centre=cc-9",
+    ]);
+    assert_eq!(
+        args.limits(),
+        ApiKeyLimits {
+            model_allowlist: Some(vec!["claude-a".to_owned(), "claude-b".to_owned()]),
+            budget_microdollars: Some(5_000_000),
+            max_requests: Some(100),
+            request_window_seconds: Some(3600),
+        }
+    );
+    assert_eq!(
+        args.scopes,
+        vec![
+            ScopeBinding {
+                dimension: ScopeDimension::new("project"),
+                value: "p-primary".to_owned(),
+            },
+            ScopeBinding {
+                dimension: ScopeDimension::new("cost_centre"),
+                value: "cc-9".to_owned(),
+            },
+        ]
+    );
+}
+
+fn issue_parse_error(extra: &[&str]) -> String {
+    let mut args = vec!["users", "api-key", "issue", "--user", "u", "--name", "ci"];
+    args.extend_from_slice(extra);
+    UsersHarness::try_parse_from(args)
+        .expect_err("a malformed flag must be rejected at parse time")
+        .to_string()
+}
+
+#[test]
+fn a_scope_without_a_separator_is_rejected() {
+    let err = issue_parse_error(&["--scope", "project"]);
+    assert!(err.contains("DIMENSION=VALUE"), "{err}");
+}
+
+#[test]
+fn a_scope_with_an_empty_value_is_rejected() {
+    let err = issue_parse_error(&["--scope", "project="]);
+    assert!(err.contains("empty"), "{err}");
+}
+
+#[test]
+fn a_scope_with_an_invalid_dimension_is_rejected() {
+    let err = issue_parse_error(&["--scope", "Project=p"]);
+    assert!(err.contains("scope dimension"), "{err}");
+}
+
+#[test]
+fn non_positive_ceilings_are_rejected() {
+    issue_parse_error(&["--max-requests", "0"]);
+    issue_parse_error(&["--window-seconds", "-1"]);
+    issue_parse_error(&["--budget-microdollars", "-5"]);
+}
+
+// Why: no subject attribute provider is registered in this test binary, so a
+// bound dimension cannot be verified and must refuse issuance rather than
+// store an unverified binding.
+#[tokio::test]
+async fn a_scope_on_an_unregistered_dimension_refuses_issuance() {
+    let pool = test_db_pool().await;
+    let user = seeded_user(&pool).await;
+
+    let err = run(
+        &pool,
+        &[
+            "api-key",
+            "issue",
+            "--user",
+            &user,
+            "--name",
+            "ci",
+            "--scope",
+            "project=p1",
+        ],
+    )
+    .await
+    .expect_err("an unverifiable scope must not be issued");
+
+    assert!(
+        format!("{err:#}").contains("unknown scope dimension"),
+        "{err:#}"
+    );
+    assert!(
+        stored_keys(&pool, &user).await.is_empty(),
+        "nothing is stored"
+    );
+}
+
+#[tokio::test]
+async fn limits_given_on_the_command_line_are_persisted() {
+    let pool = test_db_pool().await;
+    let user = seeded_user(&pool).await;
+
+    run(
+        &pool,
+        &[
+            "api-key",
+            "issue",
+            "--user",
+            &user,
+            "--name",
+            "limited",
+            "--model",
+            "claude-a",
+            "--max-requests",
+            "10",
+            "--window-seconds",
+            "60",
+        ],
+    )
+    .await
+    .expect("issue with limits");
+
+    let (allowlist, max_requests, window): (Option<Vec<String>>, Option<i32>, Option<i32>) =
+        sqlx::query_as(
+            "SELECT model_allowlist, max_requests, request_window_seconds \
+             FROM user_api_keys WHERE user_id = $1",
+        )
+        .bind(&user)
+        .fetch_one(&*pool.pool())
+        .await
+        .expect("read limits");
+    assert_eq!(allowlist, Some(vec!["claude-a".to_owned()]));
+    assert_eq!(max_requests, Some(10));
+    assert_eq!(window, Some(60));
 }

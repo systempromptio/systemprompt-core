@@ -16,24 +16,19 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    fixture_app_context, fixture_database_url, fixture_db_pool, seed_user_row,
+    seed_user_row, test_app_context, test_database_url, test_db_pool,
 };
 use uuid::Uuid;
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().expect("DATABASE_URL"))
-        .await
-        .expect("the ai count tests need a reachable test database")
-}
 
 fn ctx(pool: &DbPool) -> CommandContext {
-    let url = fixture_database_url().expect("DATABASE_URL");
+    let url = test_database_url();
     CommandContext::with_app_context(
         CliConfig::new()
             .with_interactive(false)
             .with_output_format(OutputFormat::Json),
         EnvOverrides::default(),
-        fixture_app_context(pool, &url).expect("app context"),
+        test_app_context(pool, &url),
     )
 }
 
@@ -60,7 +55,7 @@ fn cfg_json() -> CliConfig {
 async fn seed_file(pool: &DbPool, f: &File<'_>) -> String {
     let id = Uuid::new_v4();
     let path = format!("/tmp/aicount/{}.png", Uuid::new_v4());
-    let write = pool.write_pool_arc().expect("write pool");
+    let write = pool.write_pool();
     sqlx::query(
         "INSERT INTO files (id, path, public_url, mime_type, ai_content, user_id, deleted_at) \
          VALUES ($5, $1, $1, 'image/png', $2, $3, CASE WHEN $4 THEN NOW() ELSE NULL END)",
@@ -102,7 +97,7 @@ async fn count_for(pool: &DbPool, user: Option<&str>) -> i64 {
 // user's name would report a number that is not theirs.
 #[tokio::test]
 async fn a_user_filter_counts_only_that_users_images() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let mine = seeded_user(&pool).await;
     let theirs = seeded_user(&pool).await;
 
@@ -139,7 +134,7 @@ async fn a_user_filter_counts_only_that_users_images() {
 // silently inflate the figure an operator uses to judge generation volume.
 #[tokio::test]
 async fn files_that_are_not_ai_generated_are_not_counted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     seed_file(
@@ -172,7 +167,7 @@ async fn files_that_are_not_ai_generated_are_not_counted() {
 // `deleted_at` would keep reporting images the user has already removed.
 #[tokio::test]
 async fn soft_deleted_images_stop_being_counted() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     seed_file(
@@ -203,7 +198,7 @@ async fn soft_deleted_images_stop_being_counted() {
 
 #[tokio::test]
 async fn a_user_with_no_images_counts_zero_rather_than_failing() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let user = seeded_user(&pool).await;
 
     assert_eq!(count_for(&pool, Some(&user)).await, 0);
@@ -213,7 +208,7 @@ async fn a_user_with_no_images_counts_zero_rather_than_failing() {
 // because the shared database carries other tests' rows.
 #[tokio::test]
 async fn an_unfiltered_count_spans_users_rather_than_scoping_to_one() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
     let mine = seeded_user(&pool).await;
     let theirs = seeded_user(&pool).await;
 
@@ -246,7 +241,7 @@ async fn an_unfiltered_count_spans_users_rather_than_scoping_to_one() {
 // `files show` under a name that promises otherwise, and an operator filtering
 // for generated content sees uploads.
 mod show_and_list {
-    use super::{File, cfg_json, pool, seed_file, seeded_user};
+    use super::{File, cfg_json, seed_file, seeded_user, test_db_pool};
     use systemprompt_cli::core::files::ai::list::{ListArgs, execute_with_pool as list_with_pool};
     use systemprompt_cli::core::files::ai::show::{ShowArgs, execute_with_pool as show_with_pool};
     use systemprompt_database::DbPool;
@@ -300,7 +295,7 @@ mod show_and_list {
 
     #[tokio::test]
     async fn an_ai_image_is_shown() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let user = seeded_user(&pool).await;
         let id = ai_file(&pool, &user).await;
 
@@ -319,7 +314,7 @@ mod show_and_list {
     // that were never generated.
     #[tokio::test]
     async fn a_file_that_is_not_ai_generated_is_refused() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let user = seeded_user(&pool).await;
         let plain = seed_file(
             &pool,
@@ -343,7 +338,7 @@ mod show_and_list {
 
     #[tokio::test]
     async fn an_unknown_file_is_reported_as_not_found() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
 
         let err = show(&pool, &Uuid::new_v4().to_string())
             .await
@@ -357,7 +352,7 @@ mod show_and_list {
     // an operator can act on.
     #[tokio::test]
     async fn a_file_id_that_is_not_a_uuid_is_refused_before_the_lookup() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
 
         let err = show(&pool, "not-a-uuid")
             .await
@@ -370,7 +365,7 @@ mod show_and_list {
     // would show one operator another's generated images.
     #[tokio::test]
     async fn a_user_filter_lists_only_that_users_images() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let mine = seeded_user(&pool).await;
         let theirs = seeded_user(&pool).await;
         let ours = ai_file(&pool, &mine).await;
@@ -389,7 +384,7 @@ mod show_and_list {
     // `deleted_at` keeps offering images the user has removed.
     #[tokio::test]
     async fn soft_deleted_images_are_not_listed() {
-        let pool = pool().await;
+        let pool = test_db_pool().await;
         let user = seeded_user(&pool).await;
         let removed = seed_file(
             &pool,

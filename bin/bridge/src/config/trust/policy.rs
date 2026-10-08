@@ -1,5 +1,5 @@
-//! The administrator trust channel: `manifestTrust` or the environment
-//! override.
+//! The administrator trust channel: the `manifestTrust` record in the brand's
+//! managed policy store.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,27 +11,21 @@ use crate::config::store;
 use crate::ids::PinnedPubKey;
 
 pub(super) fn policy_trust() -> Result<Option<TrustRecord>, TrustError> {
-    let env_name = crate::brand::brand().env("POLICY_TRUST");
-    let raw = match std::env::var(&env_name) {
-        Ok(value) => Some(value),
-        Err(std::env::VarError::NotPresent) => {
-            store::read_bridge_policy(store::MANIFEST_TRUST_KEY)?
-        },
-        Err(e) => return Err(TrustError::InvalidPolicy(format!("{env_name}: {e}"))),
-    };
-    let Some(raw) = raw else {
-        return Ok(None);
-    };
-    let record: TrustRecord =
-        serde_json::from_str(&raw).map_err(|e| TrustError::InvalidPolicy(e.to_string()))?;
-    let gateway = ValidatedUrl::try_new(record.gateway.as_str())
-        .map_err(|e| TrustError::InvalidPolicy(format!("gateway: {e}")))?;
+    store::read_bridge_policy(store::MANIFEST_TRUST_KEY)?
+        .map(|raw| parse_policy_trust(&raw))
+        .transpose()
+}
+
+pub fn parse_policy_trust(raw: &str) -> Result<TrustRecord, TrustError> {
+    let record: TrustRecord = serde_json::from_str(raw).map_err(TrustError::InvalidPolicy)?;
+    let gateway =
+        ValidatedUrl::try_new(record.gateway.as_str()).map_err(TrustError::GatewayInvalid)?;
     // Why: the key is validated by the caller only after the gateway
     // comparison, so a policy pinned for another gateway reports stale
     // rather than a key-decoding error the operator cannot act on.
-    Ok(Some(TrustRecord {
+    Ok(TrustRecord {
         gateway: GatewayIdentity::new(&gateway)?,
         key: PinnedPubKey::new(record.key.as_str()),
         source: PinSource::Policy,
-    }))
+    })
 }

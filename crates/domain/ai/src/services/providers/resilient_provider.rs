@@ -1,4 +1,4 @@
-//! [`ResilientProvider`] — an [`AiProvider`] decorator that applies the
+//! [`ResilientProvider`] — an [`ProviderClient`] decorator that applies the
 //! resilience policy (timeout, retry, circuit breaker, bulkhead) to every call.
 //!
 //! [`super::provider_factory::ProviderFactory`] wraps each concrete provider in
@@ -19,7 +19,7 @@ use futures::stream::Stream;
 use systemprompt_database::resilience::{
     Admission, ResilienceConfig, ResilienceError, ResilienceGuard, guarded_stream,
 };
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 
 use crate::error::{AiError, Result};
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
@@ -27,7 +27,7 @@ use crate::models::tools::ToolCall;
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider_trait::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
 
@@ -35,7 +35,7 @@ type StreamResult = Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send
 
 pub struct ResilientProvider {
     provider: String,
-    inner: Arc<dyn AiProvider>,
+    inner: Arc<dyn ProviderClient>,
     guard: Arc<ResilienceGuard>,
 }
 
@@ -52,7 +52,7 @@ impl ResilientProvider {
     #[must_use]
     pub fn new(
         provider: impl Into<String>,
-        inner: Arc<dyn AiProvider>,
+        inner: Arc<dyn ProviderClient>,
         settings: &ResilienceSettings,
     ) -> Self {
         let provider = provider.into();
@@ -106,13 +106,9 @@ impl ResilientProvider {
 }
 
 #[async_trait]
-impl AiProvider for ResilientProvider {
+impl ProviderClient for ResilientProvider {
     fn name(&self) -> &str {
         self.inner.name()
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self.inner.as_any()
     }
 
     fn capabilities(&self) -> ProviderCapabilities {

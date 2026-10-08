@@ -59,11 +59,11 @@ Service lifecycle management.
 | Command | Notable flags | Purpose |
 |---------|---------------|---------|
 | `infra services start [TARGET]` | `--all`, `--api`, `--agents`, `--mcp`, `--foreground`, `--skip-migrate`, `--kill-port-process` | Start API, agents, and MCP servers. `TARGET` may be `agent <name>` or `mcp <name>`. |
-| `infra services stop [TARGET]` | `--all`, `--api`, `--agents`, `--mcp`, `--force` | Stop services gracefully. |
+| `infra services stop [TARGET]` | `--all`, `--api`, `--agents`, `--mcp`, `--force` | Stop services gracefully. A process is signalled only when it carries this installation's identity marker; any other process on a service port is reported and left running. |
 | `infra services restart [TARGET]` | `--failed`, `--agents`, `--mcp` | Restart services. `TARGET` may be `api`, `agent <name>`, or `mcp <name>`. |
 | `infra services status` | `--detailed`, `--json`, `--health` | Show service status. |
 | `infra services cleanup` | `-y`/`--yes`, `--dry-run` | Clean up orphaned processes and stale entries. |
-| `infra services serve` | `--foreground`, `--kill-port-process` | Start the API server (also starts agents and MCP servers). |
+| `infra services serve` | `--foreground`, `--kill-port-process` | Start the API server (also starts agents and MCP servers). On Linux and macOS the process re-executes itself once, keeping its PID, to carry the API server identity marker that `stop`, `restart api` and `cleanup` verify. `--kill-port-process` signals a port holder that is not a verified API server only after an interactive confirmation naming its PID. |
 
 ```bash
 systemprompt infra services start --all

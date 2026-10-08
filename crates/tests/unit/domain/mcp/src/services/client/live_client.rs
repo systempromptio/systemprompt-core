@@ -2,6 +2,7 @@
 //! a scripted wiremock MCP endpoint through the external-server transport
 //! path, including the oauth and external-auth guard branches.
 
+use systemprompt_identifiers::JwtToken;
 use systemprompt_mcp::services::client::McpClient;
 use systemprompt_test_fixtures::ensure_test_bootstrap;
 use wiremock::MockServer;
@@ -87,7 +88,7 @@ async fn oauth_required_with_token_sends_bearer() {
     let mut config = external_mcp_config("live_auth_ok", &format!("{}/mcp", server.uri()));
     config.oauth.required = true;
 
-    let context = request_context("auth-ok").with_auth_token("user-jwt".to_owned());
+    let context = request_context("auth-ok").with_auth_token(JwtToken::new("user-jwt"));
     let tools = McpClient::list_tools(&config, &context)
         .await
         .expect("tools list with bearer");
@@ -120,7 +121,7 @@ async fn external_auth_with_unreachable_accessor_fails() {
         serde_yaml::from_str("token_endpoint: /api/public/prov/token").expect("external auth"),
     );
 
-    let context = request_context("ext2").with_auth_token("user-jwt".to_owned());
+    let context = request_context("ext2").with_auth_token(JwtToken::new("user-jwt"));
     let err = McpClient::call_tool(&config, "echo".to_owned(), None, &context)
         .await
         .expect_err("no broker secret is configured, so the accessor is never called");

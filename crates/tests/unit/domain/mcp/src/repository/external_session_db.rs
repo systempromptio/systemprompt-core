@@ -3,14 +3,14 @@
 
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_mcp::repository::{ExternalSessionBinding, McpProxyIdentityRepository};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn external_session_rejects_other_users_credentials_and_servers()
 -> Result<(), Box<dyn std::error::Error>> {
-    let db = fixture_db_pool(&fixture_database_url()?).await?;
-    let first = McpProxyIdentityRepository::new(&db)?;
-    let second = McpProxyIdentityRepository::new(&db)?;
+    let db = test_db_pool().await;
+    let first = McpProxyIdentityRepository::new(&db);
+    let second = McpProxyIdentityRepository::new(&db);
     let session_id = SessionId::generate();
     let user_id = UserId::new("external-owner");
     let other_user = UserId::new("external-intruder");
@@ -60,8 +60,8 @@ async fn external_session_rejects_other_users_credentials_and_servers()
 #[tokio::test]
 async fn external_session_expiry_is_enforced_and_can_be_reinitialized()
 -> Result<(), Box<dyn std::error::Error>> {
-    let db = fixture_db_pool(&fixture_database_url()?).await?;
-    let repo = McpProxyIdentityRepository::new(&db)?;
+    let db = test_db_pool().await;
+    let repo = McpProxyIdentityRepository::new(&db);
     let session_id = SessionId::generate();
     let user_id = UserId::new("external-expiry-owner");
     let binding = ExternalSessionBinding {
@@ -72,7 +72,7 @@ async fn external_session_expiry_is_enforced_and_can_be_reinitialized()
     };
     assert!(repo.remember_external(&binding).await?);
     sqlx::query("UPDATE mcp_external_sessions SET expires_at = NOW() - INTERVAL '1 second' WHERE session_id = $1")
-        .bind(session_id.as_str()).execute(db.write_pool_arc()?.as_ref()).await?;
+        .bind(session_id.as_str()).execute(db.write_pool().as_ref()).await?;
     assert!(!repo.accepts_external(&binding).await?);
     let refreshed = ExternalSessionBinding {
         credential_hash: b"refreshed",

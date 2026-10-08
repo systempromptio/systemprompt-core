@@ -60,6 +60,7 @@ pub struct CreateAnalyticsEventInput {
     #[serde(default)]
     pub referrer: Option<String>,
     #[serde(default)]
+    // JSON: client analytics event `data` — free-form per event type, stored as JSONB.
     pub data: Option<serde_json::Value>,
 }
 

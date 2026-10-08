@@ -5,9 +5,7 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{SessionId, SessionSource};
-use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_db_pool};
 use systemprompt_traits::{AiProviderError, AiSessionProvider, CreateAiSessionParams};
 use systemprompt_users::{SessionRepository, UsersAiSessionProvider};
 use uuid::Uuid;
@@ -17,7 +15,7 @@ fn unique_session_id() -> SessionId {
 }
 
 async fn cleanup(pool: &systemprompt_database::DbPool, session_id: &SessionId) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query("DELETE FROM user_sessions WHERE session_id = $1")
         .bind(session_id.as_str())
         .execute(p.as_ref())
@@ -27,14 +25,9 @@ async fn cleanup(pool: &systemprompt_database::DbPool, session_id: &SessionId) {
 
 #[tokio::test]
 async fn create_session_then_increment_usage_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let provider = UsersAiSessionProvider::from_repository(
-        SessionRepository::new(&pool).expect("session repository"),
-    );
+    let pool = test_db_pool().await;
+    let provider = UsersAiSessionProvider::from_repository(SessionRepository::new(&pool));
 
     let sid = unique_session_id();
     provider
@@ -53,7 +46,6 @@ async fn create_session_then_increment_usage_round_trip() {
         .expect("usage");
 
     let session = SessionRepository::new(&pool)
-        .expect("repo")
         .find_by_id(&sid)
         .await
         .expect("find")
@@ -65,12 +57,9 @@ async fn create_session_then_increment_usage_round_trip() {
 
 #[tokio::test]
 async fn from_repository_shares_the_backing_repo() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
     let provider = UsersAiSessionProvider::from_repository(repo);
 
     let sid = unique_session_id();
@@ -85,7 +74,6 @@ async fn from_repository_shares_the_backing_repo() {
         .expect("create");
     assert!(
         SessionRepository::new(&pool)
-            .expect("repo")
             .find_by_id(&sid)
             .await
             .expect("find")
@@ -99,9 +87,7 @@ async fn from_repository_shares_the_backing_repo() {
 #[tokio::test]
 async fn create_session_maps_pool_failure_to_internal() {
     let pool = closed_db_pool().await;
-    let provider = UsersAiSessionProvider::from_repository(
-        SessionRepository::new(&pool).expect("session repository"),
-    );
+    let provider = UsersAiSessionProvider::from_repository(SessionRepository::new(&pool));
 
     let err = provider
         .create_session(CreateAiSessionParams {
@@ -118,9 +104,7 @@ async fn create_session_maps_pool_failure_to_internal() {
 #[tokio::test]
 async fn increment_ai_usage_maps_pool_failure_to_internal() {
     let pool = closed_db_pool().await;
-    let provider = UsersAiSessionProvider::from_repository(
-        SessionRepository::new(&pool).expect("session repository"),
-    );
+    let provider = UsersAiSessionProvider::from_repository(SessionRepository::new(&pool));
 
     let err = provider
         .increment_ai_usage(&unique_session_id(), 10, 500)
@@ -131,15 +115,10 @@ async fn increment_ai_usage_maps_pool_failure_to_internal() {
 
 #[tokio::test]
 async fn find_live_session_reports_only_a_live_session() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = SessionRepository::new(&pool).expect("session repository");
-    let provider = UsersAiSessionProvider::from_repository(
-        SessionRepository::new(&pool).expect("session repository"),
-    );
+    let pool = test_db_pool().await;
+    let repo = SessionRepository::new(&pool);
+    let provider = UsersAiSessionProvider::from_repository(SessionRepository::new(&pool));
 
     let live = unique_session_id();
     let expired = unique_session_id();
@@ -201,9 +180,7 @@ async fn find_live_session_reports_only_a_live_session() {
 #[tokio::test]
 async fn find_live_session_maps_pool_failure_to_internal() {
     let pool = closed_db_pool().await;
-    let provider = UsersAiSessionProvider::from_repository(
-        SessionRepository::new(&pool).expect("session repository"),
-    );
+    let provider = UsersAiSessionProvider::from_repository(SessionRepository::new(&pool));
 
     let err = provider
         .find_live_session(&unique_session_id())

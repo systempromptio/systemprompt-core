@@ -5,9 +5,12 @@
 //! `log_summary_queries` execute against real rows.
 
 use chrono::{Duration as ChronoDuration, Utc};
-use systemprompt_identifiers::{AiRequestId, ContextId, TaskId, TraceId};
-use systemprompt_runtime::{AiRequestFilter, AiTraceService, AuditPage, TraceQueryService};
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_identifiers::{AgentName, AiRequestId, ContextId, LogId, TaskId, TraceId};
+use systemprompt_logging::LogLevel;
+use systemprompt_runtime::{
+    AiRequestFilter, AiTraceService, AuditPage, TraceQueryService, TraceRepository,
+};
+use systemprompt_test_fixtures::test_pg_pool;
 
 struct AuditSeed {
     pool: sqlx::PgPool,
@@ -22,15 +25,7 @@ struct AuditSeed {
 
 impl AuditSeed {
     async fn new() -> Self {
-        let url = fixture_database_url().expect("trace fixture prerequisite");
-        let db = fixture_db_pool(&url)
-            .await
-            .expect("trace fixture prerequisite");
-        let pool = db
-            .pool_arc()
-            .expect("trace fixture prerequisite")
-            .as_ref()
-            .clone();
+        let pool = test_pg_pool().await;
 
         let tag = uuid::Uuid::new_v4().simple().to_string();
         let user_id = format!("audit_user_{tag}");
@@ -271,7 +266,7 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
     seed.insert_request_message("user", &"x".repeat(600), 1)
         .await;
 
-    let svc = AiTraceService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = AiTraceService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let partial = &seed.task_id[..seed.task_id.len() - 4];
     let resolved = svc.resolve_task_id(partial).await.unwrap();
@@ -281,7 +276,10 @@ async fn ai_trace_service_maps_seeded_task_and_message_rows() {
     let info = svc.get_task_info(&task_id).await.unwrap();
     assert_eq!(info.task_id.as_str(), seed.task_id);
     assert_eq!(info.context_id.as_str(), seed.context_id);
-    assert_eq!(info.agent_name.as_deref(), Some("auditor"));
+    assert_eq!(
+        info.agent_name.as_ref().map(AgentName::as_str),
+        Some("auditor")
+    );
     assert_eq!(info.status, "TASK_STATE_COMPLETED");
     assert_eq!(info.execution_time_ms, Some(77));
     assert_eq!(info.error_message.as_deref(), Some("boom"));
@@ -341,7 +339,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
     seed.insert_request_message("user", "audit me", 0).await;
     seed.insert_tool_call_with_mcp().await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let by_request = svc
         .find_ai_request_for_audit(&seed.request_id)
@@ -506,7 +504,7 @@ async fn audit_and_request_queries_map_seeded_rows() {
 async fn pre_routing_rejections_are_listed_but_excluded_from_provider_and_model_stats() {
     let seed = AuditSeed::new().await;
     let rejected_id = seed.insert_rejected_request().await;
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let listed = svc
         .list_ai_requests(&AiRequestFilter::new(50).with_user(seed.user_id.clone()))
@@ -554,10 +552,10 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     seed.insert_log("INFO", "seeded second marker", Some("not-json"))
         .await;
 
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 
     let found = svc
-        .find_log_by_id(&good_id)
+        .find_log_by_id(&LogId::new(good_id.as_str()))
         .await
         .unwrap()
         .expect("log by id");
@@ -601,14 +599,19 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     );
 
     let filtered = svc
-        .list_logs_filtered(Some(since), Some("ERROR"), 50)
+        .list_logs_filtered(Some(since), Some(LogLevel::Error), 50)
         .await
         .unwrap();
     assert!(filtered.iter().any(|l| l.id.as_str() == good_id));
     assert!(filtered.iter().all(|l| l.level.as_str() == "ERROR"));
 
     let searched = svc
-        .search_logs("%seeded lookup marker%", Some(since), Some("ERROR"), 10)
+        .search_logs(
+            "%seeded lookup marker%",
+            Some(since),
+            Some(LogLevel::Error),
+            10,
+        )
         .await
         .unwrap();
     assert_eq!(searched.len(), 1);
@@ -618,7 +621,7 @@ async fn log_lookup_search_and_summaries_map_seeded_rows() {
     let levels = svc.count_logs_by_level(Some(since)).await.unwrap();
     let error_count = levels
         .iter()
-        .find(|l| l.level == "ERROR")
+        .find(|l| l.level == LogLevel::Error)
         .map_or(0, |l| l.count);
     assert!(error_count >= 1);
 
@@ -664,7 +667,7 @@ async fn request_list_pages_backwards_with_until_and_before_cursor() {
         .unwrap();
         ids.push(id);
     }
-    let svc = TraceQueryService::new(std::sync::Arc::new(seed.pool.clone()));
+    let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
     let user = seed.user_id.clone();
 
     let first = svc

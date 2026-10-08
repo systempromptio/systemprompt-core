@@ -1,6 +1,6 @@
 //! An explicit `--profile` is a one-shot target: it never rewrites the active
-//! session, and a cloud profile that arrived implicitly is refused by the
-//! commands that mutate whatever database the profile resolves to.
+//! session, and a cloud profile that arrived implicitly is refused by every
+//! command whose exhaustive `DataImpact` classification is destructive.
 //!
 //! Both invariants exist because `just deploy-check --profile production`
 //! once left the session index pointing at production and the next bare
@@ -18,9 +18,9 @@ use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
 };
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::profile::{CloudConfig, ProfileType};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::{CloudConfig, ProfileType};
 use tempfile::TempDir;
 
 fn session(profile_name: &str) -> CliSession {
@@ -69,7 +69,7 @@ fn descriptor(args: &[&str]) -> CommandDescriptor {
 fn store_with_active_local(dir: &TempDir) -> SessionStore {
     let mut store = SessionStore::load_or_create(dir.path()).expect("fresh store");
     store.upsert_session(&SessionKey::Local, session("local"));
-    store.set_active_with_profile(&SessionKey::Local, "local");
+    store.set_active_with_profile(&SessionKey::Local, &pname("local"));
     store
 }
 
@@ -120,7 +120,7 @@ fn an_explicit_profile_override_stores_the_session_but_leaves_the_active_key_alo
             &mut store,
             &tenant_key,
             &session("production"),
-            "production",
+            &pname("production"),
             source,
         );
 
@@ -133,7 +133,7 @@ fn an_explicit_profile_override_stores_the_session_but_leaves_the_active_key_alo
             Some("local"),
             "{source:?}: a one-shot profile must not become the active session"
         );
-        assert_eq!(store.active_profile_name.as_deref(), Some("local"));
+        assert_eq!(store.active_profile_name, Some(pname("local")));
     }
 }
 
@@ -147,19 +147,19 @@ fn a_session_selected_profile_still_becomes_active() {
         &mut store,
         &tenant_key,
         &session("production"),
-        "production",
+        &pname("production"),
         ProfileSource::Session,
     );
 
     assert_eq!(store.active_key.as_deref(), Some("tenant_tenant_prod"));
-    assert_eq!(store.active_profile_name.as_deref(), Some("production"));
+    assert_eq!(store.active_profile_name, Some(pname("production")));
 }
 
 #[test]
 fn migrate_refuses_an_implicit_cloud_profile_and_accepts_an_explicit_one() {
     let profile = cloud_profile("production");
     let migrate = descriptor(&["infra", "db", "migrate"]);
-    assert!(migrate.requires_explicit_cloud_profile());
+    assert!(migrate.is_destructive());
 
     for source in [ProfileSource::Session, ProfileSource::Discovery] {
         let err = require_explicit_cloud_profile(&profile, source, &migrate)
@@ -176,7 +176,7 @@ fn migrate_refuses_an_implicit_cloud_profile_and_accepts_an_explicit_one() {
 }
 
 #[test]
-fn every_mutating_database_command_demands_an_explicit_cloud_profile() {
+fn every_destructive_command_demands_an_explicit_cloud_profile() {
     for args in [
         vec!["infra", "db", "migrate"],
         vec!["infra", "db", "migrate-down", "users", "1"],
@@ -195,16 +195,29 @@ fn every_mutating_database_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "jobs", "run", "publish_pipeline"],
         vec!["infra", "logs", "delete", "--yes"],
         vec!["infra", "logs", "cleanup", "--yes"],
+        vec!["admin", "users", "delete", "u", "--yes"],
+        vec!["admin", "users", "merge", "--source", "a", "--target", "b"],
+        vec!["admin", "users", "bulk", "delete", "--role", "anonymous"],
+        vec!["admin", "users", "role", "promote", "u"],
+        vec!["admin", "users", "session", "cleanup"],
+        vec!["admin", "users", "ban", "cleanup"],
+        vec!["admin", "agents", "delete", "a", "--yes"],
+        vec!["admin", "bootstrap"],
+        vec!["core", "content", "delete", "c", "--yes"],
+        vec!["core", "content", "delete-source", "s", "--yes"],
+        vec!["core", "content", "link", "delete", "l", "--yes"],
+        vec!["core", "files", "delete", "f", "--yes"],
+        vec!["core", "contexts", "delete", "c", "--yes"],
     ] {
         let desc = descriptor(&args);
         assert!(
-            desc.requires_explicit_cloud_profile(),
-            "{args:?} mutates the resolved database and must carry the flag"
+            desc.is_destructive(),
+            "{args:?} destroys data behind the resolved profile and must be classified so"
         );
         assert_eq!(
-            desc.routing_class(),
-            systemprompt_cli::descriptor::RoutingClass::Mutating,
-            "{args:?} deletes rows; a failed remote route must never fall back to a local run"
+            desc.data_impact(),
+            systemprompt_cli::descriptor::DataImpact::Destructive,
+            "{args:?}"
         );
     }
 
@@ -213,10 +226,27 @@ fn every_mutating_database_command_demands_an_explicit_cloud_profile() {
         vec!["infra", "db", "tables"],
         vec!["infra", "jobs", "list"],
         vec!["infra", "logs", "view"],
+        vec!["admin", "users", "list"],
+        vec!["core", "content", "list"],
+        vec!["analytics", "overview"],
     ] {
         assert!(
-            !descriptor(&args).requires_explicit_cloud_profile(),
-            "{args:?} is read-only and must stay usable on the active profile"
+            !descriptor(&args).is_destructive(),
+            "{args:?} preserves data and must stay usable on the active profile"
+        );
+    }
+}
+
+#[test]
+fn the_duplicate_job_cleanup_commands_no_longer_parse() {
+    for args in [
+        ["infra", "jobs", "log-cleanup"],
+        ["infra", "jobs", "cleanup-sessions"],
+        ["infra", "jobs", "session-cleanup"],
+    ] {
+        assert!(
+            Cli::try_parse_from(std::iter::once("systemprompt").chain(args)).is_err(),
+            "{args:?} bypassed the guard its `infra jobs run` / `infra logs cleanup` twin carries"
         );
     }
 }
@@ -246,4 +276,8 @@ fn a_cloud_profile_without_a_tenant_is_still_a_cloud_target() {
 
     require_explicit_cloud_profile(&profile, ProfileSource::Session, &migrate)
         .expect_err("target: cloud alone is enough to demand --profile");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

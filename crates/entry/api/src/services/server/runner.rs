@@ -1,13 +1,17 @@
 //! Server run loop: MCP orchestrator wiring and lifecycle supervision.
 //!
+//! The startup phases a node runs follow its `server.role`
+//! ([`super::routes::role::lifecycle_plan`]): a gateway node spawns no MCP
+//! servers or agents and runs no scheduler.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
-use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
@@ -21,20 +25,36 @@ pub async fn run_server(
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
 
-    let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
+    let instance_claim = ctx
+        .service_repository()
+        .claim_instance()
+        .await
+        .context("replica identity")?;
+    tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
+
+    let plan = super::routes::role::lifecycle_plan(ctx.config().role);
+    tracing::info!(role = %ctx.config().role, "node role");
 
     start_event_bridge(&ctx);
-    let heartbeat = start_registry_heartbeat(&ctx);
-    reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
-
-    run_agents_phase(&ctx, events.as_ref()).await?;
-    let scheduler_handle = run_scheduler_phase(&ctx, events.as_ref()).await?;
+    start_registry_heartbeat(&ctx);
+    if plan.reconcile_mcp {
+        let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
+        reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
+    }
+    if plan.reconcile_agents {
+        run_agents_phase(&ctx, events.as_ref()).await?;
+    }
+    let scheduler_handle = if plan.scheduler {
+        run_scheduler_phase(&ctx, events.as_ref()).await?
+    } else {
+        None
+    };
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
     let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
-    let accounting_recovery = start_accounting_recovery(&ctx).await?;
+    start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
@@ -51,17 +71,18 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
-    let serve_result = super::shutdown::join_within_drain_grace(early.join()).await;
+    let restart = ctx.shutdown_request().clone();
+    let serve_result = super::shutdown::join_within_drain_grace(early.join(), &restart).await;
 
-    super::shutdown::arm_forced_exit();
-    heartbeat.abort();
-    if let Some(recovery) = accounting_recovery {
-        recovery.abort();
-    }
-    if let Some(listener) = metrics_listener {
-        listener.abort();
+    let forced_exit = super::shutdown::arm_forced_exit(restart);
+    if let Some(listener) = metrics_listener
+        && listener.abort_and_join().await.is_some()
+    {
+        tracing::debug!("Metrics listener had already stopped on the shutdown signal");
     }
     super::shutdown::drain(&ctx, scheduler_handle).await;
+    instance_claim.release().await;
+    forced_exit.abort();
 
     serve_result
 }
@@ -153,7 +174,7 @@ fn create_mcp_orchestrator(
     Ok(Arc::new(manager))
 }
 
-async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::JoinHandle<()>>> {
+async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
@@ -164,18 +185,12 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<tokio::task::
     ))
 }
 
-async fn start_accounting_recovery(
-    ctx: &AppContext,
-) -> Result<Option<tokio::task::JoinHandle<()>>> {
-    if !crate::routes::gateway::gateway_enabled(ctx) {
-        return Ok(None);
-    }
+async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
-    let settled = crate::services::gateway::audit::journal::recover(&settlement).await?;
+    let settled = systemprompt_gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {
         tracing::info!(settled, "Gateway accounting receipts recovered at startup");
     }
-    Ok(Some(
-        crate::services::gateway::audit::journal::spawn_recovery(settlement),
-    ))
+    systemprompt_gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
+    Ok(())
 }

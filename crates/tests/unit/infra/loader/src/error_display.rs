@@ -1,7 +1,9 @@
 use std::io;
 use std::path::PathBuf;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_loader::{ConfigLoadError, ConfigWriteError, ExtensionLoadError};
+use systemprompt_models::errors::ServicesValidationError;
 
 #[test]
 fn config_load_error_io_display() {
@@ -98,7 +100,8 @@ fn config_load_error_duplicate_external_agent_display() {
 
 #[test]
 fn config_load_error_validation_display() {
-    let err = ConfigLoadError::Validation("port out of range".to_owned());
+    let err =
+        ConfigLoadError::Validation(ServicesValidationError::port_conflict("port out of range"));
     let msg = err.to_string();
     assert!(msg.contains("port out of range"));
 }
@@ -134,7 +137,7 @@ fn config_write_error_agent_file_exists_display() {
 
 #[test]
 fn config_write_error_agent_not_found_display() {
-    let err = ConfigWriteError::AgentNotFound("my_agent".to_owned());
+    let err = ConfigWriteError::AgentNotFound(AgentName::new("my_agent"));
     let msg = err.to_string();
     assert!(msg.contains("not found"));
     assert!(msg.contains("my_agent"));
@@ -168,7 +171,7 @@ fn error_types_implement_debug() {
     };
     let _ = format!("{cl:?}");
 
-    let cw = ConfigWriteError::AgentNotFound("x".to_owned());
+    let cw = ConfigWriteError::AgentNotFound(AgentName::new("x"));
     let _ = format!("{cw:?}");
 
     let el = ExtensionLoadError::ManifestMissing("y".to_owned());

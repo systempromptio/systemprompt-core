@@ -14,7 +14,7 @@ use systemprompt_cli::core::services::reconcile::reconcile_after_swap;
 use systemprompt_cli::env_overrides::EnvOverrides;
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::services::bundle::ServicesBundleState;
+use systemprompt_manifest::services::bundle::ServicesBundleState;
 
 use crate::services_profile_fixture as fx;
 
@@ -129,8 +129,8 @@ async fn a_moved_composition_with_no_cached_fetch_state_refuses_to_guess() {
 #[tokio::test]
 async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     use chrono::Utc;
-    use systemprompt_models::profile::ServicesSource;
-    use systemprompt_models::services::bundle::{
+    use systemprompt_manifest::profile::ServicesSource;
+    use systemprompt_manifest::services::bundle::{
         BundleOwnership, BundleSourceInfo, BundleSourceState, ServicesBundleManifest,
         SignedBundleManifest,
     };
@@ -141,10 +141,8 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     const CONTENT_HASH: &str = "cli-content-hash";
     const COMPOSED_HASH: &str = "cli-composed-hash";
 
-    let database = DisposableDb::installed("cli_services_reconcile")
-        .await
-        .expect("isolated migrated database");
-    let pool = database.pool().await.expect("isolated database pool");
+    let database = DisposableDb::with_schema("cli_services_reconcile").await;
+    let pool = database.test_pool().await;
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let temp = tempfile::tempdir().expect("reconciliation fixture");
     let cache = BundleCache::new(temp.path().join("cache"));
@@ -229,7 +227,7 @@ async fn a_fetched_composition_is_projected_once_and_records_its_hash() {
     );
 
     drop(command);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     let closed = systemprompt_test_fixtures::closed_db_pool().await;
     let no_database_needed = CommandContext::with_database(

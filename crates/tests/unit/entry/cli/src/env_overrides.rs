@@ -6,6 +6,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::env_overrides::EnvOverrides;
+use systemprompt_identifiers::SessionToken;
 
 #[test]
 fn empty_iter_yields_all_unset() {
@@ -18,9 +19,6 @@ fn empty_iter_yields_all_unset() {
     assert!(env.rust_log.is_none());
     assert!(!env.is_deployment_host);
     assert!(!env.is_remote_cli);
-    assert!(env.editor.is_none());
-    assert!(env.database_url.is_none());
-    assert!(env.services_path.is_none());
     assert!(env.session.user_id.is_none());
     assert!(env.session.session_id.is_none());
     assert!(env.session.context_id.is_none());
@@ -34,18 +32,11 @@ fn from_vars_maps_string_fields() {
         ("SYSTEMPROMPT_LOG_LEVEL", "verbose"),
         ("SYSTEMPROMPT_PROFILE", "local"),
         ("RUST_LOG", "debug"),
-        ("DATABASE_URL", "postgres://localhost/test"),
-        ("SYSTEMPROMPT_SERVICES_PATH", "/srv/services"),
     ]);
     assert_eq!(env.output_format.as_deref(), Some("json"));
     assert_eq!(env.log_level.as_deref(), Some("verbose"));
     assert_eq!(env.profile.as_deref(), Some("local"));
     assert_eq!(env.rust_log.as_deref(), Some("debug"));
-    assert_eq!(
-        env.database_url.as_deref(),
-        Some("postgres://localhost/test")
-    );
-    assert_eq!(env.services_path.as_deref(), Some("/srv/services"));
 }
 
 #[test]
@@ -71,15 +62,6 @@ fn no_color_set_by_either_variable() {
 }
 
 #[test]
-fn editor_prefers_visual_over_editor() {
-    let env = EnvOverrides::from_vars([("VISUAL", "nvim"), ("EDITOR", "vi")]);
-    assert_eq!(env.editor.as_deref(), Some("nvim"));
-
-    let env = EnvOverrides::from_vars([("EDITOR", "vi")]);
-    assert_eq!(env.editor.as_deref(), Some("vi"));
-}
-
-#[test]
 fn from_vars_maps_session_fields() {
     let env = EnvOverrides::from_vars([
         ("SYSTEMPROMPT_USER_ID", "user-1"),
@@ -102,7 +84,22 @@ fn from_vars_maps_session_fields() {
         env.session.context_id.as_ref().map(|v| v.as_str()),
         Some("550e8400-e29b-41d4-a716-446655440000")
     );
-    assert_eq!(env.session.auth_token.as_deref(), Some("token-1"));
+    assert_eq!(
+        env.session.auth_token.as_ref().map(SessionToken::as_str),
+        Some("token-1")
+    );
+}
+
+#[test]
+fn from_vars_ignores_malformed_user_id() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_USER_ID", "unset")]);
+    assert_eq!(env.session.user_id, None);
+}
+
+#[test]
+fn from_vars_ignores_empty_session_id() {
+    let env = EnvOverrides::from_vars([("SYSTEMPROMPT_SESSION_ID", "")]);
+    assert_eq!(env.session.session_id, None);
 }
 
 #[test]
@@ -113,9 +110,14 @@ fn from_vars_ignores_malformed_context_id() {
 
 #[test]
 fn unrelated_variables_are_ignored() {
-    let env = EnvOverrides::from_vars([("PATH", "/usr/bin"), ("HOME", "/home/user")]);
+    let env = EnvOverrides::from_vars([
+        ("PATH", "/usr/bin"),
+        ("HOME", "/home/user"),
+        ("DATABASE_URL", "postgres://u:p@h/db"),
+        ("SYSTEMPROMPT_DATABASE_URL", "postgres://u:p@h/db"),
+    ]);
     assert!(env.output_format.is_none());
-    assert!(env.database_url.is_none());
+    assert!(env.profile.is_none());
     assert!(!env.is_deployment_host);
 }
 

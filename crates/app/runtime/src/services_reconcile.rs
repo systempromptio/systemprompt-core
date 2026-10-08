@@ -23,9 +23,9 @@ use systemprompt_database::Database;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
-use systemprompt_models::Profile;
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_models::services::bundle::SignedBundleManifest;
+use systemprompt_manifest::Profile;
+use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_security::authz::reconcile_composed_bundles;
 
 use crate::error::{RuntimeError, RuntimeResult};
@@ -84,13 +84,19 @@ pub async fn reconcile_fetched_services(
 
     let mut signed: Vec<(String, SignedBundleManifest)> = Vec::new();
     for name in names {
-        let fetched = state.sources.get(name).ok_or_else(|| {
-            RuntimeError::Internal(format!("services bundle {name} has no cached fetch state"))
-        })?;
-        let manifest = cache.read_manifest(name, &fetched.content_hash).map_err(|err| {
-            tracing::error!(source = %name, error = %err, "Cached services bundle manifest is unreadable");
-            RuntimeError::Internal(format!("services bundle {name} manifest: {err}"))
-        })?;
+        let fetched =
+            state
+                .sources
+                .get(name)
+                .ok_or_else(|| RuntimeError::ServicesBundleNotCached {
+                    name: name.to_owned(),
+                })?;
+        let manifest = cache
+            .read_manifest(name, &fetched.content_hash)
+            .map_err(|err| RuntimeError::ServicesBundleManifest {
+                name: name.to_owned(),
+                source: err,
+            })?;
         signed.push((name.to_owned(), manifest));
     }
 
@@ -101,24 +107,12 @@ pub async fn reconcile_fetched_services(
 
     let reports = reconcile_composed_bundles(database, services, &root.path, &bundles)
         .await
-        .map_err(|err| {
-            tracing::error!(
-                composed_hash = %composed_hash,
-                error = %err,
-                "Refused to boot on a fetched services composition that could not be reconciled"
-            );
-            RuntimeError::Internal(format!("services authz reconcile: {err}"))
-        })?;
+        .map_err(RuntimeError::ServicesReconcile)?;
 
     state.last_reconciled_hash = Some(composed_hash.clone());
-    cache.write_state(&state).map_err(|err| {
-        tracing::error!(
-            composed_hash = %composed_hash,
-            error = %err,
-            "Reconciled a fetched services composition but could not record it"
-        );
-        RuntimeError::Internal(format!("services reconcile state: {err}"))
-    })?;
+    cache
+        .write_state(&state)
+        .map_err(RuntimeError::ServicesReconcileState)?;
 
     tracing::info!(
         composed_hash = %composed_hash,

@@ -7,9 +7,10 @@ use clap::Parser;
 use systemprompt_cli::infrastructure::jobs::{self, JobsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::JobName;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_scheduler::JobRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{test_database_url, test_db_pool};
 
 
 #[derive(Debug, Parser)]
@@ -24,11 +25,6 @@ fn parse(args: &[&str]) -> JobsCommands {
         .cmd
 }
 
-async fn pool() -> DbPool {
-    fixture_db_pool(&fixture_database_url().unwrap())
-        .await
-        .unwrap()
-}
 
 fn ctx(pool: &DbPool, json: bool) -> CommandContext {
     let mut cli = CliConfig::new().with_interactive(false);
@@ -39,15 +35,30 @@ fn ctx(pool: &DbPool, json: bool) -> CommandContext {
         cli,
         EnvOverrides::default(),
         DatabaseContext::from_pool(pool.clone()),
-        fixture_database_url().unwrap(),
+        test_database_url(),
     )
+}
+
+#[test]
+fn a_blank_job_name_is_a_usage_error() {
+    for verb in ["enable", "disable", "show", "run"] {
+        let parsed = Harness::try_parse_from(["jobs", verb, " "]);
+        assert!(
+            parsed.is_err(),
+            "`jobs {verb}` must reject a blank job name at parse time"
+        );
+    }
+    assert!(Harness::try_parse_from(["jobs", "history", "--job", ""]).is_err());
 }
 
 #[tokio::test]
 async fn toggling_an_unregistered_job_is_refused_before_any_write() {
-    let pool = pool().await;
-    let repo = JobRepository::new(&pool).unwrap();
-    let before = repo.find_job("no_such_job_at_all").await.unwrap();
+    let pool = test_db_pool().await;
+    let repo = JobRepository::new(&pool);
+    let before = repo
+        .find_job(&JobName::new("no_such_job_at_all"))
+        .await
+        .unwrap();
     assert!(before.is_none(), "the fixture job must not already exist");
 
     for verb in ["enable", "disable"] {
@@ -66,14 +77,17 @@ async fn toggling_an_unregistered_job_is_refused_before_any_write() {
     }
 
     assert!(
-        repo.find_job("no_such_job_at_all").await.unwrap().is_none(),
+        repo.find_job(&JobName::new("no_such_job_at_all"))
+            .await
+            .unwrap()
+            .is_none(),
         "a rejected toggle must not create a schedule row"
     );
 }
 
 #[tokio::test]
 async fn jobs_list_reports_the_inventory_registered_jobs() {
-    let pool = pool().await;
+    let pool = test_db_pool().await;
 
     jobs::execute(parse(&["list"]), &ctx(&pool, true))
         .await

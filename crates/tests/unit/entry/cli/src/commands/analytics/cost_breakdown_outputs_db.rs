@@ -23,10 +23,8 @@ fn parse(args: &[&str]) -> AnalyticsCommands {
 }
 
 async fn database() -> (DisposableDb, DbPool) {
-    let database = DisposableDb::installed("cli_cost_breakdown")
-        .await
-        .expect("cost breakdown tests need an isolated installed database");
-    let pool = database.pool().await.expect("disposable database pool");
+    let database = DisposableDb::with_schema("cli_cost_breakdown").await;
+    let pool = database.test_pool().await;
     (database, pool)
 }
 
@@ -75,7 +73,7 @@ async fn insert_request(
     .bind(tokens)
     .bind(cost)
     .bind(synthetic)
-    .execute(pool.pool_arc().expect("SQL pool").as_ref())
+    .execute(pool.pool().as_ref())
     .await
     .expect("seed AI request");
 }
@@ -93,12 +91,12 @@ async fn seed(pool: &DbPool) -> Seed {
     sqlx::query("UPDATE users SET name = $1 WHERE id = $2")
         .bind(format!("Cost Owner {tag}"))
         .bind(named.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
     sqlx::query("UPDATE users SET name = '' WHERE id = $1")
         .bind(unnamed.as_str())
-        .execute(pool.pool_arc().unwrap().as_ref())
+        .execute(pool.pool().as_ref())
         .await
         .unwrap();
 

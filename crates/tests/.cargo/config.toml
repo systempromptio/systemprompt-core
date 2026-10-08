@@ -1,20 +1,15 @@
-# Test workspace cargo configuration
+# Test workspace cargo configuration.
 #
-# Inherits from root .cargo/config.toml but overrides settings that
-# conflict with test tooling (coverage instrumentation, caching).
-#
-# Why: The root config uses Cranelift (fast dev builds) and sccache
-# (compilation caching). Both break cargo-llvm-cov:
-#   - Cranelift doesn't support -Cinstrument-coverage (LLVM-only)
-#   - sccache serves cached uninstrumented binaries, so profraw
-#     files are never written
-#
-# This config uses the LLVM backend and disables sccache so that
-# `cargo llvm-cov --manifest-path crates/tests/Cargo.toml` works
-# correctly.
+# DATABASE_URL is the fallback for the sqlx macros and DB-backed tests when the
+# environment sets none; an exported DATABASE_URL wins, which is how CI and the
+# `just test-shard` / `just coverage` recipes point at their own disposable,
+# freshly-migrated databases. It names the same disposable `systemprompt_test`
+# database `just test-shard` recreates, never a shared development database.
+# The URL carries no password: sqlx and psql read it from PGPASSWORD or
+# ~/.pgpass.
 
 [env]
-DATABASE_URL = "postgres://systemprompt_admin:3e00fcdac26b5b731829e8737515db8f@localhost:5432/systemprompt-web"
+DATABASE_URL = "postgres://systemprompt_admin@localhost:5432/systemprompt_test"
 # Cap libtest parallelism so the shared `systemprompt_test` Postgres database
 # isn't overwhelmed on workstations with 16-32 logical cores. Above ~8 parallel
 # tokio runtimes, the per-test DbPool fans out enough connections to exhaust
@@ -26,4 +21,3 @@ RUST_TEST_THREADS = "8"
 [target.x86_64-unknown-linux-gnu]
 linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
-

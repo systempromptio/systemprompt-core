@@ -1,7 +1,6 @@
-use super::db_helper::pool_or_skip;
-use systemprompt_database::{
-    RepositoryError, SqlExecutor, validate_column_exists, validate_table_exists,
-};
+use super::db_helper::test_pool;
+use systemprompt_database::{SqlExecutor, validate_column_exists, validate_table_exists};
+use systemprompt_traits::RepositoryError;
 
 fn unique_table() -> String {
     format!("exec_test_{}", uuid::Uuid::new_v4().simple())
@@ -165,9 +164,7 @@ fn statement_without_trailing_newline_is_still_emitted() {
 
 #[tokio::test]
 async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let table = unique_table();
 
     assert!(
@@ -210,9 +207,7 @@ async fn execute_statements_runs_batch_and_table_exists_tracks_it() {
 
 #[tokio::test]
 async fn execute_query_returns_rows_and_columns() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
 
     let result = SqlExecutor::execute_query(&db, "SELECT 1 AS one, 'x' AS letter")
         .await
@@ -232,9 +227,7 @@ async fn execute_query_returns_rows_and_columns() {
 
 #[tokio::test]
 async fn execute_statements_parsed_runs_each_statement() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let table = unique_table();
 
     let provider = db.write();
@@ -261,9 +254,7 @@ async fn execute_statements_parsed_runs_each_statement() {
 #[tokio::test]
 async fn execute_file_reads_and_runs_sql() {
     use std::io::Write;
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let table = unique_table();
 
     let mut file = tempfile::NamedTempFile::new().expect("tempfile");
@@ -286,9 +277,7 @@ async fn execute_file_reads_and_runs_sql() {
 
 #[tokio::test]
 async fn execute_file_missing_path_is_internal_error() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let err = SqlExecutor::execute_file(&db, "/nonexistent/path/to/file.sql")
         .await
         .expect_err("missing file must error");
@@ -301,16 +290,14 @@ async fn execute_file_missing_path_is_internal_error() {
 
 #[tokio::test]
 async fn execute_query_invalid_sql_is_internal_error() {
-    let Some(db) = pool_or_skip().await else {
-        return;
-    };
+    let db = test_pool().await;
     let err = SqlExecutor::execute_query(&db, "SELECT * FROM definitely_not_a_table_xyz")
         .await
         .expect_err("bad query must error");
-    let msg = format!("{err}");
-    assert!(
-        msg.contains("Failed to execute query"),
-        "error must name the query failure, got: {msg}"
+    assert_eq!(
+        err.sqlstate(),
+        Some("42P01"),
+        "an undefined table must stay classified by its SQLSTATE, got: {err}"
     );
 }
 
@@ -324,7 +311,7 @@ async fn execute_query_invalid_sql_is_internal_error() {
 fn an_unterminated_single_quoted_literal_is_refused() {
     let err = SqlExecutor::parse_sql_statements("SELECT 'never closed")
         .expect_err("an open string literal must not yield a statement");
-    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
+    assert!(matches!(err, RepositoryError::SqlParse(_)), "got {err}");
 }
 
 #[test]
@@ -332,14 +319,14 @@ fn an_unterminated_dollar_quoted_body_is_refused() {
     let err =
         SqlExecutor::parse_sql_statements("CREATE FUNCTION f() RETURNS void AS $body$ BEGIN NULL;")
             .expect_err("an open dollar-quoted body must not yield a statement");
-    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
+    assert!(matches!(err, RepositoryError::SqlParse(_)), "got {err}");
 }
 
 #[test]
 fn an_unterminated_block_comment_is_refused() {
     let err = SqlExecutor::parse_sql_statements("SELECT 1; /* still open")
         .expect_err("an open block comment must not yield a statement");
-    assert!(matches!(err, RepositoryError::SqlSplit(_)), "got {err}");
+    assert!(matches!(err, RepositoryError::SqlParse(_)), "got {err}");
 }
 
 #[test]

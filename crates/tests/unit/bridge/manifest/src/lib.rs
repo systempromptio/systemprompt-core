@@ -6,3 +6,5 @@ mod bridge_floor;
 mod builder;
 #[cfg(test)]
 mod envelope;
+#[cfg(test)]
+mod marketplace_claude_code;

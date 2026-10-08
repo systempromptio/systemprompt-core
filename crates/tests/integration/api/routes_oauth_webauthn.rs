@@ -7,12 +7,12 @@
 //! `api_external_url` from which the relying-party id is derived; the input
 //! validators reject empty/oversized/ill-formed usernames and bad emails before
 //! any challenge is minted. `/webauthn/complete` is driven end to end by
-//! pre-seeding a verified-authentication token directly into the process-wide
-//! `WebAuthnRegistry` singleton — the same instance the handler resolves — so
-//! no live ceremony is required. Completion re-validates the client,
-//! redirect, scope and PKCE against the registration: the passkey ceremony
-//! proves who the user is, not that the request in the query string is the
-//! one `/authorize` admitted.
+//! pre-seeding a verified-authentication token through a `WebAuthnService` —
+//! the token lives in the shared challenge store, so any instance the handler
+//! holds consumes it — and no live ceremony is required. Completion
+//! re-validates the client, redirect, scope and PKCE against the registration:
+//! the passkey ceremony proves who the user is, not that the request in the
+//! query string is the one `/authorize` admitted.
 
 use std::sync::Once;
 
@@ -21,15 +21,13 @@ use axum::body::{Body, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{ChallengeId, SessionId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::generate_secure_token;
-use systemprompt_oauth::services::webauthn::WebAuthnRegistry;
+use systemprompt_oauth::services::{WebAuthnService, generate_secure_token};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_config, fixture_db_pool,
-    install_test_signing_key, pkce_pair, seed_oauth_client, seed_user_row_with_roles,
-    seed_user_session,
+    OAuthClientFixture, ensure_test_bootstrap, fixture_config, install_test_signing_key, pkce_pair,
+    seed_oauth_client, seed_user_row_with_roles, seed_user_session, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -58,12 +56,18 @@ async fn webauthn_app() -> anyhow::Result<Router> {
     ensure_config();
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
+    let webauthn = WebAuthnService::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.user_provider().expect("user"),
+    )
+    .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let state = OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-    );
+    )
+    .with_webauthn(std::sync::Arc::new(webauthn));
     Ok(public_router().with_state(state))
 }
 
@@ -188,19 +192,42 @@ async fn authenticate_start_unknown_email_is_client_error() -> anyhow::Result<()
     let resp = app
         .oneshot(empty_post(&format!("/webauthn/auth/start?email={email}")))
         .await?;
-    assert!(
-        resp.status().is_client_error() || resp.status().is_server_error(),
-        "unknown email must not succeed, got {}",
-        resp.status()
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED, "{}", resp.status());
+    let v = read_json(resp).await?;
+    assert_eq!(v["error"].as_str(), Some("authentication_failed"), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn authenticate_start_does_not_reveal_whether_an_email_has_an_account() -> anyhow::Result<()>
+{
+    ensure_config();
+    let (user, _client) = seed_user_and_client().await?;
+    let known = format!("{}@webauthn.invalid", user.as_str());
+    let unknown = format!("nobody-{}@webauthn.invalid", Uuid::new_v4().simple());
+
+    let mut answers = Vec::new();
+    for email in [known, unknown] {
+        let resp = webauthn_app()
+            .await?
+            .oneshot(empty_post(&format!("/webauthn/auth/start?email={email}")))
+            .await?;
+        let status = resp.status();
+        answers.push((status, read_json(resp).await?));
+    }
+
+    assert_eq!(
+        answers[0], answers[1],
+        "a passkeyless account and an unknown email must answer identically"
     );
     Ok(())
 }
 
 async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@webauthn.invalid", user.as_str()))
@@ -211,12 +238,11 @@ async fn seed_user_and_client() -> anyhow::Result<(UserId, OAuthClientFixture)> 
 }
 
 async fn inject_verified_auth(user: &UserId) -> anyhow::Result<String> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
     let (_pool, ctx) = setup_ctx().await?;
-    let service = WebAuthnRegistry::get_or_create_service(repo, ctx.user_provider().expect("user"))
-        .await
+    let service = WebAuthnService::new(repo, ctx.user_provider().expect("user"))
         .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
     let token = generate_secure_token("webauthn_verified");
     service
@@ -591,8 +617,8 @@ async fn webauthn_complete_without_a_client_id_is_rejected() -> anyhow::Result<(
 async fn completed_registration_migrates_anonymous_session_to_the_new_account() -> anyhow::Result<()>
 {
     ensure_config();
-    let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let anonymous = UserId::new(Uuid::new_v4().to_string());
     seed_user_row_with_roles(
         &pool,
@@ -649,7 +675,7 @@ async fn completed_registration_migrates_anonymous_session_to_the_new_account() 
     );
     let registered = body["user_id"].as_str().expect("registered user id");
 
-    let db = pool.pool_arc()?;
+    let db = pool.pool();
     let session_owner: String =
         sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
             .bind(session.as_str())
@@ -669,8 +695,8 @@ async fn completed_registration_migrates_anonymous_session_to_the_new_account() 
 async fn registration_cannot_take_over_an_existing_registered_users_session() -> anyhow::Result<()>
 {
     ensure_config();
-    let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let existing = UserId::new(Uuid::new_v4().to_string());
     systemprompt_test_fixtures::seed_user_row(
         &pool,
@@ -727,7 +753,7 @@ async fn registration_cannot_take_over_an_existing_registered_users_session() ->
     let new_user = body["user_id"].as_str().expect("new user id");
     assert_ne!(new_user, existing.as_str());
 
-    let db = pool.pool_arc()?;
+    let db = pool.pool();
     let session_owner: String =
         sqlx::query_scalar("SELECT user_id FROM user_sessions WHERE session_id = $1")
             .bind(session.as_str())

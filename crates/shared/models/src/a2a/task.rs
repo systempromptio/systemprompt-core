@@ -7,6 +7,8 @@ use super::artifact::Artifact;
 use super::message::Message;
 use super::task_metadata::TaskMetadata;
 use serde::{Deserialize, Serialize};
+
+use crate::errors::ParseEnumError;
 use systemprompt_identifiers::{ContextId, TaskId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -82,6 +84,21 @@ pub enum TaskState {
 }
 
 impl TaskState {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "TASK_STATE_PENDING",
+            Self::Submitted => "TASK_STATE_SUBMITTED",
+            Self::Working => "TASK_STATE_WORKING",
+            Self::Completed => "TASK_STATE_COMPLETED",
+            Self::Failed => "TASK_STATE_FAILED",
+            Self::Canceled => "TASK_STATE_CANCELED",
+            Self::Rejected => "TASK_STATE_REJECTED",
+            Self::InputRequired => "TASK_STATE_INPUT_REQUIRED",
+            Self::AuthRequired => "TASK_STATE_AUTH_REQUIRED",
+            Self::Unknown => "TASK_STATE_UNKNOWN",
+        }
+    }
+
     pub const fn is_terminal(&self) -> bool {
         matches!(
             self,
@@ -119,7 +136,7 @@ impl TaskState {
 }
 
 impl std::str::FromStr for TaskState {
-    type Err = String;
+    type Err = ParseEnumError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -133,7 +150,7 @@ impl std::str::FromStr for TaskState {
             "TASK_STATE_INPUT_REQUIRED" | "input-required" => Ok(Self::InputRequired),
             "TASK_STATE_AUTH_REQUIRED" | "auth-required" => Ok(Self::AuthRequired),
             "TASK_STATE_UNKNOWN" | "unknown" => Ok(Self::Unknown),
-            _ => Err(format!("Invalid task state: {s}")),
+            _ => Err(ParseEnumError::new("task state", s)),
         }
     }
 }

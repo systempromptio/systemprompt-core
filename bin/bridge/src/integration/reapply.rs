@@ -8,20 +8,32 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::config;
 use crate::context::BridgeContext;
-use crate::integration::host_app::{HostApp, ProbeEnv, ProfileGenInputs};
+use crate::integration::host_app::{HostApp, HostAppError, ProbeEnv, ProfileGenInputs};
 use crate::integration::profile_state::ProfileState;
 
 pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Outcome {
     Reapplied,
     Pending,
     Declined,
-    Failed(String),
+    Failed(Arc<ProfileFailure>),
+}
+
+/// Why writing a host's profile failed — as opposed to being declined.
+#[derive(Debug, thiserror::Error)]
+pub enum ProfileFailure {
+    #[error(transparent)]
+    Inputs(#[from] ProfileInputsError),
+    #[error(transparent)]
+    Host(#[from] HostAppError),
+    #[error(transparent)]
+    Settings(#[from] crate::install::mdm::MdmError),
 }
 
 #[derive(Debug, Clone)]
@@ -32,16 +44,34 @@ pub struct Report {
     pub warnings: Vec<String>,
 }
 
-fn io_err(context: &str, e: &dyn std::fmt::Display) -> std::io::Error {
-    std::io::Error::other(format!("{context}: {e}"))
+/// Why the inputs a host profile is rendered from could not be assembled.
+#[derive(Debug, thiserror::Error)]
+pub enum ProfileInputsError {
+    #[error("load config: {0}")]
+    Config(#[from] config::ConfigReadError),
+    #[error(
+        "127.0.0.1:{port} is served by a different {app} install ({config_dir}); a profile \
+         written now would authenticate against the wrong proxy"
+    )]
+    ForeignProxy {
+        port: u16,
+        app: &'static str,
+        config_dir: String,
+    },
+    #[error("loopback secret: {0}")]
+    LoopbackSecret(#[source] std::io::Error),
+    #[error("fetch bridge profile: {0}")]
+    BridgeProfile(#[source] crate::gateway::GatewayError),
+    #[error("resolve managed MCP servers: {0}")]
+    ManagedServers(#[source] std::io::Error),
 }
 
 pub async fn build_profile_inputs(
     bridge: &BridgeContext,
     host: &'static dyn HostApp,
     overrides: &ModelProtocolOverrides,
-) -> std::io::Result<ProfileGenInputs> {
-    let cfg = config::load().map_err(std::io::Error::other)?;
+) -> Result<ProfileGenInputs, ProfileInputsError> {
+    let cfg = config::load()?;
     let loopback = bridge.proxy.loopback();
     let gateway_base_url = loopback.origin();
 
@@ -49,28 +79,23 @@ pub async fn build_profile_inputs(
     if let crate::proxy::peer::PeerIdentity::Foreign(who) =
         crate::proxy::peer::probe_identity(port, bridge.install_id())
     {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::AddrInUse,
-            format!(
-                "127.0.0.1:{port} is served by a different {} install ({}); a profile written now \
-                 would authenticate against the wrong proxy",
-                crate::brand::brand().app_name,
-                who.config_dir
-            ),
-        ));
+        return Err(ProfileInputsError::ForeignProxy {
+            port,
+            app: crate::brand::brand().app_name,
+            config_dir: who.config_dir,
+        });
     }
 
     let secret = loopback
         .secret()
-        .map_err(|e| io_err("loopback secret", &e))?;
-    let host_token =
-        crate::proxy::scoped_token::host_token(&secret, &crate::ids::HostId::new(host.id()));
+        .map_err(ProfileInputsError::LoopbackSecret)?;
+    let host_token = crate::proxy::scoped_token::host_token(&secret, host.id());
 
     let server_profile = bridge
         .gateway_client(config::gateway_url_or_default(&cfg))
         .fetch_bridge_profile()
         .await
-        .map_err(|e| io_err("fetch bridge profile", &e))?;
+        .map_err(ProfileInputsError::BridgeProfile)?;
 
     let surfaces = crate::gateway::model_view::effective_surfaces(
         host.id(),
@@ -93,12 +118,16 @@ pub async fn build_profile_inputs(
 
     let mcp_servers =
         crate::install::mdm::policy::mcp_entries(loopback, &bridge.mcp_registry.load())
-            .map_err(|e| io_err("resolve managed MCP servers", &e))?;
+            .map_err(ProfileInputsError::ManagedServers)?;
 
     Ok(ProfileGenInputs {
         gateway_base_url,
         host_token,
-        models: view.compatible_models,
+        models: if host.id() == systemprompt_models::bridge::host::HostKind::ClaudeDesktop {
+            server_profile.models.clone()
+        } else {
+            view.compatible_models
+        },
         model_limits: server_profile.model_limits,
         default_model: server_profile.default_model,
         organization_uuid: server_profile.organization_uuid,
@@ -160,11 +189,11 @@ async fn reapply_one(
 ) -> (Outcome, Vec<String>) {
     let inputs = match build_profile_inputs(bridge, host, overrides).await {
         Ok(i) => i,
-        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) => return (failed(e), Vec::new()),
     };
     let generated = match host.generate_profile(&inputs) {
         Ok(g) => g,
-        Err(e) => return (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) => return (failed(e), Vec::new()),
     };
     let installed = match attendance {
         Attendance::Attended => host.install_profile(&generated.path),
@@ -172,9 +201,13 @@ async fn reapply_one(
     };
     match installed {
         Ok(installed) => (verify(host, env), installed.warnings),
-        Err(e) if is_declined(&e) => (Outcome::Declined, Vec::new()),
-        Err(e) => (Outcome::Failed(e.to_string()), Vec::new()),
+        Err(e) if e.is_refusal() => (Outcome::Declined, Vec::new()),
+        Err(e) => (failed(e), Vec::new()),
     }
+}
+
+fn failed(e: impl Into<ProfileFailure>) -> Outcome {
+    Outcome::Failed(Arc::new(e.into()))
 }
 
 fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
@@ -183,11 +216,6 @@ fn verify(host: &'static dyn HostApp, env: &ProbeEnv) -> Outcome {
     } else {
         Outcome::Pending
     }
-}
-
-pub(crate) fn is_declined(e: &std::io::Error) -> bool {
-    e.kind() == std::io::ErrorKind::PermissionDenied
-        || e.to_string().contains("cancelled the administrator")
 }
 
 #[must_use]

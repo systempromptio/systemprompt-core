@@ -6,13 +6,14 @@ use std::sync::Arc;
 
 use systemprompt_database::{
     BOOTSTRAP_ADVISORY_LOCK_KEY, BootstrapLockGuard, DbPool, PostgresProvider,
-    install_extension_schemas_with_config,
 };
 use systemprompt_extension::{
     Extension, ExtensionMetadata, ExtensionRegistry, LoaderError, Migration, SchemaDefinition, Seed,
 };
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_test_fixtures::install_extension_schemas_with_config;
 
-use crate::services::db_helper::pool_or_skip;
+use crate::services::db_helper::test_pool;
 
 pub(super) fn leak(s: String) -> &'static str {
     Box::leak(s.into_boxed_str())
@@ -57,20 +58,20 @@ pub(super) fn registry_with(ext: StubExtension) -> ExtensionRegistry {
     registry
 }
 
-pub(super) async fn provider_and_db_or_skip() -> Option<(PostgresProvider, DbPool)> {
-    let db = pool_or_skip().await?;
-    let pg = db.write_pool_arc().ok()?;
-    Some((PostgresProvider::from_pool(pg), db))
+pub(super) async fn provider_and_db() -> (PostgresProvider, DbPool) {
+    let db = test_pool().await;
+    let pg = db.write_pool();
+    (PostgresProvider::from_pool(pg), db)
 }
 
 pub(super) async fn drop_table(db: &DbPool, table: &str) {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let ddl = format!("DROP TABLE IF EXISTS \"{table}\"");
     let _ = sqlx::query(sqlx::AssertSqlSafe(ddl)).execute(&*pg).await;
 }
 
 pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     sqlx::query_scalar::<_, bool>(
         "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND \
          table_name = $1)",
@@ -83,9 +84,7 @@ pub(super) async fn table_exists(db: &DbPool, table: &str) -> bool {
 
 #[tokio::test]
 async fn install_creates_schema_index_and_applies_seed_idempotently() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_ok");
     let ext_id = unique_id("ext_ok");
     let sql = format!(
@@ -112,7 +111,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
             .expect("install");
     }
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let seeded: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT COUNT(*) FROM \"{table}\" WHERE label = 'seeded'"
     )))
@@ -126,9 +125,7 @@ async fn install_creates_schema_index_and_applies_seed_idempotently() {
 
 #[tokio::test]
 async fn install_skips_disabled_extensions() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_disabled");
     let ext_id = unique_id("ext_disabled");
     let ext = StubExtension {
@@ -141,18 +138,20 @@ async fn install_skips_disabled_extensions() {
         migrations: vec![],
     };
 
-    install_extension_schemas_with_config(&registry_with(ext), &provider, &[ext_id.to_owned()])
-        .await
-        .expect("install with extension disabled");
+    install_extension_schemas_with_config(
+        &registry_with(ext),
+        &provider,
+        &[ExtensionId::new(ext_id)],
+    )
+    .await
+    .expect("install with extension disabled");
 
     assert!(!table_exists(&db, table).await);
 }
 
 #[tokio::test]
 async fn install_rejects_seed_with_delete_statement() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_seed_delete");
     let ext = StubExtension {
         id: unique_id("ext_seed_delete"),
@@ -179,9 +178,7 @@ async fn install_rejects_seed_with_delete_statement() {
 
 #[tokio::test]
 async fn install_rejects_non_idempotent_insert_seed() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_seed_plain");
     let ext = StubExtension {
         id: unique_id("ext_seed_plain"),
@@ -206,9 +203,7 @@ async fn install_rejects_non_idempotent_insert_seed() {
 
 #[tokio::test]
 async fn install_fails_when_required_column_is_missing() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_missing_col");
     let ext = StubExtension {
         id: unique_id("ext_missing_col"),
@@ -234,9 +229,7 @@ async fn install_fails_when_required_column_is_missing() {
 
 #[tokio::test]
 async fn install_rejects_duplicate_table_ownership() {
-    let Some((provider, _db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, _db) = provider_and_db().await;
     let table = unique_id("install_shared");
     let sql = format!("CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);");
     let mut registry = ExtensionRegistry::new();
@@ -259,9 +252,7 @@ async fn install_rejects_duplicate_table_ownership() {
 
 #[tokio::test]
 async fn install_rejects_imperative_sql_in_declarative_schema() {
-    let Some((provider, _db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, _db) = provider_and_db().await;
     let table = unique_id("install_imperative");
     let ext = StubExtension {
         id: unique_id("ext_imperative"),
@@ -284,7 +275,7 @@ async fn install_rejects_imperative_sql_in_declarative_schema() {
 }
 
 async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
-    let (provider, _db) = provider_and_db_or_skip().await.expect("db required");
+    let (provider, _db) = provider_and_db().await;
     let table = unique_id("install_seed_kind");
     let ext = StubExtension {
         id: unique_id("ext_seed_kind"),
@@ -302,9 +293,6 @@ async fn seed_rejection(seed_sql: &'static str) -> LoaderError {
 
 #[tokio::test]
 async fn install_rejects_seed_statements_by_classified_kind() {
-    if provider_and_db_or_skip().await.is_none() {
-        return;
-    }
     let cases: [(&'static str, &'static str); 7] = [
         ("SELECT 1;", "SELECT"),
         ("CREATE TABLE seed_smuggled_ddl (id BIGINT);", "CREATE"),
@@ -327,9 +315,6 @@ async fn install_rejects_seed_statements_by_classified_kind() {
 
 #[tokio::test]
 async fn install_rejects_seed_with_unclassified_statement_as_other() {
-    if provider_and_db_or_skip().await.is_none() {
-        return;
-    }
     let err = seed_rejection("SET search_path TO public;").await;
     assert!(
         matches!(err, LoaderError::InvalidSeedStatement { statement, .. } if statement == "OTHER")
@@ -338,13 +323,10 @@ async fn install_rejects_seed_with_unclassified_statement_as_other() {
 
 #[tokio::test]
 async fn install_rejects_unparseable_seed_sql() {
-    if provider_and_db_or_skip().await.is_none() {
-        return;
-    }
     let err = seed_rejection("THIS IS NOT SQL AT ALL").await;
     match err {
-        LoaderError::SeedFailed { message, .. } => {
-            assert!(message.contains("parse"), "message: {message}");
+        LoaderError::SeedFailed { context, .. } => {
+            assert!(context.contains("parse"), "context: {context}");
         },
         other => panic!("expected SeedFailed(parse), got {other:?}"),
     }
@@ -352,9 +334,7 @@ async fn install_rejects_unparseable_seed_sql() {
 
 #[tokio::test]
 async fn install_surfaces_seed_execution_failure_and_rolls_back() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_seed_exec_fail");
     let missing = unique_id("no_such_table");
     let ext = StubExtension {
@@ -377,13 +357,13 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
         .await
         .expect_err("seed hitting a missing table must fail");
     match err {
-        LoaderError::SeedFailed { message, .. } => {
-            assert!(message.contains("execute"), "message: {message}");
+        LoaderError::SeedFailed { context, .. } => {
+            assert!(context.contains("execute"), "context: {context}");
         },
         other => panic!("expected SeedFailed(execute), got {other:?}"),
     }
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let rows: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT COUNT(*) FROM \"{table}\""
     )))
@@ -397,9 +377,7 @@ async fn install_surfaces_seed_execution_failure_and_rolls_back() {
 
 #[tokio::test]
 async fn install_applies_update_and_multi_statement_seed() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_seed_update");
     let ext = StubExtension {
         id: unique_id("ext_seed_update"),
@@ -421,7 +399,7 @@ async fn install_applies_update_and_multi_statement_seed() {
         .await
         .expect("multi-statement seed applies");
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let label: String = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT label FROM \"{table}\" WHERE id = 1"
     )))
@@ -435,9 +413,7 @@ async fn install_applies_update_and_multi_statement_seed() {
 
 #[tokio::test]
 async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("dep_rollback");
     let ext_id = unique_id("dep_rollback_ext");
 
@@ -471,7 +447,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
         "SELECT EXISTS(SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1)",
     )
     .bind(format!("{table}_body_idx"))
-    .fetch_one(&*db.write_pool_arc().expect("write pool"))
+    .fetch_one(&*db.write_pool())
     .await
     .expect("index probe");
     assert!(
@@ -484,9 +460,7 @@ async fn a_dependent_statement_that_fails_rolls_back_the_whole_phase() {
 
 #[tokio::test]
 async fn an_extension_declaring_no_schema_installs_cleanly() {
-    let Some((provider, _db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, _db) = provider_and_db().await;
     let registry = registry_with(StubExtension {
         id: unique_id("no_schema_ext"),
         schemas: vec![],
@@ -501,9 +475,7 @@ async fn an_extension_declaring_no_schema_installs_cleanly() {
 
 #[tokio::test]
 async fn a_schema_that_does_not_parse_is_rejected_before_any_statement_runs() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("unparseable");
     let registry = registry_with(StubExtension {
         id: unique_id("unparseable_ext"),
@@ -534,8 +506,9 @@ mod transaction_failures {
     use async_trait::async_trait;
     use systemprompt_database::{
         DatabaseInfo, DatabaseProvider, DatabaseResult, DatabaseTransaction, JsonRow, QueryResult,
-        QuerySelector, RepositoryError, ToDbValue,
+        QuerySelector, ToDbValue,
     };
+    use systemprompt_traits::RepositoryError;
 
     use super::*;
 
@@ -596,7 +569,9 @@ mod transaction_failures {
 
         async fn begin_transaction(&self) -> DatabaseResult<Box<dyn DatabaseTransaction>> {
             if self.fail_at == FailAt::Begin {
-                return Err(RepositoryError::internal("cannot begin"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "cannot begin",
+                )));
             }
             Ok(Box::new(FailingTx {
                 fail_at: self.fail_at,
@@ -646,7 +621,9 @@ mod transaction_failures {
             _params: &[&dyn ToDbValue],
         ) -> DatabaseResult<u64> {
             if self.fail_at == FailAt::Statement {
-                return Err(RepositoryError::internal("statement rejected"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "statement rejected",
+                )));
             }
             Ok(0)
         }
@@ -677,7 +654,9 @@ mod transaction_failures {
 
         async fn commit(self: Box<Self>) -> DatabaseResult<()> {
             if self.fail_at == FailAt::Commit {
-                return Err(RepositoryError::internal("cannot commit"));
+                return Err(RepositoryError::database(std::io::Error::other(
+                    "cannot commit",
+                )));
             }
             Ok(())
         }
@@ -710,24 +689,20 @@ mod transaction_failures {
 
     // Why: the bootstrap advisory lock needs a live session even when every
     // statement is faked, so the provider borrows the fixture pool for it.
-    async fn install_against(fail_at: FailAt) -> Option<LoaderError> {
-        let db = pool_or_skip().await?;
+    async fn install_against(fail_at: FailAt) -> LoaderError {
+        let db = test_pool().await;
         let provider = FailingProvider {
             fail_at,
             pool: db.pool(),
         };
-        Some(
-            install_extension_schemas_with_config(&seeded_registry(), &provider, &[])
-                .await
-                .expect_err("a provider that fails must fail the install"),
-        )
+        install_extension_schemas_with_config(&seeded_registry(), &provider, &[])
+            .await
+            .expect_err("a provider that fails must fail the install")
     }
 
     #[tokio::test]
     async fn a_transaction_that_cannot_be_opened_names_the_begin_step() {
-        let Some(err) = install_against(FailAt::Begin).await else {
-            return;
-        };
+        let err = install_against(FailAt::Begin).await;
         let message = err.to_string();
         assert!(
             message.contains("begin transaction") || message.contains("Failed to begin"),
@@ -737,9 +712,7 @@ mod transaction_failures {
 
     #[tokio::test]
     async fn a_transaction_that_cannot_be_committed_names_the_commit_step() {
-        let Some(err) = install_against(FailAt::Commit).await else {
-            return;
-        };
+        let err = install_against(FailAt::Commit).await;
         let message = err.to_string();
         assert!(
             message.contains("commit"),
@@ -749,9 +722,7 @@ mod transaction_failures {
 
     #[tokio::test]
     async fn a_rejected_statement_is_reported_with_its_position_and_sql() {
-        let Some(err) = install_against(FailAt::Statement).await else {
-            return;
-        };
+        let err = install_against(FailAt::Statement).await;
         let message = err.to_string();
         assert!(
             message.contains("statement rejected"),
@@ -762,9 +733,7 @@ mod transaction_failures {
 
 #[tokio::test]
 async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("unclassified");
 
     // `SET` carries no imperative_reason, so it clears the declarative linter,
@@ -803,9 +772,7 @@ async fn a_statement_type_the_classifier_does_not_know_is_refused_with_guidance(
 
 #[tokio::test]
 async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("safe_drop");
     let view = format!("{table}_v");
 
@@ -829,7 +796,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
         .await
         .expect("a guarded view drop is declarative and must install");
 
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let view_exists: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM information_schema.views WHERE table_schema = 'public' AND \
          table_name = $1)",
@@ -853,9 +820,7 @@ async fn a_safe_drop_clears_the_linter_and_classifies_as_dependent() {
 
 #[tokio::test]
 async fn an_unguarded_drop_is_rejected_as_imperative() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("unguarded_drop");
 
     let sql = leak(format!(
@@ -884,7 +849,7 @@ async fn an_unguarded_drop_is_rejected_as_imperative() {
 }
 
 async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
-    let pg = db.write_pool_arc().expect("write pool");
+    let pg = db.write_pool();
     let mut probe = pg.acquire().await.expect("probe connection");
     let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock($1)")
         .bind(BOOTSTRAP_ADVISORY_LOCK_KEY)
@@ -903,9 +868,7 @@ async fn bootstrap_lock_is_free(db: &DbPool) -> bool {
 
 #[tokio::test]
 async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
 
     let guard = BootstrapLockGuard::acquire(&provider)
         .await
@@ -935,9 +898,7 @@ async fn a_dropped_bootstrap_lock_guard_releases_the_advisory_lock() {
 
 #[tokio::test]
 async fn a_declarative_function_without_or_replace_is_refused() {
-    let Some((provider, db)) = provider_and_db_or_skip().await else {
-        return;
-    };
+    let (provider, db) = provider_and_db().await;
     let table = unique_id("install_fn");
     let sql = format!(
         "CREATE TABLE IF NOT EXISTS \"{table}\" (id BIGINT PRIMARY KEY);\n\
@@ -954,11 +915,10 @@ async fn a_declarative_function_without_or_replace_is_refused() {
     let err = install_extension_schemas_with_config(&registry, &provider, &[])
         .await
         .expect_err("a routine the installer applies twice must be CREATE OR REPLACE");
-    match err {
-        LoaderError::SchemaInstallationFailed { message, .. } => {
-            assert!(message.contains("CREATE OR REPLACE"), "{message}");
-        },
-        other => panic!("expected SchemaInstallationFailed, got {other:?}"),
-    }
+    assert!(
+        matches!(err, LoaderError::SchemaInstallationStepFailed { .. }),
+        "expected SchemaInstallationStepFailed, got {err:?}"
+    );
+    assert!(err.to_string().contains("CREATE OR REPLACE"), "{err}");
     assert!(!table_exists(&db, table).await);
 }

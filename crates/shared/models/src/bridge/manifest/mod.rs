@@ -21,7 +21,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod entries;
+mod external;
 mod managed_mcp;
+/// Platform-owned `SKILL.md` frontmatter keys and the passthrough renderer.
+pub mod skill_frontmatter;
 
 use std::collections::BTreeMap;
 
@@ -29,15 +32,17 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub use crate::bridge::ids::ManifestSignature;
-use crate::bridge::ids::PluginId;
 use crate::bridge::manifest_version::ManifestVersion;
-use crate::services::bridge_policy::AutoUpdatePolicy;
-pub use crate::services::marketplace::{ExternalMarketplace, ExternalMarketplaceSource};
-use systemprompt_identifiers::{ApiKeyId, MarketplaceId, TenantId, UserId};
+use crate::bridge::update_policy::AutoUpdatePolicy;
+use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, UserId};
 
 pub use entries::{
     AgentEntry, ArtifactEntry, HookEntry, PluginEntry, PluginFile, RuleEntry, SkillEntry,
     SkillPublication,
+};
+pub use external::{
+    ExternalPluginSkills, ManifestExternalMarketplace, ManifestExternalMarketplaceSource,
+    ManifestExternalPlugin, ManifestExternalPluginSource,
 };
 pub use managed_mcp::ManagedMcpServer;
 
@@ -46,6 +51,25 @@ pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
 #[must_use]
 pub const fn min_bridge_version() -> semver::Version {
     semver::Version::new(0, 28, 0)
+}
+
+// Why: a 0.62 bridge parses `external_marketplaces[].source` strictly, so a
+// source carrying `ref` fails its manifest parse; requiring 0.63 turns that
+// into the bridge's upgrade-required refusal.
+pub const EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE: semver::Version = semver::Version::new(0, 63, 0);
+
+#[must_use]
+pub fn manifest_min_bridge_version(marketplaces: &[ManifestMarketplace]) -> semver::Version {
+    let floor = min_bridge_version();
+    let carries_ref = marketplaces
+        .iter()
+        .flat_map(|marketplace| &marketplace.external_marketplaces)
+        .any(|external| external.source.reference.is_some());
+    if carries_ref {
+        floor.max(EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE)
+    } else {
+        floor
+    }
 }
 
 #[must_use]
@@ -93,6 +117,11 @@ pub struct SignedManifest {
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]
     pub allow_claude_ai_connectors: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::bridge::desktop_policy::DesktopPolicy::is_empty"
+    )]
+    pub desktop_policy: crate::bridge::desktop_policy::DesktopPolicy,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -111,7 +140,22 @@ pub struct ManifestMarketplace {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allow_cross_marketplace_dependencies_on: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub external_marketplaces: Vec<ExternalMarketplace>,
+    pub external_marketplaces: Vec<ManifestExternalMarketplace>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_plugins: Vec<ManifestExternalPlugin>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claude_code: Option<ManifestClaudeCode>,
+}
+
+/// The Claude Code client settings a marketplace asks the bridge to write.
+///
+/// Tolerant of unknown keys, unlike the kit-side
+/// `ClaudeCodeMarketplaceConfig` (services manifest),
+/// so a bridge ignores a setting a newer gateway adds.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ManifestClaudeCode {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skill_listing_budget_chars: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use clap::Args;
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_traits::Job;
 
@@ -15,8 +16,11 @@ use crate::shared::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
-    #[arg(help = "Job name to show details for")]
-    pub job_name: String,
+    #[arg(
+        value_parser = crate::shared::parse_job_name,
+        help = "Job name to show details for"
+    )]
+    pub job_name: JobName,
 }
 
 pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -33,7 +37,7 @@ pub(super) async fn execute(args: ShowArgs, ctx: &CommandContext) -> Result<Comm
     };
 
     let app = ctx.app_context().await?;
-    let repo = JobRepository::new(app.db_pool())?;
+    let repo = JobRepository::new(app.db_pool());
 
     let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 

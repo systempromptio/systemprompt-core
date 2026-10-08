@@ -10,17 +10,18 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{McpServerId, McpToolName, ServiceName};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpListOutput {
     pub servers: Vec<McpServerSummary>,
 }
 
-pub use systemprompt_models::services::McpServerSummary;
+pub use systemprompt_manifest::services::McpServerSummary;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpValidateOutput {
-    pub server: String,
+    pub server: ServiceName,
     pub valid: bool,
     pub health_status: String,
     pub validation_type: String,
@@ -133,8 +134,8 @@ pub struct McpToolsSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpCallOutput {
-    pub server: String,
-    pub tool: String,
+    pub server: McpServerId,
+    pub tool: McpToolName,
     pub success: bool,
     pub content: Vec<McpToolContent>,
     pub execution_time_ms: u64,

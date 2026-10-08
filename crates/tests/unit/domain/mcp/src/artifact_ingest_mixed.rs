@@ -2,7 +2,9 @@
 
 use rmcp::model::{CallToolResult, ContentBlock, MetaObject, Resource, ResourceContents};
 use serde_json::json;
-use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpServerId, McpToolName, SessionId, TraceId, UserId,
+};
 use systemprompt_mcp::{
     ArtifactIngest, IngestRequest, from_canonical_tool_result, from_hook_response, from_wire_value,
 };
@@ -10,7 +12,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::EXECUTION_META_KEY;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_models::wire::canonical::{CanonicalContent, ImageSource};
+use systemprompt_wire::canonical::{CanonicalContent, ImageSource};
 
 fn context(session: &str) -> RequestContext {
     RequestContext::new(
@@ -18,16 +20,16 @@ fn context(session: &str) -> RequestContext {
         TraceId::new(session),
         ContextId::generate(),
         AgentName::try_new("artifact-mixed").unwrap(),
+        Actor::user(UserId::new(format!("user-{session}"))),
     )
-    .with_actor(Actor::user(UserId::new(format!("user-{session}"))))
     .with_user_type(UserType::User)
 }
 
 fn request(result: CallToolResult, session: &str) -> IngestRequest {
     IngestRequest {
         result,
-        tool_name: "mixed_result".to_owned(),
-        server_name: Some("fixture-server".to_owned()),
+        tool_name: McpToolName::new("mixed_result"),
+        server_name: Some(McpServerId::new("fixture-server")),
         ai_tool_call_id: None,
         mcp_execution_id: None,
         ctx: context(session),
@@ -39,11 +41,8 @@ fn request(result: CallToolResult, session: &str) -> IngestRequest {
 }
 
 async fn ingest() -> ArtifactIngest {
-    let url = systemprompt_test_fixtures::fixture_database_url().expect("MCP fixture database URL");
-    let db = systemprompt_test_fixtures::fixture_db_pool(&url)
-        .await
-        .expect("MCP fixture pool");
-    ArtifactIngest::from_db(&db, None).expect("artifact ingest")
+    let db = systemprompt_test_fixtures::test_db_pool().await;
+    ArtifactIngest::from_db(&db, None)
 }
 
 #[test]

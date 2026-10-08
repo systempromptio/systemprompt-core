@@ -2,9 +2,10 @@
 
 use chrono::Utc;
 use systemprompt_analytics::models::{
-    ToolAgentUsageRow, ToolErrorRow, ToolExecutionRow, ToolListRow, ToolStatsRow,
+    ToolAgentUsageRow, ToolCaller, ToolErrorRow, ToolExecutionRow, ToolListRow, ToolStatsRow,
     ToolStatusBreakdownRow, ToolSummaryRow,
 };
+use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
 mod tool_row_tests {
     use super::*;
@@ -13,8 +14,8 @@ mod tool_row_tests {
     fn tool_list_row_stores_values() {
         let now = Utc::now();
         let row = ToolListRow {
-            tool_name: "web_search".to_string(),
-            server_name: "mcp-server-web".to_string(),
+            tool_name: McpToolName::new("web_search"),
+            server_name: McpServerId::new("mcp-server-web"),
             execution_count: 5000,
             success_count: 4900,
             avg_time: 250.5,
@@ -103,22 +104,18 @@ mod tool_row_tests {
     #[test]
     fn tool_agent_usage_row_stores_values() {
         let row = ToolAgentUsageRow {
-            agent_name: Some("research-bot".to_string()),
+            caller: ToolCaller::Agent(AgentName::new("research-bot")),
             usage_count: 500,
         };
 
-        assert_eq!(row.agent_name, Some("research-bot".to_string()));
+        assert_eq!(row.caller.to_string(), "research-bot");
         assert_eq!(row.usage_count, 500);
     }
 
     #[test]
-    fn tool_agent_usage_row_handles_none() {
-        let row = ToolAgentUsageRow {
-            agent_name: None,
-            usage_count: 100,
-        };
-
-        assert!(row.agent_name.is_none());
+    fn tool_caller_labels_non_agent_callers() {
+        assert_eq!(ToolCaller::DirectCall.to_string(), "Direct Call");
+        assert_eq!(ToolCaller::UnlinkedTask.to_string(), "Unlinked Task");
     }
 
     #[test]

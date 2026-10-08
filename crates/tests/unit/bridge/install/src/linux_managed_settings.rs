@@ -51,6 +51,8 @@ fn seeding_into_a_fresh_install_writes_the_model_and_reports_that_it_did() {
         assert!(seeded, "a fresh install has no model to preserve");
 
         let path = managed_settings_path().expect("path");
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if path != user_settings(home) {
             return;
         }
@@ -65,6 +67,8 @@ fn seeding_into_a_fresh_install_writes_the_model_and_reports_that_it_did() {
 fn a_model_the_user_already_chose_is_left_alone_and_the_seed_reports_no_change() {
     sandbox(|home| {
         write_settings(home, r#"{"model": "claude-haiku-4-5"}"#);
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -88,6 +92,8 @@ fn seeding_preserves_every_other_setting_already_in_the_file() {
             home,
             r#"{"theme": "dark", "verbose": true, "nested": {"a": 1}}"#,
         );
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -107,6 +113,8 @@ fn seeding_preserves_every_other_setting_already_in_the_file() {
 fn an_empty_settings_file_is_treated_as_an_empty_object_rather_than_a_parse_error() {
     sandbox(|home| {
         write_settings(home, "   \n  ");
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -122,6 +130,8 @@ fn an_empty_settings_file_is_treated_as_an_empty_object_rather_than_a_parse_erro
 fn a_settings_file_that_is_not_valid_json_is_reported_and_names_the_path() {
     sandbox(|home| {
         write_settings(home, "{ this is not json");
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -141,6 +151,8 @@ fn a_settings_file_that_is_not_valid_json_is_reported_and_names_the_path() {
 fn a_settings_file_holding_a_json_array_is_refused_rather_than_replaced() {
     sandbox(|home| {
         write_settings(home, r#"["not", "an", "object"]"#);
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -154,6 +166,8 @@ fn a_settings_file_holding_a_json_array_is_refused_rather_than_replaced() {
 #[test]
 fn seeding_twice_is_idempotent_because_the_second_run_sees_its_own_write() {
     sandbox(|home| {
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }
@@ -169,6 +183,8 @@ fn seeding_twice_is_idempotent_because_the_second_run_sees_its_own_write() {
 fn a_bare_seed_is_raised_to_its_context_variant_but_other_choices_are_not() {
     sandbox(|home| {
         write_settings(home, r#"{"model": "claude-sonnet-5"}"#);
+        // skip-ok: a writable /etc/claude-code (root) adopts the machine policy, not
+        // the sandboxed home
         if managed_settings_path().as_deref() != Some(&user_settings(home)) {
             return;
         }

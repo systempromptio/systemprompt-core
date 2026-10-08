@@ -19,8 +19,8 @@ fn sys_ctx() -> SysRequestContext {
         TraceId::new("t-live"),
         ContextId::generate(),
         AgentName::try_new("agent-live").expect("valid AgentName"),
+        Actor::user(UserId::new("user-live")),
     )
-    .with_actor(Actor::user(UserId::new("user-live")))
 }
 
 fn tool(name: String) -> Tool {

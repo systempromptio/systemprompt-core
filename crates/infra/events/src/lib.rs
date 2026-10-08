@@ -9,7 +9,7 @@
 //! # Modules
 //!
 //! - [`services`] — the [`GenericBroadcaster`] implementation, the per-event
-//!   broadcaster type aliases, and the static [`EventRouter`].
+//!   broadcaster type aliases, and the [`EventRouter`] value.
 //! - [`sse`] — the [`ToSse`] trait and `serde`-driven implementations that
 //!   convert [`systemprompt_models`] event types into `axum` SSE records.
 //! - [`error`] — the public [`EventError`] / [`EventResult`] surface.
@@ -80,6 +80,7 @@ pub use extension::EventsExtension;
 pub use services::{
     A2A_BROADCASTER, A2ABroadcaster, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, AgUiBroadcaster,
     AnalyticsBroadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ContextBroadcaster,
-    EventBridgeHandle, EventRouter, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
-    OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge, RelayStatus, standard_keep_alive,
+    EventBridgeHandle, EventRouter, EventsOwnerReassignment, GenericBroadcaster,
+    HEARTBEAT_INTERVAL, HEARTBEAT_JSON, OUTBOX_CHANNEL, OutboxChannel, PostgresEventBridge,
+    RelayStatus, standard_keep_alive,
 };

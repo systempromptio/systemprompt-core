@@ -6,12 +6,13 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use systemprompt_identifiers::AiToolCallId;
 
 use super::content::ToolContent;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCallRequest {
-    pub tool_call_id: String,
+    pub tool_call_id: AiToolCallId,
     pub name: String,
     // JSON: MCP tool-call arguments are the tool's own JSON object.
     pub arguments: JsonValue,

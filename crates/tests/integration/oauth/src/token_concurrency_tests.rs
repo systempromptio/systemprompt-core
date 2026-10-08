@@ -44,7 +44,7 @@ async fn create_test_client_with_owner(
     client_id: &ClientId,
     owner: &UserId,
 ) {
-    let repo = ClientRepository::new(db).expect("client repo");
+    let repo = ClientRepository::new(db);
     let params = CreateClientParams {
         client_id: client_id.clone(),
         owner_user_id: owner.clone(),
@@ -65,7 +65,7 @@ async fn create_test_client_with_owner(
 }
 
 async fn cleanup_client(db: &systemprompt_database::DbPool, client_id: &ClientId) {
-    let repo = ClientRepository::new(db).expect("client repo");
+    let repo = ClientRepository::new(db);
     let _ = repo.delete(client_id).await;
 }
 
@@ -81,12 +81,20 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
+    let repo = Arc::new(OAuthRepository::new(&db));
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid").build(),
-    )
+    let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
+    let challenge = pkce_pair(verifier);
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store code");
 
@@ -97,7 +105,7 @@ async fn test_concurrent_auth_code_exchange_admits_exactly_one() {
         let code = code.clone();
         let client_id = client_id.clone();
         handles.push(tokio::spawn(async move {
-            repo.validate_authorization_code(&code, &client_id, Some(redirect), None)
+            repo.validate_authorization_code(&code, &client_id, redirect, verifier)
                 .await
         }));
     }
@@ -134,16 +142,24 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     )
     .await;
 
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid").build(),
-    )
+    let verifier = "concurrency_test_pkce_verifier_value_0123456789abcdef";
+    let challenge = pkce_pair(verifier);
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store code");
 
-    let pool = db.pool_arc().expect("pool");
+    let pool = db.pool();
     let now = Utc::now();
     let rows = sqlx::query!(
         "UPDATE oauth_auth_codes
@@ -160,7 +176,7 @@ async fn test_auth_code_expiry_rejected_after_ttl() {
     assert_eq!(rows.len(), 1, "exactly one code expected");
 
     let result = repo
-        .validate_authorization_code(&code, &client_id, Some(redirect), None)
+        .validate_authorization_code(&code, &client_id, redirect, verifier)
         .await;
     let err = result.expect_err("expired code must be rejected");
     assert!(err.to_string().contains("Invalid authorization code"));
@@ -181,7 +197,7 @@ async fn test_refresh_token_replay_revokes_family() {
     )
     .await;
 
-    let repo = OAuthRepository::new(&db).expect("repo");
+    let repo = OAuthRepository::new(&db);
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
@@ -206,11 +222,11 @@ async fn test_refresh_token_replay_revokes_family() {
     .await
     .expect("store r2");
 
-    let validate_r2_before = repo.validate_refresh_token(&r2, &client_id).await;
-    assert!(
-        validate_r2_before.is_ok(),
-        "r2 must be live before replay: {validate_r2_before:?}"
-    );
+    let r2_before = repo
+        .find_client_id_from_refresh_token(&r2)
+        .await
+        .expect("lookup r2 before replay");
+    assert!(r2_before.is_some(), "r2 must be live before replay");
 
     let replay = repo.consume_refresh_token(&r1, &client_id).await;
     assert!(replay.is_err(), "replay of consumed r1 must fail");
@@ -222,9 +238,12 @@ async fn test_refresh_token_replay_revokes_family() {
         "replay must surface invalid-grant",
     );
 
-    let validate_r2_after = repo.validate_refresh_token(&r2, &client_id).await;
+    let r2_after = repo
+        .find_client_id_from_refresh_token(&r2)
+        .await
+        .expect("lookup r2 after replay");
     assert!(
-        validate_r2_after.is_err(),
+        r2_after.is_none(),
         "r2 must be revoked after r1 replay (family kill)",
     );
 
@@ -244,7 +263,7 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
+    let repo = Arc::new(OAuthRepository::new(&db));
     let expires_at = Utc::now().timestamp() + 7 * 24 * 60 * 60;
 
     let r1 = test_token_id();
@@ -284,9 +303,12 @@ async fn test_concurrent_refresh_rotation_admits_exactly_one() {
         );
     }
 
-    let post_concurrency_validate = repo.validate_refresh_token(&r1, &client_id).await;
+    let r1_after = repo
+        .find_client_id_from_refresh_token(&r1)
+        .await
+        .expect("lookup r1 after rotation");
     assert!(
-        post_concurrency_validate.is_err(),
+        r1_after.is_none(),
         "winning consumption + loser-triggered family revoke must invalidate r1"
     );
 
@@ -306,16 +328,20 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     )
     .await;
 
-    let repo = Arc::new(OAuthRepository::new(&db).expect("repo"));
+    let repo = Arc::new(OAuthRepository::new(&db));
     let code = test_code();
     let redirect = "http://localhost:3000/callback";
     let verifier = "this_is_the_correct_pkce_verifier_string_value";
     let challenge = pkce_pair(verifier);
-    repo.store_authorization_code(
-        AuthCodeParams::builder(&code, &client_id, &user_id, redirect, "openid")
-            .with_pkce(&challenge, "S256")
-            .build(),
-    )
+    repo.store_authorization_code(AuthCodeParams {
+        code: &code,
+        client_id: &client_id,
+        user_id: &user_id,
+        redirect_uri: redirect,
+        scope: "openid",
+        code_challenge: &challenge,
+        resource: None,
+    })
     .await
     .expect("store pkce code");
 
@@ -327,7 +353,7 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
     let client_b = client_id.clone();
     let h_correct = tokio::spawn(async move {
         repo_correct
-            .validate_authorization_code(&code_a, &client_a, Some(redirect), Some(verifier))
+            .validate_authorization_code(&code_a, &client_a, redirect, verifier)
             .await
     });
     let h_wrong = tokio::spawn(async move {
@@ -335,8 +361,8 @@ async fn test_concurrent_pkce_verifier_mismatch_never_admits_wrong_verifier() {
             .validate_authorization_code(
                 &code_b,
                 &client_b,
-                Some(redirect),
-                Some("totally_wrong_verifier_xxxxxxxxxxxxxxxxxxxxxxxxxxx"),
+                redirect,
+                "totally_wrong_verifier_xxxxxxxxxxxxxxxxxxxxxxxxxxx",
             )
             .await
     });
@@ -375,7 +401,7 @@ async fn test_dynamic_client_registration_owner_not_hijackable() {
 
     create_test_client_with_owner(&db, &client_id, &owner_a).await;
 
-    let repo = ClientRepository::new(&db).expect("client repo");
+    let repo = ClientRepository::new(&db);
     let hijack = repo
         .create(CreateClientParams {
             client_id: client_id.clone(),
@@ -426,7 +452,7 @@ async fn test_concurrent_client_registration_race() {
         create_test_user(&db).await,
     ];
 
-    let repo = Arc::new(ClientRepository::new(&db).expect("client repo"));
+    let repo = Arc::new(ClientRepository::new(&db));
     let mut handles = Vec::with_capacity(owners.len());
     for owner in &owners {
         let repo = Arc::clone(&repo);
@@ -460,7 +486,7 @@ async fn test_concurrent_client_registration_race() {
         .count();
     assert_eq!(oks, 1, "exactly one concurrent registration may succeed");
 
-    let read_repo = ClientRepository::new(&db).expect("client repo");
+    let read_repo = ClientRepository::new(&db);
     let row = read_repo
         .find_by_client_id(&client_id)
         .await

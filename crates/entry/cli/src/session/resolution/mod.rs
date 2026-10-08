@@ -23,9 +23,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 use super::context::CliSessionContext;
 use crate::cli_settings::{OutputFormat, VerbosityLevel};
@@ -40,7 +41,7 @@ use helpers::{
 
 #[derive(Debug)]
 pub struct ProfileContext<'a> {
-    pub name: &'a str,
+    pub name: &'a ProfileName,
     pub path: PathBuf,
 }
 
@@ -134,7 +135,7 @@ pub fn record_new_session(
     store: &mut SessionStore,
     session_key: &SessionKey,
     session: &systemprompt_cloud::CliSession,
-    profile_name: &str,
+    profile_name: &ProfileName,
     source: ProfileSource,
 ) {
     store.upsert_session(session_key, session.clone());
@@ -156,7 +157,7 @@ async fn try_session_from_active_key(ctx: &CommandContext) -> Result<Option<CliS
         .active_session_key()
         .ok_or_else(|| anyhow::anyhow!("Invalid active session key: {}", active_key_str))?;
 
-    let active_profile = store.active_profile_name.as_deref();
+    let active_profile = store.active_profile_name.as_ref();
 
     let profile_path = if let Some(session) = store.active_session_for_profile_discovery() {
         match resolve_profile_path_from_session(session, active_profile)? {

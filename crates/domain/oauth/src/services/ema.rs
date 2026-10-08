@@ -60,16 +60,20 @@ pub async fn link_enterprise_principal(
         .user_provider()
         .find_or_create_federated(&principal.issuer, &principal.sub, &claims)
         .await
-        .map_err(|e| {
-            OauthError::Provider(format!("failed to link ID-JAG subject to an account: {e}"))
+        .map_err(|source| OauthError::UserProvider {
+            context: "linking the ID-JAG subject to an account",
+            source,
         })?;
 
     let user = state
         .user_provider()
         .find_by_id(&user_id)
         .await
-        .map_err(|e| OauthError::Provider(format!("failed to load the linked subject: {e}")))?
-        .ok_or_else(|| OauthError::Provider("linked ID-JAG subject vanished".to_owned()))?;
+        .map_err(|source| OauthError::UserProvider {
+            context: "loading the linked ID-JAG subject",
+            source,
+        })?
+        .ok_or(OauthError::Internal("linked ID-JAG subject vanished"))?;
 
     if !user.is_active {
         return Err(OauthError::InvalidGrant(

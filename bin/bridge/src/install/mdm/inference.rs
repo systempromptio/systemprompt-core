@@ -7,13 +7,7 @@
 use super::error::MdmError;
 use super::policy::{PolicyEntry, PolicyInputs, PolicyValue};
 
-const DEFAULT_INFERENCE_MODELS: &[&str] = &[
-    "claude-opus-5-5",
-    "claude-opus-5",
-    "claude-sonnet-5",
-    "claude-fable-5-1",
-    "claude-haiku-4-5-20251001",
-];
+const DEFAULT_INFERENCE_MODELS: &[&str] = &["claude-sonnet-5[1m]"];
 
 pub(super) const INFERENCE_MODELS_KEY: &str = "inferenceModels";
 
@@ -36,23 +30,25 @@ fn anthropic_only(models: Vec<String>) -> Vec<String> {
         .into_iter()
         .filter(|id| {
             let lower = id.to_ascii_lowercase();
-            lower.contains("claude") || lower.contains("anthropic")
+            lower.starts_with("claude-") && !lower.starts_with("claude-fable-")
         })
         .collect();
-    if kept.is_empty() {
-        default_inference_models()
-    } else {
-        kept
+    let mut unique = Vec::new();
+    for id in kept {
+        if !unique.contains(&id) {
+            unique.push(id);
+        }
     }
+    unique
 }
 
 fn configured_models(raw: Option<&str>) -> Result<Vec<String>, MdmError> {
     let Some(raw) = raw.map(str::trim).filter(|m| !m.is_empty()) else {
         return Ok(default_inference_models());
     };
-    serde_json::from_str::<Vec<String>>(raw).map_err(|e| MdmError::InvalidConfig {
+    serde_json::from_str::<Vec<String>>(raw).map_err(|source| MdmError::ConfigJson {
         key: INFERENCE_MODELS_KEY,
-        detail: e.to_string(),
+        source,
     })
 }
 

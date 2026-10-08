@@ -8,13 +8,11 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::fixture_system_admin;
 
@@ -35,70 +33,55 @@ fn content_config() -> Arc<ContentConfigRaw> {
 
 #[tokio::test]
 async fn plane_debug_impls_flag_optional_members() {
-    let (pool, url) = systemprompt_test_fixtures::db_pool_or_skip!();
+    let url = systemprompt_test_fixtures::test_database_url();
+    let pool = systemprompt_test_fixtures::test_db_pool().await;
 
     let analytics_service = Arc::new(AnalyticsService::new(
         None,
         None,
         &systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repositories"),
     ));
-    let session_usage: systemprompt_traits::DynSessionUsageCounters =
-        analytics_service.session_repo().owner();
+    let session_store = Arc::clone(analytics_service.session_store());
+    let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
     let data = DataPlane {
         database: Arc::clone(&pool),
         analytics_service,
         fingerprint_repo: None,
         user_service: None,
-        a2a_repositories: Arc::new(
-            systemprompt_agent::repository::A2ARepositories::new(
-                &pool,
-                systemprompt_agent::repository::A2aDependencies {
-                    session_usage,
-                    instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
-                    managed_skills: systemprompt_test_fixtures::not_managed_skills(),
-                    tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
-                        systemprompt_test_fixtures::ToolExecutionLedger::Exists,
-                    ),
-                },
-            )
-            .expect("a2a repositories"),
-        ),
-        content_repositories: Arc::new(
-            systemprompt_content::repository::ContentRepositories::new(&pool)
-                .expect("content repositories"),
-        ),
-        oauth_repositories: Arc::new(
-            systemprompt_oauth::repository::OAuthRepositories::new(&pool)
-                .expect("oauth repositories"),
-        ),
-        user_repository: Arc::new(
-            systemprompt_users::UserRepository::new(&pool).expect("user repository"),
-        ),
-        service_repository: Arc::new(
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            )
-            .expect("service repository"),
-        ),
-        ai_repositories: Arc::new(
-            systemprompt_ai::repository::AiRepositories::new(&pool).expect("ai repositories"),
-        ),
+        a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
+            &pool,
+            systemprompt_agent::repository::A2aDependencies {
+                session_usage,
+                instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                managed_skills: systemprompt_test_fixtures::not_managed_skills(),
+                tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
+                    systemprompt_test_fixtures::ToolExecutionLedger::Exists,
+                ),
+            },
+        )),
+        content_repositories: Arc::new(systemprompt_content::repository::ContentRepositories::new(
+            &pool,
+        )),
+        oauth_repositories: Arc::new(systemprompt_oauth::repository::OAuthRepositories::new(
+            &pool,
+        )),
+        user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
+        service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            systemprompt_identifiers::InstanceId::new("test-instance"),
+        )),
+        ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
         analytics_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
                 .expect("analytics repositories"),
         ),
-        file_repository: Arc::new(
-            systemprompt_files::FileRepository::new(&pool).expect("file repository"),
-        ),
-        mcp_session_repository: Arc::new(
-            systemprompt_mcp::repository::McpSessionRepository::new(&pool)
-                .expect("mcp session repository"),
-        ),
-        managed_repository: Arc::new(
-            systemprompt_marketplace::managed::ManagedRepository::new(&pool)
-                .expect("managed repository"),
-        ),
+        file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
+        mcp_session_repository: Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(
+            &pool,
+        )),
+        managed_repository: Arc::new(systemprompt_marketplace::managed::ManagedRepository::new(
+            &pool,
+        )),
     };
     let dbg = format!("{data:?}");
     assert!(dbg.contains("DataPlane"), "got: {dbg}");
@@ -112,7 +95,7 @@ async fn plane_debug_impls_flag_optional_members() {
         app_paths: Arc::new(
             AppPaths::from_profile(
                 &tmp_paths(),
-                systemprompt_models::PathResolution::Canonicalize,
+                systemprompt_manifest::PathResolution::Canonicalize,
                 None,
             )
             .expect("app paths"),
@@ -126,7 +109,6 @@ async fn plane_debug_impls_flag_optional_members() {
 
     let plugins = Plugins {
         extension_registry: Arc::new(ExtensionRegistry::new()),
-        api_registry: Arc::new(ModuleApiRegistry::new()),
         mcp_registry: RegistryService::new(systemprompt_test_fixtures::fixture_user_id()),
         marketplace_filter: Arc::new(AllowAllFilter),
         marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
@@ -144,12 +126,15 @@ async fn plane_debug_impls_flag_optional_members() {
             .expect("artifact ingest"),
         schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
         event_bridge: Arc::new(OnceLock::new()),
+        event_router: systemprompt_events::EventRouter::local_only(),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
-            systemprompt_models::profile::StorageBackend::Local,
-            &std::env::temp_dir(),
+            systemprompt_storage::FileStorageBackend::Local {
+                root: std::env::temp_dir(),
+            },
         ),
         shutdown: Default::default(),
+        background_tasks: Default::default(),
         publish_guard: Arc::new(tokio::sync::Mutex::new(
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),
@@ -158,6 +143,10 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
     assert!(dbg.contains("system_admin: \"planeadmin\""), "got: {dbg}");
     assert!(dbg.contains("event_bridge: false"), "got: {dbg}");
+    assert!(
+        dbg.contains("event_router: EventRouter { outbox: None }"),
+        "got: {dbg}"
+    );
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let ctx = AppContext::from_parts(data, cfg, plugins, subsystems);

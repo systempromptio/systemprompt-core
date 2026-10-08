@@ -10,15 +10,15 @@ use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
 use http::Method;
 use systemprompt_api::services::server::setup_api_server;
-use systemprompt_models::profile::RateLimitsConfig;
+use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, fixture_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, test_db_pool,
 };
 use tower::ServiceExt;
 
 async fn full_router(rate_limits: RateLimitsConfig) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.rate_limits = rate_limits;
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];

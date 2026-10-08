@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::UserId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_users::{User, UserRepository, UserRole, UserService, UserStatus};
 
 use crate::CliConfig;
@@ -66,7 +66,7 @@ pub async fn execute(args: BootstrapArgs, _config: &CliConfig) -> Result<Command
             "Bootstrap user '{}' exists but has status '{}'; expected '{}'. Re-activate it before \
              running the platform.",
             user.name,
-            user.status.as_deref().unwrap_or("(none)"),
+            user.status.as_str(),
             UserStatus::Active.as_str(),
         ));
     }
@@ -119,7 +119,7 @@ async fn connect_user_service() -> Result<UserService> {
         .await
         .context("Failed to connect to database")?,
     );
-    Ok(UserService::new(Arc::new(UserRepository::new(&database)?)))
+    Ok(UserService::new(Arc::new(UserRepository::new(&database))))
 }
 
 async fn ensure_admin_role(user_service: &UserService, user: User) -> Result<User> {

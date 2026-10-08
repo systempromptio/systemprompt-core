@@ -22,8 +22,8 @@ use axum::extract::Request;
 use axum::http::HeaderMap;
 use axum::response::Response;
 use std::sync::Arc;
-use systemprompt_database::ServiceConfig;
-use systemprompt_identifiers::AgentName;
+use systemprompt_database::{ServiceConfig, ServiceModule};
+use systemprompt_identifiers::{AgentName, ServiceName};
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::RequestContext;
@@ -42,7 +42,7 @@ pub enum ProxyKind {
 
 #[derive(Debug)]
 pub struct ProxyTarget<'a> {
-    pub service_name: &'a str,
+    pub service_name: &'a ServiceName,
     pub path: &'a str,
     pub kind: ProxyKind,
 }
@@ -51,7 +51,7 @@ pub struct ProxyTarget<'a> {
 pub struct ProxyEngine {
     client_pool: ClientPool,
     identities: Arc<McpProxyIdentityRepository>,
-    tool_usage_repo: Option<Arc<systemprompt_mcp::repository::ToolUsageRepository>>,
+    intent_claims: Option<systemprompt_mcp::IntentClaimService>,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
 }
 
@@ -60,7 +60,7 @@ impl ProxyEngine {
         Self {
             client_pool: ClientPool::new(),
             identities,
-            tool_usage_repo: None,
+            intent_claims: None,
             artifact_ingest: None,
         }
     }
@@ -69,8 +69,9 @@ impl ProxyEngine {
     pub fn with_tool_usage_repo(
         mut self,
         repo: Arc<systemprompt_mcp::repository::ToolUsageRepository>,
+        intents: systemprompt_traits::DynToolCallIntentClaims,
     ) -> Self {
-        self.tool_usage_repo = Some(repo);
+        self.intent_claims = Some(systemprompt_mcp::IntentClaimService::new(intents, repo));
         self
     }
 
@@ -142,7 +143,7 @@ impl ProxyEngine {
             .send_to_backend(request, &full_url, &headers, service_name)
             .await?;
 
-        if service.module_name == "mcp" {
+        if service.module_name == ServiceModule::Mcp {
             mcp_session::handle_mcp_response(mcp_session::McpResponseCtx {
                 identities: &self.identities,
                 response: &response,
@@ -155,23 +156,17 @@ impl ProxyEngine {
             .await;
         }
 
-        match ResponseHandler::build_response(response) {
-            Ok(resp) => Ok(resp),
-            Err(e) => {
-                tracing::error!(service = %service_name, error = %e, "Failed to build response");
-                Err(ProxyError::InvalidResponse {
-                    service: service_name.to_owned(),
-                    reason: format!("Failed to build response: {e}"),
-                })
-            },
-        }
+        ResponseHandler::build_response(response).map_err(|source| ProxyError::InvalidResponse {
+            service: service_name.to_string(),
+            source,
+        })
     }
 
     async fn build_forward_context(
         &self,
         req_ctx: Option<RequestContext>,
         service: &ServiceConfig,
-        service_name: &str,
+        service_name: &ServiceName,
         request_headers: &HeaderMap,
     ) -> Result<RequestContext, ProxyError> {
         let mut req_context = req_ctx.ok_or_else(|| ProxyError::MissingContext {
@@ -179,17 +174,17 @@ impl ProxyEngine {
                 .to_owned(),
         })?;
 
-        if service.module_name == "agent" {
-            let agent_name = AgentName::try_new(service_name.to_owned()).map_err(|e| {
+        if service.module_name == ServiceModule::Agent {
+            let agent_name = AgentName::try_new(service_name.as_str()).map_err(|source| {
                 ProxyError::InvalidServiceName {
-                    service: service_name.to_owned(),
-                    reason: e.to_string(),
+                    service: service_name.to_string(),
+                    source,
                 }
             })?;
             req_context = req_context.with_agent_name(agent_name);
         }
 
-        if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
+        if service.module_name == ServiceModule::Mcp && req_context.auth_token().is_none() {
             req_context = mcp_session::enrich_with_cached_identity(
                 &self.identities,
                 request_headers,
@@ -207,7 +202,7 @@ impl ProxyEngine {
         request: Request<Body>,
         full_url: &str,
         headers: &HeaderMap,
-        service_name: &str,
+        service_name: &ServiceName,
     ) -> Result<reqwest::Response, ProxyError> {
         let method_str = request.method().to_string();
 
@@ -215,27 +210,26 @@ impl ProxyEngine {
             .await
             .map_err(|e| ProxyError::BodyExtractionFailed { source: e })?;
 
-        let reqwest_method = RequestBuilder::parse_method(&method_str)
-            .map_err(|reason| ProxyError::InvalidMethod { reason })?;
+        let reqwest_method = RequestBuilder::parse_method(&method_str)?;
 
         let client = self.client_pool.get_default_client();
 
         let req_builder =
             RequestBuilder::build_request(&client, reqwest_method, full_url, headers, body);
 
-        req_builder.send().await.map_err(|e| {
-            tracing::error!(service = %service_name, url = %full_url, error = %e, "Connection failed");
-            ProxyError::ConnectionFailed {
-                service: service_name.to_owned(),
+        req_builder
+            .send()
+            .await
+            .map_err(|e| ProxyError::ConnectionFailed {
+                service: service_name.to_string(),
                 url: full_url.to_owned(),
                 source: e,
-            }
-        })
+            })
     }
 }
 
 fn unknown_service_error(
-    service_name: &str,
+    service_name: &ServiceName,
     proxy_kind: ProxyKind,
     request: &Request<Body>,
     ctx: &AppContext,
@@ -258,10 +252,10 @@ fn unknown_service_error(
 fn inject_forward_headers(
     headers: &mut HeaderMap,
     req_context: &RequestContext,
-    service_name: &str,
+    service_name: &ServiceName,
 ) {
     let has_auth_before = headers.get("authorization").is_some();
-    let ctx_has_token = !req_context.auth_token().as_str().is_empty();
+    let ctx_has_token = req_context.auth_token().is_some();
 
     HeaderInjector::inject_context(headers, req_context);
 
@@ -277,7 +271,7 @@ fn inject_forward_headers(
 
 fn external_server(
     proxy_kind: ProxyKind,
-    service_name: &str,
+    service_name: &ServiceName,
     ctx: &AppContext,
 ) -> Result<Option<McpServerConfig>, ProxyError> {
     if !matches!(proxy_kind, ProxyKind::Mcp) {
@@ -285,9 +279,9 @@ fn external_server(
     }
     let found = ctx
         .mcp_registry()
-        .find_server(service_name)
+        .find_server(service_name.as_str())
         .map_err(|source| ProxyError::RegistryUnavailable {
-            service: service_name.to_owned(),
+            service: service_name.to_string(),
             source,
         })?;
     Ok(found.filter(McpServerConfig::is_external))

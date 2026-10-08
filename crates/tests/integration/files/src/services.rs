@@ -3,17 +3,12 @@
 //! These tests require a running PostgreSQL database with the schema set up.
 //! Set DATABASE_URL environment variable to run these tests.
 
-use systemprompt_database::DbPool;
 use systemprompt_files::{FileRepository, InsertFileRequest};
 use systemprompt_identifiers::{ContentId, FileId, UserId};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn create_test_file_request(suffix: &str) -> InsertFileRequest {
-    let file_id = FileId::new(uuid::Uuid::new_v4().to_string());
+    let file_id = FileId::generate();
     InsertFileRequest::new(
         file_id,
         format!("/storage/test/svc_image_{}.png", suffix),
@@ -24,24 +19,10 @@ fn create_test_file_request(suffix: &str) -> InsertFileRequest {
 }
 
 #[tokio::test]
-async fn test_repository_new() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let result = FileRepository::new(&db);
-    assert!(result.is_ok(), "FileRepository::new should succeed");
-}
-
-#[tokio::test]
 async fn test_repository_insert() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
     let result = repo.insert(request.clone()).await;
@@ -65,12 +46,9 @@ async fn test_repository_insert() {
 
 #[tokio::test]
 async fn test_repository_find_by_path() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let unique_suffix = uuid::Uuid::new_v4().to_string();
     let request = create_test_file_request(&unique_suffix);
     let path = request.path.clone();
@@ -96,12 +74,9 @@ async fn test_repository_find_by_path() {
 
 #[tokio::test]
 async fn test_repository_list_by_user() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("svc_user_{}", uuid::Uuid::new_v4()));
     let mut file_ids = Vec::new();
 
@@ -135,12 +110,9 @@ async fn test_repository_list_by_user() {
 
 #[tokio::test]
 async fn test_repository_delete() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
 
     repo.insert(request.clone())
@@ -160,12 +132,9 @@ async fn test_repository_delete() {
 
 #[tokio::test]
 async fn test_repository_list_ai_images() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string()).with_ai_content(true);
 
@@ -190,12 +159,9 @@ async fn test_repository_list_ai_images() {
 
 #[tokio::test]
 async fn test_repository_count_ai_images_by_user() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
     let user_id = UserId::new(format!("ai_count_user_{}", uuid::Uuid::new_v4()));
 
     let mut file_ids = Vec::new();
@@ -223,12 +189,9 @@ async fn test_repository_count_ai_images_by_user() {
 
 #[tokio::test]
 async fn test_repository_list_files_by_content() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let repo = FileRepository::new(&db).expect("Failed to create repository");
+    let repo = FileRepository::new(&db);
 
     let content_id = ContentId::new(format!("list_test_{}", uuid::Uuid::new_v4()));
 

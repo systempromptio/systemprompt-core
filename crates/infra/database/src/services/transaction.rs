@@ -1,5 +1,5 @@
-//! Generic transaction wrappers that work directly with [`PgPool`] /
-//! [`PgDbPool`] without going through the dyn-safe trait.
+//! A transaction wrapper over [`PgDbPool`] that retries the whole closure on a
+//! serialization failure, without going through the dyn-safe trait.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,23 +9,12 @@ use crate::repository::PgDbPool;
 use crate::resilience::classify::Outcome;
 use crate::resilience::config::RetryConfig;
 use crate::resilience::retry::retry_async;
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-
-pub async fn with_transaction<F, T, E>(pool: &PgPool, f: F) -> Result<T, E>
-where
-    F: for<'c> FnOnce(&'c mut Transaction<'_, Postgres>) -> BoxFuture<'c, Result<T, E>>,
-    E: From<sqlx::Error>,
-{
-    let mut tx = pool.begin().await?;
-    let result = f(&mut tx).await?;
-    tx.commit().await?;
-    Ok(result)
-}
 
 pub async fn with_transaction_retry<F, T>(
     pool: &PgDbPool,

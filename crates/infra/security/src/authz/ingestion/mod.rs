@@ -114,11 +114,9 @@ pub struct AccessControlIngestionService {
 }
 
 impl AccessControlIngestionService {
-    pub fn new(db: &DbPool) -> AuthzResult<Self> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|err| AuthzError::Validation(err.to_string()))?;
-        Ok(Self::from_pool(write_pool))
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self::from_pool(write_pool)
     }
 
     pub fn from_pool(pool: Arc<PgPool>) -> Self {
@@ -139,15 +137,18 @@ impl AccessControlIngestionService {
         options: IngestOptions,
         registered: &RegisteredEntities,
     ) -> AuthzResult<IngestReport> {
-        let raw = tokio::fs::read_to_string(yaml_path).await.map_err(|err| {
-            AuthzError::Validation(format!("failed to read {}: {err}", yaml_path.display()))
-        })?;
-        let cfg: AccessControlConfig = serde_yaml::from_str(&raw).map_err(|err| {
-            AuthzError::Validation(format!(
-                "failed to parse {} as AccessControlConfig: {err}",
-                yaml_path.display()
-            ))
-        })?;
+        let raw = tokio::fs::read_to_string(yaml_path)
+            .await
+            .map_err(|source| AuthzError::File {
+                action: "read",
+                path: yaml_path.display().to_string(),
+                source,
+            })?;
+        let cfg: AccessControlConfig =
+            serde_yaml::from_str(&raw).map_err(|source| AuthzError::ConfigParse {
+                path: yaml_path.display().to_string(),
+                source,
+            })?;
         self.ingest_config(&cfg, options, registered).await
     }
 

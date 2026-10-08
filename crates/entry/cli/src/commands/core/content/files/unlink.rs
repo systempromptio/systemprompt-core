@@ -84,7 +84,7 @@ pub async fn execute_with_pool(
         return Ok(CommandOutput::card_value("File Unlink (Dry Run)", &output));
     }
 
-    let service = FileRepository::new(pool)?;
+    let service = FileRepository::new(pool);
 
     service.unlink_from_content(&content_id, &file_id).await?;
 
@@ -98,12 +98,11 @@ pub async fn execute_with_pool(
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {
-    uuid::Uuid::parse_str(id).map_err(|_e| {
+    FileId::try_new(id).map_err(|_e| {
         anyhow!(
             "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
              got '{}'",
             id
         )
-    })?;
-    Ok(FileId::new(id.to_owned()))
+    })
 }

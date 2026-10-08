@@ -14,19 +14,15 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::{OwnerReassignment, ReassignedRows, RepositoryError};
 
-use crate::error::McpDomainResult;
-
 #[derive(Debug, Clone)]
 pub struct McpOwnerReassignment {
     write_pool: Arc<PgPool>,
 }
 
 impl McpOwnerReassignment {
-    pub fn new(db: &DbPool) -> McpDomainResult<Self> {
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::McpDomainError::Configuration(e.to_string()))?;
-        Ok(Self { write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let write_pool = db.write_pool();
+        Self { write_pool }
     }
 }
 
@@ -41,11 +37,7 @@ impl OwnerReassignment for McpOwnerReassignment {
         from: &UserId,
         to: &UserId,
     ) -> Result<ReassignedRows, RepositoryError> {
-        let mut tx = self
-            .write_pool
-            .begin()
-            .await
-            .map_err(RepositoryError::database)?;
+        let mut tx = self.write_pool.begin().await?;
 
         let executions = sqlx::query!(
             "UPDATE mcp_tool_executions SET user_id = $2 WHERE user_id = $1",
@@ -53,8 +45,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let artifacts = sqlx::query!(
@@ -63,8 +54,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let sessions = sqlx::query!(
@@ -73,8 +63,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             to.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let proxy_identities = sqlx::query!(
@@ -82,8 +71,7 @@ impl OwnerReassignment for McpOwnerReassignment {
             from.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
         let external_sessions = sqlx::query!(
@@ -91,11 +79,10 @@ impl OwnerReassignment for McpOwnerReassignment {
             from.as_str()
         )
         .execute(&mut *tx)
-        .await
-        .map_err(RepositoryError::database)?
+        .await?
         .rows_affected();
 
-        tx.commit().await.map_err(RepositoryError::database)?;
+        tx.commit().await?;
 
         Ok(ReassignedRows {
             tables: vec![

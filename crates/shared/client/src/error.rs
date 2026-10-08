@@ -19,14 +19,18 @@ pub enum ClientError {
         details: Option<String>,
     },
 
+    #[error("API error: {status} - response body unreadable")]
+    UnreadableErrorBody {
+        status: u16,
+        #[source]
+        source: reqwest::Error,
+    },
+
     #[error("Failed to parse JSON: {0}")]
     JsonError(#[from] serde_json::Error),
 
     #[error("Authentication failed: {message}")]
     AuthError { message: String },
-
-    #[error("Resource not found: {0}")]
-    NotFound(String),
 
     #[error("Request timeout")]
     Timeout,
@@ -34,8 +38,8 @@ pub enum ClientError {
     #[error("Server unavailable: {0}")]
     ServerUnavailable(String),
 
-    #[error("Invalid configuration: {message}")]
-    ConfigError { message: String },
+    #[error("Server unavailable: undecodable cli event from server: {0}")]
+    UndecodableEvent(#[source] serde_json::Error),
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
@@ -53,7 +57,10 @@ impl ClientError {
     pub const fn is_retryable(&self) -> bool {
         matches!(
             self,
-            Self::Timeout | Self::ServerUnavailable(_) | Self::HttpError(_)
+            Self::Timeout
+                | Self::ServerUnavailable(_)
+                | Self::UndecodableEvent(_)
+                | Self::HttpError(_)
         )
     }
 }

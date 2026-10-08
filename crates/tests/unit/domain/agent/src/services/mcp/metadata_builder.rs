@@ -4,17 +4,20 @@
 // which pins one artifact type per call.
 
 use serde_json::json;
+use std::sync::LazyLock;
 use systemprompt_agent::services::mcp::artifact_transformer::{
     BuildMetadataParams, build_metadata,
 };
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, McpExecutionId, McpToolName, TaskId};
 use systemprompt_models::artifacts::types::ArtifactType;
+
+static LIST_USERS: LazyLock<McpToolName> = LazyLock::new(|| McpToolName::new("list_users"));
 
 fn params<'a>(
     artifact_type: &'a ArtifactType,
     schema: Option<&'a serde_json::Value>,
-    context_id: &'a str,
-    task_id: &'a str,
+    context_id: &'a ContextId,
+    task_id: &'a TaskId,
 ) -> BuildMetadataParams<'a> {
     BuildMetadataParams {
         artifact_type,
@@ -22,15 +25,12 @@ fn params<'a>(
         mcp_execution_id: None,
         context_id,
         task_id,
-        tool_name: "list_users",
+        tool_name: &LIST_USERS,
     }
 }
 
-fn ids() -> (String, String) {
-    (
-        ContextId::generate().to_string(),
-        TaskId::generate().to_string(),
-    )
+fn ids() -> (ContextId, TaskId) {
+    (ContextId::generate(), TaskId::generate())
 }
 
 #[test]
@@ -147,10 +147,10 @@ fn an_execution_id_is_carried_through_when_supplied() {
     let metadata = build_metadata(BuildMetadataParams {
         artifact_type: &artifact_type,
         schema: None,
-        mcp_execution_id: Some("exec-1234".to_owned()),
+        mcp_execution_id: Some(McpExecutionId::new("exec-1234")),
         context_id: &ctx,
         task_id: &task,
-        tool_name: "list_users",
+        tool_name: &LIST_USERS,
     })
     .expect("metadata builds");
 
@@ -158,25 +158,6 @@ fn an_execution_id_is_carried_through_when_supplied() {
     assert!(
         rendered.contains("exec-1234"),
         "the originating execution is traceable from the artifact: {rendered}"
-    );
-}
-
-#[test]
-fn a_blank_context_id_is_rejected_rather_than_producing_untraceable_metadata() {
-    let artifact_type = ArtifactType::Text;
-    let err = build_metadata(BuildMetadataParams {
-        artifact_type: &artifact_type,
-        schema: None,
-        mcp_execution_id: None,
-        context_id: "",
-        task_id: TaskId::generate().as_ref(),
-        tool_name: "list_users",
-    })
-    .expect_err("an empty context id cannot identify a conversation");
-
-    assert!(
-        !err.to_string().is_empty(),
-        "the validation failure carries a reason"
     );
 }
 

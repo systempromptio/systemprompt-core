@@ -5,18 +5,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_mcp::services::LifecycleOrchestrator;
+use systemprompt_mcp::McpDomainError;
+use systemprompt_mcp::services::LifecycleService;
 use systemprompt_mcp::services::lifecycle::startup::{check_health_status, wait_for_startup};
 use systemprompt_models::mcp::McpServerConfig;
-use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_database_url, fixture_db_pool, fixture_user_id,
-};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
 use systemprompt_traits::startup_channel;
 use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::harness::{
     default_tools_json, external_mcp_config, internal_mcp_config, mount_mcp_endpoint,
+    unique_instance,
 };
 
 fn internal_at(mock: &MockServer, name: &str) -> McpServerConfig {
@@ -32,10 +32,16 @@ async fn wait_for_startup_reports_ready_on_healthy_endpoint() {
 
     let config = internal_at(&mock, "startup-healthy");
     let (tx, _rx) = startup_channel();
+    let mut server = std::process::Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("spawn a live stand-in server process");
 
-    let startup_ms = wait_for_startup(&config, std::process::id(), Some(&tx))
-        .await
-        .expect("healthy endpoint ready");
+    let startup = wait_for_startup(&config, server.id(), Some(&tx)).await;
+    server.kill().expect("stop the stand-in server");
+    server.wait().expect("reap the stand-in server");
+
+    let startup_ms = startup.expect("healthy endpoint ready");
     startup_ms.expect("healthy endpoint reports startup duration");
 }
 
@@ -55,7 +61,11 @@ async fn wait_for_startup_detects_dead_process() {
     let err = wait_for_startup(&config, pid, None)
         .await
         .expect_err("dead pid detected");
-    assert!(err.to_string().contains("died during startup"));
+    assert!(matches!(
+        err,
+        McpDomainError::ProcessDiedDuringStartup { pid: died, ref service }
+            if died == pid && service == "startup-dead"
+    ));
 }
 
 #[tokio::test]
@@ -132,24 +142,15 @@ async fn check_health_status_accepts_degraded_near_exhaustion() {
 #[tokio::test]
 async fn start_server_rejects_external_servers() {
     let _ = ensure_test_bootstrap();
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
     let bootstrap = ensure_test_bootstrap();
     let registry = systemprompt_mcp::services::registry::RegistryService::new(fixture_user_id());
     let database = systemprompt_mcp::services::database::DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
+        systemprompt_database::ServiceRepository::new(&db, unique_instance()),
         Arc::new(bootstrap.app_paths.clone()),
         registry,
     );
-    let lifecycle = LifecycleOrchestrator::new(
+    let lifecycle = LifecycleService::new(
         systemprompt_mcp::services::process::ProcessService::new(),
         systemprompt_mcp::services::NetworkService::new(),
         database,

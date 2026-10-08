@@ -1,5 +1,5 @@
 [package]
-name = "systemprompt-gateway-tests"
+name = "systemprompt-gateway-integration-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,7 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-api = { workspace = true }
+systemprompt-gateway = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-agent = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -20,13 +20,14 @@ systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-wire = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 bytes = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 axum = { workspace = true }
-anyhow = { workspace = true }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 futures = { workspace = true }

@@ -8,14 +8,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::shared::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use async_trait::async_trait;
 use rmcp::model::ContentBlock;
 use serde_json::Value;
 use std::time::Instant;
 
-use systemprompt_identifiers::AiToolCallId;
-use systemprompt_models::ai::{ExecutionState, PlannedToolCall, TemplateResolver, ToolCallResult};
+use systemprompt_identifiers::{AiToolCallId, McpToolName};
+use systemprompt_models::ai::{
+    ExecutionState, PlannedToolCall, PlannedToolResult, TemplateResolver,
+};
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
 pub type CallToolResult = rmcp::model::CallToolResult;
@@ -24,9 +26,11 @@ pub type CallToolResult = rmcp::model::CallToolResult;
 /// executor as `&dyn ToolExecutorTrait`, so the trait must be `dyn`-compatible.
 #[async_trait]
 pub trait ToolExecutorTrait: Send + Sync {
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     async fn execute_tool(
         &self,
-        tool_name: &str,
+        tool_name: &McpToolName,
         arguments: Value,
         tools: &[McpTool],
         ctx: &RequestContext,
@@ -37,7 +41,9 @@ pub trait ToolExecutorTrait: Send + Sync {
 /// artifact transformer needs to identify the stored artifact.
 #[derive(Debug, Clone)]
 pub struct ToolOutcome {
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub output: Value,
+    // JSON: MCP result `_meta` — the spec types it as an open object.
     pub meta: Option<Value>,
 }
 
@@ -64,14 +70,19 @@ pub async fn execute_tools(
             "Executing tool"
         );
 
-        let result = tool_executor
-            .execute_tool(&call.tool_name, resolved_arguments.clone(), tools, ctx)
-            .await;
+        let result = match McpToolName::try_new(call.tool_name.as_str()) {
+            Ok(tool_name) => {
+                tool_executor
+                    .execute_tool(&tool_name, resolved_arguments.clone(), tools, ctx)
+                    .await
+            },
+            Err(e) => Err(AgentServiceError::validation("tool_name", e)),
+        };
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
         state.add_result(finish_tool_call(
-            &call.tool_name,
+            call,
             resolved_arguments,
             result,
             duration_ms,
@@ -98,6 +109,8 @@ pub async fn execute_tools(
     Ok(state)
 }
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Value {
     let resolved_arguments = TemplateResolver::resolve_arguments(&call.arguments, &state.results);
 
@@ -113,12 +126,15 @@ fn resolve_call_arguments(call: &PlannedToolCall, state: &ExecutionState) -> Val
     resolved_arguments
 }
 
+// JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+// spec.
 fn finish_tool_call(
-    tool_name: &str,
+    call: &PlannedToolCall,
     arguments: Value,
     result: Result<ToolOutcome>,
     duration_ms: u64,
-) -> ToolCallResult {
+) -> PlannedToolResult {
+    let tool_name = call.tool_name.as_str();
     match result {
         Ok(outcome) => {
             tracing::info!(
@@ -127,7 +143,7 @@ fn finish_tool_call(
                 "Tool completed successfully"
             );
 
-            ToolCallResult::success(tool_name.to_owned(), arguments, outcome.output, duration_ms)
+            PlannedToolResult::success(tool_name.to_owned(), arguments, outcome.output, duration_ms)
                 .with_meta(outcome.meta)
         },
         Err(e) => {
@@ -139,7 +155,7 @@ fn finish_tool_call(
                 "Tool failed"
             );
 
-            ToolCallResult::failure(tool_name.to_owned(), arguments, error_msg, duration_ms)
+            PlannedToolResult::failure(tool_name.to_owned(), arguments, error_msg, duration_ms)
         },
     }
 }
@@ -198,10 +214,11 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
                 CallToolResult::error(vec![ContentBlock::text(text_content)])
             };
             result.structured_content = Some(r.output.clone());
-            result.meta = r
-                .meta
-                .as_ref()
-                .and_then(|m| serde_json::from_value(m.clone()).ok());
+            result.meta = r.meta.as_ref().and_then(|m| {
+                serde_json::from_value(m.clone())
+                    .inspect_err(|e| tracing::warn!(error = %e, "Failed to decode tool meta"))
+                    .ok()
+            });
             result
         })
         .collect()

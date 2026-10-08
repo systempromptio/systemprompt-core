@@ -11,13 +11,12 @@
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::UserId;
 use systemprompt_logging::LoggingRepository;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
-async fn repo_and_pool_or_skip() -> Option<(LoggingRepository, sqlx::PgPool)> {
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn repo_and_pool() -> (LoggingRepository, sqlx::PgPool) {
+    let db = test_db_pool().await;
     let pg = db.write_pool();
-    Some((LoggingRepository::new(&db).ok()?, (*pg).clone()))
+    (LoggingRepository::new(&db), (*pg).clone())
 }
 
 fn unique(prefix: &str) -> String {
@@ -47,9 +46,7 @@ async fn log_exists(pool: &sqlx::PgPool, id: &str) -> bool {
 
 #[tokio::test]
 async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     // A `logs` row must never carry a NULL user_id: every global read of the
     // table decodes that column as non-Option, so one leaked NULL row breaks
     // unrelated suites (`infra logs export`, the logging maintenance service).
@@ -92,9 +89,7 @@ async fn delete_old_logs_removes_rows_past_cutoff_and_keeps_recent() {
 // tests each seeding an orphan race each other's DELETE.
 #[tokio::test]
 async fn orphaned_logs_are_counted_then_removed_for_missing_users() {
-    let Some((repo, pg)) = repo_and_pool_or_skip().await else {
-        return;
-    };
+    let (repo, pg) = repo_and_pool().await;
     let orphan_id = unique("orphan_log");
     let ghost_user = unique("ghost_user");
     insert_log(&pg, &orphan_id, Some(&ghost_user), 0).await;

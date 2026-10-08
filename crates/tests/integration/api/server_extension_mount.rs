@@ -15,18 +15,15 @@ use systemprompt_api::services::server::setup_api_server;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::{
     Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
-    FrameOptions,
 };
+use systemprompt_manifest::profile::{FrameOptions, PathsConfig};
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_runtime::{
-    AppContext, ConfigPlane, DataPlane, ModuleApiRegistry, Plugins, Subsystems,
-};
+use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, fixture_system_admin, fixture_user_id,
+    ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
 };
 use systemprompt_users::{UserRepository, UserService};
 use tower::ServiceExt;
@@ -113,7 +110,7 @@ impl Extension for SiteAuthExt {
 
 async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Result<Router> {
     let bootstrap = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&bootstrap.database_url).await?;
+    let pool = test_db_pool().await;
 
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
@@ -128,7 +125,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
     };
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )?);
 
@@ -148,8 +145,8 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             );
             let analytics_service =
                 Arc::new(AnalyticsService::new(None, None, &analytics_repositories));
-            let session_usage: systemprompt_traits::DynSessionUsageCounters =
-                analytics_service.session_repo().owner();
+            let session_store = Arc::clone(analytics_service.session_store());
+            let session_usage: systemprompt_traits::DynSessionUsageCounters = session_store;
             DataPlane {
                 database: Arc::clone(&pool),
                 analytics_service,
@@ -158,7 +155,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 )),
                 user_service: Some(Arc::new(UserService::new(Arc::new(UserRepository::new(
                     &pool,
-                )?)))),
+                ))))),
                 a2a_repositories: Arc::new(systemprompt_agent::repository::A2ARepositories::new(
                     &pool,
                     systemprompt_agent::repository::A2aDependencies {
@@ -169,26 +166,26 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                             systemprompt_test_fixtures::ToolExecutionLedger::Exists,
                         ),
                     },
-                )?),
+                )),
                 content_repositories: Arc::new(
-                    systemprompt_content::repository::ContentRepositories::new(&pool)?,
+                    systemprompt_content::repository::ContentRepositories::new(&pool),
                 ),
                 oauth_repositories: Arc::new(
-                    systemprompt_oauth::repository::OAuthRepositories::new(&pool)?,
+                    systemprompt_oauth::repository::OAuthRepositories::new(&pool),
                 ),
-                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)?),
+                user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                     &pool,
                     systemprompt_identifiers::InstanceId::new("test-instance"),
-                )?),
-                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)?),
+                )),
+                ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,
-                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)?),
+                file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),
                 mcp_session_repository: Arc::new(
-                    systemprompt_mcp::repository::McpSessionRepository::new(&pool)?,
+                    systemprompt_mcp::repository::McpSessionRepository::new(&pool),
                 ),
                 managed_repository: Arc::new(
-                    systemprompt_marketplace::managed::ManagedRepository::new(&pool)?,
+                    systemprompt_marketplace::managed::ManagedRepository::new(&pool),
                 ),
             }
         },
@@ -200,7 +197,6 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         },
         Plugins {
             extension_registry: Arc::new(registry),
-            api_registry: Arc::new(ModuleApiRegistry::new()),
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter: Arc::new(AllowAllFilter),
             marketplace_cache: Arc::new(systemprompt_marketplace::MarketplaceCache::default()),
@@ -213,12 +209,15 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
             schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
             event_bridge: Arc::new(OnceLock::new()),
+            event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
-                systemprompt_models::profile::StorageBackend::Local,
-                &std::env::temp_dir(),
+                systemprompt_storage::FileStorageBackend::Local {
+                    root: std::env::temp_dir(),
+                },
             ),
             shutdown: Default::default(),
+            background_tasks: Default::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),

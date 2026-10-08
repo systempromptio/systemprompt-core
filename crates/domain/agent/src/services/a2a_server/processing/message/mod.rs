@@ -19,7 +19,7 @@ pub use message_handler::HandleMessageParams;
 pub use persistence::PersistOutcome;
 pub use stream_processor::StreamProcessor;
 
-use crate::services::shared::{AgentServiceError, Result};
+use crate::services::shared::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -30,8 +30,9 @@ use crate::repository::A2ARepositories;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::a2a_server::streaming::webhook_client::DynWebhookBroadcaster;
 use crate::services::{ArtifactPublishingService, ContextService, SkillService};
-use systemprompt_identifiers::{AiToolCallId, TaskId};
-use systemprompt_models::{AiProvider, CallToolResult, RequestContext, ToolCall};
+use systemprompt_identifiers::{AgentName, AiToolCallId, TaskId};
+use systemprompt_models::ai::DynAiProvider;
+use systemprompt_models::{CallToolResult, RequestContext, ToolCall};
 
 #[derive(Debug)]
 pub enum StreamEvent {
@@ -56,7 +57,7 @@ pub enum StreamEvent {
 /// the token that stops it. Dropping the stream aborts the worker.
 pub struct MessageStream {
     pub events: mpsc::Receiver<StreamEvent>,
-    pub worker: tokio::task::JoinHandle<()>,
+    pub worker: systemprompt_traits::OwnedTask<()>,
     pub cancel: CancellationToken,
 }
 
@@ -69,19 +70,13 @@ impl std::fmt::Debug for MessageStream {
     }
 }
 
-impl Drop for MessageStream {
-    fn drop(&mut self) {
-        self.worker.abort();
-    }
-}
-
 #[derive(Debug)]
 pub struct PersistCompletedTaskOnProcessorParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
     pub agent_message: &'a Message,
     pub context: &'a RequestContext,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub artifacts_already_published: bool,
 }
 
@@ -89,7 +84,7 @@ pub struct PersistCompletedTaskOnProcessorParams<'a> {
 pub struct ProcessMessageStreamParams<'a> {
     pub a2a_message: &'a Message,
     pub agent_runtime: &'a AgentRuntimeInfo,
-    pub agent_name: &'a str,
+    pub agent_name: &'a AgentName,
     pub context: &'a RequestContext,
     pub task_id: TaskId,
     pub cancel: CancellationToken,
@@ -97,7 +92,7 @@ pub struct ProcessMessageStreamParams<'a> {
 
 pub struct MessageProcessor {
     repositories: Arc<A2ARepositories>,
-    ai_service: Arc<dyn AiProvider>,
+    ai_service: DynAiProvider,
     context_service: ContextService,
     skill_service: Arc<SkillService>,
     execution_step_repo: Arc<ExecutionStepRepository>,
@@ -108,7 +103,7 @@ pub struct MessageProcessor {
 impl std::fmt::Debug for MessageProcessor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MessageProcessor")
-            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("ai_service", &"<DynAiProvider>")
             .finish()
     }
 }
@@ -116,7 +111,7 @@ impl std::fmt::Debug for MessageProcessor {
 impl MessageProcessor {
     pub fn new(
         repositories: Arc<A2ARepositories>,
-        ai_service: Arc<dyn AiProvider>,
+        ai_service: DynAiProvider,
         webhooks: DynWebhookBroadcaster,
     ) -> Result<Self> {
         let context_service = ContextService::new(repositories.tasks.clone());
@@ -144,14 +139,11 @@ impl MessageProcessor {
         Arc::clone(&self.webhooks)
     }
 
-    pub async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
+    pub async fn load_agent_runtime(&self, agent_name: &AgentName) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
         let registry = AgentRegistry::new()?;
-        let agent_config = registry
-            .get_agent(agent_name)
-            .await
-            .map_err(|_e| AgentServiceError::Internal("Agent not found".to_owned()))?;
+        let agent_config = registry.get_agent(agent_name.as_str()).await?;
 
         Ok(agent_config.into())
     }

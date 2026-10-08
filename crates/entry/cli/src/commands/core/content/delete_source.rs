@@ -43,7 +43,7 @@ pub async fn execute(
     )?;
 
     let ctx = AppContext::new().await?;
-    let repo = ContentRepository::new(ctx.db_pool())?;
+    let repo = ContentRepository::new(ctx.db_pool());
 
     let source = SourceId::new(args.source.clone());
     let deleted_count = repo.delete_by_source(&source).await?;

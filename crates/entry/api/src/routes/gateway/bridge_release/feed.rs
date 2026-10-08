@@ -12,11 +12,12 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use axum::http::StatusCode;
-use systemprompt_models::services::BridgeReleasesSpec;
+use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::bridge::gateway::ReleaseManifest;
 
+use super::CACHE_TTL;
+use super::error::ReleaseError;
 use super::github::{asset_digest, resolve_release, sums_url};
-use super::{CACHE_TTL, ReleaseManifest};
 
 /// One platform's release as the feed resolved it: what `/latest` answers with
 /// plus the asset `/download` streams.
@@ -92,7 +93,7 @@ impl ReleaseFeed {
         &self,
         spec: &BridgeReleasesSpec,
         platform: &str,
-    ) -> Result<ResolvedRelease, (StatusCode, String)> {
+    ) -> Result<ResolvedRelease, ReleaseError> {
         let asset = self.resolve_asset(spec, platform).await?;
         let sha256 = self.resolve_digest(spec, platform, &asset).await?;
         Ok(ResolvedRelease {
@@ -110,7 +111,7 @@ impl ReleaseFeed {
         &self,
         spec: &BridgeReleasesSpec,
         platform: &str,
-    ) -> Result<ResolvedAsset, (StatusCode, String)> {
+    ) -> Result<ResolvedAsset, ReleaseError> {
         if let Some(fresh) = self.assets.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
@@ -123,8 +124,7 @@ impl ReleaseFeed {
                 Some(stale) => {
                     tracing::warn!(
                         platform,
-                        status = %err.0,
-                        detail = %err.1,
+                        error = %err,
                         version = %stale.version,
                         "bridge release resolution failed; serving the last known release"
                     );
@@ -140,16 +140,16 @@ impl ReleaseFeed {
         spec: &BridgeReleasesSpec,
         platform: &str,
         asset: &ResolvedAsset,
-    ) -> Result<String, (StatusCode, String)> {
+    ) -> Result<String, ReleaseError> {
         if let Some(fresh) = self.digests.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
-        let published = asset.sums_url.as_deref().ok_or_else(|| {
-            (
-                StatusCode::BAD_GATEWAY,
-                format!("release {} publishes no SHA256SUMS", asset.version),
-            )
-        });
+        let published = asset
+            .sums_url
+            .as_deref()
+            .ok_or_else(|| ReleaseError::NoChecksums {
+                version: asset.version.clone(),
+            });
         let fetched = match published {
             Ok(url) => asset_digest(&self.http, spec, url, &asset.name).await,
             Err(e) => Err(e),
@@ -163,8 +163,7 @@ impl ReleaseFeed {
                 Some(stale) => {
                     tracing::warn!(
                         platform,
-                        status = %err.0,
-                        detail = %err.1,
+                        error = %err,
                         "SHA256SUMS fetch failed; serving the last known digest"
                     );
                     Ok(stale)
@@ -178,24 +177,22 @@ impl ReleaseFeed {
         &self,
         spec: &BridgeReleasesSpec,
         platform: &str,
-    ) -> Result<ResolvedAsset, (StatusCode, String)> {
-        let asset_name = spec.assets.get(platform).ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                format!("no published build for platform {platform}"),
-            )
-        })?;
+    ) -> Result<ResolvedAsset, ReleaseError> {
+        let asset_name =
+            spec.assets
+                .get(platform)
+                .ok_or_else(|| ReleaseError::UnknownPlatform {
+                    platform: platform.to_owned(),
+                })?;
 
         let release = resolve_release(&self.http, spec).await?;
         let asset = release
             .assets
             .iter()
             .find(|a| a.name == *asset_name)
-            .ok_or_else(|| {
-                (
-                    StatusCode::NOT_FOUND,
-                    format!("release {} has no asset {asset_name}", release.tag_name),
-                )
+            .ok_or_else(|| ReleaseError::MissingAsset {
+                tag: release.tag_name.clone(),
+                asset: asset_name.clone(),
             })?;
 
         Ok(ResolvedAsset {

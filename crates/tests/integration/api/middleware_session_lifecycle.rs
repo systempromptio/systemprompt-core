@@ -18,8 +18,8 @@ use systemprompt_api::services::middleware::SessionMiddleware;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, install_test_signing_key, mint_admin_jwt,
-    seed_admin_credential, seed_user_row,
+    FIXTURE_JWT_ISSUER, ensure_test_bootstrap, fixture_config, install_test_signing_key,
+    mint_admin_jwt, seed_admin_credential, seed_user_row,
 };
 use tower::ServiceExt;
 
@@ -31,7 +31,7 @@ async fn ok_handler() -> &'static str {
 
 async fn router() -> Result<(DbPool, Router)> {
     let b = ensure_test_bootstrap();
-    let _ = systemprompt_models::Config::install(fixture_config(&b.database_url));
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
     let (db, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let mw = SessionMiddleware::new(&ctx);
@@ -110,7 +110,7 @@ async fn tracked_request_with_revoked_session_refreshes() -> Result<()> {
     let (db, app) = router().await?;
     let fixture = seed_admin_credential(&db, "session-refresh").await?;
 
-    let p = db.pool_arc()?;
+    let p = db.pool();
     sqlx::query("UPDATE user_sessions SET revoked_at = NOW() WHERE session_id = $1")
         .bind(fixture.session_id.as_str())
         .execute(p.as_ref())
@@ -133,8 +133,8 @@ async fn tracked_request_with_revoked_session_refreshes() -> Result<()> {
 #[tokio::test]
 async fn tracked_request_with_unknown_user_creates_anonymous_session() -> Result<()> {
     let (_db, app) = router().await?;
-    let ghost = UserId::new(format!("ghost-{}", uuid::Uuid::new_v4()));
-    let token = mint_admin_jwt(&ghost, "ghost@example.invalid", "test-admin");
+    let ghost = UserId::generate();
+    let token = mint_admin_jwt(&ghost, "ghost@example.invalid", FIXTURE_JWT_ISSUER);
 
     let resp = app
         .oneshot(get_page(&[
@@ -149,9 +149,9 @@ async fn tracked_request_with_unknown_user_creates_anonymous_session() -> Result
 #[tokio::test]
 async fn tracked_request_with_valid_user_no_session_row_refreshes() -> Result<()> {
     let (db, app) = router().await?;
-    let user_id = UserId::new(format!("live-user-{}", uuid::Uuid::new_v4()));
+    let user_id = UserId::generate();
     seed_user_row(&db, &user_id, "live@example.invalid").await?;
-    let token = mint_admin_jwt(&user_id, "live@example.invalid", "test-admin");
+    let token = mint_admin_jwt(&user_id, "live@example.invalid", FIXTURE_JWT_ISSUER);
 
     let resp = app
         .oneshot(get_page(&[
@@ -180,7 +180,7 @@ async fn bot_user_agent_yields_anonymous_context() -> Result<()> {
 #[tokio::test]
 async fn a_page_is_served_without_a_session_when_the_database_is_gone() -> Result<()> {
     let (db, app) = router().await?;
-    db.pool_arc()?.close().await;
+    db.pool().close().await;
 
     let ua = format!(
         "Mozilla/5.0 (X11; Linux x86_64) outage/{}",
@@ -196,6 +196,56 @@ async fn a_page_is_served_without_a_session_when_the_database_is_gone() -> Resul
     assert!(
         resp.headers().get(header::SET_COOKIE).is_none(),
         "no session was minted, so there is no cookie to set"
+    );
+    Ok(())
+}
+
+async fn principal_handler(
+    axum::Extension(ctx): axum::Extension<systemprompt_models::RequestContext>,
+) -> String {
+    format!(
+        "{}|{}|{}",
+        ctx.actor().kind.as_str(),
+        ctx.user_id(),
+        ctx.session_id()
+    )
+}
+
+#[tokio::test]
+async fn a_degraded_request_runs_as_a_fresh_anonymous_principal() -> Result<()> {
+    let b = ensure_test_bootstrap();
+    let _ = systemprompt_manifest::Config::install(fixture_config(&b.database_url));
+    let (db, ctx) = setup_ctx().await?;
+    let mw = SessionMiddleware::new(&ctx);
+    let app = Router::new()
+        .route("/page", get(principal_handler))
+        .layer(middleware::from_fn(move |req, next| {
+            let mw = mw.clone();
+            async move { mw.handle(req, next).await }
+        }));
+    db.pool().close().await;
+
+    let mut principals = Vec::new();
+    for _ in 0..2 {
+        let ua = format!(
+            "Mozilla/5.0 (X11; Linux x86_64) degraded/{}",
+            uuid::Uuid::new_v4()
+        );
+        let resp = app.clone().oneshot(get_page(&[("user-agent", ua)])).await?;
+        assert!(resp.status().is_success(), "{}", resp.status());
+        let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await?;
+        principals.push(String::from_utf8(body.to_vec())?);
+    }
+
+    let parsed: Vec<Vec<&str>> = principals.iter().map(|p| p.split('|').collect()).collect();
+    for fields in &parsed {
+        assert_eq!(fields[0], "anonymous", "{fields:?}");
+        assert!(UserId::try_new(fields[1]).is_ok(), "{fields:?}");
+        assert!(fields[2].starts_with("degraded_"), "{fields:?}");
+    }
+    assert_ne!(
+        parsed[0][1], parsed[1][1],
+        "each degraded request is its own principal, never a shared sentinel"
     );
     Ok(())
 }

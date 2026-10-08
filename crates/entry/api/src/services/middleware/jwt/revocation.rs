@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
 
@@ -35,10 +36,10 @@ impl JtiRevocationChecker {
         }
     }
 
-    pub async fn ensure_not_revoked(&self, jti: &str) -> Result<(), ContextExtractionError> {
-        if jti.is_empty() {
-            return Ok(());
-        }
+    pub async fn ensure_not_revoked(
+        &self,
+        jti: &AccessTokenId,
+    ) -> Result<(), ContextExtractionError> {
         match self.cache.peek(jti) {
             Some(true) => return Err(ContextExtractionError::Revoked),
             Some(false) => return Ok(()),
@@ -47,7 +48,8 @@ impl JtiRevocationChecker {
 
         let revoked = self.repo.is_jti_revoked(jti).await.map_err(|e| {
             ContextExtractionError::DatabaseError {
-                message: format!("JTI revocation lookup failed: {e}"),
+                context: "JTI revocation lookup failed".to_owned(),
+                source: e.into(),
             }
         })?;
         self.cache.record(jti, revoked);

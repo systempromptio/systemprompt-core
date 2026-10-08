@@ -7,6 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures::stream::{self, StreamExt};
+use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_content::models::Content;
 use systemprompt_identifiers::LocaleCode;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
@@ -23,11 +24,22 @@ struct SourceRenderJob<'a> {
     sitemap_config: &'a SitemapConfig,
     locale: &'a LocaleCode,
     locale_prefix: &'a str,
+    // JSON: Handlebars page context item; the page data model is dynamic.
     items: &'a [serde_json::Value],
     popular_ids: &'a [String],
 }
 
-pub(super) async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
+struct SourceTarget<'a> {
+    name: &'a str,
+    source: &'a ContentSourceConfigRaw,
+    sitemap_config: &'a SitemapConfig,
+    locale: LocaleCode,
+}
+
+pub(super) async fn process_all_sources(
+    ctx: &PrerenderContext,
+    content_analytics: &ContentAnalyticsRepository,
+) -> Result<u32> {
     const SOURCE_CONCURRENCY: usize = 2;
 
     let sources: Vec<_> = ctx
@@ -44,15 +56,18 @@ pub(super) async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
     let mut work = Vec::with_capacity(sources.len() * locales.len());
     for (source_name, source, sitemap) in &sources {
         for locale in locales {
-            work.push((*source_name, *source, *sitemap, locale.clone()));
+            work.push(SourceTarget {
+                name: source_name,
+                source,
+                sitemap_config: sitemap,
+                locale: locale.clone(),
+            });
         }
     }
 
     let futures: Vec<_> = work
         .iter()
-        .map(|(source_name, source, sitemap_config, locale)| {
-            process_source(ctx, source_name, source, sitemap_config, locale)
-        })
+        .map(|target| process_source(ctx, content_analytics, target))
         .collect();
 
     let results: Vec<Result<u32>> = stream::iter(futures)
@@ -88,14 +103,16 @@ fn get_enabled_sitemap<'a>(
 
 async fn process_source(
     ctx: &PrerenderContext,
-    source_name: &str,
-    source: &ContentSourceConfigRaw,
-    sitemap_config: &SitemapConfig,
-    locale: &LocaleCode,
+    content_analytics: &ContentAnalyticsRepository,
+    target: &SourceTarget<'_>,
 ) -> Result<u32> {
+    let source_name = target.name;
+    let source = target.source;
+    let sitemap_config = target.sitemap_config;
+    let locale = &target.locale;
     let contents = fetch_content_for_source(ctx, source_name, &source.source_id, locale)
         .await
-        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     if contents.is_empty() {
         tracing::debug!(source = %source_name, locale = %locale, "No content found for source/locale");
@@ -116,12 +133,12 @@ async fn process_source(
         &public_contents,
         source_name,
         &ctx.content_data_providers,
-        &ctx.db_pool,
+        &ctx.dependencies,
     )
     .await;
-    let popular_ids = fetch_popular_ids(ctx, source_name, &source.source_id)
+    let popular_ids = fetch_popular_ids(content_analytics, source_name, &source.source_id)
         .await
-        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e))?;
 
     let job = SourceRenderJob {
         ctx,
@@ -228,7 +245,6 @@ async fn render_parent_if_enabled(job: &SourceRenderJob<'_>) -> Result<u32> {
 
     render_list_route(RenderListParams {
         items: job.items,
-        config: &job.ctx.config,
         web_config: &job.ctx.web_config,
         list_config: parent_config,
         source_name: job.source_name,
@@ -237,7 +253,7 @@ async fn render_parent_if_enabled(job: &SourceRenderJob<'_>) -> Result<u32> {
         template_registry: &job.ctx.template_registry,
         dist_dir: &job.ctx.dist_dir,
         index_content,
-        db_pool: &job.ctx.db_pool,
+        dependencies: &job.ctx.dependencies,
     })
     .await?;
 

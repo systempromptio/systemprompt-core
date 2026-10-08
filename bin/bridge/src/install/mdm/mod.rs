@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod claude_code_settings;
+pub mod desktop_policy;
+mod desktop_settings;
 pub mod desktop_tool_policy;
 pub(crate) mod egress;
 mod error;
@@ -16,6 +18,7 @@ pub(super) mod macos;
 mod macos_payload;
 mod macos_remove;
 pub mod policy;
+mod policy_render;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;
 pub mod tool_catalog;
@@ -113,8 +116,7 @@ pub fn bridge_policy_values(
     };
     let record =
         crate::config::trust::TrustRecord::new(gateway, key, crate::config::PinSource::Policy)?;
-    let value = serde_json::to_string(&record)
-        .map_err(|e| crate::config::TrustError::InvalidPolicy(e.to_string()))?;
+    let value = serde_json::to_string(&record).map_err(crate::config::TrustError::RecordEncode)?;
     Ok(vec![(
         crate::config::store::MANIFEST_TRUST_KEY,
         "REG_SZ",

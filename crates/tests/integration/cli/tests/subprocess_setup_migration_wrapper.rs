@@ -5,9 +5,7 @@ use systemprompt_test_fixtures::DisposableDb;
 
 #[tokio::test]
 async fn setup_authors_a_profile_and_migrates_its_owned_empty_database_via_reexec() {
-    let database = DisposableDb::create("cli_setup_migrate")
-        .await
-        .expect("create empty isolated database");
+    let database = DisposableDb::empty("cli_setup_migrate").await;
     let url = url::Url::parse(database.url()).expect("fixture database URL");
     let host = url.host_str().expect("database host");
     let port = url.port_or_known_default().expect("database port");
@@ -85,8 +83,8 @@ async fn setup_authors_a_profile_and_migrates_its_owned_empty_database_via_reexe
         "setup persisted an unexpected provider key"
     );
 
-    let pool = database.pool().await.expect("migrated database pool");
-    let raw = pool.pool_arc().expect("raw pool");
+    let pool = database.test_pool().await;
+    let raw = pool.pool();
     let applied: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM extension_migrations")
         .fetch_one(raw.as_ref())
         .await
@@ -97,7 +95,7 @@ async fn setup_authors_a_profile_and_migrates_its_owned_empty_database_via_reexe
     );
 
     drop(raw);
-    pool.write_pool_arc().unwrap().close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

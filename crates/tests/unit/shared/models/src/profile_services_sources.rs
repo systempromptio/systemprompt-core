@@ -1,14 +1,14 @@
-use systemprompt_models::auth::JwtAudience;
-use systemprompt_models::profile::{
+use systemprompt_manifest::profile::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,
     ServicesProfileConfig, ServicesSource, default_resource_audiences,
 };
-use systemprompt_models::services::SystemAdminConfig;
-use systemprompt_models::{
+use systemprompt_manifest::services::SystemAdminConfig;
+use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
     ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
     ServerConfig, SiteConfig,
 };
+use systemprompt_models::auth::JwtAudience;
 
 pub(crate) const KEY_B64: &str = "3b6a27bcceb6a42d62a3a8d02a6f0d73653215771de243a63ac048a18b59da29";
 
@@ -32,6 +32,7 @@ pub(crate) fn local_profile() -> Profile {
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_owned(),
             external_db_access: false,
+            migrate_on_boot: true,
             pool: None,
         },
         server: ServerConfig {
@@ -46,7 +47,9 @@ pub(crate) fn local_profile() -> Profile {
             security_headers: SecurityHeadersConfig::default(),
             instance_id: None,
             metrics_port: None,
-            max_concurrent_streams: systemprompt_models::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
+            role: Default::default(),
+            max_in_flight: None,
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },
         paths: PathsConfig {
@@ -68,7 +71,7 @@ pub(crate) fn local_profile() -> Profile {
             login_page_url: None,
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
-            id_jag_ttl_secs: systemprompt_models::profile::DEFAULT_ID_JAG_TTL_SECS,
+            id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
         },
         rate_limits: RateLimitsConfig::default(),
         runtime: RuntimeConfig::default(),

@@ -3,11 +3,12 @@
 //! their surface is read from, and nothing else.
 
 use http::Uri;
-use systemprompt_bridge::ids::{HostId, LoopbackSecret, PluginId, ProxySecret};
+use systemprompt_bridge::ids::{LoopbackSecret, PluginId, ProxySecret};
 use systemprompt_bridge::proxy::credential::{
     LoopbackCredential, Rejection, RouteClass, authenticate, classify_route,
 };
 use systemprompt_bridge::proxy::scoped_token::{hook_token, host_token};
+use systemprompt_models::bridge::host::HostKind;
 
 const SECRET: &str = "loopback-secret-0123456789abcdef0123456789abcdef";
 
@@ -25,8 +26,8 @@ fn hook(id: &str) -> String {
         .to_owned()
 }
 
-fn host(id: &str) -> String {
-    host_token(&LoopbackSecret::new(SECRET), &HostId::new(id))
+fn host(id: HostKind) -> String {
+    host_token(&LoopbackSecret::new(SECRET), id)
         .as_str()
         .to_owned()
 }
@@ -90,15 +91,15 @@ fn a_hook_token_opens_only_its_own_plugins_hook_route() {
 }
 
 #[test]
-fn a_host_token_opens_inference_and_mcp_but_neither_hooks_nor_otel() {
-    let token = host("claude-desktop");
+fn a_host_token_opens_inference_mcp_and_otel_but_not_hooks_or_other_routes() {
+    let token = host(HostKind::ClaudeDesktop);
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Inference),
-        Ok(LoopbackCredential::Host(HostId::new("claude-desktop")))
+        Ok(LoopbackCredential::Host(HostKind::ClaudeDesktop))
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Mcp),
-        Ok(LoopbackCredential::Host(HostId::new("claude-desktop")))
+        Ok(LoopbackCredential::Host(HostKind::ClaudeDesktop))
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Hook(Some(plugin("acme")))),
@@ -107,8 +108,8 @@ fn a_host_token_opens_inference_and_mcp_but_neither_hooks_nor_otel() {
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Otel),
-        Err(Rejection::ScopeMismatch),
-        "OTLP ingest is forwarded only for the raw secret"
+        Ok(LoopbackCredential::Host(HostKind::ClaudeDesktop)),
+        "OTLP ingest is authenticated by the enrolled host credential"
     );
     assert_eq!(
         authenticate(&token, &secret(), &RouteClass::Other),
@@ -117,8 +118,10 @@ fn a_host_token_opens_inference_and_mcp_but_neither_hooks_nor_otel() {
 }
 
 #[test]
-fn a_token_for_an_unknown_host_is_no_credential_at_all() {
-    let token = host("not-a-known-host");
+fn a_host_token_minted_under_another_secret_is_no_credential_at_all() {
+    let token = host_token(&LoopbackSecret::new("another-secret"), HostKind::Hermes)
+        .as_str()
+        .to_owned();
     for route in [
         RouteClass::Inference,
         RouteClass::Mcp,
@@ -205,12 +208,13 @@ fn rejections_map_to_403_for_a_missing_or_wrong_secret_and_401_for_a_wrong_scope
 fn derived_tokens_are_stable_per_scope_and_distinct_across_scopes_and_secrets() {
     assert_eq!(hook("acme"), hook("acme"));
     assert_ne!(hook("acme"), hook("other"));
-    assert_ne!(hook("claude-desktop"), host("claude-desktop"));
+    assert_ne!(hook("claude-desktop"), host(HostKind::ClaudeDesktop));
+    assert_ne!(host(HostKind::ClaudeDesktop), host(HostKind::CodexCli));
     assert_ne!(
-        host("claude-desktop"),
+        host(HostKind::ClaudeDesktop),
         host_token(
             &LoopbackSecret::new("another-secret"),
-            &HostId::new("claude-desktop")
+            HostKind::ClaudeDesktop
         )
         .as_str(),
         "rotating the secret invalidates every derived token"

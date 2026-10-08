@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -24,7 +25,7 @@ use super::webhook_client::WebhookContext;
 
 pub struct CreateSseStreamParams {
     pub message: Message,
-    pub agent_name: String,
+    pub agent_name: AgentName,
     pub state: Arc<AgentHandlerState>,
     pub request_id: NumberOrString,
     pub context: RequestContext,

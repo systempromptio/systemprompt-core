@@ -1,7 +1,7 @@
 use systemprompt_agent::services::registry::load_agent_skills_from_dir;
 use systemprompt_agent::services::registry::skills::{extract_description, load_skill_from_disk};
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::services::{
+use systemprompt_manifest::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
 };
 use tempfile::TempDir;
@@ -294,7 +294,7 @@ fn agent_with_metadata_skills(skills: Vec<String>) -> AgentConfig {
         default: false,
         card: agent_card_config_empty(),
         metadata: AgentMetadataConfig {
-            skills: systemprompt_models::services::PluginComponentRef {
+            skills: systemprompt_models::plugin::PluginComponentRef {
                 include: skills,
                 ..Default::default()
             },

@@ -26,8 +26,10 @@ fn test_from_io_error() {
 }
 
 #[test]
-fn test_internal_error_construction() {
-    let err = McpDomainError::Internal("oops".to_string());
+fn test_service_row_missing_names_the_service() {
+    let err = McpDomainError::ServiceRowMissing {
+        service: "oops".to_string(),
+    };
     assert!(err.to_string().contains("oops"));
 }
 
@@ -65,35 +67,37 @@ fn test_manifest_error_display() {
 }
 
 #[test]
-fn test_transport_error_display() {
-    let err = McpDomainError::Transport("eof".to_string());
+fn test_transport_error_keeps_its_source() {
+    let err = McpDomainError::transport("token accessor", std::io::Error::other("eof"));
     assert!(err.to_string().contains("eof"));
+    let source = std::error::Error::source(&err).expect("transport keeps its cause");
+    assert_eq!(source.to_string(), "eof");
 }
 
 #[test]
-fn test_path_error_display() {
-    let err = McpDomainError::Path("/no/such".to_string());
+fn test_from_path_error_is_typed() {
+    let err: McpDomainError = systemprompt_config::PathError::NotFound {
+        path: "/no/such".into(),
+        field: "system",
+    }
+    .into();
+    assert!(matches!(err, McpDomainError::Path(_)));
     assert!(err.to_string().contains("/no/such"));
 }
 
 #[test]
-fn test_config_validation_display() {
-    let err = McpDomainError::ConfigValidation("nope".to_string());
-    assert!(err.to_string().contains("nope"));
+fn test_operation_error_keeps_its_source() {
+    let err =
+        McpDomainError::operation("Failed to read schema file", std::io::Error::other("ouch"));
+    assert!(err.to_string().contains("Failed to read schema file"));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
-fn test_service_error_display() {
-    let err = McpDomainError::ServiceError {
-        message: "ouch".to_string(),
-    };
-    assert!(err.to_string().contains("ouch"));
-}
-
-#[test]
-fn test_client_initialize_display() {
-    let err = McpDomainError::ClientInitialize("badinit".to_string());
-    assert!(err.to_string().contains("badinit"));
+fn test_from_rmcp_service_error_is_typed() {
+    let err: McpDomainError = rmcp::ServiceError::TransportClosed.into();
+    assert!(matches!(err, McpDomainError::ServiceError(_)));
+    assert!(std::error::Error::source(&err).is_some());
 }
 
 #[test]
@@ -108,10 +112,11 @@ fn test_from_rmcp_service_error_is_transient() {
 
 #[test]
 fn test_from_config_validation_error() {
-    let source = systemprompt_models::errors::ConfigValidationError::Required(
+    let source = systemprompt_models::errors::ServicesValidationError::Required(
         "database.url is required".to_string(),
     );
     let err: McpDomainError = source.into();
+    assert!(matches!(err, McpDomainError::ConfigValidation(_)));
     assert!(err.to_string().contains("database.url is required"));
     assert!(matches!(
         err.classify(),

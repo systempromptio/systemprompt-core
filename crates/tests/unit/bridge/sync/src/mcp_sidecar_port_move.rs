@@ -12,14 +12,12 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
-use systemprompt_bridge::ids::{LoopbackSecret, ManagedMcpServerName};
+use systemprompt_bridge::ids::{LoopbackSecret, McpServerId};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::mcp_sidecar;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_test_fixtures::fixture_user_id;
 
-static HOST_WARNINGS: systemprompt_bridge::host_sync::HostWarnings =
-    systemprompt_bridge::host_sync::HostWarnings::new();
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
         systemprompt_bridge::config::store::PolicyStore::new(
@@ -68,7 +66,7 @@ fn manifest() -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("primary").expect("valid server id"),
-            name: ManagedMcpServerName::try_new("primary").unwrap(),
+            name: McpServerId::try_new("primary").unwrap(),
             url: ValidatedUrl::try_new("https://mcp.example.invalid/api").unwrap(),
             transport: Some("http".into()),
             headers: None,
@@ -80,6 +78,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -94,7 +93,6 @@ fn apply(m: &SignedManifest, home: &Path, loopback: &LoopbackEndpoint) {
     let plugin_mcp_servers = std::collections::BTreeMap::new();
     let ctx = HostSyncCtx {
         policy_store: &POLICY_STORE,
-        warnings: &HOST_WARNINGS,
         manifest: m,
         org_plugins_root: home,
         plugin_mcp_servers: &plugin_mcp_servers,

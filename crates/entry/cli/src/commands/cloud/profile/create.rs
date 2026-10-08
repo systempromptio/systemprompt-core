@@ -14,21 +14,22 @@ use systemprompt_cloud::{
     CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
-use systemprompt_identifiers::TenantId;
+use systemprompt_identifiers::ProfileName;
 
 use super::CreateArgs;
 use super::api_keys::{ApiKeys, collect_api_keys};
 use super::create_setup::handle_local_tenant_setup;
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::profile_steps::{
-    ensure_profile_dirs, ensure_unmasked_credentials, report_profile_validation,
-    resolve_tenant_from_args, write_docker_assets, write_profile_secrets,
+    ensure_profile_dirs, report_profile_validation, resolve_tenant_from_args, write_docker_assets,
+    write_profile_secrets,
 };
 use super::templates::{
     existing_geoip_database, get_services_path, save_profile, update_ai_config_default_provider,
 };
+use super::tenant_credentials::ensure_unmasked_credentials;
 use crate::cli_settings::CliConfig;
 use crate::interactive::Prompter;
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
@@ -44,7 +45,7 @@ pub(super) async fn execute(
     CliService::section(&format!("Create Profile: {}", name));
 
     let ctx = ProjectContext::discover();
-    let profile_dir = ctx.profile_dir(name);
+    let profile_dir = ctx.profile_dir(name.as_str());
 
     if profile_dir.exists() {
         bail!(
@@ -132,17 +133,23 @@ fn ensure_tenant_database(tenant: &StoredTenant) -> Result<()> {
     Ok(())
 }
 
-fn build_tenant_profile(name: &str, tenant: &StoredTenant, profile_path: &Path) -> Result<Profile> {
+fn build_tenant_profile(
+    name: &ProfileName,
+    tenant: &StoredTenant,
+    profile_path: &Path,
+) -> Result<Profile> {
     let services_path = get_services_path()?;
     let relative_secrets_path = "./secrets.json";
 
     Ok(match tenant.tenant_type {
-        TenantType::Local => LocalProfileBuilder::new(name, relative_secrets_path, &services_path)
-            .with_tenant_id(TenantId::new(&tenant.id))
-            .build(),
+        TenantType::Local => {
+            LocalProfileBuilder::new(name.as_str(), relative_secrets_path, &services_path)
+                .with_tenant_id(tenant.id.clone())
+                .build()
+        },
         TenantType::Cloud => {
-            let mut builder = CloudProfileBuilder::new(name)
-                .with_tenant_id(TenantId::new(&tenant.id))
+            let mut builder = CloudProfileBuilder::new(name.as_str())
+                .with_tenant_id(tenant.id.clone())
                 .with_external_db_access(tenant.external_db_access)
                 .with_secrets_path(relative_secrets_path)
                 .with_geoip_database(existing_geoip_database(profile_path));
@@ -162,7 +169,7 @@ fn render_next_steps(tenant: &StoredTenant, profile_path: &Path) {
     ));
 
     match tenant.tenant_type {
-        TenantType::Local => CliService::info("  just start"),
-        TenantType::Cloud => CliService::info("  just deploy"),
+        TenantType::Local => CliService::info("  systemprompt infra services start"),
+        TenantType::Cloud => CliService::info("  systemprompt cloud deploy"),
     }
 }

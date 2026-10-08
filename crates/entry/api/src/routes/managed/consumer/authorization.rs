@@ -57,7 +57,7 @@ pub(super) async fn resource(
         })?;
     if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
         .iter()
-        .any(|value| host.accepts_host_name(value))
+        .any(|value| host.accepts_host_name(value.as_str()))
     {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
@@ -69,8 +69,8 @@ pub(super) async fn resource(
         crate::routes::gateway::bridge_resolved::Freshness::Memo,
     )
     .await
-    .map_err(|(status, detail)| {
-        tracing::warn!(%status, detail, "consumer: candidate assembly failed");
+    .map_err(|error| {
+        tracing::warn!(%error, "consumer: candidate assembly failed");
         ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
     })?;
     let (entries, _) = candidate.into_manifest_parts();
@@ -83,7 +83,7 @@ pub(super) async fn resource(
                 || skill
                     .hosts
                     .iter()
-                    .any(|value| host.accepts_host_name(value)))
+                    .any(|value| host.accepts_host_name(value.as_str())))
     }) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }

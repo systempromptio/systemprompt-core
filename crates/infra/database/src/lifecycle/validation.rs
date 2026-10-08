@@ -23,23 +23,27 @@ pub async fn validate_write_pool_is_primary(db: &Database) -> DatabaseResult<()>
         .and_then(|row| row.get("in_recovery"))
         .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| {
-            RepositoryError::Internal(
-                "Failed to determine whether the write pool is a primary".to_owned(),
-            )
+            RepositoryError::invalid_data("in_recovery", "pg_is_in_recovery() returned no boolean")
         })?;
 
     if !in_recovery {
         return Ok(());
     }
 
-    Err(RepositoryError::invalid_state(if db.has_write_pool() {
-        "`database_write_url` points at a read-only standby. Writes, migrations and \
-         LISTEN/NOTIFY all require the primary — point it at the primary and restart"
+    Err(if db.has_write_pool() {
+        RepositoryError::invalid_argument(
+            "database_write_url",
+            "points at a read-only standby. Writes, migrations and LISTEN/NOTIFY all require \
+             the primary — point it at the primary and restart",
+        )
     } else {
-        "`database_url` points at a read-only standby and no `database_write_url` is set, so \
-         the write pool falls back to it. Set `database_write_url` (or `DATABASE_WRITE_URL` \
-         with the env secrets source) to the primary and restart"
-    }))
+        RepositoryError::invalid_argument(
+            "database_url",
+            "points at a read-only standby and no `database_write_url` is set, so the write \
+             pool falls back to it. Set `database_write_url` (or `DATABASE_WRITE_URL` with the \
+             env secrets source) to the primary and restart",
+        )
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -57,13 +61,13 @@ pub async fn replica_status(db: &dyn DatabaseProvider) -> DatabaseResult<Replica
         )
         .await?;
     let row = result.first().ok_or_else(|| {
-        RepositoryError::Internal("replica status probe returned no row".to_owned())
+        RepositoryError::invalid_data("in_recovery", "replica status probe returned no row")
     })?;
     let in_recovery = row
         .get("in_recovery")
         .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| {
-            RepositoryError::Internal("replica status probe lacks in_recovery".to_owned())
+            RepositoryError::invalid_data("in_recovery", "replica status probe returned no boolean")
         })?;
     let replay_lag_secs = row.get("lag_secs").and_then(serde_json::Value::as_f64);
     Ok(ReplicaStatus {
@@ -89,9 +93,10 @@ pub async fn validate_table_exists(
         .and_then(|row| row.get("exists"))
         .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| {
-            RepositoryError::Internal(format!(
-                "Failed to check table existence for '{table_name}'"
-            ))
+            RepositoryError::invalid_data(
+                "exists",
+                format!("table existence probe for '{table_name}' returned no boolean"),
+            )
         })
 }
 
@@ -113,8 +118,11 @@ pub async fn validate_column_exists(
         .and_then(|row| row.get("exists"))
         .and_then(serde_json::Value::as_bool)
         .ok_or_else(|| {
-            RepositoryError::Internal(format!(
-                "Failed to check column existence for '{table_name}.{column_name}'"
-            ))
+            RepositoryError::invalid_data(
+                "exists",
+                format!(
+                    "column existence probe for '{table_name}.{column_name}' returned no boolean"
+                ),
+            )
         })
 }

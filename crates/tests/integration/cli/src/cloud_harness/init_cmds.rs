@@ -25,7 +25,7 @@ fn chdir_scratch(tmp: &tempfile::TempDir) -> CwdGuard {
 async fn init_scaffolds_reruns_and_forces() {
     let _env = enter().await;
     unsafe { std::env::set_var("GIT_ALLOW_PROTOCOL", "none") };
-    let tmp = tempfile::tempdir().expect("scratch root");
+    let tmp = systemprompt_test_fixtures::canonical_tempdir();
     let _cwd = chdir_scratch(&tmp);
 
     cloud::execute(CloudCommands::Init { force: false }, &json_ctx())

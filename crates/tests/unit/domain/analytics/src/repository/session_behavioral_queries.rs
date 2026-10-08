@@ -1,10 +1,12 @@
-//! DB-backed tests for `SessionRepository` behavioural read queries plus the
-//! behavioural-detection writes. Sessions, analytics events and engagement
-//! events are seeded with unique ids, then the windowed aggregates and
-//! sequence/timestamp readers are asserted against known expected values.
+//! DB-backed tests for the behavioural reads analytics composes
+//! (`SessionSignalsRepository`) and the owner's behavioural queries and
+//! detection writes reached through `SessionStore`. Sessions, analytics events
+//! and engagement events are seeded with unique ids, then the windowed
+//! aggregates and sequence/timestamp readers are asserted against known
+//! expected values.
 
 use chrono::{Duration, Utc};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
 use super::session_support::{
@@ -14,29 +16,26 @@ use super::session_support::{
 
 #[tokio::test]
 async fn count_sessions_by_fingerprint_counts_within_window() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
     let s2 = unique_session_id();
-    seed_session(&repo, &s1, &fp).await;
-    seed_session(&repo, &s2, &fp).await;
+    seed_session(store, &s1, &fp).await;
+    seed_session(store, &s2, &fp).await;
 
-    let count = repo
+    let count = store
         .count_sessions_by_fingerprint(&fp, 24)
         .await
         .expect("count");
     assert_eq!(count, 2);
 
     // A different fingerprint sees none.
-    let other = repo
+    let other = store
         .count_sessions_by_fingerprint(&format!("fp-{}", Uuid::new_v4()), 24)
         .await
         .expect("count other");
@@ -48,17 +47,15 @@ async fn count_sessions_by_fingerprint_counts_within_window() {
 
 #[tokio::test]
 async fn endpoint_sequence_and_timestamps_ordered() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
+    let signals = &repositories.session_signals;
 
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
+    seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
     let now = Utc::now();
     insert_analytics_event(
@@ -87,35 +84,44 @@ async fn endpoint_sequence_and_timestamps_ordered() {
     )
     .await;
 
-    let seq = repo.get_endpoint_sequence(&sid).await.expect("sequence");
+    let seq = signals.get_endpoint_sequence(&sid).await.expect("sequence");
     assert_eq!(seq, vec!["/a".to_owned(), "/b".to_owned()]);
 
     // Timestamps query returns all three events, ascending.
-    let ts = repo.get_request_timestamps(&sid).await.expect("timestamps");
+    let ts = signals
+        .get_request_timestamps(&sid)
+        .await
+        .expect("timestamps");
     assert_eq!(ts.len(), 3);
     assert!(ts[0] <= ts[1] && ts[1] <= ts[2]);
 
-    assert!(repo.has_analytics_events(&sid).await.expect("has events"));
+    assert!(
+        signals
+            .has_analytics_events(&sid)
+            .await
+            .expect("has events")
+    );
 
     delete_session(&pool, &sid).await;
 }
 
 #[tokio::test]
 async fn has_analytics_events_false_without_events() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
+    let signals = &repositories.session_signals;
 
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
+    seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
-    assert!(!repo.has_analytics_events(&sid).await.expect("none"));
-    let empty = repo.get_endpoint_sequence(&sid).await.expect("empty seq");
+    assert!(!signals.has_analytics_events(&sid).await.expect("none"));
+    let empty = signals
+        .get_endpoint_sequence(&sid)
+        .await
+        .expect("empty seq");
     assert!(empty.is_empty());
 
     delete_session(&pool, &sid).await;
@@ -123,21 +129,18 @@ async fn has_analytics_events_false_without_events() {
 
 #[tokio::test]
 async fn session_for_behavioral_analysis_round_trip() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let sid = unique_session_id();
     let fp = format!("fp-{}", Uuid::new_v4());
-    seed_session(&repo, &sid, &fp).await;
-    repo.increment_request_count(&sid).await.expect("req");
+    seed_session(store, &sid, &fp).await;
+    store.increment_request_count(&sid).await.expect("req");
 
-    let data = repo
+    let data = store
         .get_session_for_behavioral_analysis(&sid)
         .await
         .expect("query")
@@ -149,7 +152,8 @@ async fn session_for_behavioral_analysis_round_trip() {
     // Missing session -> None.
     let missing = unique_session_id();
     assert!(
-        repo.get_session_for_behavioral_analysis(&missing)
+        store
+            .get_session_for_behavioral_analysis(&missing)
             .await
             .expect("missing")
             .is_none()
@@ -160,30 +164,30 @@ async fn session_for_behavioral_analysis_round_trip() {
 
 #[tokio::test]
 async fn count_unique_ips_by_fingerprint() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     for ip in ["1.1.1.1", "2.2.2.2", "1.1.1.1"] {
         let sid = unique_session_id();
         let mut params = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(1));
         params.ip_address = Some(ip);
-        repo.create_session(&params).await.expect("seed ip session");
+        store
+            .insert_session(&params)
+            .await
+            .expect("seed ip session");
     }
 
-    let unique = repo
+    let unique = store
         .count_unique_ips_by_fingerprint(&fp, 7)
         .await
         .expect("unique ips");
     assert_eq!(unique, 2);
 
-    let p = pool.pool_arc().expect("pool");
+    let p = pool.pool();
     sqlx::query("DELETE FROM user_sessions WHERE fingerprint_hash = $1")
         .bind(&fp)
         .execute(p.as_ref())
@@ -193,22 +197,20 @@ async fn count_unique_ips_by_fingerprint() {
 
 #[tokio::test]
 async fn count_engagement_events_by_fingerprint() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
+    let signals = &repositories.session_signals;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &fp).await;
+    seed_session(store, &sid, &fp).await;
     insert_engagement_event(&pool, &sid).await;
     insert_engagement_event(&pool, &sid).await;
 
-    let count = repo
+    let count = signals
         .count_engagement_events_by_fingerprint(&fp, 7)
         .await
         .expect("engagement count");
@@ -219,22 +221,19 @@ async fn count_engagement_events_by_fingerprint() {
 
 #[tokio::test]
 async fn session_starts_by_fingerprint_ordered() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let fp = format!("fp-{}", Uuid::new_v4());
     let s1 = unique_session_id();
     let s2 = unique_session_id();
-    seed_session(&repo, &s1, &fp).await;
-    seed_session(&repo, &s2, &fp).await;
+    seed_session(store, &s1, &fp).await;
+    seed_session(store, &s2, &fp).await;
 
-    let starts = repo
+    let starts = store
         .get_session_starts_by_fingerprint(&fp, 7)
         .await
         .expect("starts");
@@ -247,26 +246,23 @@ async fn session_starts_by_fingerprint_ordered() {
 
 #[tokio::test]
 async fn session_velocity_returns_count_and_duration() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
-    repo.increment_request_count(&sid).await.expect("req");
+    seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
+    store.increment_request_count(&sid).await.expect("req");
 
-    let (count, duration) = repo.get_session_velocity(&sid).await.expect("velocity");
+    let (count, duration) = store.get_session_velocity(&sid).await.expect("velocity");
     assert_eq!(count, Some(1));
     assert!(duration.expect("duration") >= 0);
 
     // Missing session -> (None, None).
     let missing = unique_session_id();
-    let (mc, md) = repo.get_session_velocity(&missing).await.expect("missing");
+    let (mc, md) = store.get_session_velocity(&missing).await.expect("missing");
     assert_eq!(mc, None);
     assert_eq!(md, None);
 
@@ -275,27 +271,30 @@ async fn session_velocity_returns_count_and_duration() {
 
 #[tokio::test]
 async fn update_behavioral_detection_and_mark_bot() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
+    seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
 
-    repo.update_behavioral_detection(&sid, 80, true, Some("high_velocity"))
+    store
+        .update_behavioral_detection(&sid, 80, true, Some("high_velocity"))
         .await
         .expect("update detection");
 
-    let s = repo.find_by_id(&sid).await.expect("find").expect("present");
+    let s = store
+        .find_by_id(&sid)
+        .await
+        .expect("find")
+        .expect("present");
     assert_eq!(s.is_behavioral_bot, Some(true));
     assert_eq!(s.behavioral_bot_reason.as_deref(), Some("high_velocity"));
 
-    repo.mark_as_behavioral_bot(&sid, "manual_flag")
+    store
+        .mark_as_behavioral_bot(&sid, "manual_flag")
         .await
         .expect("mark bot");
 
@@ -304,23 +303,20 @@ async fn update_behavioral_detection_and_mark_bot() {
 
 #[tokio::test]
 async fn check_and_mark_behavioral_bot_threshold() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let store = &*repositories.session_store;
 
     let sid = unique_session_id();
-    seed_session(&repo, &sid, &format!("fp-{}", Uuid::new_v4())).await;
+    seed_session(store, &sid, &format!("fp-{}", Uuid::new_v4())).await;
     for _ in 0..5 {
-        repo.increment_request_count(&sid).await.expect("req");
+        store.increment_request_count(&sid).await.expect("req");
     }
 
     // request_count (5) exceeds threshold 3 -> marked as behavioral bot.
-    let flagged = repo
+    let flagged = store
         .check_and_mark_behavioral_bot(&sid, 3)
         .await
         .expect("check");
@@ -328,8 +324,8 @@ async fn check_and_mark_behavioral_bot_threshold() {
 
     // A high threshold is not exceeded.
     let other = unique_session_id();
-    seed_session(&repo, &other, &format!("fp-{}", Uuid::new_v4())).await;
-    let not_flagged = repo
+    seed_session(store, &other, &format!("fp-{}", Uuid::new_v4())).await;
+    let not_flagged = store
         .check_and_mark_behavioral_bot(&other, 1000)
         .await
         .expect("check2");
@@ -341,15 +337,12 @@ async fn check_and_mark_behavioral_bot_threshold() {
 
 #[tokio::test]
 async fn get_total_content_pages_is_non_negative() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(&pool)
-        .map(|repositories| repositories.sessions)
-        .expect("repo");
+    let pool = test_db_pool().await;
+    let repositories =
+        systemprompt_test_fixtures::fixture_analytics_repositories(&pool).expect("repo");
+    let signals = &repositories.session_signals;
 
-    let total = repo.get_total_content_pages().await.expect("total");
+    let total = signals.get_total_content_pages().await.expect("total");
     assert!(total >= 0);
 }

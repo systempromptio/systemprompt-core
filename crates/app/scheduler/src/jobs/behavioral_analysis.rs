@@ -49,20 +49,13 @@ impl Job for BehavioralAnalysisJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let db_pool = std::sync::Arc::clone(
-            ctx.db_pool::<DbPool>()
-                .ok_or_else(|| SchedulerError::missing_context("DbPool"))?,
-        );
+        let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
 
         let fingerprint_repo = FingerprintRepository::new(
             &db_pool,
-            std::sync::Arc::new(
-                systemprompt_users::SessionRepository::new(&db_pool)
-                    .map_err(SchedulerError::from)?,
-            ),
-        )
-        .map_err(SchedulerError::from)?;
-        let banned_ip_repo = BannedIpRepository::new(&db_pool).map_err(SchedulerError::from)?;
+            std::sync::Arc::new(systemprompt_users::SessionRepository::new(&db_pool)),
+        );
+        let banned_ip_repo = BannedIpRepository::new(&db_pool);
 
         info!("Starting behavioral analysis job");
 
@@ -186,7 +179,7 @@ fn log_flag_result(
     fingerprint: &str,
     reasons: &[FlagReason],
     new_score: i32,
-    result: &systemprompt_analytics::AnalyticsResult<()>,
+    result: &systemprompt_analytics::Result<()>,
 ) -> bool {
     match result {
         Ok(()) => {

@@ -12,15 +12,17 @@ use axum::response::IntoResponse;
 use systemprompt_api::routes::content::{
     get_content_handler, get_content_markdown_handler, list_content_by_source_handler,
 };
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
+use systemprompt_test_fixtures::{
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
+};
 
 async fn dead_context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    fixture_app_context(&pool, &boot.database_url).expect("fixture context over a closed pool")
+    test_app_context(&pool, &boot.database_url)
 }
 
 fn req_ctx() -> RequestContext {
@@ -29,6 +31,7 @@ fn req_ctx() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("content").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -57,7 +60,8 @@ async fn fetching_one_document_reports_a_repository_failure_as_a_server_error() 
         None,
         Path(("blog".to_owned(), "anything".to_owned())),
     )
-    .await;
+    .await
+    .into_response();
 
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
@@ -80,10 +84,8 @@ async fn fetching_markdown_reports_a_repository_failure_as_a_server_error() {
 #[tokio::test]
 async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document() {
     let boot = ensure_test_bootstrap();
-    let pool = systemprompt_test_fixtures::fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database");
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &boot.database_url);
 
     let slug = format!("no-such-slug-{}", uuid::Uuid::new_v4().simple());
     let json = get_content_handler(
@@ -92,7 +94,8 @@ async fn a_slug_that_does_not_exist_is_a_not_found_rather_than_an_empty_document
         None,
         Path(("blog".to_owned(), slug.clone())),
     )
-    .await;
+    .await
+    .into_response();
     assert_eq!(json.status(), StatusCode::NOT_FOUND);
 
     let markdown = get_content_markdown_handler(

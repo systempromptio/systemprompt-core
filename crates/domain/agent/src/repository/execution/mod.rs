@@ -26,14 +26,10 @@ pub struct ExecutionStepRepository {
 }
 
 impl ExecutionStepRepository {
-    pub fn new(db: &DbPool) -> Result<Self, crate::error::AgentError> {
-        let pool = db
-            .pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        let write_pool = db
-            .write_pool_arc()
-            .map_err(|e| crate::error::AgentError::Init(e.to_string()))?;
-        Ok(Self { pool, write_pool })
+    pub fn new(db: &DbPool) -> Self {
+        let pool = db.pool();
+        let write_pool = db.write_pool();
+        Self { pool, write_pool }
     }
 
     pub async fn get(&self, step_id: &StepId) -> Result<Option<ExecutionStep>, RepositoryError> {
@@ -45,10 +41,7 @@ impl ExecutionStepRepository {
             step_id_str
         )
         .fetch_optional(&*self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!("Failed to get execution step: {step_id}: {e}"))
-        })?;
+        .await?;
         row.map(|r| {
             parse_step(ParseStepParams {
                 step_id: r.step_id,
@@ -75,12 +68,7 @@ impl ExecutionStepRepository {
             task_id.as_str()
         )
         .fetch_all(&*self.pool)
-        .await
-        .map_err(|e| {
-            RepositoryError::Internal(format!(
-                "Failed to list execution steps for task: {task_id}: {e}"
-            ))
-        })?;
+        .await?;
         rows.into_iter()
             .map(|r| {
                 parse_step(ParseStepParams {

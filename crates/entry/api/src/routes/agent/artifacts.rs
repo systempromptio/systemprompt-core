@@ -13,12 +13,14 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
 
-use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ArtifactId, TaskId};
+use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
 use systemprompt_mcp::services::ui_renderer::registry::{
     create_default_registry, resolve_artifact_type,
 };
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 use crate::error::ApiHttpError;
@@ -35,8 +37,7 @@ pub async fn list_artifacts_by_context(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(context_id = %context_id, "Listing artifacts by context");
 
-    let context_id_typed = ContextId::try_new(&context_id)
-        .map_err(|e| ApiHttpError::bad_request(format!("invalid context id: {e}")))?;
+    let context_id_typed = super::parse_context_id(&context_id)?;
 
     let context_repo = app_context.a2a_repositories().contexts.clone();
     context_repo
@@ -63,7 +64,7 @@ pub async fn list_artifacts_by_task(
 ) -> Result<impl IntoResponse, ApiHttpError> {
     tracing::debug!(task_id = %task_id, "Listing artifacts by task");
 
-    let task_id_typed = TaskId::new(&task_id);
+    let task_id_typed = TaskId::try_new(&task_id).map_err(ApiError::from)?;
 
     let task_repo = app_context.a2a_repositories().tasks.clone();
     task_repo
@@ -90,13 +91,13 @@ pub async fn get_artifact(
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
-    let artifact_id_typed = ArtifactId::new(&artifact_id);
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
     artifact_repo
         .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())
         .await?;
 
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id_typed)
+        .find_artifact_by_id(&artifact_id_typed)
         .await?
         .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
 
@@ -109,15 +110,15 @@ pub async fn list_artifacts_by_user(
     State(app_context): State<AppContext>,
     Query(params): Query<ArtifactQueryParams>,
 ) -> Result<impl IntoResponse, ApiHttpError> {
-    let user_id = req_ctx.auth.actor.user_id.as_str();
+    let user_id = req_ctx.user_id();
 
     tracing::debug!(user_id = %user_id, "Listing artifacts by user");
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
 
-    let user_id_typed = UserId::new(user_id);
+    let limit = params.limit.map(|l| i32::try_from(l).unwrap_or(i32::MAX));
     let artifacts = artifact_repo
-        .get_artifacts_by_user_id(&user_id_typed, params.limit.map(|l| l as i32))
+        .get_artifacts_by_user_id(user_id, limit)
         .await?;
 
     tracing::debug!(
@@ -136,14 +137,14 @@ pub async fn get_artifact_ui(
     tracing::debug!(artifact_id = %artifact_id, "Rendering artifact as MCP App UI");
 
     let artifact_repo = app_context.a2a_repositories().artifacts.clone();
-    let artifact_id_typed = ArtifactId::new(&artifact_id);
+    let artifact_id_typed = ArtifactId::try_new(&artifact_id).map_err(ApiError::from)?;
 
     artifact_repo
         .validate_artifact_ownership(&artifact_id_typed, req_ctx.user_id())
         .await?;
 
     let artifact = artifact_repo
-        .get_artifact_by_id(&artifact_id_typed)
+        .find_artifact_by_id(&artifact_id_typed)
         .await?
         .ok_or_else(|| ApiHttpError::not_found(format!("Artifact '{artifact_id}' not found")))?;
 
@@ -159,7 +160,7 @@ pub async fn get_artifact_ui(
 
     let ui_resource: systemprompt_mcp::services::ui_renderer::UiResource = registry
         .render(&artifact)
-        .map_err(|e| ApiHttpError::internal_error(format!("Failed to render artifact UI: {e}")))?;
+        .map_err(ArtifactUiError::Render)?;
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
@@ -172,5 +173,23 @@ pub async fn get_artifact_ui(
         )
         .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
         .body(axum::body::Body::from(ui_resource.html))
-        .map_err(|e| ApiHttpError::internal_error(format!("Failed to build response: {e}")))
+        .map_err(|e| ArtifactUiError::Response(e).into())
+}
+
+#[derive(Debug, thiserror::Error)]
+enum ArtifactUiError {
+    #[error("failed to render artifact UI")]
+    Render(#[source] McpDomainError),
+    #[error("failed to build artifact UI response")]
+    Response(#[source] http::Error),
+}
+
+impl From<ArtifactUiError> for ApiHttpError {
+    fn from(err: ArtifactUiError) -> Self {
+        let context = match &err {
+            ArtifactUiError::Render(_) => "Failed to render artifact UI",
+            ArtifactUiError::Response(_) => "Failed to build response",
+        };
+        ApiError::internal(context, err).into()
+    }
 }

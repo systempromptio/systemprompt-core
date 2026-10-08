@@ -41,7 +41,7 @@ fn file_storage_error_variants_display_useful_messages() {
     assert!(format!("{e}").contains("foo"));
     let e = FileStorageError::Validation("size".to_owned());
     assert!(format!("{e}").contains("size"));
-    let e = FileStorageError::Backend("network".to_owned());
+    let e = FileStorageError::Backend("network".into());
     assert!(format!("{e}").contains("network"));
 }
 

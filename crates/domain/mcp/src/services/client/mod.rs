@@ -21,7 +21,7 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_models::ai::tools::McpTool;
 
 mod bounded_sse;
@@ -58,7 +58,7 @@ impl McpClient {
         context: &systemprompt_models::RequestContext,
     ) -> McpDomainResult<Vec<McpTool>> {
         let service_id = McpServerId::try_new(server_config.name.as_str()).map_err(|e| {
-            crate::McpDomainError::Configuration(format!("invalid MCP server name: {e}"))
+            crate::McpDomainError::invalid_configuration("invalid MCP server name", e)
         })?;
         let transport = build_transport(server_config, context, false).await?;
 
@@ -76,18 +76,20 @@ impl McpClient {
         let mut tools = Vec::new();
         for tool in all_tools {
             let input_schema = serde_json::to_value(tool.input_schema).map_err(|e| {
-                crate::error::McpDomainError::Internal(format!("{}: {e}", {
-                    format!("Failed to serialize input schema for tool '{}'", tool.name)
-                }))
+                crate::error::McpDomainError::operation(
+                    format!("Failed to serialize input schema for tool '{}'", tool.name),
+                    e,
+                )
             })?;
 
             let output_schema = tool
                 .output_schema
                 .map(|schema| {
                     serde_json::to_value(schema.as_ref()).map_err(|e| {
-                        crate::error::McpDomainError::Internal(format!("{}: {e}", {
-                            format!("Failed to serialize output schema for tool '{}'", tool.name)
-                        }))
+                        crate::error::McpDomainError::operation(
+                            format!("Failed to serialize output schema for tool '{}'", tool.name),
+                            e,
+                        )
                     })
                 })
                 .transpose()?;
@@ -114,6 +116,8 @@ impl McpClient {
         Ok(tools)
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub async fn call_tool(
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
@@ -123,6 +127,8 @@ impl McpClient {
         Self::call_tool_with_elicitation(server_config, name, arguments, context, None).await
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub async fn call_tool_with_elicitation(
         server_config: &systemprompt_models::mcp::McpServerConfig,
         name: String,
@@ -136,10 +142,10 @@ impl McpClient {
     }
 }
 
-fn transport_unavailable(server: &str, error: &McpTransportError) -> crate::McpDomainError {
+fn transport_unavailable(server: &str, error: McpTransportError) -> crate::McpDomainError {
     crate::McpDomainError::ConnectionFailed {
         server: server.to_owned(),
-        message: error.to_string(),
+        source: Box::new(error),
     }
 }
 
@@ -167,16 +173,15 @@ async fn build_transport(
             &server_config.name,
         )?;
         HttpClientWithContext::external(context.clone(), outbound)
-            .map_err(|e| transport_unavailable(&server_config.name, &e))?
+            .map_err(|e| transport_unavailable(&server_config.name, e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     } else {
         if server_config.oauth.required {
-            let user_token = context.auth_token();
-            if user_token.as_str().is_empty() {
+            let Some(user_token) = context.auth_token() else {
                 return Err(crate::error::McpDomainError::AuthRequired(
                     "User JWT required for authenticated MCP calls".to_owned(),
                 ));
-            }
+            };
             // Why: rmcp passes `auth_header` to `bearer_auth`, which adds the Bearer
             // prefix.
             transport_config = transport_config.auth_header(user_token.as_str().to_owned());
@@ -184,7 +189,7 @@ async fn build_transport(
         let outbound =
             external_auth::static_outbound_headers(&server_config.headers, &server_config.name)?;
         HttpClientWithContext::forwarding(context.clone(), outbound)
-            .map_err(|e| transport_unavailable(&server_config.name, &e))?
+            .map_err(|e| transport_unavailable(&server_config.name, e))?
             .with_client_capabilities(capabilities::client_capabilities(with_elicitation))
     };
 

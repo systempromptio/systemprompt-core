@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, InstanceId};
+use systemprompt_identifiers::{Actor, InstanceId, JobName};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobResult};
 use tracing::{debug, error, trace, warn};
@@ -34,7 +34,7 @@ use crate::repository::SchedulerRepository;
 pub(super) use super::claim::{ClaimPolicy, claim_policy};
 
 pub(super) struct JobDispatch {
-    pub(super) job_name: String,
+    pub(super) job_name: JobName,
     pub(super) actor: Actor,
     pub(super) db_pool: DbPool,
     pub(super) repository: SchedulerRepository,
@@ -57,7 +57,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
         enforce,
         parameters,
     } = dispatch;
-    let instance_id = InstanceId::new(&app_context.config().instance_id);
+    let instance_id = app_context.config().instance_id.clone();
 
     {
         let mut guard = running_jobs.lock().await;
@@ -70,7 +70,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
 
     let claim = match claim_policy {
         ClaimPolicy::None => Claim::Free,
-        ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &db_pool, &repository).await,
+        ClaimPolicy::Cluster => acquire_cluster_claim(&job_name, &repository).await,
         ClaimPolicy::Node { instance_id } => {
             acquire_node_claim(&job_name, &instance_id, &repository).await
         },
@@ -102,7 +102,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     }
 }
 
-fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
+fn find_job(job_name: &JobName) -> Option<&'static dyn JobTrait> {
     inventory::iter::<&'static dyn JobTrait>
         .into_iter()
         .find(|&j| j.name() == job_name)
@@ -110,7 +110,7 @@ fn find_job(job_name: &str) -> Option<&'static dyn JobTrait> {
 }
 
 async fn find_and_execute_job(
-    job_name: &str,
+    job_name: &JobName,
     ctx: &systemprompt_traits::JobContext,
 ) -> SchedulerResult<JobResult> {
     use futures::FutureExt;
@@ -118,13 +118,11 @@ async fn find_and_execute_job(
 
     let job = find_job(job_name).ok_or_else(|| {
         error!(job_name = %job_name, "Job not found in inventory");
-        SchedulerError::job_not_found(job_name)
+        SchedulerError::job_not_found(job_name.clone())
     })?;
 
     match AssertUnwindSafe(job.execute(ctx)).catch_unwind().await {
-        Ok(result) => {
-            result.map_err(|e| SchedulerError::job_execution_failed(job_name, e.to_string()))
-        },
+        Ok(result) => result.map_err(|e| SchedulerError::job_execution_failed(job_name.clone(), e)),
         Err(payload) => {
             let msg = payload
                 .downcast_ref::<&'static str>()
@@ -138,7 +136,7 @@ async fn find_and_execute_job(
 }
 
 async fn handle_job_result(
-    job_name: &str,
+    job_name: &JobName,
     result: SchedulerResult<JobResult>,
     repository: &SchedulerRepository,
     instance_id: &InstanceId,
@@ -169,7 +167,7 @@ async fn handle_job_result(
 }
 
 async fn record_success(
-    job_name: &str,
+    job_name: &JobName,
     job_result: &JobResult,
     repository: &SchedulerRepository,
     instance_id: &InstanceId,
@@ -198,7 +196,7 @@ async fn record_success(
 }
 
 async fn record_failure(
-    job_name: &str,
+    job_name: &JobName,
     message: Option<&str>,
     repository: &SchedulerRepository,
     instance_id: &InstanceId,

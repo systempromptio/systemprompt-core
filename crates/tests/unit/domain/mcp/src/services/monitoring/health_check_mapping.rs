@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use systemprompt_identifiers::ServiceName;
 
 use systemprompt_mcp::McpServerConfig;
 use systemprompt_mcp::services::client::McpConnectionResult;
@@ -54,7 +55,7 @@ fn conn_result(
     tools_count: Option<usize>,
 ) -> McpConnectionResult {
     McpConnectionResult {
-        service_name: "svc".to_string(),
+        service_name: ServiceName::new("svc"),
         success,
         error_message: error_message.map(String::from),
         connection_time_ms,
@@ -159,7 +160,7 @@ fn server_version_extracted_from_server_info() {
     use systemprompt_mcp::services::client::McpProtocolInfo;
     let mut result = conn_result(true, 10, "success", None, Some(3));
     result.server_info = Some(McpProtocolInfo {
-        server_name: "svc".to_string(),
+        implementation_name: "svc".to_string(),
         version: "9.9.9".to_string(),
         protocol_version: "2024".to_string(),
     });

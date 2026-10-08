@@ -10,18 +10,18 @@ use axum::extract::{Extension, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use systemprompt_api::routes::admin::services::{RefreshLock, RefreshQuery, refresh};
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_loader::services_root::{
     ActiveServicesRoot, ServicesProvenance, ServicesRootBootstrap,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, fixture_app_context};
+use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
 async fn context() -> std::sync::Arc<AppContext> {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    fixture_app_context(&pool, &boot.database_url).expect("fixture context")
+    test_app_context(&pool, &boot.database_url)
 }
 
 fn req_ctx() -> RequestContext {
@@ -30,6 +30,7 @@ fn req_ctx() -> RequestContext {
         TraceId::generate(),
         ContextId::generate(),
         AgentName::try_new("admin").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 

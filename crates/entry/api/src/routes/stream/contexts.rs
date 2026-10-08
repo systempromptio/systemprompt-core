@@ -13,9 +13,12 @@ use super::{StreamState, StreamWithGuard};
 use systemprompt_events::{
     Broadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ToSse, standard_keep_alive,
 };
+use systemprompt_models::api::ApiError;
 use systemprompt_models::events::ContextSummary;
 use systemprompt_models::{ContextEvent, RequestContext, SystemEventBuilder};
 use systemprompt_traits::ContextProvider;
+
+use crate::error::ApiHttpError;
 
 pub async fn stream_context_state(
     Extension(request_context): Extension<RequestContext>,
@@ -35,7 +38,10 @@ pub async fn stream_context_state(
         .await
     {
         tracing::warn!(user_id = %user_id_str, conn_id = %conn_id_str, "SSE stream rejected: per-user connection cap reached");
-        return http::StatusCode::TOO_MANY_REQUESTS.into_response();
+        return ApiHttpError::from(ApiError::rate_limited(
+            "Per-user stream connection limit reached",
+        ))
+        .into_response();
     }
 
     match state

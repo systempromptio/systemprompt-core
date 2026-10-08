@@ -6,12 +6,18 @@ use opentelemetry_proto::tonic::common::v1::any_value::Value;
 use opentelemetry_proto::tonic::trace::v1::Span;
 use prost::Message;
 use std::sync::{Arc, Mutex};
-use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
-use systemprompt_models::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
+use systemprompt_identifiers::{
+    AiRequestId, AiToolCallId, ContextId, InstanceId, McpExecutionId, McpServerId, McpToolName,
+    PluginId, ProviderRequestId, SessionId, TraceId, UserId,
+};
+use systemprompt_manifest::profile::{OtlpExportConfig, OtlpProtocol, OtlpSignal};
 use systemprompt_scheduler::jobs::otlp_export::{
-    GOVERNANCE_SPAN, GovernanceRow, LedgerRow, LogRow, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS,
-    RequestRow, TOOL_SPAN, TraceBatch, Watermark, is_retryable, pacing_elapsed, severity_number,
-    span_id_bytes, to_log_record, to_spans, trace_id_bytes, unix_nanos,
+    GOVERNANCE_SPAN, OtlpExportJob, REQUEST_SPAN, RETRY_DELAYS, TOOL_SPAN, TraceBatch,
+    is_retryable, pacing_elapsed, severity_number, span_id_bytes, to_log_record, to_spans,
+    trace_id_bytes, unix_nanos,
+};
+use systemprompt_scheduler::repository::otlp::{
+    GovernanceRow, LedgerRow, LogRow, RequestRow, Watermark,
 };
 use systemprompt_test_fixtures::DisposableDb;
 use systemprompt_traits::Job;
@@ -66,8 +72,8 @@ fn at(secs: i64) -> DateTime<Utc> {
 
 fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
     RequestRow {
-        id: id.to_owned(),
-        request_id: format!("req-{id}"),
+        id: AiRequestId::new(id),
+        request_id: AiRequestId::new(format!("req-{id}")),
         user_id: UserId::new("user-1"),
         session_id: Some(SessionId::new("sess-1")),
         context_id: ContextId::try_new("3f2a1c4e-8b7d-4c2a-9e1f-0a1b2c3d4e5f").expect("v4"),
@@ -92,7 +98,9 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
         request_kind: "turn".to_owned(),
         actor_kind: "user".to_owned(),
         actor_id: "user-1".to_owned(),
-        instance_id: Some("node-a".to_owned()),
+        instance_id: Some(InstanceId::new("node-a")),
+        api_key_id: None,
+        attributions: Vec::new(),
         created_at: at(0),
         completed_at: at(1),
     }
@@ -100,11 +108,11 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
 
 fn ledger(request_id: &str, call_id: &str, failed: bool) -> LedgerRow {
     LedgerRow {
-        ai_tool_call_id: Some(call_id.to_owned()),
-        request_id: Some(request_id.to_owned()),
-        mcp_execution_id: Some(format!("exec-{call_id}")),
-        tool_name: Some("read_file".to_owned()),
-        server_name: Some("fs".to_owned()),
+        ai_tool_call_id: Some(AiToolCallId::new(call_id)),
+        request_id: Some(AiRequestId::new(request_id)),
+        mcp_execution_id: Some(McpExecutionId::new(format!("exec-{call_id}"))),
+        tool_name: Some(McpToolName::new("read_file")),
+        server_name: Some(McpServerId::new("fs")),
         intended_at: Some(at(0)),
         executed_at: Some(at(0)),
         completed_at: None,
@@ -129,7 +137,7 @@ fn decision(id: &str, trace_id: &str, verdict: &str) -> GovernanceRow {
         decision: verdict.to_owned(),
         policy: "scope".to_owned(),
         reason: "out of scope".to_owned(),
-        plugin_id: Some("astound-commons".to_owned()),
+        plugin_id: Some(PluginId::new("astound-commons")),
         actor_kind: "user".to_owned(),
         actor_id: "user-1".to_owned(),
         tool_use_id: Some("call-1".to_owned()),
@@ -273,9 +281,9 @@ async fn seed_trace_request(pool: &sqlx::PgPool, id: &str, trace: &str) {
 
 #[tokio::test]
 async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_protobuf_batch() {
-    let db = DisposableDb::installed("otlp_export_traces").await.unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_export_traces").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     seed_trace_request(raw.as_ref(), "otlp-trace-row", "trace-otlp-correlation").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -313,9 +321,9 @@ async fn traces_export_keeps_request_and_governance_decision_correlated_in_one_p
 
 #[tokio::test]
 async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_watermark() {
-    let db = DisposableDb::installed("otlp_export_ack").await.unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_export_ack").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-ack").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -328,7 +336,7 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
     let report = systemprompt_scheduler::otlp_export_now(
         &raw,
         &export_config(collector.uri()),
-        Some("scheduler-test"),
+        Some(&InstanceId::new("scheduler-test")),
     )
     .await
     .unwrap();
@@ -366,9 +374,9 @@ async fn export_now_posts_a_decodable_log_batch_and_advances_the_durable_waterma
 
 #[tokio::test]
 async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_batch() {
-    let db = DisposableDb::installed("otlp_export_retry").await.unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_export_retry").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-retry").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -417,6 +425,58 @@ async fn rejected_collector_keeps_the_cursor_then_a_retry_ships_the_identical_ba
 }
 
 #[tokio::test]
+async fn malformed_log_row_is_skipped_and_counted_while_the_rest_of_the_batch_ships() {
+    let db = DisposableDb::with_schema("otlp_export_skip_malformed").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
+    seed_log(raw.as_ref(), "otlp-log-z-good").await;
+    sqlx::query(
+        "INSERT INTO logs (id, timestamp, level, module, message, provider_request_id) \
+         VALUES ($1, NOW() - INTERVAL '10 seconds', 'INFO', 'otlp-test', 'corrupt id', '')",
+    )
+    .bind("otlp-log-a-bad")
+    .execute(raw.as_ref())
+    .await
+    .unwrap();
+    let collector = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/logs"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&collector)
+        .await;
+
+    let report =
+        systemprompt_scheduler::otlp_export_now(&raw, &export_config(collector.uri()), None)
+            .await
+            .unwrap();
+    assert!(report.signals[0].error.is_none());
+    assert_eq!(report.signals[0].rows, 1);
+    assert_eq!(report.signals[0].skipped, 1);
+    let requests = collector.received_requests().await.unwrap();
+    let decoded =
+        opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest::decode(
+            requests[0].body.as_slice(),
+        )
+        .unwrap();
+    assert_eq!(decoded.resource_logs[0].scope_logs[0].log_records.len(), 1);
+    let state = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone())
+        .get_or_start(OtlpSignal::Logs)
+        .await
+        .unwrap();
+    assert_eq!(state.failures_total, 0);
+    assert!(
+        state.watermark_id == "otlp-log-z-good" || state.watermark_id == "otlp-log-a-bad",
+        "the cursor moves past the skipped row"
+    );
+    assert_ne!(state.watermark_id, "");
+    raw.close().await;
+    drop(raw);
+    drop(pool);
+    db.drop_now().await;
+}
+
+#[tokio::test]
 async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch() {
     let diagnostics = DiagnosticWriter::default();
     let subscriber = tracing_subscriber::registry().with(
@@ -426,11 +486,9 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
             .with_writer(diagnostics.clone()),
     );
     let _subscriber = tracing::subscriber::set_default(subscriber);
-    let db = DisposableDb::installed("otlp_invalid_header")
-        .await
-        .unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_invalid_header").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-invalid-header").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -454,7 +512,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
         failed.signals[0]
             .error
             .as_deref()
-            .is_some_and(|message| message.contains("invalid header invalid header name"))
+            .is_some_and(|message| message.contains("invalid header name invalid header name"))
     );
     assert!(collector.received_requests().await.unwrap().is_empty());
     let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
@@ -470,7 +528,7 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
     assert!(
         failed_event["fields"]["error"]
             .as_str()
-            .is_some_and(|error| error.contains("invalid header invalid header name"))
+            .is_some_and(|error| error.contains("invalid header name invalid header name"))
     );
     assert!(!failed_event.to_string().contains("credential-sentinel"));
 
@@ -504,9 +562,9 @@ async fn invalid_header_keeps_the_cursor_then_repaired_config_delivers_the_batch
 
 #[tokio::test]
 async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
-    let db = DisposableDb::installed("otlp_export_503").await.unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_export_503").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     seed_log(raw.as_ref(), "otlp-log-503").await;
     let collector = MockServer::start().await;
     Mock::given(method("POST"))
@@ -549,9 +607,9 @@ async fn a_retryable_503_retries_the_same_protobuf_payload_before_advancing() {
 
 #[tokio::test]
 async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_collector() {
-    let db = DisposableDb::installed("otlp_export_empty").await.unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().unwrap();
+    let db = DisposableDb::with_schema("otlp_export_empty").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     let collector = MockServer::start().await;
 
     let report =
@@ -570,6 +628,58 @@ async fn an_empty_signal_marks_the_cursor_caught_up_without_posting_to_the_colle
     drop(raw);
     drop(pool);
     db.drop_now().await;
+}
+
+#[test]
+fn request_span_carries_scope_attribution_and_api_key() {
+    use systemprompt_models::attribution::{AttributionEntry, AttributionSource};
+    let mut row = request("r-scope", Some("trace-scope"), "completed");
+    row.api_key_id = Some(systemprompt_identifiers::ApiKeyId::new("key-42"));
+    row.attributions = vec![
+        AttributionEntry {
+            dimension: systemprompt_identifiers::ScopeDimension::try_new("cost_centre")
+                .expect("dimension"),
+            value: "cc-900".to_owned(),
+            source: AttributionSource::ApiKey,
+        },
+        AttributionEntry {
+            dimension: systemprompt_identifiers::ScopeDimension::try_new("project")
+                .expect("dimension"),
+            value: "apollo".to_owned(),
+            source: AttributionSource::Header,
+        },
+    ];
+    let spans = to_spans(&TraceBatch {
+        requests: vec![row],
+        ..TraceBatch::default()
+    });
+    let root = &spans[0];
+    assert_eq!(attr(root, "systemprompt.api_key.id"), Some("key-42"));
+    assert_eq!(attr(root, "systemprompt.scope.project"), Some("apollo"));
+    assert_eq!(
+        attr(root, "systemprompt.scope.project.source"),
+        Some("header")
+    );
+    assert_eq!(attr(root, "systemprompt.scope.cost_centre"), Some("cc-900"));
+    assert_eq!(
+        attr(root, "systemprompt.scope.cost_centre.source"),
+        Some("api_key")
+    );
+}
+
+#[test]
+fn an_unattributed_request_span_has_no_scope_attributes() {
+    let spans = to_spans(&TraceBatch {
+        requests: vec![request("r-bare", None, "completed")],
+        ..TraceBatch::default()
+    });
+    assert!(
+        !spans[0]
+            .attributes
+            .iter()
+            .any(|kv| kv.key.starts_with("systemprompt.scope.")
+                || kv.key == "systemprompt.api_key.id")
+    );
 }
 
 #[test]
@@ -690,8 +800,10 @@ fn log_records_carry_level_body_and_trace_correlation() {
         trace_id: Some(TraceId::new("trace-1")),
         context_id: None,
         client_id: None,
-        instance_id: Some("node-a".to_owned()),
-        provider_request_id: Some("r1".to_owned()),
+        instance_id: Some(InstanceId::new("node-a")),
+        provider_request_id: Some(
+            ProviderRequestId::try_new("r1").expect("valid provider request id"),
+        ),
         gateway_conversation_id: None,
     };
     let record = to_log_record(&row);
@@ -731,11 +843,9 @@ fn retry_policy_backs_off_and_only_retries_transient_failures() {
 
 #[tokio::test]
 async fn state_inventory_reports_each_signal_failure_and_acknowledged_progress() {
-    let db = DisposableDb::installed("otlp_state_inventory")
-        .await
-        .unwrap();
-    let pool = db.pool().await.unwrap();
-    let raw = pool.pool_arc().expect("raw pool");
+    let db = DisposableDb::with_schema("otlp_state_inventory").await;
+    let pool = db.test_pool().await;
+    let raw = pool.pool();
     let repository = systemprompt_scheduler::OtlpExportStateRepository::new(raw.as_ref().clone());
 
     repository

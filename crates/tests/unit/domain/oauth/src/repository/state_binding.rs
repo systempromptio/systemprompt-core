@@ -3,23 +3,23 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_oauth::repository::{OAuthRepository, OauthCleanupRepository, StateBindingParams};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 
-async fn repo_or_skip() -> Option<OAuthRepository> {
-    let url = fixture_database_url().ok()?;
+async fn repo() -> OAuthRepository {
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    Some(OAuthRepository::new(&pool).expect("repo"))
+    let pool = test_db_pool().await;
+    OAuthRepository::new(&pool)
 }
 
 #[test]
 fn builder_applies_defaults() {
-    let params = StateBindingParams::builder("tok").build();
+    let client_id = ClientId::new("client-x");
+    let params = StateBindingParams::builder("tok", &client_id, "https://app.invalid/cb").build();
     assert_eq!(params.return_to, "/");
-    assert_eq!(params.client_id.as_str(), "");
-    assert_eq!(params.redirect_uri, "");
+    assert_eq!(params.client_id.as_str(), "client-x");
+    assert_eq!(params.redirect_uri, "https://app.invalid/cb");
     assert!(params.expires_at > Utc::now());
 }
 
@@ -27,10 +27,8 @@ fn builder_applies_defaults() {
 fn builder_overrides_fields() {
     let exp = Utc::now() + Duration::minutes(5);
     let client_id = ClientId::new("client-x");
-    let params = StateBindingParams::builder("tok")
+    let params = StateBindingParams::builder("tok", &client_id, "https://app.invalid/cb")
         .with_return_to("/dashboard")
-        .with_client_id(&client_id)
-        .with_redirect_uri("https://app.invalid/cb")
         .with_expires_at(exp)
         .build();
     assert_eq!(params.return_to, "/dashboard");
@@ -41,16 +39,12 @@ fn builder_overrides_fields() {
 
 #[tokio::test]
 async fn store_then_consume_once() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
     let client_id = ClientId::new("cid-x");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_return_to("/back")
-            .with_client_id(&client_id)
-            .with_redirect_uri("https://app.invalid/cb")
             .build(),
     )
     .await
@@ -76,9 +70,7 @@ async fn store_then_consume_once() {
 
 #[tokio::test]
 async fn consume_unknown_returns_none() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     assert!(
         repo.consume_state_binding(&format!("nope-{}", Uuid::new_v4()))
             .await
@@ -89,12 +81,11 @@ async fn consume_unknown_returns_none() {
 
 #[tokio::test]
 async fn expired_binding_cannot_be_consumed() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    let repo = repo().await;
     let token = format!("state-{}", Uuid::new_v4());
+    let client_id = ClientId::new("cid-expired");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_expires_at(Utc::now() - Duration::minutes(1))
             .build(),
     )
@@ -110,19 +101,20 @@ async fn expired_binding_cannot_be_consumed() {
 
 #[tokio::test]
 async fn cleanup_expired_state_bindings_removes_past() {
-    let Some(repo) = repo_or_skip().await else {
-        return;
-    };
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = OAuthRepository::new(&pool);
     let token = format!("state-{}", Uuid::new_v4());
+    let client_id = ClientId::new("cid-expired");
     repo.store_state_binding(
-        StateBindingParams::builder(&token)
+        StateBindingParams::builder(&token, &client_id, "https://app.invalid/cb")
             .with_expires_at(Utc::now() - Duration::hours(1))
             .build(),
     )
     .await
     .expect("store");
-    let removed = repo
-        .cleanup_expired_state_bindings()
+    let removed = OauthCleanupRepository::new(&pool)
+        .delete_expired_state_bindings()
         .await
         .expect("cleanup");
     assert!(removed >= 1);

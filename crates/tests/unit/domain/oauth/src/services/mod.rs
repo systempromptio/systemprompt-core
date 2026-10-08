@@ -1,5 +1,6 @@
 //! Tests for OAuth services
 
+mod authenticated_user;
 mod bridge;
 mod cimd;
 mod cimd_validator;

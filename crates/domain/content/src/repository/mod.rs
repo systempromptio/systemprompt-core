@@ -10,13 +10,14 @@
 
 pub mod content;
 pub mod link;
+mod ownership;
 pub mod search;
 
 pub use content::ContentRepository;
 pub use link::{LinkAnalyticsRepository, LinkRepository};
+pub use ownership::ContentOwnerReassignment;
 pub use search::SearchRepository;
 
-use crate::error::ContentError;
 use systemprompt_database::DbPool;
 
 #[derive(Debug, Clone)]
@@ -28,12 +29,12 @@ pub struct ContentRepositories {
 }
 
 impl ContentRepositories {
-    pub fn new(db: &DbPool) -> Result<Self, ContentError> {
-        Ok(Self {
-            content: ContentRepository::new(db)?,
-            search: SearchRepository::new(db)?,
-            link: LinkRepository::new(db)?,
-            link_analytics: LinkAnalyticsRepository::new(db)?,
-        })
+    pub fn new(db: &DbPool) -> Self {
+        Self {
+            content: ContentRepository::new(db),
+            search: SearchRepository::new(db),
+            link: LinkRepository::new(db),
+            link_analytics: LinkAnalyticsRepository::new(db),
+        }
     }
 }

@@ -14,6 +14,9 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::IntoResponse;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use systemprompt_models::api::ApiError;
+
+use crate::error::ApiHttpError;
 
 pub const CACHE_STATIC_ASSET: &str = "public, max-age=31536000, immutable";
 pub const CACHE_STATIC_ASSET_REVALIDATE: &str = "public, max-age=0, must-revalidate";
@@ -112,6 +115,6 @@ pub(super) async fn serve_cached_file(
             }
             serve_file_response(content, content_type.to_owned(), cache_control, etag)
         },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error reading file").into_response(),
+        Err(e) => ApiHttpError::from(ApiError::internal("Error reading file", e)).into_response(),
     }
 }

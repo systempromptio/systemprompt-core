@@ -1,44 +1,19 @@
-//! Exercises the full trait surface of every `bridge_define_id!` and
-//! `bridge_define_token!` type, not just the two representatives the
-//! focused suites use.
+//! Exercises the full trait surface of every identifier and secret token the
+//! bridge carries: the identifiers are the canonical checked types, the
+//! tokens the bridge-local redacting, zeroizing wrappers.
 
 use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
 
 use systemprompt_bridge::ids::{
-    BearerToken, CommsMessageId, HookSessionId, HostId, LoopbackSecret, McpSessionId, ModelId,
-    PatToken, PinnedPubKey, PrefsDomain, PrefsKey, PrefsValue, ProxySecret, QueryKey, QueryValue,
+    BearerToken, CommsMessageId, HookSessionId, LoopbackSecret, McpSessionId, PatToken,
+    PinnedPubKey, ProxySecret,
 };
 
-macro_rules! assert_plain_id_surface {
-    ($ty:ty, $sample:expr) => {{
-        let id = <$ty>::new($sample);
-        assert_eq!(id.as_str(), $sample);
-        assert_eq!(AsRef::<str>::as_ref(&id), $sample);
-        assert_eq!(format!("{id}"), $sample);
-        assert!(format!("{id:?}").contains($sample));
-
-        let json = serde_json::to_string(&id).expect("serialize");
-        assert_eq!(json, format!("\"{}\"", $sample));
-        let back: $ty = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(back, id);
-
-        let empty = <$ty>::new("");
-        assert_eq!(empty.as_str(), "");
-        assert!(empty < id);
-
-        let mut set = HashSet::new();
-        assert!(set.insert(id.clone()));
-        assert!(!set.insert(id.clone()));
-
-        assert_eq!(String::from(id.clone()), $sample.to_owned());
-        assert_eq!(id.into_inner(), $sample.to_owned());
-    }};
-}
-
-macro_rules! assert_validated_id_surface {
+macro_rules! assert_checked_id_surface {
     ($ty:ty, $sample:expr) => {{
         let id = <$ty>::try_new($sample).expect("non-empty is valid");
+        assert_eq!(id, <$ty>::new($sample));
         assert_eq!(id.as_str(), $sample);
         assert_eq!(AsRef::<str>::as_ref(&id), $sample);
         assert_eq!(format!("{id}"), $sample);
@@ -49,8 +24,7 @@ macro_rules! assert_validated_id_surface {
         assert_eq!(<$ty>::from_str($sample).expect("FromStr"), id);
 
         assert!(<$ty>::try_new("").is_err());
-        assert!(<$ty>::try_from("").is_err());
-        assert!(<$ty>::try_from(String::new()).is_err());
+        assert!(<$ty>::try_new("   ").is_err());
         assert!(<$ty>::from_str("").is_err());
         assert!(serde_json::from_str::<$ty>("\"\"").is_err());
 
@@ -63,42 +37,23 @@ macro_rules! assert_validated_id_surface {
         assert!(set.insert(id.clone()));
         assert!(!set.insert(id.clone()));
 
-        assert_eq!(String::from(id.clone()), $sample.to_owned());
-        assert_eq!(id.into_inner(), $sample.to_owned());
+        assert_eq!(String::from(id), $sample.to_owned());
     }};
 }
 
 #[test]
-fn every_plain_id_round_trips_through_its_whole_surface() {
-    assert_plain_id_surface!(HostId, "claude-code-cli");
-    assert_plain_id_surface!(McpSessionId, "mcp-session-7f31");
-    assert_plain_id_surface!(HookSessionId, "hook-session-a12");
-    assert_plain_id_surface!(CommsMessageId, "msg-0042");
-    assert_plain_id_surface!(PrefsValue, "dark");
-    assert_plain_id_surface!(QueryValue, "enabled");
+fn every_bridge_id_rejects_blank_and_round_trips_when_non_empty() {
+    assert_checked_id_surface!(McpSessionId, "mcp-session-7f31");
+    assert_checked_id_surface!(HookSessionId, "hook-session-a12");
+    assert_checked_id_surface!(CommsMessageId, "msg-0042");
 }
 
 #[test]
-fn every_validated_id_rejects_empty_and_round_trips_when_non_empty() {
-    assert_validated_id_surface!(PrefsDomain, "editor");
-    assert_validated_id_surface!(PrefsKey, "theme");
-    assert_validated_id_surface!(ModelId, "claude-opus-5");
-    assert_validated_id_surface!(QueryKey, "host");
-}
-
-#[test]
-fn a_validated_id_reports_its_own_type_name_when_rejecting_empty() {
-    let err = PrefsKey::try_new("").expect_err("empty is rejected");
-    let rendered = err.to_string();
+fn a_rejected_id_reports_its_own_type_name() {
+    let err = HookSessionId::try_new("").expect_err("empty is rejected");
     assert!(
-        rendered.contains("PrefsKey"),
-        "error should name the id type it came from, got {rendered}"
-    );
-
-    let other = ModelId::try_new("").expect_err("empty is rejected");
-    assert!(
-        other.to_string().contains("ModelId"),
-        "each id type reports itself, got {other}"
+        err.to_string().contains("HookSessionId"),
+        "error should name the id type it came from, got {err}"
     );
 }
 

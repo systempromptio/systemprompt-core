@@ -9,7 +9,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::profile::PathsConfig;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, ensure_test_bootstrap, fixture_app_context_with, install_test_signing_key,
 };
@@ -28,13 +28,11 @@ fn parse(args: &[&str]) -> CoreCommands {
 
 #[tokio::test]
 async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
-    let database = DisposableDb::installed("cli_content_mutation")
-        .await
-        .expect("private content database");
+    let database = DisposableDb::with_schema("cli_content_mutation").await;
     let boot = ensure_test_bootstrap();
     install_test_signing_key();
-    let pool = database.pool().await.expect("private content pool");
-    let repository = ContentRepository::new(&pool).expect("content repository");
+    let pool = database.test_pool().await;
+    let repository = ContentRepository::new(&pool);
     let source = SourceId::new("owned-source".to_owned());
     let target = repository
         .create(
@@ -102,7 +100,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     .await
     .expect("public edit command");
     let edited = repository
-        .get_by_id(&target.id)
+        .find_by_id(&target.id)
         .await
         .expect("read edited target")
         .expect("edited target remains");
@@ -165,13 +163,13 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     .expect("public delete command");
     assert!(
         repository
-            .get_by_id(&target.id)
+            .find_by_id(&target.id)
             .await
             .expect("read deleted target")
             .is_none()
     );
     let sibling_after = repository
-        .get_by_id(&sibling.id)
+        .find_by_id(&sibling.id)
         .await
         .expect("read sibling")
         .expect("sibling remains");
@@ -181,7 +179,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
     );
 
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

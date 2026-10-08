@@ -10,7 +10,11 @@
 //! trying to reach.
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::Path;
+
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess::{ChildKind, mark_child};
 
 use systemprompt_mcp::services::process::spawner::{
     SpawnEnvSpec, build_environment, rotate_log_if_needed, serialize_server_configs,
@@ -42,26 +46,36 @@ fn nothing_set(_: &str) -> Option<String> {
     None
 }
 
-// Why: this marker is the contract between spawning and reaping. The
-// reconciler's `service_row_is_stale` decides a row is ours by looking for
-// `SYSTEMPROMPT_SUBPROCESS=1` on the live process; if a spawn ever stopped
-// emitting it, every running MCP server would read as an unrelated process and
-// be reaped on the next pass.
+// Why: this marker is the contract between spawning and reaping. The stop
+// path proves a pid is ours by reading `SYSTEMPROMPT_SUBPROCESS=1` and
+// `MCP_SERVICE_ID=<name>` back from the live process. `spawn_server` stamps
+// them with `mark_child` after clearing the environment, so the pure
+// environment list must not carry a second, divergent copy.
 #[test]
-fn every_spawn_carries_the_marker_the_reaper_identifies_us_by() {
+fn the_marker_is_stamped_by_mark_child_not_the_environment_list() {
     let config = internal_mcp_config("marker-server", 9001);
     let env = build_environment(&spec_for(&config), &[], nothing_set);
     let map = env_map(&env);
+    assert!(!map.contains_key(SUBPROCESS_MARKER_ENV));
+    assert!(!map.contains_key(MCP_SERVICE_ID_ENV));
+
+    let mut command = std::process::Command::new("true");
+    mark_child(
+        &mut command,
+        ChildKind::Mcp,
+        &ServiceName::new("marker-server"),
+    );
+    let stamped: HashMap<&OsStr, Option<&OsStr>> = command.get_envs().collect();
 
     assert_eq!(
-        map.get(SUBPROCESS_MARKER_ENV).copied(),
-        Some("1"),
-        "without this the reconciler cannot tell our child from a stranger"
+        stamped.get(OsStr::new(SUBPROCESS_MARKER_ENV)).copied(),
+        Some(Some(OsStr::new("1"))),
+        "without this the stop path cannot tell our child from a stranger"
     );
     assert_eq!(
-        map.get(MCP_SERVICE_ID_ENV).copied(),
-        Some("marker-server"),
-        "the reaper matches the service by this name"
+        stamped.get(OsStr::new(MCP_SERVICE_ID_ENV)).copied(),
+        Some(Some(OsStr::new("marker-server"))),
+        "the stop path matches the service by this name"
     );
 }
 
@@ -378,7 +392,7 @@ fn an_unusable_logs_directory_is_reported_rather_than_ignored() {
 fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
     let root = root.to_string_lossy().into_owned();
     systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: root.clone(),
             services: root.clone(),
             bin: root.clone(),
@@ -386,7 +400,7 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
             storage: Some(root),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Lexical,
+        systemprompt_manifest::PathResolution::Lexical,
         None,
     )
     .expect("paths")

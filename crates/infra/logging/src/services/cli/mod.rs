@@ -18,7 +18,7 @@ pub mod table;
 pub mod theme;
 mod types;
 
-pub use display::{Display, DisplayUtils};
+pub use display::Display;
 pub use service::CliService;
 pub use startup::{
     render_phase_header, render_phase_info, render_phase_success, render_phase_warning,

@@ -95,9 +95,11 @@ impl RsaSigningKey {
 
     pub fn write_pem_file(&self, path: &Path) -> Result<(), KeyError> {
         let pem = self.to_pkcs8_pem()?;
-        fs::write(path, pem).map_err(|source| KeyError::Io {
-            path: path.display().to_string(),
-            source,
+        systemprompt_config::write_private_atomic(path, pem.as_bytes()).map_err(|source| {
+            KeyError::Io {
+                path: path.display().to_string(),
+                source,
+            }
         })
     }
 

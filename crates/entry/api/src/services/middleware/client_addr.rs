@@ -101,7 +101,7 @@ pub fn resolve_client_ip_from_config(
     headers: &HeaderMap,
     connect_info: Option<&ConnectInfo<SocketAddr>>,
 ) -> Option<IpAddr> {
-    let trusted = systemprompt_models::Config::get()
+    let trusted = systemprompt_manifest::Config::get()
         .map(|c| c.trusted_proxies.clone())
         .unwrap_or_default();
     resolve_client_ip(headers, connect_info, &trusted)

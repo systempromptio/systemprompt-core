@@ -11,7 +11,6 @@
 
 pub mod connection;
 pub mod conversion;
-mod ext;
 mod introspection;
 pub mod transaction;
 

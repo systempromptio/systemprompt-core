@@ -8,7 +8,7 @@ use rmcp::model::ClientJsonRpcMessage;
 use rmcp::transport::streamable_http_server::session::{SessionId, SessionManager};
 use rmcp::{ServerHandler, ServiceExt};
 use systemprompt_mcp::middleware::DatabaseSessionHandler;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[derive(Clone)]
 struct Quiet;
@@ -34,16 +34,10 @@ fn initialize_message() -> ClientJsonRpcMessage {
 
 #[tokio::test]
 async fn session_manager_drives_full_streamable_http_lifecycle() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let handler = DatabaseSessionHandler::new(std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("mcp session repository"),
+        systemprompt_mcp::repository::McpSessionRepository::new(&db),
     ));
     let (id, transport) = handler.create_session().await.expect("session created");
     let service = tokio::spawn(async move { Quiet.serve(transport).await });
@@ -131,17 +125,13 @@ async fn session_manager_drives_full_streamable_http_lifecycle() {
 
 #[tokio::test]
 async fn database_only_session_requires_reconnect_and_is_closed_durably() {
-    use systemprompt_mcp::middleware::session_handler::DatabaseSessionManagerError;
+    use systemprompt_mcp::middleware::session_handler::DatabaseSessionHandlerError;
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("mcp_session_reconnect")
-        .await
-        .expect("isolated MCP session database");
-    let db = database.pool().await.expect("isolated MCP session pool");
-    let repository = std::sync::Arc::new(
-        systemprompt_mcp::repository::McpSessionRepository::new(&db)
-            .expect("MCP session repository"),
-    );
+    let database = DisposableDb::with_schema("mcp_session_reconnect").await;
+    let db = database.test_pool().await;
+    let repository =
+        std::sync::Arc::new(systemprompt_mcp::repository::McpSessionRepository::new(&db));
     let original = DatabaseSessionHandler::new(std::sync::Arc::clone(&repository));
     let (id, transport) = original.create_session().await.expect("session created");
     drop(transport);
@@ -172,7 +162,7 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     };
     assert!(matches!(
         error,
-        DatabaseSessionManagerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
+        DatabaseSessionHandlerError::SessionNeedsReconnect(ref value) if value == id.as_ref()
     ));
     assert!(
         repository
@@ -185,7 +175,7 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     let status: String =
         sqlx::query_scalar("SELECT status FROM mcp_sessions WHERE session_id = $1")
             .bind(id.as_ref())
-            .fetch_one(db.pool_arc().expect("raw MCP pool").as_ref())
+            .fetch_one(db.pool().as_ref())
             .await
             .expect("durable session status");
     assert_eq!(status, "closed");
@@ -193,7 +183,7 @@ async fn database_only_session_requires_reconnect_and_is_closed_durably() {
     drop(restarted);
     drop(original);
     drop(repository);
-    db.write_pool_arc().expect("write pool").close().await;
+    db.write_pool().close().await;
     drop(db);
     database.drop_now().await;
 }

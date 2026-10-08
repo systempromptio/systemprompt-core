@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_models::ai::execution_plan::{
-    ExecutionState, PlannedToolCall, PlanningResult, TemplateRef, ToolCallResult,
+    ExecutionState, PlannedToolCall, PlannedToolResult, PlanningResult, TemplateRef,
 };
 
 #[test]
@@ -40,7 +40,7 @@ fn planned_tool_call_new_assigns_fields() {
 
 #[test]
 fn tool_call_result_success_constructor() {
-    let r = ToolCallResult::success(
+    let r = PlannedToolResult::success(
         "get_user".to_owned(),
         json!({"id": 1}),
         json!({"name": "alice"}),
@@ -54,7 +54,7 @@ fn tool_call_result_success_constructor() {
 
 #[test]
 fn tool_call_result_failure_constructor() {
-    let r = ToolCallResult::failure("get_user".to_owned(), json!({}), "not found", 50);
+    let r = PlannedToolResult::failure("get_user".to_owned(), json!({}), "not found", 50);
     assert!(!r.success);
     assert_eq!(r.error.as_deref(), Some("not found"));
     assert!(r.output.is_null());
@@ -71,7 +71,7 @@ fn execution_state_new_defaults_to_empty() {
 #[test]
 fn execution_state_add_result_halts_on_first_failure() {
     let mut s = ExecutionState::new();
-    s.add_result(ToolCallResult::success(
+    s.add_result(PlannedToolResult::success(
         "a".to_owned(),
         json!({}),
         json!({}),
@@ -79,7 +79,7 @@ fn execution_state_add_result_halts_on_first_failure() {
     ));
     assert!(!s.halted);
 
-    s.add_result(ToolCallResult::failure(
+    s.add_result(PlannedToolResult::failure(
         "b".to_owned(),
         json!({}),
         "boom",
@@ -88,7 +88,7 @@ fn execution_state_add_result_halts_on_first_failure() {
     assert!(s.halted);
     assert_eq!(s.halt_reason.as_deref(), Some("boom"));
 
-    s.add_result(ToolCallResult::failure(
+    s.add_result(PlannedToolResult::failure(
         "c".to_owned(),
         json!({}),
         "second",
@@ -101,14 +101,19 @@ fn execution_state_add_result_halts_on_first_failure() {
 #[test]
 fn execution_state_filters_and_total_duration() {
     let mut s = ExecutionState::new();
-    s.add_result(ToolCallResult::success(
+    s.add_result(PlannedToolResult::success(
         "a".to_owned(),
         json!({}),
         json!({}),
         10,
     ));
-    s.add_result(ToolCallResult::failure("b".to_owned(), json!({}), "x", 20));
-    s.add_result(ToolCallResult::success(
+    s.add_result(PlannedToolResult::failure(
+        "b".to_owned(),
+        json!({}),
+        "x",
+        20,
+    ));
+    s.add_result(PlannedToolResult::success(
         "c".to_owned(),
         json!({}),
         json!({}),

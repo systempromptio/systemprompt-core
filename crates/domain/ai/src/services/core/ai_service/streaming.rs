@@ -3,15 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderCapability, Result};
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
-use uuid::Uuid;
+use systemprompt_identifiers::AiRequestId;
 
 use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse, StreamChunk};
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SearchGenerationParams, ToolGenerationParams,
+    GenerationParams, ModelPricing, ProviderClient, SearchGenerationParams, ToolGenerationParams,
 };
 
 use super::service::AiService;
@@ -22,15 +22,15 @@ impl AiService {
         &self,
         request: &AiRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::Internal(format!(
-                "Provider {} does not support streaming",
-                request.provider()
-            )));
+            return Err(AiError::CapabilityUnsupported {
+                provider: request.provider().to_owned(),
+                capability: ProviderCapability::Streaming,
+            });
         }
 
         let mut params = GenerationParams::new(
@@ -64,15 +64,15 @@ impl AiService {
         &self,
         request: &AiRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        let request_id = Uuid::new_v4();
+        let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
 
         if !provider.supports_streaming() {
-            return Err(AiError::Internal(format!(
-                "Provider {} does not support streaming",
-                request.provider()
-            )));
+            return Err(AiError::CapabilityUnsupported {
+                provider: request.provider().to_owned(),
+                capability: ProviderCapability::Streaming,
+            });
         }
 
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
@@ -112,8 +112,8 @@ impl AiService {
             .providers
             .values()
             .find(|p| p.supports_google_search())
-            .ok_or_else(|| {
-                AiError::Internal("No provider with Google Search support available".to_owned())
+            .ok_or(AiError::NoProviderWithCapability {
+                capability: ProviderCapability::GoogleSearch,
             })?;
         let model = params
             .model
@@ -149,7 +149,7 @@ impl AiService {
     }
 }
 
-fn priced_model(provider: &dyn AiProvider, model: &str) -> Result<ModelPricing> {
+fn priced_model(provider: &dyn ProviderClient, model: &str) -> Result<ModelPricing> {
     provider
         .get_pricing(model)
         .ok_or_else(|| AiError::UnknownModel {

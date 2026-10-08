@@ -7,9 +7,9 @@
 //! that every variant round-trips through its column string, and that the
 //! bridge host ids map onto the wire vocabulary.
 
-use systemprompt_models::bridge::profile::KNOWN_HOSTS;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClassificationInput, ClassificationRejection, ClientAttestation, ClientKind,
     InboundWireProtocol, NativeMarker, OriginParseError, RequestOrigin, StainlessHeaders, classify,
     native_marker, ua_product,
@@ -409,10 +409,10 @@ fn internal_origin_pairs_all_three_halves() {
 
 #[test]
 fn every_known_bridge_host_maps_onto_the_wire_vocabulary() {
-    for host in KNOWN_HOSTS {
+    for host in HostKind::ALL.map(HostKind::as_str) {
         let kind = ClientKind::from_bridge_host_id(host)
             .unwrap_or_else(|| panic!("{host} has no ClientKind"));
-        assert_eq!(kind.bridge_host_id(), Some(*host));
+        assert_eq!(kind.bridge_host_id(), Some(host));
         assert!(EvaluatorClient::try_from(kind).is_ok(), "{host}");
     }
     assert_eq!(ClientKind::from_bridge_host_id("codex"), None);

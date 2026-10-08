@@ -14,18 +14,18 @@ use axum::http::{Request, Response, header};
 use axum::middleware::{self, Next};
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_identifiers::{
-    AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
+    Actor, AgentName, AuthorizationCode, ContextId, SessionId, TraceId, UserId,
 };
-use systemprompt_models::Config;
-use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::profile::{
+use systemprompt_manifest::Config;
+use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_test_fixtures::{
-    OAuthClientFixture, ensure_test_bootstrap, fixture_db_pool, install_test_signing_key,
-    pkce_pair, seed_oauth_client,
+    OAuthClientFixture, ensure_test_bootstrap, install_test_signing_key, pkce_pair,
+    seed_oauth_client, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -38,9 +38,11 @@ static CONFIG_INSTALL: Once = Once::new();
 fn ensure_config() {
     CONFIG_INSTALL.call_once(|| {
         let _ = Config::install(Config {
-            instance_id: "test".to_owned(),
+            instance_id: systemprompt_identifiers::InstanceId::new("test"),
             metrics_port: None,
             max_concurrent_streams: 16,
+            role: Default::default(),
+            max_in_flight: None,
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
@@ -72,7 +74,7 @@ fn ensure_config() {
             signing_key_path: std::path::PathBuf::from("signing_key.pem"),
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
-            retention: systemprompt_models::profile::RetentionConfig::default(),
+            retention: systemprompt_manifest::profile::RetentionConfig::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,
@@ -93,6 +95,7 @@ async fn inject_context(mut req: Request<Body>, next: Next) -> Response<Body> {
         TraceId::new("grants-happy"),
         ContextId::generate(),
         AgentName::system(),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     ));
     next.run(req).await
 }
@@ -115,16 +118,14 @@ async fn token_app() -> anyhow::Result<Router> {
 struct SeededGrant {
     client: OAuthClientFixture,
     code: AuthorizationCode,
+    verifier: String,
 }
 
-async fn seed_grant(
-    pkce: Option<(&str, &str)>,
-    resource: Option<&str>,
-) -> anyhow::Result<SeededGrant> {
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
+async fn seed_grant(resource: Option<&str>) -> anyhow::Result<SeededGrant> {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
     let user = UserId::new(Uuid::new_v4().to_string());
-    let p = pool.pool_arc().expect("read pool");
+    let p = pool.pool();
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $2) ON CONFLICT DO NOTHING")
         .bind(user.as_str())
         .bind(format!("{}@grants.invalid", user.as_str()))
@@ -132,23 +133,27 @@ async fn seed_grant(
         .await?;
     let client = seed_oauth_client(&pool, &user).await?;
 
-    let repo = OAuthRepository::new(&pool).map_err(|e| anyhow::anyhow!("oauth repo: {e}"))?;
+    let repo = OAuthRepository::new(&pool);
     let code = AuthorizationCode::new(format!("code-{}", Uuid::new_v4().simple()));
+    let pair = pkce_pair();
     let params = AuthCodeParams {
         code: &code,
         client_id: &client.client_id,
         user_id: &user,
         redirect_uri: &client.redirect_uri,
         scope: "user",
-        code_challenge: pkce.map(|(c, _)| c),
-        code_challenge_method: pkce.map(|(_, m)| m),
+        code_challenge: &pair.challenge,
         resource,
     };
     repo.store_authorization_code(params)
         .await
         .map_err(|e| anyhow::anyhow!("store auth code: {e}"))?;
 
-    Ok(SeededGrant { client, code })
+    Ok(SeededGrant {
+        client,
+        code,
+        verifier: pair.verifier,
+    })
 }
 
 fn form_post(body: String) -> Request<Body> {
@@ -199,6 +204,9 @@ async fn redeem(
         ("client_secret", grant.client.client_secret.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
     ];
+    if !extra.iter().any(|(key, _)| *key == "code_verifier") {
+        pairs.push(("code_verifier", grant.verifier.as_str()));
+    }
     pairs.extend_from_slice(extra);
     let resp = app.oneshot(form_post(urlencode(&pairs))).await?;
     let status = resp.status();
@@ -208,7 +216,7 @@ async fn redeem(
 
 #[tokio::test]
 async fn authorization_code_grant_issues_tokens() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[]).await?;
     assert!(status.is_success(), "expected 200, got {status} {v}");
@@ -224,13 +232,14 @@ async fn authorization_code_grant_issues_tokens() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn authorization_code_grant_resolves_client_from_code() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("client_secret", grant.client.client_secret.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let resp = app.oneshot(form_post(body)).await?;
     let status = resp.status();
@@ -241,20 +250,46 @@ async fn authorization_code_grant_resolves_client_from_code() -> anyhow::Result<
 }
 
 #[tokio::test]
-async fn authorization_code_grant_with_pkce_verifier_succeeds() -> anyhow::Result<()> {
-    let pair = pkce_pair();
-    let grant = seed_grant(Some((&pair.challenge, pair.method)), None).await?;
+async fn authorization_code_grant_without_a_verifier_fails() -> anyhow::Result<()> {
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
-    let (status, v) = redeem(app, &grant, &[("code_verifier", &pair.verifier)]).await?;
-    assert!(status.is_success(), "expected 200, got {status} {v}");
-    assert!(v["access_token"].as_str().is_some(), "{v}");
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+        ("client_secret", grant.client.client_secret.as_str()),
+        ("redirect_uri", grant.client.redirect_uri.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
+    assert!(v["access_token"].as_str().is_none(), "{v}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn confidential_client_omitting_redirect_uri_is_refused() -> anyhow::Result<()> {
+    let grant = seed_grant(None).await?;
+    let app = token_app().await?;
+    let body = urlencode(&[
+        ("grant_type", "authorization_code"),
+        ("code", grant.code.as_str()),
+        ("client_id", grant.client.client_id.as_str()),
+        ("client_secret", grant.client.client_secret.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
+    ]);
+    let resp = app.oneshot(form_post(body)).await?;
+    let status = resp.status();
+    let v = read_json(resp).await?;
+    assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
+    assert!(v["access_token"].as_str().is_none(), "{v}");
     Ok(())
 }
 
 #[tokio::test]
 async fn authorization_code_grant_with_wrong_pkce_verifier_fails() -> anyhow::Result<()> {
-    let pair = pkce_pair();
-    let grant = seed_grant(Some((&pair.challenge, pair.method)), None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(
         app,
@@ -272,7 +307,7 @@ async fn authorization_code_grant_with_wrong_pkce_verifier_fails() -> anyhow::Re
 
 #[tokio::test]
 async fn authorization_code_grant_with_matching_resource_succeeds() -> anyhow::Result<()> {
-    let grant = seed_grant(None, Some("hook")).await?;
+    let grant = seed_grant(Some("hook")).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[("resource", "hook")]).await?;
     assert!(status.is_success(), "expected 200, got {status} {v}");
@@ -281,7 +316,7 @@ async fn authorization_code_grant_with_matching_resource_succeeds() -> anyhow::R
 
 #[tokio::test]
 async fn authorization_code_grant_with_mismatched_resource_fails() -> anyhow::Result<()> {
-    let grant = seed_grant(None, Some("hook")).await?;
+    let grant = seed_grant(Some("hook")).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[("resource", "other")]).await?;
     assert!(status.is_client_error(), "expected 4xx, got {status} {v}");
@@ -290,7 +325,7 @@ async fn authorization_code_grant_with_mismatched_resource_fails() -> anyhow::Re
 }
 
 async fn issue_refresh_token() -> anyhow::Result<(OAuthClientFixture, String)> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (status, v) = redeem(app, &grant, &[]).await?;
     anyhow::ensure!(status.is_success(), "seed grant failed: {status} {v}");
@@ -400,7 +435,7 @@ async fn consumed_refresh_token_cannot_be_replayed() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn authorization_code_cannot_be_redeemed_twice() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let (first, v1) = redeem(app.clone(), &grant, &[]).await?;
     assert!(first.is_success(), "first redemption must succeed: {v1}");
@@ -524,12 +559,13 @@ fn basic_auth(client_id: &str, secret: &str) -> String {
 
 #[tokio::test]
 async fn authorization_code_grant_accepts_http_basic_client_auth() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -550,13 +586,14 @@ async fn authorization_code_grant_accepts_http_basic_client_auth() -> anyhow::Re
 
 #[tokio::test]
 async fn http_basic_with_a_conflicting_body_client_id_is_refused() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("client_id", "someone-else"),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -577,12 +614,13 @@ async fn http_basic_with_a_conflicting_body_client_id_is_refused() -> anyhow::Re
 
 #[tokio::test]
 async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
-    let grant = seed_grant(None, None).await?;
+    let grant = seed_grant(None).await?;
     let app = token_app().await?;
     let body = urlencode(&[
         ("grant_type", "authorization_code"),
         ("code", grant.code.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let req = Request::builder()
         .method(http::Method::POST)
@@ -603,10 +641,10 @@ async fn malformed_http_basic_is_refused() -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 async fn seed_public_grant() -> anyhow::Result<SeededGrant> {
-    let grant = seed_grant(None, None).await?;
-    let b = ensure_test_bootstrap();
-    let pool = fixture_db_pool(&b.database_url).await?;
-    let p = pool.pool_arc().expect("read pool");
+    let grant = seed_grant(None).await?;
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let p = pool.pool();
     sqlx::query(
         "UPDATE oauth_clients SET token_endpoint_auth_method = 'none', client_secret_hash = NULL \
          WHERE client_id = $1",
@@ -649,6 +687,7 @@ async fn public_client_with_matching_redirect_uri_redeems() -> anyhow::Result<()
         ("code", grant.code.as_str()),
         ("client_id", grant.client.client_id.as_str()),
         ("redirect_uri", grant.client.redirect_uri.as_str()),
+        ("code_verifier", grant.verifier.as_str()),
     ]);
     let resp = app.oneshot(form_post(body)).await?;
     let status = resp.status();

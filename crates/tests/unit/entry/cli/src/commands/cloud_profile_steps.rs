@@ -4,16 +4,17 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::cloud::profile::profile_steps::{
-    ensure_unmasked_credentials, resolve_tenant_from_args, write_profile_secrets,
+    resolve_tenant_from_args, write_profile_secrets,
 };
+use systemprompt_cli::cloud::profile::tenant_credentials::ensure_unmasked_credentials;
 use systemprompt_cli::cloud::profile::{ApiKeys, CreateArgs, TenantTypeArg};
 use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
 use systemprompt_identifiers::TenantId;
 
 fn create_args(tenant: Option<&str>, tenant_type: TenantTypeArg) -> CreateArgs {
     CreateArgs {
-        name: "steps-test".to_owned(),
-        tenant: tenant.map(str::to_owned),
+        name: pname("steps-test"),
+        tenant: tenant.map(TenantId::new),
         tenant_type,
         anthropic_key: None,
         openai_key: None,
@@ -142,4 +143,8 @@ async fn ensure_unmasked_credentials_skips_refresh_for_unmasked_cloud_tenant() {
         Some("postgres://user:realpw@db.example:5432/app")
     );
     assert!(!tenants_path.exists(), "store must not be touched");
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

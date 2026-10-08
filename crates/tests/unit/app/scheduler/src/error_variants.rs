@@ -1,20 +1,24 @@
+use systemprompt_identifiers::JobName;
+use systemprompt_provider_contracts::{Dependencies, MissingDependency, ProviderError};
 use systemprompt_scheduler::SchedulerError;
+use systemprompt_traits::RepositoryError;
+
+fn missing<T: std::any::Any + Send + Sync>() -> MissingDependency {
+    Dependencies::new()
+        .get::<T>()
+        .err()
+        .expect("an empty Dependencies has no handle of any type")
+}
 
 mod additional_variants {
     use super::*;
 
     #[test]
-    fn missing_context_message() {
-        let err = SchedulerError::missing_context("DbPool");
-        assert_eq!(err.to_string(), "Job context missing dependency: DbPool");
-    }
-
-    #[test]
-    fn missing_context_accepts_string() {
-        let err = SchedulerError::missing_context(String::from("AppContext"));
+    fn missing_context_message_names_the_type() {
+        let err = SchedulerError::from(missing::<u32>());
         assert_eq!(
             err.to_string(),
-            "Job context missing dependency: AppContext"
+            "Job context: provider context has no u32 dependency"
         );
     }
 
@@ -32,17 +36,27 @@ mod additional_variants {
 
     #[test]
     fn distributed_lock_message() {
-        let err = SchedulerError::DistributedLock("connection refused".to_string());
+        let err = SchedulerError::DistributedLock(RepositoryError::database(
+            std::io::Error::other("connection refused"),
+        ));
         assert_eq!(
             err.to_string(),
-            "Distributed lock error: connection refused"
+            "Distributed lock error: database error: connection refused"
         );
     }
 
     #[test]
-    fn internal_message() {
-        let err = SchedulerError::Internal("unexpected state".to_string());
-        assert_eq!(err.to_string(), "internal: unexpected state");
+    fn unknown_otlp_signal_names_the_signal() {
+        let err = SchedulerError::UnknownOtlpSignal {
+            signal: "metrics".to_string(),
+        };
+        assert_eq!(err.to_string(), "Unknown OTLP export signal 'metrics'");
+    }
+
+    #[test]
+    fn sqlx_row_not_found_is_classified_as_repository_not_found() {
+        let err = SchedulerError::from(sqlx::Error::RowNotFound);
+        assert!(matches!(err, SchedulerError::Repository(ref e) if e.is_not_found()));
     }
 
     #[test]
@@ -79,13 +93,14 @@ mod additional_variants {
     #[test]
     fn all_variants_are_debug() {
         let variants = [
-            (SchedulerError::missing_context("ctx"), "MissingContext"),
+            (SchedulerError::from(missing::<u8>()), "MissingContext"),
             (SchedulerError::panic("boom"), "Panic"),
             (
-                SchedulerError::DistributedLock("lock err".to_string()),
+                SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other(
+                    "lock err",
+                ))),
                 "DistributedLock",
             ),
-            (SchedulerError::Internal("internal".to_string()), "Internal"),
             (SchedulerError::AlreadyRunning, "AlreadyRunning"),
             (SchedulerError::NotInitialized, "NotInitialized"),
         ];
@@ -96,21 +111,10 @@ mod additional_variants {
     }
 
     #[test]
-    fn missing_context_empty_string() {
-        let err = SchedulerError::missing_context("");
-        assert_eq!(err.to_string(), "Job context missing dependency: ");
-    }
-
-    #[test]
-    fn internal_empty_string() {
-        let err = SchedulerError::Internal(String::new());
-        assert_eq!(err.to_string(), "internal: ");
-    }
-
-    #[test]
-    fn distributed_lock_empty_string() {
-        let err = SchedulerError::DistributedLock(String::new());
-        assert_eq!(err.to_string(), "Distributed lock error: ");
+    fn missing_context_keeps_the_dependency_as_its_source() {
+        let err = SchedulerError::from(missing::<String>());
+        let source = std::error::Error::source(&err).expect("source");
+        assert!(source.to_string().contains("String"));
     }
 }
 
@@ -127,30 +131,45 @@ mod error_source_chain {
     }
 
     #[test]
-    fn string_carve_out_variants_have_no_source() {
-        // The stringified carve-outs wrap no typed cause, so source() is None.
-        assert!(SchedulerError::Internal("x".to_string()).source().is_none());
+    fn typed_cause_variants_expose_their_source() {
         assert!(
-            SchedulerError::DistributedLock("x".to_string())
+            SchedulerError::DistributedLock(RepositoryError::database(std::io::Error::other("x")))
                 .source()
-                .is_none()
+                .is_some()
         );
+        assert!(
+            SchedulerError::job_execution_failed(
+                JobName::new("j"),
+                ProviderError::InvalidInput("e".to_owned())
+            )
+            .source()
+            .is_some()
+        );
+    }
+
+    #[test]
+    fn caller_authored_variants_have_no_source() {
         assert!(SchedulerError::panic("x").source().is_none());
-        assert!(SchedulerError::missing_context("x").source().is_none());
     }
 
     #[test]
     fn structured_variants_have_no_source() {
         assert!(SchedulerError::AlreadyRunning.source().is_none());
         assert!(SchedulerError::NotInitialized.source().is_none());
-        assert!(SchedulerError::job_not_found("j").source().is_none());
-        assert!(SchedulerError::invalid_schedule("s").source().is_none());
         assert!(
-            SchedulerError::job_execution_failed("j", "e")
+            SchedulerError::job_not_found(JobName::new("j"))
                 .source()
                 .is_none()
         );
-        assert!(SchedulerError::config_error("c").source().is_none());
+        assert!(SchedulerError::invalid_schedule("s").source().is_none());
+        assert!(
+            SchedulerError::PortOccupied {
+                port: 1,
+                holders: vec![],
+            }
+            .source()
+            .is_none()
+        );
     }
 }
 
@@ -159,9 +178,9 @@ mod error_constructor_round_trips {
 
     #[test]
     fn job_not_found_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::job_not_found("j").to_string();
+        let via_ctor = SchedulerError::job_not_found(JobName::new("j")).to_string();
         let via_struct = SchedulerError::JobNotFound {
-            job_name: "j".to_string(),
+            job_name: JobName::new("j"),
         }
         .to_string();
         assert_eq!(via_ctor, via_struct);
@@ -179,30 +198,33 @@ mod error_constructor_round_trips {
 
     #[test]
     fn job_execution_failed_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::job_execution_failed("j", "boom").to_string();
+        let via_ctor = SchedulerError::job_execution_failed(
+            JobName::new("j"),
+            ProviderError::InvalidInput("boom".into()),
+        )
+        .to_string();
         let via_struct = SchedulerError::JobExecutionFailed {
-            job_name: "j".to_string(),
-            error: "boom".to_string(),
+            job_name: JobName::new("j"),
+            source: ProviderError::InvalidInput("boom".into()),
         }
         .to_string();
         assert_eq!(via_ctor, via_struct);
     }
 
     #[test]
-    fn config_error_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::config_error("bad").to_string();
-        let via_struct = SchedulerError::ConfigError {
-            message: "bad".to_string(),
-        }
-        .to_string();
-        assert_eq!(via_ctor, via_struct);
+    fn port_occupied_names_the_holder() {
+        let held = SchedulerError::PortOccupied {
+            port: 8080,
+            holders: vec![42, 43],
+        };
+        assert_eq!(held.to_string(), "Port 8080 still held by PID(s) [42, 43]");
     }
 
     #[test]
-    fn missing_context_constructor_matches_struct_variant() {
-        let via_ctor = SchedulerError::missing_context("DbPool").to_string();
-        let via_struct = SchedulerError::MissingContext("DbPool".to_string()).to_string();
-        assert_eq!(via_ctor, via_struct);
+    fn missing_context_from_matches_struct_variant() {
+        let via_from = SchedulerError::from(missing::<u8>()).to_string();
+        let via_struct = SchedulerError::MissingContext(missing::<u8>()).to_string();
+        assert_eq!(via_from, via_struct);
     }
 
     #[test]

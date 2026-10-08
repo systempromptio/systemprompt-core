@@ -5,8 +5,9 @@
 
 use serde::Deserialize;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::auth::secret::Secret;
-use crate::ids::HostId;
 
 #[derive(Debug, Deserialize)]
 pub(super) struct GatewaySetArgs {
@@ -30,7 +31,7 @@ pub(super) struct SessionLoginArgs {
 #[derive(Debug, Deserialize)]
 pub(super) struct HostIdArgs {
     #[serde(rename = "hostId")]
-    pub(super) host_id: HostId,
+    pub(super) host_id: HostKind,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -49,7 +50,7 @@ pub(super) struct CancelArgs {
 #[derive(Debug, Deserialize)]
 pub(super) struct HostInstallArgs {
     #[serde(rename = "hostId")]
-    pub(super) host_id: HostId,
+    pub(super) host_id: HostKind,
     pub(super) path: String,
 }
 
@@ -61,7 +62,7 @@ pub(super) struct OpenExternalUrlArgs {
 #[derive(Debug, Deserialize)]
 pub(super) struct HostModelFilterArgs {
     #[serde(rename = "hostId")]
-    pub(super) host_id: HostId,
+    pub(super) host_id: HostKind,
     #[serde(default)]
     pub(super) protocols: Option<Vec<String>>,
 }

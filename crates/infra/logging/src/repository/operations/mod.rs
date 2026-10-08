@@ -1,6 +1,7 @@
 //! SQL operations backing the log repository.
 //!
-//! Splits read paths ([`queries`]) from write paths ([`mutations`]) over the
+//! Splits read paths ([`queries`]) from write paths ([`mutations`] and the
+//! flush-buffer [`batch`] insert) over the
 //! `logs` table and re-exports the crate-internal entry points the repository
 //! facade composes (fetch, list, paginate, create, update, delete, retention
 //! cleanup).
@@ -8,8 +9,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod batch;
+mod columns;
 mod mutations;
 mod queries;
+
+pub(super) use batch::insert_log_batch;
 
 pub(super) use mutations::{
     cleanup_logs_before, clear_all_logs, count_logs_before, count_logs_for_users, create_log,

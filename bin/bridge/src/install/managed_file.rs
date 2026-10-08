@@ -14,13 +14,19 @@
 use std::io;
 use std::path::Path;
 
+use crate::install::approval::GatedChangeError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManagedWrite {
     Written,
     Unchanged,
 }
 
-pub fn write_managed_file(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<ManagedWrite> {
+pub fn write_managed_file(
+    path: &Path,
+    bytes: &[u8],
+    prompt: &str,
+) -> Result<ManagedWrite, GatedChangeError> {
     match std::fs::read(path) {
         Ok(existing) if existing == bytes => return Ok(ManagedWrite::Unchanged),
         Ok(_) => {},
@@ -29,7 +35,7 @@ pub fn write_managed_file(path: &Path, bytes: &[u8], prompt: &str) -> io::Result
                 e.kind(),
                 io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
             ) => {},
-        Err(e) => return Err(e),
+        Err(e) => return Err(e.into()),
     }
     match crate::fsutil::atomic_write_0644(path, bytes) {
         Ok(()) => Ok(ManagedWrite::Written),
@@ -38,11 +44,11 @@ pub fn write_managed_file(path: &Path, bytes: &[u8], prompt: &str) -> io::Result
             crate::fsutil::verify_contents(path, bytes)?;
             Ok(ManagedWrite::Written)
         },
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
-pub fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
+pub fn remove_managed_file(path: &Path, prompt: &str) -> Result<bool, GatedChangeError> {
     match std::fs::remove_file(path) {
         Ok(()) => {
             verify_absent(path)?;
@@ -54,12 +60,12 @@ pub fn remove_managed_file(path: &Path, prompt: &str) -> io::Result<bool> {
             verify_absent(path)?;
             Ok(true)
         },
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
 #[cfg(target_os = "macos")]
-fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<()> {
+fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> Result<(), GatedChangeError> {
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
         .tempdir()?;
@@ -73,26 +79,18 @@ fn write_elevated(path: &Path, bytes: &[u8], prompt: &str) -> io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn remove_elevated(path: &Path, prompt: &str) -> io::Result<()> {
+fn remove_elevated(path: &Path, prompt: &str) -> Result<(), GatedChangeError> {
     let script = crate::install::elevation_script::remove_managed_file_script(path);
     run(&script, prompt)
 }
 
 #[cfg(target_os = "macos")]
-fn run(script: &str, prompt: &str) -> io::Result<()> {
-    use crate::install::elevate::ElevationError;
-    match crate::install::elevate::run_privileged(script, prompt) {
-        Ok(()) => Ok(()),
-        Err(ElevationError::UserCancelled) => Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "administrator approval was declined — the managed configuration was not written",
-        )),
-        Err(e) => Err(io::Error::other(e.to_string())),
-    }
+fn run(script: &str, prompt: &str) -> Result<(), GatedChangeError> {
+    Ok(crate::install::elevate::run_privileged(script, prompt)?)
 }
 
 #[cfg(target_os = "windows")]
-fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
+fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> Result<(), GatedChangeError> {
     use crate::install::elevated_job::{ElevatedJob, ManagedFileJob};
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
@@ -111,11 +109,14 @@ fn write_elevated(path: &Path, bytes: &[u8], _prompt: &str) -> io::Result<()> {
         remove_files: Vec::new(),
         private_dirs: Vec::new(),
     };
-    crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("install", path)
+    Ok(
+        crate::install::elevated_job::elevate_and_run(staging.path(), &job)?
+            .require("install", path)?,
+    )
 }
 
 #[cfg(target_os = "windows")]
-fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
+fn remove_elevated(path: &Path, _prompt: &str) -> Result<(), GatedChangeError> {
     use crate::install::elevated_job::ElevatedJob;
     let staging = tempfile::Builder::new()
         .prefix("systemprompt-managed-")
@@ -129,17 +130,20 @@ fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
         remove_files: vec![path.to_path_buf()],
         private_dirs: Vec::new(),
     };
-    crate::install::elevated_job::elevate_and_run(staging.path(), &job)?.require("remove", path)
+    Ok(
+        crate::install::elevated_job::elevate_and_run(staging.path(), &job)?
+            .require("remove", path)?,
+    )
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn write_elevated(path: &Path, _bytes: &[u8], _prompt: &str) -> io::Result<()> {
-    Err(root_required(path))
+fn write_elevated(path: &Path, _bytes: &[u8], _prompt: &str) -> Result<(), GatedChangeError> {
+    Err(root_required(path).into())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn remove_elevated(path: &Path, _prompt: &str) -> io::Result<()> {
-    Err(root_required(path))
+fn remove_elevated(path: &Path, _prompt: &str) -> Result<(), GatedChangeError> {
+    Err(root_required(path).into())
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]

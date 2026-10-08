@@ -14,7 +14,9 @@ use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SignedManifestEnvelope,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
-use systemprompt_bridge::ids::{HostToken, ManifestSignature};
+use systemprompt_bridge::ids::{
+    HostToken, ManifestSignature, McpServerId, McpToolName, ToolPolicy,
+};
 use systemprompt_bridge::install::policy_writer::{
     BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
@@ -22,7 +24,6 @@ use systemprompt_bridge::install::policy_writer::{
 };
 use systemprompt_bridge::mcp_registry::EnvelopeFragment;
 use systemprompt_identifiers::ValidatedUrl;
-use systemprompt_models::bridge::ids::{ManagedMcpServerName, ToolName, ToolPolicy};
 
 const GATEWAY: &str = "https://gateway.example.test";
 
@@ -43,10 +44,10 @@ fn anchor(key: &SigningKey, gateway: &str) -> TrustRecord {
     .unwrap()
 }
 
-fn server(name: &str, tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> ManagedMcpServer {
+fn server(name: &str, tool_policy: Option<BTreeMap<McpToolName, ToolPolicy>>) -> ManagedMcpServer {
     ManagedMcpServer {
         id: systemprompt_identifiers::McpServerId::try_new(name).unwrap(),
-        name: ManagedMcpServerName::try_new(name).unwrap(),
+        name: McpServerId::try_new(name).unwrap(),
         url: ValidatedUrl::try_new(format!("{GATEWAY}/api/v1/mcp/{name}/mcp")).unwrap(),
         transport: Some("http".into()),
         headers: None,
@@ -55,10 +56,10 @@ fn server(name: &str, tool_policy: Option<BTreeMap<ToolName, ToolPolicy>>) -> Ma
     }
 }
 
-fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<ToolName, ToolPolicy>> {
+fn wildcard(policy: ToolPolicy) -> Option<BTreeMap<McpToolName, ToolPolicy>> {
     let mut map = BTreeMap::new();
     map.insert(
-        ToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
+        McpToolName::try_new(ManagedMcpServer::TOOL_POLICY_WILDCARD).unwrap(),
         policy,
     );
     Some(map)
@@ -75,7 +76,7 @@ fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
         not_before: chrono::DateTime::parse_from_rfc3339("2026-09-19T08:00:00+00:00")
             .unwrap()
             .with_timezone(&chrono::Utc),
-        user_id: systemprompt_identifiers::UserId::new("user_writer_test"),
+        user_id: systemprompt_identifiers::UserId::new("00000000-0000-4000-8000-00000000317e"),
         tenant_id: None,
         user: None,
         plugins: vec![],
@@ -89,6 +90,7 @@ fn manifest(servers: Vec<ManagedMcpServer>) -> SignedManifest {
         host_model_protocols: BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -320,7 +322,7 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
     let loopback = Loopback::from_entries(&entries).unwrap();
     assert_eq!(loopback.port, 48217);
     assert_eq!(loopback.host_token.as_str(), "tok");
-    let facts = facts_from_entries(&entries);
+    let facts = facts_from_entries(&entries).unwrap();
     assert_eq!(
         facts
             .headers
@@ -336,6 +338,14 @@ fn a_staged_profile_yields_the_loopback_and_the_inference_facts() {
     assert!(
         Loopback::from_entries(&[("inferenceProvider".to_owned(), "gateway".to_owned())]).is_err(),
         "a profile that names no proxy cannot become a request"
+    );
+    let malformed = [("inferenceCustomHeaders".to_owned(), "{ not json".to_owned())];
+    assert!(
+        matches!(
+            facts_from_entries(&malformed),
+            Err(PolicyWriterError::Io { .. })
+        ),
+        "malformed headers are an error, never an empty header map"
     );
 }
 
@@ -357,10 +367,10 @@ fn the_task_runs_the_admin_owned_copy_as_system_with_no_triggers() {
     );
     assert_eq!(layout.inbox, layout.root.join("inbox"));
     assert_eq!(layout.outbox, layout.root.join("outbox"));
-    let id = uuid::Uuid::nil();
+    let id = systemprompt_identifiers::ElevatedJobId::from_uuid(uuid::Uuid::nil());
     assert_eq!(
         layout
-            .request_path(id)
+            .request_path(&id)
             .file_name()
             .unwrap()
             .to_str()
@@ -369,7 +379,7 @@ fn the_task_runs_the_admin_owned_copy_as_system_with_no_triggers() {
     );
     assert_eq!(
         layout
-            .result_path(id)
+            .result_path(&id)
             .file_name()
             .unwrap()
             .to_str()

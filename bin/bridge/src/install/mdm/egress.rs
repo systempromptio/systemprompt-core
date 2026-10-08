@@ -1,8 +1,9 @@
 //! Cowork egress allowlist resolution for the MDM payloads.
 //!
 //! An allowlist that is supplied but names no host is a configuration error,
-//! never "unrestricted": `None` is returned only when neither the flag nor
-//! the environment carries the setting at all.
+//! never "unrestricted". When neither the flag nor the environment supplies
+//! a policy, explicitly allow public web access with `*`; Desktop otherwise
+//! permits only the inference endpoint.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -35,6 +36,7 @@ pub fn cowork_egress_allowed_hosts(
         .as_deref()
         .map(parse)
         .transpose()
+        .map(|hosts| Some(hosts.unwrap_or_else(|| vec!["*".to_owned()])))
 }
 
 fn parse(raw: &str) -> Result<Vec<String>, EgressParseError> {

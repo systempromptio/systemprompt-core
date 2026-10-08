@@ -5,9 +5,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
+use systemprompt_loader::subprocess;
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::database::DatabaseService;
-use systemprompt_mcp::services::lifecycle::LifecycleOrchestrator;
+use systemprompt_mcp::services::lifecycle::LifecycleService;
 use systemprompt_mcp::services::monitoring::MonitoringService;
 use systemprompt_mcp::services::network::NetworkService;
 use systemprompt_mcp::services::process::ProcessService;
@@ -15,16 +18,13 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_models::profile::PathsConfig;
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool, fixture_user_id};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
-use crate::harness::{default_tools_json, mount_mcp_endpoint};
+use crate::harness::{default_tools_json, mount_mcp_endpoint, unique_instance};
 
-async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt_database::DbPool)>
-{
-    let url = fixture_database_url().ok()?;
-    let db = fixture_db_pool(&url).await.ok()?;
+async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
+    let db = test_db_pool().await;
     let paths = PathsConfig {
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
@@ -36,31 +36,24 @@ async fn make_lifecycle_or_skip() -> Option<(LifecycleOrchestrator, systemprompt
     let app_paths = Arc::new(
         AppPaths::from_profile(
             &paths,
-            systemprompt_models::PathResolution::Canonicalize,
+            systemprompt_manifest::PathResolution::Canonicalize,
             None,
         )
-        .ok()?,
+        .expect("app paths"),
     );
     let registry = RegistryService::new(fixture_user_id());
-    let database = DatabaseService::new(
-        systemprompt_database::ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .expect("service repository"),
-        Arc::clone(&app_paths),
-        registry,
-    );
-    Some((
-        LifecycleOrchestrator::new(
+    let repo = ServiceRepository::new(&db, unique_instance());
+    let database = DatabaseService::new(repo.clone(), Arc::clone(&app_paths), registry);
+    (
+        LifecycleService::new(
             ProcessService::new(),
             NetworkService::new(),
             database,
             MonitoringService::new(),
             app_paths,
         ),
-        db,
-    ))
+        repo,
+    )
 }
 
 fn make_config(name: &str, port: u16) -> McpServerConfig {
@@ -97,77 +90,65 @@ fn make_config(name: &str, port: u16) -> McpServerConfig {
     }
 }
 
-async fn seed_service(
-    db: &systemprompt_database::DbPool,
-    name: &str,
-    port: u16,
-) -> ServiceRepository {
-    let repo = ServiceRepository::new(
-        db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+async fn seed_service(repo: &ServiceRepository, name: &ServiceName, port: u16) {
     repo.create_service(CreateServiceInput {
         name,
-        module_name: "mcp",
-        status: "running",
+        module_name: ServiceModule::Mcp,
+        status: ServiceStatus::Running,
         port: port,
         binary_mtime: None,
     })
     .await
     .unwrap();
-    repo
 }
 
 #[tokio::test]
 async fn health_check_live_mcp_endpoint_reports_healthy() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, repo) = make_lifecycle().await;
     let mock = MockServer::start().await;
     mount_mcp_endpoint(&mock, default_tools_json()).await;
     let port = mock.address().port();
 
     let name = format!("hc-live-{}", uuid::Uuid::new_v4().simple());
-    let repo = seed_service(&db, &name, port).await;
+    let name_id = ServiceName::new(name.as_str());
+    seed_service(&repo, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
     let status = repo
-        .find_service_by_name(&name)
+        .find_service_by_name(&name_id)
         .await
         .unwrap()
         .unwrap()
         .status;
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
     assert!(healthy);
-    assert_eq!(status, "running");
+    assert_eq!(status, ServiceStatus::Running);
 }
 
 #[tokio::test]
 async fn health_check_non_mcp_listener_marks_service_error() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, repo) = make_lifecycle().await;
     let mock = MockServer::start().await;
     let port = mock.address().port();
 
     let name = format!("hc-err-{}", uuid::Uuid::new_v4().simple());
-    let repo = seed_service(&db, &name, port).await;
+    let name_id = ServiceName::new(name.as_str());
+    seed_service(&repo, &name_id, port).await;
 
     let healthy = life.health_check(&make_config(&name, port)).await.unwrap();
 
     let status = repo
-        .find_service_by_name(&name)
+        .find_service_by_name(&name_id)
         .await
         .unwrap()
         .unwrap()
         .status;
-    repo.delete_service(&name).await.unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
     assert!(!healthy);
-    assert_eq!(status, "error");
+    assert_eq!(status, ServiceStatus::Error);
 }
 
 const MARKER_HELPER: &str = "services::lifecycle_live::marker_helper";
@@ -181,46 +162,44 @@ fn marker_helper() {
 
 #[tokio::test]
 async fn stop_server_terminates_registered_live_child_and_finalizes_row() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, repo) = make_lifecycle().await;
 
     let name = format!("stop-live-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65401;
-    let mut marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
+    let marked = systemprompt_test_fixtures::spawn_marked_child(MARKER_HELPER, &name);
 
-    let repo = seed_service(&db, &name, port).await;
-    repo.update_service_pid(&name, i32::try_from(marked.pid()).unwrap())
+    seed_service(&repo, &name_id, port).await;
+    repo.update_service_pid(&name_id, i32::try_from(marked.pid()).unwrap())
         .await
         .unwrap();
 
     life.stop_server(&make_config(&name, port)).await.unwrap();
 
-    let row = repo.find_service_by_name(&name).await.unwrap().unwrap();
-    repo.delete_service(&name).await.unwrap();
+    let row = repo.find_service_by_name(&name_id).await.unwrap().unwrap();
+    repo.delete_service(&name_id).await.unwrap();
 
-    assert_eq!(row.status, "stopped");
+    assert_eq!(row.status, ServiceStatus::Stopped);
     assert!(row.pid.is_none());
-    assert!(!marked.child.wait().expect("child reaped").success());
+    assert!(!subprocess::is_running(marked.pid()).await);
 }
 
 #[tokio::test]
 async fn restart_server_sweeps_stale_running_row_then_fails_on_missing_binary() {
-    let Some((life, db)) = make_lifecycle_or_skip().await else {
-        return;
-    };
+    let (life, repo) = make_lifecycle().await;
 
     let name = format!("restart-{}", uuid::Uuid::new_v4().simple());
+    let name_id = ServiceName::new(name.as_str());
     let port = 65402;
-    let repo = seed_service(&db, &name, port).await;
+    seed_service(&repo, &name_id, port).await;
 
     let result = life.restart_server(&make_config(&name, port)).await;
 
-    let row = repo.find_service_by_name(&name).await.unwrap();
+    let row = repo.find_service_by_name(&name_id).await.unwrap();
     if let Some(row) = &row {
-        assert_ne!(row.status, "running");
+        assert_ne!(row.status, ServiceStatus::Running);
     }
-    repo.delete_service(&name).await.ok();
+    repo.delete_service(&name_id).await.ok();
 
     assert!(result.is_err(), "startup cannot succeed without a binary");
 }

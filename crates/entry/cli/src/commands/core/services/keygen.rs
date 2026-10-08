@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use clap::Args;
 use serde::Serialize;
+use systemprompt_config::write_private_atomic;
 
 use super::signing::BundleSigningKey;
 use crate::shared::CommandOutput;
@@ -49,7 +50,7 @@ fn write_key(key: &BundleSigningKey, out: Option<&std::path::Path>) -> Result<Ke
                 std::fs::create_dir_all(parent)
                     .with_context(|| format!("Failed to create {}", parent.display()))?;
             }
-            std::fs::write(path, key.seed_b64())
+            write_private_atomic(path, key.seed_b64().as_bytes())
                 .with_context(|| format!("Failed to write {}", path.display()))?;
             outcome.seed_file = Some(path.display().to_string());
         },

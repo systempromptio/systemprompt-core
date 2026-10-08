@@ -1,10 +1,11 @@
 use systemprompt_extension::error::{ExtensionConfigError, LoaderError};
+use systemprompt_identifiers::ExtensionId;
 
 #[test]
 fn loader_error_missing_dependency_display() {
     let err = LoaderError::MissingDependency {
-        extension: "my-ext".to_string(),
-        dependency: "base-ext".to_string(),
+        extension: ExtensionId::new("my-ext"),
+        dependency: ExtensionId::new("base-ext"),
     };
     let msg = err.to_string();
     assert!(msg.contains("my-ext"));
@@ -14,7 +15,7 @@ fn loader_error_missing_dependency_display() {
 
 #[test]
 fn loader_error_duplicate_extension_display() {
-    let err = LoaderError::DuplicateExtension("dup-ext".to_string());
+    let err = LoaderError::DuplicateExtension(ExtensionId::new("dup-ext"));
     let msg = err.to_string();
     assert!(msg.contains("dup-ext"));
     assert!(msg.contains("already registered"));
@@ -23,7 +24,7 @@ fn loader_error_duplicate_extension_display() {
 #[test]
 fn loader_error_initialization_failed_display() {
     let err = LoaderError::InitializationFailed {
-        extension: "fail-ext".to_string(),
+        extension: ExtensionId::new("fail-ext"),
         message: "startup crashed".to_string(),
     };
     let msg = err.to_string();
@@ -34,7 +35,7 @@ fn loader_error_initialization_failed_display() {
 #[test]
 fn loader_error_schema_installation_failed_display() {
     let err = LoaderError::SchemaInstallationFailed {
-        extension: "schema-ext".to_string(),
+        extension: ExtensionId::new("schema-ext"),
         message: "invalid SQL".to_string(),
     };
     let msg = err.to_string();
@@ -45,7 +46,7 @@ fn loader_error_schema_installation_failed_display() {
 #[test]
 fn loader_error_migration_failed_display() {
     let err = LoaderError::MigrationFailed {
-        extension: "mig-ext".to_string(),
+        extension: ExtensionId::new("mig-ext"),
         message: "column missing".to_string(),
     };
     let msg = err.to_string();
@@ -56,7 +57,7 @@ fn loader_error_migration_failed_display() {
 #[test]
 fn loader_error_config_validation_failed_display() {
     let err = LoaderError::ConfigValidationFailed {
-        extension: "config-ext".to_string(),
+        extension: ExtensionId::new("config-ext"),
         message: "invalid port".to_string(),
     };
     let msg = err.to_string();
@@ -67,7 +68,7 @@ fn loader_error_config_validation_failed_display() {
 #[test]
 fn loader_error_reserved_path_collision_display() {
     let err = LoaderError::ReservedPathCollision {
-        extension: "path-ext".to_string(),
+        extension: ExtensionId::new("path-ext"),
         path: "/api/v1/oauth".to_string(),
     };
     let msg = err.to_string();
@@ -79,7 +80,7 @@ fn loader_error_reserved_path_collision_display() {
 #[test]
 fn loader_error_invalid_base_path_display() {
     let err = LoaderError::InvalidBasePath {
-        extension: "bad-path-ext".to_string(),
+        extension: ExtensionId::new("bad-path-ext"),
         path: "/not-api/v1".to_string(),
     };
     let msg = err.to_string();
@@ -100,7 +101,7 @@ fn loader_error_circular_dependency_display() {
 
 #[test]
 fn loader_error_is_std_error() {
-    let err = LoaderError::DuplicateExtension("test".to_string());
+    let err = LoaderError::DuplicateExtension(ExtensionId::new("test"));
     let _: &dyn std::error::Error = &err;
     assert!(!err.to_string().is_empty());
 }
@@ -127,7 +128,7 @@ fn config_error_invalid_value_display() {
 #[test]
 fn config_error_parse_error_display() {
     let err = ExtensionConfigError::ParseError {
-        message: "unexpected token at line 5".to_string(),
+        source: "unexpected token at line 5".into(),
     };
     let msg = err.to_string();
     assert!(msg.contains("unexpected token"));
@@ -135,7 +136,7 @@ fn config_error_parse_error_display() {
 
 #[test]
 fn config_error_schema_validation_display() {
-    let err = ExtensionConfigError::SchemaValidation("missing required field 'name'".to_string());
+    let err = ExtensionConfigError::SchemaValidation("missing required field 'name'".into());
     let msg = err.to_string();
     assert!(msg.contains("missing required field"));
 }

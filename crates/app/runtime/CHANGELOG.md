@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- Background work is owned: `AppContext::background_tasks()` and `AppContextBuilder::with_background_tasks` expose the `systemprompt_traits::BackgroundTasks` tracker, and the event relay is a value carried by `AppContext::event_router()`.
+- `ensure_state_dirs_writable` is called with `AppPaths::writable_roots(role, services_cache)`; `GitSourceOrchestrator::new` takes the scratch root.
+- `discover_models` is renamed `discover_vertex_models`. Migrate by renaming the call.
+- `owner_reassignments(&DbPool)` builds the `OwnerReassignment` set that `UserService::merge_users` requires; `AppContext` wires it in. `AppContext::tool_call_intents()` returns the `ToolCallIntentClaims` the MCP executor takes.
+- Trace queries move into `TraceRepository`; `TraceQueryService::new` and `AiTraceService::new` take it.
+- Extension ids are `ExtensionId`; `RuntimeError::Config` wraps the renamed `GlobalConfigError`; manifest, profile and config types are imported from `systemprompt-manifest`; re-export aliases that renamed an item are removed.
+
+### Added
+
+- Schema-currency check: `assert_schema_current`, `AppContextBuilder::with_schema_verification` and `RuntimeError::SchemaBehind`. With `database.migrate_on_boot: false` (or `serve --skip-migrate`) the context refuses to build when an extension is not installed, a migration is pending or a checksum drifted, naming each.
+- The file storage backend is built from the profile, including the Google Cloud Storage backend (`storage.backend: gcs`).
+
+### Changed
+
+- The boot probe covers every writable root for the node's role and names each unwritable directory.
+- Services reconcile errors are propagated without being logged first; startup validation warnings keep `--json` stdout a single artifact.
+
 ## [0.60.0] - 2026-09-23
 
 ### Breaking

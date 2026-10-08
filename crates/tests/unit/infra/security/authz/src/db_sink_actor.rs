@@ -6,7 +6,7 @@ use systemprompt_security::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzRequest, AuthzSource, DbAuditSink, EntityRef,
     GovernanceDecisionRepository,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn mcp_request(user: &str, server: &str, chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {
@@ -51,13 +51,7 @@ async fn cleanup(pool: &sqlx::PgPool, trace_id: &str) {
 
 #[tokio::test]
 async fn sink_records_the_mcp_surface_and_the_client() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
 
     let req = mcp_request(
@@ -87,13 +81,7 @@ async fn sink_records_the_mcp_surface_and_the_client() {
 
 #[tokio::test]
 async fn sink_records_a_verified_agent_delegate() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
-    let Ok(db) = fixture_db_pool(&url).await else {
-        return;
-    };
-    let pool = db.write_pool_arc().expect("write pool");
+    let pool = test_db_pool().await.write_pool();
     let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
 
     let req = mcp_request(
@@ -115,4 +103,49 @@ async fn sink_records_a_verified_agent_delegate() {
     let (_, _, _, agent_id, _) = find_row(&pool, &trace).await;
     assert_eq!(agent_id.as_deref(), Some("planner"));
     cleanup(&pool, &trace).await;
+}
+
+async fn context_of(pool: &sqlx::PgPool, trace_id: &str) -> String {
+    sqlx::query_scalar("SELECT context_id FROM governance_decisions WHERE trace_id = $1")
+        .bind(trace_id)
+        .fetch_one(pool)
+        .await
+        .expect("the sink wrote a row keyed by the request trace")
+}
+
+#[tokio::test]
+async fn sink_without_a_context_or_session_mints_a_fresh_context_not_the_legacy_row() {
+    let pool = test_db_pool().await.write_pool();
+    let sink = DbAuditSink::new(GovernanceDecisionRepository::from_pool(pool.clone()));
+    let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
+
+    let mut contexts = Vec::new();
+    for _ in 0..2 {
+        let req = mcp_request("sink-ctx-user", "comms", Vec::new());
+        let trace = req.trace_id.as_str().to_owned();
+        sink.record(
+            &req,
+            &AuthzDecision::Allow,
+            AuthzSource::AllowAllUnrestricted,
+        )
+        .await;
+        contexts.push(context_of(&pool, &trace).await);
+        cleanup(&pool, &trace).await;
+    }
+
+    for context in &contexts {
+        assert_ne!(
+            context,
+            legacy.as_str(),
+            "no row lands in the legacy context"
+        );
+        assert!(
+            systemprompt_identifiers::ContextId::try_new(context.as_str()).is_ok(),
+            "{context}"
+        );
+    }
+    assert_ne!(
+        contexts[0], contexts[1],
+        "each context-less row gets its own context"
+    );
 }

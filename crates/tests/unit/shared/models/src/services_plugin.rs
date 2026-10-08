@@ -1,8 +1,10 @@
 use systemprompt_identifiers::{MarketplaceId, PluginId};
-use systemprompt_models::services::{
-    ComponentFilter, ComponentSource, MarketplaceConfig, MarketplaceVisibility, McpServerSummary,
-    PluginAuthor, PluginComponentRef, PluginConfig, PluginHooksRef, PluginScript, PluginSummary,
-    PluginVariableDef,
+use systemprompt_manifest::services::{
+    MarketplaceConfig, MarketplaceVisibility, McpServerSummary, PluginAuthor, PluginConfig,
+    PluginScript, PluginSummary, PluginVariableDef,
+};
+use systemprompt_models::plugin::{
+    ComponentFilter, ComponentSource, PluginComponentRef, PluginHooksRef,
 };
 
 fn author() -> PluginAuthor {
@@ -186,6 +188,8 @@ fn valid_marketplace(id: &str) -> MarketplaceConfig {
         access: Default::default(),
         allow_cross_marketplace_dependencies_on: vec![],
         external_marketplaces: vec![],
+        external_plugins: vec![],
+        claude_code: None,
     }
 }
 

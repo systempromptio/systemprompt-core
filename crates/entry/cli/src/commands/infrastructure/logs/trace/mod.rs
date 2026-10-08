@@ -26,7 +26,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{AiRequestId, TraceId};
+use systemprompt_identifiers::{AgentName, AiRequestId, McpToolName, TraceId};
 
 use super::types::ToolCallRow;
 use crate::context::CommandContext;
@@ -123,7 +123,7 @@ pub struct TaskInfoRow {
     #[serde(rename = "task_id")]
     pub task: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_name: Option<String>,
+    pub agent_name: Option<AgentName>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub started_at: Option<String>,
@@ -163,7 +163,7 @@ pub struct ArtifactRow {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_name: Option<String>,
+    pub tool_name: Option<McpToolName>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

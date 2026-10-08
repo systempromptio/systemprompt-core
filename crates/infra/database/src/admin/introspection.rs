@@ -74,9 +74,7 @@ impl DatabaseAdminService {
         .await?;
 
         if rows.is_empty() {
-            return Err(RepositoryError::not_found(format!(
-                "Table '{table_name}' not found"
-            )));
+            return Err(RepositoryError::not_found("table", table_name));
         }
 
         let pk_rows = sqlx::query(
@@ -164,9 +162,8 @@ impl DatabaseAdminService {
     pub async fn list_tables_counted(&self) -> DatabaseResult<Vec<TableInfo>> {
         let mut counted = Vec::new();
         for mut table in self.list_tables().await? {
-            let ident = SafeIdentifier::parse(&table.name).map_err(|e| {
-                RepositoryError::internal(format!("table name {}: {e}", table.name))
-            })?;
+            let ident = SafeIdentifier::parse(&table.name)
+                .map_err(|e| RepositoryError::decode(format!("table name {}", table.name), e))?;
             let count_query = format!("SELECT COUNT(*) as count FROM {}", ident.quoted());
             match sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_query))
                 .fetch_one(&*self.pool)
@@ -200,9 +197,8 @@ impl DatabaseAdminService {
             .fetch_one(&*self.pool)
             .await?;
 
-        let size = u64::try_from(size).map_err(|_e| {
-            RepositoryError::internal(format!("pg_database_size returned negative value: {size}"))
-        })?;
+        let size = u64::try_from(size)
+            .map_err(|e| RepositoryError::decode("pg_database_size(current_database())", e))?;
 
         let tables = self.list_tables().await?;
 

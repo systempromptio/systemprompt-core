@@ -33,6 +33,7 @@ use systemprompt_database::{DatabaseAdminService, DbPool, QueryExecutor};
 
 use crate::cli_settings::CliConfig;
 use crate::context::CommandContext;
+use crate::interactive::require_confirmation;
 use crate::shared::render_result;
 use dispatch::{dispatch_profile_migration, dispatch_standalone_migration};
 
@@ -54,9 +55,18 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
 
     match cmd {
         DbCommands::Query { sql, limit, offset } => {
-            run_query(&query_executor, &sql, limit, offset, config).await
+            let params = query::QueryParams::new(&sql, limit, offset);
+            run_query(&query_executor, &admin_service, &params, config).await
         },
-        DbCommands::Execute { sql } => run_write(&query_executor, &sql, config).await,
+        DbCommands::Execute { sql, yes } => {
+            require_confirmation(
+                ctx.prompter(),
+                &format!("Execute this write against the database?\n  {sql}"),
+                yes,
+                config,
+            )?;
+            run_write(&query_executor, &sql, config).await
+        },
         DbCommands::Tables { filter, exact } => {
             schema::execute_tables(&admin_service, filter, exact, config).await
         },
@@ -74,18 +84,13 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
             admin::execute_migrations(ctx.app_context().await?, cmd, config).await
         },
         DbCommands::MigratePlan { extension, json } => {
-            admin::execute_migrate_plan(
-                ctx.app_context().await?,
-                extension.as_deref(),
-                json,
-                config,
-            )
-            .await
+            admin::execute_migrate_plan(ctx.app_context().await?, extension.as_ref(), json, config)
+                .await
         },
         DbCommands::MigrateStatus { extension, json } => {
             admin::execute_migrate_status(
                 ctx.app_context().await?,
-                extension.as_deref(),
+                extension.as_ref(),
                 json,
                 config,
             )
@@ -116,9 +121,7 @@ async fn connect_services(
         .db_pool()
         .await
         .context("Failed to connect to database. Check your profile configuration.")?;
-    let write_pool = pool
-        .write_pool_arc()
-        .context("Database must be PostgreSQL")?;
+    let write_pool = pool.write_pool();
     let admin_service = DatabaseAdminService::new(Arc::clone(&write_pool));
     let query_executor = QueryExecutor::new(write_pool);
     Ok((pool, admin_service, query_executor))
@@ -126,13 +129,11 @@ async fn connect_services(
 
 async fn run_query(
     executor: &QueryExecutor,
-    sql: &str,
-    limit: Option<u32>,
-    offset: Option<u32>,
+    admin_service: &DatabaseAdminService,
+    params: &query::QueryParams<'_>,
     config: &CliConfig,
 ) -> Result<()> {
-    let params = query::QueryParams { sql, limit, offset };
-    let result = query::execute_query(executor, &params, config).await?;
+    let result = query::execute_query(executor, admin_service, params, config).await?;
     render_result(&result, config);
     Ok(())
 }

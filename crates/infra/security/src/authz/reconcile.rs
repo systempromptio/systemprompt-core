@@ -47,7 +47,7 @@ use std::path::Path;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::RouteId;
-use systemprompt_models::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
+use systemprompt_manifest::services::{BundleOwnership, ServicesBundleManifest, ServicesConfig};
 
 use super::AuthzError;
 use super::error::AuthzResult;
@@ -119,8 +119,8 @@ async fn run_pass(
     services_root: &Path,
     pass: &Pass<'_>,
 ) -> AuthzResult<ReconcileReport> {
-    let repo = AccessControlRepository::new(db)?;
-    let svc = AccessControlIngestionService::new(db)?;
+    let repo = AccessControlRepository::new(db);
+    let svc = AccessControlIngestionService::new(db);
 
     let route_ids = services
         .gateway
@@ -146,9 +146,14 @@ async fn run_pass(
     };
 
     let roles_yaml = services_root.join(ROLES_YAML_RELATIVE);
-    let roles_present = tokio::fs::try_exists(&roles_yaml).await.map_err(|err| {
-        AuthzError::Validation(format!("failed to probe {}: {err}", roles_yaml.display()))
-    })?;
+    let roles_present =
+        tokio::fs::try_exists(&roles_yaml)
+            .await
+            .map_err(|source| AuthzError::File {
+                action: "probe",
+                path: roles_yaml.display().to_string(),
+                source,
+            })?;
     if pass.platform_dirs && roles_present {
         report.roles = Some(
             svc.ingest_config_from_yaml_path(&roles_yaml, options.clone(), &registered)

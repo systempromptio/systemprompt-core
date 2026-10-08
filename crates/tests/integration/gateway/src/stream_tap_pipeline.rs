@@ -3,30 +3,30 @@
 //! `ai_requests` state for completion, upstream error, and abandoned streams.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use bytes::Bytes;
 use futures::stream;
-use systemprompt_api::services::gateway::policy::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
-use systemprompt_api::services::gateway::protocol::canonical_response::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::policies::{GatewayPolicySpec, QuotaWindow, SafetyConfig};
+use systemprompt_gateway::protocol::canonical::{
     CanonicalEvent, CanonicalStopReason, CanonicalUsage, CanonicalUsageUpdate, ContentBlockKind,
 };
-use systemprompt_api::services::gateway::protocol::inbound::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::stream_tap::{TapFinalizeCtx, TapRender, tap};
-use systemprompt_api::services::gateway::{GatewayAudit, GatewayRequestContext};
-use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::inbound::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::stream_tap::{TapFinalizeCtx, TapRender, tap};
+use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_test_fixtures as fixtures;
 
 use crate::support::{minimal_request, seed_user, setup_db};
-use systemprompt_models::wire::origin::{
+use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_security::policy::types::AccessScope;
+use systemprompt_wire::error::WireStreamError;
 
-fn gateway_journal() -> systemprompt_api::services::gateway::audit::journal::GatewayJournal {
-    systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
+    systemprompt_gateway::audit::journal::GatewayJournal::open(
         systemprompt_test_fixtures::ensure_test_bootstrap()
             .app_paths
             .storage()
@@ -49,19 +49,17 @@ fn render(inbound: Arc<dyn InboundAdapter>) -> TapRender {
 
 fn materializer(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynContextMaterializer {
     std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
-        systemprompt_agent::repository::ContextRepository::new(db).expect("context repository"),
+        systemprompt_agent::repository::ContextRepository::new(db),
     ))
 }
 
-fn gateway_repos(
-    db: &systemprompt_database::DbPool,
-) -> systemprompt_api::services::gateway::GatewayRepositories {
-    systemprompt_api::services::gateway::GatewayRepositories::new(
+fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::GatewayRepositories {
+    systemprompt_gateway::GatewayRepositories::new(
         db,
         gateway_journal(),
         materializer(db),
+        systemprompt_traits::BackgroundTasks::new(),
     )
-    .expect("gateway repositories")
 }
 
 fn usage(input: u32, output: u32) -> CanonicalUsage {
@@ -106,6 +104,8 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
             ClientAttestation::None,
         ),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
@@ -119,24 +119,23 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     (Arc::new(audit), ai_request_id)
 }
 
-async fn wait_for_terminal_status(db: &DbPool, id: &AiRequestId) -> (String, Option<String>) {
-    let pool = db.pool_arc().expect("read pool");
-    for _ in 0..200 {
-        let row: Option<(String, Option<String>)> =
-            sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
-                .bind(id.as_str())
-                .fetch_optional(pool.as_ref())
-                .await
-                .expect("query ai_requests");
-        if let Some((status, error)) = row
-            && status != "pending"
-            && status != "processing"
-        {
-            return (status, error);
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    panic!("ai_requests row never reached a terminal status");
+async fn settled_status(
+    audit: &GatewayAudit,
+    db: &DbPool,
+    id: &AiRequestId,
+) -> (String, Option<String>) {
+    assert_eq!(
+        audit
+            .background()
+            .drain(std::time::Duration::from_secs(30))
+            .await,
+        systemprompt_traits::DrainOutcome::Drained
+    );
+    sqlx::query_as("SELECT status, error_message FROM ai_requests WHERE id = $1")
+        .bind(id.as_str())
+        .fetch_one(db.pool().as_ref())
+        .await
+        .expect("query ai_requests")
 }
 
 fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) -> TapFinalizeCtx {
@@ -144,9 +143,38 @@ fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) 
         db: db.clone(),
         repos: gateway_repos(db),
         policy,
-        quota_fault_mode: systemprompt_models::services::QuotaFaultMode::Open,
+        quota_fault_mode: systemprompt_manifest::services::QuotaFaultMode::Open,
         ai_request_id: ai_request_id.clone(),
     }
+}
+
+async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
+    use systemprompt_gateway::quota;
+    let repos = gateway_repos(db);
+    let outcome = quota::precheck_and_reserve(
+        &repos.quota_buckets,
+        quota::ReserveParams {
+            providers: &repos.subject_providers,
+            subjects: quota::QuotaSubjects {
+                user_id: &audit.ctx.user_id,
+                api_key_id: None,
+                attribution: &audit.ctx.attribution,
+            },
+            windows: &policy.quota_windows,
+            fault_mode: systemprompt_manifest::services::QuotaFaultMode::Closed,
+            estimate: quota::QuotaEstimate {
+                input_tokens: 50,
+                output_tokens: 60,
+                cost_microdollars: 70,
+            },
+        },
+    )
+    .await
+    .expect("reserve");
+    let quota::ReserveOutcome::Admitted(reservation) = outcome else {
+        panic!("expected admission");
+    };
+    audit.set_quota_reservation(reservation);
 }
 
 fn user_window(window_seconds: i32) -> QuotaWindow {
@@ -157,7 +185,7 @@ fn user_window(window_seconds: i32) -> QuotaWindow {
 }
 
 async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> {
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     sqlx::query_as(
         "SELECT input_tokens, output_tokens, cost_microdollars FROM ai_quota_buckets \
          WHERE subject_kind = 'user' AND subject_id = $1",
@@ -169,8 +197,8 @@ async fn quota_bucket(db: &DbPool, user_id: &UserId) -> Option<(i64, i64, i64)> 
 }
 
 fn events_stream(
-    events: Vec<Result<CanonicalEvent, String>>,
-) -> futures::stream::BoxStream<'static, Result<CanonicalEvent, String>> {
+    events: Vec<Result<CanonicalEvent, WireStreamError>>,
+) -> futures::stream::BoxStream<'static, Result<CanonicalEvent, WireStreamError>> {
     Box::pin(stream::iter(events))
 }
 
@@ -207,6 +235,7 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
         quota_windows: vec![user_window(3600)],
         ..GatewayPolicySpec::default()
     };
+    admit(&audit, &db, &policy).await;
     let body = tap(
         upstream,
         render(inbound),
@@ -222,11 +251,11 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
     assert!(wire.contains("Hello from tap"), "{wire}");
     assert!(wire.contains("message_stop"), "{wire}");
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "completed", "error: {error:?}");
     assert!(error.is_none(), "{error:?}");
 
-    let pool = db.pool_arc().expect("read pool");
+    let pool = db.pool();
     let (input_tokens, output_tokens, model): (Option<i32>, Option<i32>, Option<String>) =
         sqlx::query_as("SELECT input_tokens, output_tokens, model FROM ai_requests WHERE id = $1")
             .bind(ai_request_id.as_str())
@@ -241,16 +270,9 @@ async fn tap_renders_client_bytes_and_completes_audit_on_eof() {
         "served model must be recorded on the audit row"
     );
 
-    let mut bucket = None;
-    for _ in 0..200 {
-        bucket = quota_bucket(&db, &user_id).await;
-        if bucket.is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-    let (bucket_input, bucket_output, bucket_cost) =
-        bucket.expect("streaming completion must debit the user's quota bucket");
+    let (bucket_input, bucket_output, bucket_cost) = quota_bucket(&db, &user_id)
+        .await
+        .expect("streaming completion must debit the user's quota bucket");
     assert_eq!(bucket_input, 10);
     assert_eq!(bucket_output, 7);
     let stored_cost: i64 =
@@ -277,13 +299,14 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
             model: "claude-served".to_owned(),
             usage: usage(3, 0),
         }),
-        Err("upstream exploded".to_owned()),
+        Err(WireStreamError::transport("upstream exploded")),
     ]);
     let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
     let policy = GatewayPolicySpec {
         quota_windows: vec![user_window(3600)],
         ..GatewayPolicySpec::default()
     };
+    admit(&audit, &db, &policy).await;
     let body = tap(
         upstream,
         render(inbound),
@@ -297,7 +320,7 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         "upstream stream error must break the client body"
     );
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "failed");
     assert!(
         error
@@ -306,11 +329,14 @@ async fn tap_surfaces_upstream_error_to_client_and_fails_audit() {
         "{error:?}"
     );
 
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    let (input, output, cost) = quota_bucket(&db, &user_id)
+        .await
+        .expect("admission reserved a bucket");
     assert!(
-        quota_bucket(&db, &user_id).await.is_none(),
-        "a failed stream must not debit tokens beyond the precheck reservation"
+        input <= 3 && output == 0,
+        "a failed stream releases the reservation down to what it streamed: {input}/{output}"
     );
+    assert_eq!(cost, 0, "the unpriced fixture model streams no cost");
 }
 
 #[tokio::test]
@@ -333,7 +359,7 @@ async fn tap_dropped_before_polling_fails_audit_as_client_disconnected() {
     );
     drop(body);
 
-    let (status, error) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "failed");
     assert_eq!(
         error.as_deref(),
@@ -387,24 +413,17 @@ async fn tap_completion_runs_response_safety_scan() {
         .await
         .expect("collect tapped body");
 
-    let (status, _) = wait_for_terminal_status(&db, &ai_request_id).await;
+    let (status, _) = settled_status(&audit, &db, &ai_request_id).await;
     assert_eq!(status, "completed");
 
-    let pool = db.pool_arc().expect("read pool");
-    let mut finding = None;
-    for _ in 0..200 {
-        finding = sqlx::query_as::<_, (String, String)>(
-            "SELECT phase, scanner FROM ai_safety_findings WHERE ai_request_id = $1",
-        )
-        .bind(ai_request_id.as_str())
-        .fetch_optional(pool.as_ref())
-        .await
-        .expect("query ai_safety_findings");
-        if finding.is_some() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
+    let pool = db.pool();
+    let finding = sqlx::query_as::<_, (String, String)>(
+        "SELECT phase, scanner FROM ai_safety_findings WHERE ai_request_id = $1",
+    )
+    .bind(ai_request_id.as_str())
+    .fetch_optional(pool.as_ref())
+    .await
+    .expect("query ai_safety_findings");
     let (phase, scanner) =
         finding.expect("streaming completion must persist response-phase safety findings");
     assert_eq!(phase, "response");

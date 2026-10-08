@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, TenantStore};
+use systemprompt_identifiers::{ProfileName, TenantId};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
 use crate::CliConfig;
@@ -43,7 +44,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
     if !displayed_active && (active_key.is_some() || active_profile.is_some()) {
         results.push(missing_active_session(
             active_key.as_deref(),
-            active_profile.as_deref(),
+            active_profile.as_ref(),
         ));
     }
 
@@ -82,7 +83,7 @@ pub fn session_info(key: &str, session: &CliSession, is_active: bool) -> Session
 
     SessionInfo {
         key: display_key,
-        profile_name: session.profile_name.as_str().to_owned(),
+        profile_name: Some(session.profile_name.clone()),
         user_email: session.user_email.as_str().to_owned(),
         session_id: Some(session.session_id.clone()),
         context_id: Some(session.context_id.clone()),
@@ -95,21 +96,24 @@ pub fn session_info(key: &str, session: &CliSession, is_active: bool) -> Session
 
 pub fn missing_active_session(
     active_key: Option<&str>,
-    active_profile: Option<&str>,
+    active_profile: Option<&ProfileName>,
 ) -> SessionInfo {
-    let display_name = active_profile.unwrap_or_else(|| {
-        active_key.map_or("unknown", |k| {
-            if k == LOCAL_SESSION_KEY {
-                "local"
-            } else {
-                k.strip_prefix("tenant_").unwrap_or(k)
-            }
-        })
-    });
+    let display_name = active_profile.map_or_else(
+        || {
+            active_key.map_or("unknown", |k| {
+                if k == LOCAL_SESSION_KEY {
+                    "local"
+                } else {
+                    k.strip_prefix("tenant_").unwrap_or(k)
+                }
+            })
+        },
+        ProfileName::as_str,
+    );
 
     SessionInfo {
         key: display_name.to_owned(),
-        profile_name: display_name.to_owned(),
+        profile_name: active_profile.cloned(),
         user_email: String::new(),
         session_id: None,
         context_id: None,
@@ -130,9 +134,8 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     let session = store.sessions.get(&active_key.as_storage_key());
 
     let profile_name = session
-        .map(|s| s.profile_name.as_str().to_owned())
-        .or_else(|| store.active_profile_name.clone())
-        .unwrap_or_else(|| "unknown".to_owned());
+        .map(|s| s.profile_name.clone())
+        .or_else(|| store.active_profile_name.clone());
 
     match &active_key {
         SessionKey::Local => Some(RoutingInfo {
@@ -142,7 +145,7 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
             hostname: None,
         }),
         SessionKey::Tenant(tenant_id) => {
-            let hostname = resolve_remote_hostname(paths, tenant_id.as_str());
+            let hostname = resolve_remote_hostname(paths, tenant_id);
             Some(RoutingInfo {
                 profile_name,
                 target: if hostname.is_some() {
@@ -150,16 +153,16 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
                 } else {
                     "Tenant".to_owned()
                 },
-                tenant: Some(tenant_id.as_str().to_owned()),
+                tenant: Some(tenant_id.clone()),
                 hostname,
             })
         },
     }
 }
 
-fn resolve_remote_hostname(paths: &ResolvedPaths, tenant: &str) -> Option<String> {
+fn resolve_remote_hostname(paths: &ResolvedPaths, tenant_id: &TenantId) -> Option<String> {
     let tenants_path = paths.tenants_path();
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
-    let tenant = store.find_tenant(&systemprompt_identifiers::TenantId::new(tenant))?;
+    let tenant = store.find_tenant(tenant_id)?;
     tenant.hostname.clone()
 }

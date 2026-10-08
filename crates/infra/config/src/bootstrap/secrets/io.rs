@@ -6,11 +6,10 @@
 
 use std::path::Path;
 
-use systemprompt_models::profile::SecretsValidationMode;
-use systemprompt_models::secrets::Secrets;
+use systemprompt_manifest::secrets::Secrets;
 
-use super::{SecretsBootstrapError, log_secrets_issue};
-use crate::error::{ConfigError, ConfigResult};
+use super::SecretsBootstrapError;
+use crate::error::ConfigResult;
 
 pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
     if !secrets_path.exists() {
@@ -20,18 +19,5 @@ pub fn load_secrets_from_path(secrets_path: &Path) -> ConfigResult<Secrets> {
         .into());
     }
     let content = std::fs::read_to_string(secrets_path)?;
-    Secrets::parse(&content).map_err(|e| {
-        SecretsBootstrapError::InvalidSecretsFile {
-            message: e.to_string(),
-        }
-        .into()
-    })
-}
-
-pub(super) fn handle_load_error(
-    e: ConfigError,
-    mode: SecretsValidationMode,
-) -> ConfigResult<Secrets> {
-    log_secrets_issue(&e, mode);
-    Err(e)
+    Secrets::parse(&content).map_err(|e| SecretsBootstrapError::InvalidSecretsFile(e).into())
 }

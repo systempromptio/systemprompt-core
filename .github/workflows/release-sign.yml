@@ -66,15 +66,22 @@ jobs:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Install libdbus (linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 12
+        # Why: this job checks out a bridge release tag, which may predate
+        # scripts/ci-install-system-deps.sh, so the same bounds are inlined.
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          # A mirror hiccup is infrastructure, not a code failure; three
-          # bounded attempts, then the step still fails.
-          n=0
-          until sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config; do
-              n=$((n + 1))
-              [ "$n" -lt 3 ] || exit 1
-              sleep 15
+          apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=60)
+          for attempt in 1 2 3; do
+              if sudo -E timeout --kill-after=10 60 apt-get "${apt_opts[@]}" update &&
+                  sudo -E timeout --kill-after=10 120 apt-get "${apt_opts[@]}" install -y --no-install-recommends libdbus-1-dev pkg-config; then
+                  exit 0
+              fi
+              echo "::warning::system dependency install attempt $attempt/3 failed"
+              if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
           done
+          exit 1
       - run: rustup show
       - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2

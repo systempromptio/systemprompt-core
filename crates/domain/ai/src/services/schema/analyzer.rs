@@ -14,11 +14,14 @@ use std::collections::HashMap;
 pub struct DiscriminatedUnion {
     pub discriminator_field: String,
     pub discriminator_values: Vec<String>,
+    // JSON: JSON Schema — the variant sub-schemas of a tool input schema.
     pub variants: HashMap<String, Value>,
+    // JSON: JSON Schema — the shared `properties` of a tool input schema.
     pub base_properties: Value,
 }
 
 impl DiscriminatedUnion {
+    // JSON: JSON Schema walk — an arbitrary MCP tool input schema.
     pub fn detect(schema: &Value) -> Option<Self> {
         let obj = schema.as_object()?;
         let all_of = obj.get("allOf")?.as_array()?;

@@ -9,10 +9,12 @@ use systemprompt_cli::admin::agents::{self, AgentsCommands};
 use systemprompt_cli::paths::ResolvedPaths;
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore};
-use systemprompt_database::CreateServiceInput;
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceStatus};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, ServiceName, SessionId, SessionToken,
+};
+use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_models::auth::UserType;
-use systemprompt_models::profile::PathsConfig;
 use systemprompt_test_fixtures::{
     DisposableDb, TestBootstrap, fixture_app_context_with, fixture_user_id,
     init_services_bootstrap, install_test_signing_key,
@@ -125,7 +127,7 @@ fn seed_session(boot: &TestBootstrap) {
     let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir).expect("session store");
     store.upsert_session(&SessionKey::Local, session);
-    store.set_active_with_profile(&SessionKey::Local, profile_name_text);
+    store.set_active_with_profile(&SessionKey::Local, &pname(profile_name_text));
     store.save(&sessions_dir).expect("persist fixture session");
 }
 
@@ -217,11 +219,13 @@ async fn mixed_agent_tools_helper() {
         .await;
     let boot = init_services_bootstrap(&services_yaml(&healthy.uri(), &stopped.uri()));
     install_test_signing_key();
+    let project = tempfile::tempdir().expect("owned session project");
+    std::fs::create_dir_all(project.path().join(".systemprompt")).expect("create .systemprompt");
+    std::fs::create_dir_all(project.path().join("services")).expect("create services");
+    std::env::set_current_dir(project.path()).expect("enter owned session project");
     seed_session(&boot);
-    let database = DisposableDb::installed("cli_agent_tools_mixed")
-        .await
-        .expect("private mixed-tools database");
-    let pool = database.pool().await.expect("private mixed-tools pool");
+    let database = DisposableDb::with_schema("cli_agent_tools_mixed").await;
+    let pool = database.test_pool().await;
     let paths = PathsConfig {
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
@@ -239,9 +243,9 @@ async fn mixed_agent_tools_helper() {
     .expect("mixed-tools app context");
     app.service_repository()
         .create_service(CreateServiceInput {
-            name: HEALTHY,
-            module_name: "mcp",
-            status: "running",
+            name: &ServiceName::new(HEALTHY),
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Running,
             port: healthy.address().port(),
             binary_mtime: None,
         })
@@ -264,7 +268,7 @@ async fn mixed_agent_tools_helper() {
     .expect("healthy server keeps mixed tool listing successful");
     println!("END_MIXED_TOOLS");
     drop(context);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -355,4 +359,8 @@ fn healthy_tools_survive_a_stopped_configured_server() {
         }),
         "{artifact}"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

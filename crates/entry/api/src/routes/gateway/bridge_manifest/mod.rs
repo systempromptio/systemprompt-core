@@ -12,21 +12,22 @@ mod per_user;
 use std::sync::Arc;
 
 use axum::Json;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::{JwtToken, UserId};
+use systemprompt_identifiers::UserId;
+use systemprompt_manifest::services::BridgePolicyConfig;
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, min_bridge_version,
+    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, manifest_min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
-use systemprompt_models::services::BridgePolicyConfig;
 use systemprompt_runtime::AppContext;
 
 use super::bridge::instance_enabled_hosts;
-use super::messages::extract_credential;
+use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::{bridge_data, bridge_resolved};
+use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 
@@ -34,9 +35,10 @@ pub async fn manifest(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
     headers: HeaderMap,
-) -> Result<Json<SignedManifestEnvelope>, (StatusCode, String)> {
-    let claims = authenticate(&jwt_extractor, &headers).await?;
-    let profile = profile_bootstrap()?;
+) -> Result<Json<SignedManifestEnvelope>, ApiHttpError> {
+    let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| BridgeError::unavailable("manifest: profile not ready", e))?;
     let tenant_id = profile
         .cloud
         .as_ref()
@@ -50,11 +52,10 @@ pub async fn manifest(
         not_before,
     } = build_version()?;
 
-    let services = bridge_data::load_services_config().map_err(|e| {
-        tracing::warn!(error = %e, "manifest: services config load failed");
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("services: {e}"))
-    })?;
+    let services = bridge_data::load_services_config()
+        .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
     let instance_hosts = instance_enabled_hosts(&services);
+    let desktop_policy = desktop_policy(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(
         &ctx,
@@ -86,7 +87,7 @@ pub async fn manifest(
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
-        min_bridge_version: Some(min_bridge_version()),
+        min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
         manifest_version,
         issued_at,
         not_before,
@@ -104,71 +105,41 @@ pub async fn manifest(
         host_model_protocols,
         artifacts,
         allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
+        desktop_policy,
         auto_update: bridge_policy.auto_update,
         diagnostics,
         marketplaces,
     };
 
-    seal_manifest(&manifest).map(Json)
+    let envelope = ManifestService::seal(&manifest)
+        .map_err(|e| BridgeError::internal("manifest signing failed", e))?;
+    Ok(Json(envelope))
+}
+
+fn desktop_policy(
+    services: &systemprompt_manifest::services::ServicesConfig,
+) -> systemprompt_models::bridge::desktop_policy::DesktopPolicy {
+    services
+        .external_agents
+        .values()
+        .find(|agent| agent.id.as_str() == "claude_desktop")
+        .map(|agent| agent.desktop_policy.clone())
+        .unwrap_or_default()
 }
 
 pub(crate) async fn assemble_candidate(
     ctx: &AppContext,
-    profile: &systemprompt_models::Profile,
+    profile: &systemprompt_manifest::Profile,
     user_id: &UserId,
-    services: systemprompt_models::services::ServicesConfig,
+    services: systemprompt_manifest::services::ServicesConfig,
     freshness: bridge_resolved::Freshness,
-) -> Result<(MarketplaceCandidate, BridgePolicyConfig), (StatusCode, String)> {
+) -> Result<(MarketplaceCandidate, BridgePolicyConfig), BridgeError> {
     let bridge_policy = services.bridge_policy.unwrap_or_default();
     let resolved = bridge_resolved::resolve_for_user(ctx, &services, profile, user_id, freshness)
         .await
-        .map_err(|error| {
-            tracing::warn!(%error, "manifest: catalogue resolution failed");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("manifest: {error}"),
-            )
-        })?;
+        .map_err(|e| BridgeError::internal("manifest: catalogue resolution failed", e))?;
     record_catalog_grants(ctx, user_id, &resolved.candidate).await?;
     Ok(((*resolved.candidate).clone(), bridge_policy))
-}
-
-fn seal_manifest(
-    manifest: &SignedManifest,
-) -> Result<SignedManifestEnvelope, (StatusCode, String)> {
-    ManifestService::seal(manifest).map_err(|e| {
-        tracing::error!(error = %e, "manifest signing failed");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("manifest signing failed: {e}"),
-        )
-    })
-}
-
-async fn authenticate(
-    jwt_extractor: &JwtContextExtractor,
-    headers: &HeaderMap,
-) -> Result<crate::services::middleware::jwt::JwtUserContext, (StatusCode, String)> {
-    let credential = extract_credential(headers).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            "Missing Authorization or x-api-key credential".to_owned(),
-        )
-    })?;
-    jwt_extractor
-        .decode_for_gateway(&JwtToken::new(credential))
-        .await
-        .map(|(claims, _user)| claims)
-        .map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))
-}
-
-fn profile_bootstrap() -> Result<&'static systemprompt_models::Profile, (StatusCode, String)> {
-    ProfileBootstrap::get().map_err(|e| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            format!("Profile not ready: {e}"),
-        )
-    })
 }
 
 struct ManifestStamp {
@@ -177,23 +148,15 @@ struct ManifestStamp {
     not_before: DateTime<Utc>,
 }
 
-fn build_version() -> Result<ManifestStamp, (StatusCode, String)> {
+fn build_version() -> Result<ManifestStamp, BridgeError> {
     let now = Utc::now();
     let issued_at = now;
     let not_before = now - Duration::seconds(60);
-    let ts_millis = u64::try_from(now.timestamp_millis()).map_err(|_e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "manifest version: timestamp overflow".to_owned(),
-        )
-    })?;
+    let ts_millis = u64::try_from(now.timestamp_millis())
+        .map_err(|e| BridgeError::internal("manifest version: timestamp overflow", e))?;
     let raw = format!("{}-{:016x}", now.format("%Y-%m-%dT%H:%M:%SZ"), ts_millis);
-    let version = ManifestVersion::try_new(raw).map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("manifest version: {e}"),
-        )
-    })?;
+    let version = ManifestVersion::try_new(raw)
+        .map_err(|e| BridgeError::internal("manifest version: invalid stamp", e))?;
     Ok(ManifestStamp {
         manifest_version: version,
         issued_at,

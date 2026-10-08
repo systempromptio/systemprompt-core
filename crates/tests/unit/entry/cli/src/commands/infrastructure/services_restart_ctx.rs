@@ -1,7 +1,7 @@
 //! `infra services restart` against a fixture `AppContext`.
 //!
 //! The batch and single restart entry points take `&Arc<AppContext>` directly
-//! rather than a `CommandContext`, so `fixture_app_context` reaches them where
+//! rather than a `CommandContext`, so `test_app_context` reaches them where
 //! a `--database-url` command context cannot. The fixture registry is empty,
 //! which is exactly the "nothing to restart" shape the plan computation and
 //! the batch message renderers have to handle.
@@ -13,21 +13,22 @@ use std::sync::Arc;
 use systemprompt_cli::infrastructure::services::restart;
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_runtime::AppContext;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_database_url, fixture_db_pool,
-    install_test_signing_key,
+    ensure_test_bootstrap, install_test_signing_key, test_app_context, test_database_url,
+    test_db_pool,
 };
 
 // The restart entry points build a JWT provider and an MCP orchestrator from
 // the process-global config, so the bootstrap has to run before the context is
-// assembled — a bare `fixture_app_context` leaves both unresolvable.
+// assembled — a bare `test_app_context` leaves both unresolvable.
 async fn app_ctx() -> (DbPool, Arc<AppContext>) {
     ensure_test_bootstrap();
     install_test_signing_key();
-    let url = fixture_database_url().unwrap();
-    let pool = fixture_db_pool(&url).await.unwrap();
-    let ctx = fixture_app_context(&pool, &url).expect("fixture app context");
+    let url = test_database_url();
+    let pool = test_db_pool().await;
+    let ctx = test_app_context(&pool, &url);
     (pool, ctx)
 }
 
@@ -201,28 +202,22 @@ async fn restarting_an_unknown_agent_by_name_is_an_error_naming_the_agent() {
 async fn restarting_an_unknown_mcp_server_by_name_is_an_error() {
     let (_pool, ctx) = app_ctx().await;
 
-    // The orchestrator filters by name, so an unregistered name selects nothing
-    // and the restart is a no-op rather than a failure.
-    let plain = restart::execute_mcp(&ctx, "no-such-mcp-server", false, &json_config())
+    for (build, config) in [
+        (false, json_config()),
+        (false, text_config()),
+        (true, json_config()),
+    ] {
+        let err = restart::execute_mcp(
+            &ctx,
+            &McpServerId::new("no-such-mcp-server"),
+            build,
+            &config,
+        )
         .await
-        .expect("restarting an unmatched name selects no services");
-    assert_eq!(service_type(&plain), "mcp");
-    assert_eq!(
-        field(&plain, "service_name").as_deref(),
-        Some("no-such-mcp-server"),
-        "the report must still name the server the operator asked for"
-    );
-
-    let text = restart::execute_mcp(&ctx, "no-such-mcp-server", false, &text_config())
-        .await
-        .expect("text restart of an unmatched name selects no services");
-    assert_eq!(service_type(&text), "mcp");
-    assert_eq!(restarted_count(&text), 1);
-    assert!(message(&text).contains("no-such-mcp-server"));
-
-    let with_build = restart::execute_mcp(&ctx, "no-such-mcp-server", true, &json_config()).await;
-    assert!(
-        with_build.is_ok(),
-        "the build-and-restart arm must behave the same for an unmatched name: {with_build:?}"
-    );
+        .expect_err("an unregistered MCP server cannot be restarted");
+        assert!(
+            err.to_string().contains("no-such-mcp-server"),
+            "the failure must name the server that was asked for (build={build}), got {err}"
+        );
+    }
 }

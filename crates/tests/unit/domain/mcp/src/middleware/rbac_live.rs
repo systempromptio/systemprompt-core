@@ -5,6 +5,7 @@
 
 use std::future::Future;
 use std::sync::Arc;
+use systemprompt_identifiers::McpServerId;
 
 use rmcp::model::{ListToolsResult, PaginatedRequestParams, Tool};
 use rmcp::service::RequestContext;
@@ -16,7 +17,7 @@ use systemprompt_security::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyAllHook, DenyReason,
     SharedAuthzHook,
 };
-use systemprompt_test_fixtures::mint_admin_jwt;
+use systemprompt_test_fixtures::{mint_admin_jwt, mint_bridge_jwt};
 
 use crate::harness::bootstrap_with_services;
 
@@ -28,8 +29,8 @@ fn sys_ctx() -> SysRequestContext {
         TraceId::new("t-rbac"),
         ContextId::generate(),
         AgentName::try_new("agent-rbac").expect("valid AgentName"),
+        Actor::user(UserId::new("user-rbac")),
     )
-    .with_actor(Actor::user(UserId::new("user-rbac")))
 }
 
 fn server_yaml(name: &str, oauth_required: bool, scopes: &str) -> String {
@@ -73,22 +74,27 @@ impl ServerHandler for RbacProbe {
             parts.extensions.insert(sys_ctx());
             context.extensions.insert(parts);
 
-            let outcome =
-                match enforce_rbac_from_registry(&context, &probe.server, &probe.hook).await {
-                    Ok(AuthResult::Anonymous(ctx)) => {
-                        format!("anonymous:{}", ctx.session_id().as_str())
-                    },
-                    Ok(AuthResult::Authenticated(auth)) => format!(
-                        "authenticated:user={}:token-len={}",
-                        auth.context
-                            .user
-                            .as_ref()
-                            .map(|u| u.email.clone())
-                            .unwrap_or_default(),
-                        auth.token().len()
-                    ),
-                    Err(err) => format!("err:{}", err.message),
-                };
+            let outcome = match enforce_rbac_from_registry(
+                &context,
+                &McpServerId::new(probe.server.as_str()),
+                &probe.hook,
+            )
+            .await
+            {
+                Ok(AuthResult::Anonymous(ctx)) => {
+                    format!("anonymous:{}", ctx.session_id().as_str())
+                },
+                Ok(AuthResult::Authenticated(auth)) => format!(
+                    "authenticated:user={}:token-len={}",
+                    auth.context
+                        .user
+                        .as_ref()
+                        .map(|u| u.email.clone())
+                        .unwrap_or_default(),
+                    auth.auth_token().map_or(0, |t| t.as_str().len())
+                ),
+                Err(err) => format!("err:{}", err.message),
+            };
 
             Ok(ListToolsResult::with_all_items(vec![Tool::new(
                 outcome,
@@ -208,10 +214,10 @@ async fn valid_admin_jwt_is_authenticated() {
 #[tokio::test]
 async fn insufficient_scope_is_rejected() {
     let name = unique("rbl_scope");
-    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, "admin"));
 
     let user = UserId::new(uuid::Uuid::new_v4().to_string());
-    let token = mint_admin_jwt(&user, "rbac-scope@test.invalid", ISSUER);
+    let token = mint_bridge_jwt(&user, "rbac-scope@test.invalid", ISSUER);
 
     let outcome = probe_outcome(RbacProbe {
         server: name,
@@ -226,6 +232,26 @@ async fn insufficient_scope_is_rejected() {
         outcome.contains("Insufficient permissions"),
         "got: {outcome}"
     );
+}
+
+#[tokio::test]
+async fn oauth_required_with_no_declared_scopes_is_rejected() {
+    let name = unique("rbl_noscope");
+    let _bootstrap = bootstrap_with_services(&server_yaml(&name, true, ""));
+
+    let user = UserId::new(uuid::Uuid::new_v4().to_string());
+    let token = mint_admin_jwt(&user, "rbac-noscope@test.invalid", ISSUER);
+
+    let outcome = probe_outcome(RbacProbe {
+        server: name,
+        headers: vec![(
+            "authorization".to_owned(),
+            format!("Bearer {}", token.as_str()),
+        )],
+        hook: Arc::new(AllowAllHook::null()),
+    })
+    .await;
+    assert!(outcome.contains("declares no scopes"), "got: {outcome}");
 }
 
 #[tokio::test]

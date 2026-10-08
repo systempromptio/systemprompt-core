@@ -5,10 +5,11 @@
 
 use std::sync::Arc;
 
+use systemprompt_models::bridge::host::HostKind;
+
 use crate::gui::error::GuiError;
 use crate::gui::events::ReplyId;
 use crate::gui::hosts::state::ProbeSeq;
-use crate::ids::HostId;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,38 +21,38 @@ pub enum ProbeCause {
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
     ProbeFailed {
-        host_id: Option<(HostId, ProbeSeq)>,
+        host_id: Option<(HostKind, ProbeSeq)>,
         error: String,
         reply_to: ReplyId,
     },
     ProbeRequested {
-        host_id: HostId,
+        host_id: HostKind,
         cause: ProbeCause,
         reply_to: ReplyId,
     },
     ProbeFinished {
-        host_id: HostId,
+        host_id: HostKind,
         seq: ProbeSeq,
         cause: ProbeCause,
         snapshot: Box<HostAppSnapshot>,
         reply_to: ReplyId,
     },
     ProfileGenerateRequested {
-        host_id: HostId,
+        host_id: HostKind,
         reply_to: ReplyId,
     },
     ProfileGenerateFinished {
-        host_id: HostId,
+        host_id: HostKind,
         result: Result<GeneratedProfile, Arc<GuiError>>,
         reply_to: ReplyId,
     },
     ProfileInstallRequested {
-        host_id: HostId,
+        host_id: HostKind,
         path: String,
         reply_to: ReplyId,
     },
     ProfileInstallFinished {
-        host_id: HostId,
+        host_id: HostKind,
         result: Result<(String, Vec<String>), Arc<GuiError>>,
         reply_to: ReplyId,
     },
@@ -63,17 +64,17 @@ pub enum HostUiEvent {
         reply_to: ReplyId,
     },
     ModelFilterSetRequested {
-        host_id: HostId,
+        host_id: HostKind,
         protocols: Option<Vec<String>>,
         reply_to: ReplyId,
     },
     ModelFilterSetFinished {
-        host_id: HostId,
+        host_id: HostKind,
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },
     UnattendedRepairFinished {
-        host_id: HostId,
+        host_id: HostKind,
         report: crate::integration::reapply::Report,
     },
 }

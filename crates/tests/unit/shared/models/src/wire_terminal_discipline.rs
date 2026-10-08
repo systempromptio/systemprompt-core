@@ -21,8 +21,8 @@
 
 use futures::StreamExt;
 use serde_json::json;
-use systemprompt_models::wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
-use systemprompt_models::wire::{anthropic, openai_responses};
+use systemprompt_wire::canonical::{CanonicalEvent, CanonicalStopReason, ContentBlockKind};
+use systemprompt_wire::{anthropic, openai_responses};
 
 fn frames(sse: String) -> impl futures::Stream<Item = Result<bytes::Bytes, std::io::Error>> {
     futures::stream::once(async move { Ok::<_, std::io::Error>(bytes::Bytes::from(sse)) })

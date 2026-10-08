@@ -3,18 +3,13 @@
 //! artifact still points at stays, and a body seen within the grace window
 //! is left for an in-flight ingest to link.
 
-use systemprompt_identifiers::ArtifactId;
+use systemprompt_identifiers::{ArtifactId, McpServerId};
 use systemprompt_mcp::repository::{
     ArtifactPayloadRepository, CreateMcpArtifact, McpArtifactRepository,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::test_db_pool;
 
 use super::artifact::seed_execution;
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}-{}", uuid::Uuid::new_v4().simple())
@@ -39,7 +34,7 @@ async fn linked_artifact(
     let mut create = CreateMcpArtifact::new(
         id.clone(),
         exec,
-        "sweep-tests",
+        McpServerId::new("sweep-tests"),
         "tool_result",
         serde_json::json!({}),
     );
@@ -49,7 +44,7 @@ async fn linked_artifact(
 }
 
 async fn age_payload(db: &systemprompt_database::DbPool, sha256: &str) {
-    let raw = db.pool_arc().expect("raw pool");
+    let raw = db.pool();
     sqlx::query(
         "UPDATE artifact_payloads SET last_seen_at = NOW() - interval '2 hours' WHERE sha256 = $1",
     )
@@ -61,9 +56,9 @@ async fn age_payload(db: &systemprompt_database::DbPool, sha256: &str) {
 
 #[tokio::test]
 async fn deleting_the_last_artifact_removes_its_body_and_spares_a_shared_one() {
-    let Some(db) = db_or_skip().await else { return };
-    let artifacts = McpArtifactRepository::new(&db).unwrap();
-    let payloads = ArtifactPayloadRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let artifacts = McpArtifactRepository::new(&db);
+    let payloads = ArtifactPayloadRepository::new(&db);
     let sole = digest();
     let shared = digest();
     let sole_artifact = linked_artifact(&db, &payloads, &artifacts, &sole).await;
@@ -87,9 +82,9 @@ async fn deleting_the_last_artifact_removes_its_body_and_spares_a_shared_one() {
 
 #[tokio::test]
 async fn a_body_seen_within_the_grace_window_is_not_swept() {
-    let Some(db) = db_or_skip().await else { return };
-    let artifacts = McpArtifactRepository::new(&db).unwrap();
-    let payloads = ArtifactPayloadRepository::new(&db).unwrap();
+    let db = test_db_pool().await;
+    let artifacts = McpArtifactRepository::new(&db);
+    let payloads = ArtifactPayloadRepository::new(&db);
     let in_flight = digest();
     payloads
         .upsert_payload(&in_flight, 2, &serde_json::json!({}))

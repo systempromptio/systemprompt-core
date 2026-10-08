@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use systemprompt_models::profile::{OciReference, OciReferenceError};
+use systemprompt_manifest::profile::{OciReference, OciReferenceError};
 
 const DIGEST: &str = "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 

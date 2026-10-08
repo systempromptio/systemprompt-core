@@ -19,9 +19,9 @@
 //! separately by [`workspace_sink::stage_bundle`], which runs before the
 //! session dir is resolved and independently of whether it resolves at all.
 //!
-//! The emitter shares the `"claude-desktop"` host id with the plugin emitter,
-//! so it fires under the same `enabled_hosts` gate; its `emitter_id` is
-//! `"cowork-artifacts"`.
+//! The emitter shares the `HostKind::ClaudeDesktop` host id with the plugin
+//! emitter, so it fires under the same `enabled_hosts` gate; its `emitter_id`
+//! is `"cowork-artifacts"`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,27 +32,30 @@ pub mod workspace_sink;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CoworkArtifactsSync;
 
 #[async_trait]
 impl HostSync for CoworkArtifactsSync {
-    fn host_id(&self) -> &'static str {
-        "claude-desktop"
+    fn host_id(&self) -> HostKind {
+        HostKind::ClaudeDesktop
     }
 
     fn emitter_id(&self) -> &'static str {
         "cowork-artifacts"
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         workspace_sink::stage_bundle(&ctx.manifest.artifacts)?;
         let Some(dir) = emit::resolve_artifacts_dir().map_err(resolve_err)? else {
-            return Ok(());
+            return Ok(HostSyncReport::ok());
         };
-        emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)
+        emit::write_artifacts(&dir, emit::active_sinks(), &ctx.manifest.artifacts)?;
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, _ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

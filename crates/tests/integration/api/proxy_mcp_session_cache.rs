@@ -3,8 +3,9 @@
 //! covers the external-MCP outbound header filter and resolve-error mapping.
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
+use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::engine::external::{map_resolve_error, outbound_headers};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{JwtToken, ServiceName, SessionId};
 use systemprompt_mcp::McpDomainError;
 use systemprompt_mcp::repository::McpProxyIdentityRepository;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
@@ -19,7 +20,7 @@ use super::proxy_support::{
 
 async fn cache() -> TestSessionCache {
     let (pool, _ctx) = setup_ctx().await.expect("test db");
-    TestSessionCache::new(McpProxyIdentityRepository::new(&pool).expect("identity repository"))
+    TestSessionCache::new(McpProxyIdentityRepository::new(&pool))
 }
 
 fn sid(prefix: &str) -> SessionId {
@@ -71,7 +72,10 @@ async fn enrich_with_cached_session_adopts_cached_identity() {
     let rc = request_context("session-hit");
     let enriched = enrich_with_cached_identity(&cache, &headers, rc, "svc").await;
     assert_eq!(enriched.user_id().to_string(), user.to_string());
-    assert_eq!(enriched.auth_token().as_str(), "cached-token");
+    assert_eq!(
+        enriched.auth_token().map(JwtToken::as_str),
+        Some("cached-token")
+    );
 }
 
 #[tokio::test]
@@ -84,12 +88,12 @@ async fn successful_response_with_session_header_caches_identity() {
     .await;
     let user_uuid = Uuid::new_v4();
     let user = AuthenticatedUser::new(
-        user_uuid,
+        systemprompt_identifiers::UserId::new(user_uuid.to_string()),
         "cache-user".to_owned(),
         "cache@test.invalid".to_owned(),
         vec![Permission::User],
     );
-    let rc = request_context(&user_uuid.to_string());
+    let rc = request_context(&user_uuid.to_string()).with_auth_token(JwtToken::new("bearer"));
     handle_mcp_response(ResponseArgs {
         cache: &cache,
         response: &response,
@@ -101,6 +105,40 @@ async fn successful_response_with_session_header_caches_identity() {
     })
     .await;
     assert_eq!(cache.cached_user(&sess_new).await, Some(user_uuid));
+}
+
+#[tokio::test]
+async fn response_for_a_request_without_a_bearer_does_not_cache() {
+    let cache = cache().await;
+    let sess_no_bearer = sid("sess-no-bearer");
+    let response = backend_response(
+        ResponseTemplate::new(200).insert_header("mcp-session-id", sess_no_bearer.as_str()),
+    )
+    .await;
+    let user_uuid = Uuid::new_v4();
+    let user = AuthenticatedUser::new(
+        systemprompt_identifiers::UserId::new(user_uuid.to_string()),
+        "no-bearer-user".to_owned(),
+        "no-bearer@test.invalid".to_owned(),
+        vec![Permission::User],
+    );
+    let rc = request_context(&user_uuid.to_string());
+    assert!(rc.auth_token().is_none());
+    handle_mcp_response(ResponseArgs {
+        cache: &cache,
+        response: &response,
+        request_headers: &HeaderMap::new(),
+        req_context: &rc,
+        authenticated_user: Some(&user),
+        service_name: "svc",
+        method_str: "POST",
+    })
+    .await;
+    assert_eq!(
+        cache.cached_user(&sess_no_bearer).await,
+        None,
+        "an identity is only cached alongside the bearer that proved it"
+    );
 }
 
 #[tokio::test]
@@ -248,12 +286,15 @@ fn outbound_headers_provider_credential_wins() {
 
 #[test]
 fn resolve_error_mapping_covers_auth_and_availability() {
-    let auth =
-        map_resolve_error("ext", McpDomainError::AuthRequired("login".to_owned())).to_string();
+    let auth = map_resolve_error(
+        &ServiceName::new("ext"),
+        McpDomainError::AuthRequired("login".to_owned()),
+    )
+    .to_string();
     assert!(auth.contains("Authentication required"), "{auth}");
 
     let unavailable = map_resolve_error(
-        "ext",
+        &ServiceName::new("ext"),
         McpDomainError::ExternalAuthUnavailable {
             server: "ext".to_owned(),
             message: "vault down".to_owned(),
@@ -262,6 +303,13 @@ fn resolve_error_mapping_covers_auth_and_availability() {
     .to_string();
     assert!(unavailable.contains("vault down"), "{unavailable}");
 
-    let other = map_resolve_error("ext", McpDomainError::Transport("boom".to_owned())).to_string();
-    assert!(other.contains("Invalid response"), "{other}");
+    let other = map_resolve_error(
+        &ServiceName::new("ext"),
+        McpDomainError::transport("token accessor", std::io::Error::other("boom")),
+    );
+    assert!(
+        matches!(other, ProxyError::ExternalResolveFailed { ref service, .. } if service == "ext"),
+        "{other:?}"
+    );
+    assert!(!other.to_string().contains("boom"), "{other}");
 }

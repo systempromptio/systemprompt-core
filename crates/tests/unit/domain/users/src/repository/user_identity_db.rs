@@ -1,10 +1,9 @@
 //! DB-backed tests for email canonicalisation, anonymous promotion, the
 //! transactional user merge, and federated sign-in account linking.
 
-use std::sync::Arc;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::FederatedIdentityClaims;
-use systemprompt_users::{UserError, UserRepository, UserService};
+use systemprompt_users::{UserError, UserService};
 use uuid::Uuid;
 
 struct Ctx {
@@ -13,22 +12,20 @@ struct Ctx {
     pool: systemprompt_database::DbPool,
 }
 
-async fn setup_or_skip() -> Option<Ctx> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> Ctx {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
-    Some(Ctx {
+    let service = systemprompt_test_fixtures::merging_user_service(&pool).expect("user service");
+    Ctx {
         service,
         pool,
         fixture,
-    })
+    }
 }
 
 impl Ctx {
     fn raw(&self) -> std::sync::Arc<sqlx::PgPool> {
-        self.pool.pool_arc().expect("raw pool")
+        self.pool.pool()
     }
 
     async fn purge(&self, id: &UserId) {
@@ -54,9 +51,7 @@ fn tag() -> String {
 
 #[tokio::test]
 async fn create_stores_the_canonical_lowercased_email() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let user = ctx
         .service
@@ -77,9 +72,7 @@ async fn create_stores_the_canonical_lowercased_email() {
 
 #[tokio::test]
 async fn find_by_email_is_case_insensitive() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let user = ctx
         .service
@@ -106,9 +99,7 @@ async fn find_by_email_is_case_insensitive() {
 
 #[tokio::test]
 async fn merge_users_moves_audit_rows_and_removes_the_source() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let source = ctx
         .service
@@ -218,9 +209,7 @@ async fn merge_users_moves_audit_rows_and_removes_the_source() {
 
 #[tokio::test]
 async fn promote_anonymous_refuses_a_non_anonymous_source() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let source = ctx
         .service
@@ -268,9 +257,7 @@ async fn promote_anonymous_refuses_a_non_anonymous_source() {
 
 #[tokio::test]
 async fn promote_anonymous_refuses_a_self_merge() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let user = ctx
         .service
@@ -309,9 +296,7 @@ fn claims(email: Option<&str>, email_verified: bool) -> FederatedIdentityClaims 
 
 #[tokio::test]
 async fn verified_federated_email_links_to_the_existing_local_account() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let existing = ctx
         .service
@@ -362,9 +347,7 @@ async fn verified_federated_email_links_to_the_existing_local_account() {
 
 #[tokio::test]
 async fn unverified_federated_email_creates_a_separate_synthetic_account() {
-    let Some(ctx) = setup_or_skip().await else {
-        return;
-    };
+    let ctx = setup().await;
     let t = tag();
     let existing = ctx
         .service

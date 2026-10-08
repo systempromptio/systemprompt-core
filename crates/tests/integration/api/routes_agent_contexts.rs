@@ -6,7 +6,7 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_api::routes::contexts_router;
 use systemprompt_test_fixtures::{
-    DisposableDb, ensure_test_bootstrap, fixture_app_context, seed_user_row,
+    DisposableDb, ensure_test_bootstrap, seed_user_row, test_app_context,
 };
 use tower::ServiceExt;
 
@@ -71,9 +71,9 @@ async fn delete_context_unknown_is_idempotent() -> anyhow::Result<()> {
 #[tokio::test]
 async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Result<()> {
     ensure_test_bootstrap();
-    let database = DisposableDb::installed("api_delete_context").await?;
-    let pool = database.pool().await?;
-    let ctx = fixture_app_context(&pool, database.url())?;
+    let database = DisposableDb::with_schema("api_delete_context").await;
+    let pool = database.test_pool().await;
+    let ctx = test_app_context(&pool, database.url());
     let request = request_context("delete_context_owner");
     seed_user_row(
         &pool,
@@ -97,7 +97,7 @@ async fn delete_context_returns_no_content_and_removes_owned_row() -> anyhow::Re
             .contexts
             .get_context(&context_id, request.user_id())
             .await,
-        Err(systemprompt_traits::RepositoryError::NotFound(_))
+        Err(systemprompt_traits::RepositoryError::NotFound { .. })
     ));
 
     drop(ctx);
@@ -184,10 +184,13 @@ async fn context_event_rejects_malformed_path_before_routing_valid_event() -> an
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = to_bytes(response.into_body(), 64 * 1024).await?;
     let json: serde_json::Value = serde_json::from_slice(&body)?;
+    assert_eq!(json["code"], "bad_request", "{json}");
+    assert_eq!(json["error_key"], "invalid_identifier", "{json}");
     assert!(
-        json["error"]
+        json["message"]
             .as_str()
-            .is_some_and(|message| message.contains("invalid context id"))
+            .is_some_and(|message| message.contains("ContextId")),
+        "{json}"
     );
     Ok(())
 }

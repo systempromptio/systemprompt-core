@@ -87,6 +87,8 @@ Suggested alerts:
 - p99 of `http_request_duration_seconds` over your latency SLO for 10 minutes — page.
 - `http_requests_in_flight` approaching the replica's concurrency ceiling — warn (saturation).
 
+Gateway spend controls add two counters. `systemprompt_quota_denials_total{subject_kind, dimension, mode}` counts every quota-window breach (`mode` is `enforce` or `warn`). `systemprompt_usage_anomaly_total{kind, subject_kind}` is raised by the `usage_anomaly_scan` job (enable it under that name in the scheduler config; it runs at two minutes past each hour): for the previous closed hour it compares each user's completed-request cost and count with their trailing seven-day hourly average and flags `kind="spend"` at three times the baseline and at least 1,000,000 microdollars, `kind="request_rate"` at three times the baseline and at least 50 requests. Each flag also logs a `usage_anomaly` warning (target `usage_anomaly`) carrying `user_id`, `observed`, `baseline`, `ratio` and `window_start`. Alert on any increase of either counter.
+
 ## 4. Read structured logs
 
 Logs are emitted as structured JSON to stdout and persisted to the `logs` table in Postgres (`crates/infra/logging/src/layer/mod.rs`). The verbosity is set by `runtime.log_level` in the profile (`quiet`→`error`, `normal`→`info`, `verbose`→`debug`, `debug`→`trace`); set `runtime.output_format: json` for machine ingestion.
@@ -170,7 +172,7 @@ Gateway requests to `/v1/messages` map upstream failures as follows (`crates/ent
 | `404 Gateway not enabled` | `gateway.enabled` is `false` or absent | Enable the gateway in services configuration (see [configure-providers.md](configure-providers.md)). |
 | `404 No gateway route matches model` | No `routes[*].model_pattern` matches the requested model | Add or widen a route pattern. |
 | `403` policy denied | The requested model is not in the gateway policy's allowed list | Adjust the gateway policy. |
-| `429` quota exceeded | A per-user quota window is exhausted; a `retry-after` header is set | Back off until the window resets, or raise the quota. |
+| `429` quota exceeded | A quota window (per user, API key or scope dimension) is exhausted; `retry-after` is the time to the window reset and `error.quota` names the window, subject, dimension, limit and usage | Back off until `error.quota.resets_at`, or raise the quota. |
 | `502 Bad Gateway` | The upstream provider returned a non-2xx or the connection failed | Inspect the gateway access log for the upstream status and body; verify `api_key_secret` and `endpoint`. |
 | `503 Profile not ready` / API key secret not configured | The named `api_key_secret` is missing from the secrets document | Add the secret and restart the affected process. |
 

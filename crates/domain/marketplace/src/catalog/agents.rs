@@ -5,8 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AgentId, AgentName, ModelId, ProviderId};
+use systemprompt_manifest::services::{AgentConfig, ServicesConfig};
 use systemprompt_models::bridge::manifest::AgentEntry;
-use systemprompt_models::services::{AgentConfig, ServicesConfig};
 
 use crate::error::MarketplaceError;
 
@@ -45,7 +45,7 @@ fn build_agent_entry(
 ) -> Result<AgentEntry, MarketplaceError> {
     let id = AgentId::new(key);
     let name = AgentName::try_new(cfg.name.clone())
-        .map_err(|e| MarketplaceError::Catalog(e.to_string()))?;
+        .map_err(|e| MarketplaceError::catalog("agent name", e))?;
     let endpoint = if cfg.endpoint.starts_with("http://") || cfg.endpoint.starts_with("https://") {
         cfg.endpoint.clone()
     } else if cfg.endpoint.is_empty() {

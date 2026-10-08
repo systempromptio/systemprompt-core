@@ -5,6 +5,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ServiceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(super) struct StopServiceOutput {
@@ -17,7 +18,7 @@ pub(super) struct StopServiceOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub(super) struct StopIndividualOutput {
     pub service_type: String,
-    pub service_name: String,
+    pub service_name: ServiceName,
     pub stopped: bool,
     pub message: String,
 }
@@ -34,7 +35,7 @@ pub(super) struct CleanupOutput {
 pub(super) struct RestartOutput {
     pub service_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub service_name: Option<String>,
+    pub service_name: Option<ServiceName>,
     pub restarted_count: usize,
     pub failed_count: usize,
     pub message: String,

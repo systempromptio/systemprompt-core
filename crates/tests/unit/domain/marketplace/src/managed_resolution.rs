@@ -5,14 +5,14 @@
 use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{ManagedResourceId, UserId};
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::CatalogContent;
 use systemprompt_marketplace::managed::{
     AssetDigest, AssetFile, ManagedRepository, ManagedResolution, ManagedResourceResolver,
     ManagedSkillResolution, NewResource, NewRevision, PublicationAction, PublicationRequest,
     ResourceKind, RevisionFiles, SnapshotProvenance, SourceSpec,
 };
-use systemprompt_models::services::ServicesConfig;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_db_pool, seed_user_row};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
 use systemprompt_traits::{ManagedSkillResolver, SkillResolution, WithheldReason};
 use uuid::Uuid;
 
@@ -47,18 +47,18 @@ pub(super) fn skill_files(key: &str, body: &str) -> RevisionFiles {
     RevisionFiles(files)
 }
 
-pub(super) async fn fixture() -> Option<Fixture> {
+pub(super) async fn fixture() -> Fixture {
     fixture_with_key(format!("skill_{}", Uuid::new_v4().simple())).await
 }
 
-pub(super) async fn fixture_with_key(key: String) -> Option<Fixture> {
-    let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url).await.ok()?;
+pub(super) async fn fixture_with_key(key: String) -> Fixture {
+    ensure_test_bootstrap();
+    let db = test_db_pool().await;
     let owner = UserId::new(format!("managed-res-{}", Uuid::new_v4()));
     seed_user_row(&db, &owner, &format!("{}@managed.invalid", owner.as_str()))
         .await
-        .ok()?;
-    let repository = ManagedRepository::new(&db).ok()?;
+        .expect("seed managed owner");
+    let repository = ManagedRepository::new(&db);
     let source = repository
         .register_source(&owner, "authoring", &SourceSpec::Managed)
         .await
@@ -102,14 +102,14 @@ pub(super) async fn fixture_with_key(key: String) -> Option<Fixture> {
         )
         .await
         .expect("revision");
-    Some(Fixture {
+    Fixture {
         resolver: ManagedResourceResolver::new(repository.clone()),
         repository,
         owner,
         key,
         resource,
         revision,
-    })
+    }
 }
 
 pub(super) async fn publish(f: &Fixture) {
@@ -171,9 +171,7 @@ pub(super) fn disk_catalog_with(key: &str) -> (tempfile::TempDir, CatalogContent
 
 #[tokio::test]
 async fn an_unmanaged_key_falls_back_to_disk() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     let outcome = f
         .resolver
         .resolve_skill(&f.owner, "never_registered")
@@ -184,9 +182,7 @@ async fn an_unmanaged_key_falls_back_to_disk() {
 
 #[tokio::test]
 async fn a_never_adopted_managed_skill_is_withheld_and_hides_its_disk_copy() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     let outcome = f
         .resolver
         .resolve_skill(&f.owner, &f.key)
@@ -220,9 +216,7 @@ async fn a_never_adopted_managed_skill_is_withheld_and_hides_its_disk_copy() {
 
 #[tokio::test]
 async fn a_published_managed_skill_replaces_its_disk_copy() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     publish(&f).await;
 
     let (_dir, catalog) = disk_catalog_with(&f.key);
@@ -265,9 +259,7 @@ async fn a_published_managed_skill_replaces_its_disk_copy() {
 
 #[tokio::test]
 async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
-    let Some(f) = fixture().await else {
-        return;
-    };
+    let f = fixture().await;
     publish(&f).await;
     withdraw(&f).await;
 
@@ -288,9 +280,7 @@ async fn a_withdrawn_managed_skill_is_withheld_after_publication() {
 
 #[tokio::test]
 async fn resolve_state_tracks_unmanaged_withheld_published_and_withdrawn_transitions() {
-    let f = fixture()
-        .await
-        .expect("managed resolution database required");
+    let f = fixture().await;
     assert!(matches!(
         f.resolver
             .resolve_state(&f.owner, ResourceKind::Skill, "never-registered")

@@ -44,7 +44,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
                 Ok(())
             })
         })
-        .connect(&crate::fixture_database_url())
+        .connect(&systemprompt_test_fixtures::test_database_url())
         .await
         .unwrap();
     sqlx::raw_sql(include_str!(
@@ -88,9 +88,13 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     tx.rollback().await.unwrap();
     assert!(consumer.claim("analytics").await.unwrap().is_none());
     assert!(
-        tokio::time::timeout(Duration::from_millis(100), listener.recv())
-            .await
-            .is_err()
+        !notified_within(
+            &mut listener,
+            Duration::from_millis(100),
+            rolled_back.as_str()
+        )
+        .await,
+        "a rolled-back append must not notify"
     );
 
     let connection = ConnectionId::generate();
@@ -100,20 +104,18 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
             .register(&user, &connection, sender)
             .await
     );
-    let bridge = PostgresEventBridge::new(pool.clone(), instance).start();
-    // Wait for the bridge's actual LISTEN registration, not a fixed sleep.
-    for attempt in 0..100 {
-        let listeners: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM pg_stat_activity WHERE application_name = $1 AND query LIKE 'LISTEN %systemprompt_events%' AND state = 'idle'"
-        ).bind(&schema).fetch_one(&pool).await.unwrap();
-        if listeners >= 2 {
-            break;
-        }
-        assert!(attempt < 99, "bridge did not establish its listener");
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    let bridge = PostgresEventBridge::new(pool.clone(), instance);
+    let router = bridge.router();
+    let bridge = bridge.start();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(10), bridge.listening())
+            .await
+            .expect("bridge establishes its LISTEN within the bound"),
+        "bridge stopped before listening"
+    );
     assert_eq!(
-        EventRouter::route_analytics(&user, event.clone())
+        router
+            .route_analytics(&user, event.clone())
             .await
             .into_local_logged(),
         1
@@ -123,10 +125,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         format!("{legacy:?}"),
         format!("{:?}", event.to_sse().unwrap())
     );
-    tokio::time::timeout(Duration::from_secs(2), listener.recv())
-        .await
-        .unwrap()
-        .unwrap();
+    own_notification(&mut listener, &pool).await;
     assert!(
         tokio::time::timeout(Duration::from_millis(100), rx.recv())
             .await
@@ -161,10 +160,10 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         format!("{remote:?}"),
         format!("{:?}", event.to_sse().unwrap())
     );
-    tokio::time::timeout(Duration::from_secs(2), listener.recv())
-        .await
-        .unwrap()
-        .unwrap();
+    assert!(
+        notified_within(&mut listener, Duration::from_secs(2), remote_id.as_str()).await,
+        "the remote row's notification reaches the listener"
+    );
     assert!(
         tokio::time::timeout(Duration::from_millis(100), rx.recv())
             .await
@@ -184,11 +183,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         .unwrap();
     tx.commit().await.unwrap();
     assert_ne!(id, rolled_back);
-    let notification = tokio::time::timeout(Duration::from_secs(2), listener.recv())
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(notification.payload(), id.as_str());
+    assert_eq!(own_notification(&mut listener, &pool).await, id.as_str());
     let delivered = tokio::time::timeout(Duration::from_secs(2), rx.recv())
         .await
         .unwrap()
@@ -272,7 +267,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     delivery.acknowledge().await.unwrap();
 
     drop(listener);
-    verify_all_channels(&pool, &outbox).await;
+    verify_all_channels(&pool, &outbox, &router).await;
     bridge.shutdown().await;
     ANALYTICS_BROADCASTER.unregister(&user, &connection).await;
     pool.close().await;
@@ -282,6 +277,40 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     .execute(admin.as_ref())
     .await
     .unwrap();
+}
+
+// Why: NOTIFY channels are database-wide, so other test processes sharing the
+// database publish on the same channel; only payloads naming a row in this
+// test's schema belong to it.
+async fn own_notification(listener: &mut PgListener, pool: &sqlx::PgPool) -> String {
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let notification = listener.recv().await.unwrap();
+            let ours: bool =
+                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM event_outbox WHERE id = $1)")
+                    .bind(notification.payload())
+                    .fetch_one(pool)
+                    .await
+                    .unwrap();
+            if ours {
+                return notification.payload().to_owned();
+            }
+        }
+    })
+    .await
+    .expect("this test's notification arrives within 2s")
+}
+
+async fn notified_within(listener: &mut PgListener, window: Duration, id: &str) -> bool {
+    tokio::time::timeout(window, async {
+        loop {
+            if listener.recv().await.unwrap().payload() == id {
+                return;
+            }
+        }
+    })
+    .await
+    .is_ok()
 }
 
 async fn verify_upgrade(pool: &sqlx::PgPool) {
@@ -318,7 +347,7 @@ async fn verify_upgrade(pool: &sqlx::PgPool) {
     tx.rollback().await.unwrap();
 }
 
-async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
+async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router: &EventRouter) {
     use systemprompt_events::{A2A_BROADCASTER, AGUI_BROADCASTER, CONTEXT_BROADCASTER};
     use systemprompt_identifiers::{ContextId, TaskId};
     use systemprompt_models::a2a::TaskState;
@@ -371,17 +400,20 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     ] {
         match &event {
             SseEvent::AgUi(value) => {
-                EventRouter::route_agui(&actor.user_id, (*value).clone())
+                router
+                    .route_agui(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
             SseEvent::A2A(value) => {
-                EventRouter::route_a2a(&actor.user_id, (*value).clone())
+                router
+                    .route_a2a(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
             SseEvent::Analytics(value) => {
-                EventRouter::route_analytics(&actor.user_id, (*value).clone())
+                router
+                    .route_analytics(&actor.user_id, (*value).clone())
                     .await
                     .into_local_logged();
             },
@@ -421,7 +453,8 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox) {
     assert_eq!(context_events[0], context_events[1]);
     assert_eq!(context_events[2], context_events[3]);
     assert!(context_rx.try_recv().is_err());
-    EventRouter::route_system(&actor.user_id, system.clone())
+    router
+        .route_system(&actor.user_id, system.clone())
         .await
         .into_local_logged();
     let expected = context_rx.recv().await.unwrap().unwrap();

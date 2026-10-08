@@ -13,12 +13,12 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             host_id,
             error,
             reply_to,
-        } => handlers::on_probe_failed(app, host_id.as_ref(), &error, reply_to),
+        } => handlers::on_probe_failed(app, host_id, &error, reply_to),
         HostUiEvent::ProbeRequested {
             host_id,
             cause,
             reply_to,
-        } => handlers::on_probe_requested(app, &host_id, cause, reply_to),
+        } => handlers::on_probe_requested(app, host_id, cause, reply_to),
         HostUiEvent::ProbeFinished {
             host_id,
             seq,
@@ -28,7 +28,7 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
         } => handlers::on_probe_finished(
             app,
             &handlers::ProbeResult {
-                host_id: &host_id,
+                host_id,
                 seq,
                 cause,
                 snapshot: &snapshot,
@@ -36,23 +36,23 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             reply_to,
         ),
         HostUiEvent::ProfileGenerateRequested { host_id, reply_to } => {
-            handlers::on_profile_generate_requested(app, &host_id, reply_to);
+            handlers::on_profile_generate_requested(app, host_id, reply_to);
         },
         HostUiEvent::ProfileGenerateFinished {
             host_id,
             result,
             reply_to,
-        } => handlers::on_profile_generate_finished(app, &host_id, result, reply_to),
+        } => handlers::on_profile_generate_finished(app, host_id, result, reply_to),
         HostUiEvent::ProfileInstallRequested {
             host_id,
             path,
             reply_to,
-        } => handlers::on_profile_install_requested(app, &host_id, path, reply_to),
+        } => handlers::on_profile_install_requested(app, host_id, path, reply_to),
         HostUiEvent::ProfileInstallFinished {
             host_id,
             result,
             reply_to,
-        } => handlers::on_profile_install_finished(app, &host_id, result, reply_to),
+        } => handlers::on_profile_install_finished(app, host_id, result, reply_to),
         HostUiEvent::ProxyProbeRequested { reply_to } => {
             handlers::on_proxy_probe_requested(app, reply_to);
         },
@@ -63,14 +63,14 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
             host_id,
             protocols,
             reply_to,
-        } => handlers::on_model_filter_set_requested(app, &host_id, protocols, reply_to),
+        } => handlers::on_model_filter_set_requested(app, host_id, protocols, reply_to),
         HostUiEvent::ModelFilterSetFinished {
             host_id,
             result,
             reply_to,
-        } => handlers::on_model_filter_set_finished(app, &host_id, result, reply_to),
+        } => handlers::on_model_filter_set_finished(app, host_id, result, reply_to),
         HostUiEvent::UnattendedRepairFinished { host_id, report } => {
-            handlers::on_unattended_repair_finished(app, &host_id, &report);
+            handlers::on_unattended_repair_finished(app, host_id, &report);
         },
     }
 }

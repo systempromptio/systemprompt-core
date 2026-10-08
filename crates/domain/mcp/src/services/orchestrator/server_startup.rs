@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{McpDomainError, McpDomainResult};
+use crate::error::{McpDomainError, McpDomainResult, ServiceStartFailure, ServiceStartFailures};
 use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -18,12 +18,12 @@ use super::event_bus::EventBus;
 use super::events::McpEvent;
 use crate::McpServerConfig;
 use crate::services::database::{DatabaseService, stored_pid};
-use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::lifecycle::LifecycleService;
 
 pub(super) struct StartPendingServersParams<'a> {
     pub servers: &'a [McpServerConfig],
     pub running_names: &'a HashSet<String>,
-    pub lifecycle: &'a LifecycleOrchestrator,
+    pub lifecycle: &'a LifecycleService,
     pub database: &'a DatabaseService,
     pub event_bus: &'a Arc<EventBus>,
     pub events: Option<&'a StartupEventSender>,
@@ -40,7 +40,7 @@ pub(super) async fn start_pending_servers(
         event_bus,
         events,
     } = params;
-    let mut failed: Vec<(String, String)> = Vec::new();
+    let mut failed: Vec<ServiceStartFailure> = Vec::new();
     let mut started_count = 0;
 
     for server in servers {
@@ -51,21 +51,15 @@ pub(super) async fn start_pending_servers(
 
         match start_single_server(server, lifecycle, database, event_bus, events).await {
             Ok(()) => started_count += 1,
-            Err(e) => failed.push((server.name.clone(), e.to_string())),
+            Err(e) => failed.push(ServiceStartFailure::new(server.name.clone(), e)),
         }
     }
 
     notify_reconciliation_complete(events, started_count, servers.len());
 
     if !failed.is_empty() {
-        return Err(McpDomainError::Internal(format!(
-            "Failed to start {} MCP service(s): {}",
-            failed.len(),
-            failed
-                .iter()
-                .map(|(name, err)| format!("{name} ({err})"))
-                .collect::<Vec<_>>()
-                .join(", ")
+        return Err(McpDomainError::ServicesFailedToStart(ServiceStartFailures(
+            failed,
         )));
     }
 
@@ -89,7 +83,7 @@ fn notify_reconciliation_complete(
 
 async fn start_single_server(
     server: &McpServerConfig,
-    lifecycle: &LifecycleOrchestrator,
+    lifecycle: &LifecycleService,
     database: &DatabaseService,
     event_bus: &Arc<EventBus>,
     events: Option<&StartupEventSender>,
@@ -116,18 +110,15 @@ async fn publish_start_success(
     duration_ms: u64,
 ) -> McpDomainResult<()> {
     let service_info = database
-        .get_service_by_name(&server.name)
+        .get_service_by_name(&server.service_name())
         .await?
-        .ok_or_else(|| {
-            McpDomainError::Internal(format!(
-                "service {} started but has no registry row",
-                server.name
-            ))
+        .ok_or_else(|| McpDomainError::ServiceRowMissing {
+            service: server.name.clone(),
         })?;
     let pid = stored_pid(service_info.pid);
     event_bus
         .publish(McpEvent::ServiceStartCompleted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             success: true,
             pid,
             port: server.port,
@@ -138,7 +129,7 @@ async fn publish_start_success(
 
     event_bus
         .publish(McpEvent::ServiceStarted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             process_id: pid,
             port: server.spawn_port()?,
         })
@@ -154,7 +145,7 @@ async fn publish_start_failure(
 ) -> McpDomainResult<()> {
     event_bus
         .publish(McpEvent::ServiceStartCompleted {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             success: false,
             pid: None,
             port: server.port,
@@ -165,7 +156,7 @@ async fn publish_start_failure(
 
     event_bus
         .publish(McpEvent::ServiceFailed {
-            service_name: server.name.clone(),
+            service_name: server.service_name(),
             error: error_msg.to_owned(),
         })
         .await?;

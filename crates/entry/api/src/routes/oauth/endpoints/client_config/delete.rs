@@ -16,7 +16,7 @@ pub async fn delete_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, OAuthHttpError> {
-    let client_id = systemprompt_identifiers::ClientId::new(&client_id);
+    let client_id = systemprompt_identifiers::ClientId::try_new(client_id)?;
     authenticate_client_configuration(&repository, &headers, &client_id).await?;
 
     repository.delete_client(&client_id).await?;

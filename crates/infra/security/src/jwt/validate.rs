@@ -4,7 +4,12 @@
 //! the OAuth/MCP/agent domains all route through [`decode_rs256_claims`]. The
 //! `kid` lookup, RS256 enforcement, and the `exp`/`nbf`/issuer/audience policy
 //! live here and nowhere else, so the validators cannot drift apart. The only
-//! per-call knob is [`ValidationPolicy`].
+//! per-call knob is [`ValidationPolicy`], and every policy pins an issuer.
+//!
+//! Session tokens — the main API middleware and the A2A server alike — go
+//! through [`decode_session_claims`], which adds the act-chain depth limit and
+//! re-derives `user_type` from `scope`, so a forged or mis-minted type claim or
+//! an unbounded delegation chain cannot ride either path.
 //!
 //! Audience validation is always on: every policy carries a non-empty expected
 //! audience set, and a policy that reaches the decoder with an empty set is
@@ -21,7 +26,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
-use systemprompt_models::auth::{JwtAudience, JwtClaims};
+use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, UserType};
 
 use crate::error::{AuthError, AuthResult};
 use crate::keys::authority;
@@ -30,32 +35,22 @@ pub const JWT_LEEWAY_SECONDS: u64 = 30;
 
 #[derive(Debug, Clone)]
 pub struct ValidationPolicy<'a> {
-    validate_exp: bool,
-    validate_nbf: bool,
     leeway_seconds: u64,
-    issuer: Option<&'a str>,
+    issuer: &'a str,
     audiences: &'a [JwtAudience],
 }
 
 impl<'a> ValidationPolicy<'a> {
     #[must_use]
-    pub const fn session_context() -> Self {
-        Self {
-            validate_exp: true,
-            validate_nbf: true,
-            leeway_seconds: JWT_LEEWAY_SECONDS,
-            issuer: None,
-            audiences: JwtAudience::FIRST_PARTY,
-        }
+    pub const fn session_context(issuer: &'a str) -> Self {
+        Self::issuer_scoped(issuer, JwtAudience::FIRST_PARTY)
     }
 
     #[must_use]
     pub const fn issuer_scoped(issuer: &'a str, audiences: &'a [JwtAudience]) -> Self {
         Self {
-            validate_exp: true,
-            validate_nbf: true,
             leeway_seconds: JWT_LEEWAY_SECONDS,
-            issuer: Some(issuer),
+            issuer,
             audiences,
         }
     }
@@ -74,20 +69,42 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
     }
     let kid = header.kid.as_deref().ok_or(AuthError::MissingKid)?;
     let key = authority::decoding_key_for_kid(kid)
-        .map_err(|e| AuthError::KeyLookup(e.to_string()))?
+        .map_err(AuthError::KeyLookup)?
         .ok_or_else(|| AuthError::UnknownKid(kid.to_owned()))?;
 
     let mut validation = Validation::new(Algorithm::RS256);
-    validation.validate_exp = policy.validate_exp;
-    validation.validate_nbf = policy.validate_nbf;
+    validation.validate_exp = true;
+    validation.validate_nbf = true;
     validation.leeway = policy.leeway_seconds;
-    if let Some(issuer) = policy.issuer {
-        validation.set_issuer(&[issuer]);
-    }
+    validation.set_issuer(&[policy.issuer]);
     let audience_strs: Vec<&str> = policy.audiences.iter().map(JwtAudience::as_str).collect();
     validation.set_audience(&audience_strs);
 
     decode::<JwtClaims>(token, key, &validation)
         .map(|data| data.claims)
         .map_err(AuthError::InvalidToken)
+}
+
+pub fn decode_session_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
+    let claims = decode_rs256_claims(token, policy)?;
+
+    if let Some(act) = claims.act.as_ref() {
+        let depth = act.depth();
+        if depth > MAX_ACT_CHAIN_DEPTH {
+            return Err(AuthError::ActChainTooDeep {
+                depth,
+                max: MAX_ACT_CHAIN_DEPTH,
+            });
+        }
+    }
+
+    let derived_type = UserType::from_permissions(&claims.scope);
+    if derived_type != claims.user_type {
+        return Err(AuthError::UserTypeMismatch {
+            claimed: claims.user_type,
+            derived: derived_type,
+        });
+    }
+
+    Ok(claims)
 }

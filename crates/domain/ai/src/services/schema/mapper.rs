@@ -11,6 +11,7 @@
 use super::transformer::TransformedTool;
 use serde_json::Value;
 use std::collections::HashMap;
+use systemprompt_identifiers::McpToolName;
 
 #[derive(Debug)]
 pub struct ToolNameMapper {
@@ -48,6 +49,8 @@ impl ToolNameMapper {
             .push(transformed.name.clone());
     }
 
+    // JSON: MCP-protocol boundary — schema-less tool arguments mandated by the
+    // spec.
     pub fn resolve_tool_call(&self, variant_name: &str, mut params: Value) -> (String, Value) {
         match self.forward_map.get(variant_name) {
             Some((original_name, Some(discriminator_value), discriminator_field)) => {
@@ -68,8 +71,8 @@ impl ToolNameMapper {
         self.reverse_map.get(original_name)
     }
 
-    pub fn is_variant(&self, tool_name: &str) -> bool {
-        self.forward_map.contains_key(tool_name)
+    pub fn is_variant(&self, tool_name: &McpToolName) -> bool {
+        self.forward_map.contains_key(tool_name.as_str())
     }
 }
 

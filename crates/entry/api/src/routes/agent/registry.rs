@@ -9,12 +9,13 @@ use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
 use systemprompt_database::ServiceRepository;
+use systemprompt_identifiers::ServiceName;
 use systemprompt_models::{ApiError, CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
 use systemprompt_agent::models::a2a::{AgentCard, AgentExtension, McpServerMetadata};
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_models::AgentConfig;
+use systemprompt_manifest::AgentConfig;
 
 pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
@@ -24,8 +25,7 @@ pub async fn handle_agent_registry(
         Ok(r) => Arc::new(r),
         Err(e) => {
             tracing::error!(error = %e, "Failed to load agent registry");
-            return ApiError::internal_error(format!("Failed to load agent registry: {e}"))
-                .into_response();
+            return ApiError::internal_error("Failed to load agent registry").into_response();
         },
     };
     let service_repo = ctx.service_repository();
@@ -40,8 +40,7 @@ pub async fn handle_agent_registry(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to list agents");
-            ApiError::internal_error(format!("Failed to retrieve agent registry: {e}"))
-                .into_response()
+            ApiError::internal_error("Failed to retrieve agent registry").into_response()
         },
     }
 }
@@ -55,9 +54,10 @@ async fn build_agent_cards(
     let mut agent_cards = Vec::new();
 
     for agent_config in agents {
-        let runtime_status = match service_repo.find_service_by_name(&agent_config.name).await {
+        let service_name = ServiceName::new(agent_config.name.as_str());
+        let runtime_status = match service_repo.find_service_by_name(&service_name).await {
             Ok(Some(service)) => Some((
-                service.status,
+                service.status.to_string(),
                 Some(agent_config.port),
                 service.pid.map(|p| p as u32),
             )),

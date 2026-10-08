@@ -9,13 +9,16 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use super::process_cleanup::ProcessCleanup;
 use super::service_records::{DbServiceRecord, ServiceConfig};
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
+use super::supervision::port_holders;
 use super::verified_state::VerifiedServiceState;
-use crate::error::SchedulerResult;
-use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
-use systemprompt_identifiers::InstanceId;
+use crate::error::{SchedulerError, SchedulerResult};
+use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool, JsonRow};
+use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_loader::subprocess;
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
+use systemprompt_traits::RepositoryError;
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
     "SELECT name, module_name as service_type, status, pid, port, \
@@ -24,6 +27,60 @@ const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
 );
 
 const STARTUP_GRACE: Duration = Duration::from_secs(45);
+
+const fn service_type(module: ServiceModule) -> ServiceType {
+    match module {
+        ServiceModule::Agent => ServiceType::Agent,
+        ServiceModule::Mcp => ServiceType::Mcp,
+    }
+}
+
+fn required_text<'a>(row: &'a JsonRow, column: &str) -> SchedulerResult<&'a str> {
+    row.get(column)
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| invalid_row(format!("row has no `{column}` value")))
+}
+
+fn invalid_row(reason: String) -> SchedulerError {
+    SchedulerError::Repository(RepositoryError::invalid_data("services", reason))
+}
+
+fn decode_error(
+    context: &str,
+    source: impl std::error::Error + Send + Sync + 'static,
+) -> SchedulerError {
+    SchedulerError::Repository(RepositoryError::Decode {
+        context: context.to_owned(),
+        source: Box::new(source),
+    })
+}
+
+fn decode_db_service(row: &JsonRow) -> SchedulerResult<DbServiceRecord> {
+    let name = ServiceName::new(required_text(row, "name")?);
+    let service_type = required_text(row, "service_type")?
+        .parse::<ServiceModule>()
+        .map_err(|e| decode_error("services.module_name", e))?;
+    let status = required_text(row, "status")?
+        .parse::<ServiceStatus>()
+        .map_err(|e| decode_error("services.status", e))?;
+    let pid = row.get("pid").and_then(serde_json::Value::as_i64);
+    let port = row
+        .get("port")
+        .and_then(serde_json::Value::as_i64)
+        .and_then(|p| i32::try_from(p).ok())
+        .ok_or_else(|| invalid_row(format!("row `{name}` has no valid `port` value")))?;
+    let updated_at_epoch = row
+        .get("updated_at_epoch")
+        .and_then(serde_json::Value::as_f64);
+    Ok(DbServiceRecord {
+        name,
+        service_type,
+        status,
+        pid,
+        port,
+        updated_at_epoch,
+    })
+}
 
 fn now_epoch() -> Option<f64> {
     std::time::SystemTime::now()
@@ -66,16 +123,16 @@ impl ServiceStateVerifier {
         configs: &[ServiceConfig],
     ) -> SchedulerResult<Vec<VerifiedServiceState>> {
         let db_services = self.fetch_db_services().await?;
-        let db_by_name: HashMap<String, &DbServiceRecord> =
-            db_services.iter().map(|s| (s.name.clone(), s)).collect();
+        let db_by_name: HashMap<&ServiceName, &DbServiceRecord> =
+            db_services.iter().map(|s| (&s.name, s)).collect();
 
-        let config_names: HashSet<&String> = configs.iter().map(|c| &c.name).collect();
+        let config_names: HashSet<&ServiceName> = configs.iter().map(|c| &c.name).collect();
 
         let mut states = Vec::new();
 
         for config in configs {
             let db_record = db_by_name.get(&config.name).copied();
-            let state = self.verify_service(config, db_record).await;
+            let state = self.verify_service(config, db_record).await?;
             states.push(state);
         }
 
@@ -83,11 +140,13 @@ impl ServiceStateVerifier {
             if !config_names.contains(&db_service.name) {
                 let orphan_config = ServiceConfig {
                     name: db_service.name.clone(),
-                    service_type: ServiceType::from_module_name(&db_service.service_type),
+                    service_type: service_type(db_service.service_type),
                     port: db_service.port as u16,
                     enabled: false,
                 };
-                let state = self.verify_service(&orphan_config, Some(db_service)).await;
+                let state = self
+                    .verify_service(&orphan_config, Some(db_service))
+                    .await?;
                 states.push(state);
             }
         }
@@ -99,13 +158,15 @@ impl ServiceStateVerifier {
         &self,
         config: &ServiceConfig,
         db_record: Option<&DbServiceRecord>,
-    ) -> VerifiedServiceState {
+    ) -> SchedulerResult<VerifiedServiceState> {
         let desired = if config.enabled {
             DesiredStatus::Enabled
         } else {
             DesiredStatus::Disabled
         };
-        let (runtime, pid) = self.determine_runtime_status(db_record, config.port).await;
+        let (runtime, pid) = self
+            .determine_runtime_status(db_record, config.port)
+            .await?;
 
         let builder = VerifiedServiceState::builder(
             config.name.clone(),
@@ -115,63 +176,71 @@ impl ServiceStateVerifier {
             config.port,
         );
 
-        match pid {
+        Ok(match pid {
             Some(p) => builder.with_pid(p).build(),
             None => builder.build(),
-        }
+        })
     }
 
     async fn determine_runtime_status(
         &self,
         db_record: Option<&DbServiceRecord>,
         port: u16,
-    ) -> (RuntimeStatus, Option<u32>) {
-        match db_record {
-            Some(record) if record.status == "running" => {
-                if let Some(pid) = record.pid.map(|p| p as u32) {
-                    if ProcessCleanup::process_exists(pid) {
-                        let port_up = self.is_port_responsive(port).await;
-                        if port_up {
-                            (RuntimeStatus::Running, Some(pid))
-                        } else if is_wedged(
-                            port_up,
-                            record.updated_at_epoch,
-                            now_epoch(),
-                            STARTUP_GRACE,
-                        ) {
-                            tracing::warn!(
-                                service = %record.name,
-                                pid,
-                                port,
-                                "Service process is alive but its port is unresponsive past the \
-                                 startup grace window; treating as crashed for restart"
-                            );
-                            (RuntimeStatus::Crashed, Some(pid))
-                        } else {
-                            (RuntimeStatus::Starting, Some(pid))
-                        }
-                    } else {
-                        (RuntimeStatus::Crashed, None)
-                    }
+    ) -> SchedulerResult<(RuntimeStatus, Option<u32>)> {
+        let recorded_pid = db_record
+            .and_then(|record| record.pid)
+            .and_then(|pid| u32::try_from(pid).ok());
+        let status = match (db_record, recorded_pid) {
+            (Some(record), Some(pid)) if record.status == ServiceStatus::Running => {
+                if subprocess::is_running(pid).await {
+                    self.classify_live(record, pid, port).await
                 } else {
                     (RuntimeStatus::Crashed, None)
                 }
             },
-            Some(record) if record.status == "starting" => {
-                record
-                    .pid
-                    .map(|p| p as u32)
-                    .map_or((RuntimeStatus::Stopped, None), |pid| {
-                        if ProcessCleanup::process_exists(pid) {
-                            (RuntimeStatus::Starting, Some(pid))
-                        } else {
-                            (RuntimeStatus::Stopped, None)
-                        }
-                    })
+            (Some(record), None) if record.status == ServiceStatus::Running => {
+                (RuntimeStatus::Crashed, None)
             },
-            _ => ProcessCleanup::check_port(port).map_or((RuntimeStatus::Stopped, None), |pid| {
-                (RuntimeStatus::Orphaned, Some(pid))
-            }),
+            (Some(record), Some(pid)) if record.status == ServiceStatus::Starting => {
+                if subprocess::is_running(pid).await {
+                    (RuntimeStatus::Starting, Some(pid))
+                } else {
+                    (RuntimeStatus::Stopped, None)
+                }
+            },
+            (Some(record), None) if record.status == ServiceStatus::Starting => {
+                (RuntimeStatus::Stopped, None)
+            },
+            _ => port_holders(port)
+                .await?
+                .first()
+                .map_or((RuntimeStatus::Stopped, None), |pid| {
+                    (RuntimeStatus::Orphaned, Some(*pid))
+                }),
+        };
+        Ok(status)
+    }
+
+    async fn classify_live(
+        &self,
+        record: &DbServiceRecord,
+        pid: u32,
+        port: u16,
+    ) -> (RuntimeStatus, Option<u32>) {
+        let port_up = self.is_port_responsive(port).await;
+        if port_up {
+            (RuntimeStatus::Running, Some(pid))
+        } else if is_wedged(port_up, record.updated_at_epoch, now_epoch(), STARTUP_GRACE) {
+            tracing::warn!(
+                service = %record.name,
+                pid,
+                port,
+                "Service process is alive but its port is unresponsive past the startup grace \
+                 window; treating as crashed for restart"
+            );
+            (RuntimeStatus::Crashed, Some(pid))
+        } else {
+            (RuntimeStatus::Starting, Some(pid))
         }
     }
 
@@ -191,55 +260,9 @@ impl ServiceStateVerifier {
             .fetch_all(&FETCH_DB_SERVICES, &[&self.instance_id.as_str()])
             .await?;
 
-        let mut records = Vec::new();
-        for row in rows {
-            let name = row
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| {
-                    tracing::warn!("Service record missing name field");
-                    ""
-                })
-                .to_owned();
-            let service_type = row
-                .get("service_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| {
-                    tracing::warn!(service_name = %name, "Service record missing service_type field");
-                    "mcp"
-                }).to_owned();
-            let status = row
-                .get("status")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| {
-                    tracing::warn!(service_name = %name, "Service record missing status field");
-                    "stopped"
-                })
-                .to_owned();
-            let pid = row.get("pid").and_then(serde_json::Value::as_i64);
-            let port = row
-                .get("port")
-                .and_then(serde_json::Value::as_i64)
-                .unwrap_or_else(|| {
-                    tracing::warn!(service_name = %name, "Service record missing port field");
-                    0
-                }) as i32;
-            let updated_at_epoch = row
-                .get("updated_at_epoch")
-                .and_then(serde_json::Value::as_f64);
-
-            records.push(DbServiceRecord {
-                name,
-                service_type,
-                status,
-                pid,
-                port,
-                updated_at_epoch,
-            });
-        }
-
-        Ok(records)
+        rows.iter().map(decode_db_service).collect()
     }
+
 
     pub async fn get_services_needing_action(
         &self,

@@ -9,7 +9,7 @@
 //! operator gets from a refused boot.
 
 use systemprompt_api::services::server::lifecycle::reconciliation::{
-    handle_missing_servers, verify_database_registration,
+    VERIFY_ATTEMPTS, VERIFY_BACKOFF, handle_missing_servers, verify_database_registration,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
@@ -17,7 +17,7 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
 use systemprompt_test_fixtures::{
-    closed_db_pool, ensure_test_bootstrap, fixture_app_context, fixture_db_pool,
+    closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
 
 fn orchestrator(
@@ -75,14 +75,12 @@ fn required(name: &str) -> McpServerConfig {
 }
 
 async fn live_pool() -> DbPool {
-    let boot = ensure_test_bootstrap();
-    fixture_db_pool(&boot.database_url)
-        .await
-        .expect("test database")
+    ensure_test_bootstrap();
+    test_db_pool().await
 }
 
 async fn seed(pool: &DbPool, name: &str, status: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
          VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
@@ -97,7 +95,7 @@ async fn seed(pool: &DbPool, name: &str, status: &str) {
 }
 
 async fn drop_row(pool: &DbPool, name: &str) {
-    let inner = pool.pool_arc().expect("write pool");
+    let inner = pool.pool();
     sqlx::query("DELETE FROM services WHERE name = $1")
         .bind(name)
         .execute(inner.as_ref())
@@ -109,7 +107,7 @@ async fn drop_row(pool: &DbPool, name: &str) {
 async fn a_required_server_with_a_running_row_passes_verification() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("verified");
     seed(&pool, &name, "running").await;
 
@@ -127,7 +125,7 @@ async fn a_required_server_with_a_running_row_passes_verification() {
 async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("unregistered");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -146,7 +144,7 @@ async fn a_required_server_with_no_row_at_all_fails_startup_and_is_named() {
 async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_that_status() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("halfup");
     seed(&pool, &name, "starting").await;
 
@@ -168,7 +166,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
 async fn every_failing_server_is_reported_not_just_the_first() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let missing = unique_name("missing");
     let stopped = unique_name("stopped");
     seed(&pool, &stopped, "stopped").await;
@@ -191,7 +189,7 @@ async fn every_failing_server_is_reported_not_just_the_first() {
 async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
     let boot = ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("unreachable");
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
@@ -214,7 +212,7 @@ async fn an_unreachable_database_fails_verification_rather_than_passing_it() {
 async fn a_required_server_that_never_started_is_named_in_the_refusal() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("neverstarted");
 
     let error = handle_missing_servers(&[required(&name)], &orchestrator(&ctx), None)
@@ -237,7 +235,7 @@ async fn a_required_server_that_never_started_is_named_in_the_refusal() {
 async fn several_servers_that_never_started_are_all_named() {
     let pool = live_pool().await;
     let boot = ensure_test_bootstrap();
-    let ctx = fixture_app_context(&pool, &boot.database_url).expect("fixture context");
+    let ctx = test_app_context(&pool, &boot.database_url);
     let first = unique_name("absent_one");
     let second = unique_name("absent_two");
 
@@ -259,4 +257,61 @@ async fn several_servers_that_never_started_are_all_named() {
         message.contains("2 required MCP server(s)"),
         "the count must match the list; got: {message}"
     );
+}
+
+#[tokio::test]
+async fn a_row_that_turns_running_during_the_retry_window_passes_verification() {
+    let pool = live_pool().await;
+    let boot = ensure_test_bootstrap();
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let name = unique_name("late");
+    seed(&pool, &name, "starting").await;
+
+    let flipper = {
+        let pool = pool.clone();
+        let name = name.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            seed(&pool, &name, "running").await;
+        })
+    };
+
+    let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
+    flipper.await.expect("flip task");
+
+    assert!(
+        outcome.is_ok(),
+        "a concurrent reconcile that finishes inside the bounded retry must pass: {outcome:?}"
+    );
+
+    drop_row(&pool, &name).await;
+}
+
+#[tokio::test]
+async fn a_row_that_never_turns_running_fails_after_every_attempt() {
+    let pool = live_pool().await;
+    let boot = ensure_test_bootstrap();
+    let ctx = test_app_context(&pool, &boot.database_url);
+    let name = unique_name("stuck");
+    seed(&pool, &name, "stopped").await;
+
+    let started = std::time::Instant::now();
+    let error = verify_database_registration(&[required(&name)], &ctx, None)
+        .await
+        .map(|_| ())
+        .expect_err("a row that stays stopped must fail");
+    let elapsed = started.elapsed();
+
+    let expected_wait = VERIFY_BACKOFF * (VERIFY_ATTEMPTS - 1);
+    assert!(
+        elapsed >= expected_wait,
+        "verification must retry {VERIFY_ATTEMPTS} times before refusing; took {elapsed:?}"
+    );
+    let message = error.to_string();
+    assert!(
+        message.contains(&format!("after {VERIFY_ATTEMPTS} attempts")),
+        "the refusal reports how many attempts were made; got: {message}"
+    );
+
+    drop_row(&pool, &name).await;
 }

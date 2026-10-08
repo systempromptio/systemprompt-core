@@ -2,27 +2,29 @@
 //! that cannot reach its tenant is allowed to do, and what the failure advises.
 //!
 //! These decisions live in `systemprompt_cli::runner::routing` and
-//! `systemprompt_cli::runner::profile_routing`. The read paths resolve against
-//! the checkout's own `.systemprompt` directory, so they are driven only where
-//! the outcome is a refusal — nothing here writes.
+//! `systemprompt_cli::runner::profile_routing`. The tenant and session reads
+//! resolve under the profile's system root, which these tests point at an
+//! owned temporary project so the developer's `.systemprompt` is never read.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use clap::Parser;
 use systemprompt_cli::args::Cli;
-use systemprompt_cli::descriptor::RoutingClass;
+use systemprompt_cli::descriptor::{DataImpact, RoutingClass};
 use systemprompt_cli::runner::profile_routing::{
-    BootstrapOutcome, RoutingDecision, allow_local_execution, confirm_remote_job_run,
-    decide_routing, is_cloud_bypass_command, remediation_for,
+    BootstrapOutcome, confirm_remote_job_run, is_cloud_bypass_command,
 };
 use systemprompt_cli::runner::routing::{
     ExecutionTarget, determine_execution_target, execute_remote, load_session_for_key,
     resolve_tenant,
 };
+use systemprompt_cli::runner::routing_decision::{
+    RoutingDecision, allow_local_execution, decide_routing, remediation_for,
+};
 use systemprompt_cli::{CliConfig, OutputFormat};
 use systemprompt_cloud::SessionKey;
 use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 fn cli(args: &[&str]) -> Cli {
     Cli::try_parse_from(std::iter::once("systemprompt").chain(args.iter().copied()))
@@ -33,6 +35,15 @@ fn fixture_profile() -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
     let yaml = std::fs::read_to_string(&boot.profile_path).expect("read the fixture profile");
     serde_yaml::from_str(&yaml).expect("parse the fixture profile")
+}
+
+fn profile_in_owned_project() -> (tempfile::TempDir, Profile) {
+    let root = tempfile::TempDir::new().expect("owned project root");
+    std::fs::create_dir_all(root.path().join(".systemprompt")).expect("create .systemprompt");
+    std::fs::create_dir_all(root.path().join("services")).expect("create services");
+    let mut profile = fixture_profile();
+    profile.paths.system = root.path().display().to_string();
+    (root, profile)
 }
 
 fn message(err: &anyhow::Error) -> String {
@@ -67,7 +78,7 @@ fn a_local_profile_routes_locally() {
 
 #[test]
 fn a_tenant_that_is_not_in_the_local_store_is_reported_with_the_sync_command() {
-    let profile = fixture_profile();
+    let (_root, profile) = profile_in_owned_project();
 
     let err = resolve_tenant(&profile, &TenantId::new("tenant_that_was_never_synced"))
         .expect_err("an unsynced tenant cannot be resolved");
@@ -81,7 +92,7 @@ fn a_tenant_that_is_not_in_the_local_store_is_reported_with_the_sync_command() {
 
 #[test]
 fn a_key_with_no_stored_session_says_to_log_in() {
-    let profile = fixture_profile();
+    let (_root, profile) = profile_in_owned_project();
     let key = SessionKey::Tenant(TenantId::new("tenant_with_no_session_at_all"));
 
     let err = load_session_for_key(&profile, &key, "http://localhost:8080")
@@ -160,7 +171,7 @@ fn only_a_jobs_run_command_is_confirmed_before_it_reaches_a_remote_profile() {
     confirm_remote_job_run(
         &cli(&["infra", "services", "status"]),
         &config,
-        "prod",
+        &fixture_profile(),
         "example.invalid",
     )
     .expect("a command that is not a jobs run needs no confirmation");
@@ -177,8 +188,9 @@ fn a_remote_jobs_run_is_refused_without_a_terminal_to_confirm_on() {
         vec!["infra", "jobs", "run", "--all"],
         vec!["infra", "jobs", "run", "--tag", "nightly"],
     ] {
-        let err = confirm_remote_job_run(&cli(&args), &config, "prod", "example.invalid")
-            .expect_err("an unconfirmable remote jobs run must not proceed");
+        let err =
+            confirm_remote_job_run(&cli(&args), &config, &fixture_profile(), "example.invalid")
+                .expect_err("an unconfirmable remote jobs run must not proceed");
 
         assert!(
             !message(&err).is_empty(),
@@ -196,7 +208,7 @@ fn a_confirmed_jobs_run_passes_the_gate() {
     confirm_remote_job_run(
         &cli(&["infra", "jobs", "run", "publish_pipeline", "--yes"]),
         &config,
-        "prod",
+        &fixture_profile(),
         "example.invalid",
     )
     .expect("--yes is the non-interactive confirmation");
@@ -228,7 +240,7 @@ async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
 
 fn cloud_profile() -> Profile {
     let mut profile = fixture_profile();
-    profile.target = systemprompt_models::profile::ProfileType::Cloud;
+    profile.target = systemprompt_manifest::profile::ProfileType::Cloud;
     profile.database.external_db_access = false;
     profile
 }
@@ -246,6 +258,7 @@ fn a_remote_target_is_executed_remotely_and_nowhere_else() {
         }),
         &cloud_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect("a resolved remote target is a decision, not an error");
 
@@ -266,6 +279,7 @@ fn a_cloud_profile_with_no_tenant_lets_a_read_only_command_continue_locally() {
         Ok(ExecutionTarget::Local),
         &cloud_profile(),
         RoutingClass::ReadOnly,
+        DataImpact::Preserving,
     )
     .expect("read-only work may fall back to local data");
 
@@ -278,6 +292,7 @@ fn a_cloud_profile_that_cannot_route_refuses_a_mutating_command() {
         Err(anyhow::anyhow!("no session")),
         &cloud_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect_err("a mutating command must not run against an unknown database");
 
@@ -293,8 +308,33 @@ fn a_local_profile_continues_locally_whatever_the_target_says() {
         Err(anyhow::anyhow!("irrelevant")),
         &fixture_profile(),
         RoutingClass::Mutating,
+        DataImpact::Preserving,
     )
     .expect("a local profile never routes");
 
+    assert_eq!(decision, RoutingDecision::ContinueLocal);
+}
+
+#[test]
+fn a_failed_route_never_falls_back_to_direct_database_access_for_a_destructive_command() {
+    let mut profile = cloud_profile();
+    profile.database.external_db_access = true;
+
+    let err = decide_routing(
+        Err(anyhow::anyhow!("connection refused")),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Destructive,
+    )
+    .expect_err("external_db_access must not turn a failed route into a direct cloud write");
+    assert!(message(&err).contains("destructive"), "{err:#}");
+
+    let decision = decide_routing(
+        Err(anyhow::anyhow!("connection refused")),
+        &profile,
+        RoutingClass::Mutating,
+        DataImpact::Preserving,
+    )
+    .expect("a non-destructive command keeps the external_db_access escape hatch");
     assert_eq!(decision, RoutingDecision::ContinueLocal);
 }

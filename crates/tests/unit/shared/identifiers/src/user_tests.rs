@@ -1,56 +1,99 @@
 use systemprompt_identifiers::{DbValue, ToDbValue, UserId};
 
+const UUID: &str = "550e8400-e29b-41d4-a716-446655440000";
+
 #[test]
 fn display_format() {
-    let id = UserId::new("user-42");
-    assert_eq!(format!("{}", id), "user-42");
+    let id = UserId::new(UUID);
+    assert_eq!(format!("{}", id), UUID);
 }
 
 #[test]
 fn serde_transparent_json() {
-    let id = UserId::new("serde-user");
+    let id = UserId::new(UUID);
     let json = serde_json::to_string(&id).unwrap();
-    assert_eq!(json, "\"serde-user\"");
+    assert_eq!(json, format!("\"{UUID}\""));
     let deserialized: UserId = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, id);
 }
 
 #[test]
-fn from_string_and_str_produce_equal() {
-    let from_str: UserId = "test".into();
-    let from_string: UserId = String::from("test").into();
-    assert_eq!(from_str, from_string);
+fn deserialize_accepts_a_non_uuid_id() {
+    let id: UserId = serde_json::from_str("\"seeded-admin\"").unwrap();
+    assert_eq!(id.as_str(), "seeded-admin");
+}
+
+#[test]
+fn deserialize_rejects_empty_and_sentinel() {
+    for raw in ["\"\"", "\"unset\"", "\"two words\""] {
+        let result: Result<UserId, _> = serde_json::from_str(raw);
+        assert!(result.is_err(), "{raw} must be rejected");
+    }
+}
+
+#[test]
+fn try_new_accepts_uuid_and_opaque_ids() {
+    for raw in [
+        UUID,
+        "admin",
+        "imported_user-42",
+        "svc:reporting",
+        "user@example.com",
+    ] {
+        let id = UserId::try_new(raw).unwrap();
+        assert_eq!(id.as_str(), raw);
+    }
+}
+
+#[test]
+fn try_new_rejects_empty_sentinel_whitespace_and_control() {
+    for raw in [
+        "",
+        "unset",
+        "UNSET",
+        " ",
+        "test user",
+        " padded",
+        "tab\tid",
+        "line\nid",
+        "nul\u{0}id",
+    ] {
+        assert!(UserId::try_new(raw).is_err(), "{raw:?} must be rejected");
+    }
+}
+
+#[test]
+fn from_str_validates() {
+    assert!(UUID.parse::<UserId>().is_ok());
+    assert!("not-a-uuid".parse::<UserId>().is_ok());
+    assert!("".parse::<UserId>().is_err());
+}
+
+#[test]
+fn generate_mints_a_uuid_v4() {
+    let id = UserId::generate();
+    let parsed = uuid::Uuid::parse_str(id.as_str()).unwrap();
+    assert_eq!(parsed.get_version_num(), 4);
+    assert_ne!(UserId::generate(), id);
 }
 
 #[test]
 fn into_string_conversion() {
-    let id = UserId::new("convert");
+    let id = UserId::new(UUID);
     let s: String = id.into();
-    assert_eq!(s, "convert");
+    assert_eq!(s, UUID);
 }
 
 #[test]
 fn partial_eq_str() {
-    let id = UserId::new("cmp");
-    assert!(id == "cmp");
-    assert!("cmp" == id);
+    let id = UserId::new(UUID);
+    assert!(id == UUID);
+    assert!(UUID == id);
 }
 
 #[test]
 fn to_db_value_owned_and_ref() {
-    let id = UserId::new("db");
-    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == "db"));
-    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == "db"));
-}
-
-#[test]
-fn accepts_email_format() {
-    let id = UserId::new("user@example.com");
-    assert_eq!(id.as_str(), "user@example.com");
-}
-
-#[test]
-fn accepts_uuid_format() {
-    let id = UserId::new("550e8400-e29b-41d4-a716-446655440000");
-    assert_eq!(id.as_str(), "550e8400-e29b-41d4-a716-446655440000");
+    let id = UserId::new(UUID);
+    assert!(matches!(id.to_db_value(), DbValue::String(ref s) if s == UUID));
+    assert!(matches!((&id).to_db_value(), DbValue::String(ref s) if s == UUID));
 }

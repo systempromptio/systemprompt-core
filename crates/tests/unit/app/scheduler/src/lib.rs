@@ -50,10 +50,6 @@ mod otlp_export;
 #[cfg(test)]
 mod plans;
 #[cfg(test)]
-mod posix_backend;
-#[cfg(test)]
-mod process_cleanup;
-#[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]
 mod repository_db;
@@ -69,6 +65,8 @@ mod start_owner_resolution_db;
 mod state_transitions;
 #[cfg(test)]
 mod state_verifier_seeded_db;
+#[cfg(test)]
+mod supervision;
 #[cfg(test)]
 mod test_jobs;
 #[cfg(test)]

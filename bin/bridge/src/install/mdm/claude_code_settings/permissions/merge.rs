@@ -12,6 +12,8 @@ use serde_json::Value;
 
 use super::PermissionRules;
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 #[must_use]
 pub fn merged_permissions(
     existing: Option<&Value>,
@@ -35,6 +37,8 @@ pub fn merged_permissions(
     Some(Value::Object(permissions))
 }
 
+// JSON: Claude Code `settings.json` — foreign config, unknown keys must be
+// preserved.
 fn splice_list(
     permissions: &mut serde_json::Map<String, Value>,
     key: &str,

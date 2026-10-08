@@ -12,40 +12,34 @@ use axum::extract::Extension;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use tracing::instrument;
-use uuid::Uuid;
 
-use crate::routes::oauth::OAuthHttpError;
 use crate::routes::oauth::extractors::OAuthRepo;
+use crate::routes::oauth::{OAuthHttpError, internal};
 
 #[instrument(skip(repo, req_ctx))]
 pub async fn handle_logout(
     Extension(req_ctx): Extension<RequestContext>,
     OAuthRepo(repo): OAuthRepo,
 ) -> Result<Response, OAuthHttpError> {
-    let jti = req_ctx.jti().to_owned();
-    if jti.is_empty() {
-        return Err(OAuthHttpError::invalid_request("Missing bearer token"));
-    }
+    let jti = req_ctx
+        .jti()
+        .ok_or_else(|| OAuthHttpError::invalid_request("Missing bearer token"))?;
 
-    let exp_unix = req_ctx.token_exp();
-    let exp_dt = DateTime::<Utc>::from_timestamp(exp_unix, 0)
+    let exp_dt = req_ctx
+        .token_exp()
+        .and_then(|exp_unix| DateTime::<Utc>::from_timestamp(exp_unix, 0))
         .ok_or_else(|| OAuthHttpError::invalid_request("Invalid token expiry"))?;
 
-    let user_uuid = Uuid::parse_str(req_ctx.user_id().as_str())
-        .map_err(|_e| OAuthHttpError::invalid_request("Invalid user id"))?;
-
-    revoke_jti(&repo, &jti, user_uuid, exp_dt).await?;
+    revoke_jti(&repo, jti, req_ctx.user_id(), exp_dt).await?;
 
     let cookie = HeaderValue::from_str(
         "access_token=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict",
     )
-    .map_err(|e| {
-        tracing::error!(error = %e, "Failed to build logout Set-Cookie header");
-        OAuthHttpError::server_error("Logout failed")
-    })?;
+    .map_err(|e| internal::server_error("Logout failed", e))?;
     let mut response = (StatusCode::NO_CONTENT).into_response();
     response.headers_mut().insert(header::SET_COOKIE, cookie);
     Ok(response)
@@ -53,12 +47,11 @@ pub async fn handle_logout(
 
 async fn revoke_jti(
     repo: &OAuthRepository,
-    jti: &str,
-    user_id: Uuid,
+    jti: &AccessTokenId,
+    user_id: &UserId,
     exp: DateTime<Utc>,
 ) -> Result<(), OAuthHttpError> {
-    repo.revoke_jti(jti, user_id, exp).await.map_err(|e| {
-        tracing::error!(error = %e, "Failed to persist JTI revocation on logout");
-        OAuthHttpError::server_error("Logout failed")
-    })
+    repo.revoke_jti(jti, user_id, exp)
+        .await
+        .map_err(|e| internal::server_error("Logout failed", e))
 }

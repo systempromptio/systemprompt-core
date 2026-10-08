@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::ContentError;
-use crate::models::{Content, ContentLinkMetadata, ContentMetadata};
+use crate::models::{Content, ContentMetadata};
 use sha2::{Digest, Sha256};
 use systemprompt_identifiers::{CategoryId, ContentId, LocaleCode, SourceId};
 
@@ -13,17 +13,15 @@ pub(super) fn create_content_from_metadata(
     metadata: &ContentMetadata,
     content_text: &str,
     source_id: SourceId,
-    category_id: String,
+    category_id: CategoryId,
 ) -> Result<Content, ContentError> {
-    let id = ContentId::new(uuid::Uuid::new_v4().to_string());
+    let id = ContentId::generate();
     let slug = metadata.slug.clone();
 
     let published_at = chrono::NaiveDate::parse_from_str(&metadata.published_at, "%Y-%m-%d")
-        .map_err(|e| {
-            ContentError::Parse(format!(
-                "Invalid published_at date '{}': {}",
-                metadata.published_at, e
-            ))
+        .map_err(|source| ContentError::InvalidDate {
+            value: metadata.published_at.clone(),
+            source,
         })?
         .and_hms_opt(0, 0, 0)
         .ok_or_else(|| ContentError::Parse("Failed to create datetime".to_owned()))?
@@ -31,16 +29,6 @@ pub(super) fn create_content_from_metadata(
         .single()
         .ok_or_else(|| ContentError::Parse("Ambiguous timezone conversion".to_owned()))?;
 
-    let links_vec: Vec<ContentLinkMetadata> = metadata
-        .links
-        .iter()
-        .map(|link| ContentLinkMetadata {
-            title: link.title.clone(),
-            url: link.url.clone(),
-        })
-        .collect();
-
-    let links = serde_json::to_value(&links_vec)?;
 
     Ok(Content {
         id,
@@ -54,11 +42,11 @@ pub(super) fn create_content_from_metadata(
         keywords: metadata.keywords.clone(),
         kind: metadata.kind.clone(),
         image: metadata.image.clone(),
-        category_id: Some(CategoryId::new(category_id)),
+        category_id: Some(category_id),
         source_id,
         version_hash: String::new(),
         public: metadata.public.unwrap_or(true),
-        links,
+        links: sqlx::types::Json(metadata.links.clone()),
         updated_at: chrono::Utc::now(),
     })
 }

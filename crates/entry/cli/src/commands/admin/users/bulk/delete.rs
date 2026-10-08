@@ -8,7 +8,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_users::{UserRepository, UserService};
+use systemprompt_users::{UserRepository, UserService, UserStatus};
 
 use crate::commands::admin::users::types::BulkDeleteOutput;
 use crate::context::CommandContext;
@@ -20,7 +20,7 @@ pub struct DeleteArgs {
     pub role: Option<String>,
 
     #[arg(long, help = "Filter by status (e.g., 'inactive')")]
-    pub status: Option<String>,
+    pub status: Option<UserStatus>,
 
     #[arg(long, help = "Filter by age: users older than N days")]
     pub older_than: Option<i64>,
@@ -70,11 +70,11 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
     }
 
     let pool = ctx.db_pool().await?;
-    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)?));
+    let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
 
     let users = user_service
         .list_by_filter(
-            args.status.as_deref(),
+            args.status,
             args.role.as_deref(),
             args.older_than,
             args.limit,

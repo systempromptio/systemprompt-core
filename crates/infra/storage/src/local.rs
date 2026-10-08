@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 use systemprompt_traits::{
@@ -11,6 +11,8 @@ use systemprompt_traits::{
 };
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+
+use crate::object_id::{id_for, mime_for, relative_path};
 
 /// Files stored as plain paths under one root directory.
 ///
@@ -38,67 +40,32 @@ impl LocalFileStorage {
     }
 }
 
-pub(crate) fn relative_path(path: &Path) -> Result<&Path, FileStorageError> {
-    if path.as_os_str().is_empty() {
-        return Err(FileStorageError::Validation(
-            "storage path must not be empty".to_owned(),
-        ));
-    }
-    for component in path.components() {
-        match component {
-            Component::Normal(_) | Component::CurDir => {},
-            Component::ParentDir => {
-                return Err(FileStorageError::Validation(format!(
-                    "storage path {} contains a parent-directory component",
-                    path.display()
-                )));
-            },
-            Component::RootDir | Component::Prefix(_) => {
-                return Err(FileStorageError::Validation(format!(
-                    "storage path {} must be relative to the storage root",
-                    path.display()
-                )));
-            },
-        }
-    }
-    Ok(path)
+#[derive(Debug)]
+struct StoredFileIoError {
+    id: StoredFileId,
+    source: std::io::Error,
 }
 
-fn id_for(path: &Path) -> StoredFileId {
-    let normalised: PathBuf = path
-        .components()
-        .filter(|component| !matches!(component, Component::CurDir))
-        .collect();
-    StoredFileId::new(normalised.to_string_lossy().replace('\\', "/"))
-}
-
-fn mime_for(path: &Path) -> &'static str {
-    match path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("png") => "image/png",
-        Some("jpg" | "jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        Some("webp") => "image/webp",
-        Some("svg") => "image/svg+xml",
-        Some("pdf") => "application/pdf",
-        Some("json") => "application/json",
-        Some("txt" | "md") => "text/plain",
-        Some("csv") => "text/csv",
-        Some("mp3") => "audio/mpeg",
-        Some("mp4") => "video/mp4",
-        _ => "application/octet-stream",
+impl std::fmt::Display for StoredFileIoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "stored file {}", self.id)
     }
 }
 
-fn not_found(id: &StoredFileId, err: &std::io::Error) -> FileStorageError {
+impl std::error::Error for StoredFileIoError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+fn not_found(id: &StoredFileId, err: std::io::Error) -> FileStorageError {
     if err.kind() == std::io::ErrorKind::NotFound {
         FileStorageError::NotFound(id.as_str().to_owned())
     } else {
-        FileStorageError::Backend(format!("{}: {err}", id.as_str()))
+        FileStorageError::Backend(Box::new(StoredFileIoError {
+            id: id.clone(),
+            source: err,
+        }))
     }
 }
 
@@ -133,21 +100,21 @@ impl FileStorage for LocalFileStorage {
 
     async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
         let full = self.resolve(id)?;
-        fs::read(&full).await.map_err(|err| not_found(id, &err))
+        fs::read(&full).await.map_err(|err| not_found(id, err))
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
         let full = self.resolve(id)?;
         fs::remove_file(&full)
             .await
-            .map_err(|err| not_found(id, &err))
+            .map_err(|err| not_found(id, err))
     }
 
     async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
         let full = self.resolve(id)?;
         let meta = fs::metadata(&full)
             .await
-            .map_err(|err| not_found(id, &err))?;
+            .map_err(|err| not_found(id, err))?;
         let created_at = meta.created().or_else(|_| meta.modified()).map_or_else(
             |_| chrono::Utc::now(),
             chrono::DateTime::<chrono::Utc>::from,

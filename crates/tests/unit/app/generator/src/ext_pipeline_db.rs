@@ -10,20 +10,16 @@ use std::sync::Mutex;
 
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::CreateContentParams;
-use systemprompt_database::DbPool;
 use systemprompt_extension::AssetPaths;
 use systemprompt_generator::{
     execute_copy_extension_assets, generate_sitemap, get_templates_path, load_web_config,
     prerender_content, prerender_pages,
 };
 use systemprompt_identifiers::SourceId;
-use systemprompt_test_fixtures::{
-    TestBootstrap, ensure_test_bootstrap, fixture_database_url, fixture_db_pool,
-};
+use systemprompt_test_fixtures::{TestBootstrap, ensure_test_bootstrap, test_db_pool};
 
 use crate::config_error_db::web_config_yaml_with_templates_path;
 use crate::ext_fixtures::{GEN_REQUIRED_ASSET_DEST, GEN_REQUIRED_ASSET_SOURCE};
-
 
 static SERIALIZE: Mutex<()> = Mutex::new(());
 
@@ -60,17 +56,12 @@ fn install_config(boot: &TestBootstrap, source_id: &str) {
     fs::create_dir_all(boot.app_paths.web().root().join("templates")).expect("mkdir templates");
 }
 
-async fn maybe_db_or_skip() -> Option<DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
-
 #[tokio::test]
 async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -78,7 +69,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths");
@@ -107,7 +98,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
     let tmp = tempfile::TempDir::new().unwrap();
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
-        &systemprompt_models::profile::PathsConfig {
+        &systemprompt_manifest::profile::PathsConfig {
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -115,7 +106,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
             storage: Some(p),
             geoip_database: None,
         },
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("paths");
@@ -135,12 +126,10 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
 async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipesrc");
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let _ = repo.delete_by_source(&source_id).await;
     for locale in ["en", "fr"] {
         repo.create(
@@ -168,9 +157,14 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
     )
     .expect("write template");
 
-    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("prerender_content");
+    prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect("prerender_content");
 
     let _ = repo.delete_by_source(&source_id).await;
     let _ = fs::remove_file(tmpl_dir.join("article-post.html"));
@@ -200,9 +194,7 @@ async fn prerender_runs_fixture_components_extenders_and_enrichment() {
 async fn prerender_pages_renders_fixture_page_with_provider_data() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     install_config(boot, "extpipepages");
     let tmpl_dir = boot.app_paths.web().root().join("templates");
@@ -245,18 +237,21 @@ async fn prerender_pages_renders_fixture_page_with_provider_data() {
 async fn prerender_empty_source_retries_then_renders_nothing() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
     let source_id = SourceId::new("extpipeempty");
-    let repo = ContentRepository::new(&db).expect("content repository");
+    let repo = ContentRepository::new(&db);
     let _ = repo.delete_by_source(&source_id).await;
 
     install_config(boot, "extpipeempty");
-    prerender_content(db.clone(), content_repo(&db), &boot.app_paths)
-        .await
-        .expect("empty source must complete without error");
+    prerender_content(
+        db.clone(),
+        content_repo(&db),
+        content_analytics(&db),
+        &boot.app_paths,
+    )
+    .await
+    .expect("empty source must complete without error");
     assert!(
         !boot.app_paths.web().dist().join("blog/index.html").exists()
             || fs::read_dir(boot.app_paths.web().dist().join("blog")).is_ok(),
@@ -268,11 +263,9 @@ async fn prerender_empty_source_retries_then_renders_nothing() {
 async fn generate_sitemap_chunks_into_index_when_over_url_limit() {
     let _guard = SERIALIZE.lock().unwrap_or_else(|e| e.into_inner());
     let boot = ensure_test_bootstrap();
-    let Some(db) = maybe_db_or_skip().await else {
-        return;
-    };
+    let db = test_db_pool().await;
 
-    let pool = db.pool_arc().expect("pg pool");
+    let pool = db.pool();
     sqlx::query("DELETE FROM markdown_content WHERE source_id = 'extpipebulk'")
         .execute(pool.as_ref())
         .await
@@ -365,5 +358,11 @@ async fn validate_build_skips_unparseable_sitemap_urls() {
 }
 
 fn content_repo(pool: &systemprompt_database::DbPool) -> systemprompt_content::ContentRepository {
-    systemprompt_content::ContentRepository::new(pool).expect("content repository")
+    systemprompt_content::ContentRepository::new(pool)
+}
+
+fn content_analytics(
+    pool: &systemprompt_database::DbPool,
+) -> systemprompt_analytics::ContentAnalyticsRepository {
+    systemprompt_analytics::ContentAnalyticsRepository::new(pool)
 }

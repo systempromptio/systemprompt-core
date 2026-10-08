@@ -9,25 +9,17 @@
 //! - Anonymous user cleanup
 
 use anyhow::Result;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
+use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
-
-async fn get_db() -> Option<DbPool> {
-    let url = systemprompt_test_fixtures::fixture_database_url().ok()?;
-    systemprompt_test_fixtures::fixture_db_pool(&url).await.ok()
-}
 
 #[tokio::test]
 async fn create_user_with_all_fields() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("test_create_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("testuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -44,7 +36,7 @@ async fn create_user_with_all_fields() -> Result<()> {
     assert_eq!(user.email, unique_email);
     assert_eq!(user.full_name, Some("Test User".to_string()));
     assert_eq!(user.display_name, Some("Test".to_string()));
-    assert_eq!(user.status, Some("active".to_string()));
+    assert_eq!(user.status, UserStatus::Active);
     assert!(user.roles.contains(&"user".to_string()));
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", user.id.as_str())
@@ -56,14 +48,11 @@ async fn create_user_with_all_fields() -> Result<()> {
 
 #[tokio::test]
 async fn create_user_without_display_name_uses_full_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("test_nodisplay_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("nodisplay_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -83,14 +72,11 @@ async fn create_user_without_display_name_uses_full_name() -> Result<()> {
 
 #[tokio::test]
 async fn create_anonymous_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let fingerprint = format!("fp_{}", uuid::Uuid::new_v4());
     let user = repo.create_anonymous(&fingerprint).await?;
@@ -108,14 +94,11 @@ async fn create_anonymous_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_id_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_by_id_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findbyid_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -136,13 +119,10 @@ async fn find_by_id_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let fake_id = UserId::new("nonexistent-user-id".to_string());
     let found = repo.find_by_id(&fake_id).await?;
@@ -153,14 +133,11 @@ async fn find_by_id_returns_none_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_email_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -180,13 +157,10 @@ async fn find_by_email_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let found = repo.find_by_email("nonexistent@example.com").await?;
     assert!(found.is_none());
@@ -196,14 +170,11 @@ async fn find_by_email_returns_none_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_name_returns_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_name_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -223,20 +194,17 @@ async fn find_by_name_returns_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_by_role_returns_users_with_role() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("find_role_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("findrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
     let created = repo.create(&unique_name, &unique_email, None, None).await?;
 
-    let users = repo.find_by_role(UserRole::User).await?;
+    let users = repo.list_by_role(UserRole::User).await?;
     assert!(!users.is_empty());
     assert!(
         users
@@ -253,13 +221,10 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
 
 #[tokio::test]
 async fn find_first_admin_returns_admin_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let admin = repo.find_first_admin().await?;
     if let Some(user) = admin {
@@ -271,14 +236,11 @@ async fn find_first_admin_returns_admin_user() -> Result<()> {
 
 #[tokio::test]
 async fn update_email_changes_email() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updateemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -288,7 +250,7 @@ async fn update_email_changes_email() -> Result<()> {
     let updated = repo.update_email(&created.id, &new_email).await?;
 
     assert_eq!(updated.email, new_email);
-    assert_eq!(updated.email_verified, Some(false)); // Should reset on email change
+    assert!(!updated.email_verified);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -299,14 +261,11 @@ async fn update_email_changes_email() -> Result<()> {
 
 #[tokio::test]
 async fn update_full_name_changes_name() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_name_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updatename_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -325,14 +284,11 @@ async fn update_full_name_changes_name() -> Result<()> {
 
 #[tokio::test]
 async fn update_status_changes_status() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_status_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updatestatus_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -342,7 +298,7 @@ async fn update_status_changes_status() -> Result<()> {
         .update_status(&created.id, UserStatus::Suspended)
         .await?;
 
-    assert_eq!(updated.status, Some("suspended".to_string()));
+    assert_eq!(updated.status, UserStatus::Suspended);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -353,14 +309,11 @@ async fn update_status_changes_status() -> Result<()> {
 
 #[tokio::test]
 async fn update_email_verified_sets_flag() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("verify_email_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("verifyemail_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -368,7 +321,7 @@ async fn update_email_verified_sets_flag() -> Result<()> {
 
     let updated = repo.update_email_verified(&created.id, true).await?;
 
-    assert_eq!(updated.email_verified, Some(true));
+    assert!(updated.email_verified);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -379,14 +332,11 @@ async fn update_email_verified_sets_flag() -> Result<()> {
 
 #[tokio::test]
 async fn update_all_fields_updates_everything() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("update_all_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("updateall_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -405,7 +355,7 @@ async fn update_all_fields_updates_everything() -> Result<()> {
     assert_eq!(updated.email, new_email);
     assert_eq!(updated.full_name, Some("Updated Full Name".to_string()));
     assert_eq!(updated.display_name, Some("Updated Display".to_string()));
-    assert_eq!(updated.status, Some("inactive".to_string()));
+    assert_eq!(updated.status, UserStatus::Inactive);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -416,14 +366,11 @@ async fn update_all_fields_updates_everything() -> Result<()> {
 
 #[tokio::test]
 async fn assign_roles_updates_roles() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("assign_roles_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("assignroles_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -444,13 +391,10 @@ async fn assign_roles_updates_roles() -> Result<()> {
 
 #[tokio::test]
 async fn delete_removes_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let unique_email = format!("delete_user_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("deleteuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -466,13 +410,10 @@ async fn delete_removes_user() -> Result<()> {
 
 #[tokio::test]
 async fn delete_returns_error_for_nonexistent() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
@@ -487,13 +428,10 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
 
 #[tokio::test]
 async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
+    let repo = UserRepository::new(&db_pool);
 
     repo.cleanup_old_anonymous(30).await?;
 
@@ -502,14 +440,11 @@ async fn cleanup_old_anonymous_runs_without_error() -> Result<()> {
 
 #[tokio::test]
 async fn find_authenticated_user_returns_active_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("auth_user_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("authuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -519,7 +454,7 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
     let auth_user = auth_user.expect("find_authenticated_user should return active user");
     assert_eq!(auth_user.id.to_string(), created.id.to_string());
     assert_eq!(auth_user.email, unique_email);
-    assert_eq!(auth_user.status, Some("active".to_string()));
+    assert_eq!(auth_user.status, UserStatus::Active);
 
     let _ = sqlx::query!("DELETE FROM users WHERE id = $1", created.id.as_str())
         .execute(pool.as_ref())
@@ -530,14 +465,11 @@ async fn find_authenticated_user_returns_active_user() -> Result<()> {
 
 #[tokio::test]
 async fn find_authenticated_user_returns_none_for_inactive() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
+    let db = test_db_pool().await;
 
     let db_pool = &db;
-    let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
+    let repo = UserRepository::new(&db_pool);
+    let pool = db.pool();
 
     let unique_email = format!("inactive_auth_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("inactiveauth_{}", &uuid::Uuid::new_v4().to_string()[..8]);

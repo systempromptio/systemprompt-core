@@ -36,7 +36,8 @@ impl SqlExecutor {
     }
 
     pub fn parse_sql_statements(sql: &str) -> DatabaseResult<Vec<String>> {
-        let statements = pg_query::split_with_parser(sql).map_err(RepositoryError::SqlSplit)?;
+        let statements =
+            pg_query::split_with_parser(sql).map_err(|e| RepositoryError::SqlParse(Box::new(e)))?;
         Ok(statements
             .into_iter()
             .map(str::trim)
@@ -46,9 +47,7 @@ impl SqlExecutor {
     }
 
     pub async fn execute_query(db: &Database, query: &str) -> DatabaseResult<QueryResult> {
-        db.query_raw(&query)
-            .await
-            .map_err(|e| RepositoryError::QueryExecution(Box::new(e)))
+        db.query_raw(&query).await
     }
 
     pub async fn execute_file(db: &Database, file_path: &str) -> DatabaseResult<()> {

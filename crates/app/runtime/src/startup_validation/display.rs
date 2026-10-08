@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::BrandColors;
+use systemprompt_logging::{CliService, is_structured_output};
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 pub fn display_validation_report(report: &StartupValidationReport) {
@@ -111,6 +111,11 @@ pub fn display_validation_warnings(report: &StartupValidationReport) {
         return;
     }
 
+    if is_structured_output() {
+        buffer_validation_warnings(report);
+        return;
+    }
+
     CliService::output(&format!(
         "  {} warning(s):",
         BrandColors::starting(&report.warning_count().to_string())
@@ -137,4 +142,19 @@ pub fn display_validation_warnings(report: &StartupValidationReport) {
     }
 
     CliService::output("");
+}
+
+fn buffer_validation_warnings(report: &StartupValidationReport) {
+    for domain in &report.domains {
+        for warning in &domain.warnings {
+            let suggestion = warning
+                .suggestion
+                .as_ref()
+                .map_or_else(String::new, |fix| format!(" (fix: {fix})"));
+            CliService::warning(&format!(
+                "[{}] {}: {}{suggestion}",
+                domain.domain, warning.field, warning.message
+            ));
+        }
+    }
 }

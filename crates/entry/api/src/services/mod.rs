@@ -1,6 +1,6 @@
 //! HTTP service layer for the API server.
 //!
-//! Groups the gateway, proxy, middleware, static-content, and server-lifecycle
+//! Groups the proxy, middleware, static-content, and server-lifecycle
 //! services that the binary wires together. Re-exports the health-check surface
 //! ([`HealthChecker`], [`HealthSummary`], [`ModuleHealth`], [`ProcessMonitor`])
 //! used by readiness probes.
@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod gateway;
 pub mod health;
 pub mod middleware;
 pub mod proxy;

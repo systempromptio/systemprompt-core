@@ -30,9 +30,9 @@ pub struct OAuthClientRow {
     pub application_type: String,
     pub client_uri: Option<String>,
     pub logo_uri: Option<String>,
-    pub is_active: Option<bool>,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
     pub owner_user_id: UserId,
 }
@@ -76,41 +76,41 @@ impl OAuthClient {
             client_uri: row.client_uri,
             logo_uri: row.logo_uri,
             contacts: relations.contacts,
-            is_active: row.is_active.unwrap_or(true),
-            created_at: row.created_at.unwrap_or_else(Utc::now),
-            updated_at: row.updated_at.unwrap_or_else(Utc::now),
+            is_active: row.is_active,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
             owner_user_id: row.owner_user_id,
         }
     }
 
     pub fn validate(&self) -> Result<()> {
         if self.client_id.as_str().is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "client_id cannot be empty".to_owned(),
             ));
         }
         if self.client_name.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "client_name cannot be empty".to_owned(),
             ));
         }
         if self.redirect_uris.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "redirect_uris cannot be empty".to_owned(),
             ));
         }
         if self.grant_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "grant_types cannot be empty".to_owned(),
             ));
         }
         if self.response_types.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "response_types cannot be empty".to_owned(),
             ));
         }
         if self.scopes.is_empty() {
-            return Err(crate::error::OauthError::Internal(
+            return Err(crate::error::OauthError::InvalidClientMetadata(
                 "scopes cannot be empty".to_owned(),
             ));
         }

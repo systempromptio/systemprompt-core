@@ -1,13 +1,21 @@
 //! External-MCP audit tap — drives `audit::record` end-to-end with wiremock
 //! upstream responses. Verifies the body is
 //! forwarded verbatim for both JSON and SSE upstreams and that an
-//! `mcp_tool_executions` row is finalized with the matched outcome.
+//! `mcp_tool_executions` row is finalized with the matched outcome once the
+//! audit's background write has drained.
+
+use std::sync::Arc;
+use std::time::Duration;
 
 use axum::body::to_bytes;
+use systemprompt_ai::repository::AiRequestRepository;
 use systemprompt_api::repository::tool_usage;
 use systemprompt_api::services::proxy::audit::jsonrpc::parse_tool_call;
-use systemprompt_api::services::proxy::audit::{McpAudit, tap};
+use systemprompt_api::services::proxy::audit::{AuditSinks, McpAudit, tap};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::McpServerId;
+use systemprompt_mcp::IntentClaimService;
+use systemprompt_traits::{BackgroundTasks, DrainOutcome, DynToolCallIntentClaims};
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -15,17 +23,25 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::common::{assert_forwarded_with_execution_stamp, request_context, setup_ctx};
 
 async fn record_tool_call(
+    tasks: &BackgroundTasks,
     response: reqwest::Response,
     pool: &DbPool,
     context: systemprompt_models::RequestContext,
     server_name: &str,
     request_body: &[u8],
-) -> Result<axum::response::Response<axum::body::Body>, String> {
+) -> anyhow::Result<axum::response::Response<axum::body::Body>> {
     let invocation = parse_tool_call(request_body)
-        .ok_or_else(|| "request body is not a tools/call".to_owned())?;
-    let repo = tool_usage(pool).map_err(|e| e.to_string())?;
-    let audit = McpAudit::new(repo, None, context, server_name.to_owned(), invocation);
-    tap::record(response, audit).await
+        .ok_or_else(|| anyhow::anyhow!("request body is not a tools/call"))?;
+    let repo = tool_usage(pool);
+    let intents: DynToolCallIntentClaims = Arc::new(AiRequestRepository::new(pool));
+    let claims = IntentClaimService::new(intents, repo);
+    let sinks = AuditSinks {
+        intent_claims: claims,
+        ingest: None,
+        background: tasks.clone(),
+    };
+    let audit = McpAudit::new(sinks, context, McpServerId::new(server_name), invocation);
+    Ok(tap::record(response, audit).await?)
 }
 
 fn tool_call_body(tool: &str) -> Vec<u8> {
@@ -52,27 +68,26 @@ async fn upstream(template: ResponseTemplate) -> reqwest::Response {
         .expect("upstream response")
 }
 
-async fn wait_for_execution_row(pool: &DbPool, tool: &str) -> Option<(String, Option<String>)> {
-    let p = pool.pool_arc().expect("read pool");
-    for _ in 0..100 {
-        let row: Option<(String, Option<String>)> = sqlx::query_as(
-            "SELECT status, error_message FROM mcp_tool_executions WHERE tool_name = $1",
-        )
+async fn drained_execution_row(
+    tasks: &BackgroundTasks,
+    pool: &DbPool,
+    tool: &str,
+) -> Option<(String, Option<String>)> {
+    assert_eq!(
+        tasks.drain(Duration::from_secs(30)).await,
+        DrainOutcome::Drained
+    );
+    sqlx::query_as("SELECT status, error_message FROM mcp_tool_executions WHERE tool_name = $1")
         .bind(tool)
-        .fetch_optional(p.as_ref())
+        .fetch_optional(pool.pool().as_ref())
         .await
-        .expect("query executions");
-        if row.is_some() {
-            return row;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-    None
+        .expect("query executions")
 }
 
 #[tokio::test]
 async fn json_response_is_forwarded_and_audited_as_success() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let tool = format!("tap-json-{}", Uuid::new_v4().simple());
     let upstream_body = serde_json::json!({
         "jsonrpc": "2.0",
@@ -88,14 +103,20 @@ async fn json_response_is_forwarded_and_audited_as_success() -> anyhow::Result<(
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(
+        &tasks,
+        response,
+        &pool,
+        rc,
+        "ext-server",
+        &tool_call_body(&tool),
+    )
+    .await?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
     assert_forwarded_with_execution_stamp(&bytes, &upstream_body);
 
-    let (status, error) = wait_for_execution_row(&pool, &tool)
+    let (status, error) = drained_execution_row(&tasks, &pool, &tool)
         .await
         .expect("execution row written");
     assert!(error.is_none(), "unexpected error: {error:?}");
@@ -106,6 +127,7 @@ async fn json_response_is_forwarded_and_audited_as_success() -> anyhow::Result<(
 #[tokio::test]
 async fn json_error_frame_is_audited_with_error_message() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let tool = format!("tap-err-{}", Uuid::new_v4().simple());
     let upstream_body = serde_json::json!({
         "jsonrpc": "2.0",
@@ -121,11 +143,17 @@ async fn json_error_frame_is_audited_with_error_message() -> anyhow::Result<()> 
     .await;
 
     let rc = request_context("tap-user");
-    record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    record_tool_call(
+        &tasks,
+        response,
+        &pool,
+        rc,
+        "ext-server",
+        &tool_call_body(&tool),
+    )
+    .await?;
 
-    let (_status, error) = wait_for_execution_row(&pool, &tool)
+    let (_status, error) = drained_execution_row(&tasks, &pool, &tool)
         .await
         .expect("execution row written");
     assert!(
@@ -140,6 +168,7 @@ async fn json_error_frame_is_audited_with_error_message() -> anyhow::Result<()> 
 #[tokio::test]
 async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let tool = format!("tap-sse-{}", Uuid::new_v4().simple());
     let frame = serde_json::json!({
         "jsonrpc": "2.0",
@@ -156,9 +185,15 @@ async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(
+        &tasks,
+        response,
+        &pool,
+        rc,
+        "ext-server",
+        &tool_call_body(&tool),
+    )
+    .await?;
     assert_eq!(out.status(), axum::http::StatusCode::OK);
     let bytes = to_bytes(out.into_body(), 1024 * 1024).await?;
     let forwarded = String::from_utf8_lossy(&bytes);
@@ -172,7 +207,7 @@ async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result
         "SSE framing is preserved: {forwarded:?}"
     );
 
-    let (_status, error) = wait_for_execution_row(&pool, &tool)
+    let (_status, error) = drained_execution_row(&tasks, &pool, &tool)
         .await
         .expect("execution row written");
     assert!(error.is_none(), "unexpected error: {error:?}");
@@ -182,6 +217,7 @@ async fn sse_response_is_forwarded_and_matched_frame_audited() -> anyhow::Result
 #[tokio::test]
 async fn sse_stream_without_matching_frame_finalizes_as_unparseable() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let tool = format!("tap-nomatch-{}", Uuid::new_v4().simple());
     let sse_body = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":999,\"result\":{}}\n\n";
     let response = upstream(
@@ -192,12 +228,18 @@ async fn sse_stream_without_matching_frame_finalizes_as_unparseable() -> anyhow:
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(
+        &tasks,
+        response,
+        &pool,
+        rc,
+        "ext-server",
+        &tool_call_body(&tool),
+    )
+    .await?;
     to_bytes(out.into_body(), 1024 * 1024).await?;
 
-    let (_status, error) = wait_for_execution_row(&pool, &tool)
+    let (_status, error) = drained_execution_row(&tasks, &pool, &tool)
         .await
         .expect("execution row written");
     assert!(
@@ -212,6 +254,7 @@ async fn sse_stream_without_matching_frame_finalizes_as_unparseable() -> anyhow:
 #[tokio::test]
 async fn non_utf8_json_body_is_forwarded_but_not_parsed() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let tool = format!("tap-binary-{}", Uuid::new_v4().simple());
     let response = upstream(
         ResponseTemplate::new(200)
@@ -221,13 +264,19 @@ async fn non_utf8_json_body_is_forwarded_but_not_parsed() -> anyhow::Result<()> 
     .await;
 
     let rc = request_context("tap-user");
-    let out = record_tool_call(response, &pool, rc, "ext-server", &tool_call_body(&tool))
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let out = record_tool_call(
+        &tasks,
+        response,
+        &pool,
+        rc,
+        "ext-server",
+        &tool_call_body(&tool),
+    )
+    .await?;
     let bytes = to_bytes(out.into_body(), 1024).await?;
     assert_eq!(bytes.as_ref(), &[0xff, 0xfe, 0x00]);
 
-    let (_status, error) = wait_for_execution_row(&pool, &tool)
+    let (_status, error) = drained_execution_row(&tasks, &pool, &tool)
         .await
         .expect("execution row written");
     assert!(error.is_some());
@@ -237,10 +286,11 @@ async fn non_utf8_json_body_is_forwarded_but_not_parsed() -> anyhow::Result<()> 
 #[tokio::test]
 async fn non_tool_call_request_body_is_rejected() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
+    let tasks = BackgroundTasks::new();
     let response = upstream(ResponseTemplate::new(200)).await;
     let rc = request_context("tap-user");
     let body = br#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#;
-    let result = record_tool_call(response, &pool, rc, "ext-server", body).await;
+    let result = record_tool_call(&tasks, response, &pool, rc, "ext-server", body).await;
     assert!(result.is_err());
     Ok(())
 }

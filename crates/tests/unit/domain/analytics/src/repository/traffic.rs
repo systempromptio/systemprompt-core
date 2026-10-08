@@ -6,12 +6,13 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_analytics::{
-    AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, CreateSessionParams,
-    LinkClickEventData, NavigationQuery, PageQuery, TrafficAnalyticsRepository,
+    AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, LinkClickEventData,
+    NavigationQuery, PageQuery, TrafficAnalyticsRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_database_url, fixture_db_pool};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
+use systemprompt_traits::session_store::CreateSessionParams;
 use uuid::Uuid;
 
 struct SeededSession<'a> {
@@ -32,9 +33,9 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
     )
     .await
     .expect("retained traffic user");
-    let repo = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
-        .map(|repositories| repositories.sessions)
-        .expect("session repo");
+    let store = systemprompt_test_fixtures::fixture_analytics_repositories(pool)
+        .map(|repositories| repositories.session_store)
+        .expect("session store");
     let params = CreateSessionParams {
         session_id: &sid,
         user_id: None,
@@ -62,9 +63,9 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),
     };
-    repo.create_session(&params).await.expect("seed session");
+    store.insert_session(&params).await.expect("seed session");
 
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         "UPDATE user_sessions SET request_count = $2, is_behavioral_bot = $3 WHERE session_id = $1",
     )
@@ -78,7 +79,7 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
 }
 
 async fn cleanup_sessions(pool: &DbPool, prefix: &str) {
-    let p = pool.write_pool_arc().expect("write pool");
+    let p = pool.write_pool();
     sqlx::query(
         "DELETE FROM analytics_events WHERE session_id IN \
          (SELECT session_id FROM user_sessions WHERE landing_page LIKE $1 || '%')",
@@ -103,12 +104,9 @@ fn window() -> (chrono::DateTime<Utc>, chrono::DateTime<Utc>) {
 
 #[tokio::test]
 async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = TrafficAnalyticsRepository::new(&pool);
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let guide = format!("{prefix}/guides/a");
@@ -228,12 +226,9 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
 
 #[tokio::test]
 async fn get_pages_engaged_only_excludes_zero_request_sessions() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = TrafficAnalyticsRepository::new(&pool);
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let page = format!("{prefix}/landing");
@@ -314,14 +309,11 @@ async fn seed_link_click(
 
 #[tokio::test]
 async fn get_navigation_groups_internal_link_clicks_by_transition() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = TrafficAnalyticsRepository::new(&pool);
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());
@@ -382,14 +374,11 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
 
 #[tokio::test]
 async fn get_navigation_include_external_returns_external_clicks() {
-    let Ok(url) = fixture_database_url() else {
-        return;
-    };
     ensure_test_bootstrap();
-    let pool = fixture_db_pool(&url).await.expect("pool");
-    let repo = TrafficAnalyticsRepository::new(&pool).expect("repo");
+    let pool = test_db_pool().await;
+    let repo = TrafficAnalyticsRepository::new(&pool);
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
-        systemprompt_logging::AnalyticsRepository::new(&pool).expect("logging store"),
+        systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
 
     let prefix = format!("/tn-{}", Uuid::new_v4());

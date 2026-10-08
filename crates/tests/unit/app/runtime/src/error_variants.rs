@@ -30,35 +30,9 @@ fn empty_database_url_message() {
 }
 
 #[test]
-fn database_not_found_message_contains_path() {
-    let err = RuntimeError::DatabaseNotFound {
-        path: "/data/app.db".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("/data/app.db"), "got: {msg}");
-    assert!(
-        msg.contains("not found") || msg.contains("Not found"),
-        "got: {msg}"
-    );
-}
-
-#[test]
-fn database_not_found_message_contains_setup_hint() {
-    let err = RuntimeError::DatabaseNotFound {
-        path: "/x/y.db".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("setup"), "got: {msg}");
-}
-
-#[test]
-fn database_not_file_message_contains_path() {
-    let err = RuntimeError::DatabaseNotFile {
-        path: "/some/dir".to_string(),
-    };
-    let msg = err.to_string();
-    assert!(msg.contains("/some/dir"), "got: {msg}");
-    assert!(msg.contains("not a file"), "got: {msg}");
+fn unsupported_database_url_message_names_the_schemes() {
+    let msg = RuntimeError::UnsupportedDatabaseUrl.to_string();
+    assert!(msg.contains("postgres://"), "got: {msg}");
 }
 
 #[test]
@@ -98,17 +72,24 @@ fn system_admin_missing_role_message_contains_username() {
 }
 
 #[test]
-fn internal_error_message_contains_detail() {
-    let err = RuntimeError::Internal("socket closed".to_string());
+fn services_bundle_not_cached_names_the_source() {
+    let err = RuntimeError::ServicesBundleNotCached {
+        name: "acme".to_string(),
+    };
     let msg = err.to_string();
-    assert!(msg.contains("socket closed"), "got: {msg}");
+    assert!(
+        msg.contains("acme") && msg.contains("no cached fetch state"),
+        "got: {msg}"
+    );
 }
 
 #[test]
-fn internal_error_message_has_internal_prefix() {
-    let err = RuntimeError::Internal("test detail".to_string());
+fn storage_read_back_names_the_root() {
+    let err = RuntimeError::StorageReadBack {
+        path: std::path::PathBuf::from("/srv/storage"),
+    };
     let msg = err.to_string();
-    assert!(msg.contains("internal"), "got: {msg}");
+    assert!(msg.contains("/srv/storage"), "got: {msg}");
 }
 
 #[test]
@@ -124,18 +105,7 @@ fn error_debug_is_non_empty() {
 fn all_plain_variants_format_without_panic() {
     let variants: Vec<(RuntimeError, &str)> = vec![
         (RuntimeError::EmptyDatabaseUrl, "DATABASE_URL is empty"),
-        (
-            RuntimeError::DatabaseNotFound {
-                path: "/p".to_string(),
-            },
-            "/p",
-        ),
-        (
-            RuntimeError::DatabaseNotFile {
-                path: "/d".to_string(),
-            },
-            "/d",
-        ),
+        (RuntimeError::UnsupportedDatabaseUrl, "postgresql://"),
         (
             RuntimeError::SystemAdminNotFound {
                 username: "u".to_string(),
@@ -154,7 +124,6 @@ fn all_plain_variants_format_without_panic() {
             },
             "'admin' role",
         ),
-        (RuntimeError::Internal("msg".to_string()), "internal: msg"),
     ];
 
     for (v, marker) in variants {

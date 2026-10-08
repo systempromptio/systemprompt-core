@@ -54,6 +54,7 @@ fn manifest() -> SignedManifest {
         host_model_protocols: std::collections::BTreeMap::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
+        desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
         auto_update: Default::default(),
         diagnostics: Vec::new(),
         marketplaces: Vec::new(),
@@ -280,6 +281,9 @@ async fn mount_gateway(server: &MockServer, env: &SignedManifestEnvelope, pubkey
     }
 }
 
+// The `#[cfg(target_os = "linux")]` tests below are the ones whose sync
+// reaches org-plugins provisioning; lib.rs says why that is Linux only.
+#[cfg(target_os = "linux")]
 #[test]
 fn run_once_verifies_against_pinned_pubkey() {
     let key = signing_key();
@@ -316,6 +320,7 @@ fn run_once_without_pin_or_tofu_refuses_to_sync() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn run_once_tofu_fetches_and_persists_pubkey() {
     let key = signing_key();
@@ -359,6 +364,7 @@ fn run_once_tofu_rejects_wrong_key_signature() {
     );
 }
 
+#[cfg(target_os = "linux")]
 fn incompatible_then_repaired_manifest(incompatible: SignedManifest, expected_error: &str) {
     let key = signing_key();
     let invalid = signed_envelope_of(&key, &incompatible);
@@ -397,6 +403,7 @@ fn incompatible_then_repaired_manifest(incompatible: SignedManifest, expected_er
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn signed_schema_floor_failure_preserves_state_and_a_compatible_retry_recovers() {
     incompatible_then_repaired_manifest(
@@ -408,6 +415,7 @@ fn signed_schema_floor_failure_preserves_state_and_a_compatible_retry_recovers()
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn signed_bridge_floor_failure_preserves_state_and_a_compatible_retry_recovers() {
     incompatible_then_repaired_manifest(
@@ -574,6 +582,7 @@ fn allow_unsigned_is_refused_when_a_pubkey_is_pinned() {
     );
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn allow_unsigned_applies_an_unsigned_manifest_when_nothing_is_pinned() {
     let env = SignedManifestEnvelope {
@@ -603,10 +612,7 @@ fn refresh_registry_publishes_the_servers_of_a_fresh_verified_manifest() {
     with_server.managed_mcp_servers =
         vec![systemprompt_bridge::gateway::manifest::ManagedMcpServer {
             id: systemprompt_identifiers::McpServerId::try_new("salesforce-crm-dev").unwrap(),
-            name: systemprompt_models::bridge::ids::ManagedMcpServerName::try_new(
-                "salesforce-crm-dev",
-            )
-            .unwrap(),
+            name: systemprompt_bridge::ids::McpServerId::try_new("salesforce-crm-dev").unwrap(),
             url: systemprompt_identifiers::ValidatedUrl::try_new(
                 "https://gateway.invalid/api/v1/mcp/salesforce-crm-dev/mcp",
             )
@@ -729,6 +735,7 @@ fn refresh_rejects_skew_and_replay_without_overwriting_accepted_envelope() {
     }
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn full_sync_rejection_keeps_the_previously_accepted_envelope() {
     let key = signing_key();
@@ -854,6 +861,7 @@ fn refresh_does_not_publish_a_response_after_gateway_switch() {
     let _ = server;
 }
 
+#[cfg(target_os = "linux")]
 fn resolved_last_sync_path(dirs: &VerifySandbox) -> PathBuf {
     let vars: Vec<_> = dirs
         .vars
@@ -867,6 +875,7 @@ fn resolved_last_sync_path(dirs: &VerifySandbox) -> PathBuf {
     })
 }
 
+#[cfg(target_os = "linux")]
 #[test]
 fn tofu_pubkey_unauthorized_preserves_unpinned_state_then_retry_pins_and_syncs() {
     let key = signing_key();
@@ -911,49 +920,4 @@ fn tofu_pubkey_unauthorized_preserves_unpinned_state_then_retry_pins_and_syncs()
     assert_eq!(trust.key.as_str(), expected_key);
     assert_eq!(trust.gateway.as_str(), server.uri());
     assert!(resolved_last_sync_path(&dirs).is_file());
-}
-
-#[test]
-fn gateway_switch_refuses_an_old_policy_pin_then_policy_repair_recovers() {
-    let key = signing_key();
-    let envelope = signed_envelope(&key);
-    let expected_key = pubkey_b64(&key);
-    let (old_server, new_server, mut dirs) = block_on(async {
-        let old_server = MockServer::start().await;
-        let new_server = MockServer::start().await;
-        crate::mount_profile(&new_server).await;
-        mount_gateway(&new_server, &envelope, Some(&expected_key)).await;
-        let dirs = sandbox(&new_server.uri(), None);
-        (old_server, new_server, dirs)
-    });
-    let policy = |gateway: &str| {
-        serde_json::json!({"gateway":gateway,"key":expected_key,"source":"policy"}).to_string()
-    };
-    dirs.vars.push((
-        "SP_BRIDGE_POLICY_TRUST",
-        Some(policy(&old_server.uri()).into()),
-    ));
-    let error = run_verified_sync(&dirs, false)
-        .expect_err("an old-origin policy pin cannot cross gateways");
-    assert!(
-        error.contains(&old_server.uri()) && error.contains(&new_server.uri()),
-        "{error}"
-    );
-    assert!(!resolved_last_sync_path(&dirs).exists());
-
-    dirs.vars.last_mut().unwrap().1 = Some(policy(&new_server.uri()).into());
-    let summary = run_verified_sync(&dirs, false).expect("policy repair recovers sync");
-    assert_eq!(
-        summary.manifest_version,
-        manifest().manifest_version.to_string()
-    );
-    assert!(resolved_last_sync_path(&dirs).is_file());
-    let requests = block_on(new_server.received_requests()).expect("new gateway requests");
-    assert_eq!(
-        requests
-            .iter()
-            .filter(|r| r.url.path() == "/v1/bridge/pubkey")
-            .count(),
-        0
-    );
 }

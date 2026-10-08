@@ -5,13 +5,15 @@
 //! the provider is constructed via `with_target`.
 
 use std::collections::HashMap;
+use systemprompt_manifest::services::providers::surface_for;
 
 use serde_json::json;
 use systemprompt_ai::UpstreamTarget;
 use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_models::services::{
-    ModelGovernance, ProviderEntry, ProviderModel, ProviderRegistry, WireProtocol,
+use systemprompt_manifest::services::{
+    ModelGovernance, ProviderEntry, ProviderModel, ProviderRegistry,
 };
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -30,7 +32,7 @@ pub fn api_key_target(name: &str, wire: WireProtocol, endpoint: &str, key: &str)
         display_name: None,
         description: None,
         wire,
-        surface: wire.surface(),
+        surface: surface_for(wire),
         endpoint: endpoint.to_owned(),
         api_key_secret: SecretName::new(name),
         extra_headers: HashMap::new(),

@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod bind;
+mod clients;
 pub mod comms;
 pub mod credential;
 pub mod dispatch;

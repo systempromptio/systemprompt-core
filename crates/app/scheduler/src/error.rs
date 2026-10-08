@@ -2,11 +2,13 @@
 //!
 //! [`SchedulerError`] is the canonical error returned from public, non-trait
 //! signatures (services, repositories, lifecycle helpers). It composes
-//! [`sqlx::Error`], [`tokio_cron_scheduler::JobSchedulerError`],
-//! [`systemprompt_database::RepositoryError`],
+//! [`tokio_cron_scheduler::JobSchedulerError`],
+//! [`systemprompt_traits::RepositoryError`],
 //! [`systemprompt_analytics::AnalyticsError`], and
 //! [`systemprompt_users::UserError`] via `#[from]` so `?` propagation works
-//! transparently for every internal call site.
+//! transparently for every internal call site. A [`sqlx::Error`] is
+//! classified through [`systemprompt_traits::RepositoryError`] so a
+//! not-found or constraint failure keeps its class.
 //!
 //! Provider trait implementations (e.g. [`systemprompt_traits::Job`]) keep
 //! returning [`systemprompt_provider_contracts::ProviderResult`] — the
@@ -16,12 +18,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::JobName;
+use systemprompt_manifest::profile::OtlpSignal;
+use systemprompt_provider_contracts::{MissingDependency, ProviderError};
+use systemprompt_traits::{BoxedSource, RepositoryError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum SchedulerError {
     #[error("Job not found: {job_name}")]
-    JobNotFound { job_name: String },
+    JobNotFound { job_name: JobName },
 
     #[error(
         "Scheduler config references job(s) not present in the inventory catalog: {names}. \
@@ -32,8 +38,12 @@ pub enum SchedulerError {
     #[error("Invalid cron schedule: {schedule}")]
     InvalidSchedule { schedule: String },
 
-    #[error("Job execution failed: {job_name} - {error}")]
-    JobExecutionFailed { job_name: String, error: String },
+    #[error("Job execution failed: {job_name} - {source}")]
+    JobExecutionFailed {
+        job_name: JobName,
+        #[source]
+        source: ProviderError,
+    },
 
     #[error("Invalid parameter format '{parameter}'. Use KEY=VALUE format.")]
     InvalidJobParameter { parameter: String },
@@ -44,11 +54,8 @@ pub enum SchedulerError {
     #[error("Specify job name(s), use --all, or use --tag <tag> to run jobs")]
     NoJobsSelected,
 
-    #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
-
     #[error("Repository error: {0}")]
-    Repository(#[from] systemprompt_database::RepositoryError),
+    Repository(#[from] RepositoryError),
 
     #[error("Analytics error: {0}")]
     Analytics(#[from] systemprompt_analytics::AnalyticsError),
@@ -59,36 +66,53 @@ pub enum SchedulerError {
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
 
-    #[error("Configuration error: {message}")]
-    ConfigError { message: String },
-
     #[error("Scheduler already running")]
     AlreadyRunning,
 
     #[error("Scheduler not initialized")]
     NotInitialized,
 
-    #[error("Job context missing dependency: {0}")]
-    MissingContext(String),
+    #[error("Job context: {0}")]
+    MissingContext(#[from] MissingDependency),
 
     #[error("Job panicked: {0}")]
     Panic(String),
 
     #[error("Distributed lock error: {0}")]
-    DistributedLock(String),
+    DistributedLock(#[source] RepositoryError),
+
+    #[error("Inventory refresh failed: {0}")]
+    Inventory(#[from] systemprompt_runtime::managed::OrchestrationError),
+
+    #[error("Managed marketplace error: {0}")]
+    Managed(#[from] systemprompt_marketplace::managed::ManagedError),
+
+    #[error("No retention path for table {table}")]
+    UnknownRetentionTable { table: String },
+
+    #[error("Unknown OTLP export signal '{signal}'")]
+    UnknownOtlpSignal { signal: String },
+
+    #[error("OTLP {signal} export failed: {source}")]
+    OtlpExport {
+        signal: OtlpSignal,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("internal: {0}")]
-    Internal(String),
+    #[error("Process supervision error: {0}")]
+    Supervision(#[from] systemprompt_loader::subprocess::SupervisionError),
+
+    #[error("Port {port} still held by PID(s) {holders:?}")]
+    PortOccupied { port: u16, holders: Vec<u32> },
 }
 
 impl SchedulerError {
-    pub fn job_not_found(job_name: impl Into<String>) -> Self {
-        Self::JobNotFound {
-            job_name: job_name.into(),
-        }
+    pub const fn job_not_found(job_name: JobName) -> Self {
+        Self::JobNotFound { job_name }
     }
 
     pub fn invalid_schedule(schedule: impl Into<String>) -> Self {
@@ -97,21 +121,8 @@ impl SchedulerError {
         }
     }
 
-    pub fn job_execution_failed(job_name: impl Into<String>, error: impl Into<String>) -> Self {
-        Self::JobExecutionFailed {
-            job_name: job_name.into(),
-            error: error.into(),
-        }
-    }
-
-    pub fn config_error(message: impl Into<String>) -> Self {
-        Self::ConfigError {
-            message: message.into(),
-        }
-    }
-
-    pub fn missing_context(name: impl Into<String>) -> Self {
-        Self::MissingContext(name.into())
+    pub const fn job_execution_failed(job_name: JobName, source: ProviderError) -> Self {
+        Self::JobExecutionFailed { job_name, source }
     }
 
     pub fn panic(message: impl Into<String>) -> Self {
@@ -119,9 +130,15 @@ impl SchedulerError {
     }
 }
 
-impl From<SchedulerError> for systemprompt_provider_contracts::ProviderError {
+impl From<sqlx::Error> for SchedulerError {
+    fn from(err: sqlx::Error) -> Self {
+        Self::Repository(RepositoryError::from(err))
+    }
+}
+
+impl From<SchedulerError> for ProviderError {
     fn from(err: SchedulerError) -> Self {
-        Self::Internal(err.to_string())
+        Self::Internal(Box::new(err))
     }
 }
 

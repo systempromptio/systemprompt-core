@@ -80,7 +80,9 @@ fn parse_mcp_path(path: &str) -> Option<&str> {
 fn parse_hook_plugin_id(uri: &http::Uri) -> Option<systemprompt_identifiers::PluginId> {
     uri.query()?.split('&').find_map(|kv| {
         let (k, v) = kv.split_once('=')?;
-        (k == "plugin_id" && !v.is_empty()).then(|| systemprompt_identifiers::PluginId::new(v))
+        (k == "plugin_id")
+            .then(|| systemprompt_identifiers::PluginId::try_new(v).ok())
+            .flatten()
     })
 }
 

@@ -11,10 +11,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_manifest::services::PluginConfig;
 use systemprompt_models::bridge::cowork_artifact::{
     CoworkArtifactBundleManifest, CoworkArtifactBundleRecord, CoworkLibraryArtifactRecord,
 };
-use systemprompt_models::services::PluginConfig;
 
 use crate::catalog::selects_artifact;
 use crate::error::MarketplaceError;
@@ -35,7 +35,7 @@ pub(super) fn append_artifact_files(
         let id = artifact.id.as_str();
         let record = CoworkLibraryArtifactRecord::from(artifact);
         let bytes = serde_json::to_vec_pretty(&record).map_err(|e| {
-            MarketplaceError::Catalog(format!("artifact '{id}' record does not serialise: {e}"))
+            MarketplaceError::catalog(format!("serialise artifact '{id}' record"), e)
         })?;
         bundle.insert(format!("artifacts/{id}.json"), plain(bytes));
         bundle.insert(
@@ -50,10 +50,10 @@ pub(super) fn append_artifact_files(
     records.sort_by(|a, b| a.id.cmp(&b.id));
     let manifest = CoworkArtifactBundleManifest { artifacts: records };
     let bytes = serde_json::to_vec_pretty(&manifest).map_err(|e| {
-        MarketplaceError::Catalog(format!(
-            "plugin '{}' artifact manifest does not serialise: {e}",
-            config.id
-        ))
+        MarketplaceError::catalog(
+            format!("serialise plugin '{}' artifact manifest", config.id),
+            e,
+        )
     })?;
     bundle.insert("artifacts/manifest.json".to_owned(), plain(bytes));
     Ok(())

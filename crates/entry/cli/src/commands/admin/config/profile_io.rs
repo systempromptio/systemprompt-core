@@ -11,7 +11,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use systemprompt_models::Profile;
+use systemprompt_manifest::Profile;
 
 pub(super) fn load_profile(path: &str) -> Result<Profile> {
     let content = std::fs::read_to_string(path)

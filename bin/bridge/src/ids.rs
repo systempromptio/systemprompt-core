@@ -1,141 +1,21 @@
-//! Bridge-local typed identifier re-exports and the `bridge_define_id!`
-//! newtype-`String` macro.
+//! Identifier and secret types the bridge carries.
+//!
+//! Every identity is the canonical `systemprompt_identifiers` type,
+//! re-exported here with the manifest value types from
+//! `systemprompt_models::bridge::ids`. The secrets (`PatToken`, `BearerToken`,
+//! the loopback and hook tokens) stay bridge-local: they zeroize on drop and
+//! hand their bytes out only through `into_inner`/`as_str`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use systemprompt_models::bridge::ids::{
-    IdValidationError, LibraryArtifactId, ManagedMcpServerName, ManifestSignature, PluginId,
-    RuleId, RuleName, Sha256Digest, SkillId, SkillName, ToolName, ToolPolicy,
+pub use systemprompt_identifiers::{
+    CommsMessageId, DeploymentOrganizationUuid, ElevatedJobId, HookSessionId, LibraryArtifactId,
+    MarketplaceRuleId, McpServerId, McpSessionId, McpToolName, PluginId, RuleName, SkillId,
+    SkillName,
 };
+pub use systemprompt_models::bridge::ids::{ManifestSignature, Sha256Digest, ToolPolicy};
 
-#[macro_export]
-macro_rules! bridge_define_id {
-    ($name:ident) => {
-        #[derive(
-            Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
-            serde::Serialize, serde::Deserialize,
-        )]
-        #[serde(transparent)]
-        pub struct $name(String);
-
-        impl $name {
-            pub fn new(value: impl Into<String>) -> Self { Self(value.into()) }
-            pub fn as_str(&self) -> &str { &self.0 }
-            pub fn into_inner(self) -> String { self.0 }
-        }
-
-        $crate::bridge_id_common!($name);
-    };
-
-    ($name:ident, non_empty) => {
-        #[derive(
-            Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize,
-        )]
-        #[serde(transparent)]
-        pub struct $name(String);
-
-        impl $name {
-            pub fn try_new(
-                value: impl Into<String>,
-            ) -> Result<Self, $crate::ids::IdValidationError> {
-                let value = value.into();
-                if value.is_empty() {
-                    return Err($crate::ids::IdValidationError::empty(stringify!($name)));
-                }
-                Ok(Self(value))
-            }
-            pub fn as_str(&self) -> &str { &self.0 }
-            pub fn into_inner(self) -> String { self.0 }
-        }
-
-        $crate::bridge_id_validated_conversions!($name);
-        $crate::bridge_id_common!($name);
-    };
-
-    ($name:ident, validated, $validator:expr) => {
-        #[derive(
-            Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize,
-        )]
-        #[serde(transparent)]
-        pub struct $name(String);
-
-        impl $name {
-            pub fn try_new(
-                value: impl Into<String>,
-            ) -> Result<Self, $crate::ids::IdValidationError> {
-                let value = value.into();
-                let validator: fn(&str) -> Result<(), $crate::ids::IdValidationError> =
-                    $validator;
-                validator(&value)?;
-                Ok(Self(value))
-            }
-            pub fn as_str(&self) -> &str { &self.0 }
-            pub fn into_inner(self) -> String { self.0 }
-        }
-
-        $crate::bridge_id_validated_conversions!($name);
-        $crate::bridge_id_common!($name);
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! bridge_id_common {
-    ($name:ident) => {
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
-        impl AsRef<str> for $name {
-            fn as_ref(&self) -> &str {
-                &self.0
-            }
-        }
-        impl From<$name> for String {
-            fn from(id: $name) -> Self {
-                id.0
-            }
-        }
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! bridge_id_validated_conversions {
-    ($name:ident) => {
-        impl TryFrom<String> for $name {
-            type Error = $crate::ids::IdValidationError;
-            fn try_from(s: String) -> Result<Self, Self::Error> {
-                Self::try_new(s)
-            }
-        }
-        impl TryFrom<&str> for $name {
-            type Error = $crate::ids::IdValidationError;
-            fn try_from(s: &str) -> Result<Self, Self::Error> {
-                Self::try_new(s)
-            }
-        }
-        impl std::str::FromStr for $name {
-            type Err = $crate::ids::IdValidationError;
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Self::try_new(s)
-            }
-        }
-        impl<'de> serde::Deserialize<'de> for $name {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                let s = String::deserialize(deserializer)?;
-                Self::try_new(s).map_err(serde::de::Error::custom)
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! bridge_define_token {
     ($name:ident) => {
         #[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -216,28 +96,3 @@ bridge_define_token!(ProxySecret);
 bridge_define_token!(HookToken);
 bridge_define_token!(HostToken);
 bridge_define_token!(PinnedPubKey);
-
-bridge_define_id!(HostId);
-bridge_define_id!(McpSessionId);
-bridge_define_id!(HookSessionId);
-bridge_define_id!(CommsMessageId);
-bridge_define_id!(PrefsDomain, non_empty);
-bridge_define_id!(PrefsKey, non_empty);
-bridge_define_id!(ModelId, non_empty);
-bridge_define_id!(QueryKey, non_empty);
-bridge_define_id!(DeploymentOrganizationUuid, validated, |s| {
-    if s.len() == 36
-        && s.bytes().filter(|&b| b == b'-').count() == 4
-        && uuid::Uuid::try_parse(s).is_ok()
-    {
-        Ok(())
-    } else {
-        Err(IdValidationError::invalid(
-            "DeploymentOrganizationUuid",
-            "expected a hyphenated UUID",
-        ))
-    }
-});
-
-bridge_define_id!(PrefsValue);
-bridge_define_id!(QueryValue);

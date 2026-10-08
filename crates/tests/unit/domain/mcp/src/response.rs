@@ -2,7 +2,10 @@
 //! Full `build()` exercises the artifact repository, which requires a live
 //! database — only the pure helpers are covered here.
 
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
+};
 use systemprompt_mcp::{ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
@@ -13,6 +16,7 @@ fn test_request_context() -> RequestContext {
         TraceId::new("t"),
         ContextId::try_new("00000000-0000-4000-8000-000000000001").expect("valid ContextId"),
         AgentName::try_new("a").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -46,7 +50,7 @@ fn builder_new_records_tool_name_in_debug() {
     let text = TextArtifact::new("payload");
     let builder = McpResponseBuilder::new(
         text,
-        ToolIdentity::new("my-server", "my-tool"),
+        ToolIdentity::new(McpServerId::new("my-server"), McpToolName::new("my-tool")),
         &ctx,
         &exec_id,
         &ClientProfile::unknown(),
@@ -63,7 +67,10 @@ fn builder_new_accepts_string_identity() {
     let text = TextArtifact::new("payload");
     let _ = McpResponseBuilder::new(
         text,
-        ToolIdentity::new(String::from("dynamic-server"), String::from("dynamic-tool")),
+        ToolIdentity::new(
+            McpServerId::new(String::from("dynamic-server")),
+            McpToolName::new(String::from("dynamic-tool")),
+        ),
         &ctx,
         &exec_id,
         &ClientProfile::unknown(),

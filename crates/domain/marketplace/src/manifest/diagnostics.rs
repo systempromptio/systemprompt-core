@@ -5,8 +5,8 @@
 
 use std::collections::BTreeSet;
 
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::manifest::SkillEntry;
-use systemprompt_models::services::ServicesConfig;
 
 use crate::candidate::MarketplaceCandidate;
 use crate::trace::{TraceEvent, TraceKind, TraceSink, TraceStage};
@@ -16,7 +16,7 @@ pub(super) fn plugin_inclusion_diagnostics(
     skills: &[SkillEntry],
     agents: &[systemprompt_models::bridge::manifest::AgentEntry],
 ) -> Vec<String> {
-    use systemprompt_models::services::ComponentSource;
+    use systemprompt_models::plugin::ComponentSource;
 
     let mut diagnostics = Vec::new();
     let mut selected_agents: BTreeSet<&str> = BTreeSet::new();

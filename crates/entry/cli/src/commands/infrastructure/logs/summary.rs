@@ -9,7 +9,8 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_runtime::TraceQueryService;
+use systemprompt_logging::LogLevel;
+use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use super::duration::parse_since;
 use crate::CliConfig;
@@ -71,7 +72,7 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
 
     let (level_counts, top_modules, time_range, total_row_count) = tokio::try_join!(
         service.count_logs_by_level(since_timestamp),
@@ -133,13 +134,12 @@ fn build_level_counts(rows: &[systemprompt_runtime::LevelCount]) -> LevelCounts 
     };
 
     for row in rows {
-        match row.level.to_lowercase().as_str() {
-            "error" => counts.error = row.count,
-            "warn" | "warning" => counts.warn = row.count,
-            "info" => counts.info = row.count,
-            "debug" => counts.debug = row.count,
-            "trace" => counts.trace = row.count,
-            _ => {},
+        match row.level {
+            LogLevel::Error => counts.error = row.count,
+            LogLevel::Warn => counts.warn = row.count,
+            LogLevel::Info => counts.info = row.count,
+            LogLevel::Debug => counts.debug = row.count,
+            LogLevel::Trace => counts.trace = row.count,
         }
     }
 

@@ -96,7 +96,7 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = OverviewAnalyticsRepository::new(db_ctx.db_pool())?;
+    let repo = OverviewAnalyticsRepository::new(db_ctx.db_pool());
     execute_internal(args, &repo).await
 }
 

@@ -9,6 +9,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
@@ -60,13 +61,13 @@ async fn handle_agent_card_by_name(
     State(ctx): State<AppContext>,
     Path(agent_name): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
+    let agent_name = AgentName::try_new(agent_name.trim_end_matches(".json"))?;
     let registry = AgentRegistry::new().map_err(|e| {
         tracing::error!(error = %e, "Failed to create agent registry");
         ApiError::internal_error("Failed to create agent registry")
     })?;
 
-    let agent_name = agent_name.trim_end_matches(".json");
-    let _agent = registry.get_agent(agent_name).await.map_err(|e| {
+    let _agent = registry.get_agent(agent_name.as_str()).await.map_err(|e| {
         tracing::warn!(agent = %agent_name, error = %e, "Agent not found");
         ApiError::not_found(format!("Agent '{}' not found", agent_name))
     })?;
@@ -74,7 +75,7 @@ async fn handle_agent_card_by_name(
     let base_url = &ctx.config().api_external_url;
 
     let agent_card = registry
-        .to_agent_card(agent_name, base_url, vec![], None)
+        .to_agent_card(agent_name.as_str(), base_url, vec![], None)
         .await
         .map_err(|e| {
             tracing::error!(agent = %agent_name, error = %e, "Failed to create agent card");

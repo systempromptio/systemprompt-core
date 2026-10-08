@@ -8,29 +8,28 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_api::services::gateway::protocol::InboundAdapter;
-use systemprompt_api::services::gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
-use systemprompt_api::services::gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
-use systemprompt_api::services::gateway::service::GatewayService;
-use systemprompt_api::services::gateway::{
+use systemprompt_database::DbPool;
+use systemprompt_gateway::protocol::InboundAdapter;
+use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
+use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
+use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_gateway::service::GatewayService;
+use systemprompt_gateway::{
     DispatchInputs, GatewayAudit, GatewayRepositories, GatewayRequestContext,
 };
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::{
-    AiRequestId, ContextId, ModelId, ProviderId, RouteId, SecretName, TraceId,
+use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SecretName, TraceId};
+use systemprompt_manifest::services::{
+    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
+    QuotaFaultMode,
 };
-use systemprompt_models::services::{
-    ApiSurface, GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel,
-    ProviderRegistry, QuotaFaultMode, WireProtocol,
-};
-use systemprompt_models::wire::origin::{
-    ClientAttestation, ClientEvidence, ClientKind, RequestOrigin,
-};
+use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, RequestOrigin};
+use systemprompt_models::providers::ApiSurface;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context, fixture_db_pool, seed_admin_credential,
+    ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };
+use systemprompt_traits::{BackgroundTasks, DrainOutcome};
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -73,7 +72,7 @@ fn wire(
 }
 fn config() -> GatewayConfig {
     let mut route = GatewayRoute {
-        id: RouteId::new(""),
+        id: None,
         name: None,
         description: None,
         model_pattern: "*".to_owned(),
@@ -83,8 +82,8 @@ fn config() -> GatewayConfig {
         pricing: None,
         when: None,
         requires: None,
-        fallback_provider: None,
-        fallback_upstream_model: None,
+        fallbacks: Vec::new(),
+        by_scope: None,
     };
     route.ensure_id();
     GatewayConfig {
@@ -156,33 +155,42 @@ fn context(
         is_streaming: stream,
         origin: RequestOrigin::gateway(ClientKind::Other, inbound.wire(), ClientAttestation::None),
         evidence: ClientEvidence::none(),
+        attribution: systemprompt_models::attribution::RequestAttribution::none(),
+        api_key_windows: Vec::new(),
         access_log: None,
     }
 }
-async fn settled(db: &DbPool, id: &AiRequestId, expected: Option<&str>) -> Result<Value> {
-    let pg = db.pool_arc()?;
-    for _ in 0..100 {
-        let row: Option<Value> =
-            sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
-                .bind(id.as_str())
-                .fetch_optional(pg.as_ref())
-                .await?;
-        if let Some(row) = row
-            && expected.map_or_else(
-                || {
-                    matches!(
-                        row["status"].as_str(),
-                        Some("success" | "completed" | "failed" | "rejected")
-                    )
-                },
-                |status| row["status"] == status,
+async fn settled(
+    db: &DbPool,
+    background: &BackgroundTasks,
+    id: &AiRequestId,
+    expected: Option<&str>,
+) -> Result<Value> {
+    let drained = background.drain(Duration::from_secs(5)).await;
+    ensure!(
+        drained == DrainOutcome::Drained,
+        "Gateway accounting did not settle within5seconds: {drained:?}"
+    );
+    let row: Option<Value> =
+        sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
+            .bind(id.as_str())
+            .fetch_optional(db.pool().as_ref())
+            .await?;
+    let row = row.context("Gateway accounting left no row")?;
+    let matched = expected.map_or_else(
+        || {
+            matches!(
+                row["status"].as_str(),
+                Some("success" | "completed" | "failed" | "rejected")
             )
-        {
-            return Ok(row);
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    anyhow::bail!("Gateway accounting did not settle within5seconds")
+        },
+        |status| row["status"] == status,
+    );
+    ensure!(
+        matched,
+        "Gateway accounting settled in an unexpected state: {row}"
+    );
+    Ok(row)
 }
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -220,9 +228,10 @@ async fn replay() -> Result<()> {
         "Artifact directory must be absolute"
     );
     let bootstrap = ensure_test_bootstrap();
-    let db = fixture_db_pool(&bootstrap.database_url).await?;
-    let _context = fixture_app_context(&db, &bootstrap.database_url)?;
-    let journal = systemprompt_api::services::gateway::audit::journal::GatewayJournal::open(
+    let db = test_db_pool().await;
+    let _context = test_app_context(&db, &bootstrap.database_url);
+    let background = BackgroundTasks::new();
+    let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
@@ -230,9 +239,10 @@ async fn replay() -> Result<()> {
         &db,
         journal,
         Arc::new(systemprompt_agent::services::ContextProviderService::new(
-            systemprompt_agent::repository::ContextRepository::new(&db)?,
+            systemprompt_agent::repository::ContextRepository::new(&db),
         )),
-    )?;
+        background.clone(),
+    );
     let cred = seed_admin_credential(
         &db,
         &format!("native-replay-{}@example.invalid", uuid::Uuid::new_v4()),
@@ -320,7 +330,7 @@ async fn replay() -> Result<()> {
                 false,
             );
             ensure!(
-                systemprompt_api::services::gateway::pricing::resolve(
+                systemprompt_gateway::pricing::resolve(
                     "native-fixture",
                     &[request.model.as_str()],
                     Some(&configured),
@@ -368,7 +378,7 @@ async fn replay() -> Result<()> {
                     .is_empty(),
                 "Unpriced native request reached upstream"
             );
-            let pg = db.pool_arc()?;
+            let pg = db.pool();
             let unknown_row: Option<Value> =
                 sqlx::query_scalar("SELECT to_jsonb(r) FROM ai_requests r WHERE id=$1")
                     .bind(unknown_id.as_str())
@@ -431,7 +441,7 @@ async fn replay() -> Result<()> {
                     &json!({"status":"settling_completion","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"artifact":directory}),
                 )?,
             )?;
-            let row = settled(&db, &id, None).await?;
+            let row = settled(&db, &background, &id, None).await?;
             let mut failed_accounting_row = None;
             if status == 200 {
                 ensure!(
@@ -444,10 +454,10 @@ async fn replay() -> Result<()> {
                 );
                 counted += 18;
                 let audit = GatewayAudit::new(&repos, fault_ctx);
-                systemprompt_api::services::gateway::service::finalize::record_accounting_outcome(
+                systemprompt_gateway::service::finalize::record_accounting_outcome(
                     &audit,
                     QuotaFaultMode::Closed,
-                    systemprompt_api::services::gateway::quota::AccountingOutcome::Faulted {
+                    systemprompt_gateway::quota::AccountingOutcome::Faulted {
                         message: "deterministic native replay accounting failure".to_owned(),
                     },
                 )
@@ -458,7 +468,7 @@ async fn replay() -> Result<()> {
                         &json!({"status":"settling_accounting_failure","paid_inference":false,"automated_target_enabled":false,"request_id":id.as_str(),"dispatch_error":dispatch_error,"persisted_completion":row,"artifact":directory}),
                     )?,
                 )?;
-                let failed = settled(&db, &id, Some("failed")).await?;
+                let failed = settled(&db, &background, &id, Some("failed")).await?;
                 ensure!(
                     failed["status"] == "failed"
                         && failed["cost_microdollars"] == 25

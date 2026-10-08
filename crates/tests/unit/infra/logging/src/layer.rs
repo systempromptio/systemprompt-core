@@ -129,7 +129,7 @@ mod database_layer {
     use systemprompt_identifiers::{SessionId, TraceId, UserId};
     use systemprompt_logging::layer::ProxyDatabaseLayer;
     use systemprompt_logging::{DatabaseLayer, LogActor, LogEntry, LogLevel, enqueue_background};
-    use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
+    use systemprompt_test_fixtures::test_db_pool;
     use tracing::{error, info, info_span};
     use tracing_subscriber::Layer;
     use tracing_subscriber::filter::LevelFilter;
@@ -145,18 +145,13 @@ mod database_layer {
 
     #[tokio::test]
     async fn database_layer_persists_attributed_events() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
-        let raw = db.pool_arc().unwrap().as_ref().clone();
+        let db = test_db_pool().await;
+        let raw = db.pool().as_ref().clone();
 
         let trace_id = format!("layer-trace-{}", uuid::Uuid::new_v4().simple());
 
         {
-            let layer = DatabaseLayer::new(db.clone());
+            let (layer, _writer) = DatabaseLayer::new(&db);
             let subscriber =
                 tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
             let _guard = tracing::subscriber::set_default(subscriber);
@@ -220,18 +215,55 @@ mod database_layer {
     }
 
     #[tokio::test]
+    async fn writer_shutdown_flushes_entries_still_buffered() {
+        let db = test_db_pool().await;
+        let raw = db.pool().as_ref().clone();
+
+        let trace_id = format!("shutdown-trace-{}", uuid::Uuid::new_v4().simple());
+
+        let (layer, writer) = DatabaseLayer::new(&db);
+        {
+            let subscriber =
+                tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));
+            let _guard = tracing::subscriber::set_default(subscriber);
+
+            let span = info_span!(
+                "request",
+                user_id = "shutdown-user",
+                session_id = "shutdown-session",
+                trace_id = trace_id.as_str(),
+            );
+            let _enter = span.enter();
+
+            info!("buffered one");
+            info!("buffered two");
+        }
+
+        writer
+            .shutdown()
+            .await
+            .expect("the writer flushes and stops cleanly");
+
+        let count = log_count_for_trace(&raw, &trace_id).await;
+        assert_eq!(
+            count, 2,
+            "shutdown must persist entries that were below the size and timer thresholds"
+        );
+
+        sqlx::query!("DELETE FROM logs WHERE trace_id = $1", trace_id.as_str())
+            .execute(&raw)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn enqueue_background_persists_error_entry() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
-        let raw = db.pool_arc().unwrap().as_ref().clone();
+        let db = test_db_pool().await;
+        let raw = db.pool().as_ref().clone();
 
         // Constructing a layer installs the process-global background sender
         // used by `enqueue_background`.
-        let _layer = DatabaseLayer::new(db.clone());
+        let (_layer, _writer) = DatabaseLayer::new(&db);
 
         let trace_id = format!("enqueue-trace-{}", uuid::Uuid::new_v4().simple());
         let actor = LogActor::new(
@@ -270,19 +302,14 @@ mod database_layer {
 
     #[tokio::test]
     async fn attached_proxy_delegates_spans_records_and_events() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
-        let raw = db.pool_arc().unwrap().as_ref().clone();
+        let db = test_db_pool().await;
+        let raw = db.pool().as_ref().clone();
 
         let trace_id = format!("proxy-attached-{}", uuid::Uuid::new_v4().simple());
 
         {
             let proxy = ProxyDatabaseLayer::new();
-            proxy.attach(db.clone());
+            let _writer = proxy.attach(&db);
             let subscriber =
                 tracing_subscriber::registry().with(proxy.with_filter(LevelFilter::TRACE));
             let _guard = tracing::subscriber::set_default(subscriber);
@@ -392,18 +419,13 @@ mod database_layer {
 
     #[tokio::test]
     async fn database_layer_flushes_on_size_threshold_and_debug_formats() {
-        let Ok(url) = fixture_database_url() else {
-            return;
-        };
-        let Ok(db) = fixture_db_pool(&url).await else {
-            return;
-        };
-        let raw = db.pool_arc().unwrap().as_ref().clone();
+        let db = test_db_pool().await;
+        let raw = db.pool().as_ref().clone();
 
         let trace_id = format!("bulk-trace-{}", uuid::Uuid::new_v4().simple());
 
         {
-            let layer = DatabaseLayer::new(db.clone());
+            let (layer, _writer) = DatabaseLayer::new(&db);
             assert!(format!("{layer:?}").contains("dropped"));
             let subscriber =
                 tracing_subscriber::registry().with(layer.with_filter(LevelFilter::TRACE));

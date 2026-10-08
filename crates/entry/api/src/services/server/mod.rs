@@ -14,18 +14,18 @@
 pub mod builder;
 mod discovery;
 pub mod health;
+mod health_stats;
 
 pub mod health_detail;
 pub mod lifecycle;
 pub mod metrics;
 mod probes;
 pub mod readiness;
-mod routes;
+pub mod routes;
 pub mod runner;
 pub mod scheduler_health;
 pub mod shutdown;
 pub mod startup;
-pub(crate) mod state_dirs;
 
 pub use builder::*;
 pub use readiness::{

@@ -65,7 +65,7 @@ pub async fn plan(
 ) -> Result<ConsumerInstallationPlan> {
     let resource: String =
         url::form_urlencoded::byte_serialize(publication.resource_id.as_str().as_bytes()).collect();
-    let publication_id: String =
+    let encoded_publication: String =
         url::form_urlencoded::byte_serialize(publication.publication_id.as_str().as_bytes())
             .collect();
     let host = serde_json::to_value(requested_host)?
@@ -73,7 +73,7 @@ pub async fn plan(
         .ok_or(FeedbackError::Scope)?
         .to_owned();
     let url = format!(
-        "{}/api/v1/consumer/resources/{resource}/publications/{publication_id}/bundle?host={host}",
+        "{}/api/v1/consumer/resources/{resource}/publications/{encoded_publication}/bundle?host={host}",
         enrollment.gateway
     );
     let plan: ConsumerInstallationPlan = decode(
@@ -116,7 +116,11 @@ async fn post<T: Serialize + Sync, R: DeserializeOwned>(
 
 async fn decode<T: DeserializeOwned>(mut response: reqwest::Response, maximum: usize) -> Result<T> {
     if !response.status().is_success() {
-        return Err(FeedbackError::Rejected(response.status().as_u16()));
+        let (status, rejection) = crate::gateway::GatewayRejection::read(response).await;
+        return Err(FeedbackError::Rejected {
+            status: status.as_u16(),
+            rejection,
+        });
     }
     if response
         .content_length()

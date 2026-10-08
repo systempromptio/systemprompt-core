@@ -1,21 +1,14 @@
-//! Tool invocation and execution-record types.
+//! Provider tool-call request type.
 //!
 //! [`ToolCall`] is a requested invocation (id, name, arguments);
-//! [`ToolExecution`] is the persisted record of a completed run, including
-//! timing, status, and output. [`ToolExecution::from_json_row`] reconstructs a
-//! record from a database row map.
+//! [`CallToolResult`] is the MCP result it resolves to.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-use systemprompt_identifiers::{AiRequestId, AiToolCallId, McpExecutionId, McpServerId};
-use systemprompt_traits::parse_database_datetime;
-
-use crate::errors::RowParseError;
+use systemprompt_identifiers::AiToolCallId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
@@ -26,110 +19,3 @@ pub struct ToolCall {
 }
 
 pub use rmcp::model::CallToolResult;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolExecution {
-    pub id: McpExecutionId,
-    pub request_id: AiRequestId,
-    pub sequence: i32,
-    pub tool_name: String,
-    pub service_id: McpServerId,
-    // JSON: MCP tool-call arguments / result are the tool's own JSON.
-    pub input: JsonValue,
-    // JSON: MCP tool-call arguments / result are the tool's own JSON.
-    pub output: Option<JsonValue>,
-    pub status: String,
-    pub execution_time_ms: Option<i32>,
-    pub error_message: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-// JSON: `mcp_tool_executions` JSONB columns decoded from a dynamic row.
-fn parse_json_column(row: &HashMap<String, JsonValue>, key: &str) -> Option<JsonValue> {
-    row.get(key).and_then(|v| v.as_str()).and_then(|s| {
-        serde_json::from_str(s)
-            .map_err(|e| {
-                tracing::warn!(error = %e, raw = %s, key = %key, "Failed to parse tool JSON column");
-                e
-            })
-            .ok()
-    })
-}
-
-impl ToolExecution {
-    // JSON: `mcp_tool_executions` JSONB columns decoded from a dynamic row.
-    pub fn from_json_row(row: &HashMap<String, JsonValue>) -> Result<Self, RowParseError> {
-        let id = row
-            .get("id")
-            .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("id"))
-            .map(McpExecutionId::new)?;
-
-        let request_id = row
-            .get("request_id")
-            .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("request_id"))
-            .map(AiRequestId::new)?;
-
-        let sequence = row
-            .get("sequence")
-            .and_then(serde_json::Value::as_i64)
-            .ok_or(RowParseError::Missing("sequence"))
-            .and_then(|i| i32::try_from(i).map_err(|_e| RowParseError::OutOfRange("sequence")))?;
-
-        let tool_name = row
-            .get("tool_name")
-            .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("tool_name"))?
-            .to_owned();
-
-        let service_id = row
-            .get("service_id")
-            .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("service_id"))
-            .and_then(|s| {
-                McpServerId::try_new(s).map_err(|source| RowParseError::InvalidId {
-                    field: "service_id",
-                    source,
-                })
-            })?;
-
-        let input = parse_json_column(row, "input").unwrap_or(JsonValue::Null);
-        let output = parse_json_column(row, "output");
-
-        let status = row
-            .get("status")
-            .and_then(|v| v.as_str())
-            .ok_or(RowParseError::Missing("status"))?
-            .to_owned();
-
-        let execution_time_ms = row
-            .get("execution_time_ms")
-            .and_then(serde_json::Value::as_i64)
-            .and_then(|i| i32::try_from(i).ok());
-
-        let error_message = row
-            .get("error_message")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-
-        let created_at = row
-            .get("created_at")
-            .and_then(parse_database_datetime)
-            .ok_or(RowParseError::Missing("created_at"))?;
-
-        Ok(Self {
-            id,
-            request_id,
-            sequence,
-            tool_name,
-            service_id,
-            input,
-            output,
-            status,
-            execution_time_ms,
-            error_message,
-            created_at,
-        })
-    }
-}

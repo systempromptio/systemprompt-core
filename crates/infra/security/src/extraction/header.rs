@@ -158,9 +158,9 @@ impl HeaderInjector {
 
     pub fn inject_agent_name(
         headers: &mut HeaderMap,
-        agent_name: &str,
+        agent_name: &AgentName,
     ) -> Result<(), HeaderInjectionError> {
-        Self::inject_header(headers, headers::AGENT_NAME, agent_name)
+        Self::inject_header(headers, headers::AGENT_NAME, agent_name.as_str())
     }
 
     pub fn inject_from_request_context(
@@ -171,7 +171,7 @@ impl HeaderInjector {
         Self::inject_user_id(headers, &ctx.auth.actor.user_id)?;
         Self::inject_trace_id(headers, &ctx.execution.trace_id)?;
         Self::inject_context_id(headers, &ctx.execution.context_id)?;
-        Self::inject_agent_name(headers, ctx.execution.agent_name.as_str())?;
+        Self::inject_agent_name(headers, &ctx.execution.agent_name)?;
         Ok(())
     }
 

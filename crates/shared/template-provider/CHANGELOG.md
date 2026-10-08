@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Changed
+
+- `DynPagePrerenderer` is re-exported from `systemprompt-provider-contracts` instead of being defined here; the type is unchanged.
+
 ## [0.53.0] - 2026-09-15
 
 ### Changed

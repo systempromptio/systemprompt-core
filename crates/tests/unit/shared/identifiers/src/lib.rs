@@ -51,6 +51,12 @@ mod email_tests;
 mod execution_tests;
 
 #[cfg(test)]
+mod extension_tests;
+
+#[cfg(test)]
+mod external_app_ids_tests;
+
+#[cfg(test)]
 mod gateway_conversation_tests;
 
 #[cfg(test)]
@@ -85,6 +91,9 @@ mod trace_tests;
 
 #[cfg(test)]
 mod url_tests;
+
+#[cfg(test)]
+mod service_tests;
 
 #[cfg(test)]
 mod user_tests;

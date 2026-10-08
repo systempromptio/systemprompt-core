@@ -12,7 +12,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
-use systemprompt_config::ProfileBootstrap;
+use systemprompt_config::{ProfileBootstrap, write_private_atomic};
 
 use super::profile_io::{load_profile, profile_dir};
 use super::types::ConfigMutationOutput;
@@ -97,7 +97,6 @@ pub fn set_secret(secrets_file: &Path, name: &str, value: &str) -> Result<()> {
     object.insert(name.to_owned(), serde_json::Value::String(value.to_owned()));
 
     let serialized = serde_json::to_string_pretty(&doc).context("Failed to serialize secrets")?;
-    std::fs::write(secrets_file, serialized)
-        .with_context(|| format!("Failed to write {}", secrets_file.display()))?;
-    Ok(())
+    write_private_atomic(secrets_file, serialized.as_bytes())
+        .with_context(|| format!("Failed to write {}", secrets_file.display()))
 }

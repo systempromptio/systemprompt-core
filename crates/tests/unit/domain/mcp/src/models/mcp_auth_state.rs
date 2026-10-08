@@ -1,12 +1,12 @@
 //! Unit tests for McpAuthState
 
+use systemprompt_identifiers::UserId;
 use systemprompt_mcp::McpAuthState;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
-use uuid::Uuid;
 
 fn create_test_user() -> AuthenticatedUser {
     AuthenticatedUser {
-        id: Uuid::new_v4(),
+        id: UserId::generate(),
         username: "test_user".to_string(),
         email: "test@example.com".to_string(),
         permissions: vec![Permission::Admin],

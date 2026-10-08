@@ -124,6 +124,7 @@ impl ToolResultArtifact {
     }
 
     #[must_use]
+    // JSON: MCP tool result — structured content is schema-less per the spec.
     pub fn with_structured_content(mut self, value: Option<JsonValue>) -> Self {
         self.structured_content = value;
         self

@@ -15,8 +15,9 @@
 
 use std::path::Path;
 
-use systemprompt_identifiers::HookId;
-use systemprompt_models::services::hooks::{HookCategory, HookEvent, HookType};
+use systemprompt_identifiers::{HookId, PluginId};
+use systemprompt_manifest::services::hooks::HookType;
+use systemprompt_models::hooks::{HookCategory, HookEvent};
 
 use crate::error::MarketplaceError;
 
@@ -31,7 +32,7 @@ pub(super) struct ImportedHooks {
 }
 
 pub(super) fn import_plugin_hooks(
-    plugin_id: &str,
+    plugin_id: &PluginId,
     plugin_dir: &Path,
     sink: &Sink,
 ) -> Result<ImportedHooks, MarketplaceError> {
@@ -44,14 +45,10 @@ pub(super) fn import_plugin_hooks(
         return Ok(out);
     }
 
-    let text = std::fs::read_to_string(&path).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: e.to_string(),
-    })?;
-    let file: HooksFile = serde_json::from_str(&text).map_err(|e| MarketplaceError::Import {
-        path: path.display().to_string(),
-        message: format!("hooks.json is not valid: {e}"),
-    })?;
+    let text =
+        std::fs::read_to_string(&path).map_err(|e| MarketplaceError::import(&path, "read", e))?;
+    let file: HooksFile = serde_json::from_str(&text)
+        .map_err(|e| MarketplaceError::import(&path, "hooks.json is not valid", e))?;
 
     for event in HookEvent::ALL_VARIANTS {
         let mut index = 0usize;
@@ -59,7 +56,7 @@ pub(super) fn import_plugin_hooks(
             for action in &matcher.hooks {
                 let Some(command) = command_of(action) else {
                     out.warnings.push(ImportWarning::UnsupportedHookAction {
-                        plugin: plugin_id.to_owned(),
+                        plugin: plugin_id.to_string(),
                         event: event.as_str().to_owned(),
                     });
                     continue;
@@ -75,8 +72,9 @@ pub(super) fn import_plugin_hooks(
                     matcher: matcher.matcher.clone(),
                     command,
                     is_async: action.r#async,
+                    timeout: action.timeout,
                     category: HookCategory::Custom,
-                    tags: vec![plugin_id.to_owned()],
+                    tags: vec![plugin_id.to_string()],
                 };
                 let rel = Path::new("hooks").join(&dir_name).join("config.yaml");
                 sink.write_yaml(&rel, &doc)?;
@@ -89,7 +87,7 @@ pub(super) fn import_plugin_hooks(
     Ok(out)
 }
 
-fn command_of(action: &systemprompt_models::services::hooks::HookAction) -> Option<String> {
+fn command_of(action: &systemprompt_manifest::services::hooks::HookAction) -> Option<String> {
     match action.hook_type {
         HookType::Command => action.command.clone().filter(|c| !c.trim().is_empty()),
         HookType::Prompt | HookType::Agent => None,

@@ -1,53 +1,33 @@
-use super::{make_task, repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::models::context::ContextKind;
-use systemprompt_agent::repository::task::{
-    RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams, task_state_to_db_string,
-};
-use systemprompt_identifiers::{ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
+use systemprompt_test_fixtures::test_db_pool;
 
 #[test]
-fn task_state_to_db_string_all_variants() {
-    assert_eq!(
-        task_state_to_db_string(TaskState::Pending),
-        "TASK_STATE_PENDING"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Submitted),
-        "TASK_STATE_SUBMITTED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Working),
-        "TASK_STATE_WORKING"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::InputRequired),
-        "TASK_STATE_INPUT_REQUIRED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Completed),
-        "TASK_STATE_COMPLETED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Canceled),
-        "TASK_STATE_CANCELED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Failed),
-        "TASK_STATE_FAILED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Rejected),
-        "TASK_STATE_REJECTED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::AuthRequired),
-        "TASK_STATE_AUTH_REQUIRED"
-    );
-    assert_eq!(
-        task_state_to_db_string(TaskState::Unknown),
-        "TASK_STATE_UNKNOWN"
-    );
+fn task_state_as_str_is_the_stored_and_wire_form_of_every_variant() {
+    let cases = [
+        (TaskState::Pending, "TASK_STATE_PENDING"),
+        (TaskState::Submitted, "TASK_STATE_SUBMITTED"),
+        (TaskState::Working, "TASK_STATE_WORKING"),
+        (TaskState::InputRequired, "TASK_STATE_INPUT_REQUIRED"),
+        (TaskState::Completed, "TASK_STATE_COMPLETED"),
+        (TaskState::Canceled, "TASK_STATE_CANCELED"),
+        (TaskState::Failed, "TASK_STATE_FAILED"),
+        (TaskState::Rejected, "TASK_STATE_REJECTED"),
+        (TaskState::AuthRequired, "TASK_STATE_AUTH_REQUIRED"),
+        (TaskState::Unknown, "TASK_STATE_UNKNOWN"),
+    ];
+    for (state, stored) in cases {
+        assert_eq!(state.as_str(), stored);
+        assert_eq!(
+            serde_json::to_value(state).expect("serialize"),
+            serde_json::json!(stored),
+            "the DB string and the serde wire name are one mapping"
+        );
+        assert_eq!(stored.parse::<TaskState>().expect("parse"), state);
+    }
 }
 
 fn make_message(
@@ -72,16 +52,14 @@ fn make_message(
 
 #[tokio::test]
 async fn create_and_get_task_roundtrip() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     let task = r
         .tasks
-        .get_task(&task_id)
+        .find_task(&task_id)
         .await
         .expect("get")
         .expect("present");
@@ -94,19 +72,15 @@ async fn create_and_get_task_roundtrip() {
 
 #[tokio::test]
 async fn get_task_unknown_returns_none() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
-    let result = r.tasks.get_task(&TaskId::generate()).await.expect("get");
+    let result = r.tasks.find_task(&TaskId::generate()).await.expect("get");
     assert!(result.is_none());
 }
 
 #[tokio::test]
 async fn list_tasks_by_context_and_by_user() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -136,17 +110,15 @@ async fn list_tasks_by_context_and_by_user() {
 }
 
 #[tokio::test]
-async fn get_task_context_info() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+async fn find_task_context_info() {
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     let info = r
         .tasks
-        .get_task_context_info(&task_id)
+        .find_task_context_info(&task_id)
         .await
         .expect("info")
         .expect("present");
@@ -155,7 +127,7 @@ async fn get_task_context_info() {
 
     let none = r
         .tasks
-        .get_task_context_info(&TaskId::generate())
+        .find_task_context_info(&TaskId::generate())
         .await
         .expect("info");
     assert!(none.is_none());
@@ -165,9 +137,7 @@ async fn get_task_context_info() {
 
 #[tokio::test]
 async fn validate_task_ownership() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -184,7 +154,7 @@ async fn validate_task_ownership() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -192,9 +162,7 @@ async fn validate_task_ownership() {
 
 #[tokio::test]
 async fn update_task_state_valid_transition() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -205,14 +173,14 @@ async fn update_task_state_valid_transition() {
         .update_task_state(&task_id, TaskState::Working, &now)
         .await
         .expect("to working");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     r.tasks
         .update_task_state(&task_id, TaskState::Completed, &now)
         .await
         .expect("to completed");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Completed);
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -220,9 +188,7 @@ async fn update_task_state_valid_transition() {
 
 #[tokio::test]
 async fn update_task_state_idempotent_same_state() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -239,9 +205,7 @@ async fn update_task_state_idempotent_same_state() {
 
 #[tokio::test]
 async fn update_task_state_invalid_transition_errors() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -260,7 +224,7 @@ async fn update_task_state_invalid_transition_errors() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::ConstraintViolation(_)
+        systemprompt_traits::RepositoryError::Conflict { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -268,9 +232,7 @@ async fn update_task_state_invalid_transition_errors() {
 
 #[tokio::test]
 async fn update_task_state_unknown_task_not_found() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let now = chrono::Utc::now();
     let err = r
@@ -280,15 +242,13 @@ async fn update_task_state_unknown_task_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
 #[tokio::test]
 async fn apply_notification_status_parses_state() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -298,7 +258,7 @@ async fn apply_notification_status_parses_state() {
         .apply_notification_status(&task_id, "working", &now)
         .await
         .expect("notify working");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Working);
 
     let err = r
@@ -308,7 +268,7 @@ async fn apply_notification_status_parses_state() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::InvalidData(_)
+        systemprompt_traits::RepositoryError::InvalidArgument { .. }
     ));
 
     r.tasks.delete_task(&task_id).await.ok();
@@ -316,9 +276,7 @@ async fn apply_notification_status_parses_state() {
 
 #[tokio::test]
 async fn update_task_failed_with_error() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -328,7 +286,7 @@ async fn update_task_failed_with_error() {
         .update_task_failed_with_error(&task_id, "boom", &now)
         .await
         .expect("fail");
-    let task = r.tasks.get_task(&task_id).await.expect("get").unwrap();
+    let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
     assert_eq!(task.status.state, TaskState::Failed);
 
     // Failing again is idempotent.
@@ -342,9 +300,7 @@ async fn update_task_failed_with_error() {
 
 #[tokio::test]
 async fn update_task_failed_unknown_is_not_found() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let now = chrono::Utc::now();
     let err = r
@@ -354,25 +310,23 @@ async fn update_task_failed_unknown_is_not_found() {
         .unwrap_err();
     assert!(matches!(
         err,
-        systemprompt_traits::RepositoryError::NotFound(_)
+        systemprompt_traits::RepositoryError::NotFound { .. }
     ));
 }
 
 #[tokio::test]
 async fn track_agent_in_context_is_idempotent() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
     r.tasks
-        .track_agent_in_context(&context_id, "agent-x")
+        .track_agent_in_context(&context_id, &AgentName::new("agent-x"))
         .await
         .expect("track");
     r.tasks
-        .track_agent_in_context(&context_id, "agent-x")
+        .track_agent_in_context(&context_id, &AgentName::new("agent-x"))
         .await
         .expect("track again");
 
@@ -381,9 +335,7 @@ async fn track_agent_in_context_is_idempotent() {
 
 #[tokio::test]
 async fn update_task_and_save_messages_persists_history() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -445,9 +397,7 @@ async fn update_task_and_save_messages_persists_history() {
 
 #[tokio::test]
 async fn message_exists_false_for_unknown() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     assert!(
         !r.tasks
@@ -459,9 +409,7 @@ async fn message_exists_false_for_unknown() {
 
 #[tokio::test]
 async fn next_sequence_number_starts_at_zero() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (_context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
@@ -476,9 +424,7 @@ async fn next_sequence_number_starts_at_zero() {
 
 #[tokio::test]
 async fn create_task_returns_id_string() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     let r = repos(&pool);
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let ctx_repo = r.contexts.clone();
@@ -496,7 +442,7 @@ async fn create_task_returns_id_string() {
             user_id: &user_id,
             session_id: &session_id,
             trace_id: &trace_id,
-            agent_name: "a",
+            agent_name: &AgentName::new("a"),
         })
         .await
         .expect("create");

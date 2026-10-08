@@ -15,6 +15,7 @@ use crate::error::McpDomainResult;
 use crate::services::spawn_target::SpawnTarget;
 use std::collections::HashSet;
 use std::sync::Arc;
+use systemprompt_identifiers::{McpServerId, ServiceName};
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 use tracing::Instrument;
 
@@ -24,8 +25,8 @@ use super::process_cleanup::{
 };
 use super::server_startup::{StartPendingServersParams, start_pending_servers};
 use crate::McpServerConfig;
-use crate::services::database::DatabaseService;
-use crate::services::lifecycle::LifecycleOrchestrator;
+use crate::services::database::{DatabaseService, stored_pid};
+use crate::services::lifecycle::LifecycleService;
 use crate::services::network::port::{self, POST_KILL_DELAY_MS};
 use crate::services::process::ProcessService;
 use crate::services::registry::RegistryService;
@@ -33,7 +34,7 @@ use crate::services::registry::RegistryService;
 #[derive(Debug)]
 pub struct ReconcileParams<'a> {
     pub database: &'a DatabaseService,
-    pub lifecycle: &'a LifecycleOrchestrator,
+    pub lifecycle: &'a LifecycleService,
     pub event_bus: &'a Arc<EventBus>,
     pub registry: &'a RegistryService,
     pub events: Option<&'a StartupEventSender>,
@@ -144,7 +145,7 @@ async fn kill_all_running_servers(
 
     for server in running_servers {
         let port = server.spawn_port()?;
-        kill_single_server(database, &server.name, events).await?;
+        kill_single_server(database, &server.server_id(), events).await?;
         if let Err(e) = port::wait_for_port_release(port).await {
             tracing::warn!(port = port, error = %e, "Port release wait failed, continuing");
         }
@@ -156,26 +157,24 @@ async fn kill_all_running_servers(
 
 async fn kill_single_server(
     database: &DatabaseService,
-    server_name: &str,
+    server_name: &McpServerId,
     events: Option<&StartupEventSender>,
 ) -> McpDomainResult<()> {
-    if let Some(service_info) = database.get_service_by_name(server_name).await? {
-        if let Some(pid) = service_info.pid {
+    let service_name = ServiceName::of_mcp_server(server_name);
+    if let Some(service_info) = database.get_service_by_name(&service_name).await? {
+        if let Some(pid) = stored_pid(service_info.pid) {
             if let Some(tx) = events
                 && let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
-                    name: server_name.to_owned(),
+                    name: server_name.to_string(),
                     reason: "Restarting to ensure fresh state".to_owned(),
                 })
             {
                 tracing::warn!(error = %e, "Failed to send cleanup notification");
             }
-            if let Err(e) =
-                ProcessService::terminate_gracefully_verified(pid as u32, server_name).await
-            {
-                tracing::warn!(pid = pid, error = %e, "Failed to terminate process");
-            }
+            let outcome = ProcessService::stop(pid, &service_name).await?;
+            tracing::debug!(server = %server_name, pid, ?outcome, "Stopped previous MCP process");
         }
-        if let Err(e) = database.unregister_service(server_name).await {
+        if let Err(e) = database.unregister_service(&service_name).await {
             tracing::warn!(server = %server_name, error = %e, "Failed to unregister service");
         }
     }

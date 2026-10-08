@@ -20,8 +20,8 @@ use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_logging::CliService;
+use systemprompt_manifest::{Profile, Secrets};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
-use systemprompt_models::{Profile, Secrets};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserRole};
 
@@ -32,12 +32,7 @@ use crate::session::api::create_local_session_row;
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_ADMIN_EMAIL",
-        hide = true,
-        help = "Override email from credentials"
-    )]
+    #[arg(long, hide = true, help = "Override email from credentials")]
     pub email: Option<String>,
 
     #[arg(long, default_value = "24", help = "Session duration in hours")]
@@ -175,7 +170,7 @@ async fn create_cli_context(
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
 
-    let context_repo = ContextRepository::new(db_pool)?;
+    let context_repo = ContextRepository::new(db_pool);
     context_repo
         .get_or_create_cli_context(
             user_id,

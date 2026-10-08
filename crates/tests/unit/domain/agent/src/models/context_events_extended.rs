@@ -2,7 +2,8 @@ use chrono::Utc;
 use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
 use systemprompt_agent::models::context::{ContextKind, ContextStateEvent};
 use systemprompt_identifiers::{
-    AgentName, ArtifactId, ContextId, McpExecutionId, SessionId, SkillId, TaskId, TraceId,
+    Actor, AgentName, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId,
+    SkillId, SkillName, TaskId, TraceId, UserId,
 };
 use systemprompt_models::UserContext;
 use systemprompt_models::execution::context::RequestContext;
@@ -60,13 +61,14 @@ fn context_state_event_skill_loaded_has_context_id() {
         TraceId::new("trace-1"),
         ContextId::try_new(CONTEXT_ID_1).expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-1"),
-        skill_name: "MySkill".to_string(),
+        skill_name: SkillName::new("MySkill"),
         description: "Does things".to_string(),
         request_context: ctx,
-        tool_name: Some("tool_fn".to_string()),
+        tool_name: Some(McpToolName::new("tool_fn")),
         timestamp: Utc::now(),
     };
     assert_eq!(event.context_id(), Some(CONTEXT_ID_1));
@@ -79,10 +81,11 @@ fn context_state_event_skill_loaded_no_tool_name() {
         TraceId::new("trace-2"),
         ContextId::try_new(CONTEXT_ID_2).expect("valid ContextId"),
         AgentName::try_new("test-agent").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     );
     let event = ContextStateEvent::SkillLoaded {
         skill_id: SkillId::new("skill-2"),
-        skill_name: "AnotherSkill".to_string(),
+        skill_name: SkillName::new("AnotherSkill"),
         description: "Another one".to_string(),
         request_context: ctx,
         tool_name: None,
@@ -96,8 +99,8 @@ fn context_state_event_tool_execution_with_artifact() {
     let event = ContextStateEvent::ToolExecutionCompleted {
         context_id: ContextId::try_new(CONTEXT_ID_1).expect("valid ContextId"),
         execution_id: McpExecutionId::new("exec-with-art"),
-        tool_name: "fetch_data".to_string(),
-        server_name: "data-server".to_string(),
+        tool_name: McpToolName::new("fetch_data"),
+        server_name: McpServerId::new("data-server"),
         output: Some("fetched data".to_string()),
         artifact: Some(minimal_artifact()),
         status: "success".to_string(),
@@ -113,8 +116,8 @@ fn context_state_event_tool_execution_without_output() {
     let event = ContextStateEvent::ToolExecutionCompleted {
         context_id: ContextId::try_new(CONTEXT_ID_1).expect("valid ContextId"),
         execution_id: McpExecutionId::new("exec-no-out"),
-        tool_name: "void_tool".to_string(),
-        server_name: "srv".to_string(),
+        tool_name: McpToolName::new("void_tool"),
+        server_name: McpServerId::new("srv"),
         output: None,
         artifact: None,
         status: "success".to_string(),

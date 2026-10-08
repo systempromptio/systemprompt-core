@@ -6,7 +6,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use systemprompt_identifiers::{Actor, InstanceId, UserId};
+use systemprompt_identifiers::{Actor, JobName, UserId};
 use systemprompt_traits::{Job as JobTrait, StartupEventExt, StartupEventSender};
 use tokio::sync::Mutex;
 
@@ -15,8 +15,8 @@ use crate::error::SchedulerResult;
 use crate::models::JobStatus;
 
 struct BootstrapCtx<'a> {
-    owners: &'a HashMap<String, UserId>,
-    skipped: &'a HashSet<&'a str>,
+    owners: &'a HashMap<JobName, UserId>,
+    skipped: &'a HashSet<&'a JobName>,
     system_admin_id: &'a UserId,
     running_jobs: &'a RunningJobs,
     events: Option<&'a StartupEventSender>,
@@ -31,7 +31,7 @@ impl SchedulerService {
         let registered_jobs = Self::discover_jobs();
         self.validate_configured_jobs(&registered_jobs)?;
         let system_admin_id = self.app_context.system_admin().id().clone();
-        let skipped: HashSet<&str> = resolved.skipped_names().collect();
+        let skipped: HashSet<&JobName> = resolved.skipped_names().collect();
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
         let ctx = BootstrapCtx {
             owners: resolved.owner_map(),
@@ -48,7 +48,7 @@ impl SchedulerService {
         Ok(registered_jobs.len())
     }
 
-    async fn dispatch_bootstrap_job(&self, job_name: &str, ctx: &BootstrapCtx<'_>) {
+    async fn dispatch_bootstrap_job(&self, job_name: &JobName, ctx: &BootstrapCtx<'_>) {
         if ctx.skipped.contains(job_name) {
             tracing::warn!(job_name = %job_name, "bootstrap job owner unresolved, skipping");
             return;
@@ -58,11 +58,11 @@ impl SchedulerService {
             .get(job_name)
             .cloned()
             .unwrap_or_else(|| ctx.system_admin_id.clone());
-        let actor = Actor::job(owner_id, job_name.to_owned());
+        let actor = Actor::job(owner_id, job_name.as_str());
 
-        ctx.events.bootstrap_job_started(job_name.to_owned());
+        ctx.events.bootstrap_job_started(job_name.to_string());
 
-        let config_entry = self.config.jobs.iter().find(|job| job.name == job_name);
+        let config_entry = self.config.jobs.iter().find(|job| &job.name == job_name);
         let registered = inventory::iter::<&'static dyn JobTrait>
             .into_iter()
             .find(|job| job.name() == job_name)
@@ -71,10 +71,10 @@ impl SchedulerService {
             &self.config,
             config_entry,
             registered,
-            &InstanceId::new(&self.app_context.config().instance_id),
+            &self.app_context.config().instance_id,
         );
         dispatch::execute_job(dispatch::JobDispatch {
-            job_name: job_name.to_owned(),
+            job_name: job_name.clone(),
             actor,
             db_pool: Arc::clone(&self.db_pool),
             repository: self.repository.clone(),
@@ -98,6 +98,6 @@ impl SchedulerService {
         };
 
         ctx.events
-            .bootstrap_job_completed(job_name.to_owned(), success, message);
+            .bootstrap_job_completed(job_name.to_string(), success, message);
     }
 }

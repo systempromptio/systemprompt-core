@@ -3,44 +3,74 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::ExtensionId;
+use systemprompt_traits::BoxedSource;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LoaderError {
     #[error("Extension '{extension}' requires dependency '{dependency}' which is not registered")]
     MissingDependency {
-        extension: String,
-        dependency: String,
+        extension: ExtensionId,
+        dependency: ExtensionId,
     },
 
     #[error("Extension with ID '{0}' is already registered")]
-    DuplicateExtension(String),
+    DuplicateExtension(ExtensionId),
 
     #[error("Extension '{0}' is required and cannot be disabled")]
-    RequiredExtensionDisabled(String),
+    RequiredExtensionDisabled(ExtensionId),
 
     #[error(
         "Extension '{dependency}' is disabled but extension '{extension}' depends on it; disable \
          '{extension}' as well or re-enable '{dependency}'"
     )]
     DisabledDependency {
-        extension: String,
-        dependency: String,
+        extension: ExtensionId,
+        dependency: ExtensionId,
     },
 
     #[error("Failed to initialize extension '{extension}': {message}")]
-    InitializationFailed { extension: String, message: String },
+    InitializationFailed {
+        extension: ExtensionId,
+        message: String,
+    },
 
     #[error("Failed to install schema for extension '{extension}': {message}")]
-    SchemaInstallationFailed { extension: String, message: String },
+    SchemaInstallationFailed {
+        extension: ExtensionId,
+        message: String,
+    },
+
+    #[error("Failed to install schema for extension '{extension}': {context}: {source}")]
+    SchemaInstallationStepFailed {
+        extension: ExtensionId,
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("Migration failed for extension '{extension}': {message}")]
-    MigrationFailed { extension: String, message: String },
+    MigrationFailed {
+        extension: ExtensionId,
+        message: String,
+    },
+
+    #[error("Migration failed for extension '{extension}': {context}: {source}")]
+    MigrationStepFailed {
+        extension: ExtensionId,
+        context: String,
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error(
         "Migration {version} for extension '{extension}' is not reversible (no down SQL provided)"
     )]
-    MigrationNotReversible { extension: String, version: u32 },
+    MigrationNotReversible {
+        extension: ExtensionId,
+        version: u32,
+    },
 
     #[error(
         "Extension '{extension}' migration slot {version} was applied as '{stored_name}' but the \
@@ -50,22 +80,31 @@ pub enum LoaderError {
          `{version:03}_{stored_name}.tombstone` behind so the number cannot be claimed again."
     )]
     MigrationSlotReused {
-        extension: String,
+        extension: ExtensionId,
         version: u32,
         stored_name: String,
         current_name: String,
     },
 
     #[error("Configuration validation failed for extension '{extension}': {message}")]
-    ConfigValidationFailed { extension: String, message: String },
+    ConfigValidationFailed {
+        extension: ExtensionId,
+        message: String,
+    },
 
     #[error("Extension '{extension}' uses reserved API path '{path}'")]
-    ReservedPathCollision { extension: String, path: String },
+    ReservedPathCollision {
+        extension: ExtensionId,
+        path: String,
+    },
 
     #[error(
         "Extension '{extension}' has invalid base path '{path}': must be / or start with /api/"
     )]
-    InvalidBasePath { extension: String, path: String },
+    InvalidBasePath {
+        extension: ExtensionId,
+        path: String,
+    },
 
     #[error("Dependency cycle detected while ordering extensions: {chain}")]
     DependencyCycle { chain: String },
@@ -75,7 +114,10 @@ pub enum LoaderError {
          schemas() nor declare it in cross_extension_tables(); cross-extension table mutations \
          must be declared explicitly"
     )]
-    CrossExtensionAlterUndeclared { extension: String, table: String },
+    CrossExtensionAlterUndeclared {
+        extension: ExtensionId,
+        table: String,
+    },
 
     #[error(
         "Extension '{extension}' migration {migration} references {kind} '{object}' via {how}, \
@@ -85,7 +127,7 @@ pub enum LoaderError {
          leave it to the declarative schema"
     )]
     MigrationReferencesDeclarativeObject {
-        extension: String,
+        extension: ExtensionId,
         migration: String,
         kind: String,
         object: String,
@@ -99,7 +141,7 @@ pub enum LoaderError {
          delete the toggle, or guard it in a DO $$ block that tests pg_trigger first"
     )]
     MigrationTogglesTriggerByName {
-        extension: String,
+        extension: ExtensionId,
         migration: String,
         table: String,
         trigger: String,
@@ -127,7 +169,7 @@ pub enum LoaderError {
          fixing it."
     )]
     MigrationChecksumDrift {
-        extension: String,
+        extension: ExtensionId,
         version: u32,
         name: String,
         stored_checksum: String,
@@ -140,22 +182,25 @@ pub enum LoaderError {
     )]
     DuplicateTableOwner {
         table: String,
-        extension_a: String,
-        extension_b: String,
+        extension_a: ExtensionId,
+        extension_b: ExtensionId,
     },
 
     #[error(
         "Extension '{extension}' declares cross_extension_tables() entry '{table}', which is not \
          a table created by any other loaded extension"
     )]
-    CrossExtensionTableNotOwned { extension: String, table: String },
+    CrossExtensionTableNotOwned {
+        extension: ExtensionId,
+        table: String,
+    },
 
     #[error(
         "Extension '{extension}' seed '{seed}' contains forbidden statement '{statement}'; seeds \
          may only contain INSERT … ON CONFLICT, UPDATE, MERGE, or WITH … INSERT"
     )]
     InvalidSeedStatement {
-        extension: String,
+        extension: ExtensionId,
         seed: String,
         statement: String,
     },
@@ -164,13 +209,18 @@ pub enum LoaderError {
         "Extension '{extension}' seed '{seed}' contains a bare INSERT with no ON CONFLICT clause; \
          seeds run on every boot and must be idempotent — add ON CONFLICT … DO NOTHING/UPDATE"
     )]
-    SeedInsertNotIdempotent { extension: String, seed: String },
-
-    #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {message}")]
-    SeedFailed {
-        extension: String,
+    SeedInsertNotIdempotent {
+        extension: ExtensionId,
         seed: String,
-        message: String,
+    },
+
+    #[error("Extension '{extension}' seed '{seed}' failed to parse or apply: {context}: {source}")]
+    SeedFailed {
+        extension: ExtensionId,
+        seed: String,
+        context: String,
+        #[source]
+        source: BoxedSource,
     },
 }
 
@@ -182,9 +232,12 @@ pub enum ExtensionConfigError {
     #[error("Invalid configuration value for '{key}': {message}")]
     InvalidValue { key: String, message: String },
 
-    #[error("Failed to parse configuration: {message}")]
-    ParseError { message: String },
+    #[error("Failed to parse configuration: {source}")]
+    ParseError {
+        #[source]
+        source: BoxedSource,
+    },
 
     #[error("Schema validation failed: {0}")]
-    SchemaValidation(String),
+    SchemaValidation(#[source] BoxedSource),
 }

@@ -53,7 +53,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentRepository::new(pool)?;
+    let repo = ContentRepository::new(pool);
 
     let candidates = if args.identifier.is_none() && config.is_interactive() {
         list_candidates(&repo, args.source.as_deref()).await?
@@ -68,7 +68,7 @@ pub async fn execute_with_pool(
         || identifier.contains('-') && identifier.len() > 30
     {
         let id = ContentId::new(identifier.clone());
-        repo.get_by_id(&id)
+        repo.find_by_id(&id)
             .await?
             .ok_or_else(|| anyhow!("Content not found: {}", identifier))?
     } else {
@@ -77,7 +77,7 @@ pub async fn execute_with_pool(
             .as_ref()
             .ok_or_else(|| anyhow!("Source ID required when using slug"))?;
         let source = SourceId::new(source_id.clone());
-        repo.get_by_source_and_slug(&source, &identifier, &LocaleCode::english())
+        repo.find_by_source_and_slug(&source, &identifier, &LocaleCode::english())
             .await?
             .ok_or_else(|| anyhow!("Content not found: {} in source {}", identifier, source_id))?
     };

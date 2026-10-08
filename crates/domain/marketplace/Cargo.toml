@@ -27,6 +27,7 @@ schemars = { workspace = true }
 systemprompt-extension = { workspace = true }
 sqlx = { workspace = true }
 serde_jcs = { workspace = true }
+globset = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
@@ -39,6 +40,7 @@ sha2 = { workspace = true }
 hex = { workspace = true }
 tokio = { workspace = true }
 systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-database = { workspace = true }

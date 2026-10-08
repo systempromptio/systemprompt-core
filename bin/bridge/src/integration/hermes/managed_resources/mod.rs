@@ -13,7 +13,9 @@ use std::path::Path;
 
 use async_trait::async_trait;
 
-use crate::host_sync::{ApplyError, HostSync, HostSyncCtx};
+use systemprompt_models::bridge::host::HostKind;
+
+use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 
 mod config_yaml;
 mod skills;
@@ -26,11 +28,11 @@ pub struct HermesSync;
 
 #[async_trait]
 impl HostSync for HermesSync {
-    fn host_id(&self) -> &'static str {
-        "hermes"
+    fn host_id(&self) -> HostKind {
+        HostKind::Hermes
     }
 
-    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         let has_content =
             !ctx.manifest.skills.is_empty() || !ctx.manifest.managed_mcp_servers.is_empty();
         if has_content {
@@ -40,7 +42,7 @@ impl HostSync for HermesSync {
             clear_skills()?;
             write_config_blocks(ctx.loopback, false, &[])?;
         }
-        Ok(())
+        Ok(HostSyncReport::ok())
     }
 
     fn clear(&self, ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {

@@ -13,9 +13,7 @@ use systemprompt_test_fixtures::DisposableDb;
 
 #[tokio::test]
 async fn get_info_reports_version_and_introspected_table() {
-    let Ok(database) = DisposableDb::create("introspect").await else {
-        return;
-    };
+    let database = DisposableDb::empty("introspect").await;
     let result = run_introspection(database.url()).await;
     database.drop_now().await;
 
@@ -24,7 +22,7 @@ async fn get_info_reports_version_and_introspected_table() {
 
 async fn run_introspection(iso_url: &str) -> anyhow::Result<()> {
     let db = Database::new_postgres(iso_url).await?;
-    let pgpool = db.write_pool_arc().expect("iso pool");
+    let pgpool = db.write_pool();
 
     sqlx::query("CREATE TABLE \"widget\" (id INT PRIMARY KEY, name TEXT, flag BOOLEAN NOT NULL)")
         .execute(&*pgpool)

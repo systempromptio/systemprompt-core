@@ -67,6 +67,7 @@ struct CapabilitiesResponse {
 struct ExtensionResponse {
     uri: String,
     #[serde(default)]
+    // JSON: A2A AgentCard `AgentExtension.params` — free-form per the spec.
     params: Option<serde_json::Value>,
 }
 

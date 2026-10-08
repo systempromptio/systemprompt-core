@@ -19,7 +19,7 @@ use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_models::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundleManifest};
+use systemprompt_manifest::services::bundle::{BUNDLE_ALLOWED_DIRS, ServicesBundleManifest};
 
 use super::bootstrap::cache_root;
 use super::cache::BundleCache;

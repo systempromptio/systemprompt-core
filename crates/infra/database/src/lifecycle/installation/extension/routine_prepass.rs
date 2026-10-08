@@ -7,6 +7,7 @@ use systemprompt_extension::LoaderError;
 use tracing::{debug, warn};
 
 use super::PreparedSchema;
+use crate::error::RepositoryError;
 use crate::services::DatabaseProvider;
 
 // Why: migrations run before the dependent phase, so a trigger a migration
@@ -27,21 +28,23 @@ pub(super) async fn apply_routine_prepass(
             routines = p.routines.len(),
             "Pre-applying declarative routines"
         );
-        let failed = |message: String| LoaderError::SchemaInstallationFailed {
-            extension: p.extension_id.clone(),
-            message: format!("routine pre-pass: {message}"),
-        };
+        let failed =
+            |context: String, source: RepositoryError| LoaderError::SchemaInstallationStepFailed {
+                extension: p.extension_id.clone(),
+                context: format!("routine pre-pass: {context}"),
+                source: Box::new(source),
+            };
         let mut tx = db
             .begin_transaction()
             .await
-            .map_err(|e| failed(format!("Failed to begin transaction: {e}")))?;
+            .map_err(|e| failed("Failed to begin transaction".to_owned(), e))?;
         tx.execute(&"SET LOCAL check_function_bodies = off", &[])
             .await
-            .map_err(|e| failed(format!("Failed to relax body checks: {e}")))?;
+            .map_err(|e| failed("Failed to relax body checks".to_owned(), e))?;
         for (idx, statement) in p.routines.iter().enumerate() {
             tx.execute(&"SAVEPOINT routine", &[])
                 .await
-                .map_err(|e| failed(format!("Failed to set savepoint: {e}")))?;
+                .map_err(|e| failed("Failed to set savepoint".to_owned(), e))?;
             let sql_str: &str = statement.as_str();
             match tx.execute(&sql_str, &[]).await {
                 Ok(_) => {},
@@ -54,24 +57,27 @@ pub(super) async fn apply_routine_prepass(
                     );
                     tx.execute(&"ROLLBACK TO SAVEPOINT routine", &[])
                         .await
-                        .map_err(|e| failed(format!("Failed to roll back savepoint: {e}")))?;
+                        .map_err(|e| failed("Failed to roll back savepoint".to_owned(), e))?;
                 },
                 Err(e) => {
                     let rollback_note = match tx.rollback().await {
                         Ok(()) => String::new(),
                         Err(rb) => format!(" (rollback also failed: {rb})"),
                     };
-                    return Err(failed(format!(
-                        "Statement {n}/{total} failed: {e}{rollback_note}\nSQL:\n{statement}",
-                        n = idx + 1,
-                        total = p.routines.len(),
-                    )));
+                    return Err(failed(
+                        format!(
+                            "Statement {n}/{total} failed{rollback_note}\nSQL:\n{statement}",
+                            n = idx + 1,
+                            total = p.routines.len(),
+                        ),
+                        e,
+                    ));
                 },
             }
         }
         tx.commit()
             .await
-            .map_err(|e| failed(format!("Failed to commit transaction: {e}")))?;
+            .map_err(|e| failed("Failed to commit transaction".to_owned(), e))?;
     }
     Ok(())
 }

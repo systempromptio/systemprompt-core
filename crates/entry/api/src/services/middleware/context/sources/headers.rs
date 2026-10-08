@@ -19,10 +19,12 @@ impl HeaderSource {
             .ok_or_else(|| ContextExtractionError::MissingHeader(name.to_owned()))?
             .to_str()
             .map(str::to_owned)
-            .map_err(|e| ContextExtractionError::InvalidHeaderValue {
-                header: name.to_owned(),
-                reason: e.to_string(),
-            })
+            .map_err(
+                |_not_visible_ascii| ContextExtractionError::InvalidHeaderValue {
+                    header: name.to_owned(),
+                    reason: "header value is not visible ASCII".to_owned(),
+                },
+            )
     }
 
     pub fn extract_optional(headers: &HeaderMap, name: &str) -> Option<String> {

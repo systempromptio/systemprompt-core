@@ -19,12 +19,13 @@ use axum::response::IntoResponse;
 use systemprompt_api::routes::oauth::public_router;
 use systemprompt_api::routes::oauth::webauthn::link::link_passkey_page;
 use systemprompt_identifiers::{ChallengeId, UserId};
-use systemprompt_models::Config;
+use systemprompt_manifest::Config;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, SetupTokenPurpose};
+use systemprompt_oauth::services::WebAuthnService;
 use systemprompt_oauth::services::webauthn::hash_token;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_config, fixture_db_pool, install_test_signing_key, seed_user_row,
+    fixture_config, install_test_signing_key, seed_user_row, test_db_pool,
 };
 use systemprompt_traits::AppContext as _;
 use tower::ServiceExt;
@@ -45,16 +46,26 @@ fn ensure_config() {
     });
 }
 
-async fn app() -> anyhow::Result<Router> {
-    ensure_config();
-    install_test_signing_key();
-    let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
+fn oauth_state(ctx: &systemprompt_runtime::AppContext) -> anyhow::Result<OAuthState> {
+    let webauthn = WebAuthnService::new(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.user_provider().expect("user"),
+    )
+    .map_err(|e| anyhow::anyhow!("webauthn service: {e}"))?;
+    Ok(OAuthState::new(
         ctx.oauth_repositories().oauth.clone(),
         ctx.analytics_provider().expect("analytics"),
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
-    );
+    )
+    .with_webauthn(Arc::new(webauthn)))
+}
+
+async fn app() -> anyhow::Result<Router> {
+    ensure_config();
+    install_test_signing_key();
+    let (_pool, ctx) = setup_ctx().await?;
+    let state = oauth_state(&ctx)?;
     Ok(public_router().with_state(state))
 }
 
@@ -209,12 +220,7 @@ async fn the_link_page_renders_the_passkey_template() {
 async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
     ensure_config();
     let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
-        ctx.session_provider().expect("sessions"),
-        ctx.user_provider().expect("user"),
-    );
+    let state = oauth_state(&ctx)?;
 
     // `router()` is the merge of the public and authenticated halves; nothing
     // in the suite builds it, so a route lost from the merge would go unnoticed.
@@ -232,9 +238,7 @@ async fn the_assembled_oauth_router_serves_both_halves() -> anyhow::Result<()> {
 async fn issue_link_token(ctx: &systemprompt_runtime::AppContext) -> (UserId, String) {
     let user_id = UserId::new(Uuid::new_v4().to_string());
     let email = format!("{}@link.invalid", Uuid::new_v4().simple());
-    let pool = fixture_db_pool(&ensure_test_bootstrap().database_url)
-        .await
-        .expect("pool");
+    let pool = test_db_pool().await;
     seed_user_row(&pool, &user_id, &email)
         .await
         .expect("seed user");
@@ -256,12 +260,7 @@ async fn linked_app() -> anyhow::Result<(Router, Arc<systemprompt_runtime::AppCo
     ensure_config();
     install_test_signing_key();
     let (_pool, ctx) = setup_ctx().await?;
-    let state = OAuthState::new(
-        ctx.oauth_repositories().oauth.clone(),
-        ctx.analytics_provider().expect("analytics"),
-        ctx.session_provider().expect("sessions"),
-        ctx.user_provider().expect("user"),
-    );
+    let state = oauth_state(&ctx)?;
     Ok((public_router().with_state(state), ctx))
 }
 

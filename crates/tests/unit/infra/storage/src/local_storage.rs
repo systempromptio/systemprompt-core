@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use systemprompt_models::profile::StorageBackend;
 use systemprompt_storage::{LocalFileStorage, build_file_storage};
 use systemprompt_traits::{FileStorage, FileStorageError, StoredFileId};
 use tempfile::TempDir;
@@ -85,7 +84,9 @@ async fn resolve_joins_the_root() {
 #[tokio::test]
 async fn build_file_storage_local_writes_under_the_root() {
     let dir = TempDir::new().expect("tempdir");
-    let storage = build_file_storage(StorageBackend::Local, dir.path());
+    let storage = build_file_storage(systemprompt_storage::FileStorageBackend::Local {
+        root: dir.path().to_path_buf(),
+    });
     let id = storage
         .store(Path::new("files/built.txt"), b"built")
         .await

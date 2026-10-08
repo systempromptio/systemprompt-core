@@ -10,16 +10,14 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_identifiers::AiRequestId;
 
-use super::{pool_or_skip, seed_request, user};
+use super::{bootstrapped_pool, seed_request, user};
 
 #[tokio::test]
 async fn upsert_request_then_response_coexist() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let repo = AiRequestPayloadRepository::new(&pool);
 
     let req_body = json!({"prompt": "hello"});
     repo.upsert_request(
@@ -37,7 +35,6 @@ async fn upsert_request_then_response_coexist() {
 
     let resp_body = json!({"content": "hi"});
     AiRequestRepository::new(&pool)
-        .expect("requests repo")
         .settle(
             &request_id,
             &uid,
@@ -63,7 +60,7 @@ async fn upsert_request_then_response_coexist() {
 
     // Read back both columns directly to confirm the second upsert took the
     // ON CONFLICT branch rather than overwriting the request payload.
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let row = sqlx::query!(
         r#"SELECT request_excerpt, response_excerpt, request_truncated, response_truncated,
                   request_body_sha256, response_body_sha256
@@ -83,12 +80,10 @@ async fn upsert_request_then_response_coexist() {
 
 #[tokio::test]
 async fn upsert_request_twice_updates_in_place() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let repo = AiRequestPayloadRepository::new(&pool);
 
     repo.upsert_request(
         &request_id,
@@ -115,7 +110,7 @@ async fn upsert_request_twice_updates_in_place() {
     .await
     .expect("second");
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let count = sqlx::query_scalar!(
         "SELECT COUNT(*) FROM ai_request_payloads WHERE ai_request_id = $1",
         request_id.as_str()
@@ -136,12 +131,10 @@ async fn upsert_request_twice_updates_in_place() {
 
 #[tokio::test]
 async fn upsert_prepared_does_not_clobber_request_payload() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let repo = AiRequestPayloadRepository::new(&pool);
 
     let req_body = json!({"prompt": "hello"});
     repo.upsert_request(
@@ -162,7 +155,7 @@ async fn upsert_prepared_does_not_clobber_request_payload() {
         .await
         .expect("upsert prepared");
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let row = sqlx::query!(
         r#"SELECT p.request_body_sha256, p.prepared_body_sha256, c.tools AS prepared_tools, p.request_bytes
            FROM ai_request_payloads p
@@ -192,13 +185,11 @@ async fn upsert_prepared_does_not_clobber_request_payload() {
 
 #[tokio::test]
 async fn identical_tool_lists_share_one_catalog_row() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let first = seed_request(&pool, &uid).await;
     let second = seed_request(&pool, &uid).await;
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let repo = AiRequestPayloadRepository::new(&pool);
 
     let tools = json!([{"name": "read", "input_schema": {"type": "object"}}]);
     // Same list, different key order: the JSONB text is canonical, so the
@@ -214,7 +205,7 @@ async fn identical_tool_lists_share_one_catalog_row() {
         .await
         .expect("second prepared");
 
-    let read = pool.pool_arc().expect("read pool");
+    let read = pool.pool();
     let digests = sqlx::query!(
         r#"SELECT offered_tools_sha256, prepared_tools_sha256
            FROM ai_request_payloads WHERE ai_request_id IN ($1, $2) ORDER BY ai_request_id"#,
@@ -248,12 +239,10 @@ async fn identical_tool_lists_share_one_catalog_row() {
 
 #[tokio::test]
 async fn upsert_prepared_without_tools_clears_a_stale_slice() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
+    let pool = bootstrapped_pool().await;
     let uid = user();
     let request_id = seed_request(&pool, &uid).await;
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let repo = AiRequestPayloadRepository::new(&pool);
 
     let tools = json!([{"name": "read"}]);
     repo.upsert_prepared(&request_id, "first", Some(&tools))
@@ -277,10 +266,8 @@ async fn upsert_prepared_without_tools_clears_a_stale_slice() {
 
 #[tokio::test]
 async fn find_prepared_is_none_for_an_unknown_request() {
-    let Some(pool) = pool_or_skip().await else {
-        return;
-    };
-    let repo = AiRequestPayloadRepository::new(&pool).expect("repo");
+    let pool = bootstrapped_pool().await;
+    let repo = AiRequestPayloadRepository::new(&pool);
     let missing = AiRequestId::generate();
     assert!(repo.find_prepared(&missing).await.expect("query").is_none());
 }

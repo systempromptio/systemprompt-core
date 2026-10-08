@@ -57,16 +57,16 @@ The workspace publishes a `systemprompt` facade with feature-gated `systemprompt
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.62", features = ["full"] }
+systemprompt = { version = "0.63", features = ["full"] }
 ```
 
 | Feature | Includes |
 |---|---|
-| `core` (default) | Shared traits, models, identifiers and extension contracts. |
+| `core` (default) | Shared traits, models, wire codecs, services manifest, identifiers and extension contracts. |
 | `database` | PostgreSQL integration. |
 | `api` | HTTP server and application context. |
 | `cli` | Command-line entry point. |
-| `full` | Bundled runtime, domain modules and CLI; Slack and Teams remain opt-in. |
+| `full` | Bundled runtime, domain modules and CLI; the Slack and Teams modules remain opt-in. |
 
 Use YAML to configure a deployment and Rust extensions to add behavior. Your host links those extensions and delegates startup to Core; the [template entry point](https://github.com/systempromptio/systemprompt-template/blob/next/src/main.rs) is a working example.
 

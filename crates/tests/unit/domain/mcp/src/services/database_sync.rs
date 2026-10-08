@@ -1,114 +1,48 @@
 //! DB-backed tests for the free functions in `services::database::sync`.
 //!
-//! Each function is invoked against an empty `services` table; no services
-//! exist on the per-track DB, so the read-only branches drive line coverage
-//! without spawning real processes.
+//! Each test runs against its own instance id, so the instance-wide sweeps see
+//! only the rows that test seeded and never another test's.
 
-use crate::harness::internal_mcp_config;
-use systemprompt_database::{CreateServiceInput, ServiceRepository};
+use crate::harness::{internal_mcp_config, unique_instance};
+use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
+use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::sync::{
-    cleanup_stale_services, delete_crashed_services, delete_disabled_services,
-    reconcile_running_processes, repair_database_inconsistencies, sync_database_state,
+    cleanup_stale_services, delete_crashed_services, delete_disabled_services, sync_database_state,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 #[tokio::test]
 async fn cleanup_stale_services_empty_table_returns_ok() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let db = test_db_pool().await;
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
     cleanup_stale_services(&svc_repo).await.unwrap();
 }
 
 #[tokio::test]
 async fn delete_crashed_services_empty_table_returns_ok() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let db = test_db_pool().await;
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
     delete_crashed_services(&svc_repo).await.unwrap();
 }
 
 #[tokio::test]
 async fn sync_database_state_empty_servers_returns_ok() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
+    let db = test_db_pool().await;
+    let svc_repo = ServiceRepository::new(&db, unique_instance());
     sync_database_state(&svc_repo, &[]).await.unwrap();
 }
 
 #[tokio::test]
-async fn reconcile_running_processes_reports_a_pidless_running_service() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let name = format!("sync-rec-{}", uuid::Uuid::new_v4().simple());
-    let port = 65515;
-    repo.create_service(CreateServiceInput {
-        name: &name,
-        module_name: "mcp",
-        status: "running",
-        port,
-        binary_mtime: None,
-    })
-    .await
-    .unwrap();
-
-    let discrepancies = reconcile_running_processes(&svc_repo).await.unwrap();
-    assert!(
-        discrepancies.iter().any(|d| d.contains(&name)),
-        "a running service with no live process is reported as a discrepancy"
-    );
-    repo.delete_service(&name).await.unwrap();
-}
-
-#[tokio::test]
-async fn repair_database_inconsistencies_runs() {
-    let Some(db) = db_or_skip().await else { return };
-    let svc_repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    repair_database_inconsistencies(&svc_repo).await.unwrap();
-}
-
-#[tokio::test]
 async fn delete_disabled_services_removes_only_the_disabled_service() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ServiceRepository::new(
-        &db,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    )
-    .unwrap();
-    let keep = format!("sync-keep-{}", uuid::Uuid::new_v4().simple());
-    let drop_name = format!("sync-drop-{}", uuid::Uuid::new_v4().simple());
+    let db = test_db_pool().await;
+    let repo = ServiceRepository::new(&db, unique_instance());
+    let keep = ServiceName::new(format!("sync-keep-{}", uuid::Uuid::new_v4().simple()));
+    let drop_name = ServiceName::new(format!("sync-drop-{}", uuid::Uuid::new_v4().simple()));
     for (name, port) in [(&keep, 65514u16), (&drop_name, 65513u16)] {
         repo.create_service(CreateServiceInput {
             name,
-            module_name: "mcp",
-            status: "stopped",
+            module_name: ServiceModule::Mcp,
+            status: ServiceStatus::Stopped,
             port,
             binary_mtime: None,
         })
@@ -116,18 +50,9 @@ async fn delete_disabled_services_removes_only_the_disabled_service() {
         .unwrap();
     }
 
-    let enabled = [internal_mcp_config(&keep, 65514)];
-    let deleted = delete_disabled_services(
-        &ServiceRepository::new(
-            &db,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        )
-        .unwrap(),
-        &enabled,
-    )
-    .await
-    .unwrap();
-    assert!(deleted >= 1, "at least the disabled service is deleted");
+    let enabled = [internal_mcp_config(keep.as_str(), 65514)];
+    let deleted = delete_disabled_services(&repo, &enabled).await.unwrap();
+    assert_eq!(deleted, 1, "only the disabled service is deleted");
     assert!(
         repo.find_service_by_name(&keep).await.unwrap().is_some(),
         "the enabled service is preserved"

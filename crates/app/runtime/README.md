@@ -26,11 +26,9 @@ This crate:
 |--------|---------|
 | `context` | `AppContext` and its planes (`DataPlane`, `ConfigPlane`, `Plugins`, `Subsystems`), plus the GeoIP and content-config loaders |
 | `builder` | `AppContextBuilder` fluent construction (`with_extensions`, `with_marketplace_filter`) and plane assembly |
-| `registry` | Compile-time module registration and routing (`ModuleApiRegistry`, `ModuleApiRegistration`, `ModuleType`, `WellKnownRoute`) |
 | `startup_validation` | `StartupValidator` across files, rate limits, web/content config, agents, MCP servers, AI providers, and extensions |
 | `database_context` | `DatabaseContext`, a database-only context for CLI tools that do not need the full runtime |
 | `span` | `create_request_span`, builds a tracing span with user, session, trace, and context IDs |
-| `wellknown` | `.well-known` endpoint metadata registry (`WellKnownMetadata`, `get_wellknown_metadata`) |
 | `validation` | Runtime prerequisite checks (`validate_system`, `validate_database_path`) |
 | `error` | `RuntimeError` / `RuntimeResult`, the typed error model for construction and validation |
 
@@ -40,26 +38,7 @@ This crate:
 
 ```toml
 [dependencies]
-systemprompt-runtime = "0.62"
-```
-
-### Macros
-
-| Macro | Purpose |
-|-------|---------|
-| `register_module_api!` | Register module routes with the runtime registry |
-| `register_wellknown_route!` | Register `.well-known` endpoints with optional metadata |
-
-```rust
-use systemprompt_runtime::{register_module_api, ServiceCategory, ModuleType};
-
-register_module_api!(
-    "my-module",
-    ServiceCategory::Core,
-    my_module::routes,
-    true,
-    ModuleType::Regular
-);
+systemprompt-runtime = "0.63"
 ```
 
 ## Dependencies
@@ -72,7 +51,6 @@ register_module_api!(
 | `systemprompt-logging` | Tracing and CLI output |
 | `systemprompt-extension` | Extension discovery and validation |
 | `systemprompt-analytics` | Analytics service and GeoIP |
-| `inventory` | Compile-time static registration |
 
 ## License
 

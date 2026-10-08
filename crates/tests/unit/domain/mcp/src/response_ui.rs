@@ -4,18 +4,16 @@
 //! `CallToolResult` out carrying server-rendered HTML for the host to mount.
 
 use rmcp::model::{CallToolResult, ResourceContents};
-use systemprompt_identifiers::{AgentName, ContextId, McpExecutionId, SessionId, TraceId};
+use systemprompt_identifiers::{
+    Actor, AgentName, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId, TraceId,
+    UserId,
+};
 use systemprompt_mcp::{ArtifactIngest, ClientProfile, McpResponseBuilder, ToolIdentity};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{
     CardSection, CliArtifact, Column, ColumnType, PresentationCardArtifact, TableArtifact,
 };
-use systemprompt_test_fixtures::{fixture_database_url, fixture_db_pool};
-
-async fn db_or_skip() -> Option<systemprompt_database::DbPool> {
-    let url = fixture_database_url().ok()?;
-    fixture_db_pool(&url).await.ok()
-}
+use systemprompt_test_fixtures::test_db_pool;
 
 fn ui_client() -> ClientProfile {
     ClientProfile {
@@ -31,6 +29,7 @@ fn ctx() -> RequestContext {
         TraceId::new("t"),
         ContextId::generate(),
         AgentName::try_new("a").expect("valid AgentName"),
+        Actor::user(UserId::new("00000000-0000-4000-8000-000000000001")),
     )
 }
 
@@ -40,7 +39,10 @@ async fn build(artifact: CliArtifact, repo: &ArtifactIngest) -> CallToolResult {
 
     McpResponseBuilder::new(
         artifact,
-        ToolIdentity::new("systemprompt", "cli_execute"),
+        ToolIdentity::new(
+            McpServerId::new("systemprompt"),
+            McpToolName::new("cli_execute"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -73,8 +75,8 @@ fn ui_resource(result: &CallToolResult) -> (String, String) {
 
 #[tokio::test]
 async fn table_tool_result_embeds_rendered_table_html() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
 
     let table = TableArtifact::new(vec![Column::new("email", ColumnType::String)])
         .with_rows(vec![serde_json::json!({"email": "ed@example.com"})]);
@@ -100,8 +102,8 @@ async fn table_tool_result_embeds_rendered_table_html() {
 
 #[tokio::test]
 async fn presentation_card_tool_result_embeds_rendered_card_html() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
 
     let card = PresentationCardArtifact::new("Platform Overview")
         .with_sections(vec![CardSection::new("Total users", "15")]);
@@ -117,8 +119,8 @@ async fn presentation_card_tool_result_embeds_rendered_card_html() {
 // MCP Apps sends dimensions as {width, height}; height alone is not the shape.
 #[tokio::test]
 async fn rendered_artifact_reports_both_dimensions_to_the_host() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -132,8 +134,8 @@ async fn rendered_artifact_reports_both_dimensions_to_the_host() {
 // not forward embedded content blocks.
 #[tokio::test]
 async fn result_meta_names_the_ui_resource_uri() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -150,8 +152,8 @@ async fn result_meta_names_the_ui_resource_uri() {
 
 #[tokio::test]
 async fn structured_content_still_accompanies_the_rendered_resource() {
-    let Some(db) = db_or_skip().await else { return };
-    let repo = ArtifactIngest::from_db(&db, None).expect("artifact ingest");
+    let db = test_db_pool().await;
+    let repo = ArtifactIngest::from_db(&db, None);
 
     let table = TableArtifact::new(vec![Column::new("id", ColumnType::String)]);
     let result = build(CliArtifact::table(table), &repo).await;
@@ -167,16 +169,11 @@ async fn structured_content_still_accompanies_the_rendered_resource() {
 }
 #[tokio::test]
 async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() {
-    let database = systemprompt_test_fixtures::DisposableDb::installed("mcp_response_recovery")
-        .await
-        .expect("private response database");
-    let failed_db = database.pool().await.expect("failure pool");
-    let failed_repo = ArtifactIngest::from_db(&failed_db, None).expect("artifact ingest");
-    failed_db
-        .write_pool_arc()
-        .expect("write pool")
-        .close()
-        .await;
+    let database =
+        systemprompt_test_fixtures::DisposableDb::with_schema("mcp_response_recovery").await;
+    let failed_db = database.test_pool().await;
+    let failed_repo = ArtifactIngest::from_db(&failed_db, None);
+    failed_db.write_pool().close().await;
     let context = ctx();
     let exec_id = McpExecutionId::new(format!("exec-{}", uuid::Uuid::new_v4().simple()));
     let table = || {
@@ -188,7 +185,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
 
     let error = McpResponseBuilder::new(
         table(),
-        ToolIdentity::new("recovery-server", "recovery-tool"),
+        ToolIdentity::new(
+            McpServerId::new("recovery-server"),
+            McpToolName::new("recovery-tool"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -208,8 +208,8 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     drop(failed_repo);
     drop(failed_db);
 
-    let recovered_db = database.pool().await.expect("reconnected pool");
-    let recovered_repo = ArtifactIngest::from_db(&recovered_db, None).expect("recovered ingest");
+    let recovered_db = database.test_pool().await;
+    let recovered_repo = ArtifactIngest::from_db(&recovered_db, None);
     assert!(
         recovered_repo
             .artifacts()
@@ -222,7 +222,10 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
 
     McpResponseBuilder::new(
         table(),
-        ToolIdentity::new("recovery-server", "recovery-tool"),
+        ToolIdentity::new(
+            McpServerId::new("recovery-server"),
+            McpToolName::new("recovery-tool"),
+        ),
         &context,
         &exec_id,
         &ui_client(),
@@ -254,13 +257,12 @@ async fn response_build_failure_leaves_no_artifact_and_same_database_recovers() 
     assert_eq!(stored_response.artifact.columns.len(), 1);
     assert_eq!(stored_response.artifact.columns[0].name, "marker");
     assert_eq!(stored.server_name, "recovery-server");
-    assert_eq!(stored.tool_name.as_deref(), Some("recovery-tool"));
+    assert_eq!(
+        stored.tool_name.as_ref().map(McpToolName::as_str),
+        Some("recovery-tool")
+    );
 
-    recovered_db
-        .write_pool_arc()
-        .expect("write pool")
-        .close()
-        .await;
+    recovered_db.write_pool().close().await;
     drop(recovered_repo);
     drop(recovered_db);
     database.drop_now().await;

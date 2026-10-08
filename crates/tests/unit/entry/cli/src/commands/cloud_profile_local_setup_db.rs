@@ -10,11 +10,11 @@
 
 use systemprompt_cli::ScriptedPrompter;
 use systemprompt_cli::cloud::profile::handle_local_tenant_setup;
-use systemprompt_test_fixtures::fixture_database_url;
+use systemprompt_test_fixtures::test_database_url;
 
 #[tokio::test]
 async fn a_reachable_database_offers_migrations_and_accepts_a_decline() {
-    let url = fixture_database_url().unwrap();
+    let url = test_database_url();
     let prompter = ScriptedPrompter::new(["no"]);
     let profile_path = std::path::Path::new("/nonexistent/profile.yaml");
 

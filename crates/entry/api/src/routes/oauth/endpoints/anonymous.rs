@@ -18,7 +18,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 
-use crate::routes::oauth::OAuthHttpError;
+use crate::routes::oauth::{OAuthHttpError, internal};
 use systemprompt_traits::{ExtractSignals, SessionAnalytics};
 
 #[derive(Debug, Serialize)]
@@ -38,6 +38,7 @@ pub struct AnonymousTokenRequest {
     pub client_id: ClientId,
     #[serde(default)]
     pub redirect_uri: Option<String>,
+    // JSON: client-supplied opaque metadata — accepted for wire compatibility, not interpreted.
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
@@ -76,11 +77,11 @@ async fn issue_anonymous_session(
             session_source,
         })
         .await
-        .map_err(|e| OAuthHttpError::server_error(format!("Failed to create session: {e}")))?;
+        .map_err(|e| internal::server_error("Failed to create anonymous session", e))?;
 
     let jwt_token = session_info.jwt_token;
     let body = AnonymousTokenResponse {
-        access_token: jwt_token.clone(),
+        access_token: jwt_token.as_str().to_owned(),
         token_type: TokenType::Bearer.to_string(),
         expires_in,
         session_id: session_info.session_id,
@@ -88,7 +89,7 @@ async fn issue_anonymous_session(
         client_id,
         client_type,
     };
-    Ok(token_response(body, &jwt_token, expires_in))
+    Ok(token_response(body, jwt_token.as_str(), expires_in))
 }
 
 fn build_session_service(state: &OAuthState) -> SessionCreationService {
@@ -110,14 +111,12 @@ pub async fn generate_anonymous_token(
 ) -> Result<Response, OAuthHttpError> {
     let client_id = req.client_id.clone();
 
-    let validator = ClientValidator::new(state.oauth_repository().clone()).map_err(|e| {
-        OAuthHttpError::server_error(format!("Failed to create client validator: {e}"))
-    })?;
+    let validator = ClientValidator::new(state.oauth_repository().clone())?;
 
     let validation = validator
         .validate_client(&client_id, req.redirect_uri.as_deref())
         .await
-        .map_err(|e| OAuthHttpError::invalid_client(format!("Client validation failed: {e}")))?;
+        .map_err(|e| internal::reclassify(e, OAuthHttpError::invalid_client))?;
     let client_type = validation.client_type();
 
     let session_service = build_session_service(&state);

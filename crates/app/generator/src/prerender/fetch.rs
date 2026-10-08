@@ -7,11 +7,11 @@
 use std::sync::Arc;
 
 use futures::stream::{self, StreamExt};
+use systemprompt_analytics::ContentAnalyticsRepository;
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{LocaleCode, SourceId};
-use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};
+use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider, Dependencies};
 
 use crate::error::{GeneratorResult, PublishError};
 use crate::prerender::context::PrerenderContext;
@@ -65,11 +65,12 @@ async fn fetch_with_retries(
     )
 }
 
+// JSON: Handlebars page context items, enriched by content-data providers.
 pub(super) async fn contents_to_json(
     contents: &[Content],
     source_name: &str,
     providers: &[Arc<dyn ContentDataProvider>],
-    db_pool: &DbPool,
+    dependencies: &Dependencies,
 ) -> Vec<serde_json::Value> {
     const ENRICHMENT_CONCURRENCY: usize = 8;
 
@@ -104,7 +105,7 @@ pub(super) async fn contents_to_json(
                         continue;
                     }
 
-                    let ctx = ContentDataContext::new(&content_id, source_name, db_pool);
+                    let ctx = ContentDataContext::new(&content_id, source_name, dependencies);
 
                     if let Err(e) = provider.enrich_content(&ctx, &mut item).await {
                         tracing::warn!(
@@ -128,7 +129,7 @@ pub(super) async fn contents_to_json(
 }
 
 pub(super) async fn fetch_popular_ids(
-    ctx: &PrerenderContext,
+    content_analytics: &ContentAnalyticsRepository,
     source_name: &str,
     source_id: &SourceId,
 ) -> GeneratorResult<Vec<String>> {
@@ -136,11 +137,10 @@ pub(super) async fn fetch_popular_ids(
         return Ok(Vec::new());
     }
 
-    let ids = ctx
-        .content_repo
-        .get_popular_content_ids(source_id, 30, 20)
+    let ids = content_analytics
+        .popular_content_ids(source_id, 30, 20)
         .await
-        .map_err(|e| PublishError::content("Failed to get popular content IDs", e))?;
+        .map_err(|e| PublishError::analytics("Failed to get popular content IDs", e))?;
 
     Ok(ids.into_iter().map(|id| id.to_string()).collect())
 }

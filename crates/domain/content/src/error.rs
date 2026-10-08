@@ -24,14 +24,21 @@ domain_error! {
         #[error("parse error: {0}")]
         Parse(String),
 
-        #[error("service error: {0}")]
-        Service(String),
+        #[error("invalid date '{value}'")]
+        InvalidDate {
+            value: String,
+            #[source]
+            source: chrono::ParseError,
+        },
+
+        #[error("invalid identifier: {0}")]
+        InvalidIdentifier(#[from] systemprompt_identifiers::error::IdValidationError),
     }
 }
 
 impl From<sqlx::Error> for ContentError {
     fn from(err: sqlx::Error) -> Self {
-        Self::Repository(systemprompt_database::RepositoryError::from(err))
+        Self::Repository(systemprompt_traits::RepositoryError::from(err))
     }
 }
 

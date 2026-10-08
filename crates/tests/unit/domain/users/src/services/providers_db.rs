@@ -9,15 +9,13 @@ use systemprompt_traits::auth::AuthProviderError;
 use systemprompt_users::{RoleProvider, UserProvider, UserRepository, UserService};
 use uuid::Uuid;
 
-async fn setup_or_skip() -> Option<(UserService, crate::privacy_fixture::PrivacyFixture)> {
-    let fixture = crate::privacy_fixture::PrivacyFixture::new().await?;
+async fn setup() -> (UserService, crate::privacy_fixture::PrivacyFixture) {
+    let fixture = crate::privacy_fixture::PrivacyFixture::new().await;
     let pool = fixture.pool.clone();
-    Some((
-        UserService::new(Arc::new(
-            UserRepository::new(&pool).expect("user repository"),
-        )),
+    (
+        UserService::new(Arc::new(UserRepository::new(&pool))),
         fixture,
-    ))
+    )
 }
 
 fn unique(prefix: &str) -> (String, String) {
@@ -30,9 +28,7 @@ fn unique(prefix: &str) -> (String, String) {
 
 #[tokio::test]
 async fn user_provider_creates_and_finds_auth_users() {
-    let Some((service, fixture)) = setup_or_skip().await else {
-        return;
-    };
+    let (service, fixture) = setup().await;
     let (name, email) = unique("provider");
 
     let created = UserProvider::create_user(&service, &name, &email, Some("Full Prov"))
@@ -78,9 +74,7 @@ async fn user_provider_creates_and_finds_auth_users() {
 
 #[tokio::test]
 async fn user_provider_creates_anonymous_and_federated_identities() {
-    let Some((service, fixture)) = setup_or_skip().await else {
-        return;
-    };
+    let (service, fixture) = setup().await;
     let fingerprint = format!("prov-anon-{}", Uuid::new_v4().simple());
     let anon = UserProvider::create_anonymous(&service, &fingerprint)
         .await
@@ -113,9 +107,7 @@ async fn user_provider_creates_anonymous_and_federated_identities() {
 
 #[tokio::test]
 async fn role_provider_assign_and_revoke_are_idempotent() {
-    let Some((service, fixture)) = setup_or_skip().await else {
-        return;
-    };
+    let (service, fixture) = setup().await;
     let (name, email) = unique("roles");
     let created = UserProvider::create_user(&service, &name, &email, None)
         .await
@@ -146,9 +138,7 @@ async fn role_provider_assign_and_revoke_are_idempotent() {
 
 #[tokio::test]
 async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
-    let Some((service, fixture)) = setup_or_skip().await else {
-        return;
-    };
+    let (service, fixture) = setup().await;
     let (name, email) = unique("byrole");
     let created = UserProvider::create_user(&service, &name, &email, None)
         .await
@@ -173,9 +163,7 @@ async fn role_provider_lists_by_role_and_ignores_unknown_roles() {
 
 #[tokio::test]
 async fn missing_user_maps_to_user_not_found() {
-    let Some((service, fixture)) = setup_or_skip().await else {
-        return;
-    };
+    let (service, fixture) = setup().await;
     let ghost = UserId::new(Uuid::new_v4().to_string());
 
     assert!(matches!(
@@ -197,9 +185,7 @@ async fn missing_user_maps_to_user_not_found() {
 async fn closed_pool_maps_to_internal_errors() {
     ensure_test_bootstrap();
     let pool = closed_db_pool().await;
-    let service = UserService::new(Arc::new(
-        UserRepository::new(&pool).expect("user repository"),
-    ));
+    let service = UserService::new(Arc::new(UserRepository::new(&pool)));
     let ghost = UserId::new(Uuid::new_v4().to_string());
 
     assert!(matches!(

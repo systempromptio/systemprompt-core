@@ -14,37 +14,30 @@
 //! two mismatch cases below.
 
 use std::collections::BTreeMap;
-use std::sync::Once;
 
 use axum::http::{HeaderMap, HeaderValue};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rsa::pkcs1::EncodeRsaPrivateKey;
-use systemprompt_identifiers::{ClientId, SessionId};
+use systemprompt_identifiers::{AccessTokenId, ClientId, JwtToken, SessionId};
 use systemprompt_models::auth::{
     ActClaim, JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_security::AuthValidationService;
 use systemprompt_security::error::AuthError;
-use systemprompt_security::keys::{RsaSigningKey, authority};
-
-static INSTALL: Once = Once::new();
+use systemprompt_security::keys::RsaSigningKey;
 
 const ISSUER: &str = "https://issuer.test";
+const SUBJECT: &str = "00000000-0000-4000-8000-0000000a0001";
 
 fn ensure_authority() -> &'static RsaSigningKey {
-    INSTALL.call_once(|| {
-        let key =
-            systemprompt_test_fixtures::test_key(systemprompt_test_fixtures::AUTHORITY_KEY_INDEX);
-        authority::install_for_test(key);
-    });
-    authority::signing_key().expect("authority installed")
+    systemprompt_test_fixtures::install_test_signing_key()
 }
 
 fn base_claims() -> JwtClaims {
     let now = Utc::now();
     JwtClaims {
-        sub: "user-auth-1".to_string(),
+        sub: SUBJECT.to_string(),
         iat: now.timestamp(),
         exp: (now + Duration::hours(1)).timestamp(),
         nbf: Some(now.timestamp()),
@@ -101,11 +94,11 @@ fn valid_token_yields_context_with_subject_and_session() {
         .validate_request(&headers)
         .expect("valid token accepted");
 
-    assert_eq!(ctx.user_id().as_str(), "user-auth-1");
+    assert_eq!(ctx.user_id().as_str(), SUBJECT);
     assert_eq!(ctx.session_id().as_str(), "sess-auth-1");
-    assert_eq!(ctx.jti(), "jti-auth-1");
+    assert_eq!(ctx.jti().map(AccessTokenId::as_str), Some("jti-auth-1"));
     assert_eq!(ctx.auth.user_type, UserType::User);
-    assert_eq!(ctx.auth_token().as_str(), token);
+    assert_eq!(ctx.auth_token().map(JwtToken::as_str), Some(token.as_str()));
 }
 
 #[test]

@@ -9,7 +9,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_runtime::TraceQueryService;
+use systemprompt_runtime::{TraceQueryService, TraceRepository};
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
@@ -69,7 +69,7 @@ async fn execute_with_pool_inner(
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let stats = service.get_ai_request_stats(since_timestamp).await?;
 
     let input_tokens = stats.total_input_tokens;

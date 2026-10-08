@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.63.0] - 2026-10-07
+
+### Breaking
+
+- The AI gateway moves to `systemprompt-gateway`: `services::gateway::*` is `systemprompt_gateway::*`, `services::gateway::policy::*` is `systemprompt_gateway::policies::*`, `repository::GatewayRepositories` is `systemprompt_gateway::GatewayRepositories`, and `routes::gateway::access_log::persists_access_record` is `systemprompt_gateway::audit::access_log::persists_access_record`. The HTTP handlers stay under `routes::gateway`.
+- Token issuance moves to `systemprompt-oauth-issuance`: `routes::oauth::endpoints::token::{generation, validation, handler}` are gone and `TokenError`/`TokenResult` are `systemprompt_oauth_issuance::{IssuanceError, IssuanceResult}`; `token::handle_token` remains as the thin handler. `token::validation::validate_client_credentials` and `token::generation::load_authenticated_user` are removed.
+- `ApiKeyPrincipal` gains `api_key_id`, `limits` and `scopes`; `RejectionPartial` gains `attribution`; `GatewayConfig`/`GatewayConfigSpec` gain `require_scopes`. A struct literal must name them.
+- `services::server::routes` is public with `configure_routes_for_role(ctx, role, events)` and the `role` module (`RouteGroup`, `route_groups`, `LifecyclePlan`, `lifecycle_plan`).
+- `McpAudit::new` takes `AuditSinks { intent_claims, ingest, background }`; every API background task is owned by the injected `BackgroundTasks`.
+- The bridge gateway bodies (`WhoamiResponse`, `SelfEnrollRequest`, `SelfEnrollResponse`, `DevicePatResponse`, `ReleaseManifest`) move to `systemprompt_models::bridge::gateway`.
+- Static 404s and the fallback 404 return the `ApiError` envelope (suggestions in `details`), the SSE connection cap answers a 429 envelope, a malformed task-status notification is 400, and a database failure during the webhook ownership check is 500, not 403.
+- The re-exports `routes::wellknown::agent_card_router` and `routes::gateway::messages::dispatch::error_type_for` are removed.
+
+### Added
+
+- `server.role: all | gateway | admin`: a `gateway` node mounts only the gateway, bridge consumer, OAuth, well-known and health routes and skips reconciliation and the scheduler; an `admin` node mounts everything but the gateway.
+- `server.max_in_flight` load shedding (`services::middleware::{LoadShed, load_shed::shed}`): excess requests get `503` with `Retry-After: 1` and `error_key: "overloaded"`, `/readyz` answers `503 saturated`; new series `http_load_shed_total`, `http_in_flight_limit`, `http_in_flight_saturation`.
+- Gateway scope attribution (`x-systemprompt-scope-<dimension>`, `gateway.require_scopes`), per-key model allowlist, budget, request ceiling and scope bindings on `POST`/`GET /api/v1/admin/api-keys`, quota reservation with a machine-readable quota `429`, and gateway latency histograms.
+- The OTLP ingest endpoint accepts JSON log exports and binds the authenticated user and session onto every resource.
+
+### Changed
+
+- `http_request_duration_seconds` is a Prometheus histogram with explicit buckets (5 ms–10 s) instead of a summary.
+- Boot claims the replica instance id and probes every writable root for the node's role.
+- A forced exit after the shutdown drain deadline exits with status 1.
+- Identities are parsed once at the HTTP edge and passed inward as typed ids; one `ApiError` model across routes, with 5xx causes logged and not serialised.
+
+### Fixed
+
+- A dropped `anthropic-beta` takes its gated body field with it, and a body field an upstream refuses is learned per provider and the request re-sent once.
+- A native session id keeps a request in that session's context; streamed Anthropic responses report cache usage.
+- The detailed health endpoint runs its filesystem and memory probes on the blocking pool.
+- WebAuthn registration is refused when the global configuration is unavailable.
+- Agent port cleanup at boot never looks up port 0 and reclaims a port only from a marker-verified agent child.
+
 ## [0.62.0] - 2026-09-25
 
 ### Changed

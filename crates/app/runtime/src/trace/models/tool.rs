@@ -6,7 +6,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use systemprompt_identifiers::{AiRequestId, ArtifactId, McpExecutionId, TaskId, TraceId};
+use systemprompt_identifiers::{
+    AiRequestId, ArtifactId, McpExecutionId, McpServerId, McpToolName, TaskId, TraceId,
+};
+use systemprompt_logging::LogLevel;
 
 #[derive(Debug, Clone)]
 pub struct ToolExecutionFilter {
@@ -44,8 +47,8 @@ impl ToolExecutionFilter {
 pub struct ToolExecutionItem {
     pub timestamp: DateTime<Utc>,
     pub trace_id: TraceId,
-    pub tool_name: String,
-    pub server_name: Option<String>,
+    pub tool_name: McpToolName,
+    pub server_name: Option<McpServerId>,
     pub status: String,
     pub execution_time_ms: Option<i32>,
 }
@@ -72,15 +75,15 @@ pub struct AuditLookupResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditToolCallRow {
-    pub tool_name: String,
+    pub tool_name: McpToolName,
     pub tool_input: String,
     pub sequence_number: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LinkedMcpCall {
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub status: String,
     pub execution_time_ms: Option<i32>,
 }
@@ -88,8 +91,8 @@ pub struct LinkedMcpCall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolExecution {
     pub mcp_execution_id: McpExecutionId,
-    pub tool_name: String,
-    pub server_name: String,
+    pub tool_name: McpToolName,
+    pub server_name: McpServerId,
     pub status: String,
     pub execution_time_ms: Option<i32>,
     pub error_message: Option<String>,
@@ -100,7 +103,7 @@ pub struct McpToolExecution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolLogEntry {
     pub timestamp: DateTime<Utc>,
-    pub level: String,
+    pub level: LogLevel,
     pub module: String,
     pub message: String,
 }
@@ -111,8 +114,9 @@ pub struct TaskArtifact {
     pub artifact_type: String,
     pub name: Option<String>,
     pub source: Option<String>,
-    pub tool_name: Option<String>,
+    pub tool_name: Option<McpToolName>,
     pub part_kind: Option<String>,
     pub text_content: Option<String>,
+    // JSON: JSONB `data_content` column — an A2A DataPart holds any JSON object.
     pub data_content: Option<Value>,
 }

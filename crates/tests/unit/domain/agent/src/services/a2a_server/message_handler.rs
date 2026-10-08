@@ -5,6 +5,7 @@
 // failure path.
 
 use std::sync::Arc;
+use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
 use systemprompt_agent::services::a2a_server::ActiveTasks;
@@ -15,7 +16,8 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_test_mocks::recording_webhooks;
 
 use super::a2a_helpers::{StubAiProvider, request_context, runtime_info};
-use crate::repository::{repos, seed_context_and_task, seed_user_and_session, try_pool_or_skip};
+use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
+use systemprompt_test_fixtures::test_db_pool;
 
 fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message {
     Message {
@@ -34,9 +36,7 @@ fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message
 
 #[tokio::test]
 async fn handle_message_with_runtime_completes_task_end_to_end() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -55,7 +55,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -72,7 +72,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
 
     let stored = repos
         .tasks
-        .get_task(&task.id)
+        .find_task(&task.id)
         .await
         .expect("get task")
         .expect("task row");
@@ -91,9 +91,7 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_reuses_inbound_task_id() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -113,7 +111,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -125,9 +123,7 @@ async fn handle_message_with_runtime_reuses_inbound_task_id() {
 
 #[tokio::test]
 async fn handle_message_with_runtime_surfaces_model_stream_failure() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -147,7 +143,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -156,13 +152,13 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
 
     let stored = repos
         .tasks
-        .get_task(&client_task_id)
+        .find_task(&client_task_id)
         .await
         .expect("get task")
         .expect("initial task must have been persisted before the failure");
     assert_eq!(stored.status.state, TaskState::Working);
     assert!(stored.history.as_ref().is_none_or(Vec::is_empty));
-    let database = pool.pool_arc().expect("pool");
+    let database = pool.pool();
     let persisted = sqlx::query_as::<_, (String, Option<String>)>(
         "SELECT status, error_message FROM agent_tasks WHERE task_id = $1",
     )
@@ -175,9 +171,7 @@ async fn handle_message_with_runtime_surfaces_model_stream_failure() {
 
 #[tokio::test]
 async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
-    let pool = try_pool_or_skip()
-        .await
-        .expect("agent cancellation fixture database");
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repos = repos(&pool);
@@ -201,7 +195,7 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
             .handle_message_with_runtime(HandleMessageParams {
                 message,
                 agent_runtime: &runtime,
-                agent_name: "nonstream-agent",
+                agent_name: &AgentName::new("nonstream-agent"),
                 context: &request,
                 active_tasks: &active_for_run,
             })
@@ -231,16 +225,14 @@ async fn cancellation_marks_nonstream_task_canceled_without_agent_response() {
             .await
     );
 
-    let stored = repos.tasks.get_task(&task_id).await.unwrap().unwrap();
+    let stored = repos.tasks.find_task(&task_id).await.unwrap().unwrap();
     assert_eq!(stored.status.state, TaskState::Canceled);
     assert!(stored.history.as_ref().is_none_or(Vec::is_empty));
 }
 
 #[tokio::test]
 async fn handle_message_with_runtime_rejects_unowned_context() {
-    let Some(pool) = try_pool_or_skip().await else {
-        return;
-    };
+    let pool = test_db_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let (user, session) = seed_user_and_session(&pool).await;
@@ -259,7 +251,7 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
         .handle_message_with_runtime(HandleMessageParams {
             message: msg,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -271,17 +263,15 @@ async fn handle_message_with_runtime_rejects_unowned_context() {
 async fn completed_message_write_failure_marks_task_failed_without_partial_history() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_message_persist_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_message_persist_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query(
         "CREATE FUNCTION reject_completed_agent_message() RETURNS trigger LANGUAGE plpgsql AS $$ \
@@ -317,7 +307,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
         .handle_message_with_runtime(HandleMessageParams {
             message,
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -357,7 +347,7 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -366,17 +356,15 @@ async fn completed_message_write_failure_marks_task_failed_without_partial_histo
 async fn working_transition_failure_leaves_submitted_task_without_starting_history() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_working_transition_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_working_transition_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query(
         "CREATE FUNCTION reject_working_transition() RETURNS trigger LANGUAGE plpgsql AS $$ \
@@ -408,7 +396,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
         .handle_message_with_runtime(HandleMessageParams {
             message: user_message(&context_id, Some(task_id.clone()), "start this task"),
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -443,7 +431,7 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }
@@ -451,17 +439,15 @@ async fn working_transition_failure_leaves_submitted_task_without_starting_histo
 async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
     use systemprompt_test_fixtures::DisposableDb;
 
-    let database = DisposableDb::installed("agent_context_read_failure")
-        .await
-        .expect("isolated agent database");
-    let pool = database.pool().await.expect("agent database pool");
+    let database = DisposableDb::with_schema("agent_context_read_failure").await;
+    let pool = database.test_pool().await;
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let repositories = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
     let (context_id, _) = seed_context_and_task(&repositories, &user, &session).await;
     let task_id = TaskId::generate();
-    let raw = pool.write_pool_arc().expect("agent write pool");
+    let raw = pool.write_pool();
 
     sqlx::query("ALTER TABLE user_contexts RENAME TO unavailable_user_contexts")
         .execute(raw.as_ref())
@@ -482,7 +468,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
         .handle_message_with_runtime(HandleMessageParams {
             message: user_message(&context_id, Some(task_id.clone()), "read this context"),
             agent_runtime: &runtime,
-            agent_name: "nonstream-agent",
+            agent_name: &AgentName::new("nonstream-agent"),
             context: &request,
             active_tasks: &ActiveTasks::default(),
         })
@@ -510,7 +496,7 @@ async fn context_read_failure_prevents_task_creation_and_provider_dispatch() {
     drop(processor);
     drop(repositories);
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

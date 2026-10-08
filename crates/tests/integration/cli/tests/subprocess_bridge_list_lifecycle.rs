@@ -109,10 +109,8 @@ fn bridge_row(
 
 #[tokio::test]
 async fn bridge_list_filters_owner_and_activity_window_with_exact_session_projection() {
-    let database = DisposableDb::installed("cli_bridge_list")
-        .await
-        .expect("install isolated bridge database");
-    let pool = database.pool().await.expect("bridge database pool");
+    let database = DisposableDb::with_schema("cli_bridge_list").await;
+    let pool = database.test_pool().await;
     let owner = UserId::new("user_bridge_owner");
     let other = UserId::new("user_bridge_other");
     let admin = UserId::new("user_bridge_admin");
@@ -124,7 +122,7 @@ async fn bridge_list_filters_owner_and_activity_window_with_exact_session_projec
     )
     .await
     .expect("seed configured bridge administrator");
-    let raw = pool.pool_arc().expect("raw bridge pool");
+    let raw = pool.pool();
     sqlx::query("UPDATE users SET name = 'testadmin' WHERE id = $1")
         .bind(admin.as_str())
         .execute(raw.as_ref())
@@ -136,7 +134,7 @@ async fn bridge_list_filters_owner_and_activity_window_with_exact_session_projec
     seed_user_row(&pool, &other, "bridge-other@test.invalid")
         .await
         .expect("seed bridge control user");
-    let repo = BridgeSessionRepository::new(&pool).expect("bridge repository");
+    let repo = BridgeSessionRepository::new(&pool);
     repo.upsert(bridge_row(&owner, "bridge_owned_active", "owned-host", 7))
         .await
         .expect("seed owned active bridge");
@@ -210,7 +208,7 @@ async fn bridge_list_filters_owner_and_activity_window_with_exact_session_projec
     assert_eq!(sorted_sessions(&owned), expected_owned);
 
     drop(raw);
-    pool.write_pool_arc().expect("write pool").close().await;
+    pool.write_pool().close().await;
     drop(pool);
     database.drop_now().await;
 }

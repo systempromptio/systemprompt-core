@@ -19,9 +19,9 @@ use tracing::{info, warn};
 use systemprompt_database::DbPool;
 use systemprompt_database::resilience::{ResilienceConfig, ResilienceError, ResilienceGuard};
 use systemprompt_identifiers::{AgentName, McpServerId};
-use systemprompt_models::services::ResilienceSettings;
+use systemprompt_manifest::services::ResilienceSettings;
 use systemprompt_traits::{
-    ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
+    BoxedSource, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContext, ToolInventory,
     ToolProvider, ToolProviderError, ToolProviderResult,
 };
 
@@ -35,7 +35,7 @@ use health::{check_server_connection, check_server_health};
 
 fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> ToolProviderError {
     match err {
-        ResilienceError::Inner(inner) => ToolProviderError::ExecutionFailed(inner.to_string()),
+        ResilienceError::Inner(inner) => ToolProviderError::Execution(Box::new(inner)),
         ResilienceError::CircuitOpen { .. } => ToolProviderError::ExecutionFailed(format!(
             "circuit breaker open for MCP server {server}; failing fast"
         )),
@@ -46,6 +46,15 @@ fn map_resilience_err(err: ResilienceError<McpDomainError>, server: &str) -> Too
             "MCP server {server} timed out after {after:?}"
         )),
     }
+}
+
+fn configuration_error(
+    context: impl Into<String>,
+    source: impl Into<BoxedSource>,
+) -> ToolProviderError {
+    ToolProviderError::Internal(Box::new(McpDomainError::invalid_configuration(
+        context, source,
+    )))
 }
 
 type GuardMap = Arc<Mutex<HashMap<String, Arc<ResilienceGuard>>>>;
@@ -97,10 +106,8 @@ impl ToolProvider for McpToolProvider {
         agent_name: &AgentName,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolInventory> {
-        let assigned_servers =
-            load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
-                message: format!("Failed to load agent config: {e}"),
-            })?;
+        let assigned_servers = load_agent_servers(agent_name)
+            .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(
             agent = %agent_name,
@@ -112,9 +119,7 @@ impl ToolProvider for McpToolProvider {
 
         for server_name in &assigned_servers {
             let server_config = self.registry.get_server(server_name).map_err(|e| {
-                ToolProviderError::ConfigurationError {
-                    message: format!("Failed to resolve MCP server {server_name}: {e}"),
-                }
+                configuration_error(format!("Failed to resolve MCP server {server_name}"), e)
             })?;
             let request_ctx = create_request_context(context, &server_config)?;
             match McpClient::list_tools(&server_config, &request_ctx).await {
@@ -126,19 +131,21 @@ impl ToolProvider for McpToolProvider {
                     );
                     inventory.tools.extend(tools.iter().map(to_tool_definition));
                 },
-                Err(e) => {
+                Err(error) => {
                     warn!(
                         server = server_name,
-                        error = %e,
+                        error = %error,
                         "Failed to list tools from MCP server"
                     );
+                    let server = McpServerId::try_new(server_name.clone()).map_err(|source| {
+                        configuration_error(
+                            format!("invalid MCP server name {server_name}"),
+                            source,
+                        )
+                    })?;
                     inventory.failed_servers.push(ServerListingFailure {
-                        server: McpServerId::try_new(server_name.clone()).map_err(|e| {
-                            ToolProviderError::ConfigurationError {
-                                message: format!("invalid MCP server name {server_name}: {e}"),
-                            }
-                        })?,
-                        message: e.to_string(),
+                        server,
+                        message: error.to_string(),
                     });
                 },
             }
@@ -161,9 +168,7 @@ impl ToolProvider for McpToolProvider {
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
         let server_config = self.registry.get_server(service_id.as_str()).map_err(|e| {
-            ToolProviderError::ConfigurationError {
-                message: format!("Failed to resolve MCP server {service_id}: {e}"),
-            }
+            configuration_error(format!("Failed to resolve MCP server {service_id}"), e)
         })?;
         let request_ctx = create_request_context(context, &server_config)?;
 
@@ -190,10 +195,8 @@ impl ToolProvider for McpToolProvider {
     }
 
     async fn refresh_connections(&self, agent_name: &AgentName) -> ToolProviderResult<()> {
-        let assigned_servers =
-            load_agent_servers(agent_name).map_err(|e| ToolProviderError::ConfigurationError {
-                message: format!("Failed to load agent config: {e}"),
-            })?;
+        let assigned_servers = load_agent_servers(agent_name)
+            .map_err(|e| configuration_error("Failed to load agent config", e))?;
 
         info!(
             agent = %agent_name,
@@ -201,19 +204,24 @@ impl ToolProvider for McpToolProvider {
             "Refreshing MCP connections for agent"
         );
 
-        self.registry.validate().map_err(|e| {
-            ToolProviderError::Internal(format!("Failed to validate registry: {e}"))
-        })?;
+        self.registry
+            .validate()
+            .map_err(|e| ToolProviderError::Internal(Box::new(e)))?;
 
-        let api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::ConfigurationError {
-                message: format!("Failed to get configuration: {e}"),
-            })?
+        let api_server_url = systemprompt_manifest::Config::get()
+            .map_err(|e| configuration_error("Failed to get configuration", e))?
             .api_server_url
             .clone();
 
         for server_name in assigned_servers {
-            check_server_connection(&self.registry, &server_name, &api_server_url).await;
+            match McpServerId::try_new(server_name) {
+                Ok(server_id) => {
+                    check_server_connection(&self.registry, &server_id, &api_server_url).await;
+                },
+                Err(error) => {
+                    warn!(agent = %agent_name, %error, "Agent lists an invalid MCP server name");
+                },
+            }
         }
 
         Ok(())
@@ -222,21 +230,18 @@ impl ToolProvider for McpToolProvider {
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> {
         let mut health_status = HashMap::new();
 
-        let config_api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| ToolProviderError::ConfigurationError {
-                message: format!("Failed to get configuration: {e}"),
-            })?
+        let config_api_server_url = systemprompt_manifest::Config::get()
+            .map_err(|e| configuration_error("Failed to get configuration", e))?
             .api_server_url
             .clone();
 
-        let servers = self.registry.get_managed_servers().map_err(|e| {
-            ToolProviderError::ConfigurationError {
-                message: format!("Failed to list managed MCP servers: {e}"),
-            }
-        })?;
+        let servers = self
+            .registry
+            .get_managed_servers()
+            .map_err(|e| configuration_error("Failed to list managed MCP servers", e))?;
         for server in servers {
             let is_healthy =
-                check_server_health(&server.name, server.port, &config_api_server_url).await;
+                check_server_health(&server.server_id(), server.port, &config_api_server_url).await;
             let breaker = self.guard_for(&server.name);
             if is_healthy {
                 breaker.breaker().record_success();

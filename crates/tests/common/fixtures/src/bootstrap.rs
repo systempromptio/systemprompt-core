@@ -12,8 +12,8 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{try_init_config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_files::FilesConfig;
 use systemprompt_loader::{ConfigLoader, ServicesBootstrap};
-use systemprompt_models::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
-use systemprompt_models::Config;
+use systemprompt_manifest::profile::UNRESTRICTED_ACKNOWLEDGEMENT;
+use systemprompt_manifest::Config;
 use tempfile::TempDir;
 
 const TEST_OAUTH_AT_REST_PEPPER: &str = "test_oauth_at_rest_pepper_for_bootstrap_fixture_zzz";
@@ -196,6 +196,16 @@ fn init_bootstrap_inner_expecting(
         std::fs::create_dir_all(dir).expect("mkdir bootstrap path");
     }
 
+    // Why: AppContext bootstrap loads the configured signing key and refuses
+    // one that differs from a key already installed in the process-wide
+    // authority, so the profile's key file must hold the fixture authority key
+    // that `install_test_signing_key` installs.
+    std::fs::write(
+        system_path.join("signing_key.pem"),
+        crate::keys::authority_key_pem(),
+    )
+    .expect("write fixture signing key");
+
     // The messaging apps + agent are written only when a messaging test opts in
     // via `ensure_messaging_bootstrap`. Every other test gets the empty stub, so
     // the populated agent registry never leaks into suites that assert on an
@@ -257,7 +267,7 @@ fn init_bootstrap_inner_expecting(
 
     let app_paths = AppPaths::from_profile(
         &profile.paths,
-        systemprompt_models::PathResolution::Canonicalize,
+        systemprompt_manifest::PathResolution::Canonicalize,
         None,
     )
     .expect("app paths");

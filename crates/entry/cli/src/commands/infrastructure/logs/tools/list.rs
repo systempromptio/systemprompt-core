@@ -6,8 +6,9 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService};
+use systemprompt_runtime::{ToolExecutionFilter, TraceQueryService, TraceRepository};
 
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;
@@ -57,7 +58,7 @@ async fn execute_with_pool_inner(
         filter = filter.with_status(status);
     }
 
-    let service = TraceQueryService::new(Arc::clone(pool));
+    let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
     let rows = service.list_tool_executions(&filter).await?;
 
     let executions: Vec<ToolExecutionRow> = rows
@@ -66,7 +67,7 @@ async fn execute_with_pool_inner(
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
             trace_id: r.trace_id,
             tool_name: r.tool_name,
-            server: r.server_name.unwrap_or_else(|| "unknown".to_owned()),
+            server: r.server_name,
             status: r.status,
             duration_ms: r.execution_time_ms.map(i64::from),
         })
@@ -127,7 +128,7 @@ fn render_tool_list(output: &ToolsListOutput, args: &ListArgs) {
         let line = format!(
             "{} {}/{} [{}]{}  trace:{}",
             exec.timestamp,
-            exec.server,
+            exec.server.as_ref().map_or("unknown", McpServerId::as_str),
             exec.tool_name,
             exec.status,
             duration.as_deref().unwrap_or(""),

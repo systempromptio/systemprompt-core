@@ -27,7 +27,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Deserialize;
-use systemprompt_models::services::{VertexRateCard, VertexRateCardEntry};
+use systemprompt_manifest::services::{VertexRateCard, VertexRateCardEntry};
 
 use super::source::{DiscoveredModel, LaunchStage};
 
@@ -59,6 +59,7 @@ pub struct PublisherModel {
     pub launch_stage: String,
 
     #[serde(default)]
+    // JSON: Vertex AI `supportedActions` — undocumented action map, only probed for keys.
     pub supported_actions: Option<serde_json::Value>,
 
     #[serde(default)]

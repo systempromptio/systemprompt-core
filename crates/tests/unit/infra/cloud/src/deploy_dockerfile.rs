@@ -22,7 +22,9 @@ const PROFILE_ENV_SECTION: &str = r#"ENV HOST=0.0.0.0 \
     SYSTEMPROMPT_TEMPLATES_PATH=/app/services/web/templates \
     SYSTEMPROMPT_ASSETS_PATH=/app/services/web/assets"#;
 
-const MKDIR_PREFIX: &str = "RUN mkdir -p /app/bin /app/logs /app/storage/files/images \
+const MKDIR_PREFIX: &str = "RUN mkdir -p /app/bin /app/logs /app/storage/files \
+                            /app/storage/exports /app/storage/data /app/storage/data/scratch \
+                            /app/storage/files/images \
                             /app/storage/files/images/generated /app/storage/files/images/logos \
                             /app/storage/files/audio /app/storage/files/video \
                             /app/storage/files/documents /app/storage/files/uploads /app/web";
@@ -112,7 +114,7 @@ fn test_generated_dockerfile_matches_fixture() {
 fn test_generated_dockerfile_with_profile_matches_fixture() {
     let temp = TempDir::new().unwrap();
     let content = DockerfileBuilder::new(temp.path())
-        .with_profile("prod")
+        .with_profile(&pname("prod"))
         .build();
 
     assert_matches_fixture(&content, &expected_fixture(PROFILE_ENV_SECTION));
@@ -145,10 +147,14 @@ fn both_env_branches_mark_the_image_as_a_deployment_host() {
     );
 
     let with_profile = DockerfileBuilder::new(temp.path())
-        .with_profile("prod")
+        .with_profile(&pname("prod"))
         .build();
     assert!(
         with_profile.contains("SYSTEMPROMPT_DEPLOYMENT_HOST=prod"),
         "the marker should name the host as specifically as the image can"
     );
+}
+
+fn pname(name: &str) -> systemprompt_identifiers::ProfileName {
+    systemprompt_identifiers::ProfileName::try_new(name).expect("valid ProfileName")
 }

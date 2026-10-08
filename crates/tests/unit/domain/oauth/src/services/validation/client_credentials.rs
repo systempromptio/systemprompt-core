@@ -10,24 +10,23 @@ mod db_backed {
     use systemprompt_oauth::repository::{ClientRepository, CreateClientParams, OAuthRepository};
     use systemprompt_oauth::services::hash_client_secret;
     use systemprompt_oauth::services::validation::validate_client_credentials;
+    use systemprompt_oauth::{OauthError, OauthErrorKind};
     use systemprompt_test_fixtures::{
-        ensure_test_bootstrap, fixture_database_url, fixture_db_pool, seed_user_row, unique_user_id,
+        ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
     };
     use uuid::Uuid;
 
     const SECRET: &str = "client-credentials-secret-32-chars!!";
 
-    async fn seeded_client_or_skip() -> Option<(OAuthRepository, ClientId)> {
-        let url = fixture_database_url().ok()?;
+    async fn seeded_client() -> (OAuthRepository, ClientId) {
         ensure_test_bootstrap();
-        let pool = fixture_db_pool(&url).await.expect("pool");
+        let pool = test_db_pool().await;
         let owner = unique_user_id("cc");
         seed_user_row(&pool, &owner, &format!("{}@cc.invalid", owner.as_str()))
             .await
             .expect("seed owner");
         let client_id = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
         ClientRepository::new(&pool)
-            .expect("client repo")
             .create(CreateClientParams {
                 client_id: client_id.clone(),
                 owner_user_id: owner,
@@ -46,15 +45,13 @@ mod db_backed {
             })
             .await
             .expect("create client");
-        let repo = OAuthRepository::new(&pool).expect("repo");
-        Some((repo, client_id))
+        let repo = OAuthRepository::new(&pool);
+        (repo, client_id)
     }
 
     #[tokio::test]
     async fn correct_secret_authenticates_registered_client() {
-        let Some((repo, client_id)) = seeded_client_or_skip().await else {
-            return;
-        };
+        let (repo, client_id) = seeded_client().await;
         validate_client_credentials(&repo, &client_id, Some(SECRET))
             .await
             .expect("correct secret authenticates");
@@ -62,36 +59,33 @@ mod db_backed {
 
     #[tokio::test]
     async fn wrong_secret_is_rejected() {
-        let Some((repo, client_id)) = seeded_client_or_skip().await else {
-            return;
-        };
+        let (repo, client_id) = seeded_client().await;
         let err = validate_client_credentials(&repo, &client_id, Some("wrong-secret"))
             .await
             .expect_err("wrong secret");
-        assert!(err.to_string().contains("Invalid client secret"));
+        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
     #[tokio::test]
     async fn missing_secret_is_rejected() {
-        let Some((repo, client_id)) = seeded_client_or_skip().await else {
-            return;
-        };
+        let (repo, client_id) = seeded_client().await;
         let err = validate_client_credentials(&repo, &client_id, None)
             .await
             .expect_err("missing secret");
-        assert!(err.to_string().contains("Client secret required"));
+        assert!(matches!(err, OauthError::InvalidClient(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 
     #[tokio::test]
     async fn unknown_client_is_rejected() {
-        let Some((repo, _client_id)) = seeded_client_or_skip().await else {
-            return;
-        };
+        let (repo, _client_id) = seeded_client().await;
         let missing = ClientId::new(format!("client_{}", Uuid::new_v4().simple()));
         let err = validate_client_credentials(&repo, &missing, Some(SECRET))
             .await
             .expect_err("unknown client");
-        assert!(err.to_string().contains("Client not found"));
+        assert!(matches!(err, OauthError::ClientNotFound(_)));
+        assert_eq!(err.kind(), OauthErrorKind::InvalidClient);
     }
 }
 

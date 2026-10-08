@@ -29,9 +29,6 @@ indexmap = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 
-# Secret hygiene: wipe credential material from memory on drop
-zeroize = { workspace = true }
-
 # Logging
 tracing = { workspace = true }
 
@@ -44,9 +41,6 @@ http = { workspace = true }
 # URL parsing for outbound-endpoint (SSRF) validation
 url = { workspace = true }
 
-# Typed CIDR ranges for trusted_proxies (parse-on-deserialize, fail-closed)
-ipnet = { workspace = true }
-
 # Optional: sqlx::Type derives for DB-persisted enums (feature `sqlx`)
 sqlx = { workspace = true, optional = true }
 
@@ -58,26 +52,20 @@ schemars = { workspace = true }
 # Regex
 regex = { workspace = true }
 
-# Crypto (services-bundle content hashing + ed25519 public-key validation)
+# Crypto (managed-bundle content hashing)
 sha2 = { workspace = true }
 hex = { workspace = true }
 serde_jcs = { workspace = true }
-base64 = { workspace = true }
 
 # Async streaming
 futures = { workspace = true }
 
-# Wire codecs: SSE byte buffering + stream adaptation
-bytes = { workspace = true }
-futures-util = { workspace = true }
-
 # Web framework (optional, for IntoResponse implementations)
 axum = { workspace = true, optional = true }
 
-# Shared traits, identifiers, and extension framework
+# Shared traits, identifiers, and provider contracts
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-extension = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 
 # MCP protocol

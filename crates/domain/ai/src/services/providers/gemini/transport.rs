@@ -5,14 +5,14 @@
 //! mints an OAuth bearer with `{project}` filled from its key. The path is the
 //! shared dialect's (`?alt=sse` for the streaming method). Request-body
 //! rendering and reply parsing live in the shared
-//! `systemprompt_models::wire::gemini` codec.
+//! `systemprompt_wire::gemini` codec.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::{Client, Response};
 use serde_json::Value;
-use systemprompt_models::services::WireProtocol;
+use systemprompt_wire::WireProtocol;
 
 use super::constants::timeout;
 use super::provider::GeminiProvider;
@@ -23,9 +23,10 @@ pub(super) fn build_client() -> Result<Client> {
         .timeout(systemprompt_models::net::AI_PROVIDER_REQUEST_TIMEOUT)
         .connect_timeout(timeout::CONNECT_TIMEOUT)
         .build()
-        .map_err(|e| crate::error::AiError::Internal(format!("Failed to create HTTP client: {e}")))
+        .map_err(crate::error::AiError::Http)
 }
 
+// JSON: Gemini generateContent request body — upstream wire format.
 pub(super) async fn post(
     provider: &GeminiProvider,
     body: &Value,

@@ -51,7 +51,7 @@ impl Drop for CurrentDirectory {
 #[tokio::test]
 #[ignore = "re-executed by successful_admin_clone_keeps_files_and_removes_git_metadata"]
 async fn successful_admin_clone_helper() {
-    let root = tempfile::tempdir().expect("owned init root");
+    let root = systemprompt_test_fixtures::canonical_tempdir();
     let tools = tempfile::tempdir().expect("owned tool directory");
     let calls = root.path().join("git-calls");
     let git = tools.path().join("git");

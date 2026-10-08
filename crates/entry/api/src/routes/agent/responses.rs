@@ -9,8 +9,7 @@ use serde::Serialize;
 use systemprompt_models::{ApiError, CollectionResponse, SingleResponse};
 
 pub fn api_error_response(error: ApiError) -> Response {
-    let status = error.code.status_code();
-    (status, Json(error)).into_response()
+    error.into_response()
 }
 
 pub fn single_response<T: Serialize + 'static>(data: T) -> Response {

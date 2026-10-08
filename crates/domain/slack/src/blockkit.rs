@@ -14,6 +14,7 @@ use systemprompt_models::text::chunk_text;
 const SECTION_TEXT_LIMIT: usize = 3000;
 
 #[must_use]
+// JSON: Slack Block Kit `blocks` array — vendor layout JSON.
 pub fn render_blocks(text: &str) -> Value {
     let mut blocks = Vec::new();
     for chunk in chunk_text(text, SECTION_TEXT_LIMIT) {
