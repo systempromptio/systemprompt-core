@@ -108,7 +108,10 @@ fn with_error_key(body: bytes::Bytes, key: Option<&'static str>) -> bytes::Bytes
     let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&body) else {
         return body;
     };
-    let Some(error) = value.get_mut("error").and_then(serde_json::Value::as_object_mut) else {
+    let Some(error) = value
+        .get_mut("error")
+        .and_then(serde_json::Value::as_object_mut)
+    else {
         return body;
     };
     error.insert("error_key".to_owned(), serde_json::Value::from(key));

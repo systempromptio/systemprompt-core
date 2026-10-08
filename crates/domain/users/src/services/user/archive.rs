@@ -60,7 +60,11 @@ impl UserService {
 
     /// Purges up to `limit` archives older than `window_days` that are not
     /// under legal hold. Returns the ids purged.
-    pub async fn purge_expired_archives(&self, window_days: u32, limit: i64) -> Result<Vec<UserId>> {
+    pub async fn purge_expired_archives(
+        &self,
+        window_days: u32,
+        limit: i64,
+    ) -> Result<Vec<UserId>> {
         let ids = self
             .repository
             .list_purgeable_archives(window_days, limit)
@@ -73,7 +77,11 @@ impl UserService {
         Ok(purged)
     }
 
-    pub async fn list_purgeable_archives(&self, window_days: u32, limit: i64) -> Result<Vec<UserId>> {
+    pub async fn list_purgeable_archives(
+        &self,
+        window_days: u32,
+        limit: i64,
+    ) -> Result<Vec<UserId>> {
         self.repository
             .list_purgeable_archives(window_days, limit)
             .await

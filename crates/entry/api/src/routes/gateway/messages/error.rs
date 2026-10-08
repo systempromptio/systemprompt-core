@@ -5,8 +5,8 @@
 //! for a 4xx, whether the rejection still owes an audit row, and — for a
 //! failure the gateway caused — the underlying error, which is logged and never
 //! rendered. A stable `error_key` (for example `context_window_exceeded`) is
-//! added to the rendered `error` object when set. Every 5xx renders [`GATEWAY_SERVER_ERROR_MESSAGE`] whatever it
-//! was built with.
+//! added to the rendered `error` object when set. Every 5xx renders
+//! [`GATEWAY_SERVER_ERROR_MESSAGE`] whatever it was built with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

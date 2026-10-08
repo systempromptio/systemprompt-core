@@ -36,9 +36,9 @@ mod selection;
 
 pub use self::breakers::ProviderBreakers;
 pub(crate) use self::breakers::breaker_settings;
+pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
 pub use self::load::{DeploymentLoad, InFlight};
 pub use self::selection::{DeploymentState, plan_selection};
-pub use self::decision::{FailoverReason, failover_reason, is_failover_status, plan_attempts};
 
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::ProviderRegistry;

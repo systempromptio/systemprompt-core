@@ -84,7 +84,10 @@ impl GatewayRoute {
                     value: value.as_str(),
                     chain,
                 };
-                out.push((Some(value.as_str()), self.context_fallback_views(&selection)));
+                out.push((
+                    Some(value.as_str()),
+                    self.context_fallback_views(&selection),
+                ));
             }
         }
         out

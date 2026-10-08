@@ -70,11 +70,13 @@ impl GatewayConfig {
         for (scope, views) in route.all_context_fallbacks() {
             for view in &views {
                 if view.resolve(registry).is_none() {
-                    return Err(GatewayProfileError::RouteContextFallbackProviderNotInRegistry {
-                        route: route_id,
-                        chain: chain_label(scope),
-                        provider: view.provider.as_str().to_owned(),
-                    });
+                    return Err(
+                        GatewayProfileError::RouteContextFallbackProviderNotInRegistry {
+                            route: route_id,
+                            chain: chain_label(scope),
+                            provider: view.provider.as_str().to_owned(),
+                        },
+                    );
                 }
                 self.validate_route_pricing(registry, view)?;
                 validate_route_governance(registry, view)?;

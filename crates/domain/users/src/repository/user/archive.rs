@@ -164,7 +164,11 @@ impl UserRepository {
 
     /// Archives older than `window_days` and not under legal hold, oldest
     /// first: the set `database_cleanup` purges.
-    pub async fn list_purgeable_archives(&self, window_days: u32, limit: i64) -> Result<Vec<UserId>> {
+    pub async fn list_purgeable_archives(
+        &self,
+        window_days: u32,
+        limit: i64,
+    ) -> Result<Vec<UserId>> {
         let ids = sqlx::query_scalar!(
             r#"
             SELECT id FROM users

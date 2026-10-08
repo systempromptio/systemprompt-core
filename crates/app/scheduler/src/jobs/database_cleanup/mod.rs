@@ -115,7 +115,10 @@ impl Job for DatabaseCleanupJob {
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
         debug!(total_deleted = total, duration_ms, "Job completed");
         Ok(JobResult::success()
-            .with_message(format!("{} archived_users={archived}", summary(orphaned, &passes)))
+            .with_message(format!(
+                "{} archived_users={archived}",
+                summary(orphaned, &passes)
+            ))
             .with_stats(total, 0)
             .with_duration(duration_ms))
     }

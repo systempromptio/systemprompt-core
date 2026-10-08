@@ -46,10 +46,10 @@ pub use models::{
     UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions, normalise_email,
 };
 pub use repository::{
-    ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
-    CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    PurgeCount, SessionRepository, UserRateLimitBucketRepository, UserRepository,
-    UsersRoleDirectory,
+    ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
+    BannedIp, BannedIpRepository, CreateApiKeyParams, EnrollDeviceCertParams,
+    MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, SessionRepository,
+    UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{
     API_KEY_PREFIX, ApiKeyService, DEVICE_FINGERPRINT_FOREIGN_USER, DemoteResult,

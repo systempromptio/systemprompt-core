@@ -43,7 +43,10 @@ pub struct DeleteArgs {
     #[arg(long, help = "Why the user is archived; recorded on the account")]
     pub reason: Option<String>,
 
-    #[arg(long, help = "Place the archive under legal hold: never purged until released")]
+    #[arg(
+        long,
+        help = "Place the archive under legal hold: never purged until released"
+    )]
     pub legal_hold: bool,
 
     #[arg(
@@ -122,7 +125,11 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
             outcome.sessions_revoked,
             outcome.api_keys_revoked,
             outcome.device_certs_revoked,
-            if args.legal_hold { "; under legal hold" } else { "" },
+            if args.legal_hold {
+                "; under legal hold"
+            } else {
+                ""
+            },
             user.id
         ),
     };

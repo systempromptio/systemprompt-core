@@ -185,7 +185,11 @@ impl GatewayRoute {
         out
     }
 
-    pub(super) fn view_of(&self, deployment: &RouteDeployment, strategy: SelectionStrategy) -> Self {
+    pub(super) fn view_of(
+        &self,
+        deployment: &RouteDeployment,
+        strategy: SelectionStrategy,
+    ) -> Self {
         Self {
             id: Some(self.effective_id()),
             provider: deployment.provider.clone(),

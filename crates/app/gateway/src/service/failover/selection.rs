@@ -48,7 +48,10 @@ pub fn plan_selection(
 fn weighted(states: &[DeploymentState], healthy: &[usize], draw: u64) -> Vec<usize> {
     let mut rest: Vec<usize> = healthy.to_vec();
     rest.sort_by(|a, b| states[*b].weight.cmp(&states[*a].weight));
-    let total: u64 = healthy.iter().map(|&i| u64::from(states[i].weight.max(1))).sum();
+    let total: u64 = healthy
+        .iter()
+        .map(|&i| u64::from(states[i].weight.max(1)))
+        .sum();
     let Some(&default_first) = healthy.first() else {
         return rest;
     };

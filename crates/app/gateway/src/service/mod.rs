@@ -20,8 +20,9 @@ pub mod resolve;
 pub mod stages;
 
 pub use self::error::{
-    ContextWindowExceeded, DispatchError, GatewayError, GovernanceDenied, GuardForbidden, GuardUnavailable, PolicyDenied,
-    PromptRepairRequired, QuotaExceeded, SafetyBlocked, upstream_status,
+    ContextWindowExceeded, DispatchError, GatewayError, GovernanceDenied, GuardForbidden,
+    GuardUnavailable, PolicyDenied, PromptRepairRequired, QuotaExceeded, SafetyBlocked,
+    upstream_status,
 };
 pub(super) use self::finalize::run_response_safety_scan;
 
