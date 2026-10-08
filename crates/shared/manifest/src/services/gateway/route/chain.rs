@@ -12,6 +12,8 @@
 //! [`GatewayRoute::chain_views`]: the route as each deployment's provider
 //! sees it, carrying the route id unchanged so pricing, governance and
 //! access-control checks address the same route whichever deployment serves.
+//! Each view carries its deployment's `weight` and the chain's `strategy`, so
+//! the gateway plans the attempt order from the views alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProviderId, ScopeDimension};
 use systemprompt_models::attribution::RequestAttribution;
 
-use super::GatewayRoute;
+use super::{GatewayRoute, SelectionStrategy};
 
 /// One deployment in a chain after the primary.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -31,6 +33,8 @@ pub struct RouteDeployment {
     pub provider: ProviderId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u32>,
 }
 
 /// The chain a request attributed to one scope value is served by.
@@ -42,6 +46,12 @@ pub struct ScopeChain {
     pub upstream_model: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fallbacks: Vec<RouteDeployment>,
+    #[serde(default, skip_serializing_if = "SelectionStrategy::is_ordered")]
+    pub strategy: SelectionStrategy,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub context_fallbacks: Vec<RouteDeployment>,
 }
 
 /// What a request attributed to a value absent from `chains` is served by.
@@ -131,17 +141,29 @@ impl GatewayRoute {
                     id: Some(self.effective_id()),
                     fallbacks: Vec::new(),
                     by_scope: None,
+                    context_fallbacks: Vec::new(),
                     ..self.clone()
                 }];
-                views.extend(self.fallbacks.iter().map(|d| self.view_of(d)));
+                views.extend(
+                    self.fallbacks
+                        .iter()
+                        .map(|d| self.view_of(d, self.strategy)),
+                );
                 views
             },
             ChainSelection::Scope { chain, .. } => {
-                let mut views = vec![self.view_of(&RouteDeployment {
+                let primary = RouteDeployment {
                     provider: chain.provider.clone(),
                     upstream_model: chain.upstream_model.clone(),
-                })];
-                views.extend(chain.fallbacks.iter().map(|d| self.view_of(d)));
+                    weight: chain.weight,
+                };
+                let mut views = vec![self.view_of(&primary, chain.strategy)];
+                views.extend(
+                    chain
+                        .fallbacks
+                        .iter()
+                        .map(|d| self.view_of(d, chain.strategy)),
+                );
                 views
             },
         }
@@ -163,7 +185,11 @@ impl GatewayRoute {
         out
     }
 
-    fn view_of(&self, deployment: &RouteDeployment) -> Self {
+    pub(super) fn view_of(
+        &self,
+        deployment: &RouteDeployment,
+        strategy: SelectionStrategy,
+    ) -> Self {
         Self {
             id: Some(self.effective_id()),
             provider: deployment.provider.clone(),
@@ -171,6 +197,9 @@ impl GatewayRoute {
             pricing: None,
             fallbacks: Vec::new(),
             by_scope: None,
+            strategy,
+            weight: deployment.weight,
+            context_fallbacks: Vec::new(),
             ..self.clone()
         }
     }

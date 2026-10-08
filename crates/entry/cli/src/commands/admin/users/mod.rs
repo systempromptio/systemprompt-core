@@ -17,6 +17,7 @@ pub(crate) mod delete;
 mod export;
 mod list;
 mod merge;
+mod restore;
 mod role;
 mod search;
 mod session;
@@ -52,8 +53,14 @@ pub enum UsersCommands {
     #[command(about = "Update user fields")]
     Update(update::UpdateArgs),
 
-    #[command(about = "Delete a user")]
+    #[command(about = "Archive a user (restorable); --purge deletes an archived user")]
     Delete(delete::DeleteArgs),
+
+    #[command(about = "Restore an archived user within the retention window")]
+    Restore(restore::RestoreArgs),
+
+    #[command(name = "legal-hold", about = "Place or release a legal hold on a user")]
+    LegalHold(restore::LegalHoldArgs),
 
     #[command(about = "Get total user count")]
     Count(count::CountArgs),
@@ -97,6 +104,8 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
             UsersCommands::Create(_)
                 | UsersCommands::Update(_)
                 | UsersCommands::Delete(_)
+                | UsersCommands::Restore(_)
+                | UsersCommands::LegalHold(_)
                 | UsersCommands::Merge(_)
                 | UsersCommands::Bulk(_)
                 | UsersCommands::Webauthn(_)
@@ -128,6 +137,8 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
         UsersCommands::Create(args) => create::execute(args, ctx).await,
         UsersCommands::Update(args) => update::execute(args, ctx).await,
         UsersCommands::Delete(args) => delete::execute(args, ctx).await,
+        UsersCommands::Restore(args) => restore::execute(args, ctx).await,
+        UsersCommands::LegalHold(args) => restore::execute_legal_hold(args, ctx).await,
         UsersCommands::Count(args) => count::execute(args, ctx).await,
         UsersCommands::Export(args) => export::execute(args, ctx).await,
         UsersCommands::Stats => stats::execute(ctx).await,
@@ -162,6 +173,8 @@ impl UsersCommands {
             | Self::Search(_)
             | Self::Create(_)
             | Self::Update(_)
+            | Self::Restore(_)
+            | Self::LegalHold(_)
             | Self::Count(_)
             | Self::Export(_)
             | Self::Stats

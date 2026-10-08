@@ -83,6 +83,9 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     requires: None,
                     fallbacks: Vec::new(),
                     by_scope: None,
+                    strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+                    weight: None,
+                    context_fallbacks: Vec::new(),
                 };
                 let endpoint = server.uri();
                 let mut request = request();

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Added
+
+- `retention.archived_users_days` (default 90): how long an archived user stays restorable before `database_cleanup` purges it.
+
 ## [0.63.1] - 2026-10-08
 
 ### Fixed

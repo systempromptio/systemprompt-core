@@ -53,7 +53,7 @@ impl Default for ProviderBreakers {
     }
 }
 
-pub(super) fn breaker_settings(provider: &str) -> ResilienceSettings {
+pub(crate) fn breaker_settings(provider: &str) -> ResilienceSettings {
     systemprompt_loader::ServicesBootstrap::get()
         .ok()
         .and_then(|services| services.ai.providers.get(provider))

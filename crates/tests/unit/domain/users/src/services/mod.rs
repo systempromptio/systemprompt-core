@@ -15,6 +15,7 @@ mod api_key_limits_and_scopes;
 mod device_cert;
 mod device_cert_service;
 mod providers_db;
+mod user_archive_db;
 mod user_provider;
 mod user_provider_impl;
 mod user_service;

@@ -23,6 +23,9 @@ use serde::{Deserialize, Serialize};
 /// - `ai_request_payload_raw_days` sets the raw request and response bodies on
 ///   `ai_request_payloads` to NULL rather than deleting the row; the excerpts,
 ///   hashes and sizes stay.
+/// - `archived_users_days` is how long an archived user (status `deleted`,
+///   `archived_at` set) stays restorable before `database_cleanup` purges the
+///   account and its rows; an account under legal hold is never purged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[expect(
@@ -44,6 +47,8 @@ pub struct RetentionConfig {
     pub ai_request_payload_raw_days: u32,
     #[serde(default = "default_governance_decisions_days")]
     pub governance_decisions_days: u32,
+    #[serde(default = "default_archived_users_days")]
+    pub archived_users_days: u32,
 }
 
 impl Default for RetentionConfig {
@@ -56,6 +61,7 @@ impl Default for RetentionConfig {
             outbox_processed_days: default_outbox_processed_days(),
             ai_request_payload_raw_days: default_ai_request_payload_raw_days(),
             governance_decisions_days: default_governance_decisions_days(),
+            archived_users_days: default_archived_users_days(),
         }
     }
 }
@@ -82,4 +88,8 @@ const fn default_ai_request_payload_raw_days() -> u32 {
 
 const fn default_governance_decisions_days() -> u32 {
     180
+}
+
+const fn default_archived_users_days() -> u32 {
+    90
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Changed
+
+- `admin users delete --yes` archives the user (restorable) instead of deleting them; `--reason` and `--legal-hold` are recorded on the archive, and `--purge` physically deletes an already-archived user not under hold. New `admin users restore <user>` and `admin users legal-hold <user> [--release]`.
+
 ## [0.63.1] - 2026-10-08
 
 ### Fixed

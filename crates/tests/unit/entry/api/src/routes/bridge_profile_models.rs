@@ -479,6 +479,9 @@ fn routed(pattern: &str, provider: &str) -> GatewayConfig {
         requires: None,
         fallbacks: Vec::new(),
         by_scope: None,
+        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+        weight: None,
+        context_fallbacks: Vec::new(),
     };
     route.ensure_id();
     GatewayConfig {

@@ -62,7 +62,8 @@ pub use gateway::{
     BridgeReleasesSpec, ChainSelection, GatewayConfig, GatewayConfigSpec, GatewayProfileError,
     GatewayResult, GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode,
     ResponseFormatKind, RouteDeployment, RouteMatch, RouteRequirements, RouteScopeChains,
-    ScopeChain, SystemPromptRule, UnmappedScope, slugify_pattern, synthesize_route_id,
+    ScopeChain, SelectionStrategy, SystemPromptRule, UnmappedScope, estimate_input_tokens,
+    slugify_pattern, synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,

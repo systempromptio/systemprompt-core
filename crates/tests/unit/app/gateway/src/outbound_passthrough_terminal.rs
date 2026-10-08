@@ -37,6 +37,9 @@ fn route() -> GatewayRoute {
         requires: None,
         fallbacks: Vec::new(),
         by_scope: None,
+        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+        weight: None,
+        context_fallbacks: Vec::new(),
     }
 }
 

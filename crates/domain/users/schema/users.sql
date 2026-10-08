@@ -11,8 +11,13 @@ CREATE TABLE IF NOT EXISTS users (
     is_scanner BOOLEAN NOT NULL DEFAULT false,
     avatar_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_at TIMESTAMPTZ,
+    archived_by TEXT,
+    archive_reason TEXT,
+    legal_hold BOOLEAN NOT NULL DEFAULT false
 );
+CREATE INDEX IF NOT EXISTS idx_users_archived_at ON users(archived_at) WHERE archived_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 CREATE INDEX IF NOT EXISTS idx_users_bot_status ON users(is_bot, is_scanner);
 

@@ -57,7 +57,7 @@ The workspace publishes a `systemprompt` facade with feature-gated `systemprompt
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.63", features = ["full"] }
+systemprompt = { version = "0.64", features = ["full"] }
 ```
 
 | Feature | Includes |

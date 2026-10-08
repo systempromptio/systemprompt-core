@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
+use sqlx::{Postgres, Transaction};
 use systemprompt_identifiers::UserId;
 
 use super::operations::UpdateUserParams;
@@ -180,6 +181,9 @@ impl UserRepository {
 
     pub async fn delete(&self, id: &UserId) -> Result<Vec<super::PurgeCount>> {
         let mut tx = self.write_pool.begin().await?;
+        if !Self::lock_unless_held(&mut tx, id).await? {
+            return Err(UserError::NotFound(id.clone()));
+        }
         let sessions = sqlx::query!("DELETE FROM user_sessions WHERE user_id = $1", id.as_str())
             .execute(&mut *tx)
             .await?;
@@ -205,11 +209,28 @@ impl UserRepository {
         Ok(removed)
     }
 
+    pub(super) async fn lock_unless_held(
+        tx: &mut Transaction<'_, Postgres>,
+        id: &UserId,
+    ) -> Result<bool> {
+        let held = sqlx::query_scalar!(
+            "SELECT legal_hold FROM users WHERE id = $1 FOR UPDATE",
+            id.as_str()
+        )
+        .fetch_optional(&mut **tx)
+        .await?;
+        match held {
+            None => Ok(false),
+            Some(true) => Err(UserError::LegalHold(id.clone())),
+            Some(false) => Ok(true),
+        }
+    }
+
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {
         let mut tx = self.write_pool.begin().await?;
         let cutoff = Utc::now() - Duration::days(i64::from(days));
         let anonymous_role = UserRole::Anonymous.as_str();
-        sqlx::query!("DELETE FROM user_sessions WHERE user_id IN (SELECT u.id FROM users u WHERE $1 = ANY(u.roles) AND u.created_at < $2 AND NOT EXISTS (SELECT 1 FROM user_sessions s WHERE s.user_id = u.id AND s.ended_at IS NULL))", anonymous_role, cutoff)
+        sqlx::query!("DELETE FROM user_sessions WHERE user_id IN (SELECT u.id FROM users u WHERE $1 = ANY(u.roles) AND u.created_at < $2 AND NOT u.legal_hold AND NOT EXISTS (SELECT 1 FROM user_sessions s WHERE s.user_id = u.id AND s.ended_at IS NULL))", anonymous_role, cutoff)
             .execute(&mut *tx)
             .await?;
         let result = sqlx::query!(
@@ -217,6 +238,7 @@ impl UserRepository {
             DELETE FROM users u
             WHERE $1 = ANY(u.roles)
               AND u.created_at < $2
+              AND NOT u.legal_hold
               AND NOT EXISTS (
                   SELECT 1
                   FROM user_sessions s
@@ -244,6 +266,7 @@ impl UserRepository {
             FROM users u
             WHERE $1 = ANY(u.roles)
               AND u.created_at < $2
+              AND NOT u.legal_hold
               AND NOT EXISTS (
                   SELECT 1
                   FROM user_sessions s

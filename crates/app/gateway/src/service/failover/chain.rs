@@ -104,6 +104,7 @@ impl<'r> Chain<'_, 'r> {
             self.record_hop(&name);
         }
         let upstream = rebound.as_ref().unwrap_or(self.send.primary);
+        let _in_flight = super::enter_deployment(upstream, &self.request_model);
         let outcome = with_policy(
             current_policy(),
             scanned.send_attempt(upstream, self.send.forward_headers, self.send.audit),

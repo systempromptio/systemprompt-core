@@ -78,6 +78,7 @@ async fn gateway_rebinds_one_governed_request_to_its_fallback_after_primary_500(
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new("anthropic-fallback"),
         upstream_model: None,
+        weight: None,
     }];
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
@@ -148,6 +149,7 @@ async fn gateway_does_not_send_client_errors_to_a_configured_fallback() -> anyho
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new("anthropic-client-error-fallback"),
         upstream_model: None,
+        weight: None,
     }];
 
     let error = GatewayService::dispatch(
@@ -201,6 +203,7 @@ async fn gateway_preserves_primary_failure_when_fallback_provider_cannot_be_boun
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new("missing-fallback-provider"),
         upstream_model: None,
+        weight: None,
     }];
 
     let error = GatewayService::dispatch(
@@ -252,6 +255,7 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new("anthropic-both-fail-fallback"),
         upstream_model: None,
+        weight: None,
     }];
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
@@ -418,6 +422,7 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new(&fallback_name),
         upstream_model: None,
+        weight: None,
     }];
 
     for _ in 0..5 {
@@ -509,6 +514,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     training_config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new(&training_name),
         upstream_model: None,
+        weight: None,
     }];
     for _ in 0..5 {
         let response = GatewayService::dispatch(
@@ -545,6 +551,7 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     config.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new(&failing_name),
         upstream_model: None,
+        weight: None,
     }];
     let failing_before = failing
         .received_requests()
@@ -687,10 +694,12 @@ async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow:
         RouteDeployment {
             provider: ProviderId::new(&b),
             upstream_model: None,
+            weight: None,
         },
         RouteDeployment {
             provider: ProviderId::new(&c),
             upstream_model: None,
+            weight: None,
         },
     ];
 
@@ -734,6 +743,7 @@ async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> a
         .map(|p| RouteDeployment {
             provider: ProviderId::new(p),
             upstream_model: None,
+            weight: None,
         })
         .collect();
     for _ in 0..5 {
@@ -805,6 +815,7 @@ async fn anthropic_is_only_tried_when_listed() -> anyhow::Result<()> {
     listed.routes[0].fallbacks = vec![RouteDeployment {
         provider: ProviderId::new(&anthropic_name),
         upstream_model: None,
+        weight: None,
     }];
     let response = GatewayService::dispatch(
         &listed,

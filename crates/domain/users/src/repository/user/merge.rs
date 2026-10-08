@@ -46,6 +46,7 @@ impl UserRepository {
     pub async fn complete_merge(&self, source_id: &UserId, target_id: &UserId) -> Result<u64> {
         let mut conn = self.write_pool.acquire().await?;
         let mut tx = conn.begin().await?;
+        Self::lock_unless_held(&mut tx, source_id).await?;
 
         let sessions = sqlx::query!(
             "UPDATE user_sessions SET user_id = $1 WHERE user_id = $2",

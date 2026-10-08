@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Added
+
+- Deployment selection strategies: a route or `by_scope` chain takes `strategy: ordered | weighted | least_busy` (default `ordered`). `weighted` draws the first attempt by deployment `weight` among healthy deployments; `least_busy` picks the healthy deployment with the fewest in-flight requests in this process. Failover after the first attempt is unchanged. `service::failover::{plan_selection, DeploymentState, DeploymentLoad, InFlight}` are new, and `gateway_deployment_selected_total{route,provider,strategy}` counts selections.
+- Context-window pre-check: the request's input tokens are estimated before any upstream call and compared with the deployment's catalog `limits.context_window`. A request that does not fit moves to a fitting `context_fallbacks` entry or is refused. `service::chain_plan::{order_chain, fit_context_window, PlannedChain}` are new, and `gateway_context_fallbacks_total{from,to}` counts moves.
+
+### Breaking
+
+- `GatewayError` gains `ContextWindow(ContextWindowExceeded)` (400); an exhaustive `match` must name it.
+
 ## [0.63.0] - 2026-10-07
 
 ### Added

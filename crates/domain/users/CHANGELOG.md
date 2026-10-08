@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.64.0] - 2026-10-08
+
+### Added
+
+- Archive instead of delete (NFR-5.2): migration `022_user_archive` adds `archived_at`, `archived_by`, `archive_reason` and `legal_hold` to `users`. `UserService::archive` sets status `deleted`, stamps the archive and revokes the user's sessions, API keys and device certificates in one transaction; `restore` reverses it inside a window; `set_legal_hold`, `find_archive_state`, `list_purgeable_archives` and `purge_expired_archives`. `UserService::purge` is the guarded physical delete (refuses a user that is not archived, `UserError::NotArchived`, or is under hold, `UserError::LegalHold`); `UserError::RestoreRefused` covers a restore past the window.
+
+### Changed
+
+- `bulk_delete` archives: it stamps `archived_at` and revokes credentials alongside the `deleted` status.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

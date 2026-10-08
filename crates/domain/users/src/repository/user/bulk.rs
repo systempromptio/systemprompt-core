@@ -34,17 +34,37 @@ impl UserRepository {
     pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
         let deleted_status = UserStatus::Deleted.as_str();
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
+        let mut tx = self.write_pool.begin().await?;
         let result = sqlx::query!(
             r#"
             UPDATE users
-            SET status = $1, updated_at = NOW()
+            SET status = $1, archived_at = COALESCE(archived_at, NOW()), updated_at = NOW()
             WHERE id = ANY($2)
             "#,
             deleted_status,
             &ids[..]
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ANY($1) AND revoked_at IS NULL",
+            &ids[..]
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE user_api_keys SET revoked_at = NOW() WHERE user_id = ANY($1) AND revoked_at IS NULL",
+            &ids[..]
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE user_device_certs SET revoked_at = NOW() WHERE user_id = ANY($1) AND revoked_at IS NULL",
+            &ids[..]
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(result.rows_affected())
     }
 }

@@ -13,14 +13,14 @@ Defines shared interfaces for runtime capabilities, provider integration, events
 
 ```toml
 [dependencies]
-systemprompt-traits = "0.63"
+systemprompt-traits = "0.64"
 ```
 
 Enable the `web` feature to pull in the `axum`-backed `ApiModule` trait:
 
 ```toml
 [dependencies]
-systemprompt-traits = { version = "0.63", features = ["web"] }
+systemprompt-traits = { version = "0.64", features = ["web"] }
 ```
 
 ## Example

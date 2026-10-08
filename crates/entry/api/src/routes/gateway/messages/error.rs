@@ -4,8 +4,9 @@
 //! A [`RejectionError`] carries the status, the public message the client sees
 //! for a 4xx, whether the rejection still owes an audit row, and — for a
 //! failure the gateway caused — the underlying error, which is logged and never
-//! rendered. Every 5xx renders [`GATEWAY_SERVER_ERROR_MESSAGE`] whatever it
-//! was built with.
+//! rendered. A stable `error_key` (for example `context_window_exceeded`) is
+//! added to the rendered `error` object when set. Every 5xx renders
+//! [`GATEWAY_SERVER_ERROR_MESSAGE`] whatever it was built with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +22,7 @@ pub struct RejectionError {
     pub message: String,
     pub persist: bool,
     pub cause: Option<BoxedSource>,
+    pub error_key: Option<&'static str>,
 }
 
 impl RejectionError {
@@ -30,6 +32,7 @@ impl RejectionError {
             message: message.into(),
             persist: true,
             cause: None,
+            error_key: None,
         }
     }
 
@@ -42,6 +45,7 @@ impl RejectionError {
             message: error.to_string(),
             persist: true,
             cause: Some(Box::new(error)),
+            error_key: None,
         }
     }
 
@@ -52,6 +56,12 @@ impl RejectionError {
     #[must_use]
     pub fn with_cause(mut self, cause: impl Into<BoxedSource>) -> Self {
         self.cause = Some(cause.into());
+        self
+    }
+
+    #[must_use]
+    pub const fn with_error_key(mut self, key: &'static str) -> Self {
+        self.error_key = Some(key);
         self
     }
 

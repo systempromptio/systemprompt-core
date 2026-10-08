@@ -34,6 +34,15 @@ domain_error! {
             source: IdentifierError,
         },
 
+        #[error("user {0} is under legal hold and cannot be purged")]
+        LegalHold(UserId),
+
+        #[error("user {0} is not archived; archive before purging")]
+        NotArchived(UserId),
+
+        #[error("user {id} cannot be restored: not archived, or archived more than {window_days} days ago")]
+        RestoreRefused { id: UserId, window_days: u32 },
+
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,
 

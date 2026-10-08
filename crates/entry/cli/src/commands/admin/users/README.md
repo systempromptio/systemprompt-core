@@ -30,7 +30,9 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `admin users search <QUERY>` | Search users by name/email | No |
 | `admin users create` | Create a new user | No |
 | `admin users update <USER>` | Update user fields | No |
-| `admin users delete <USER>` | Delete a user | **Yes** |
+| `admin users delete <USER>` | Archive a user (restorable); `--purge` deletes an archived one | **Yes** |
+| `admin users restore <USER>` | Restore an archived user within `retention.archived_users_days` | **Yes** |
+| `admin users legal-hold <USER>` | Place (or `--release`) a legal hold that blocks any purge | **Yes** |
 | `admin users count` | Get total user count | No |
 | `admin users export` | Export users to JSON | No |
 | `admin users stats` | Show user statistics dashboard | No |

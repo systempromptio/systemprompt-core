@@ -56,6 +56,9 @@ fn route(pattern: &str) -> GatewayRoute {
         requires: None,
         fallbacks: Vec::new(),
         by_scope: None,
+        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+        weight: None,
+        context_fallbacks: Vec::new(),
     }
 }
 
@@ -93,6 +96,9 @@ fn route_finds_matching_model() {
             requires: None,
             fallbacks: Vec::new(),
             by_scope: None,
+            strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+            weight: None,
+            context_fallbacks: Vec::new(),
         }],
         ..GatewayConfig::default()
     };
@@ -415,6 +421,9 @@ pub(crate) fn route_to(pattern: &str, provider: &str) -> GatewayRoute {
         requires: None,
         fallbacks: Vec::new(),
         by_scope: None,
+        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+        weight: None,
+        context_fallbacks: Vec::new(),
     };
     r.ensure_id();
     r
@@ -1472,6 +1481,7 @@ fn failover_config() -> GatewayConfig {
     claude.fallbacks = vec![RouteDeployment {
         provider: ProviderId::new("anthropic"),
         upstream_model: None,
+        weight: None,
     }];
     GatewayConfig {
         enabled: true,

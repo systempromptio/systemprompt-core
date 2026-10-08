@@ -27,7 +27,10 @@ pub use device_cert::EnrollDeviceCertParams;
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
 pub use session::SessionRepository;
-pub use user::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, UpdateUserParams};
+pub use user::{
+    ArchiveOutcome, ArchiveParams, ArchiveState, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
+    PurgeCount, UpdateUserParams,
+};
 
 use sqlx::PgPool;
 use std::sync::Arc;

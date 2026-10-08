@@ -104,6 +104,9 @@ impl Topology {
                 provider: ProviderId::new(&self.scoped_name),
                 upstream_model: None,
                 fallbacks: Vec::new(),
+                strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
+                weight: None,
+                context_fallbacks: Vec::new(),
             },
         );
         config.routes[0].by_scope = Some(RouteScopeChains {
