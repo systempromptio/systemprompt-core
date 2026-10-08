@@ -121,3 +121,26 @@ async fn restore_is_refused_after_the_window() {
     ));
     service.delete(&user.id).await.expect("cleanup");
 }
+
+#[tokio::test]
+async fn delete_refuses_a_user_under_legal_hold() {
+    let (_fixture, service) = setup().await;
+    let (name, email) = unique("held");
+    let user = service
+        .create(&name, &email, None, None)
+        .await
+        .expect("create");
+    service.set_legal_hold(&user.id, true).await.expect("hold");
+
+    assert!(matches!(
+        service.delete(&user.id).await,
+        Err(UserError::LegalHold(_))
+    ));
+    assert!(service.find_by_id(&user.id).await.expect("find").is_some());
+
+    service
+        .set_legal_hold(&user.id, false)
+        .await
+        .expect("release");
+    service.delete(&user.id).await.expect("cleanup");
+}
