@@ -12,11 +12,13 @@
 //! `ai.history.retention_days`' own default for when no services tree is
 //! loaded.
 //!
-//! The run also fails orphaned pending AI requests.
+//! The run also fails orphaned pending AI requests, and purges archived users
+//! past `retention.archived_users_days` that are not under legal hold.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod archived_users;
 mod orphans;
 mod tables;
 
@@ -34,6 +36,7 @@ use tracing::{debug, info, warn};
 use crate::repository::RetentionRepository;
 use crate::services::scheduling::job_app_context;
 
+use self::archived_users::purge_archived_users;
 use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
 use self::tables::{RetentionPass, delete_in_batches};
 
@@ -105,10 +108,14 @@ impl Job for DatabaseCleanupJob {
             passes.push(pass);
         }
 
+        let archived =
+            purge_archived_users(&db_pool, retention.archived_users_days, ctx.enforce()).await?;
+        total += archived;
+
         let duration_ms = u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX);
         debug!(total_deleted = total, duration_ms, "Job completed");
         Ok(JobResult::success()
-            .with_message(summary(orphaned, &passes))
+            .with_message(format!("{} archived_users={archived}", summary(orphaned, &passes)))
             .with_stats(total, 0)
             .with_duration(duration_ms))
     }

@@ -18,6 +18,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod archive;
 mod bulk;
 mod merge;
 mod provider;
@@ -245,6 +246,9 @@ impl UserService {
         self.repository.assign_roles(id, roles).await
     }
 
+    /// Physical delete with no archive or legal-hold check: the user and every
+    /// row keyed on them. Operators archive ([`UserService::archive`]) and the
+    /// guarded [`UserService::purge`] removes an archive.
     pub async fn delete(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
         self.repository.delete(id).await
     }

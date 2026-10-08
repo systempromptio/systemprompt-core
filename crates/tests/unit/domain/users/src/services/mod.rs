@@ -17,4 +17,5 @@ mod device_cert_service;
 mod providers_db;
 mod user_provider;
 mod user_provider_impl;
+mod user_archive_db;
 mod user_service;

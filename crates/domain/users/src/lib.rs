@@ -46,7 +46,7 @@ pub use models::{
     UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions, normalise_email,
 };
 pub use repository::{
-    BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
+    ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
     CreateApiKeyParams, EnrollDeviceCertParams, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
     PurgeCount, SessionRepository, UserRateLimitBucketRepository, UserRepository,
     UsersRoleDirectory,

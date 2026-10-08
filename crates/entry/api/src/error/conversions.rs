@@ -133,7 +133,10 @@ impl From<UserError> for ApiHttpError {
         let api = match err {
             UserError::Repository(inner) => ApiError::from(inner),
             e @ UserError::NotFound(_) => ApiError::not_found(e.to_string()),
-            e @ UserError::EmailAlreadyExists(_) => ApiError::conflict(e.to_string()),
+            e @ (UserError::EmailAlreadyExists(_)
+            | UserError::LegalHold(_)
+            | UserError::NotArchived(_)
+            | UserError::RestoreRefused { .. }) => ApiError::conflict(e.to_string()),
             e @ (UserError::Validation(_)
             | UserError::InvalidStatus(_)
             | UserError::InvalidRole(_)

@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `database_cleanup` purges archived users older than `retention.archived_users_days` that are not under legal hold, and reports `archived_users=N` in its run message.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking
