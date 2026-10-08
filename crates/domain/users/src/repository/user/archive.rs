@@ -31,9 +31,9 @@ pub struct ArchiveParams<'a> {
 /// The credentials an archive revoked.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ArchiveOutcome {
-    pub sessions_revoked: u64,
-    pub api_keys_revoked: u64,
-    pub device_certs_revoked: u64,
+    pub sessions: u64,
+    pub api_keys: u64,
+    pub device_certs: u64,
 }
 
 /// A user's archive fields. `archived_at` is `None` for a row deleted before
@@ -100,14 +100,12 @@ impl UserRepository {
         .await?;
         tx.commit().await?;
         Ok(ArchiveOutcome {
-            sessions_revoked: sessions.rows_affected(),
-            api_keys_revoked: api_keys.rows_affected(),
-            device_certs_revoked: device_certs.rows_affected(),
+            sessions: sessions.rows_affected(),
+            api_keys: api_keys.rows_affected(),
+            device_certs: device_certs.rows_affected(),
         })
     }
 
-    /// Reverses an archive no older than `window_days`. Returns `false` when
-    /// the user is not archived or the window has passed.
     pub async fn restore(&self, id: &UserId, window_days: u32) -> Result<bool> {
         let restored = sqlx::query!(
             r#"
@@ -162,8 +160,6 @@ impl UserRepository {
         }))
     }
 
-    /// Archives older than `window_days` and not under legal hold, oldest
-    /// first: the set `database_cleanup` purges.
     pub async fn list_purgeable_archives(
         &self,
         window_days: u32,

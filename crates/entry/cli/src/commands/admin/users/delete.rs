@@ -122,9 +122,9 @@ pub(super) async fn execute(args: DeleteArgs, ctx: &CommandContext) -> Result<Co
             "User '{}' archived: {} sessions, {} API keys and {} device certificates revoked{}. \
              Restore with `admin users restore {}`.",
             user.name,
-            outcome.sessions_revoked,
-            outcome.api_keys_revoked,
-            outcome.device_certs_revoked,
+            outcome.sessions,
+            outcome.api_keys,
+            outcome.device_certs,
             if args.legal_hold {
                 "; under legal hold"
             } else {

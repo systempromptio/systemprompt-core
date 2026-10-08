@@ -24,8 +24,6 @@ pub struct DeploymentState {
     pub in_flight: u64,
 }
 
-/// The full attempt order over `states`; `draw` is a uniform random number
-/// that only `weighted` consumes.
 #[must_use]
 pub fn plan_selection(
     strategy: SelectionStrategy,

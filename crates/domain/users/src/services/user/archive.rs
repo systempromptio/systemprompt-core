@@ -42,7 +42,6 @@ impl UserService {
         self.repository.find_archive_state(id).await
     }
 
-    /// Physically deletes an archived user and every row keyed on them.
     pub async fn purge(&self, id: &UserId) -> Result<Vec<PurgeCount>> {
         let state = self
             .repository
@@ -58,8 +57,6 @@ impl UserService {
         self.repository.delete(id).await
     }
 
-    /// Purges up to `limit` archives older than `window_days` that are not
-    /// under legal hold. Returns the ids purged.
     pub async fn purge_expired_archives(
         &self,
         window_days: u32,

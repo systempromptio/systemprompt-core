@@ -31,9 +31,6 @@ impl UserRepository {
         Ok(result.rows_affected())
     }
 
-    /// Archives every listed user, as [`UserRepository::archive`] does for
-    /// one: status `deleted`, `archived_at` stamped, and their sessions, API
-    /// keys and device certificates revoked, in one transaction.
     pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
         let deleted_status = UserStatus::Deleted.as_str();
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
