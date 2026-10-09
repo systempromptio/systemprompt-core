@@ -18,7 +18,6 @@ use anyhow::Context;
 use axum::Router;
 use axum::routing::{get, post};
 use clap::{Parser, ValueEnum};
-use rand::Rng;
 use serde_json::Value;
 
 // Fixed count keeps body size — and therefore serialisation latency —
@@ -78,7 +77,7 @@ impl Latency {
         let ms = match self {
             Self::Fixed(n) => n,
             Self::Range { min, max } if min == max => min,
-            Self::Range { min, max } => rand::thread_rng().gen_range(min..=max),
+            Self::Range { min, max } => rand::random_range(min..=max),
         };
         Duration::from_millis(ms)
     }
@@ -118,7 +117,7 @@ impl AppState {
         if matches!(self.mode, Mode::FiveXx) {
             return true;
         }
-        self.fail_rate > 0.0 && rand::thread_rng().gen_bool(self.fail_rate.clamp(0.0, 1.0))
+        self.fail_rate > 0.0 && rand::random_bool(self.fail_rate.clamp(0.0, 1.0))
     }
 }
 
