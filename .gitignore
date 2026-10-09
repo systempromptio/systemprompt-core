@@ -192,6 +192,7 @@ rustc-ice-*.txt
 !scripts/check-fail-open.sh
 !scripts/lint-silent-skips.sh
 !scripts/lint-async-trait.sh
+!scripts/lint-shared-test-ids.sh
 !scripts/lint-json-value.sh
 !scripts/lint-tracing-messages.sh
 !scripts/lint-table-ownership.sh
