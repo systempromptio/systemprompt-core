@@ -11,6 +11,13 @@ use uuid::Uuid;
 
 use super::repository::AiRequestRepository;
 
+#[derive(Debug, Clone, Copy)]
+pub struct RequestMessageRow<'a> {
+    pub role: &'a str,
+    pub content: &'a str,
+    pub sequence_number: i32,
+}
+
 #[derive(Debug)]
 pub struct InsertToolCallParams<'a> {
     pub request_id: &'a AiRequestId,
@@ -47,6 +54,41 @@ impl AiRequestRepository {
         .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
+    }
+
+    pub async fn insert_messages(
+        &self,
+        request_id: &AiRequestId,
+        messages: &[RequestMessageRow<'_>],
+    ) -> Result<u64, RepositoryError> {
+        if messages.is_empty() {
+            return Ok(0);
+        }
+        let mut ids = Vec::with_capacity(messages.len());
+        let mut roles = Vec::with_capacity(messages.len());
+        let mut contents = Vec::with_capacity(messages.len());
+        let mut sequences = Vec::with_capacity(messages.len());
+        for message in messages {
+            ids.push(Uuid::new_v4().to_string());
+            roles.push(message.role.to_owned());
+            contents.push(message.content.to_owned());
+            sequences.push(message.sequence_number);
+        }
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at, updated_at)
+            SELECT t.id, $1, t.role, t.content, t.sequence_number, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM UNNEST($2::text[], $3::text[], $4::text[], $5::int4[]) AS t(id, role, content, sequence_number)
+            "#,
+            request_id.as_str(),
+            &ids,
+            &roles,
+            &contents,
+            &sequences
+        )
+        .execute(self.write_pool())
+        .await?;
+        Ok(result.rows_affected())
     }
 
     pub async fn list_messages(

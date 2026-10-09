@@ -7,7 +7,7 @@
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 use bytes::Bytes;
 use systemprompt_ai::models::{AiRequestRecord, RequestKind};
-use systemprompt_ai::repository::UpsertPayloadParams;
+use systemprompt_ai::repository::{RequestMessageRow, UpsertPayloadParams};
 
 use super::GatewayAudit;
 use super::message_text::flatten_message_content;
@@ -128,30 +128,35 @@ impl GatewayAudit {
     }
 
     async fn persist_request_messages(&self, request: &CanonicalRequest) -> Result<()> {
-        let mut seq = 0i32;
-        if let Some(system) = request.system_text() {
-            self.requests
-                .insert_message(&self.ctx.ai_request_id, "system", &system, seq)
-                .await?;
-            seq += 1;
-        }
-        for msg in &request.messages {
-            let role = match msg.role {
-                Role::System => "system",
-                Role::User => "user",
-                Role::Assistant => "assistant",
-                Role::Tool => "tool",
-            };
-            self.requests
-                .insert_message(
-                    &self.ctx.ai_request_id,
-                    role,
-                    &flatten_message_content(&msg.content),
-                    seq,
-                )
-                .await?;
-            seq += 1;
-        }
+        let system = request.system_text();
+        let flattened: Vec<(&'static str, String)> = request
+            .messages
+            .iter()
+            .map(|msg| {
+                let role = match msg.role {
+                    Role::System => "system",
+                    Role::User => "user",
+                    Role::Assistant => "assistant",
+                    Role::Tool => "tool",
+                };
+                (role, flatten_message_content(&msg.content))
+            })
+            .collect();
+        let rows: Vec<RequestMessageRow<'_>> = system
+            .as_deref()
+            .map(|text| ("system", text))
+            .into_iter()
+            .chain(flattened.iter().map(|(role, text)| (*role, text.as_str())))
+            .zip(0i32..)
+            .map(|((role, content), sequence_number)| RequestMessageRow {
+                role,
+                content,
+                sequence_number,
+            })
+            .collect();
+        self.requests
+            .insert_messages(&self.ctx.ai_request_id, &rows)
+            .await?;
         Ok(())
     }
 }

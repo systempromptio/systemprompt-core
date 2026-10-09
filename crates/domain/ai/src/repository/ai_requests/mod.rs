@@ -25,7 +25,7 @@ mod repository;
 mod settlement;
 mod trace;
 
-pub use message_operations::InsertToolCallParams;
+pub use message_operations::{InsertToolCallParams, RequestMessageRow};
 pub use orphans::{ORPHAN_AGE, ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
 pub use settlement::{

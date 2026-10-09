@@ -209,9 +209,14 @@ async fn persist_findings(
     safety: &SafetyConfig,
     blocks: &(dyn Fn(&Finding) -> bool + Sync),
 ) {
-    for f in findings {
-        let excerpt = persisted_excerpt(f, safety);
-        let params = InsertSafetyFinding {
+    let excerpts: Vec<Option<String>> = findings
+        .iter()
+        .map(|f| persisted_excerpt(f, safety))
+        .collect();
+    let rows: Vec<InsertSafetyFinding<'_>> = findings
+        .iter()
+        .zip(&excerpts)
+        .map(|(f, excerpt)| InsertSafetyFinding {
             ai_request_id,
             phase: f.phase,
             severity: f.severity.as_str(),
@@ -219,9 +224,9 @@ async fn persist_findings(
             scanner: f.scanner,
             excerpt: excerpt.as_deref(),
             blocked: blocks(f),
-        };
-        if let Err(e) = repo.insert(params).await {
-            tracing::warn!(error = %e, "safety finding insert failed");
-        }
+        })
+        .collect();
+    if let Err(e) = repo.insert_many(&rows).await {
+        tracing::warn!(error = %e, count = rows.len(), "safety findings insert failed");
     }
 }
