@@ -23,11 +23,11 @@
 //! - `mode: webhook` with an extension hook registered → the extension hook is
 //!   used exactly as under `mode: extension`, and one warning names
 //!   `governance.authz.hook.mode` as the key to change. Profiles written before
-//!   in-process hooks pointed the webhook at the same process, so the registered
-//!   hook is the same decision without the HTTP hop.
-//! - `mode: disabled` or `mode: unrestricted` with an extension hook → bootstrap
-//!   fails with [`AuthzBootstrapError::ExtensionHookButWrongMode`] so an
-//!   operator never silently runs the wrong mode.
+//!   in-process hooks pointed the webhook at the same process, so the
+//!   registered hook is the same decision without the HTTP hop.
+//! - `mode: disabled` or `mode: unrestricted` with an extension hook →
+//!   bootstrap fails with [`AuthzBootstrapError::ExtensionHookButWrongMode`] so
+//!   an operator never silently runs the wrong mode.
 //!
 //! Bootstrap ordering: called from `AppContextBuilder::build` after the
 //! database pool is created so the audit sink can write to

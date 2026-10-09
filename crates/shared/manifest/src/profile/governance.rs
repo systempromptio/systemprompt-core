@@ -4,8 +4,8 @@
 //!
 //! - `webhook` — production. Core POSTs every request to the configured URL;
 //!   any transport error, non-2xx, or decode failure denies the request.
-//! - `extension` — production, explicit opt-in. The hook is
-//!   supplied at bootstrap by the binary via `register_authz_hook!` or
+//! - `extension` — production, explicit opt-in. The hook is supplied at
+//!   bootstrap by the binary via `register_authz_hook!` or
 //!   `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors if no hook is
 //!   supplied. See `internal/guides/authz.md`.
 //!
