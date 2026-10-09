@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.65.1] - 2026-10-09
+
+### Fixed
+
+- `CloudProfileBuilder` and `LocalProfileBuilder` set `security.issuer` to the profile's external URL; the old `systemprompt` / `systemprompt-local` values failed profile validation.
+
+### Breaking
+
+- `constants::profile::{LOCAL_ISSUER, CLOUD_ISSUER}` are removed.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

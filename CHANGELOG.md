@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.65.1] - 2026-10-09
+
+### Fixed
+
+- **Profile / Cloud:** profile validation and `cloud doctor` no longer disagree about what a cloud profile needs. 0.63.0 shipped with validation refusing `server.instance_id` while the doctor failed its absence, and two disagreements survived the fix. The doctor's `proxy-topology` check failed a cloud profile whose `server.trusted_proxies` leaves out Fly's peer range `fc00::/7`, which validation accepts; it now warns. `cloud doctor --distributed` failed a local profile with an empty `trusted_proxies`, which validation accepts; it now warns. The profile-only doctor checks run through one function, `systemprompt_cli::cloud::doctor::profile_checks`, and a test holds that it fails exactly the profiles validation refuses.
+- **Cloud:** `cloud profile create` and the local profile authoring wrote `security.issuer: systemprompt` (cloud) and `systemprompt-local` (local), which validation refuses as not an absolute URL, so a freshly generated profile failed `cloud doctor` and `cloud deploy`. The issuer is now the profile's `server.api_external_url`.
+
+### Changed
+
+- **Cloud:** `cloud doctor` runs the `instance-id` and `trusted-proxies` checks on every run, not only under `--distributed`; they need only the profile. They print after `profile`, `proxy-topology` and `hook-url`, ahead of the secrets checks.
+
+### Breaking
+
+- **Cloud Rust API:** `systemprompt_cloud::constants::profile::{LOCAL_ISSUER, CLOUD_ISSUER}` are removed; the builders take the issuer from the external URL.
+
 ## [0.65.0] - 2026-10-09
 
 ### Added

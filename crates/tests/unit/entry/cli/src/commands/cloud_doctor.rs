@@ -55,11 +55,11 @@ fn proxy_topology_passes_for_generated_cloud_profile() {
 }
 
 #[test]
-fn proxy_topology_fails_when_fly_range_missing() {
+fn proxy_topology_warns_when_fly_range_missing() {
     let mut profile = CloudProfileBuilder::new("prod").build();
     profile.server.trusted_proxies = vec!["104.16.0.0/13".parse().unwrap()];
     let result = check_proxy_topology(&profile);
-    assert_eq!(result.status, CheckStatus::Fail);
+    assert_eq!(result.status, CheckStatus::Warn);
     assert!(result.detail.contains("fc00::/7"));
     assert!(result.detail.contains("trusted_proxies"));
 }
@@ -74,10 +74,10 @@ fn proxy_topology_warns_when_only_fly_public_edge_missing() {
 }
 
 #[test]
-fn proxy_topology_fails_for_empty_cloud_list() {
+fn proxy_topology_warns_for_empty_cloud_list() {
     let mut profile = CloudProfileBuilder::new("prod").build();
     profile.server.trusted_proxies = Vec::new();
-    assert_eq!(check_proxy_topology(&profile).status, CheckStatus::Fail);
+    assert_eq!(check_proxy_topology(&profile).status, CheckStatus::Warn);
 }
 
 #[test]

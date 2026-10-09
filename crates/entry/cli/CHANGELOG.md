@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.65.1] - 2026-10-09
+
+### Added
+
+- `cloud::doctor::profile_checks` runs every doctor check that needs only the profile; `cloud doctor` and the deploy preflight both call it.
+
+### Changed
+
+- `cloud doctor` runs `instance-id` and `trusted-proxies` on every run, not only under `--distributed`. `trusted-proxies` warns on an empty list for a local profile instead of failing, and `proxy-topology` warns instead of failing when a cloud profile's `trusted_proxies` misses `fc00::/7`; profile validation accepts both profiles.
+
 ## [0.65.0] - 2026-10-09
 
 ### Changed

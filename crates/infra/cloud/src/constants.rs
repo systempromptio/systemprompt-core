@@ -115,7 +115,7 @@ pub mod proxies {
         "192.168.0.0/16",
     ];
 
-    pub const FLY_PRIVATE_RANGES: &[&str] = &[systemprompt_manifest::profile::CLOUD_PEER_RANGE];
+    pub const FLY_PRIVATE_RANGES: &[&str] = &["fc00::/7"];
 
     pub const FLY_PUBLIC_RANGES: &[&str] = &["66.241.64.0/18"];
 

@@ -205,7 +205,7 @@ pub fn check_proxy_topology(profile: &Profile) -> CheckResult {
              (66.241.64.0/18) ranges",
         );
     }
-    CheckResult::fail(
+    CheckResult::warn(
         "proxy-topology",
         "server.trusted_proxies does not cover Fly's internal peer range fc00::/7 — every \
          request would resolve to the Fly proxy's private address and forwarded client-IP \
