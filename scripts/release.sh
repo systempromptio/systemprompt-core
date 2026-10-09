@@ -100,20 +100,21 @@ for m in "${LOCK_MANIFESTS[@]}"; do
   cargo update --workspace --manifest-path "$m/Cargo.toml" >/dev/null
 done
 
-echo "==> version strings"
-if ! just check-version-strings; then
-  echo "error: version strings disagree with $NEW_VERSION (internal/release.md §1c). Nothing is committed;" >&2
-  echo "       the bump is in the tree. Fix the strings, then: just check-version-strings &&" >&2
-  echo "       git add ${RELEASE_FILES[*]} <fixed files> && git commit -m \"Release $NEW_VERSION\"" >&2; exit 1
-fi
-
 echo "==> release commit"
 git add "${RELEASE_FILES[@]}"
-git commit -m "Release $NEW_VERSION"
+git commit -q -m "Release $NEW_VERSION"
+echo "Bumped to ${NEW_VERSION} at $(git rev-parse --short HEAD)."
+
+echo "==> version strings"
+if ! just check-version-strings; then
+  echo "error: version strings still disagree with $NEW_VERSION (internal/release.md §1c)." >&2
+  echo "       The bump commit exists; fix the strings and amend them into it:" >&2
+  echo "       just check-version-strings && git add -u && git commit --amend --no-edit" >&2; exit 1
+fi
 
 cat <<EOF
 
-Bumped to ${NEW_VERSION} at $(git rev-parse --short HEAD). Still manual (internal/release.md §1c):
+Still manual (internal/release.md §1c):
 root README.md, AGENTS.md, documentation/**, per-crate README snippets,
 CHANGELOGs (root, bin/bridge, every changed crate — \`just check-crate-changelogs\`),
 per-crate .sqlx if SQL changed. Amend them into the release commit.
@@ -121,10 +122,11 @@ per-crate .sqlx if SQL changed. Amend them into the release commit.
 Then — every check below runs in the cloud:
   git push origin HEAD:next       # CI, Quality, Supply Chain run on the push
   just gate                       # read-only: the push run on the exact SHA must be green
-  just promote <sha>              # refuses unless green; opens the release PR; merge it
+  just promote <sha>              # refuses unless green; opens the release PR
+  just merge-release <sha>        # merges only on the PR's own proof; re-proves the merge
   git fetch origin main && git checkout --detach origin/main
   git tag v${NEW_VERSION} bridge-v${NEW_VERSION} && git push origin v${NEW_VERSION} bridge-v${NEW_VERSION}
-  for i in 1 2 3 4 5 6; do cargo ws publish --no-verify --publish-as-is --yes && break; sleep 20; done
+  just publish-crates             # retries 429, verifies every crate on the sparse index
 
 Canonical flow: internal/release-flow.md
 EOF
