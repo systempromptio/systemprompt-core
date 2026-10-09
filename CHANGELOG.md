@@ -20,6 +20,7 @@
 
 ### Fixed
 
+- **Authz:** catalog reconciles no longer overwrite an entity's access columns. `reconcile_entities` (gateway routes, services, composed bundles, `admin config reconcile`) and the messaging seed ingest used `ON CONFLICT DO UPDATE SET default_included, source`, which reset whatever the access-control plane had declared. Gateway routes reset to `false`, so after a restart every PAT `/v1/messages` was denied with `authz_rule_based ... default_included = false`. On conflict they now touch only `updated_at`, and a first insert keeps its default. A marketplace manifest writes `default_included` and `source` only when its `access:` block declares something (`MarketplaceAccess::is_declared`); an absent block leaves an existing row as the plane set it.
 - **Database:** Postgres prepared statements are bounded per connection; capacity 0 leaked them. With the cache off, sqlx 0.9 still Parses every `query!` as a named statement and never Closes it, so each backend grew until Postgres ran out of memory under sustained load. The default is now 100, and evictions deallocate. A migration run in-process (`migrate_on_boot` or `infra db migrate`) calls `systemprompt_database::mark_schema_changed`, and every pooled connection opened before it is closed on its next acquire, so no stale plan hits SQLSTATE 0A000. Another process migrating under a running server still needs that server restarted, as before.
 
 ### Breaking

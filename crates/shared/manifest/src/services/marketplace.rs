@@ -119,6 +119,14 @@ impl MarketplaceAccess {
     }
 
     #[must_use]
+    pub fn is_declared(&self) -> bool {
+        self.default_included
+            || self.declares_rules()
+            || !self.attributes.is_empty()
+            || self.justification.is_some()
+    }
+
+    #[must_use]
     pub fn rule_types(&self) -> BTreeSet<&str> {
         let mut out: BTreeSet<&str> = self.rules.iter().map(|r| r.rule_type.as_str()).collect();
         if !self.roles.is_empty() {

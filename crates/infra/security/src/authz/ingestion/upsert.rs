@@ -17,6 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgConnection;
+use systemprompt_manifest::services::MarketplaceAccess;
 
 use crate::authz::error::AuthzResult;
 use crate::authz::repository::ingestion::IngestionRepository;
@@ -48,13 +49,27 @@ pub(super) async fn upsert_entity_row(
     IngestionRepository::upsert_entity(conn, entity_kind, entity_id, default_included, source).await
 }
 
+// Why: marketplace manifests usually carry no `access:` block (the access
+// plane declares it), and serde defaults an absent block to
+// `default_included: false`. Only a block that declares something may write
+// the access columns; otherwise an existing row keeps what the plane set.
 pub(super) async fn upsert_marketplace_entity_row(
     conn: &mut PgConnection,
     entity_id: &str,
-    default_included: bool,
+    access: &MarketplaceAccess,
 ) -> AuthzResult<()> {
     let source = format!("marketplace:{entity_id}");
-    IngestionRepository::upsert_marketplace_entity(conn, entity_id, default_included, &source).await
+    let declared = access.is_declared().then_some(access.default_included);
+    IngestionRepository::upsert_marketplace_entity(conn, entity_id, declared, &source).await
+}
+
+pub(super) async fn ensure_catalog_entity_row(
+    conn: &mut PgConnection,
+    entity_kind: EntityKind,
+    entity_id: &str,
+    source: &str,
+) -> AuthzResult<()> {
+    IngestionRepository::ensure_catalog_entity(conn, entity_kind, entity_id, source).await
 }
 
 pub(super) async fn upsert_target(

@@ -65,19 +65,44 @@ impl IngestionRepository {
     pub(crate) async fn upsert_marketplace_entity(
         conn: &mut PgConnection,
         entity_id: &str,
-        default_included: bool,
+        access: Option<bool>,
         source: &str,
     ) -> AuthzResult<()> {
         sqlx::query!(
             r#"
         INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
-        VALUES ('marketplace', $1, $2, $3)
+        VALUES ('marketplace', $1, COALESCE($2, false), $3)
         ON CONFLICT (entity_type, entity_id)
-        DO UPDATE SET default_included = EXCLUDED.default_included,
-                      source = EXCLUDED.source
+        DO UPDATE SET default_included = COALESCE($2, access_control_entities.default_included),
+                      source = CASE WHEN $2::boolean IS NULL
+                                    THEN access_control_entities.source
+                                    ELSE EXCLUDED.source END,
+                      updated_at = NOW()
         "#,
             entity_id,
-            default_included,
+            access,
+            source,
+        )
+        .execute(&mut *conn)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn ensure_catalog_entity(
+        conn: &mut PgConnection,
+        entity_kind: EntityKind,
+        entity_id: &str,
+        source: &str,
+    ) -> AuthzResult<()> {
+        sqlx::query!(
+            r#"
+        INSERT INTO access_control_entities (entity_type, entity_id, default_included, source)
+        VALUES ($1, $2, false, $3)
+        ON CONFLICT (entity_type, entity_id)
+        DO UPDATE SET updated_at = NOW()
+        "#,
+            entity_kind.as_str(),
+            entity_id,
             source,
         )
         .execute(&mut *conn)
