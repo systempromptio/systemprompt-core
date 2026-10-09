@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Added
+
+- **Profile:** `database.pool.statement_cache_capacity` (default 100, validated 0..=1000) sets sqlx's per-connection prepared-statement cache. 0 is still accepted but leaks, see Fixed.
+- **API:** `db_pool_size{pool}` and `db_pool_connections{pool,state="idle"|"used"}` gauges, sampled every 5 s for the write pool and, when a replica is configured, the read pool. No acquire-latency histogram: queries hand the pool straight to sqlx, so there is no central acquire to time.
+
+### Changed
+
+- **Authz:** an extension hook registered under `governance.authz.hook.mode: webhook` is now used instead of refusing boot with `ExtensionHookButWrongMode`. The webhook `url` is ignored and one warning names `governance.authz.hook.mode` as the key to set to `extension`. Profiles written before in-process hooks pointed the webhook at the same process, so this is the same decision without the HTTP hop. A hook under `disabled` or `unrestricted`, and `extension` with no hook, still refuse to boot. `admin setup` and the cloud profile authoring still write `mode: webhook` with the loopback url, so a downstream that links no hook keeps booting against its webhook; `extension` stays an explicit opt-in.
+- **Gateway:** one `PolicyResolver` is built per router and shared across requests, so its 60 s cache is hit; the global gateway policy is no longer read from Postgres on every `/v1/messages`. A policy edit takes effect within 60 s.
+- **Gateway:** the admission writes commit in one transaction (`AiRequestRepository::admit`) instead of one autocommit per statement: the request row and attributions, client evidence, the request payload and offered tools, the messages, the route match, served provider, system-prompt override, prepared-body digest and request-phase safety findings. `GatewayAudit::open` now stages them, and `commit_admission` writes them right before the upstream call, or first thing on any failure path. Staging in memory rather than holding an open transaction keeps no pooled connection pinned while quota and extension guards take their own. Fields that were best-effort stay best-effort under savepoints. The journal lease is taken after the commit, so a lease still implies the row exists.
+- **Gateway:** the governance decision row for a dispatched request, including a quota warn-mode decision, is written in the admission transaction, so the request row and its decision commit together. A denial that happens before the request row exists still records through its own path.
+- **Gateway:** quota admission and settlement write every window's bucket in one `INSERT ... SELECT FROM UNNEST ... ON CONFLICT` (`AiQuotaBucketRepository::increment_many`) instead of one upsert per window. Rows lock in `(subject_kind, subject_id, window_seconds, window_start)` order, so requests sharing buckets cannot deadlock. Limits are still checked per window in order. A window past the first exceeded ceiling is charged and then reversed, so the stored totals match the per-window loop. Windows that share a bucket are merged into one row.
+- **Gateway:** request messages and safety findings are written with one `INSERT ... SELECT FROM UNNEST` each instead of one INSERT per row (`AiRequestRepository::insert_messages`, `AiSafetyFindingRepository::insert_many`).
+- **Gateway:** `user_contexts` is upserted once per request. The HTTP extract step already binds the conversation, so `audit.open` skips the repeat when `GatewayRequestContext::context_bound` is true.
+- **Users:** `ApiKeyService::verify` updates `user_api_keys.last_used_at` only when the stored value is NULL or at least 60 s old.
+
+### Fixed
+
+- **Authz:** catalog reconciles no longer overwrite an entity's access columns. `reconcile_entities` (gateway routes, services, composed bundles, `admin config reconcile`) and the messaging seed ingest used `ON CONFLICT DO UPDATE SET default_included, source`, which reset whatever the access-control plane had declared. Gateway routes reset to `false`, so after a restart every PAT `/v1/messages` was denied with `authz_rule_based ... default_included = false`. On conflict they now touch only `updated_at`, and a first insert keeps its default. A marketplace manifest writes `default_included` and `source` only when its `access:` block declares something (`MarketplaceAccess::is_declared`); an absent block leaves an existing row as the plane set it.
+- **Database:** Postgres prepared statements are bounded per connection; capacity 0 leaked them. With the cache off, sqlx 0.9 still Parses every `query!` as a named statement and never Closes it, so each backend grew until Postgres ran out of memory under sustained load. The default is now 100, and evictions deallocate. A migration run in-process (`migrate_on_boot` or `infra db migrate`) calls `systemprompt_database::mark_schema_changed`, and every pooled connection opened before it is closed on its next acquire, so no stale plan hits SQLSTATE 0A000. Another process migrating under a running server still needs that server restarted, as before.
+
+### Breaking
+
+- **Gateway Rust API:** `GatewayAudit::open` no longer writes; callers outside the dispatch path must call `GatewayAudit::commit_admission` before reading the request row. `systemprompt_ai::repository::{AdmissionWrite, PreparedDigest}` and `systemprompt_security::policy::record_decision_with` are new.
+- **Gateway Rust API:** `GatewayRequestContext` gains `context_bound: bool` and `GatewayRepositories` gains `policy_resolver: PolicyResolver`; a struct literal must name them (`false` keeps the old double upsert). `systemprompt_ai::RequestMessageRow` is new.
+- **Database / Manifest Rust API:** `systemprompt_database::PoolConfig` gains `statement_cache_capacity: usize` (0 keeps the old behaviour) and the profile `PoolConfig` gains `statement_cache_capacity: Option<usize>`; a struct literal must name them or use `..Default::default()`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Migration

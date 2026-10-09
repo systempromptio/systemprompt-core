@@ -106,7 +106,7 @@ pub(super) async fn enforce_quota(
             reason = %decision.message,
             "Gateway quota window exhausted in warn mode; allowing the request"
         );
-        record_quota_warning(db, ctx, &decision.message)
+        record_quota_warning(db, audit, &decision.message)
             .await
             .map_err(|e| {
                 DispatchError::Recorded(GatewayError::internal("quota warning record failed", e))

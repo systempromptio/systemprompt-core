@@ -66,7 +66,7 @@ pub use models::{
 
 pub use services::{
     BoxFuture, Database, DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DbPool, PoolConfig,
-    PostgresProvider, SqlExecutor, with_transaction_retry,
+    PostgresProvider, SqlExecutor, mark_schema_changed, with_transaction_retry,
 };
 
 pub use error::DatabaseResult;

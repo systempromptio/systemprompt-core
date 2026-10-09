@@ -5,7 +5,7 @@ Disable defaults with `default-features = false` when selecting an independent f
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.64", features = ["api"] }
+systemprompt = { version = "0.65", features = ["api"] }
 ```
 
 ## Feature matrix

@@ -71,6 +71,7 @@ pub(super) async fn dispatch_to_provider(
         attribution,
         api_key_windows,
         access_log: rc.access_log.clone(),
+        context_bound: true,
     };
 
     let gateway_config = rc

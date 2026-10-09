@@ -98,7 +98,7 @@ async fn upsert_marketplace(
     mentions: &mut BTreeSet<SubjectMention>,
 ) -> AuthzResult<IngestReport> {
     let mut report = IngestReport::default();
-    upsert_marketplace_entity_row(tx, entity_id, cfg.access.default_included).await?;
+    upsert_marketplace_entity_row(tx, entity_id, &cfg.access).await?;
 
     for role in &cfg.access.roles {
         let target = Target {

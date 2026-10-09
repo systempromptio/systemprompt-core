@@ -4,9 +4,15 @@
 //!
 //! - `webhook` — production. Core POSTs every request to the configured URL;
 //!   any transport error, non-2xx, or decode failure denies the request.
-//! - `extension` — production. The hook is supplied at bootstrap by the binary
-//!   via `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors if no hook
-//!   is supplied. See `internal/guides/authz.md`.
+//! - `extension` — production, explicit opt-in. The hook is supplied at
+//!   bootstrap by the binary via `register_authz_hook!` or
+//!   `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors if no hook is
+//!   supplied. See `internal/guides/authz.md`.
+//!
+//! When an extension hook is registered and the profile says `webhook`, the
+//! registered hook is used, `url` is ignored, and one warning asks for
+//! `mode: extension`. A hook registered under `disabled` or `unrestricted`
+//! still refuses to boot.
 //! - `disabled` — denies every request via `DenyAllHook`. Use when authz is
 //!   intentionally inactive but you want the surface installed.
 //! - `unrestricted` — TEST/DEV ONLY. Allows every request via `AllowAllHook`.

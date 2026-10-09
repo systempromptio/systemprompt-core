@@ -144,6 +144,10 @@ impl AccessControlRepository {
     }
 }
 
+// Why: a catalog reconcile (gateway routes, services, bundles) only asserts
+// that an entity exists. `default_included` and `source` belong to the
+// access-control plane; overwriting them here flipped every gateway route to
+// `default_included = false` on restart and denied every PAT request.
 async fn upsert_entities_on(
     conn: &mut PgConnection,
     entity_type: EntityKind,
@@ -161,9 +165,7 @@ async fn upsert_entities_on(
         SELECT $1, id, $3, $4
         FROM UNNEST($2::text[]) AS id
         ON CONFLICT (entity_type, entity_id) DO UPDATE
-        SET default_included = EXCLUDED.default_included,
-            source = EXCLUDED.source,
-            updated_at = NOW()
+        SET updated_at = NOW()
         "#,
         entity_type.as_str(),
         &ids_owned,

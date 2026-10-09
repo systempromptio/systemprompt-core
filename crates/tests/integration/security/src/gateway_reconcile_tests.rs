@@ -447,3 +447,55 @@ async fn ensure_entity_creates_closed_and_never_overwrites_default_included() {
 
     cleanup(&f.pg, &id).await;
 }
+
+#[tokio::test]
+async fn reconcile_never_overwrites_an_entitys_declared_default_included() {
+    let f = setup().await;
+    let repo = AccessControlRepository::new(&f.db);
+    let declared = f.default_route_id.clone();
+    let catalog_only = synthesize_route_id("catalog", &f.provider);
+    cleanup(&f.pg, &catalog_only).await;
+
+    repo.upsert_entity(
+        EntityKind::GatewayRoute,
+        declared.as_str(),
+        true,
+        "access-plane",
+    )
+    .await
+    .expect("declare default_included = true");
+    let keep = [declared.as_str(), catalog_only.as_str()];
+    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, false, "gateway")
+        .await
+        .expect("first reconcile");
+    repo.reconcile_entities(EntityKind::GatewayRoute, &keep, true, "gateway")
+        .await
+        .expect("second reconcile with the opposite flag");
+
+    let declared_row = repo
+        .get_entity(EntityKind::GatewayRoute, declared.as_str())
+        .await
+        .expect("get declared")
+        .expect("declared row survives reconcile");
+    assert!(
+        declared_row.default_included,
+        "a catalog reconcile must not flip the access plane's default_included"
+    );
+    assert_eq!(
+        declared_row.source, "access-plane",
+        "source stays the declarer's"
+    );
+
+    let catalog_row = repo
+        .get_entity(EntityKind::GatewayRoute, catalog_only.as_str())
+        .await
+        .expect("get catalog")
+        .expect("catalog row inserted");
+    assert!(
+        !catalog_row.default_included,
+        "the first insert keeps the reconcile's default; the second pass leaves it"
+    );
+
+    cleanup(&f.pg, &declared).await;
+    cleanup(&f.pg, &catalog_only).await;
+}

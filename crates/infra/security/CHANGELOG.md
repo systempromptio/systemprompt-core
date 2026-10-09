@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Changed
+
+- An extension hook registered under `governance.authz.hook.mode: webhook` is used instead of refusing boot with `ExtensionHookButWrongMode`; the webhook `url` is ignored and one warning names the key to set to `extension`. A hook under `disabled` or `unrestricted`, and `extension` with no hook, still refuse to boot.
+
+### Fixed
+
+- Catalog reconciles no longer overwrite an entity's access columns. `reconcile_entities` used `ON CONFLICT DO UPDATE SET default_included, source`, resetting gateway routes to `false` so every PAT `/v1/messages` was denied after a restart. On conflict it now touches only `updated_at`, and a first insert keeps its default.
+
+### Breaking
+
+- `policy::record_decision_with` is new; it writes a governance decision inside the caller's admission transaction.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

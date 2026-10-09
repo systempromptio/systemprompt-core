@@ -185,6 +185,9 @@ fn pool_config_from_profile(
     if let Some(secs) = p.max_lifetime_secs {
         cfg.max_lifetime = Duration::from_secs(secs);
     }
+    if let Some(capacity) = p.statement_cache_capacity {
+        cfg.statement_cache_capacity = capacity;
+    }
     cfg
 }
 
@@ -207,7 +210,11 @@ pub(super) async fn init_extensions(
     registry.validate()?;
 
     let report = if schema.install {
-        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
+        let report =
+            install_extension_schemas_full(&registry, database.write(), &[], migration_config)
+                .await?;
+        systemprompt_database::mark_schema_changed();
+        report
     } else {
         if schema.verify {
             let profile = ProfileBootstrap::get()?;

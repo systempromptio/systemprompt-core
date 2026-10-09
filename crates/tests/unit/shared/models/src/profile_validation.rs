@@ -319,6 +319,7 @@ mod database_pool {
             acquire_timeout_secs: Some(15),
             idle_timeout_secs: Some(600),
             max_lifetime_secs: Some(3600),
+            statement_cache_capacity: Some(100),
         });
         assert!(!errors_of(&p).contains("database.pool"));
     }

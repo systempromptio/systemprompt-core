@@ -185,7 +185,7 @@ impl GovernedDispatch {
                 |e| e.policy_id.as_str().to_owned(),
             );
 
-        record_governance_decision(db, ctx, evaluation, call_id, session_id)
+        record_governance_decision(db, audit, evaluation, call_id, session_id)
             .await
             .map_err(|e| DispatchError::recorded(GatewayError::internal("governance record", e)))?;
 

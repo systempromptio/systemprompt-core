@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Changed
+
+- One `PolicyResolver` is built per router and shared across requests, so its 60 s cache is hit; the global gateway policy is no longer read from Postgres on every `/v1/messages`. A policy edit takes effect within 60 s.
+- Admission writes commit in one transaction: `GatewayAudit::open` stages them and `commit_admission` writes them right before the upstream call, or first thing on any failure path. Staging in memory keeps no pooled connection pinned while quota and extension guards run. The journal lease is taken after the commit, so a lease still implies the row exists.
+- The governance decision row for a dispatched request, including a quota warn-mode decision, is written in the admission transaction. A denial before the request row exists still records through its own path.
+- Quota admission and settlement write every window's bucket in one statement (`increment_many`); rows lock in a fixed order, so requests sharing buckets cannot deadlock. A window past the first exceeded ceiling is charged and then reversed, so stored totals match the per-window loop.
+- `user_contexts` is upserted once per request: `audit.open` skips the repeat when `GatewayRequestContext::context_bound` is true.
+
+### Fixed
+
+- An admission failure whose failure marker also fails to persist returns `DispatchError::PreAudit` (the handler persists the rejection) instead of `Recorded`.
+
+### Breaking
+
+- `GatewayAudit::open` no longer writes; callers outside the dispatch path must call `GatewayAudit::commit_admission` before reading the request row.
+- `GatewayRequestContext` gains `context_bound: bool` and `GatewayRepositories` gains `policy_resolver: PolicyResolver`; a struct literal must name them (`false` keeps the old double upsert).
+
 ## [0.64.0] - 2026-10-08
 
 ### Added

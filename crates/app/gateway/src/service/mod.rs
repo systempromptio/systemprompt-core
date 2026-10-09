@@ -9,6 +9,7 @@
 )]
 
 pub mod abandon;
+mod admission;
 pub mod chain_plan;
 pub mod credentials;
 mod error;
@@ -35,6 +36,7 @@ use systemprompt_database::DbPool;
 use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
 
 use self::abandon::AbandonGuard;
+use self::admission::commit_admission;
 use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
@@ -44,7 +46,7 @@ use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, Upstream
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
-use crate::policies::{GatewayPolicySpec, PolicyResolver};
+use crate::policies::GatewayPolicySpec;
 use systemprompt_security::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
@@ -90,6 +92,7 @@ impl GatewayService {
 
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
+        let admitted = Arc::clone(&audit);
         let mut guard = AbandonGuard::arm(Arc::clone(&audit));
         let result = Box::pin(dispatch_opened(OpenedDispatch {
             config,
@@ -115,6 +118,11 @@ impl GatewayService {
         // task or stream tap. The guard is for the third outcome — the future
         // being dropped before it returns either.
         guard.disarm();
+        if result.is_err()
+            && let Err(error) = admitted.commit_admission().await
+        {
+            tracing::error!(%error, "Gateway admission write failed after a recorded error");
+        }
         result
     }
 }
@@ -209,6 +217,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit, &governance).await?;
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
+    commit_admission(&audit).await?;
 
     let outcome = send_with_failover(
         &mut scanned,
@@ -250,8 +259,8 @@ async fn dispatch_policy(
         return Err(DispatchError::pre_audit(GatewayError::MissingSession));
     }
 
-    let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-    let policy = resolver
+    let policy = repos
+        .policy_resolver
         .resolve(fault_mode)
         .await
         .map_err(DispatchError::pre_audit)?;

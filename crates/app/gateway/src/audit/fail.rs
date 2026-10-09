@@ -29,6 +29,13 @@ impl GatewayAudit {
     }
 
     pub async fn fail_with_usage(&self, error: &str, usage: Option<CanonicalUsage>) -> Result<()> {
+        if let Err(admission_error) = self.commit_admission().await {
+            tracing::error!(
+                ai_request_id = %self.ctx.ai_request_id,
+                error = %admission_error,
+                "Gateway admission write failed while recording a failure"
+            );
+        }
         let latency_ms = self.elapsed_ms();
         let mut receipt = journal::Receipt::pending(
             self.ctx.ai_request_id.clone(),

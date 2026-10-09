@@ -66,6 +66,7 @@ fn describe_metrics() {
     use crate::services::middleware::load_shed::{
         HTTP_IN_FLIGHT_LIMIT, HTTP_IN_FLIGHT_SATURATION, HTTP_LOAD_SHED_TOTAL,
     };
+    super::pool_metrics::describe();
     metrics::describe_counter!(
         HTTP_LOAD_SHED_TOTAL,
         "Requests refused with 503 because the in-flight ceiling was reached"

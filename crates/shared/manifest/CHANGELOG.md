@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Added
+
+- `database.pool.statement_cache_capacity` (default 100, validated 0..=1000) sets sqlx's per-connection prepared-statement cache. 0 is still accepted but leaks.
+
+### Fixed
+
+- A marketplace manifest writes `default_included` and `source` only when its `access:` block declares something (`MarketplaceAccess::is_declared`); an absent block leaves an existing row as the access-control plane set it.
+
+### Breaking
+
+- The profile `PoolConfig` gains `statement_cache_capacity: Option<usize>`; a struct literal must name it or use `..Default::default()`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Added

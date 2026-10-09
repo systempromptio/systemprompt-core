@@ -79,6 +79,13 @@ impl AiSafetyFindingRepository {
         Ok(id)
     }
 
+    pub async fn insert_many(
+        &self,
+        findings: &[InsertSafetyFinding<'_>],
+    ) -> Result<u64, RepositoryError> {
+        insert_many_with(self.write_pool.as_ref(), findings).await
+    }
+
     pub async fn list_rollup(
         &self,
         since: Option<chrono::DateTime<chrono::Utc>>,
@@ -104,4 +111,60 @@ impl AiSafetyFindingRepository {
         .await?;
         Ok(rows)
     }
+}
+
+pub(crate) async fn insert_many_with<'e, E>(
+    executor: E,
+    findings: &[InsertSafetyFinding<'_>],
+) -> Result<u64, RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    if findings.is_empty() {
+        return Ok(0);
+    }
+    let mut ids = Vec::with_capacity(findings.len());
+    let mut request_ids = Vec::with_capacity(findings.len());
+    let mut phases = Vec::with_capacity(findings.len());
+    let mut severities = Vec::with_capacity(findings.len());
+    let mut categories = Vec::with_capacity(findings.len());
+    let mut scanners = Vec::with_capacity(findings.len());
+    let mut excerpts: Vec<Option<String>> = Vec::with_capacity(findings.len());
+    let mut blocked = Vec::with_capacity(findings.len());
+    for f in findings {
+        ids.push(AiSafetyFindingId::generate().as_str().to_owned());
+        request_ids.push(f.ai_request_id.as_str().to_owned());
+        phases.push(f.phase.to_owned());
+        severities.push(f.severity.to_owned());
+        categories.push(f.category.to_owned());
+        scanners.push(f.scanner.to_owned());
+        excerpts.push(f.excerpt.map(str::to_owned));
+        blocked.push(f.blocked);
+    }
+    let result = sqlx::query!(
+        r#"
+            INSERT INTO ai_safety_findings (
+                id, ai_request_id, phase, severity, category, scanner, excerpt, blocked, created_at
+            )
+            SELECT t.id, t.ai_request_id, t.phase, t.severity, t.category, t.scanner, t.excerpt,
+                   t.blocked, CURRENT_TIMESTAMP
+            FROM UNNEST(
+                $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[],
+                $7::text[], $8::bool[]
+            ) AS t(id, ai_request_id, phase, severity, category, scanner, excerpt, blocked)
+            "#,
+        &ids,
+        &request_ids,
+        &phases,
+        &severities,
+        &categories,
+        &scanners,
+        // Why: sqlx infers `$7::text[]` as `&[String]`; `as _` keeps the
+        // nullable element type so an absent excerpt stays NULL.
+        excerpts.as_slice() as _,
+        &blocked
+    )
+    .execute(executor)
+    .await?;
+    Ok(result.rows_affected())
 }

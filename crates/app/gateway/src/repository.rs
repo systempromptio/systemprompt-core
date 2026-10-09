@@ -17,6 +17,7 @@ use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProvi
 use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
+use crate::policies::PolicyResolver;
 use crate::signature_cache::{TTL, ThoughtSignatureCache};
 
 #[derive(Clone)]
@@ -28,6 +29,7 @@ pub struct GatewayRepositories {
     pub client_evidence: Arc<AiRequestClientEvidenceRepository>,
     pub safety_findings: AiSafetyFindingRepository,
     pub gateway_policies: AiGatewayPolicyRepository,
+    pub policy_resolver: PolicyResolver,
     pub thought_signatures: Arc<ThoughtSignatureCache>,
     pub context_materializer: DynContextMaterializer,
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
@@ -60,6 +62,7 @@ impl GatewayRepositories {
             client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)),
             safety_findings: AiSafetyFindingRepository::new(db),
             gateway_policies: AiGatewayPolicyRepository::new(db),
+            policy_resolver: PolicyResolver::from_repository(AiGatewayPolicyRepository::new(db)),
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
                 TTL,
                 Arc::new(AiThoughtSignatureRepository::new(db)),

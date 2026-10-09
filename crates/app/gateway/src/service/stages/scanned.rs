@@ -10,7 +10,7 @@ use systemprompt_identifiers::AiRequestId;
 
 use super::super::super::audit::GatewayAudit;
 use super::super::finalize::{
-    persist_request_findings, request_finding_blocks, run_request_safety_scan,
+    persist_request_findings, request_finding_blocks, request_finding_rows, run_request_safety_scan,
 };
 use super::super::{DispatchError, SafetyBlocked};
 use super::recovery::redact_findings;
@@ -55,7 +55,10 @@ impl ScannedDispatch {
                 },
             },
         };
-        persist_request_findings(&repos.safety_findings, ai_request_id, &findings, safety).await;
+        if !audit.stash_request_findings(&request_finding_rows(&findings, safety)) {
+            persist_request_findings(&repos.safety_findings, ai_request_id, &findings, safety)
+                .await;
+        }
         let Some((category, scanner, detail)) = refusal else {
             return Ok(Self(prepared));
         };

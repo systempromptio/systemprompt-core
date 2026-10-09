@@ -19,6 +19,7 @@ mod health_stats;
 pub mod health_detail;
 pub mod lifecycle;
 pub mod metrics;
+mod pool_metrics;
 mod probes;
 pub mod readiness;
 pub mod routes;

@@ -17,7 +17,7 @@ use super::super::error::AuthzResult;
 use super::super::repository::ingestion::IngestionRepository;
 use super::super::types::{EntityKind, RuleType};
 use super::subjects::{SubjectMention, find_unknown_subjects};
-use super::upsert::{Target, upsert_entity_row, upsert_target};
+use super::upsert::{Target, ensure_catalog_entity_row, upsert_target};
 use super::{AccessControlIngestionService, IngestOptions, IngestReport, tally};
 
 struct AppSeed {
@@ -90,7 +90,7 @@ impl AccessControlIngestionService {
         let mut mentions = BTreeSet::new();
         for seed in &seeds {
             let source = format!("{source_prefix}:{}", seed.entity_id);
-            upsert_entity_row(&mut tx, kind, &seed.entity_id, false, &source).await?;
+            ensure_catalog_entity_row(&mut tx, kind, &seed.entity_id, &source).await?;
             for role in &seed.roles {
                 let target = Target {
                     entity_kind: kind,

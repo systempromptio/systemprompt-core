@@ -3063,7 +3063,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3073,7 +3073,6 @@ dependencies = [
  "hex",
  "http",
  "inventory",
- "nix",
  "reqwest",
  "rmcp",
  "serde",
@@ -3101,7 +3100,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "chrono",
  "futures",
@@ -3118,10 +3117,11 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "base64 0.23.0",
  "hex",
+ "nix",
  "rand 0.10.2",
  "reqwest",
  "schemars",
@@ -3143,7 +3143,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
@@ -3168,7 +3168,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3176,6 +3176,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.19",
@@ -3197,7 +3198,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -3210,7 +3211,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "base64 0.23.0",
@@ -3240,7 +3241,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3263,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-manifest"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "base64 0.23.0",
  "chrono",
@@ -3290,7 +3291,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3320,7 +3321,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3334,7 +3335,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -3375,7 +3376,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3395,7 +3396,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-wire"
-version = "0.62.0"
+version = "0.65.0"
 dependencies = [
  "bytes",
  "futures-util",

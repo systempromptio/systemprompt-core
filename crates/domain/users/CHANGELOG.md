@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Changed
+
+- `ApiKeyService::verify` updates `user_api_keys.last_used_at` only when the stored value is NULL or at least 60 s old.
+
 ## [0.64.0] - 2026-10-08
 
 ### Added

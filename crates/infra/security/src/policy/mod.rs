@@ -41,7 +41,7 @@ pub use approval::{
 };
 pub use audit::{
     ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    PrincipalSnapshot, record_decision,
+    PrincipalSnapshot, record_decision, record_decision_with,
 };
 pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};

@@ -79,12 +79,14 @@ async fn gateway_audit_open_is_atomic_under_concurrent_same_request_id() {
             attribution: systemprompt_models::attribution::RequestAttribution::none(),
             api_key_windows: Vec::new(),
             access_log: None,
+            context_bound: false,
         };
         let req_clone = request.clone();
         let body_clone = body.clone();
         handles.push(tokio::spawn(async move {
             let audit = GatewayAudit::new(&repos_cloned, ctx);
-            audit.open(&req_clone, &body_clone).await
+            audit.open(&req_clone, &body_clone).await?;
+            audit.commit_admission().await
         }));
     }
     let results = join_all(handles).await;
@@ -167,12 +169,14 @@ async fn gateway_audit_open_persists_derived_context_id() {
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
         api_key_windows: Vec::new(),
         access_log: None,
+        context_bound: false,
     };
     let audit = GatewayAudit::new(&gateway_repos(&db), ctx);
     audit
         .open(&request, &Bytes::from_static(b"{}"))
         .await
         .expect("open");
+    audit.commit_admission().await.expect("commit admission");
 
     let pool = db.pool();
     let (stored_context, stored_gateway): (Option<String>, Option<String>) =

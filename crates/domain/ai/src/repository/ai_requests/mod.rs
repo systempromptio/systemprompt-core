@@ -15,6 +15,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod admission;
 mod attributions;
 mod intent_claims;
 mod message_operations;
@@ -25,7 +26,8 @@ mod repository;
 mod settlement;
 mod trace;
 
-pub use message_operations::InsertToolCallParams;
+pub use admission::{AdmissionWrite, PreparedDigest};
+pub use message_operations::{InsertToolCallParams, RequestMessageRow};
 pub use orphans::{ORPHAN_AGE, ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
 pub use settlement::{

@@ -24,6 +24,7 @@ async fn db_pool() -> DbPool {
         acquire_timeout: Duration::from_secs(30),
         idle_timeout: Duration::from_secs(30),
         max_lifetime: Duration::from_secs(300),
+        statement_cache_capacity: 100,
     };
     let db = Database::connect(&url, None, &cfg).await.expect("database");
     Arc::new(db)

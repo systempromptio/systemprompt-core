@@ -63,6 +63,13 @@ impl Profile {
         if pool.acquire_timeout_secs == Some(0) {
             errors.push("database.pool.acquire_timeout_secs must be greater than 0".to_owned());
         }
+        if let Some(capacity) = pool.statement_cache_capacity
+            && capacity > 1000
+        {
+            errors.push(format!(
+                "database.pool.statement_cache_capacity must be between 0 and 1000 (got {capacity})"
+            ));
+        }
     }
 
     pub(crate) fn validate_governance(&self, errors: &mut Vec<String>, is_cloud: bool) {

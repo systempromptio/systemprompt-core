@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Changed
+
+- `admin setup` and the cloud profile authoring keep writing `governance.authz.hook.mode: webhook` with the loopback url; a registered extension hook under that mode is now used instead of refusing boot.
+
+### Fixed
+
+- `infra db migrate` calls `systemprompt_database::mark_schema_changed`, so pooled connections opened before the migration are recycled on their next acquire.
+
 ## [0.64.0] - 2026-10-08
 
 ### Changed

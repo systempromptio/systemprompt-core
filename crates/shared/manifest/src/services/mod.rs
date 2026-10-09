@@ -16,6 +16,7 @@ pub mod gateway;
 pub mod hooks;
 mod includable;
 pub mod marketplace;
+mod marketplace_access;
 pub mod marketplace_claude_code;
 pub mod marketplace_external;
 mod marketplace_external_error;
