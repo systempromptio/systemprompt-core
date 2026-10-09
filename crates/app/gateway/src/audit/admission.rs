@@ -26,11 +26,13 @@ use crate::error::{GatewayAuditError, GatewayAuditResult as Result};
 pub(super) struct PendingAdmission {
     pub(super) record: AiRequestRecord,
     pub(super) capture: PayloadCapture,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     pub(super) offered_tools: Option<Value>,
     pub(super) messages: Vec<(&'static str, String)>,
     route_match: Option<String>,
     served_provider: Option<String>,
     system_prompt_override: Option<String>,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     prepared: Option<(String, Option<Value>)>,
     findings: Vec<PendingFinding>,
     decisions: Vec<DecisionAudit>,
@@ -50,6 +52,7 @@ impl PendingAdmission {
     pub(super) const fn new(
         record: AiRequestRecord,
         capture: PayloadCapture,
+        // JSON: client tool definitions, stored verbatim as JSONB.
         offered_tools: Option<Value>,
         messages: Vec<(&'static str, String)>,
     ) -> Self {
@@ -88,6 +91,7 @@ impl GatewayAudit {
         self.stash(|p| p.system_prompt_override = Some(descriptor.to_owned()))
     }
 
+    // JSON: client tool definitions, stored verbatim as JSONB.
     pub(super) fn stash_prepared(&self, sha256: &str, tools: Option<&Value>) -> bool {
         self.stash(|p| p.prepared = Some((sha256.to_owned(), tools.cloned())))
     }

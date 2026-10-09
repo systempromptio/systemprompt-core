@@ -155,6 +155,7 @@ where
 pub(crate) async fn upsert_offered_tools_with<'e, E>(
     executor: E,
     ai_request_id: &AiRequestId,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     offered_tools: &Value,
 ) -> Result<(), RepositoryError>
 where
@@ -188,6 +189,7 @@ pub(crate) async fn upsert_prepared_with<'e, E>(
     executor: E,
     ai_request_id: &AiRequestId,
     sha256: &str,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     tools: Option<&Value>,
 ) -> Result<(), RepositoryError>
 where

@@ -37,6 +37,7 @@ use crate::repository::ai_safety_findings::{InsertSafetyFinding, insert_many_wit
 #[derive(Debug, Clone, Copy)]
 pub struct PreparedDigest<'a> {
     pub sha256: &'a str,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     pub tools: Option<&'a Value>,
 }
 
@@ -46,6 +47,7 @@ pub struct AdmissionWrite<'a> {
     pub record: &'a AiRequestRecord,
     pub evidence: &'a ClientEvidence,
     pub payload: UpsertPayloadParams<'a>,
+    // JSON: client tool definitions, stored verbatim as JSONB.
     pub offered_tools: Option<&'a Value>,
     pub messages: &'a [RequestMessageRow<'a>],
     pub route_match: Option<&'a str>,
