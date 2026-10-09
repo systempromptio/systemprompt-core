@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Changed
+
+- `AiRequestRepository::admit` writes a request's admission (request row and attributions, client evidence, payload and offered tools, messages, route match, served provider, system-prompt override, prepared-body digest, request-phase safety findings and the governance decision) in one transaction; best-effort fields stay best-effort under savepoints.
+- `AiQuotaBucketRepository::increment_many` writes every window's bucket in one `INSERT ... SELECT FROM UNNEST ... ON CONFLICT`, locking rows in `(subject_kind, subject_id, window_seconds, window_start)` order; windows sharing a bucket merge into one row.
+- Request messages and safety findings are written with one `INSERT ... SELECT FROM UNNEST` each (`AiRequestRepository::insert_messages`, `AiSafetyFindingRepository::insert_many`).
+
+### Breaking
+
+- `repository::{AdmissionWrite, PreparedDigest}` and `RequestMessageRow` are new.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

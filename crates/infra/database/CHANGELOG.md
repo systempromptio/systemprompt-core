@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Fixed
+
+- Postgres prepared statements are bounded per connection; capacity 0 leaked them. With the cache off, sqlx 0.9 still Parses every `query!` as a named statement and never Closes it, so each backend grew until Postgres ran out of memory. The default is now 100, and evictions deallocate.
+- `mark_schema_changed` is new: after an in-process migration, every pooled connection opened before it is closed on its next acquire, so no stale plan hits SQLSTATE 0A000. Another process migrating under a running server still needs that server restarted.
+
+### Breaking
+
+- `PoolConfig` gains `statement_cache_capacity: usize` (0 keeps the old behaviour); a struct literal must name it or use `..Default::default()`.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

@@ -13,7 +13,7 @@ The AI gateway: a protocol-translating proxy in front of upstream LLM providers.
 
 ```toml
 [dependencies]
-systemprompt-gateway = "0.64"
+systemprompt-gateway = "0.65"
 ```
 
 ## Module map

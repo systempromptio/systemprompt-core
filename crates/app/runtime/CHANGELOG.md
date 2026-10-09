@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Fixed
+
+- A migration run in-process (`migrate_on_boot`) calls `systemprompt_database::mark_schema_changed`, so pooled connections opened before it are closed on their next acquire and no stale plan hits SQLSTATE 0A000.
+- The pool is built with the profile's `database.pool.statement_cache_capacity` (default 100).
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

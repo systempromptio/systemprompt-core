@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.65.0] - 2026-10-09
+
+### Added
+
+- `db_pool_size{pool}` and `db_pool_connections{pool,state="idle"|"used"}` gauges, sampled every 5 s for the write pool and, when a replica is configured, the read pool.
+
+### Changed
+
+- The HTTP extract step marks the conversation bound (`GatewayRequestContext::context_bound`), so `user_contexts` is upserted once per `/v1/messages`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Added

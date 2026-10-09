@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.65.0] - Unreleased
+## [0.65.0] - 2026-10-09
 
 ### Added
 
@@ -9,7 +9,7 @@
 
 ### Changed
 
-- **Authz:** an extension hook registered under `governance.authz.hook.mode: webhook` is now used instead of refusing boot with `ExtensionHookButWrongMode`. The webhook `url` is ignored and one warning names `governance.authz.hook.mode` as the key to set to `extension`. Profiles written before in-process hooks pointed the webhook at the same process, so this is the same decision without the HTTP hop. A hook under `disabled` or `unrestricted`, and `extension` with no hook, still refuse to boot.
+- **Authz:** an extension hook registered under `governance.authz.hook.mode: webhook` is now used instead of refusing boot with `ExtensionHookButWrongMode`. The webhook `url` is ignored and one warning names `governance.authz.hook.mode` as the key to set to `extension`. Profiles written before in-process hooks pointed the webhook at the same process, so this is the same decision without the HTTP hop. A hook under `disabled` or `unrestricted`, and `extension` with no hook, still refuse to boot. `admin setup` and the cloud profile authoring still write `mode: webhook` with the loopback url, so a downstream that links no hook keeps booting against its webhook; `extension` stays an explicit opt-in.
 - **Gateway:** one `PolicyResolver` is built per router and shared across requests, so its 60 s cache is hit; the global gateway policy is no longer read from Postgres on every `/v1/messages`. A policy edit takes effect within 60 s.
 - **Gateway:** the admission writes commit in one transaction (`AiRequestRepository::admit`) instead of one autocommit per statement: the request row and attributions, client evidence, the request payload and offered tools, the messages, the route match, served provider, system-prompt override, prepared-body digest and request-phase safety findings. `GatewayAudit::open` now stages them, and `commit_admission` writes them right before the upstream call, or first thing on any failure path. Staging in memory rather than holding an open transaction keeps no pooled connection pinned while quota and extension guards take their own. Fields that were best-effort stay best-effort under savepoints. The journal lease is taken after the commit, so a lease still implies the row exists.
 - **Gateway:** the governance decision row for a dispatched request, including a quota warn-mode decision, is written in the admission transaction, so the request row and its decision commit together. A denial that happens before the request row exists still records through its own path.
