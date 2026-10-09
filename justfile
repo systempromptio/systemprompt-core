@@ -866,9 +866,10 @@ clean:
 # =============================================================================
 
 # Run the library unit tests of the test workspace (crates/tests) against a
-# fresh database: drop+recreate the target DB, apply every extension schema with
-# the migrate tool built OFFLINE (the schema does not exist yet, so live query
-# verification of its core-crate deps would fail), then `cargo test --lib` LIVE
+# fresh database: build the migrate tool OFFLINE first (the schema does not
+# exist yet, so live query verification of its core-crate deps would fail; a
+# build failure leaves the database intact), drop+recreate the target DB, apply
+# every extension schema, then `cargo test --lib` LIVE
 # against the migrated schema. Integration-test targets do not run here; CI's
 # sharded nextest run is `just test-shard` / `just test-all-shards`. Override
 # the target with TEST_DATABASE_URL; the default is a disposable
@@ -880,12 +881,16 @@ test-rust *args:
     db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
+    echo "▶ building migration tool (offline)"
+    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
+        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
+    test -x "${migrate_bin}"
     echo "▶ resetting test database: ${name}"
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas (offline build)"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+    echo "▶ applying extension schemas"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
     echo "▶ running Rust test workspace (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
@@ -903,7 +908,8 @@ install-nextest:
 # Run one CI shard locally against a fresh, freshly-migrated database.
 # Mirrors the CI `test` job exactly: the shard group→crate mapping and the
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
-# drops+recreates the target DB so cross-run pollution can't occur. Override the
+# builds the migrate tool first, so a build failure leaves the database intact,
+# then drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
 # whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
 # Groups: shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
@@ -917,12 +923,16 @@ test-shard GROUP *args:
     db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
+    echo "▶ building migration tool (offline)"
+    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
+        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
+    test -x "${migrate_bin}"
     echo "▶ resetting test database: ${name}"
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas (offline build)"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+    echo "▶ applying extension schemas"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
     echo "▶ running shard {{GROUP}} (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         bash scripts/test-shard.sh {{GROUP}} {{args}}
