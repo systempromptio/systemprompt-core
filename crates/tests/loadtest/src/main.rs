@@ -55,13 +55,46 @@ pub(crate) struct Cli {
     // Time-series window size in seconds; 0 disables time-series capture.
     #[arg(long, default_value_t = 60)]
     sample_interval_secs: u64,
+
+    // gateway-inference: model id to request.
+    #[arg(long, default_value = "claude-haiku-4-5")]
+    model: String,
+
+    // gateway-inference: x-session-id for a PAT `--token` (PATs carry no claim).
+    #[arg(long)]
+    session_id: Option<String>,
+
+    // gateway-inference: `token,session_id` lines, used round-robin.
+    #[arg(long)]
+    token_file: Option<String>,
 }
 
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
 
-    let token = match cli.token {
+    let credentials = match cli.token_file.as_deref() {
+        Some(path) => match scenarios::gateway_inference::load_token_file(path) {
+            Ok(c) if !c.is_empty() => c,
+            Ok(_) => {
+                eprintln!("  --token-file {path} has no token,session_id lines");
+                std::process::exit(1);
+            },
+            Err(e) => {
+                eprintln!("  --token-file: {e}");
+                std::process::exit(1);
+            },
+        },
+        None => Vec::new(),
+    };
+    let token = if credentials.is_empty() { cli.token.clone() } else { Some(credentials[0].0.clone()) };
+    scenarios::gateway_inference::configure(scenarios::gateway_inference::Options {
+        model: cli.model.clone(),
+        session_id: cli.session_id.clone(),
+        credentials,
+    });
+
+    let token = match token {
         Some(t) => {
             println!("  Using provided token.");
             Some(t)
