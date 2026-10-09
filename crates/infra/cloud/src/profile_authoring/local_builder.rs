@@ -15,7 +15,9 @@ use systemprompt_manifest::{
     ServerConfig, SiteConfig,
 };
 
-use super::{generate_display_name, local_runtime_config, security_config, webhook_governance};
+use super::{
+    extension_governance, generate_display_name, local_runtime_config, security_config,
+};
 use crate::constants::profile as consts;
 use crate::paths::ProjectContext;
 
@@ -54,7 +56,6 @@ impl LocalProfileBuilder {
         let system_path = root.to_string_lossy().to_string();
         let display_name = generate_display_name(&self.name);
         let local_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
-        let internal_url = local_url.clone();
 
         Profile {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
@@ -100,7 +101,7 @@ impl LocalProfileBuilder {
                 vault: None,
             }),
             extensions: ExtensionsConfig::default(),
-            governance: Some(webhook_governance(&internal_url)),
+            governance: Some(extension_governance()),
             services: systemprompt_manifest::profile::ServicesProfileConfig::default(),
             judge: systemprompt_manifest::profile::JudgeProfile::default(),
             retention: systemprompt_manifest::profile::RetentionConfig::default(),

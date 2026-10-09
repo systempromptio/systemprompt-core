@@ -9,6 +9,8 @@
 
 ### Changed
 
+- **Authz:** an extension hook registered under `governance.authz.hook.mode: webhook` is now used instead of refusing boot with `ExtensionHookButWrongMode`. The webhook `url` is ignored and one warning names `governance.authz.hook.mode` as the key to set to `extension`. Profiles written before in-process hooks pointed the webhook at the same process, so this is the same decision without the HTTP hop. A hook under `disabled` or `unrestricted`, and `extension` with no hook, still refuse to boot.
+- **Profiles:** `admin setup` and cloud/local profile authoring now write `governance.authz.hook.mode: extension` with no `url`. A binary that links no authz hook must set `mode: webhook` and a `url` by hand, or it will refuse to boot with `ExtensionModeButNoHook`.
 - **Gateway:** one `PolicyResolver` is built per router and shared across requests, so its 60 s cache is hit; the global gateway policy is no longer read from Postgres on every `/v1/messages`. A policy edit takes effect within 60 s.
 - **Gateway:** request messages and safety findings are written with one `INSERT ... SELECT FROM UNNEST` each instead of one INSERT per row (`AiRequestRepository::insert_messages`, `AiSafetyFindingRepository::insert_many`).
 - **Gateway:** `user_contexts` is upserted once per request. The HTTP extract step already binds the conversation, so `audit.open` skips the repeat when `GatewayRequestContext::context_bound` is true.

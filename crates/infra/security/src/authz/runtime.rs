@@ -20,9 +20,14 @@
 //!   exactly equals [`UNRESTRICTED_ACKNOWLEDGEMENT`]. Otherwise bootstrap
 //!   fails. An error-level warning is always logged; refusing this mode in
 //!   production is the operator's responsibility.
-//! - Any other mode combined with a supplied extension hook → bootstrap fails
-//!   with [`AuthzBootstrapError::ExtensionHookButWrongMode`] so an operator
-//!   never silently runs the wrong mode.
+//! - `mode: webhook` with an extension hook registered → the extension hook is
+//!   used exactly as under `mode: extension`, and one warning names
+//!   `governance.authz.hook.mode` as the key to change. Profiles written before
+//!   in-process hooks pointed the webhook at the same process, so the registered
+//!   hook is the same decision without the HTTP hop.
+//! - `mode: disabled` or `mode: unrestricted` with an extension hook → bootstrap
+//!   fails with [`AuthzBootstrapError::ExtensionHookButWrongMode`] so an
+//!   operator never silently runs the wrong mode.
 //!
 //! Bootstrap ordering: called from `AppContextBuilder::build` after the
 //! database pool is created so the audit sink can write to
@@ -86,6 +91,15 @@ pub fn build_authz_hook(
             Ok(compose_rule_based(pool, sink, sources, vec![hook]))
         },
         (AuthzMode::Extension, None) => Err(AuthzBootstrapError::ExtensionModeButNoHook.into()),
+        (AuthzMode::Webhook, Some(hook)) => {
+            tracing::warn!(
+                hook = ?hook,
+                "governance.authz.hook.mode = webhook but an extension authz hook is registered \
+                 — using the registered hook and ignoring governance.authz.hook.url; set \
+                 governance.authz.hook.mode: extension in the profile"
+            );
+            Ok(compose_rule_based(pool, sink, sources, vec![hook]))
+        },
         (mode, Some(_)) => Err(AuthzBootstrapError::ExtensionHookButWrongMode {
             mode: mode_name(mode),
         }

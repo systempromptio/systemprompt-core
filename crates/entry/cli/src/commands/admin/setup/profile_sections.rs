@@ -109,12 +109,12 @@ pub(super) const fn runtime(environment: Environment, is_prod: bool) -> RuntimeC
     }
 }
 
-pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
+pub(super) fn governance() -> GovernanceConfig {
     GovernanceConfig {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
-                mode: AuthzMode::Webhook,
-                url: Some(format!("{}/api/public/govern/authz", api_internal_url)),
+                mode: AuthzMode::Extension,
+                url: None,
                 timeout_ms: 500,
                 acknowledgement: None,
             },

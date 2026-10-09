@@ -14,7 +14,9 @@ use systemprompt_manifest::{
     ServerConfig, SiteConfig,
 };
 
-use super::{cloud_runtime_config, generate_display_name, security_config, webhook_governance};
+use super::{
+    cloud_runtime_config, extension_governance, generate_display_name, security_config,
+};
 use crate::constants::{container, profile as consts};
 
 #[derive(Debug)]
@@ -141,7 +143,7 @@ impl CloudProfileBuilder {
                 vault: None,
             }),
             extensions: ExtensionsConfig::default(),
-            governance: Some(webhook_governance(&internal_url)),
+            governance: Some(extension_governance()),
             services: systemprompt_manifest::profile::ServicesProfileConfig::default(),
             judge: systemprompt_manifest::profile::JudgeProfile::default(),
             retention: systemprompt_manifest::profile::RetentionConfig::default(),

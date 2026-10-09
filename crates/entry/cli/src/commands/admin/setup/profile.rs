@@ -56,7 +56,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let runtime_env = determine_environment(env_name);
     let is_prod = matches!(runtime_env, Environment::Production);
     let server = sections::server(is_prod);
-    let governance = sections::governance(&server.api_internal_url);
+    let governance = sections::governance();
     let security = sections::security(&server.api_external_url);
 
     let profile = Profile {

@@ -44,12 +44,12 @@ fn capitalize_first(name: &str) -> String {
     })
 }
 
-fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
+fn extension_governance() -> GovernanceConfig {
     GovernanceConfig {
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
-                mode: AuthzMode::Webhook,
-                url: Some(format!("{api_internal_url}/api/public/govern/authz")),
+                mode: AuthzMode::Extension,
+                url: None,
                 timeout_ms: 500,
                 acknowledgement: None,
             },

@@ -239,22 +239,16 @@ mod extension_mode {
     }
 
     #[tokio::test]
-    async fn extension_hook_in_webhook_mode_errors() {
+    async fn extension_hook_in_webhook_mode_uses_the_hook() {
         let cfg = governance_with(AuthzMode::Webhook, Some("http://127.0.0.1:1/authz"), None);
         let injected: SharedAuthzHook = Arc::new(AlwaysAllow);
-        let err = build_authz_hook(
+        build_authz_hook(
             Some(&cfg),
             pool().await,
             Some(injected),
             ChainSources::default(),
         )
-        .expect_err("extension hook supplied under webhook mode must fail bootstrap");
-        assert!(matches!(
-            err,
-            AuthzError::Bootstrap(AuthzBootstrapError::ExtensionHookButWrongMode {
-                mode: "webhook"
-            })
-        ));
+        .expect("extension hook under webhook mode is used in place of the webhook");
     }
 
     #[tokio::test]
