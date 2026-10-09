@@ -116,6 +116,7 @@ scripts/*
 !scripts/test-shard.sh
 !scripts/check-gates.sh
 !scripts/check-gates.txt
+!scripts/publish-crates.sh
 !scripts/schema-ladder.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
