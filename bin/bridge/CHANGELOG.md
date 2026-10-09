@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.65.1] - 2026-10-09
+
+### Fixed
+
+- **Bridge:** a generated host profile is named with a random UUID instead of process id plus wall-clock nanoseconds. Windows' clock ticks in 100 ns, so two profiles generated together for the same host could get one path; the second writer's rename, read-back or removal then hit the first's open handle and failed with `Access is denied (os error 5)`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Changed

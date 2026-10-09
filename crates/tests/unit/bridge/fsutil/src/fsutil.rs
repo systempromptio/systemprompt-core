@@ -350,18 +350,14 @@ fn concurrent_generated_profile_writes_all_succeed_with_unique_paths() {
 
     let barrier = Arc::new(Barrier::new(6));
     let handles: Vec<_> = (0..6)
-        .map(|i| {
+        .map(|_| {
             let barrier = Arc::clone(&barrier);
             std::thread::spawn(move || {
                 barrier.wait();
                 (0..10)
-                    .map(|round| {
-                        generated_profile::write(
-                            &format!("race-probe-{i}-{round}"),
-                            ".yaml",
-                            b"body: 1\n",
-                        )
-                        .expect("a concurrent profile write succeeds")
+                    .map(|_| {
+                        generated_profile::write("race-probe", ".yaml", b"body: 1\n")
+                            .expect("a concurrent profile write succeeds")
                     })
                     .collect::<Vec<_>>()
             })

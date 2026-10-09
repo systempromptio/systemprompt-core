@@ -12,15 +12,14 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn write(stem: &str, extension: &str, body: &[u8]) -> io::Result<PathBuf> {
     let dir = std::env::temp_dir().join(crate::brand::brand().working_dir_name);
     crate::fsutil::create_dir_all_mode_0700(&dir)?;
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_nanos());
-    let path = dir.join(format!("{stem}-{}-{nanos}{extension}", std::process::id()));
+    let path = dir.join(format!(
+        "{stem}-{}{extension}",
+        uuid::Uuid::new_v4().simple()
+    ));
     crate::fsutil::atomic_write_0600(&path, body)?;
     Ok(path)
 }
