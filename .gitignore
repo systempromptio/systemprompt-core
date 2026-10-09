@@ -205,8 +205,9 @@ rustc-ice-*.txt
 scripts/rust-contracts/target/
 
 !scripts/release-proof.py
-# ...and the release bump script and its pin sync.
+# ...and the release bump script, its pin sync, and the opt-in pre-push hook.
 !scripts/release.sh
 !scripts/sync-workspace-deps.sh
+!scripts/pre-push.sh
 !scripts/test-release-proof.py
 !scripts/check-offline.sh

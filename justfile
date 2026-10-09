@@ -972,6 +972,46 @@ webauthn-admin EMAIL="admin@localhost":
 
     $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"
 
+# Release worktrees and hooks: `just worktree NAME` makes a detached
+# ../core-NAME at origin/next with its own cargo target dirs, which is where
+# `scripts/release.sh` runs; `just worktree-rm NAME` removes it once clean.
+# `just install-hooks` opts in to an advisory pre-push hook that warns (never
+# blocks) on a push to next that fails `format-check` or lands on a red tip.
+worktree NAME REF="origin/next":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git fetch -q origin
+    WT="$(cd .. && pwd)/core-{{NAME}}"
+    git worktree add --detach "$WT" "{{REF}}"
+    mkdir -p "$WT/.cargo"
+    if [ -f .cargo/config.toml ]; then
+        awk '/^\[build\]/{skip=1;next} /^\[/{skip=0} !skip' .cargo/config.toml > "$WT/.cargo/config.toml"
+    fi
+    printf '\n[build]\ntarget-dir = "%s/target"\n' "$WT" >> "$WT/.cargo/config.toml"
+    printf '\n[build]\ntarget-dir = "%s/crates/tests/target"\n' "$WT" >> "$WT/crates/tests/.cargo/config.toml"
+    git -C "$WT" update-index --skip-worktree crates/tests/.cargo/config.toml
+    echo "$WT"
+
+# Remove a worktree made by `just worktree`; refuses while it has changes.
+worktree-rm NAME:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WT="$(cd .. && pwd)/core-{{NAME}}"
+    if [ -n "$(git -C "$WT" status --porcelain)" ]; then
+        git -C "$WT" status --short
+        echo "error: $WT has modifications; commit or discard them first" >&2; exit 1
+    fi
+    git worktree remove "$WT"
+
+# Install the advisory pre-push hook (opt-in; no gate runs it).
+install-hooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    HOOKS="$(git rev-parse --git-common-dir)/hooks"
+    cp scripts/pre-push.sh "$HOOKS/pre-push"
+    chmod +x "$HOOKS/pre-push"
+    echo "installed $HOOKS/pre-push"
+
 # Read the candidate's green push run on next, then the promotion PR proof if one
 # is open. Read-only; never dispatches.
 gate REF="origin/next":
