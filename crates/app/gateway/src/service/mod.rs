@@ -44,7 +44,7 @@ use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, Upstream
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
-use crate::policies::{GatewayPolicySpec, PolicyResolver};
+use crate::policies::GatewayPolicySpec;
 use systemprompt_security::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
@@ -250,8 +250,8 @@ async fn dispatch_policy(
         return Err(DispatchError::pre_audit(GatewayError::MissingSession));
     }
 
-    let resolver = PolicyResolver::from_repository(repos.gateway_policies.clone());
-    let policy = resolver
+    let policy = repos
+        .policy_resolver
         .resolve(fault_mode)
         .await
         .map_err(DispatchError::pre_audit)?;
