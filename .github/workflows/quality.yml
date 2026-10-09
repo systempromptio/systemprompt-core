@@ -359,9 +359,10 @@ jobs:
       - uses: extractions/setup-just@v4
       - run: just file-size
 
-  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  # The `main` ruleset's required context, PR runs only; push runs post
+  # `Quality passed (push)` (see ci.yml `ci-passed`).
   quality-passed:
-    name: Quality passed
+    name: ${{ github.event_name == 'pull_request' && 'Quality passed' || 'Quality passed (push)' }}
     runs-on: ubuntu-latest
     needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
     if: always()

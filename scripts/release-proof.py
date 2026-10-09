@@ -6,7 +6,9 @@ import re
 import subprocess
 import sys
 
-WORKFLOWS = {"ci.yml": "CI passed", "quality.yml": "Quality passed", "supply-chain.yml": "Supply Chain passed"}
+AGGREGATES = {"ci.yml": "CI passed", "quality.yml": "Quality passed", "supply-chain.yml": "Supply Chain passed"}
+WORKFLOWS = {event: {workflow: name if event == "pull_request" else f"{name} (push)" for workflow, name in AGGREGATES.items()}
+             for event in ("push", "pull_request")}
 
 
 def command(*args):
@@ -54,10 +56,11 @@ def validate_push_runs(runs, sha, repo):
 
 
 def verify_push(repo, sha):
-    for workflow, aggregate in WORKFLOWS.items():
+    for workflow in WORKFLOWS["push"]:
         runs = api(repo, f"actions/workflows/{workflow}/runs?event=push&head_sha={sha}&per_page=100")["workflow_runs"]
         run = validate_push_runs(runs, sha, repo)
         jobs = api(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")["jobs"]
+        aggregate = WORKFLOWS[run["event"]][workflow]
         require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
                 f"push run {run['id']} lacks successful {aggregate}")
         print(f"{aggregate} on next: run {run['id']} attempt {run['run_attempt']}")
@@ -73,10 +76,11 @@ def verify_pr(repo, pr, sha):
     require(merge_sha, "promotion merge commit is unavailable")
     require(api(repo, f"git/commits/{merge_sha}")["tree"]["sha"] == tree, "promotion merge changes the proven tree")
     sampled = {}
-    for workflow, aggregate in WORKFLOWS.items():
+    for workflow in WORKFLOWS["pull_request"]:
         runs = api(repo, f"actions/workflows/{workflow}/runs?event=pull_request&head_sha={sha}&per_page=100")["workflow_runs"]
         run = validate_runs(runs, sha, number, repo, pr["created_at"])
         jobs = api(repo, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100")["jobs"]
+        aggregate = WORKFLOWS[run["event"]][workflow]
         require(any(job["name"] == aggregate and job["conclusion"] == "success" for job in jobs),
                 f"run {run['id']} lacks successful {aggregate}")
         sampled[workflow] = (run["id"], run["run_attempt"])

@@ -201,11 +201,14 @@ jobs:
     with:
       ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
 
-  # One stable context for the `main` ruleset: it fails unless every gate
-  # above succeeded, so a skipped or cancelled matrix job can never pass as
-  # "not failed". Required checks name this job, never the matrix entries.
+  # The `main` ruleset's required context: it fails unless every gate above
+  # succeeded, so a skipped or cancelled matrix job can never pass as "not
+  # failed". Required checks name this job, never the matrix entries. Only the
+  # pull_request run posts `CI passed`; the push run posts `CI passed (push)`,
+  # so a green push run on the same SHA cannot satisfy the release PR before
+  # the PR's own run starts.
   ci-passed:
-    name: CI passed
+    name: ${{ github.event_name == 'pull_request' && 'CI passed' || 'CI passed (push)' }}
     runs-on: ubuntu-latest
     needs: [fmt, build, test-tools, test, schema-ladder]
     if: always()
