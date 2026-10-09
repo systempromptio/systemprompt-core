@@ -75,7 +75,17 @@ Releasing is three deliberate steps:
    freezes it on the `promote` ref and **opens** the release pull request onto
    `main`. It does not merge; the gates re-run on the PR, and you merge it
    with `just merge-release SHA` — never `gh pr merge` by hand.
-3. Tag `main` once merged. Tags are not covered by the ruleset.
+3. Tag `main` once merged, then `just publish-crates` (retries crates.io rate
+   limits and verifies every crate on the sparse index). Tags are not covered
+   by the ruleset.
+
+Release work happens in a detached worktree, never in a shared checkout:
+`just worktree NAME` makes `../core-NAME` at `origin/next` with its own cargo
+target dirs, and `scripts/release.sh <patch|minor|major>` runs there (it refuses
+a tree that is not `origin/next`, does not contain `origin/main`, or whose push
+run is not green). `just install-hooks` installs an opt-in pre-push hook that
+*warns* — never blocks — when a push to `next` fails `format-check` or lands on
+a red tip. Local `just check-gates` runs every gate and lists all failures.
 
 The full release cycle — publishing to crates.io, the bridge, and landing all
 four downstream repos (`template`, `demo`, `internal`, `astound`) — is
