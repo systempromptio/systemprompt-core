@@ -14,12 +14,12 @@ use std::time::Duration;
 use sqlx::PgPool;
 use systemprompt_runtime::AppContext;
 
-pub const DB_POOL_SIZE: &str = "db_pool_size";
-pub const DB_POOL_CONNECTIONS: &str = "db_pool_connections";
+pub(super) const DB_POOL_SIZE: &str = "db_pool_size";
+pub(super) const DB_POOL_CONNECTIONS: &str = "db_pool_connections";
 
 const SAMPLE_INTERVAL: Duration = Duration::from_secs(5);
 
-pub fn describe() {
+pub(super) fn describe() {
     metrics::describe_gauge!(
         DB_POOL_SIZE,
         "Open Postgres connections in the pool (idle + in use)"
@@ -30,7 +30,7 @@ pub fn describe() {
     );
 }
 
-pub fn spawn_sampler(ctx: &AppContext) {
+pub(super) fn spawn_sampler(ctx: &AppContext) {
     let write = ctx.db_pool().write_pool();
     let read = ctx.db_pool().pool();
     let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
