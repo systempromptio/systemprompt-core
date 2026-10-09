@@ -88,6 +88,7 @@ pub struct HostAppSnapshot {
     pub app_installed: AppInstallState,
     pub probed_at_unix: u64,
     pub update_needs_approval: bool,
+    pub declared_models: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]

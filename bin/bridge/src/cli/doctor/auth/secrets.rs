@@ -62,7 +62,7 @@ pub fn check_host_profile_secrets(env: &crate::integration::host_app::ProbeEnv) 
                 reason: StaleReason::ProxyPort,
             } => wrong_port.push(host.display_name()),
             ProfileState::Stale {
-                reason: StaleReason::ManagedServers,
+                reason: StaleReason::ManagedServers | StaleReason::ModelList,
             } => behind.push(host.display_name()),
             ProfileState::Installed => any_installed = true,
             ProfileState::Unverifiable { reason } => {

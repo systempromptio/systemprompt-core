@@ -10,11 +10,10 @@ use serde::Serialize;
 
 use crate::verdict::{Tone, Verdict};
 
-/// Why a complete profile still cannot work.
+/// Why a complete profile is out of date with the bridge or the gateway.
 ///
-/// Both reasons produce an identical symptom — every request 403s with "bad
-/// loopback secret" — and an identical fix, so they share a state. They are
-/// distinguished only so the message can name the cause.
+/// Every reason has the same fix, re-applying the profile, so they share a
+/// state. They are distinguished only so the message can name the cause.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
@@ -23,6 +22,7 @@ pub enum StaleReason {
     LoopbackSecret,
     ProxyPort,
     ManagedServers,
+    ModelList,
 }
 
 /// Whether one fact a fresh profile depends on could be checked, and what it

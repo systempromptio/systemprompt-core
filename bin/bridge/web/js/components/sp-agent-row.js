@@ -42,7 +42,10 @@ export class SpAgentRow extends SpElement {
             || `${name} re-configured — wrote ${path || ""}. Restart ${name} to pick it up.`);
         } else if (kind === "update" || kind === "update-admin") {
           notifyOk(t("toast-agent-updated", { name, path: path || "" })
-            || `${name} updated — wrote ${path || ""}. Quit and relaunch ${name} to load the new connectors.`);
+            || `${name} updated — wrote ${path || ""}. Quit and relaunch ${name} to load the new settings.`);
+        } else if (kind === "enrol") {
+          notifyOk(t("toast-agent-enrolled", { name })
+            || `${name} now routes through the gateway. Restart ${name} to pick it up.`);
         } else if (kind === "verify") {
           notifyOk(t("toast-agent-verified", { name }) || `${name} re-checked.`);
         }

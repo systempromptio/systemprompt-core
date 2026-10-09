@@ -74,6 +74,7 @@ pub enum AgentAction {
     Verify,
     Open,
     Add,
+    Enrol,
 }
 
 /// Whether this agent is configured on this machine at all.
@@ -159,6 +160,7 @@ pub struct HostModelViewRef<'a> {
     pub checked: bool,
     pub available: bool,
     pub unconfigured_providers: &'a [String],
+    pub compatible_models: &'a [String],
 }
 
 impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRef<'a> {
@@ -167,6 +169,7 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
             checked: v.checked,
             available: v.available,
             unconfigured_providers: &v.unconfigured_providers,
+            compatible_models: &v.compatible_models,
         }
     }
 }
@@ -217,17 +220,12 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         ProfileState::Stale {
             reason: StaleReason::ManagedServers,
         } => {
-            let action = if snap.update_needs_approval {
-                AgentAction::UpdateAdmin
-            } else {
-                AgentAction::Update
-            };
             return finish(
                 AgentState::Attention,
                 AgentReason::Stale {
                     cause: StaleReason::ManagedServers,
                 },
-                Some(action),
+                Some(update_action(snap)),
             );
         },
         ProfileState::Stale { reason } => {
@@ -276,6 +274,20 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         return finish(AgentState::Attention, reason, None);
     }
 
+    if input.models.checked
+        && input.models.available
+        && let Some(declared) = &snap.declared_models
+        && !same_models(declared, input.models.compatible_models)
+    {
+        return finish(
+            AgentState::Attention,
+            AgentReason::Stale {
+                cause: StaleReason::ModelList,
+            },
+            Some(update_action(snap)),
+        );
+    }
+
     let open = input.can_open.then_some(AgentAction::Open);
     match input.proxy.state {
         ProxyProbeState::Unconfigured => finish(AgentState::Ready, AgentReason::Awaiting, open),
@@ -293,6 +305,20 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
             Some(AgentAction::Verify),
         ),
     }
+}
+
+const fn update_action(snap: &crate::integration::HostAppSnapshot) -> AgentAction {
+    if snap.update_needs_approval {
+        AgentAction::UpdateAdmin
+    } else {
+        AgentAction::Update
+    }
+}
+
+fn same_models(declared: &[String], served: &[String]) -> bool {
+    let declared: std::collections::BTreeSet<&str> = declared.iter().map(String::as_str).collect();
+    let served: std::collections::BTreeSet<&str> = served.iter().map(String::as_str).collect();
+    declared == served
 }
 
 pub use super::agent_fleet::{AgentFleetSummary, AgentFleets, FleetHeadline, FleetState};

@@ -109,6 +109,50 @@ pub(crate) fn on_open(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
     finish(app, result, reply_to);
 }
 
+pub(crate) fn on_enrol(app: &mut GuiApp, host_id: HostKind, reply_to: ReplyId) {
+    if host_id != HostKind::ClaudeCode {
+        finish(
+            app,
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::InvalidArgs,
+                format!("{host_id} is not enrolled through its settings file"),
+            )),
+            reply_to,
+        );
+        return;
+    }
+    let report = crate::integration::enrol::claude_code::enrol_report(&app.ctx);
+    let result = match report.outcome {
+        crate::integration::enrol::Outcome::Failed(err)
+            if crate::integration::claude_code_routing::is_routed() =>
+        {
+            app.append_log_warn(format!(
+                "[{host_id}] routed through the gateway by the user settings; the managed \
+                 settings were not written: {err}"
+            ));
+            Ok(json!({ "enrolled": true }))
+        },
+        crate::integration::enrol::Outcome::Failed(err) => {
+            app.append_log_error(format!("[{host_id}] gateway routing not written: {err}"));
+            Err(BridgeError::new(
+                ErrorScope::Host,
+                ErrorCode::Internal,
+                format!(
+                    "could not route {} through the gateway: {err}",
+                    report.display_name
+                ),
+            ))
+        },
+        _ => {
+            app.append_log(format!("[{host_id}] {}", report.install_action_label));
+            Ok(json!({ "enrolled": true }))
+        },
+    };
+    emit::emit_state(app);
+    finish(app, result, reply_to);
+}
+
 pub(crate) fn on_setup_complete(app: &mut GuiApp) {
     if app.state.first_run_active() {
         return;

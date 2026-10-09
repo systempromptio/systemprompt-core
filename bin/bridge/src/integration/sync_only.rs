@@ -10,7 +10,7 @@
 
 use systemprompt_models::bridge::host::HostKind;
 
-use super::agent_health::{AgentReason, AgentState, AgentVerdict};
+use super::agent_health::{AgentAction, AgentReason, AgentState, AgentVerdict};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyncOnlyAgent {
@@ -57,7 +57,7 @@ pub const fn sync_only_verdict(manifest_synced: bool, gateway_routed: bool) -> A
             state: AgentState::Attention,
             tone: AgentState::Attention.tone(),
             reason: AgentReason::NotRouted,
-            action: None,
+            action: Some(AgentAction::Enrol),
             is_set_up: true,
             is_installed: false,
             is_running: false,

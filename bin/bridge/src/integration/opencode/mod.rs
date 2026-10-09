@@ -133,7 +133,8 @@ impl HostApp for OpenCodeHost {
             host_processes: found.processes,
             app_installed,
             probed_at_unix: config::now_unix(),
-            update_needs_approval: false,
+            update_needs_approval: install::admin_tier_needs_approval(),
+            declared_models: install::admin_tier_models().map(|(_, models)| models),
         }
     }
 

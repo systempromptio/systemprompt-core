@@ -162,6 +162,7 @@ agent-reason-awaiting = Waiting for its first launch
 agent-reason-app-missing = The app is not installed on this computer
 agent-reason-stale = { $cause ->
     [managed_servers] Its connector list is behind the gateway — update, then quit and relaunch the app
+    [model_list] Its model list is behind the gateway — update, then quit and relaunch the app
    *[other] Its settings are out of date — repair, then restart the app
   }
 agent-reason-partial = Some of its settings are missing ({ $missing })
@@ -172,12 +173,13 @@ agent-reason-no-models = No model this agent can use is available
 agent-reason-proxy-down = The local proxy is not responding
 agent-reason-never-probed = Not checked yet
 agent-reason-cloud-managed = Managed from the cloud — nothing to install on this computer
-agent-reason-not-routed = Not routed through the gateway — Claude Code still uses its own login; run install --host claude-code
+agent-reason-not-routed = Not routed through the gateway — Claude Code still uses its own login
 agent-action-repair = Repair
 agent-action-update = Update
 agent-action-update-admin = Update (administrator)
 agent-action-verify = Re-check
 agent-action-add = Add
+agent-action-enrol = Fix now
 agent-action-working = Working…
 agent-action-open-config = Show config file
 agent-action-open = Open
@@ -441,9 +443,10 @@ topbar-menu-label = More actions
 topbar-menu-settings = Settings
 
 # Action outcomes -------------------------------------------------------------
-toast-agent-updated = { $name } updated — wrote { $path }. Quit and relaunch { $name } to load the new connectors.
+toast-agent-updated = { $name } updated — wrote { $path }. Quit and relaunch { $name } to load the new settings.
 toast-agent-repaired = { $name } re-configured — wrote { $path }. Restart { $name } to pick it up.
 toast-agent-added = { $name } added — wrote { $path }. Restart { $name } to pick it up.
+toast-agent-enrolled = { $name } now routes through the gateway. Restart { $name } to pick it up.
 toast-agent-verified = { $name } re-checked.
 toast-agent-removed = { $name } removed. Restart it to drop the old settings.
 toast-agent-remove-manual = { $name }: { $instruction }

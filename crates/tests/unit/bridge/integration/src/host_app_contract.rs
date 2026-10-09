@@ -43,6 +43,7 @@ impl HostApp for BareHost {
             app_installed: AppInstallState::Unknown,
             probed_at_unix: u64::from(env.proxy_port),
             update_needs_approval: false,
+            declared_models: None,
         }
     }
 

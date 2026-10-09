@@ -37,6 +37,7 @@ pub(crate) fn repair_stale_unattended(
         StaleReason::LoopbackSecret => "its credential is from an earlier release",
         StaleReason::ProxyPort => "the proxy port moved",
         StaleReason::ManagedServers => "its managed MCP server list is behind the gateway",
+        StaleReason::ModelList => "its model list is behind the gateway",
     };
     app.append_log(format!(
         "[{host_id}] configuration profile is out of date — {why}; re-applying it"

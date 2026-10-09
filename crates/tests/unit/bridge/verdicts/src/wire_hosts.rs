@@ -41,6 +41,7 @@ fn snapshot(profile_state: ProfileState, keys: BTreeMap<String, String>) -> Host
         app_installed: AppInstallState::Installed,
         probed_at_unix: 1_700_000_042,
         update_needs_approval: false,
+        declared_models: None,
     }
 }
 

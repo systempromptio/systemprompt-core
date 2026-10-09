@@ -80,6 +80,7 @@ fn build_sync_only_entry<'a>(
             checked: false,
             available: false,
             unconfigured_providers: &[],
+            compatible_models: &[],
         },
         has_download_url: false,
         surface: AgentSurface::SyncOnly,

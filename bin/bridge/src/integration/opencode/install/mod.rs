@@ -126,6 +126,10 @@ fn install_user_tier(
     Ok(ProfileInstalled::with_warning(warning))
 }
 
+pub(super) fn admin_tier_needs_approval() -> bool {
+    config::managed_config_path().is_ok_and(|managed| is_read_only(&managed))
+}
+
 pub(super) fn admin_tier_models() -> Option<(PathBuf, Vec<String>)> {
     let managed = config::managed_config_path().ok()?;
     let root = read_object(&managed).ok()?;

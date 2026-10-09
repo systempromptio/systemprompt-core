@@ -383,6 +383,7 @@ const COMMANDS = {
     return {};
   },
   "agent.open": () => ({}),
+  "agent.enrol": () => ({ enrolled: true }),
   "agent.openConfig": () => ({}),
   "agent.uninstall": ({ hostId }) => {
     const host = hostById(hostId);

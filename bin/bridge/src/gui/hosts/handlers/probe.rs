@@ -197,6 +197,9 @@ fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
                 "profile's managed MCP server list is behind the gateway (update required)"
                     .to_owned()
             },
+            StaleReason::ModelList => {
+                "profile's model list is behind the gateway (update required)".to_owned()
+            },
         },
     };
     let process = match snap.host_running {

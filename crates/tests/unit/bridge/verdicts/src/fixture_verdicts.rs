@@ -86,6 +86,7 @@ fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
         probed_at_unix: v.get("probed_at_unix").and_then(Value::as_u64).unwrap_or(0),
         update_needs_approval: host.pointer("/verdict/action/code").and_then(Value::as_str)
             == Some("update-admin"),
+        declared_models: None,
     }
 }
 
@@ -152,6 +153,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
                 unconfigured_providers: &unconfigured,
+                compatible_models: &[],
             },
             has_download_url: host
                 .get("download_url")
@@ -196,6 +198,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 checked: false,
                 available: false,
                 unconfigured_providers: &[],
+                compatible_models: &[],
             },
             has_download_url: false,
             surface: AgentSurface::SyncOnly,

@@ -67,6 +67,7 @@ impl HostApp for CodexCliHost {
             ),
             probed_at_unix: config::now_unix(),
             update_needs_approval: false,
+            declared_models: None,
         }
     }
 

@@ -111,6 +111,7 @@ impl HostApp for ClaudeDesktopHost {
             ),
             probed_at_unix: shared::now_unix(),
             update_needs_approval,
+            declared_models: None,
         }
     }
 

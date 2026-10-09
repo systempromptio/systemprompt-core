@@ -36,6 +36,7 @@ const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppS
         app_installed: app,
         probed_at_unix: 1_700_000_000,
         update_needs_approval: false,
+        declared_models: None,
     }
 }
 
@@ -57,6 +58,7 @@ const fn inputs<'a>(
             checked: true,
             available: true,
             unconfigured_providers: &[],
+            compatible_models: &[],
         },
         has_download_url: true,
         surface: AgentSurface::LocalProfile,
@@ -181,6 +183,7 @@ fn no_usable_model_is_reported_before_proxy_health() {
             checked: true,
             available: false,
             unconfigured_providers: &providers,
+            compatible_models: &[],
         },
         ..inputs(Some(&snap), &px)
     });
@@ -247,7 +250,11 @@ fn an_unrouted_sync_only_agent_is_reported_not_routed() {
     assert!(matches!(v.reason, AgentReason::NotRouted), "{:?}", v.reason);
     assert!(v.is_set_up, "it stays on the Agents list");
     assert!(!v.is_installed);
-    assert!(v.action.is_none(), "a sync-only row has no repair button");
+    assert_eq!(
+        v.action,
+        Some(AgentAction::Enrol),
+        "the card offers the enrolment that routes it, not a CLI command to type"
+    );
 
     let unsynced = verdict(&HostHealthInputs {
         surface: AgentSurface::SyncOnly,
@@ -413,5 +420,73 @@ fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
         verdict(&inputs(Some(&secret), &px)).action,
         Some(AgentAction::Repair),
         "only a server-list drift is an update; a stale credential is still a repair"
+    );
+}
+
+// v0.65.0 shipped an OpenCode card reading Working while its root-owned
+// `opencode.json` still declared models the gateway had since hidden or
+// dropped; only `doctor` saw the drift. The verdict now compares the declared
+// list with the served one.
+#[test]
+fn a_model_list_behind_the_gateway_offers_update_and_names_the_approval() {
+    let px = proxy(ProxyProbeState::Listening);
+    let served = vec!["claude-opus-5".to_owned(), "claude-sonnet-5".to_owned()];
+    let mut snap = snapshot(ProfileState::Installed, AppInstallState::Installed);
+    snap.declared_models = Some(vec![
+        "claude-sonnet-5".to_owned(),
+        "claude-opus-5".to_owned(),
+        "claude-fable-5".to_owned(),
+    ]);
+    fn with_served<'a>(
+        snap: &'a HostAppSnapshot,
+        px: &'a ProxyHealth,
+        served: &'a [String],
+    ) -> HostHealthInputs<'a> {
+        HostHealthInputs {
+            models: HostModelViewRef {
+                checked: true,
+                available: true,
+                unconfigured_providers: &[],
+                compatible_models: served,
+            },
+            ..inputs(Some(snap), px)
+        }
+    }
+
+    let drifted = verdict(&with_served(&snap, &px, &served));
+    assert_eq!(drifted.state, AgentState::Attention);
+    assert!(
+        matches!(
+            drifted.reason,
+            AgentReason::Stale {
+                cause: StaleReason::ModelList
+            }
+        ),
+        "{:?}",
+        drifted.reason
+    );
+    assert_eq!(drifted.action, Some(AgentAction::Update));
+
+    snap.update_needs_approval = true;
+    assert_eq!(
+        verdict(&with_served(&snap, &px, &served)).action,
+        Some(AgentAction::UpdateAdmin)
+    );
+
+    snap.declared_models = Some(vec![
+        "claude-sonnet-5".to_owned(),
+        "claude-opus-5".to_owned(),
+    ]);
+    assert_eq!(
+        verdict(&with_served(&snap, &px, &served)).state,
+        AgentState::Working,
+        "the same set in another order is not drift"
+    );
+
+    snap.declared_models = None;
+    assert_eq!(
+        verdict(&with_served(&snap, &px, &served)).state,
+        AgentState::Working,
+        "a host that declares no model list is not compared"
     );
 }

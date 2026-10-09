@@ -103,6 +103,7 @@ fn absent_snapshot(host_id: HostKind, display_name: &'static str) -> HostAppSnap
         app_installed: AppInstallState::NotInstalled,
         probed_at_unix: 0,
         update_needs_approval: false,
+        declared_models: None,
     }
 }
 
