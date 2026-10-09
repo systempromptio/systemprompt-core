@@ -3,10 +3,12 @@
 //! Everything the gateway records about a request before it calls upstream
 //! (the request row and its attributions, client evidence, the request
 //! payload and offered tools, the canonical messages, the route and served
-//! provider, the system-prompt override, the prepared-body digest and the
-//! request-phase safety findings) commits together. The fields that were
-//! best-effort before stay best-effort: each runs under its own savepoint, so a
-//! failure is logged and rolled back without losing the request row.
+//! provider, the system-prompt override, the prepared-body digest, the
+//! request-phase safety findings and the governance decisions) commits
+//! together, so a request row never exists without its decision row. The fields
+//! that were best-effort before stay best-effort: each runs under its own
+//! savepoint, so a failure is logged and rolled back without losing the request
+//! row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +17,7 @@ use serde_json::Value;
 use sqlx::{Acquire, Postgres, Transaction};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::origin::ClientEvidence;
+use systemprompt_security::policy::{DecisionAudit, record_decision_with};
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
@@ -50,6 +53,7 @@ pub struct AdmissionWrite<'a> {
     pub system_prompt_override: Option<&'a str>,
     pub prepared: Option<PreparedDigest<'a>>,
     pub findings: &'a [InsertSafetyFinding<'a>],
+    pub decisions: &'a [DecisionAudit],
 }
 
 impl AiRequestRepository {
@@ -69,6 +73,9 @@ impl AiRequestRepository {
             upsert_offered_tools_with(&mut *tx, write.id, tools).await?;
         }
         insert_messages_with(&mut *tx, write.id, write.messages).await?;
+        for decision in write.decisions {
+            record_decision_with(&mut *tx, decision).await?;
+        }
         admit_best_effort(&mut tx, &write).await?;
         tx.commit().await?;
         Ok(())

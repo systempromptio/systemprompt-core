@@ -1,7 +1,8 @@
 //! Admission writes held on the audit until the request commits.
 //!
 //! `open` and the pre-dispatch stages describe the request row, its payload,
-//! messages, route, prepared body and request-phase findings; nothing is
+//! messages, route, prepared body, request-phase findings and governance
+//! decisions; nothing is
 //! written until [`GatewayAudit::commit_admission`] sends them in one
 //! transaction, right before the upstream call or on the first failure path.
 //! Holding the rows in memory rather than an open transaction keeps no pooled
@@ -16,6 +17,7 @@ use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_ai::repository::{
     AdmissionWrite, InsertSafetyFinding, PreparedDigest, RequestMessageRow, UpsertPayloadParams,
 };
+use systemprompt_security::policy::DecisionAudit;
 
 use super::GatewayAudit;
 use super::payload::PayloadCapture;
@@ -31,6 +33,7 @@ pub(super) struct PendingAdmission {
     system_prompt_override: Option<String>,
     prepared: Option<(String, Option<Value>)>,
     findings: Vec<PendingFinding>,
+    decisions: Vec<DecisionAudit>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +63,7 @@ impl PendingAdmission {
             system_prompt_override: None,
             prepared: None,
             findings: Vec::new(),
+            decisions: Vec::new(),
         }
     }
 }
@@ -90,6 +94,19 @@ impl GatewayAudit {
 
     pub(crate) fn stash_request_findings(&self, findings: &[PendingFinding]) -> bool {
         self.stash(|p| p.findings.extend_from_slice(findings))
+    }
+
+    pub(crate) fn stash_decision(&self, decision: DecisionAudit) -> Option<DecisionAudit> {
+        let Ok(mut slot) = self.admission.lock() else {
+            return Some(decision);
+        };
+        match slot.as_mut() {
+            Some(pending) => {
+                pending.decisions.push(decision);
+                None
+            },
+            None => Some(decision),
+        }
     }
 
     pub async fn commit_admission(&self) -> Result<()> {
@@ -167,6 +184,7 @@ impl GatewayAudit {
                         tools: tools.as_ref(),
                     }),
                 findings: &findings,
+                decisions: &pending.decisions,
             })
             .await?;
         Ok(())

@@ -18,17 +18,18 @@ use systemprompt_traits::RepositoryError;
 pub(in crate::service) const QUOTA_POLICY_LABEL: &str = "quota";
 
 use super::recovery::{PromptRecovery, govern_prompt};
-use crate::audit::GatewayRequestContext;
+use crate::audit::{GatewayAudit, GatewayRequestContext};
 use crate::protocol::canonical::CanonicalRequest;
 use crate::protocol::outbound::PreparedBody;
 
 pub(super) async fn record_governance_decision(
     db: &DbPool,
-    ctx: &GatewayRequestContext,
+    audit: &GatewayAudit,
     evaluation: Evaluation,
     call_id: CallId,
     session_id: SessionId,
 ) -> Result<(), RepositoryError> {
+    let ctx = &audit.ctx;
     let decision_audit = DecisionAudit {
         id: uuid::Uuid::new_v4().to_string(),
         call_id,
@@ -53,6 +54,9 @@ pub(super) async fn record_governance_decision(
         context_id: Some(ctx.context_id.clone()),
         trace_id: ctx.trace_id.clone(),
     };
+    let Some(decision_audit) = audit.stash_decision(decision_audit) else {
+        return Ok(());
+    };
     let pool = db.write_pool();
     record_decision(&pool, &decision_audit).await?;
     Ok(())
@@ -60,9 +64,10 @@ pub(super) async fn record_governance_decision(
 
 pub(in crate::service) async fn record_quota_warning(
     db: &DbPool,
-    ctx: &GatewayRequestContext,
+    audit: &GatewayAudit,
     message: &str,
 ) -> Result<(), RepositoryError> {
+    let ctx = &audit.ctx;
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let reason = DenyReason::PolicyViolation {
@@ -78,7 +83,7 @@ pub(in crate::service) async fn record_quota_warning(
             duration_ms: 0.0,
         }],
     };
-    record_governance_decision(db, ctx, evaluation, call_id, session_id).await
+    record_governance_decision(db, audit, evaluation, call_id, session_id).await
 }
 
 pub(super) struct PromptEvaluation {
