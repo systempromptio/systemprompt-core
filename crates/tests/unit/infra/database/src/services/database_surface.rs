@@ -16,6 +16,7 @@ fn pool_config() -> PoolConfig {
         acquire_timeout: std::time::Duration::from_secs(30),
         idle_timeout: std::time::Duration::from_secs(30),
         max_lifetime: std::time::Duration::from_secs(300),
+        statement_cache_capacity: 0,
     }
 }
 

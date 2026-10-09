@@ -24,6 +24,7 @@ async fn pool(max_connections: u32) -> DbPool {
         acquire_timeout: Duration::from_secs(30),
         idle_timeout: Duration::from_secs(30),
         max_lifetime: Duration::from_secs(300),
+        statement_cache_capacity: 0,
     };
     Arc::new(
         Database::connect(&test_database_url(), None, &cfg)

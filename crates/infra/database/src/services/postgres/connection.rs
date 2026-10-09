@@ -36,6 +36,7 @@ pub struct PoolConfig {
     pub acquire_timeout: Duration,
     pub idle_timeout: Duration,
     pub max_lifetime: Duration,
+    pub statement_cache_capacity: usize,
 }
 
 impl Default for PoolConfig {
@@ -46,6 +47,7 @@ impl Default for PoolConfig {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Duration::from_mins(5),
             max_lifetime: Duration::from_mins(30),
+            statement_cache_capacity: 0,
         }
     }
 }
@@ -66,7 +68,8 @@ pub fn connect_options(database_url: &str) -> DatabaseResult<PgConnectOptions> {
         // Why: migrations run DDL on the serving pool and sqlx never invalidates
         // a connection's prepared statements, so a cached plan would fail with
         // SQLSTATE 0A000 ("cached plan must not change result type") after an
-        // ALTER TABLE.
+        // ALTER TABLE. Safe to raise via `database.pool.statement_cache_capacity`
+        // only where migrations run out of process (`migrate_on_boot: false`).
         .statement_cache_capacity(0)
         .options([("client_min_messages", "warning")]);
     Ok(options)

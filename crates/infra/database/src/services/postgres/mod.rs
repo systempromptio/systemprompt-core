@@ -41,7 +41,8 @@ impl PostgresProvider {
         database_url: &str,
         pool_config: &connection::PoolConfig,
     ) -> DatabaseResult<Self> {
-        let connect_options = connection::connect_options(database_url)?;
+        let connect_options = connection::connect_options(database_url)?
+            .statement_cache_capacity(pool_config.statement_cache_capacity);
 
         let pool = connection::connect_with_retry(
             connection::build_pool_options(pool_config),

@@ -185,6 +185,9 @@ fn pool_config_from_profile(
     if let Some(secs) = p.max_lifetime_secs {
         cfg.max_lifetime = Duration::from_secs(secs);
     }
+    if let Some(capacity) = p.statement_cache_capacity {
+        cfg.statement_cache_capacity = capacity;
+    }
     cfg
 }
 
