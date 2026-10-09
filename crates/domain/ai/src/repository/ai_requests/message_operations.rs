@@ -61,34 +61,7 @@ impl AiRequestRepository {
         request_id: &AiRequestId,
         messages: &[RequestMessageRow<'_>],
     ) -> Result<u64, RepositoryError> {
-        if messages.is_empty() {
-            return Ok(0);
-        }
-        let mut ids = Vec::with_capacity(messages.len());
-        let mut roles = Vec::with_capacity(messages.len());
-        let mut contents = Vec::with_capacity(messages.len());
-        let mut sequences = Vec::with_capacity(messages.len());
-        for message in messages {
-            ids.push(Uuid::new_v4().to_string());
-            roles.push(message.role.to_owned());
-            contents.push(message.content.to_owned());
-            sequences.push(message.sequence_number);
-        }
-        let result = sqlx::query!(
-            r#"
-            INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at, updated_at)
-            SELECT t.id, $1, t.role, t.content, t.sequence_number, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-            FROM UNNEST($2::text[], $3::text[], $4::text[], $5::int4[]) AS t(id, role, content, sequence_number)
-            "#,
-            request_id.as_str(),
-            &ids,
-            &roles,
-            &contents,
-            &sequences
-        )
-        .execute(self.write_pool())
-        .await?;
-        Ok(result.rows_affected())
+        insert_messages_with(self.write_pool(), request_id, messages).await
     }
 
     pub async fn list_messages(
@@ -181,4 +154,42 @@ impl AiRequestRepository {
         .map(|row| row.map(AiRequestToolCall::from))
         .map_err(RepositoryError::from)
     }
+}
+
+pub(crate) async fn insert_messages_with<'e, E>(
+    executor: E,
+    request_id: &AiRequestId,
+    messages: &[RequestMessageRow<'_>],
+) -> Result<u64, RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    if messages.is_empty() {
+        return Ok(0);
+    }
+    let mut ids = Vec::with_capacity(messages.len());
+    let mut roles = Vec::with_capacity(messages.len());
+    let mut contents = Vec::with_capacity(messages.len());
+    let mut sequences = Vec::with_capacity(messages.len());
+    for message in messages {
+        ids.push(Uuid::new_v4().to_string());
+        roles.push(message.role.to_owned());
+        contents.push(message.content.to_owned());
+        sequences.push(message.sequence_number);
+    }
+    let result = sqlx::query!(
+            r#"
+            INSERT INTO ai_request_messages (id, request_id, role, content, sequence_number, created_at, updated_at)
+            SELECT t.id, $1, t.role, t.content, t.sequence_number, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            FROM UNNEST($2::text[], $3::text[], $4::text[], $5::int4[]) AS t(id, role, content, sequence_number)
+            "#,
+            request_id.as_str(),
+            &ids,
+            &roles,
+            &contents,
+            &sequences
+        )
+        .execute(executor)
+        .await?;
+    Ok(result.rows_affected())
 }

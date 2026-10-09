@@ -1,5 +1,5 @@
-//! Opening a gateway audit record: insert the request row, its payload, and the
-//! canonical request messages.
+//! Opening a gateway audit record: describe the request row, its payload and
+//! the canonical request messages for the admission transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,9 +7,9 @@
 use crate::error::{GatewayAuditError, GatewayAuditResult as Result, ensure};
 use bytes::Bytes;
 use systemprompt_ai::models::{AiRequestRecord, RequestKind};
-use systemprompt_ai::repository::{RequestMessageRow, UpsertPayloadParams};
 
 use super::GatewayAudit;
+use super::admission::PendingAdmission;
 use super::message_text::flatten_message_content;
 use super::payload::{excerpt_payload, slice_payload, tools_array};
 use crate::protocol::canonical::{CanonicalRequest, Role};
@@ -78,87 +78,39 @@ impl GatewayAudit {
                 .await?;
         }
 
-        self.requests
-            .insert_with_id(&self.ctx.ai_request_id, &record)
-            .await?;
-        self.client_evidence
-            .upsert(&self.ctx.ai_request_id, &self.ctx.evidence)
-            .await?;
-
         let capture = if record.request_kind == RequestKind::Probe {
             excerpt_payload(request_body)
         } else {
             slice_payload(request_body, self.payload_cap_bytes())
         };
-        self.payloads
-            .upsert_request(
-                &self.ctx.ai_request_id,
-                UpsertPayloadParams {
-                    body: capture.json.as_ref(),
-                    excerpt: capture.excerpt.as_deref(),
-                    truncated: capture.truncated,
-                    bytes: Some(capture.byte_len),
-                    sha256: Some(&capture.sha256),
-                },
-            )
-            .await?;
         let offered = capture
             .json
             .as_ref()
             .and_then(|body| body.get("tools").filter(|t| t.is_array()).cloned())
             .or_else(|| tools_array(request_body));
-        if let Some(tools) = offered {
-            self.payloads
-                .upsert_offered_tools(&self.ctx.ai_request_id, &tools)
-                .await?;
-        }
-        self.persist_request_messages(request).await?;
+        let pending = PendingAdmission::new(record, capture, offered, request_messages(request));
+        let mut slot = self
+            .admission
+            .lock()
+            .map_err(|_poisoned| GatewayAuditError::Invariant("admission slot poisoned"))?;
+        ensure(slot.is_none(), "Audit already opened")?;
+        *slot = Some(pending);
+        drop(slot);
         self.ingest_tool_results(request);
-        let lease = super::journal::reserve(
-            &self.settlement.journal,
-            super::journal::Receipt::pending(
-                self.ctx.ai_request_id.clone(),
-                self.ctx.user_id.clone(),
-                self.ctx.session_id.clone(),
-            ),
-        )
-        .await?;
-        self.journal_lease
-            .set(lease)
-            .map_err(|_existing_lease| GatewayAuditError::Invariant("Audit already admitted"))?;
         Ok(())
     }
+}
 
-    async fn persist_request_messages(&self, request: &CanonicalRequest) -> Result<()> {
-        let system = request.system_text();
-        let flattened: Vec<(&'static str, String)> = request
-            .messages
-            .iter()
-            .map(|msg| {
-                let role = match msg.role {
-                    Role::System => "system",
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    Role::Tool => "tool",
-                };
-                (role, flatten_message_content(&msg.content))
-            })
-            .collect();
-        let rows: Vec<RequestMessageRow<'_>> = system
-            .as_deref()
-            .map(|text| ("system", text))
-            .into_iter()
-            .chain(flattened.iter().map(|(role, text)| (*role, text.as_str())))
-            .zip(0i32..)
-            .map(|((role, content), sequence_number)| RequestMessageRow {
-                role,
-                content,
-                sequence_number,
-            })
-            .collect();
-        self.requests
-            .insert_messages(&self.ctx.ai_request_id, &rows)
-            .await?;
-        Ok(())
-    }
+fn request_messages(request: &CanonicalRequest) -> Vec<(&'static str, String)> {
+    let system = request.system_text().map(|text| ("system", text));
+    let turns = request.messages.iter().map(|msg| {
+        let role = match msg.role {
+            Role::System => "system",
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::Tool => "tool",
+        };
+        (role, flatten_message_content(&msg.content))
+    });
+    system.into_iter().chain(turns).collect()
 }

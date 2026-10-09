@@ -77,6 +77,23 @@ pub(crate) async fn persist_request_findings(
     }
 }
 
+pub(crate) fn request_finding_rows(
+    findings: &[Finding],
+    safety: &SafetyConfig,
+) -> Vec<crate::audit::PendingFinding> {
+    findings
+        .iter()
+        .map(|f| crate::audit::PendingFinding {
+            phase: f.phase.to_owned(),
+            severity: f.severity.as_str().to_owned(),
+            category: f.category.clone(),
+            scanner: f.scanner.to_owned(),
+            excerpt: persisted_excerpt(f, safety),
+            blocked: request_finding_blocks(f, safety),
+        })
+        .collect()
+}
+
 pub fn request_finding_blocks(finding: &Finding, safety: &SafetyConfig) -> bool {
     !safety.mode.is_warn()
         && (failure_blocks(finding, safety) || safety.block_categories.contains(&finding.category))

@@ -19,6 +19,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod access_log;
+mod admission;
 mod complete;
 mod fail;
 pub mod journal;
@@ -29,12 +30,13 @@ pub mod payload;
 mod quota_settlement;
 mod tool_results;
 
+pub(crate) use admission::PendingFinding;
+
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use systemprompt_ai::repository::{
-    AiQuotaBucketRepository, AiRequestClientEvidenceRepository, AiRequestPayloadRepository,
-    AiRequestRepository,
+    AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
@@ -80,7 +82,6 @@ pub struct GatewayAudit {
     pricing_snapshot: Mutex<Option<systemprompt_manifest::services::ModelPricing>>,
     requests: Arc<AiRequestRepository>,
     payloads: Arc<AiRequestPayloadRepository>,
-    client_evidence: Arc<AiRequestClientEvidenceRepository>,
     context_materializer: systemprompt_traits::DynContextMaterializer,
     artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub ctx: GatewayRequestContext,
@@ -92,6 +93,7 @@ pub struct GatewayAudit {
     background: systemprompt_traits::BackgroundTasks,
     quota_buckets: AiQuotaBucketRepository,
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
+    admission: Mutex<Option<admission::PendingAdmission>>,
 }
 
 #[derive(Debug, Default)]
@@ -108,7 +110,6 @@ impl GatewayAudit {
             pricing_snapshot: Mutex::new(None),
             requests: Arc::clone(&repos.requests),
             payloads: Arc::clone(&repos.payloads),
-            client_evidence: Arc::clone(&repos.client_evidence),
             context_materializer: Arc::clone(&repos.context_materializer),
             artifact_ingest: repos.artifact_ingest.clone(),
             ctx,
@@ -120,6 +121,7 @@ impl GatewayAudit {
             background: repos.background.clone(),
             quota_buckets: repos.quota_buckets.clone(),
             quota_reservation: Mutex::new(None),
+            admission: Mutex::new(None),
         }
     }
 
@@ -147,6 +149,9 @@ impl GatewayAudit {
         if let Ok(mut slot) = self.served_provider.lock() {
             *slot = Some(provider.to_owned());
         }
+        if self.stash_served_provider(provider) {
+            return;
+        }
         if let Err(e) = self
             .requests
             .update_served_provider(&self.ctx.ai_request_id, provider)
@@ -167,6 +172,9 @@ impl GatewayAudit {
     pub async fn set_prepared_body_digest(&self, body: &[u8]) {
         let sha256 = payload::digest_hex(body);
         let tools = payload::prepared_tools(body);
+        if self.stash_prepared(&sha256, tools.as_ref()) {
+            return;
+        }
         if let Err(e) = self
             .payloads
             .upsert_prepared(&self.ctx.ai_request_id, &sha256, tools.as_ref())
@@ -181,6 +189,9 @@ impl GatewayAudit {
     }
 
     pub async fn set_system_prompt_override(&self, descriptor: &str) {
+        if self.stash_system_prompt_override(descriptor) {
+            return;
+        }
         if let Err(e) = self
             .requests
             .update_system_prompt_override(&self.ctx.ai_request_id, descriptor)
@@ -191,6 +202,9 @@ impl GatewayAudit {
     }
 
     pub async fn set_route_match(&self, descriptor: &str) {
+        if self.stash_route_match(descriptor) {
+            return;
+        }
         if let Err(e) = self
             .requests
             .update_route_match(&self.ctx.ai_request_id, descriptor)

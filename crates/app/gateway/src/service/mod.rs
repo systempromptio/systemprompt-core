@@ -90,6 +90,7 @@ impl GatewayService {
 
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
+        let admitted = Arc::clone(&audit);
         let mut guard = AbandonGuard::arm(Arc::clone(&audit));
         let result = Box::pin(dispatch_opened(OpenedDispatch {
             config,
@@ -115,8 +116,29 @@ impl GatewayService {
         // task or stream tap. The guard is for the third outcome — the future
         // being dropped before it returns either.
         guard.disarm();
+        if result.is_err()
+            && let Err(error) = admitted.commit_admission().await
+        {
+            tracing::error!(%error, "Gateway admission write failed after a recorded error");
+        }
         result
     }
+}
+
+async fn commit_admission(audit: &GatewayAudit) -> Result<(), DispatchError> {
+    let Err(error) = audit.commit_admission().await else {
+        return Ok(());
+    };
+    if let Err(settlement_error) = audit
+        .fail("Gateway admission failed before provider dispatch")
+        .await
+    {
+        tracing::error!(%settlement_error, "Could not record failed gateway admission");
+    }
+    Err(DispatchError::Recorded(GatewayError::internal(
+        "audit admission failed",
+        error,
+    )))
 }
 
 struct OpenedDispatch<'a> {
@@ -209,6 +231,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit, &governance).await?;
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
+    commit_admission(&audit).await?;
 
     let outcome = send_with_failover(
         &mut scanned,

@@ -180,7 +180,12 @@ impl AiQuotaBucketRepository {
                     output_tokens: row.output_tokens,
                     cost_microdollars: row.cost_microdollars,
                 };
-                let key = (row.subject_kind, row.subject_id, row.window_seconds, row.window_start);
+                let key = (
+                    row.subject_kind,
+                    row.subject_id,
+                    row.window_seconds,
+                    row.window_start,
+                );
                 (key, state)
             })
             .collect())

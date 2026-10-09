@@ -74,14 +74,7 @@ impl AiRequestRepository {
         id: &AiRequestId,
         descriptor: &str,
     ) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            r#"UPDATE ai_requests SET system_prompt_override = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
-            descriptor,
-            id.as_str()
-        )
-        .execute(self.write_pool())
-        .await?;
-        Ok(())
+        update_system_prompt_override_with(self.write_pool(), id, descriptor).await
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
@@ -90,14 +83,7 @@ impl AiRequestRepository {
         id: &AiRequestId,
         provider: &str,
     ) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            r#"UPDATE ai_requests SET served_provider = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
-            provider,
-            id.as_str()
-        )
-        .execute(self.write_pool())
-        .await?;
-        Ok(())
+        update_served_provider_with(self.write_pool(), id, provider).await
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
@@ -106,14 +92,7 @@ impl AiRequestRepository {
         id: &AiRequestId,
         descriptor: &str,
     ) -> Result<(), RepositoryError> {
-        sqlx::query!(
-            r#"UPDATE ai_requests SET route_match = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
-            descriptor,
-            id.as_str()
-        )
-        .execute(self.write_pool())
-        .await?;
-        Ok(())
+        update_route_match_with(self.write_pool(), id, descriptor).await
     }
 
     #[must_use = "this returns a Result that should not be ignored"]
@@ -141,7 +120,7 @@ impl AiRequestRepository {
     }
 }
 
-async fn insert_request_row(
+pub(super) async fn insert_request_row(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     id: &AiRequestId,
     record: &AiRequestRecord,
@@ -215,4 +194,58 @@ async fn insert_request_row(
         .fetch_optional(&mut **tx)
         .await?;
     Ok(inserted.is_some())
+}
+
+pub(crate) async fn update_served_provider_with<'e, E>(
+    executor: E,
+    id: &AiRequestId,
+    provider: &str,
+) -> Result<(), RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    sqlx::query!(
+            r#"UPDATE ai_requests SET served_provider = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
+            provider,
+            id.as_str()
+        )
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn update_route_match_with<'e, E>(
+    executor: E,
+    id: &AiRequestId,
+    descriptor: &str,
+) -> Result<(), RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    sqlx::query!(
+        r#"UPDATE ai_requests SET route_match = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
+        descriptor,
+        id.as_str()
+    )
+    .execute(executor)
+    .await?;
+    Ok(())
+}
+
+pub(crate) async fn update_system_prompt_override_with<'e, E>(
+    executor: E,
+    id: &AiRequestId,
+    descriptor: &str,
+) -> Result<(), RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
+    sqlx::query!(
+            r#"UPDATE ai_requests SET system_prompt_override = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2"#,
+            descriptor,
+            id.as_str()
+        )
+        .execute(executor)
+        .await?;
+    Ok(())
 }

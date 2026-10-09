@@ -32,7 +32,9 @@ pub use ai_request_client_evidence::AiRequestClientEvidenceRepository;
 pub use ai_request_payloads::{
     AiRequestPayload, AiRequestPayloadRepository, PreparedPayload, UpsertPayloadParams,
 };
-pub use ai_requests::{AiRequestRepository, InsertToolCallParams, RequestMessageRow};
+pub use ai_requests::{
+    AdmissionWrite, AiRequestRepository, InsertToolCallParams, PreparedDigest, RequestMessageRow,
+};
 pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
 };

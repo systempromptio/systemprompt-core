@@ -117,6 +117,10 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         .open(&request, &Bytes::from_static(b"{\"stream\":true}"))
         .await
         .expect("audit open");
+    audit
+        .commit_admission()
+        .await
+        .expect("audit commit admission");
     (Arc::new(audit), ai_request_id)
 }
 

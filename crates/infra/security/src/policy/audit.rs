@@ -160,6 +160,16 @@ fn decision_fields(audit: &DecisionAudit) -> (DecisionTag, String, String) {
 }
 
 pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(), RepositoryError> {
+    record_decision_with(pool, audit).await
+}
+
+pub async fn record_decision_with<'e, E>(
+    executor: E,
+    audit: &DecisionAudit,
+) -> Result<(), RepositoryError>
+where
+    E: sqlx::PgExecutor<'e>,
+{
     let actor = Actor::from_tool_name(
         audit.principal.user_id.clone(),
         audit.principal.agent_id.as_ref(),
@@ -204,5 +214,5 @@ pub async fn record_decision(pool: &PgPool, audit: &DecisionAudit) -> Result<(),
         tool_use_id: audit.target.tool_use_id.as_deref(),
     };
 
-    insert_governance_decision(pool, &record).await
+    insert_governance_decision(executor, &record).await
 }
