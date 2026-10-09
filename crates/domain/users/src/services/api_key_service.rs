@@ -18,6 +18,7 @@ use crate::repository::{CreateApiKeyParams, UserRepository};
 pub const API_KEY_PREFIX: &str = "sp-live-";
 const SECRET_BYTES: usize = 32;
 const PREFIX_ID_BYTES: usize = 6;
+const USAGE_TOUCH_INTERVAL: chrono::TimeDelta = chrono::TimeDelta::seconds(60);
 
 #[derive(Debug, Clone)]
 pub struct IssueApiKeyParams<'a> {
@@ -92,7 +93,9 @@ impl ApiKeyService {
             .ct_eq(record.key_hash.as_bytes())
             .into()
         {
-            self.repository.touch_api_key_usage(&record.id).await?;
+            if usage_is_stale(record.last_used_at, Utc::now()) {
+                self.repository.touch_api_key_usage(&record.id).await?;
+            }
             Ok(Some(record))
         } else {
             Ok(None)
@@ -177,4 +180,8 @@ fn extract_prefix(presented: &str) -> Option<String> {
     }
     let dot = presented.find('.')?;
     Some(presented[..dot].to_string())
+}
+
+fn usage_is_stale(last_used_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+    last_used_at.is_none_or(|at| now - at >= USAGE_TOUCH_INTERVAL)
 }
