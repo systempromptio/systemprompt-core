@@ -210,7 +210,11 @@ pub(super) async fn init_extensions(
     registry.validate()?;
 
     let report = if schema.install {
-        install_extension_schemas_full(&registry, database.write(), &[], migration_config).await?
+        let report =
+            install_extension_schemas_full(&registry, database.write(), &[], migration_config)
+                .await?;
+        systemprompt_database::mark_schema_changed();
+        report
     } else {
         if schema.verify {
             let profile = ProfileBootstrap::get()?;

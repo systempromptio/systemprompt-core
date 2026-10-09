@@ -16,7 +16,7 @@ pub use database::{Database, DatabaseExt, DbPool};
 pub use display::DatabaseCliDisplay;
 pub use executor::SqlExecutor;
 pub use postgres::PostgresProvider;
-pub use postgres::connection::PoolConfig;
+pub use postgres::connection::{PoolConfig, mark_schema_changed};
 pub use postgres::transaction::PostgresTransaction;
 pub use provider::DatabaseProvider;
 pub use schema_linter::{

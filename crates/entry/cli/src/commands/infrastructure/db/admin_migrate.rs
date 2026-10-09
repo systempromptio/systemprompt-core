@@ -114,6 +114,7 @@ async fn run_install(
             },
             Err(e) => return Err(failure(&e)),
         };
+    systemprompt_database::mark_schema_changed();
     if !report.is_clean() {
         let drift: Vec<String> = report
             .foreign_key_drift

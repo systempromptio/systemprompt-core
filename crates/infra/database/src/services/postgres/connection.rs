@@ -12,7 +12,9 @@
 
 use std::future::Future;
 use std::str::FromStr;
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions};
 
@@ -23,6 +25,32 @@ use crate::resilience::retry::retry_async;
 
 const RETRY_DELAYS_MS: &[u64] = &[100, 200, 400, 800, 1600];
 const MAX_ATTEMPTS: u32 = 5;
+pub const DEFAULT_STATEMENT_CACHE_CAPACITY: usize = 100;
+
+static POOL_CLOCK: OnceLock<Instant> = OnceLock::new();
+static SCHEMA_CHANGED_AT_NANOS: AtomicU64 = AtomicU64::new(0);
+
+fn pool_clock() -> Instant {
+    *POOL_CLOCK.get_or_init(Instant::now)
+}
+
+fn nanos_since_clock(at: Duration) -> u64 {
+    u64::try_from(at.as_nanos()).unwrap_or(u64::MAX).max(1)
+}
+
+pub fn mark_schema_changed() {
+    let now = nanos_since_clock(pool_clock().elapsed());
+    SCHEMA_CHANGED_AT_NANOS.store(now, Ordering::Release);
+}
+
+fn opened_after_schema_change(age: Duration) -> bool {
+    let changed = SCHEMA_CHANGED_AT_NANOS.load(Ordering::Acquire);
+    if changed == 0 {
+        return true;
+    }
+    let opened = pool_clock().elapsed().saturating_sub(age);
+    nanos_since_clock(opened) >= changed
+}
 
 /// Operator-tunable connection-pool sizing for a `PostgresProvider`.
 ///
@@ -47,30 +75,40 @@ impl Default for PoolConfig {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Duration::from_mins(5),
             max_lifetime: Duration::from_mins(30),
-            statement_cache_capacity: 0,
+            statement_cache_capacity: DEFAULT_STATEMENT_CACHE_CAPACITY,
         }
     }
 }
 
 #[must_use]
 pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
+    pool_clock();
     PgPoolOptions::new()
         .max_connections(cfg.max_connections)
         .min_connections(cfg.min_connections)
         .max_lifetime(cfg.max_lifetime)
         .acquire_timeout(cfg.acquire_timeout)
         .idle_timeout(cfg.idle_timeout)
+        // Why: a cached prepared statement fails with SQLSTATE 0A000 ("cached
+        // plan must not change result type") once DDL changes the table under
+        // it. In-process migrations call `mark_schema_changed`, and every
+        // connection opened before that is closed on its next acquire instead
+        // of being handed out with stale plans.
+        .before_acquire(|_conn, meta| {
+            Box::pin(async move { Ok(opened_after_schema_change(meta.age)) })
+        })
 }
 
 pub fn connect_options(database_url: &str) -> DatabaseResult<PgConnectOptions> {
     let options = PgConnectOptions::from_str(database_url)?
         .application_name("systemprompt")
-        // Why: migrations run DDL on the serving pool and sqlx never invalidates
-        // a connection's prepared statements, so a cached plan would fail with
-        // SQLSTATE 0A000 ("cached plan must not change result type") after an
-        // ALTER TABLE. Safe to raise via `database.pool.statement_cache_capacity`
-        // only where migrations run out of process (`migrate_on_boot: false`).
-        .statement_cache_capacity(0)
+        // Why: sqlx 0.9 `PgConnection::get_or_prepare` Parses every persistent
+        // query as a NAMED statement and only sends Close when the cache is
+        // enabled and evicts, so capacity 0 never deallocates them: each
+        // backend grew without bound until Postgres OOMed. A bounded cache
+        // closes on eviction; stale plans after in-process DDL are handled by
+        // `mark_schema_changed` in `build_pool_options`.
+        .statement_cache_capacity(DEFAULT_STATEMENT_CACHE_CAPACITY)
         .options([("client_min_messages", "warning")]);
     Ok(options)
 }

@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Profile:** `database.pool.statement_cache_capacity` (default 0, validated 0..=1000) sets sqlx's per-connection prepared-statement cache. Keep 0 when migrations run on the serving pool (`migrate_on_boot: true`); a deployment that migrates out of process, such as a Helm migrate Job, can raise it to stop re-planning every query.
+- **Profile:** `database.pool.statement_cache_capacity` (default 100, validated 0..=1000) sets sqlx's per-connection prepared-statement cache. 0 is still accepted but leaks, see Fixed.
 - **API:** `db_pool_size{pool}` and `db_pool_connections{pool,state="idle"|"used"}` gauges, sampled every 5 s for the write pool and, when a replica is configured, the read pool. No acquire-latency histogram: queries hand the pool straight to sqlx, so there is no central acquire to time.
 
 ### Changed
@@ -14,6 +14,10 @@
 - **Gateway:** request messages and safety findings are written with one `INSERT ... SELECT FROM UNNEST` each instead of one INSERT per row (`AiRequestRepository::insert_messages`, `AiSafetyFindingRepository::insert_many`).
 - **Gateway:** `user_contexts` is upserted once per request. The HTTP extract step already binds the conversation, so `audit.open` skips the repeat when `GatewayRequestContext::context_bound` is true.
 - **Users:** `ApiKeyService::verify` updates `user_api_keys.last_used_at` only when the stored value is NULL or at least 60 s old.
+
+### Fixed
+
+- **Database:** Postgres prepared statements are bounded per connection; capacity 0 leaked them. With the cache off, sqlx 0.9 still Parses every `query!` as a named statement and never Closes it, so each backend grew until Postgres ran out of memory under sustained load. The default is now 100, and evictions deallocate. A migration run in-process (`migrate_on_boot` or `infra db migrate`) calls `systemprompt_database::mark_schema_changed`, and every pooled connection opened before it is closed on its next acquire, so no stale plan hits SQLSTATE 0A000. Another process migrating under a running server still needs that server restarted, as before.
 
 ### Breaking
 

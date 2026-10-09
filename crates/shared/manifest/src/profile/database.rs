@@ -10,9 +10,10 @@ use serde::{Deserialize, Serialize};
 /// Omitted fields fall back to the engine defaults (50 connections, 30s
 /// acquire, 300s idle, 1800s lifetime); set them to fit the pool to the
 /// deployment's Postgres `max_connections` and replica count.
-/// `statement_cache_capacity` defaults to 0 (no per-connection prepared
-/// statement cache) and is only safe to raise where migrations run out of
-/// process (`migrate_on_boot: false`).
+/// `statement_cache_capacity` defaults to 100 prepared statements per
+/// connection. 0 is accepted but leaks: sqlx still names every statement and
+/// never closes one without a cache, so each backend grows until Postgres runs
+/// out of memory.
 /// [`crate::profile::Profile::validate`] range-checks the values at bootstrap.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
