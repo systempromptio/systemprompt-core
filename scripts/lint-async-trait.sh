@@ -17,6 +17,7 @@
 #   scripts/lint-async-trait.sh            # gate
 #   scripts/lint-async-trait.sh --count    # hit count only
 set -uo pipefail
+export LC_ALL=C
 cd "$(dirname "$0")/.."
 command -v rg >/dev/null || { echo "lint-async-trait: ripgrep required" >&2; exit 2; }
 
@@ -27,7 +28,8 @@ PROD_GLOBS=(-g '*.rs' -g '!crates/tests/**' -g '!**/target/**' -g '!**/build.rs'
 PROD_ROOTS=(crates systemprompt/src bin/bridge/src)
 ALL_ROOTS=(crates systemprompt/src bin/bridge/src)
 
-declare -A trait_file trait_line dyn_used
+# Keyed by `path::Name`: same-named traits in different crates are distinct.
+declare -A trait_name trait_file trait_line dyn_used
 order=()
 while IFS=: read -r file line; do
     [ -n "$file" ] || continue
@@ -39,13 +41,15 @@ while IFS=: read -r file line; do
         NR > start + 4 { exit }
     ' "$file" | tr -d '[:space:]')
     [ -n "$name" ] || continue
-    trait_file[$name]="$file"
-    trait_line[$name]="$line"
-    order+=("$name")
+    key="$file::$name"
+    trait_name[$key]="$name"
+    trait_file[$key]="$file"
+    trait_line[$key]="$line"
+    order+=("$key")
     uses=$(rg -c --no-messages -g '*.rs' -g '!**/target/**' \
         -e "dyn[[:space:]]+([A-Za-z0-9_]+::)*${name}([^A-Za-z0-9_]|$)" \
         "${ALL_ROOTS[@]}" | awk -F: '{ n += $NF } END { print n + 0 }')
-    [ "$uses" -gt 0 ] && dyn_used[$name]=1
+    [ "$uses" -gt 0 ] && dyn_used[$key]=1
 done < <(rg -n --no-heading --color=never "${PROD_GLOBS[@]}" \
     -e '^[[:space:]]*#\[(async_trait::)?async_trait(\([^)]*\))?\]' "${PROD_ROOTS[@]}" \
     | awk -F: '{ print $1 ":" $2 }' | sort -u)
@@ -56,21 +60,23 @@ scanned=${#order[@]}
 changed=1
 while [ "$changed" -eq 1 ]; do
     changed=0
-    for name in "${order[@]}"; do
-        [ -z "${dyn_used[$name]:-}" ] || continue
-        for sub in "${!dyn_used[@]}"; do
+    for key in "${order[@]}"; do
+        [ -z "${dyn_used[$key]:-}" ] || continue
+        name="${trait_name[$key]}"
+        for sub_key in "${!dyn_used[@]}"; do
+            sub="${trait_name[$sub_key]}"
             if rg -q --no-messages -g '*.rs' -g '!**/target/**' \
                 -e "trait[[:space:]]+${sub}[[:space:]]*(<[^>]*>)?[[:space:]]*:[^{]*([^A-Za-z0-9_]|^)${name}([^A-Za-z0-9_]|$)" "${ALL_ROOTS[@]}"; then
-                dyn_used[$name]=1; changed=1; break
+                dyn_used[$key]=1; changed=1; break
             fi
         done
     done
 done
 
 hits=""
-for name in "${order[@]}"; do
-    file="${trait_file[$name]}"; line="${trait_line[$name]}"
-    if [ -z "${dyn_used[$name]:-}" ]; then
+for key in "${order[@]}"; do
+    name="${trait_name[$key]}"; file="${trait_file[$key]}"; line="${trait_line[$key]}"
+    if [ -z "${dyn_used[$key]:-}" ]; then
         hits+="$file:$line: dyn-unused: #[async_trait] on $name but nothing takes dyn $name — use native async fn"$'\n'
         continue
     fi
