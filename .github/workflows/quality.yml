@@ -291,22 +291,21 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
-      # Why: `just check-gates` is the local gate list; this job is the CI one.
-      # Neither can be the other's source of truth (a single `just check-gates`
-      # step would stop at the first red gate, which is what the per-step
-      # `!cancelled()` guards exist to prevent), so the two lists are asserted
-      # equal instead. A gate listed in the recipe must appear here as a step,
-      # and a step here must be in the recipe.
+      # Why: scripts/check-gates.txt is the local gate list (`just check-gates`);
+      # this job is the CI one. Per-step `!cancelled()` guards give each gate its
+      # own red/green line, so the two lists are asserted equal instead. A gate
+      # listed in the file must appear here as a step, and a step here must be
+      # in the file.
       - name: Local and CI gate lists match
         if: ${{ !cancelled() }}
         run: |
-          want=$(sed -n 's/^check-gates: //p' justfile | tr ' ' '\n' | sort -u)
+          want=$(grep -v '^$' scripts/check-gates.txt | sort -u)
           have=$(awk '/^  source-gates:/ { on = 1; next } on && /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
                  | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
           release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
           have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
           if ! diff <(echo "$want") <(echo "$have"); then
-              echo "::error::justfile check-gates and quality.yml source-gates list different gates (< recipe only, > CI only)"
+              echo "::error::scripts/check-gates.txt and quality.yml source-gates list different gates (< file only, > CI only)"
               exit 1
           fi
           echo "gate lists match ($(echo "$want" | wc -l) gates)"

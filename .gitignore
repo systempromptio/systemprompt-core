@@ -114,6 +114,8 @@ scripts/*
 # ...except the committed shard runner, the single source of truth shared by CI
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
+!scripts/check-gates.sh
+!scripts/check-gates.txt
 !scripts/schema-ladder.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
