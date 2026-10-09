@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.65.0] - Unreleased
+
+### Added
+
+- **Profile:** `database.pool.statement_cache_capacity` (default 0, validated 0..=1000) sets sqlx's per-connection prepared-statement cache. Keep 0 when migrations run on the serving pool (`migrate_on_boot: true`); a deployment that migrates out of process, such as a Helm migrate Job, can raise it to stop re-planning every query.
+- **API:** `db_pool_size{pool}` and `db_pool_connections{pool,state="idle"|"used"}` gauges, sampled every 5 s for the write pool and, when a replica is configured, the read pool. No acquire-latency histogram: queries hand the pool straight to sqlx, so there is no central acquire to time.
+
+### Changed
+
+- **Gateway:** one `PolicyResolver` is built per router and shared across requests, so its 60 s cache is hit; the global gateway policy is no longer read from Postgres on every `/v1/messages`. A policy edit takes effect within 60 s.
+- **Gateway:** request messages and safety findings are written with one `INSERT ... SELECT FROM UNNEST` each instead of one INSERT per row (`AiRequestRepository::insert_messages`, `AiSafetyFindingRepository::insert_many`).
+- **Gateway:** `user_contexts` is upserted once per request. The HTTP extract step already binds the conversation, so `audit.open` skips the repeat when `GatewayRequestContext::context_bound` is true.
+- **Users:** `ApiKeyService::verify` updates `user_api_keys.last_used_at` only when the stored value is NULL or at least 60 s old.
+
+### Breaking
+
+- **Gateway Rust API:** `GatewayRequestContext` gains `context_bound: bool` and `GatewayRepositories` gains `policy_resolver: PolicyResolver`; a struct literal must name them (`false` keeps the old double upsert). `systemprompt_ai::RequestMessageRow` is new.
+- **Database / Manifest Rust API:** `systemprompt_database::PoolConfig` gains `statement_cache_capacity: usize` (0 keeps the old behaviour) and the profile `PoolConfig` gains `statement_cache_capacity: Option<usize>`; a struct literal must name them or use `..Default::default()`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Migration
