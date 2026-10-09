@@ -122,7 +122,9 @@ impl AiSafetyFindingRepository {
             &severities,
             &categories,
             &scanners,
-            excerpts.as_slice(),
+            // Why: sqlx infers `$7::text[]` as `&[String]`; `as _` keeps the
+            // nullable element type so an absent excerpt stays NULL.
+            excerpts.as_slice() as _,
             &blocked
         )
         .execute(self.write_pool.as_ref())
