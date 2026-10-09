@@ -4,7 +4,7 @@
 //!
 //! - `webhook` — production. Core POSTs every request to the configured URL;
 //!   any transport error, non-2xx, or decode failure denies the request.
-//! - `extension` — production, and what generated profiles use. The hook is
+//! - `extension` — production, explicit opt-in. The hook is
 //!   supplied at bootstrap by the binary via `register_authz_hook!` or
 //!   `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors if no hook is
 //!   supplied. See `internal/guides/authz.md`.
@@ -34,7 +34,9 @@
 //! governance:
 //!   authz:
 //!     hook:
-//!       mode: extension
+//!       mode: webhook
+//!       url: http://localhost:8080/api/public/govern/authz
+//!       timeout_ms: 500
 //!   audit:
 //!     payload_cap_bytes: 4194304
 //! ```

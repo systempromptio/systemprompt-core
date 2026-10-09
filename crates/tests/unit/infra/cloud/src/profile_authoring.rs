@@ -95,13 +95,16 @@ fn test_local_profile_cloud_and_secrets_sections() {
 }
 
 #[test]
-fn test_local_profile_governance_extension() {
+fn test_local_profile_governance_webhook() {
     let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build();
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
-    assert!(matches!(authz.hook.mode, AuthzMode::Extension));
-    assert!(authz.hook.url.is_none());
+    assert!(matches!(authz.hook.mode, AuthzMode::Webhook));
+    assert_eq!(
+        authz.hook.url.as_deref(),
+        Some("http://localhost:8080/api/public/govern/authz")
+    );
     assert_eq!(authz.hook.timeout_ms, 500);
     assert!(authz.hook.acknowledgement.is_none());
 }
@@ -218,8 +221,11 @@ fn test_cloud_profile_governance_targets_internal_url() {
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
-    assert!(matches!(authz.hook.mode, AuthzMode::Extension));
-    assert!(authz.hook.url.is_none());
+    assert!(matches!(authz.hook.mode, AuthzMode::Webhook));
+    assert_eq!(
+        authz.hook.url.as_deref(),
+        Some("http://localhost:8080/api/public/govern/authz")
+    );
 }
 
 #[test]
