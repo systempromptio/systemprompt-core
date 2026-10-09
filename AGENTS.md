@@ -143,7 +143,9 @@ If you are an agent working in this repository:
   refuses unless those push runs are green, then freezes the candidate on
   `promote` and opens the release PR onto `main`. The PR re-runs the matrix on
   the frozen commit and requires `CI passed`, `Quality passed` and
-  `Supply Chain passed`.
+  `Supply Chain passed`, which only pull_request runs post (push runs post the
+  same names with a ` (push)` suffix). `just merge-release` is the only way
+  to merge it.
   After merge, `main` is tagged (`vX.Y.Z`) and the workspace is published to
   crates.io.
 - Downstream repos (`systemprompt-template`, `systemprompt-demo`, and private

@@ -59,7 +59,9 @@ Nothing rewrites your code and nothing promotes to `main` for you. Push to
 `main` and `next` only — never on the release PR — and is not a required check.
 The `main` run is the published number for the released commit; the `next` run
 is the erosion signal. The release PR waits on `CI passed`, `Quality passed`
-and `Supply Chain passed` (the aggregate jobs of each gate workflow) alone.
+and `Supply Chain passed` (the aggregate jobs of each gate workflow) alone; push
+runs post those names with a ` (push)` suffix, so a green `next` run can never
+stand in for the PR's own.
 
 Releasing is three deliberate steps:
 
@@ -71,7 +73,8 @@ Releasing is three deliberate steps:
    (`gh run rerun <id> --failed`) only after its cause is understood.
 2. `just promote [SHA]` — refuses unless that SHA's push runs are green, then
    freezes it on the `promote` ref and **opens** the release pull request onto
-   `main`. It does not merge; the gates re-run on the PR, and you merge it.
+   `main`. It does not merge; the gates re-run on the PR, and you merge it
+   with `just merge-release SHA` — never `gh pr merge` by hand.
 3. Tag `main` once merged. Tags are not covered by the ruleset.
 
 The full release cycle — publishing to crates.io, the bridge, and landing all

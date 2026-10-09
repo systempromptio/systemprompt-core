@@ -1006,7 +1006,33 @@ promote SHA="":
     fi
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"
-    echo "Review it, then merge when you are ready:  gh pr merge $NUM --merge"
+    echo "Review it, then merge when you are ready:  just merge-release $SHA"
+
+# Merge the promotion PR for SHA once its own runs prove it. This is the only
+# sanctioned way to merge the promotion PR: the proof's exit status gates the
+# merge directly, the merge is pinned to SHA, and the merge commit is re-proven.
+merge-release SHA:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    REPO=systempromptio/systemprompt-core
+    SHA=$(git rev-parse "{{SHA}}")
+    if ! python3 scripts/release-proof.py pr "$SHA"; then
+        echo "Promotion proof for ${SHA:0:9} failed; not merging." >&2; exit 1
+    fi
+    NUM=$(gh pr list -R "$REPO" --base main --head promote --state open --json number,headRefOid \
+            --jq "map(select(.headRefOid == \"$SHA\")) | .[0].number // empty")
+    [ -n "$NUM" ] || { echo "No open promotion PR at ${SHA:0:9}." >&2; exit 1; }
+    gh pr merge "$NUM" --merge --match-head-commit "$SHA" -R "$REPO"
+    MERGED=$(gh pr view "$NUM" -R "$REPO" --json mergeCommit --jq .mergeCommit.oid)
+    git fetch -q origin main
+    [ "$(git rev-parse origin/main)" = "$MERGED" ] || echo "origin/main has moved past the merge $MERGED" >&2
+    python3 scripts/release-proof.py merged "$MERGED"
+    echo "Merged PR #$NUM as $MERGED. Tag it: git tag vX.Y.Z $MERGED && git push origin vX.Y.Z"
+
+# Publish the tagged release to crates.io, retrying on rate limits, then verify
+# every crate on the sparse index. HEAD must be a v* tag on origin/main.
+publish-crates:
+    scripts/publish-crates.sh
 
 lint-discarded-results:
     ./scripts/check-discarded-results.sh
