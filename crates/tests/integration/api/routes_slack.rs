@@ -124,7 +124,7 @@ async fn signed_slash_command_dispatches_and_posts_to_response_url() -> anyhow::
         )
         .mount(&agent)
         .await;
-    seed_agent_backend(&pool, &agent).await?;
+    seed_agent_backend(&ctx, &agent).await?;
 
     let response_hook = MockServer::start().await;
     Mock::given(method("POST"))
@@ -195,7 +195,7 @@ async fn coverage_command_reply(
         .expect(if denied { 0 } else { 1 })
         .mount(&agent)
         .await;
-    seed_agent_backend(&pool, &agent).await?;
+    seed_agent_backend(&ctx, &agent).await?;
     let hook = MockServer::start().await;
     Mock::given(method("POST"))
         .respond_with(

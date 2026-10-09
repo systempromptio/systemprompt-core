@@ -17,11 +17,12 @@
 use std::sync::Arc;
 use systemprompt_identifiers::JobName;
 
-use systemprompt_identifiers::InstanceId;
 use systemprompt_scheduler::{
     JobRunRecord, JobStatus, SchedulerConfig, SchedulerRepository, SchedulerService,
 };
-use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
+use systemprompt_test_fixtures::{
+    test_app_context, test_database_url, test_db_pool, unique_instance,
+};
 
 fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> SchedulerConfig {
     SchedulerConfig {
@@ -372,6 +373,7 @@ mod distributed_lock_arms {
 
     #[tokio::test]
     async fn fresh_last_run_deduplicates_the_tick() {
+        let fixture_instance = unique_instance();
         let url = test_database_url();
         let pool = test_db_pool().await;
         let app_ctx = test_app_context(&pool, &url);
@@ -388,7 +390,7 @@ mod distributed_lock_arms {
                 error: None,
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("fixture"),
+                instance_id: &fixture_instance,
             },
         )
         .await

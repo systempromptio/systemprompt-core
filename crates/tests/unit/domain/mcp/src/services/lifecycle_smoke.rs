@@ -1,7 +1,6 @@
 //! DB-backed smoke tests for [`LifecycleService`] accessors and
 //! shutdown / health-check on missing services (no real spawn).
 
-use crate::harness::unique_instance;
 use std::path::PathBuf;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
@@ -15,7 +14,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance};
 
 async fn make_orchestrator() -> (LifecycleService, McpServerConfig) {
     let db = test_db_pool().await;

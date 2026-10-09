@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use systemprompt_database::DbPool;
+use systemprompt_runtime::AppContext;
 use wiremock::MockServer;
 
 use crate::bootstrap::test_messaging_agent;
@@ -18,8 +18,8 @@ use crate::service_row::seed_running_service;
 // Register the dispatchable agent backend at `mock`'s loopback port.
 // Idempotent — `create_service` upserts on the service name, so a re-run
 // repoints the row.
-pub async fn seed_agent_backend(pool: &DbPool, mock: &MockServer) -> Result<()> {
-    seed_running_service(pool, test_messaging_agent(), "agent", mock.address().port()).await
+pub async fn seed_agent_backend(ctx: &AppContext, mock: &MockServer) -> Result<()> {
+    seed_running_service(ctx, test_messaging_agent(), "agent", mock.address().port()).await
 }
 
 // A successful `message/send` response whose terminal status message carries

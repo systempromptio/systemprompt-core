@@ -12,7 +12,7 @@ use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAut
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
-    Actor, AgentName, AiRequestId, ContextId, JwtToken, SessionId, TraceId, UserId,
+    Actor, AgentName, AiRequestId, ContextId, InstanceId, JwtToken, SessionId, TraceId, UserId,
 };
 use systemprompt_models::AiMessage;
 use systemprompt_models::ai::provider_trait::GenerateResponseParams;
@@ -332,13 +332,20 @@ pub(crate) fn skill_service(pool: &DbPool) -> systemprompt_agent::services::Skil
 }
 
 pub(crate) fn make_agent_state(pool: &DbPool) -> Arc<AgentState> {
+    make_agent_state_for(pool, &systemprompt_test_fixtures::unique_instance())
+}
+
+pub(crate) fn make_agent_state_for(pool: &DbPool, instance: &InstanceId) -> Arc<AgentState> {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let url = systemprompt_test_fixtures::test_database_url();
-    let config = Arc::new(systemprompt_test_fixtures::fixture_config(&url));
-    let repos = crate::repository::repos(pool);
+    let mut config = systemprompt_test_fixtures::fixture_config(&url);
+    config.instance_id = instance.clone();
+    let mut deps = systemprompt_test_fixtures::a2a_dependencies(pool);
+    deps.instance_id = instance.clone();
+    let repos = systemprompt_agent::repository::A2ARepositories::new(pool, deps);
     Arc::new(AgentState::new(
         Arc::clone(pool),
-        config,
+        Arc::new(config),
         stub_jwt(),
         Arc::new(repos),
         systemprompt_test_mocks::recording_webhooks(),

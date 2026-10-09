@@ -14,7 +14,7 @@ use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
-use systemprompt_test_fixtures::fixture_system_admin;
+use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
@@ -33,6 +33,7 @@ fn content_config() -> Arc<ContentConfigRaw> {
 
 #[tokio::test]
 async fn plane_debug_impls_flag_optional_members() {
+    let test_instance = unique_instance();
     let url = systemprompt_test_fixtures::test_database_url();
     let pool = systemprompt_test_fixtures::test_db_pool().await;
 
@@ -52,7 +53,7 @@ async fn plane_debug_impls_flag_optional_members() {
             &pool,
             systemprompt_agent::repository::A2aDependencies {
                 session_usage,
-                instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                instance_id: test_instance.clone(),
                 managed_skills: systemprompt_test_fixtures::not_managed_skills(),
                 tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
                     systemprompt_test_fixtures::ToolExecutionLedger::Exists,
@@ -68,7 +69,7 @@ async fn plane_debug_impls_flag_optional_members() {
         user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         )),
         ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
         analytics_repositories: Arc::new(

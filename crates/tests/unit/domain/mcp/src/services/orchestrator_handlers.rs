@@ -1,6 +1,5 @@
 //! Constructor tests for orchestrator subscribers and the event bus.
 
-use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::profile::PathsConfig;
@@ -13,7 +12,7 @@ use systemprompt_mcp::services::orchestrator::{
 };
 use systemprompt_mcp::services::process::ProcessService;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{fixture_user_id, test_db_pool, unique_instance};
 
 async fn make_dependencies() -> (LifecycleService, DatabaseService, RegistryService) {
     let db = test_db_pool().await;

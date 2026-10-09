@@ -440,10 +440,7 @@ async fn external_with_anonymous_context_is_unauthorized() -> anyhow::Result<()>
 async fn internal_registry_server_forwards_to_backend_with_context_headers() -> anyhow::Result<()> {
     let h = harness().await?;
     let backend_port = h.backend.address().port();
-    let repo = ServiceRepository::new(
-        h.ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(h.ctx.db_pool(), h.ctx.config().instance_id.clone());
     // Why: the row carries a port from an earlier run under another offset;
     // the resolver must trust the port this instance spawns, not the row.
     let stale_port = 5321;

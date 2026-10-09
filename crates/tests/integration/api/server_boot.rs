@@ -22,11 +22,13 @@ use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsyste
 use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
+    unique_instance,
 };
 use systemprompt_users::{UserRepository, UserService};
 
 #[tokio::test]
 async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
+    let test_instance = unique_instance();
     let bootstrap = ensure_test_bootstrap();
     let pool = test_db_pool().await;
 
@@ -69,7 +71,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                     &pool,
                     systemprompt_agent::repository::A2aDependencies {
                         session_usage,
-                        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                        instance_id: test_instance.clone(),
                         managed_skills: systemprompt_test_fixtures::not_managed_skills(),
                         tool_executions: systemprompt_test_fixtures::tool_execution_ledger(
                             systemprompt_test_fixtures::ToolExecutionLedger::Exists,
@@ -85,7 +87,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                     &pool,
-                    systemprompt_identifiers::InstanceId::new("test-instance"),
+                    test_instance.clone(),
                 )),
                 ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,

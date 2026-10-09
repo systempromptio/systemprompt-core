@@ -54,7 +54,7 @@ settings:
     )?;
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
-    seed_running_service(&pool, &name, "mcp", backend.address().port()).await?;
+    seed_running_service(&ctx, &name, "mcp", backend.address().port()).await?;
 
     let session_id = SessionId::new(format!("followup-{}", Uuid::new_v4().simple()));
     let user_id = UserId::new(Uuid::new_v4().to_string());

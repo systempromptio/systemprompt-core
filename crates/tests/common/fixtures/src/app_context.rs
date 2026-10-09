@@ -53,7 +53,7 @@ pub fn fixture_fingerprint_repository(db: &DbPool) -> Result<FingerprintReposito
 
 pub fn fixture_config(database_url: &str) -> Config {
     Config {
-        instance_id: systemprompt_identifiers::InstanceId::new("fixture"),
+        instance_id: crate::unique_instance(),
         metrics_port: None,
         max_concurrent_streams: 16,
         role: Default::default(),
@@ -253,6 +253,7 @@ fn fixture_app_context_assembled(
         systemprompt_storage::build_file_storage(systemprompt_storage::FileStorageBackend::Local {
             root: app_paths.storage().root().to_path_buf(),
         });
+    let instance_id = config.instance_id.clone();
     let ctx = AppContext::from_parts(
         DataPlane {
             database: Arc::clone(pool),
@@ -266,7 +267,7 @@ fn fixture_app_context_assembled(
                 pool,
                 systemprompt_agent::repository::A2aDependencies {
                     session_usage,
-                    instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+                    instance_id: instance_id.clone(),
                     managed_skills: crate::agent::not_managed_skills(),
                     tool_executions: crate::agent::tool_execution_ledger(
                         crate::agent::ToolExecutionLedger::Exists,
@@ -282,7 +283,7 @@ fn fixture_app_context_assembled(
             user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                 pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
+                instance_id,
             )),
             ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)),
             analytics_repositories,

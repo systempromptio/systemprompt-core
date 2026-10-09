@@ -114,7 +114,7 @@ settings:
     )?;
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
-    register_running_service(&pool, &name, "mcp", port).await?;
+    register_running_service(&ctx, &name, "mcp", port).await?;
     Ok(DeclaredBackend {
         name,
         ctx,
@@ -195,12 +195,12 @@ async fn inject_ctx(
 }
 
 async fn register_running_service(
-    pool: &systemprompt_database::DbPool,
+    ctx: &systemprompt_runtime::AppContext,
     name: &str,
     module: &str,
     port: u16,
 ) -> anyhow::Result<()> {
-    systemprompt_test_fixtures::seed_running_service(pool, name, module, port).await
+    systemprompt_test_fixtures::seed_running_service(ctx, name, module, port).await
 }
 
 fn unique_name(prefix: &str) -> String {
@@ -325,7 +325,7 @@ async fn agent_proxy_propagates_backend_error_status() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
     let backend = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/"))
@@ -335,7 +335,7 @@ async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> any
         .await;
 
     let name = unique_name("custom-fwd");
-    register_running_service(&pool, &name, "custom", backend.address().port()).await?;
+    register_running_service(&ctx, &name, "custom", backend.address().port()).await?;
 
     let token = ctx_token();
     let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -351,7 +351,7 @@ async fn an_undeclared_module_is_forbidden_even_with_a_valid_credential() -> any
 
 #[tokio::test]
 async fn agent_proxy_running_service_without_context_is_error() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
     let backend = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/"))
@@ -360,7 +360,7 @@ async fn agent_proxy_running_service_without_context_is_error() -> anyhow::Resul
         .await;
 
     let name = unique_name("custom-noctx");
-    register_running_service(&pool, &name, "custom", backend.address().port()).await?;
+    register_running_service(&ctx, &name, "custom", backend.address().port()).await?;
 
     let token = ctx_token();
     // No inject_ctx middleware — the proxy must refuse without a RequestContext.
@@ -395,7 +395,7 @@ async fn mcp_proxy_unknown_service_emits_challenge() -> anyhow::Result<()> {
 // not be forwarded.
 #[tokio::test]
 async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
     let backend = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/"))
@@ -404,7 +404,7 @@ async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Resu
         .await;
 
     let name = unique_name("ghost-agent");
-    register_running_service(&pool, &name, "agent", backend.address().port()).await?;
+    register_running_service(&ctx, &name, "agent", backend.address().port()).await?;
 
     let token = ctx_token();
     let app = agents::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -424,7 +424,7 @@ async fn a_services_row_naming_an_unknown_agent_is_not_proxied() -> anyhow::Resu
 
 #[tokio::test]
 async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
     let backend = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
@@ -433,7 +433,7 @@ async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow:
         .await;
 
     let name = unique_name("ghost-mcp");
-    register_running_service(&pool, &name, "mcp", backend.address().port()).await?;
+    register_running_service(&ctx, &name, "mcp", backend.address().port()).await?;
 
     let token = ctx_token();
     let app = mcp::router(&ctx).layer(middleware::from_fn_with_state(token.clone(), inject_ctx));
@@ -455,7 +455,7 @@ async fn a_services_row_naming_an_unknown_mcp_server_is_not_proxied() -> anyhow:
 
 #[tokio::test]
 async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<()> {
-    let (pool, ctx) = setup_ctx().await?;
+    let (_pool, ctx) = setup_ctx().await?;
     let backend = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/"))
@@ -464,7 +464,7 @@ async fn an_unknown_module_name_still_demands_a_credential() -> anyhow::Result<(
         .await;
 
     let name = unique_name("unknown-module");
-    register_running_service(&pool, &name, "something-else", backend.address().port()).await?;
+    register_running_service(&ctx, &name, "something-else", backend.address().port()).await?;
 
     // No Authorization header: a row whose module is outside the closed
     // vocabulary is a corrupt registry row and must fail closed.

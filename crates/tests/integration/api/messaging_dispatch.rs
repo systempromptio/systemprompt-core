@@ -60,7 +60,7 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "the agent replied").await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))
@@ -110,7 +110,7 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
         )
         .mount(&backend)
         .await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let err = dispatch_messaging(&ctx, inbound(&user, "hi"))
@@ -132,7 +132,7 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "ok").await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let pg = pool.pool();

@@ -16,8 +16,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use crate::harness::{
     default_tools_json, external_mcp_config, internal_mcp_config, mount_mcp_endpoint,
-    unique_instance,
 };
+use systemprompt_test_fixtures::unique_instance;
 
 fn internal_at(mock: &MockServer, name: &str) -> McpServerConfig {
     let port = mock.address().port();

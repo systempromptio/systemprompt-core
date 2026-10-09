@@ -5,7 +5,7 @@
 // errored and logs the startup diagnosis for each stored status.
 
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
@@ -14,7 +14,7 @@ use systemprompt_config::paths::AppPaths;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -29,22 +29,16 @@ fn app_paths() -> Arc<AppPaths> {
     Arc::new(bootstrap.app_paths.clone())
 }
 
-fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
+fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentLifecycle {
     AgentLifecycle::new(
-        AgentServiceRepository::new(
-            pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
     )
     .expect("lifecycle")
 }
 
-fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -57,8 +51,9 @@ async fn ephemeral_listener() -> (TcpListener, u16) {
 #[tokio::test]
 async fn validate_prerequisites_free_port_is_ok() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lc = lifecycle(&pool);
+    let lc = lifecycle(&pool, &instance);
 
     let (listener, port) = ephemeral_listener().await;
     drop(listener);
@@ -71,8 +66,9 @@ async fn validate_prerequisites_free_port_is_ok() {
 #[tokio::test]
 async fn validate_prerequisites_port_held_by_non_agent_fails() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lc = lifecycle(&pool);
+    let lc = lifecycle(&pool, &instance);
 
     let (listener, port) = ephemeral_listener().await;
     let result = lc
@@ -89,8 +85,9 @@ async fn validate_prerequisites_port_held_by_non_agent_fails() {
 #[tokio::test]
 async fn verify_startup_succeeds_against_live_listener() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lc = lifecycle(&pool);
+    let lc = lifecycle(&pool, &instance);
 
     let (listener, port) = ephemeral_listener().await;
     let accept_loop = tokio::spawn(async move {
@@ -108,9 +105,10 @@ async fn verify_startup_succeeds_against_live_listener() {
 #[tokio::test]
 async fn verify_startup_times_out_without_clearing_the_pid() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lc = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lc = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
 
     let name = unique_name("lc_verify_dead");
     db.register_agent_starting(&name, DEAD_PID, 39461)
@@ -144,9 +142,10 @@ async fn verify_startup_times_out_without_clearing_the_pid() {
 #[tokio::test]
 async fn log_startup_failure_covers_stored_statuses() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lc = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lc = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
 
     lc.log_startup_failure(&AgentName::new("lc_log_missing"), 39462)
         .await;

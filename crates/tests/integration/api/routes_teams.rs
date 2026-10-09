@@ -158,7 +158,7 @@ async fn signed_activity_dispatches_and_posts_the_card() -> anyhow::Result<()> {
         )
         .mount(&agent)
         .await;
-    seed_agent_backend(&pool, &agent).await?;
+    seed_agent_backend(&ctx, &agent).await?;
 
     let signing = systemprompt_test_fixtures::next_test_key();
     Mock::given(method("GET"))

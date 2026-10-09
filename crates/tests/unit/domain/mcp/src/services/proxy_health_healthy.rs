@@ -2,11 +2,10 @@
 //! port answers the scripted MCP handshake routes traffic, appears in the
 //! routable list, and a responsive-but-non-MCP port is downgraded to `error`.
 
-use crate::harness::unique_instance;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::monitoring::proxy_health::ProxyHealthCheck;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 use wiremock::MockServer;
 
 use crate::harness::{default_tools_json, mount_mcp_endpoint};

@@ -22,10 +22,7 @@ async fn seed(
     name: &str,
     status: ServiceStatus,
 ) -> anyhow::Result<()> {
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     repo.create_service(CreateServiceInput {
         name: &ServiceName::new(name),
         module_name: ServiceModule::Mcp,

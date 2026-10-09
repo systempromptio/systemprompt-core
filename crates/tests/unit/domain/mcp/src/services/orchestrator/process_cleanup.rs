@@ -28,7 +28,8 @@ use systemprompt_test_fixtures::{
     TestBootstrap, ensure_test_bootstrap, fixture_user_id, test_db_pool,
 };
 
-use crate::harness::{internal_mcp_config, unique_instance};
+use crate::harness::internal_mcp_config;
+use systemprompt_test_fixtures::unique_instance;
 
 const FIXTURE_PORT: u16 = 65500;
 

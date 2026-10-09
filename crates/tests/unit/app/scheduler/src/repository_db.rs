@@ -12,10 +12,10 @@
 //! executes and returns a well-formed (possibly empty) result set against the
 //! freshly-migrated DB.
 
-use systemprompt_identifiers::{InstanceId, JobName};
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::repository::{AnalyticsRepository, SecurityRepository};
 use systemprompt_scheduler::{JobRepository, JobRunRecord, JobStatus, SchedulerRepository};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // Returns None (skipping the test) when no integration DB is configured.
 
@@ -101,6 +101,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_persists_status_and_error() {
+        let test_node_instance = unique_instance();
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let name = unique_job("sched_exec");
@@ -115,7 +116,7 @@ mod scheduler_repository {
                 error: Some("boom"),
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("test-node"),
+                instance_id: &test_node_instance,
             },
         )
         .await
@@ -133,6 +134,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn update_job_execution_success_clears_error() {
+        let test_node_instance = unique_instance();
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let name = unique_job("sched_success");
@@ -147,7 +149,7 @@ mod scheduler_repository {
                 error: Some("boom"),
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("test-node"),
+                instance_id: &test_node_instance,
             },
         )
         .await
@@ -159,7 +161,7 @@ mod scheduler_repository {
                 error: None,
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("test-node"),
+                instance_id: &test_node_instance,
             },
         )
         .await
@@ -179,6 +181,7 @@ mod scheduler_repository {
 
     #[tokio::test]
     async fn each_recorded_run_advances_run_count() {
+        let test_node_instance = unique_instance();
         let pool = test_db_pool().await;
         let repo = SchedulerRepository::new(&pool);
         let name = unique_job("sched_runcount");
@@ -194,7 +197,7 @@ mod scheduler_repository {
                     error: None,
                     message: None,
                     next_run: None,
-                    instance_id: &InstanceId::new("test-node"),
+                    instance_id: &test_node_instance,
                 },
             )
             .await
@@ -293,6 +296,7 @@ mod job_repository {
 
     #[tokio::test]
     async fn list_recent_runs_includes_executed_job() {
+        let test_node_instance = unique_instance();
         let pool = test_db_pool().await;
         let repo = JobRepository::new(&pool);
         let name = unique_job("job_recent");
@@ -307,7 +311,7 @@ mod job_repository {
                 error: None,
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("test-node"),
+                instance_id: &test_node_instance,
             },
         )
         .await

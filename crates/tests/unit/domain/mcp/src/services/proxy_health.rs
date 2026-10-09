@@ -1,9 +1,8 @@
 //! DB-backed tests for [`ProxyHealthCheck`].
 
-use crate::harness::unique_instance;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::monitoring::proxy_health::{ProxyHealthCheck, RoutableService};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 #[tokio::test]
 async fn can_route_traffic_missing_service_returns_false() {

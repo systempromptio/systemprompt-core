@@ -14,6 +14,7 @@ pub mod bootstrap;
 pub mod credential;
 pub mod db;
 pub mod disposable_db;
+pub mod instance;
 pub mod jwt;
 pub mod keys;
 pub mod messaging;
@@ -53,6 +54,7 @@ pub use credential::{
 };
 pub use db::{closed_db_pool, lazy_pg_pool, test_database_url, test_db_pool, test_pg_pool};
 pub use disposable_db::DisposableDb;
+pub use instance::unique_instance;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};

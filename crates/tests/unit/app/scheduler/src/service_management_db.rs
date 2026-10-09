@@ -8,7 +8,7 @@
 use systemprompt_database::ServiceModule;
 use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::ServiceManagementService;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 mod service_management_db {
     use super::*;
@@ -18,7 +18,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let rows = svc
@@ -35,7 +35,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let rows = svc
@@ -51,7 +51,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let rows = svc
@@ -75,7 +75,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let affected = svc
@@ -92,7 +92,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         // An UPDATE that matches zero rows is still a successful query; the
@@ -107,7 +107,7 @@ mod service_management_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let first = svc

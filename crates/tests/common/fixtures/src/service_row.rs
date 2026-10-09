@@ -1,8 +1,8 @@
 //! `services` row fixtures.
 //!
-//! [`seed_running_service`] registers a row that stands for a service this test
-//! process is really hosting — a wiremock backend, a bound listener, a spawned
-//! child.
+//! [`seed_running_service`] registers a row, under the context's own instance
+//! id, that stands for a service this test process is really hosting — a
+//! wiremock backend, a bound listener, a spawned child.
 //!
 //! Reach for it instead of writing the row directly.
 //! `ServiceRepository::cleanup_stale_entries` deletes every
@@ -24,20 +24,20 @@
 //! so the intent is visible at the call site.
 
 use anyhow::Result;
-use systemprompt_database::DbPool;
+use systemprompt_runtime::AppContext;
 
 pub async fn seed_running_service(
-    pool: &DbPool,
+    ctx: &AppContext,
     name: &str,
     module_name: &str,
     port: u16,
 ) -> Result<()> {
-    let p = pool.pool();
+    let p = ctx.db_pool().pool();
     let pid = i32::try_from(std::process::id()).map_err(|e| anyhow::anyhow!("pid: {e}"))?;
     let port = i32::from(port);
     sqlx::query!(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
-         VALUES ('test-instance', $1, $2, 'running', $3, $4)
+         VALUES ($5, $1, $2, 'running', $3, $4)
          ON CONFLICT (instance_id, name) DO UPDATE
            SET module_name = $2, status = 'running', port = $3, pid = $4,
                updated_at = CURRENT_TIMESTAMP",
@@ -45,6 +45,7 @@ pub async fn seed_running_service(
         module_name,
         port,
         pid,
+        ctx.config().instance_id.as_str(),
     )
     .execute(p.as_ref())
     .await

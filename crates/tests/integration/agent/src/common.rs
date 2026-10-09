@@ -1,9 +1,7 @@
 use anyhow::Result;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, TaskRepository};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{
-    AgentName, ContextId, InstanceId, SessionId, TaskId, TraceId, UserId,
-};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::a2a::{Task, TaskState, TaskStatus};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::DynSessionUsageCounters;
@@ -138,8 +136,4 @@ impl Fixture {
 
 pub fn session_usage(db: &DbPool) -> Result<DynSessionUsageCounters> {
     Ok(systemprompt_test_fixtures::fixture_analytics_repositories(db)?.session_store)
-}
-
-pub fn unique_instance() -> InstanceId {
-    InstanceId::new(format!("test-instance-{}", Uuid::new_v4().simple()))
 }

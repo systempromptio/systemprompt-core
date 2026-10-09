@@ -7,9 +7,9 @@ use systemprompt_database::DbPool;
 use systemprompt_events::{
     ANALYTICS_BROADCASTER, Broadcaster, EventRouter, RelayError, RelayOutcome,
 };
-use systemprompt_identifiers::{ConnectionId, InstanceId, UserId};
+use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
-use systemprompt_test_fixtures::{closed_db_pool, test_db_pool, unique_user_id};
+use systemprompt_test_fixtures::{closed_db_pool, test_db_pool, unique_instance, unique_user_id};
 
 async fn fixture_pool() -> sqlx::PgPool {
     let db: DbPool = test_db_pool().await;
@@ -65,8 +65,10 @@ async fn local_only_router_reports_not_installed_and_writes_no_row() {
 async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
     let pool = fixture_pool().await;
     let user = unique_user_id("relay-two-routers");
-    let first = EventRouter::with_outbox(pool.clone(), InstanceId::new("relay-origin-a"));
-    let second = EventRouter::with_outbox(pool.clone(), InstanceId::new("relay-origin-b"));
+    let first_instance = unique_instance();
+    let second_instance = unique_instance();
+    let first = EventRouter::with_outbox(pool.clone(), first_instance.clone());
+    let second = EventRouter::with_outbox(pool.clone(), second_instance.clone());
 
     let first_outcome = first
         .route_analytics(&user, AnalyticsEventBuilder::heartbeat())
@@ -75,7 +77,7 @@ async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
         .route_analytics(&user, AnalyticsEventBuilder::heartbeat())
         .await;
 
-    let origins: Vec<(String,)> = sqlx::query_as(
+    let mut origins: Vec<(String,)> = sqlx::query_as(
         "SELECT origin_instance_id FROM event_outbox WHERE user_id = $1 \
          ORDER BY origin_instance_id",
     )
@@ -95,12 +97,14 @@ async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
         "got {:?}",
         second_outcome.relay
     );
+    let mut expected = vec![
+        (first_instance.as_str().to_owned(),),
+        (second_instance.as_str().to_owned(),),
+    ];
+    expected.sort();
+    origins.sort();
     assert_eq!(
-        origins,
-        vec![
-            ("relay-origin-a".to_owned(),),
-            ("relay-origin-b".to_owned(),)
-        ],
+        origins, expected,
         "each router appends exactly one row stamped with its own instance id"
     );
 }
@@ -109,7 +113,7 @@ async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
 async fn outbox_insert_failure_does_not_block_local_delivery() {
     let db = closed_db_pool().await;
     let closed = (*db.pool()).clone();
-    let router = EventRouter::with_outbox(closed, InstanceId::new("origin"));
+    let router = EventRouter::with_outbox(closed, unique_instance());
 
     let user = unique_user_id("relay-insert-fail");
     let conn = ConnectionId::new("relay-insert-fail-conn");

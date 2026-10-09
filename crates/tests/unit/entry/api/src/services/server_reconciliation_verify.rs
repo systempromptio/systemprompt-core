@@ -12,7 +12,7 @@ use systemprompt_api::services::server::lifecycle::reconciliation::{
     VERIFY_ATTEMPTS, VERIFY_BACKOFF, handle_missing_servers, verify_database_registration,
 };
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{InstanceId, UserId};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::deployment::OAuthRequirement;
 use systemprompt_models::mcp::{McpServerConfig, McpServerType};
@@ -79,16 +79,17 @@ async fn live_pool() -> DbPool {
     test_db_pool().await
 }
 
-async fn seed(pool: &DbPool, name: &str, status: &str) {
+async fn seed(pool: &DbPool, instance: &InstanceId, name: &str, status: &str) {
     let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
-         VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
+         VALUES ($4, $1, 'mcp', $2, 0, $3)
          ON CONFLICT (instance_id, name) DO UPDATE SET status = $2",
     )
     .bind(name)
     .bind(status)
     .bind(i32::try_from(std::process::id()).expect("pid fits in i32"))
+    .bind(instance.as_str())
     .execute(inner.as_ref())
     .await
     .expect("seed the services row");
@@ -109,7 +110,7 @@ async fn a_required_server_with_a_running_row_passes_verification() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("verified");
-    seed(&pool, &name, "running").await;
+    seed(&pool, &ctx.config().instance_id, &name, "running").await;
 
     let outcome = verify_database_registration(&[required(&name)], &ctx, None).await;
 
@@ -146,7 +147,7 @@ async fn a_required_server_registered_in_a_non_running_status_fails_and_reports_
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("halfup");
-    seed(&pool, &name, "starting").await;
+    seed(&pool, &ctx.config().instance_id, &name, "starting").await;
 
     let error = verify_database_registration(&[required(&name)], &ctx, None)
         .await
@@ -169,7 +170,7 @@ async fn every_failing_server_is_reported_not_just_the_first() {
     let ctx = test_app_context(&pool, &boot.database_url);
     let missing = unique_name("missing");
     let stopped = unique_name("stopped");
-    seed(&pool, &stopped, "stopped").await;
+    seed(&pool, &ctx.config().instance_id, &stopped, "stopped").await;
 
     let error = verify_database_registration(&[required(&missing), required(&stopped)], &ctx, None)
         .await
@@ -265,14 +266,15 @@ async fn a_row_that_turns_running_during_the_retry_window_passes_verification() 
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("late");
-    seed(&pool, &name, "starting").await;
+    seed(&pool, &ctx.config().instance_id, &name, "starting").await;
 
     let flipper = {
         let pool = pool.clone();
+        let instance = ctx.config().instance_id.clone();
         let name = name.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-            seed(&pool, &name, "running").await;
+            seed(&pool, &instance, &name, "running").await;
         })
     };
 
@@ -293,7 +295,7 @@ async fn a_row_that_never_turns_running_fails_after_every_attempt() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("stuck");
-    seed(&pool, &name, "stopped").await;
+    seed(&pool, &ctx.config().instance_id, &name, "stopped").await;
 
     let started = std::time::Instant::now();
     let error = verify_database_registration(&[required(&name)], &ctx, None)
