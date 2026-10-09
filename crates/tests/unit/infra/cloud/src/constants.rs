@@ -168,16 +168,6 @@ fn test_profile_default_cloud_url() {
 }
 
 #[test]
-fn test_profile_local_issuer() {
-    assert_eq!(profile::LOCAL_ISSUER, "systemprompt-local");
-}
-
-#[test]
-fn test_profile_cloud_issuer() {
-    assert_eq!(profile::CLOUD_ISSUER, "systemprompt");
-}
-
-#[test]
 fn test_profile_access_token_expiration() {
     assert_eq!(profile::ACCESS_TOKEN_EXPIRATION, 2_592_000);
     assert_eq!(profile::ACCESS_TOKEN_EXPIRATION, 30 * 24 * 60 * 60);

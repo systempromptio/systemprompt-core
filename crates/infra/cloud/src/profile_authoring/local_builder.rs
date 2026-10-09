@@ -72,6 +72,7 @@ impl LocalProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
+            security: security_config(&local_url, Vec::new()),
             server: local_server_config(local_url),
             paths: PathsConfig {
                 system: system_path,
@@ -83,7 +84,6 @@ impl LocalProfileBuilder {
                 geoip_database: None,
                 web_path: None,
             },
-            security: security_config(consts::LOCAL_ISSUER, Vec::new()),
             rate_limits: RateLimitsConfig {
                 disabled: true,
                 ..Default::default()

@@ -56,7 +56,7 @@ fn test_local_profile_defaults() {
         ]
     );
     assert_eq!(profile.paths.services, "/srv/services");
-    assert_eq!(profile.security.issuer, "systemprompt-local");
+    assert_eq!(profile.security.issuer, profile.server.api_external_url);
     assert!(profile.security.trusted_issuers.is_empty());
     assert!(profile.security.allow_registration);
     assert!(profile.rate_limits.disabled);
@@ -139,7 +139,7 @@ fn test_cloud_profile_defaults() {
     assert_eq!(profile.paths.bin, "/app/bin");
     assert_eq!(profile.paths.storage.as_deref(), Some("/app/storage"));
     assert_eq!(profile.paths.web_path.as_deref(), Some("/app/web"));
-    assert_eq!(profile.security.issuer, "systemprompt");
+    assert_eq!(profile.security.issuer, profile.server.api_external_url);
     assert!(!profile.rate_limits.disabled);
     assert_eq!(
         profile.server.trusted_proxies,
