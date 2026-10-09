@@ -122,7 +122,7 @@ impl AiSafetyFindingRepository {
             &severities,
             &categories,
             &scanners,
-            &excerpts as &[Option<String>],
+            excerpts.as_slice(),
             &blocked
         )
         .execute(self.write_pool.as_ref())
