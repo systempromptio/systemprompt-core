@@ -179,6 +179,7 @@ async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>
         return Ok(None);
     };
     let handle = super::metrics::install_recorder(&ctx.config().instance_id)?;
+    super::pool_metrics::spawn_sampler(ctx);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, handle).await?,
