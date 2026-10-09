@@ -86,29 +86,41 @@ pub struct ReserveParams<'a> {
     pub estimate: QuotaEstimate,
 }
 
-pub async fn precheck_and_reserve(
-    repo: &AiQuotaBucketRepository,
-    params: ReserveParams<'_>,
-) -> Result<ReserveOutcome, RepositoryError> {
-    let mut reservation = QuotaReservation::default();
-    let now = Utc::now();
-    let delta = QuotaBucketDelta {
-        requests: 1,
-        input_tokens: i64::from(params.estimate.input_tokens),
-        output_tokens: i64::from(params.estimate.output_tokens),
-        cost_microdollars: params.estimate.cost_microdollars,
-    };
+struct ResolvedWindow<'w> {
+    window: &'w QuotaWindow,
+    subject_kind: &'w str,
+    subject_id: String,
+    window_start: DateTime<Utc>,
+}
+
+struct ResolvedWindows<'w> {
+    resolved: Vec<ResolvedWindow<'w>>,
+    closed_fault: Option<QuotaDecision>,
+}
+
+// Why: subjects are resolved before any bucket is touched so every window
+// can be reserved in one statement; a closed fault stops resolution where
+// the per-window loop used to stop reserving.
+async fn resolve_windows<'w>(
+    params: &ReserveParams<'w>,
+    now: DateTime<Utc>,
+) -> ResolvedWindows<'w> {
+    let mut resolved = Vec::with_capacity(params.windows.len());
     for window in params.windows {
         let window_start = align_window(now, window.window_seconds);
-        let subject = match resolve_subject(window, &params.subjects, params.providers).await {
-            SubjectResolution::Resolved(subject) => subject,
+        match resolve_subject(window, &params.subjects, params.providers).await {
+            SubjectResolution::Resolved(subject) => resolved.push(ResolvedWindow {
+                window,
+                subject_kind: subject.kind,
+                subject_id: subject.id,
+                window_start,
+            }),
             SubjectResolution::Fault(fault) => {
                 if params.fault_mode.is_closed() {
-                    let decision = fault_decision(window, fault, window_start, now);
-                    return Ok(ReserveOutcome::Denied {
-                        decision,
-                        reservation,
-                    });
+                    return ResolvedWindows {
+                        resolved,
+                        closed_fault: Some(fault_decision(window, fault, window_start, now)),
+                    };
                 }
                 tracing::warn!(
                     subject = %window.subject,
@@ -117,40 +129,89 @@ pub async fn precheck_and_reserve(
                     fault_mode = params.fault_mode.as_str(),
                     "Quota window not evaluated; allowing the request"
                 );
-                continue;
             },
-        };
-        let state = match repo
-            .increment(IncrementParams {
-                subject_kind: subject.kind,
-                subject_id: &subject.id,
-                window_seconds: window.window_seconds,
-                window_start,
-                delta,
-            })
-            .await
-        {
-            Ok(state) => state,
-            Err(error) => {
-                release(repo, &reservation).await;
-                return Err(error);
-            },
-        };
+        }
+    }
+    ResolvedWindows {
+        resolved,
+        closed_fault: None,
+    }
+}
+
+pub async fn precheck_and_reserve(
+    repo: &AiQuotaBucketRepository,
+    params: ReserveParams<'_>,
+) -> Result<ReserveOutcome, RepositoryError> {
+    let now = Utc::now();
+    let delta = QuotaBucketDelta {
+        requests: 1,
+        input_tokens: i64::from(params.estimate.input_tokens),
+        output_tokens: i64::from(params.estimate.output_tokens),
+        cost_microdollars: params.estimate.cost_microdollars,
+    };
+    let ResolvedWindows {
+        resolved,
+        closed_fault,
+    } = resolve_windows(&params, now).await;
+    let increments: Vec<IncrementParams<'_>> = resolved
+        .iter()
+        .map(|r| IncrementParams {
+            subject_kind: r.subject_kind,
+            subject_id: &r.subject_id,
+            window_seconds: r.window.window_seconds,
+            window_start: r.window_start,
+            delta,
+        })
+        .collect();
+    let states = repo.increment_many(&increments).await?;
+    let mut reservation = QuotaReservation::default();
+    for (index, (r, state)) in resolved.iter().zip(states).enumerate() {
         reservation.windows.push(ReservedWindow {
-            subject_kind: subject.kind.to_owned(),
-            subject_id: subject.id,
-            window_seconds: window.window_seconds,
-            window_start,
+            subject_kind: r.subject_kind.to_owned(),
+            subject_id: r.subject_id.clone(),
+            window_seconds: r.window.window_seconds,
+            window_start: r.window_start,
             delta,
         });
-        if let Some(decision) = ceiling_decision(window, state, window_start, now) {
+        if let Some(decision) = ceiling_decision(r.window, state, r.window_start, now) {
+            unreserve(repo, &increments[index + 1..]).await;
             return Ok(ReserveOutcome::Denied {
                 decision,
                 reservation,
             });
         }
     }
-    Ok(ReserveOutcome::Admitted(reservation))
+    Ok(match closed_fault {
+        Some(decision) => ReserveOutcome::Denied {
+            decision,
+            reservation,
+        },
+        None => ReserveOutcome::Admitted(reservation),
+    })
+}
+
+// Why: the per-window loop stopped at the first exceeded ceiling, so windows
+// after it were never charged; the single statement charged them, and this
+// takes the whole charge (request included) back out.
+async fn unreserve(repo: &AiQuotaBucketRepository, tail: &[IncrementParams<'_>]) {
+    if tail.is_empty() {
+        return;
+    }
+    let reversed: Vec<IncrementParams<'_>> = tail
+        .iter()
+        .map(|p| IncrementParams {
+            delta: QuotaBucketDelta {
+                requests: -p.delta.requests,
+                input_tokens: -p.delta.input_tokens,
+                output_tokens: -p.delta.output_tokens,
+                cost_microdollars: -p.delta.cost_microdollars,
+            },
+            ..*p
+        })
+        .collect();
+    if let Err(error) = repo.increment_many(&reversed).await {
+        tracing::warn!(%error, windows = reversed.len(), "quota unreserve write failed");
+    }
 }
 
 pub async fn settle(
@@ -158,41 +219,34 @@ pub async fn settle(
     reservation: &QuotaReservation,
     actual: QuotaUsage,
 ) -> AccountingOutcome {
-    let mut fault: Option<String> = None;
-    for window in &reservation.windows {
-        let delta = QuotaBucketDelta {
-            requests: 0,
-            input_tokens: actual.input_tokens - window.delta.input_tokens,
-            output_tokens: actual.output_tokens - window.delta.output_tokens,
-            cost_microdollars: actual.cost_microdollars - window.delta.cost_microdollars,
-        };
-        if let Err(e) = repo
-            .increment(IncrementParams {
-                subject_kind: &window.subject_kind,
-                subject_id: &window.subject_id,
-                window_seconds: window.window_seconds,
-                window_start: window.window_start,
-                delta,
-            })
-            .await
-        {
-            tracing::warn!(
-                error = %e,
-                subject = %window.subject_kind,
-                window_seconds = window.window_seconds,
-                "quota settlement write failed"
-            );
-            fault.get_or_insert_with(|| {
-                format!(
-                    "quota accounting write failed for window {}s: {e}",
-                    window.window_seconds
-                )
-            });
-        }
+    let deltas: Vec<IncrementParams<'_>> = reservation
+        .windows
+        .iter()
+        .map(|window| IncrementParams {
+            subject_kind: &window.subject_kind,
+            subject_id: &window.subject_id,
+            window_seconds: window.window_seconds,
+            window_start: window.window_start,
+            delta: QuotaBucketDelta {
+                requests: 0,
+                input_tokens: actual.input_tokens - window.delta.input_tokens,
+                output_tokens: actual.output_tokens - window.delta.output_tokens,
+                cost_microdollars: actual.cost_microdollars - window.delta.cost_microdollars,
+            },
+        })
+        .collect();
+    match repo.increment_many(&deltas).await {
+        Ok(_) => AccountingOutcome::Counted,
+        Err(e) => {
+            tracing::warn!(error = %e, windows = deltas.len(), "quota settlement write failed");
+            AccountingOutcome::Faulted {
+                message: format!(
+                    "quota accounting write failed for {} window(s): {e}",
+                    deltas.len()
+                ),
+            }
+        },
     }
-    fault.map_or(AccountingOutcome::Counted, |message| {
-        AccountingOutcome::Faulted { message }
-    })
 }
 
 pub async fn release(

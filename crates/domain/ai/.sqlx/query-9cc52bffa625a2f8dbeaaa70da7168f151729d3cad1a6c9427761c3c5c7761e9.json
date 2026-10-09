@@ -1,0 +1,120 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ai_quota_buckets (\n                id, subject_kind, subject_id, window_seconds, window_start,\n                requests, input_tokens, output_tokens, cost_microdollars, updated_at\n            )\n            SELECT t.id, t.subject_kind, t.subject_id, t.window_seconds, t.window_start,\n                   t.requests, t.input_tokens, t.output_tokens, t.cost_microdollars,\n                   CURRENT_TIMESTAMP\n            FROM UNNEST(\n                $1::text[], $2::text[], $3::text[], $4::int4[], $5::timestamptz[],\n                $6::int8[], $7::int8[], $8::int8[], $9::int8[]\n            ) AS t(id, subject_kind, subject_id, window_seconds, window_start,\n                   requests, input_tokens, output_tokens, cost_microdollars)\n            ORDER BY t.subject_kind, t.subject_id, t.window_seconds, t.window_start\n            ON CONFLICT (subject_kind, subject_id, window_seconds, window_start) DO UPDATE\n            SET requests = ai_quota_buckets.requests + EXCLUDED.requests,\n                input_tokens = ai_quota_buckets.input_tokens + EXCLUDED.input_tokens,\n                output_tokens = ai_quota_buckets.output_tokens + EXCLUDED.output_tokens,\n                cost_microdollars = ai_quota_buckets.cost_microdollars + EXCLUDED.cost_microdollars,\n                updated_at = CURRENT_TIMESTAMP\n            RETURNING subject_kind, subject_id, window_seconds, window_start,\n                      requests, input_tokens, output_tokens, cost_microdollars\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_id",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "window_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "window_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "window_start",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "requests",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "requests"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "input_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "input_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "output_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "output_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "cost_microdollars",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "ai_quota_buckets",
+            "name": "cost_microdollars"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Int4Array",
+        "TimestamptzArray",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9cc52bffa625a2f8dbeaaa70da7168f151729d3cad1a6c9427761c3c5c7761e9"
+}
