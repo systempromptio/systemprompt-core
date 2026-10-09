@@ -161,6 +161,7 @@ fn context(
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
         api_key_windows: Vec::new(),
         access_log: None,
+        context_bound: false,
     }
 }
 async fn settled(

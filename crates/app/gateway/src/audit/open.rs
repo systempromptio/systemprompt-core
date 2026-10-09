@@ -66,15 +66,17 @@ impl GatewayAudit {
         )?;
         let record = self.build_record();
 
-        self.context_materializer
-            .ensure_context(systemprompt_traits::EnsureContextParams {
-                context_id: &self.ctx.context_id,
-                user_id: &self.ctx.user_id,
-                session_id: self.ctx.session_id.as_ref(),
-                name: "Gateway conversation",
-                kind: "derived",
-            })
-            .await?;
+        if !self.ctx.context_bound {
+            self.context_materializer
+                .ensure_context(systemprompt_traits::EnsureContextParams {
+                    context_id: &self.ctx.context_id,
+                    user_id: &self.ctx.user_id,
+                    session_id: self.ctx.session_id.as_ref(),
+                    name: "Gateway conversation",
+                    kind: "derived",
+                })
+                .await?;
+        }
 
         self.requests
             .insert_with_id(&self.ctx.ai_request_id, &record)

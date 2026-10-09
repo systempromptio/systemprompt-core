@@ -228,6 +228,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
         api_key_windows: Vec::new(),
         access_log: None,
+        context_bound: false,
     }
 }
 

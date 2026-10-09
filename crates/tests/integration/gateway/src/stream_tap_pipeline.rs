@@ -107,6 +107,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
         attribution: systemprompt_models::attribution::RequestAttribution::none(),
         api_key_windows: Vec::new(),
         access_log: None,
+        context_bound: false,
     };
     let audit = GatewayAudit::new(&gateway_repos(db), ctx);
     audit

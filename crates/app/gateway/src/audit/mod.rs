@@ -67,6 +67,7 @@ pub struct GatewayRequestContext {
     pub attribution: RequestAttribution,
     pub api_key_windows: Vec<crate::policies::QuotaWindow>,
     pub access_log: Option<GatewayAccessLog>,
+    pub context_bound: bool,
 }
 
 #[expect(
