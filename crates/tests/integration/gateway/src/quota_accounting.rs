@@ -151,6 +151,7 @@ async fn record_a_failed_accounting_write(mode: QuotaFaultMode) -> String {
         )
         .await
         .expect("open");
+    audit.commit_admission().await.expect("commit admission");
 
     audit.set_quota_reservation(reservation_for(&user_id));
     let outcome = audit.settle_quota(&usage(), 5).await;
@@ -226,6 +227,7 @@ async fn accounting_failure_recovers_durably_before_and_after_provider_completio
             )
             .await
             .expect("open");
+        audit.commit_admission().await.expect("commit admission");
         audit
             .pin_pricing(systemprompt_manifest::services::ModelPricing {
                 input_per_million: 1.0,

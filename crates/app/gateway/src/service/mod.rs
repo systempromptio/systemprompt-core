@@ -9,6 +9,7 @@
 )]
 
 pub mod abandon;
+mod admission;
 pub mod chain_plan;
 pub mod credentials;
 mod error;
@@ -35,6 +36,7 @@ use systemprompt_database::DbPool;
 use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
 
 use self::abandon::AbandonGuard;
+use self::admission::commit_admission;
 use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
@@ -123,22 +125,6 @@ impl GatewayService {
         }
         result
     }
-}
-
-async fn commit_admission(audit: &GatewayAudit) -> Result<(), DispatchError> {
-    let Err(error) = audit.commit_admission().await else {
-        return Ok(());
-    };
-    if let Err(settlement_error) = audit
-        .fail("Gateway admission failed before provider dispatch")
-        .await
-    {
-        tracing::error!(%settlement_error, "Could not record failed gateway admission");
-    }
-    Err(DispatchError::Recorded(GatewayError::internal(
-        "audit admission failed",
-        error,
-    )))
 }
 
 struct OpenedDispatch<'a> {
