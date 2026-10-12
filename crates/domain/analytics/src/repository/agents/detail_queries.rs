@@ -1,4 +1,8 @@
-//! Single-agent analytics detail queries.
+//! Single-agent analytics detail queries. The existence check, summary,
+//! status breakdown and hour-of-day distribution read the hourly task rollup
+//! (`report_agent_task_hourly`), widened to whole UTC hours at the window's
+//! start; top errors group by message text and stay on `report_agent_tasks`
+//! for their window.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,10 +24,10 @@ impl AgentAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", agent_filter);
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM report_agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3"#,
-            pattern,
+            r#"SELECT COALESCE(SUM(task_count), 0)::bigint as "count!" FROM report_agent_task_hourly WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> '' AND agent_name ILIKE $3"#,
             start,
-            end
+            end,
+            pattern
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -41,17 +45,17 @@ impl AgentAnalyticsRepository {
             AgentSummaryRow,
             r#"
             SELECT
-                COUNT(*)::bigint as "total_tasks!",
-                COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed!",
-                COUNT(*) FILTER (WHERE status = 'TASK_STATE_FAILED')::bigint as "failed!",
-                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!"
-            FROM report_agent_tasks
-            WHERE agent_name ILIKE $1
-              AND started_at >= $2 AND started_at < $3
+                COALESCE(SUM(task_count), 0)::bigint as "total_tasks!",
+                COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0)::bigint as "completed!",
+                COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_FAILED'), 0)::bigint as "failed!",
+                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!"
+            FROM report_agent_task_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND agent_name <> '' AND agent_name ILIKE $3
             "#,
-            pattern,
             start,
-            end
+            end,
+            pattern
         )
         .fetch_one(&*self.pool)
         .await
@@ -68,16 +72,16 @@ impl AgentAnalyticsRepository {
         sqlx::query_as!(
             AgentStatusBreakdownRow,
             r#"
-            SELECT status as "status!", COUNT(*)::bigint as "status_count!"
-            FROM report_agent_tasks
-            WHERE agent_name ILIKE $1
-              AND started_at >= $2 AND started_at < $3
+            SELECT status as "status!", SUM(task_count)::bigint as "status_count!"
+            FROM report_agent_task_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND agent_name <> '' AND agent_name ILIKE $3
             GROUP BY status
             ORDER BY 2 DESC
             "#,
-            pattern,
             start,
-            end
+            end,
+            pattern
         )
         .fetch_all(&*self.pool)
         .await
@@ -125,17 +129,17 @@ impl AgentAnalyticsRepository {
             AgentHourlyRow,
             r#"
             SELECT
-                EXTRACT(HOUR FROM started_at)::INTEGER as "task_hour!",
-                COUNT(*)::bigint as "task_count!"
-            FROM report_agent_tasks
-            WHERE agent_name ILIKE $1
-              AND started_at >= $2 AND started_at < $3
-            GROUP BY EXTRACT(HOUR FROM started_at)
+                EXTRACT(HOUR FROM bucket)::INTEGER as "task_hour!",
+                SUM(task_count)::bigint as "task_count!"
+            FROM report_agent_task_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND agent_name <> '' AND agent_name ILIKE $3
+            GROUP BY EXTRACT(HOUR FROM bucket)
             ORDER BY 1
             "#,
-            pattern,
             start,
-            end
+            end,
+            pattern
         )
         .fetch_all(&*self.pool)
         .await

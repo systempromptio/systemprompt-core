@@ -11,25 +11,33 @@
 //! regardless, as a safety net for managed state changed outside the
 //! catalog. The first tick after boot always runs.
 //!
-//! Installation coverage depends on receipts, grants and publications rather
-//! than the catalog, so it is recomputed every tick; it writes only when a
-//! resource's coverage changed.
+//! Installation coverage depends on receipts, grants, publication selections
+//! and enrolled devices rather than the catalog: the marketplace schema's
+//! statement triggers queue the owners those changes touched on the
+//! `managed_installation_coverage` projection, and every tick drains that
+//! queue through `refresh_managed_installation_coverage` (rebuilding only
+//! queued owners, writing only the bodies that changed).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use crate::SchedulerError;
 use crate::services::scheduling::job_app_context;
 use async_trait::async_trait;
+use systemprompt_database::{DbPool, projection};
 use systemprompt_marketplace::inventory::configured_inventory_fingerprint;
 use systemprompt_runtime::AppContext;
 use systemprompt_runtime::managed::inventory::LatestPublicationStatus;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 
 const FORCE_AFTER: Duration = Duration::from_hours(1);
+const COVERAGE_PROJECTION: &str = "managed_installation_coverage";
+const COVERAGE_PROJECTOR: &str = "refresh_managed_installation_coverage";
+const COVERAGE_BATCH: i32 = 20;
+const COVERAGE_BUDGET: Duration = Duration::from_secs(20);
 
 type LastPass = Option<([u8; 32], Instant)>;
 
@@ -80,12 +88,17 @@ impl Job for InventoryRefreshJob {
                 u64::try_from(count).unwrap_or(u64::MAX)
             },
         };
-        let coverage_changed = app
-            .managed_repository()
-            .refresh_installation_coverage(owner)
-            .await
-            .map_err(SchedulerError::from)?;
-        Ok(JobResult::success().with_stats(published + coverage_changed, 0))
+        let db_pool = Arc::clone(ctx.get::<DbPool>()?);
+        let coverage = projection::drain_with_sql(
+            &db_pool.write_pool(),
+            COVERAGE_PROJECTION,
+            COVERAGE_BATCH,
+            COVERAGE_BUDGET,
+            COVERAGE_PROJECTOR,
+        )
+        .await
+        .map_err(|e| systemprompt_provider_contracts::ProviderError::Internal(Box::new(e)))?;
+        Ok(JobResult::success().with_stats(published + coverage.keys, coverage.requeued))
     }
 }
 

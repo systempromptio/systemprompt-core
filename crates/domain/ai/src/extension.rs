@@ -117,6 +117,12 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             "expires_at",
         ])),
         SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
+        SchemaDefinition::sql_only(include_str!("../schema/trace_facts_ai.sql")),
+        SchemaDefinition::new(
+            "ai_usage_rollup_hourly",
+            include_str!("../schema/ai_usage_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "user_id", "request_count"])),
     ]
 }
 

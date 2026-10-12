@@ -58,28 +58,15 @@ impl ContextProvider for ContextProviderService {
         context_id: &ContextId,
         user_id: &UserId,
     ) -> Result<ContextWithStats, ContextProviderError> {
-        let context = self
+        let context_with_stats = self
             .repo
-            .get_context(context_id, user_id)
+            .get_context_with_stats(context_id, user_id)
             .await
             .map_err(|e| match e {
                 systemprompt_traits::RepositoryError::NotFound { .. } => {
                     ContextProviderError::NotFound(format!("Context {context_id} not found"))
                 },
                 other => ContextProviderError::Database(other.into()),
-            })?;
-
-        let all_contexts = self
-            .repo
-            .list_contexts_with_stats(user_id)
-            .await
-            .map_err(|e| ContextProviderError::Database(e.into()))?;
-
-        let context_with_stats = all_contexts
-            .into_iter()
-            .find(|c| c.context_id == context.context_id)
-            .ok_or_else(|| {
-                ContextProviderError::NotFound(format!("Context {} not found", context_id))
             })?;
 
         Ok(ContextWithStats {

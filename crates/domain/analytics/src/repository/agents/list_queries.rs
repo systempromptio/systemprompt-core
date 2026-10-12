@@ -1,5 +1,14 @@
 //! Agent analytics listings ordered by success rate, cost, or recency.
 //!
+//! Task counts, completion and execution time come from the hourly task
+//! rollup (`report_agent_task_hourly`) and cost from the hourly AI usage
+//! rollup (`report_ai_usage_hourly`) under the agent each request's task had
+//! when it was written, both widened to whole UTC hours at the window's start.
+//! The two are aggregated per agent before they are joined: joining requests
+//! onto tasks row by row (as these listings once did) repeats a task once per
+//! request, so `task_count` counted requests and the average execution time
+//! was weighted by them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -36,20 +45,31 @@ impl AgentAnalyticsRepository {
         sqlx::query_as!(
             AgentListDbRow,
             r#"
+            WITH tasks AS (
+                SELECT agent_name, SUM(task_count) AS task_count,
+                       COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0) AS completed_count,
+                       SUM(exec_sum_ms) AS exec_sum_ms, SUM(exec_n) AS exec_n,
+                       MAX(last_started_at) AS last_active
+                FROM report_agent_task_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            ), costs AS (
+                SELECT agent_name, SUM(cost_microdollars) AS cost
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            )
             SELECT
                 t.agent_name as "agent_name!",
-                COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
-                COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
-                MAX(t.started_at) as "last_active!"
-            FROM report_agent_tasks t
-            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
-            WHERE t.started_at >= $1 AND t.started_at < $2
-              AND t.agent_name IS NOT NULL
-            GROUP BY t.agent_name
-            ORDER BY CASE WHEN COUNT(*) > 0
-                THEN COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::float / COUNT(*)::float
+                t.task_count::bigint as "task_count!",
+                t.completed_count::bigint as "completed_count!",
+                COALESCE(t.exec_sum_ms::numeric / NULLIF(t.exec_n, 0), 0)::bigint as "avg_execution_time_ms!",
+                COALESCE(c.cost, 0)::bigint as "total_cost_microdollars!",
+                t.last_active as "last_active!"
+            FROM tasks t
+            LEFT JOIN costs c ON c.agent_name = t.agent_name
+            ORDER BY CASE WHEN t.task_count > 0
+                THEN t.completed_count::float / t.task_count::float
                 ELSE 0 END DESC
             LIMIT $3
             "#,
@@ -71,19 +91,30 @@ impl AgentAnalyticsRepository {
         sqlx::query_as!(
             AgentListDbRow,
             r#"
+            WITH tasks AS (
+                SELECT agent_name, SUM(task_count) AS task_count,
+                       COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0) AS completed_count,
+                       SUM(exec_sum_ms) AS exec_sum_ms, SUM(exec_n) AS exec_n,
+                       MAX(last_started_at) AS last_active
+                FROM report_agent_task_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            ), costs AS (
+                SELECT agent_name, SUM(cost_microdollars) AS cost
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            )
             SELECT
                 t.agent_name as "agent_name!",
-                COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
-                COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
-                MAX(t.started_at) as "last_active!"
-            FROM report_agent_tasks t
-            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
-            WHERE t.started_at >= $1 AND t.started_at < $2
-              AND t.agent_name IS NOT NULL
-            GROUP BY t.agent_name
-            ORDER BY COALESCE(SUM(r.cost_microdollars), 0) DESC
+                t.task_count::bigint as "task_count!",
+                t.completed_count::bigint as "completed_count!",
+                COALESCE(t.exec_sum_ms::numeric / NULLIF(t.exec_n, 0), 0)::bigint as "avg_execution_time_ms!",
+                COALESCE(c.cost, 0)::bigint as "total_cost_microdollars!",
+                t.last_active as "last_active!"
+            FROM tasks t
+            LEFT JOIN costs c ON c.agent_name = t.agent_name
+            ORDER BY COALESCE(c.cost, 0) DESC
             LIMIT $3
             "#,
             start,
@@ -104,19 +135,30 @@ impl AgentAnalyticsRepository {
         sqlx::query_as!(
             AgentListDbRow,
             r#"
+            WITH tasks AS (
+                SELECT agent_name, SUM(task_count) AS task_count,
+                       COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0) AS completed_count,
+                       SUM(exec_sum_ms) AS exec_sum_ms, SUM(exec_n) AS exec_n,
+                       MAX(last_started_at) AS last_active
+                FROM report_agent_task_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            ), costs AS (
+                SELECT agent_name, SUM(cost_microdollars) AS cost
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            )
             SELECT
                 t.agent_name as "agent_name!",
-                COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
-                COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
-                MAX(t.started_at) as "last_active!"
-            FROM report_agent_tasks t
-            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
-            WHERE t.started_at >= $1 AND t.started_at < $2
-              AND t.agent_name IS NOT NULL
-            GROUP BY t.agent_name
-            ORDER BY MAX(t.started_at) DESC
+                t.task_count::bigint as "task_count!",
+                t.completed_count::bigint as "completed_count!",
+                COALESCE(t.exec_sum_ms::numeric / NULLIF(t.exec_n, 0), 0)::bigint as "avg_execution_time_ms!",
+                COALESCE(c.cost, 0)::bigint as "total_cost_microdollars!",
+                t.last_active as "last_active!"
+            FROM tasks t
+            LEFT JOIN costs c ON c.agent_name = t.agent_name
+            ORDER BY t.last_active DESC
             LIMIT $3
             "#,
             start,
@@ -137,19 +179,30 @@ impl AgentAnalyticsRepository {
         sqlx::query_as!(
             AgentListDbRow,
             r#"
+            WITH tasks AS (
+                SELECT agent_name, SUM(task_count) AS task_count,
+                       COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0) AS completed_count,
+                       SUM(exec_sum_ms) AS exec_sum_ms, SUM(exec_n) AS exec_n,
+                       MAX(last_started_at) AS last_active
+                FROM report_agent_task_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            ), costs AS (
+                SELECT agent_name, SUM(cost_microdollars) AS cost
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND agent_name <> ''
+                GROUP BY agent_name
+            )
             SELECT
                 t.agent_name as "agent_name!",
-                COUNT(*)::bigint as "task_count!",
-                COUNT(*) FILTER (WHERE t.status = 'TASK_STATE_COMPLETED')::bigint as "completed_count!",
-                COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
-                MAX(t.started_at) as "last_active!"
-            FROM report_agent_tasks t
-            LEFT JOIN report_ai_requests r ON r.task_id = t.task_id
-            WHERE t.started_at >= $1 AND t.started_at < $2
-              AND t.agent_name IS NOT NULL
-            GROUP BY t.agent_name
-            ORDER BY COUNT(*) DESC
+                t.task_count::bigint as "task_count!",
+                t.completed_count::bigint as "completed_count!",
+                COALESCE(t.exec_sum_ms::numeric / NULLIF(t.exec_n, 0), 0)::bigint as "avg_execution_time_ms!",
+                COALESCE(c.cost, 0)::bigint as "total_cost_microdollars!",
+                t.last_active as "last_active!"
+            FROM tasks t
+            LEFT JOIN costs c ON c.agent_name = t.agent_name
+            ORDER BY t.task_count DESC
             LIMIT $3
             "#,
             start,

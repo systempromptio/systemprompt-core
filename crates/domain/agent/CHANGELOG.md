@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Context counters.** `user_contexts` gains `task_count`, `message_count` and `last_message_at`, kept by statement triggers on `agent_tasks` and `task_messages` (additive on insert, an exact recount through `refresh_user_context_counters` on delete or move). Counter writes no longer bump `updated_at`. `list_contexts_with_stats` reads the columns and the new `get_context_with_stats` fetches one row, so `ContextProvider::get_context` no longer lists every context. `trace_facts_agent(keys)` and statement triggers on `agent_tasks` feed the `trace_facts` projection. Migration 015 adds the columns (NULL = pending) and queues every context and task trace.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

@@ -4,10 +4,14 @@
 
 ### Added
 
+- **`trace_facts` projection.** One row per trace id (first/last timestamp, agent, status, AI and tool-call counts, error flag, tool names), rebuilt by `refresh_trace_facts(keys)` from the set-returning functions each ledger owner contributes (`trace_facts_ai`, `trace_facts_mcp`, `trace_facts_agent`, `trace_facts_logs`) and queued by `queue_trace_facts_rows()`, the statement-trigger body every trace-carrying ledger shares. Migration 003 adds the table on upgrade.
 - `projection_backlog` (schema + migration `002`): the one queue every projection drains from, with `queue_projection_backlog`, `take_projection_backlog` (`FOR UPDATE SKIP LOCKED`), `requeue_projection_backlog` and `projection_backlog_depth`. Nothing is backfilled by the migration; a fresh install creates the table from the schema file.
 - `projection` module — `drain`, `drain_with_sql`, `queue`, `depth`, `DrainReport` — and its rustdoc, which states the data paradigm (ledger, stamped fact, counter, projection, rollup; four parts in base schema; NULL means pending).
 - `backfill_statements` / `BackfillStatement`: the shared detector of data-populating migration statements (`UPDATE`, `DELETE`, select-driven `INSERT`, `SELECT refresh_*()`), exempting the keys-only `INSERT INTO projection_backlog … SELECT`. Both repositories' `no_backfill_after_floor` gates use it.
 
+### Changed
+
+- `backfill_statements` accepts `SELECT DISTINCT` in a keys-only queue insert: the keys collapse before the insert instead of one conflict check per ledger row.
 
 ## [Unreleased]
 

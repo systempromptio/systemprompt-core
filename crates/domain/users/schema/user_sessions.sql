@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     session_source VARCHAR(50) DEFAULT 'web'
         CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'mcp', 'bridge', 'unknown')),
     revoked_at TIMESTAMPTZ,
+    -- Last on purpose: `v_clean_traffic` / `v_bot_sessions` are `SELECT *`
+    -- views, and an upgraded database appends the column (migration 023).
+    bot_type TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -58,6 +61,7 @@ COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a
 COMMENT ON COLUMN user_sessions.is_ai_crawler IS 'Whether this session was created by a declared AI agent/crawler (NotebookLM, ChatGPT-User, ClaudeBot, etc.). Tracked separately from is_bot so AI citations are visible without polluting human metrics.';
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
+COMMENT ON COLUMN user_sessions.bot_type IS 'The bot taxonomy label (session_bot_type) stamped on every session with any bot classification; NULL on human sessions and on a bot session queued for session_bot_type_rollup';
 COMMENT ON COLUMN user_sessions.behavioral_bot_reason IS 'Reason for behavioral bot classification (e.g., request_count_exceeded, high_page_coverage)';
 COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), oauth (token endpoint)';
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
@@ -139,35 +143,10 @@ WHERE is_bot = false
   AND request_count > 0;
 
 CREATE OR REPLACE VIEW v_bot_sessions AS
-SELECT
-    *,
-    CASE
-        WHEN user_agent ILIKE '%googlebot%' OR user_agent ILIKE '%google-inspectiontool%' OR user_agent ILIKE '%adsbot-google%' THEN 'Google'
-        WHEN user_agent ILIKE '%bingbot%' OR user_agent ILIKE '%bingpreview%' OR user_agent ILIKE '%msnbot%' THEN 'Bing'
-        WHEN user_agent ILIKE '%chatgpt%' OR user_agent ILIKE '%gptbot%' THEN 'OpenAI'
-        WHEN user_agent ILIKE '%claude%' OR user_agent ILIKE '%anthropic%' THEN 'Anthropic'
-        WHEN user_agent ILIKE '%perplexity%' THEN 'Perplexity'
-        WHEN user_agent ILIKE '%baiduspider%' THEN 'Baidu'
-        WHEN user_agent ILIKE '%yandexbot%' THEN 'Yandex'
-        WHEN user_agent ILIKE '%facebookexternalhit%' OR user_agent ILIKE '%facebot%' OR user_agent ILIKE '%meta-externalagent%' THEN 'Meta'
-        WHEN user_agent ILIKE '%twitterbot%' THEN 'Twitter/X'
-        WHEN user_agent ILIKE '%linkedinbot%' THEN 'LinkedIn'
-        WHEN user_agent ILIKE '%semrushbot%' OR user_agent ILIKE '%ahrefsbot%' OR user_agent ILIKE '%mj12bot%' OR user_agent ILIKE '%dotbot%' THEN 'SEO Crawlers'
-        WHEN user_agent ILIKE '%bytespider%' THEN 'ByteDance'
-        WHEN user_agent ILIKE '%amazonbot%' OR user_agent ILIKE '%applebot%' THEN 'Tech Giants'
-        WHEN user_agent ILIKE '%python%' OR user_agent ILIKE '%scrapy%' OR user_agent ILIKE '%httpx%' THEN 'Python Scrapers'
-        WHEN user_agent ILIKE '%curl%' OR user_agent ILIKE '%wget%' OR user_agent ILIKE '%node-fetch%' OR user_agent ILIKE '%axios%' THEN 'CLI/HTTP Tools'
-        WHEN user_agent ILIKE '%headless%' OR user_agent ILIKE '%phantom%' OR user_agent ILIKE '%selenium%' OR user_agent ILIKE '%puppeteer%' THEN 'Headless Browsers'
-        WHEN user_agent ILIKE '%uptimerobot%' OR user_agent ILIKE '%pingdom%' OR user_agent ILIKE '%statuscake%' OR user_agent ILIKE '%lighthouse%' THEN 'Monitoring'
-        WHEN is_ai_crawler = true THEN 'AI Crawler'
-        WHEN is_behavioral_bot = true THEN 'Behavioral Bot'
-        WHEN is_scanner = true THEN 'Scanner'
-        ELSE 'Other'
-    END as bot_type
+SELECT *
 FROM user_sessions
 WHERE is_bot = true
    OR is_ai_crawler = true
    OR is_scanner = true
    OR is_behavioral_bot = true;
-
-COMMENT ON VIEW v_bot_sessions IS 'Complement of v_clean_traffic: every session with any bot classification, labelled with the canonical user-agent bot taxonomy (bot_type)';
+COMMENT ON VIEW v_bot_sessions IS 'Complement of v_clean_traffic: every session with any bot classification; bot_type is the stored taxonomy label (session_bot_type), stamped when the row is written or reclassified';
