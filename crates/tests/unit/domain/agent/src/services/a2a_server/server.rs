@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, StreamRejected, create_sse_stream,
 };
@@ -21,9 +21,7 @@ use systemprompt_test_fixtures::test_db_pool;
 fn message(ctx: &ContextId) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hi".to_owned(),
-        })],
+        parts: vec![Part::text("hi".to_owned())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: ctx.clone(),

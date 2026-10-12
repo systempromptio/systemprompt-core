@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams, ProcessMessageStreamParams,
@@ -24,9 +24,7 @@ use systemprompt_test_fixtures::test_db_pool;
 fn user_message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text.to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: ctx.clone(),

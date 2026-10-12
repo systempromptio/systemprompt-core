@@ -108,12 +108,10 @@ async fn parse_a2a_request_unknown_method_is_bad_request() {
 }
 
 fn user_message(ctx: &ContextId) -> systemprompt_agent::models::a2a::Message {
-    use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+    use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hi".to_owned(),
-        })],
+        parts: vec![Part::text("hi".to_owned())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: ctx.clone(),

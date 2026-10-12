@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use systemprompt_agent::AgentState;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
 use systemprompt_agent::services::a2a_server::auth::{AgentOAuthConfig, AgentOAuthState};
 use systemprompt_agent::services::a2a_server::handlers::AgentHandlerState;
 use systemprompt_agent::services::a2a_server::streaming::{
@@ -128,9 +128,7 @@ async fn build_state(permits: usize) -> anyhow::Result<Arc<AgentHandlerState>> {
 fn user_message(text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text)],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: ContextId::generate(),
@@ -227,5 +225,42 @@ async fn semaphore_releases_permit_after_receiver_dropped() -> anyhow::Result<()
         "expected permit to be released, got {:?}",
         second.err()
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_failed_setup_sends_one_error_frame_with_the_request_id_then_closes() -> anyhow::Result<()>
+{
+    let state = build_state(1).await?;
+    let stream = create_sse_stream(CreateSseStreamParams {
+        message: user_message("unknown context"),
+        agent_name: AgentName::new("test_agent"),
+        state: Arc::clone(&state),
+        request_id: NumberOrString::String("harness-req".to_owned()),
+        context: fixture_request_context(),
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("stream rejected"))?;
+
+    let mut receiver = stream.into_inner();
+    let frames = tokio::time::timeout(std::time::Duration::from_secs(10), async move {
+        let mut frames = Vec::new();
+        while let Some(event) = receiver.recv().await {
+            frames.push(format!("{event:?}"));
+        }
+        frames
+    })
+    .await?;
+
+    assert_eq!(
+        frames.len(),
+        1,
+        "one error frame, then the stream closes: {frames:?}"
+    );
+    let frame = &frames[0];
+    assert!(frame.contains("harness-req"), "{frame}");
+    assert!(frame.contains("google.rpc.ErrorInfo"), "{frame}");
+    assert!(frame.contains("a2a-protocol.org"), "{frame}");
+    assert!(!frame.contains("result"), "{frame}");
     Ok(())
 }

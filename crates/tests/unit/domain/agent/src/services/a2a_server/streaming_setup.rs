@@ -10,7 +10,7 @@ use systemprompt_identifiers::AgentName;
 
 use futures::StreamExt;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, create_sse_stream,
 };
@@ -23,9 +23,7 @@ use systemprompt_test_fixtures::test_db_pool;
 fn message(ctx: &ContextId, task_id: Option<TaskId>) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "stream this".to_owned(),
-        })],
+        parts: vec![Part::text("stream this".to_owned())],
         message_id: MessageId::generate(),
         task_id,
         context_id: ctx.clone(),

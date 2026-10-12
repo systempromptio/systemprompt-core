@@ -2,9 +2,7 @@
 // the AI as content, how each supported media class is mapped, and which
 // malformed file parts are dropped rather than propagated.
 
-use systemprompt_agent::models::a2a::{
-    DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart,
-};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, PartContent};
 use systemprompt_agent::services::a2a_server::processing::message::extract_message_content;
 use systemprompt_identifiers::{ContextId, MessageId};
 use systemprompt_models::AiContentPart;
@@ -25,18 +23,20 @@ fn message(parts: Vec<Part>) -> Message {
 }
 
 fn text(t: &str) -> Part {
-    Part::Text(TextPart { text: t.to_owned() })
+    Part::text(t.to_owned())
 }
 
 fn file(name: Option<&str>, mime: Option<&str>, bytes: Option<&str>) -> Part {
-    Part::File(FilePart {
-        file: FileContent {
-            name: name.map(ToOwned::to_owned),
-            mime_type: mime.map(ToOwned::to_owned),
-            bytes: bytes.map(ToOwned::to_owned),
-            url: None,
-        },
-    })
+    let content = bytes.map_or_else(
+        || PartContent::Url("https://example.com/remote".to_owned()),
+        |b| PartContent::Raw(b.to_owned()),
+    );
+    Part {
+        content,
+        filename: name.map(ToOwned::to_owned),
+        media_type: mime.map(ToOwned::to_owned),
+        metadata: None,
+    }
 }
 
 fn b64(s: &str) -> String {
@@ -73,9 +73,7 @@ fn a_message_with_no_parts_yields_no_prompt_and_no_content() {
 #[test]
 fn data_parts_are_dropped_entirely() {
     let (prompt, parts) = extract_message_content(&message(vec![
-        Part::Data(DataPart {
-            data: serde_json::Map::new(),
-        }),
+        Part::data(serde_json::json!({})),
         text("only text survives"),
     ]));
 

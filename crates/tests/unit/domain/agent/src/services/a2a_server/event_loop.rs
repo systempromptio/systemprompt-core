@@ -2,14 +2,16 @@
 // events to SSE frames, AG-UI webhook events (via the recording broadcaster
 // injected into the processor), and task-state updates. Covers the completion
 // path (persisted first, then announced), the failure path, cancellation, and
-// the tool-call / tool-result / execution-step broadcasts. Every path emits
-// exactly one `final: true` status frame.
+// the tool-call / tool-result / execution-step broadcasts. Every frame carries
+// the request id, and every path ends with exactly one terminal status frame
+// after which the stream closes.
 
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
 use axum::response::sse::Event;
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
     MessageProcessor, MessageStream, StreamEvent,
@@ -43,9 +45,7 @@ async fn persisted_task_error(pool: &systemprompt_database::DbPool, task_id: &Ta
 fn user_message(ctx: &ContextId, task_id: &TaskId) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hi".to_owned(),
-        })],
+        parts: vec![Part::text("hi".to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: ctx.clone(),
@@ -60,6 +60,7 @@ struct Loop {
     sse_rx: mpsc::Receiver<Event>,
     handle: tokio::task::JoinHandle<()>,
     task_id: TaskId,
+    context_id: ContextId,
     pool: systemprompt_database::DbPool,
     rec: Arc<RecordingWebhookBroadcaster>,
 }
@@ -120,6 +121,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
 
     let params = ProcessEventsParams {
         tx: sse_tx,
+        request_id: NumberOrString::String(LOOP_REQUEST_ID.to_owned()),
         stream,
         task_id: task_id.clone(),
         context_id: ctx.clone(),
@@ -138,6 +140,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
         sse_rx,
         handle,
         task_id,
+        context_id: ctx,
         pool,
         rec,
     }
@@ -172,11 +175,38 @@ fn drain_frames(rx: &mut mpsc::Receiver<Event>) -> Vec<String> {
     frames
 }
 
-fn final_frames(frames: &[String]) -> Vec<&String> {
-    frames
+const LOOP_REQUEST_ID: &str = "loop-req";
+
+fn is_terminal(frame: &str) -> bool {
+    frame.contains("statusUpdate")
+        && [
+            "TASK_STATE_COMPLETED",
+            "TASK_STATE_FAILED",
+            "TASK_STATE_CANCELED",
+        ]
         .iter()
-        .filter(|f| f.contains(r#"final\":true"#))
-        .collect()
+        .any(|state| frame.contains(state))
+}
+
+fn final_frames(frames: &[String]) -> Vec<&String> {
+    for frame in frames {
+        assert!(
+            frame.contains(LOOP_REQUEST_ID),
+            "every frame carries the request id: {frame}"
+        );
+        assert!(
+            !frame.contains("final"),
+            "1.0 frames have no final flag: {frame}"
+        );
+    }
+    let terminal: Vec<&String> = frames.iter().filter(|f| is_terminal(f)).collect();
+    if let Some(last) = frames.last() {
+        assert!(
+            is_terminal(last),
+            "the terminal status is the last frame before close: {frames:?}"
+        );
+    }
+    terminal
 }
 
 #[tokio::test]
@@ -203,7 +233,7 @@ async fn process_events_completion_path_persists_and_broadcasts() {
         "expected SSE frames from the event loop"
     );
     let finals = final_frames(&frames);
-    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
     assert!(finals[0].contains("TASK_STATE_COMPLETED"), "{finals:?}");
 
     let repos = repos(&ctx.pool);
@@ -231,6 +261,56 @@ async fn process_events_completion_path_persists_and_broadcasts() {
 }
 
 #[tokio::test]
+async fn process_events_streams_each_artifact_as_a_last_chunk_before_the_terminal_status() {
+    let mut ctx = spawn_loop().await;
+    let artifact = systemprompt_agent::models::a2a::Artifact {
+        id: systemprompt_identifiers::ArtifactId::generate(),
+        title: Some("loop artifact".to_owned()),
+        description: None,
+        parts: vec![Part::text("artifact body")],
+        extensions: vec![],
+        metadata: systemprompt_models::a2a::ArtifactMetadata::new(
+            "text".to_owned(),
+            ctx.context_id.clone(),
+            ctx.task_id.clone(),
+        ),
+    };
+    let artifact_id = artifact.id.to_string();
+
+    ctx.event_tx
+        .send(StreamEvent::Complete {
+            full_text: "done with artifact".to_owned(),
+            artifacts: vec![artifact],
+        })
+        .await
+        .expect("send complete");
+    ctx.handle.await.expect("loop finished");
+
+    let frames = drain_frames(&mut ctx.sse_rx);
+    let finals = final_frames(&frames);
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
+    assert!(finals[0].contains("TASK_STATE_COMPLETED"), "{finals:?}");
+    let artifact_frames: Vec<usize> = frames
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| f.contains("artifactUpdate"))
+        .map(|(i, _)| i)
+        .collect();
+    assert_eq!(
+        artifact_frames.len(),
+        1,
+        "one frame per artifact: {frames:?}"
+    );
+    let frame = &frames[artifact_frames[0]];
+    assert!(frame.contains(&artifact_id), "{frame}");
+    assert!(frame.contains(r#"lastChunk\":true"#), "{frame}");
+    assert!(
+        artifact_frames[0] < frames.len() - 1,
+        "artifact updates precede the terminal status: {frames:?}"
+    );
+}
+
+#[tokio::test]
 async fn process_events_error_path_fails_task_and_broadcasts() {
     let mut ctx = spawn_loop().await;
 
@@ -243,7 +323,7 @@ async fn process_events_error_path_fails_task_and_broadcasts() {
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
-    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
     assert!(finals[0].contains("TASK_STATE_FAILED"), "{finals:?}");
 
     let repos = repos(&ctx.pool);
@@ -286,7 +366,7 @@ async fn process_events_cancelled_path_marks_task_canceled_with_one_final_frame(
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
-    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
     assert!(finals[0].contains("TASK_STATE_CANCELED"), "{finals:?}");
 
     let repos = repos(&ctx.pool);
@@ -398,7 +478,7 @@ async fn completion_with_an_empty_agent_name_fails_the_task_before_persistence()
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
-    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
     assert!(finals[0].contains("TASK_STATE_FAILED"), "{finals:?}");
 
     let agui = agui_all(&ctx.rec);
@@ -444,7 +524,7 @@ async fn completion_of_an_unpersisted_task_reports_a_persistence_error() {
 
     let frames = drain_frames(&mut ctx.sse_rx);
     let finals = final_frames(&frames);
-    assert_eq!(finals.len(), 1, "exactly one final frame: {frames:?}");
+    assert_eq!(finals.len(), 1, "exactly one terminal frame: {frames:?}");
     assert!(
         finals[0].contains("TASK_STATE_FAILED"),
         "persistence failure must terminate as failed: {finals:?}"

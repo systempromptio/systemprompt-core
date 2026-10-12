@@ -7,7 +7,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{AgentName, JwtToken};
 
 use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
+    Artifact, ArtifactMetadata, Message, MessageRole, Part, Task, TaskState, TaskStatus,
 };
 use systemprompt_agent::services::a2a_server::streaming::broadcast::{
     BroadcastTaskCreatedParams, broadcast_artifact_created, broadcast_task_completed,
@@ -22,9 +22,7 @@ use systemprompt_test_mocks::RecordingWebhookBroadcaster;
 fn user_message(ctx: &ContextId) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hello".to_owned(),
-        })],
+        parts: vec![Part::text("hello".to_owned())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: ctx.clone(),

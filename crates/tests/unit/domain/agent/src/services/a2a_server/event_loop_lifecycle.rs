@@ -7,6 +7,7 @@
 
 use axum::response::sse::Event;
 use systemprompt_agent::models::a2a::TaskState;
+use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::WebhookContext;
 use systemprompt_agent::services::a2a_server::streaming::{
@@ -58,6 +59,7 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
 
     emit_run_started(EmitRunStartedParams {
         tx: &tx,
+        request_id: &NumberOrString::Number(5),
         webhook_context: &webhook_context,
         context_id: &context_id,
         task_id: &task_id,
@@ -74,10 +76,11 @@ async fn emit_run_started_moves_task_to_working_and_emits_status_frame() {
 
     let frame = rx.try_recv().expect("status frame emitted");
     let rendered = format!("{frame:?}");
-    assert!(rendered.contains("status-update"));
+    assert!(rendered.contains("statusUpdate"));
     assert!(rendered.contains("TASK_STATE_WORKING"));
     assert!(rendered.contains(task_id.as_str()));
-    assert!(rendered.contains(r#"final\":false"#));
+    assert!(!rendered.contains("final"));
+    assert!(rendered.contains(r#"\"id\":5"#), "{rendered}");
 
     let a2a = a2a_for(&rec, &task_id);
     assert!(!a2a.is_empty());
@@ -102,6 +105,7 @@ async fn emit_run_started_still_updates_task_when_sse_channel_closed() {
 
     emit_run_started(EmitRunStartedParams {
         tx: &tx,
+        request_id: &NumberOrString::Number(5),
         webhook_context: &webhook_context,
         context_id: &context_id,
         task_id: &task_id,

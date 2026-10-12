@@ -68,8 +68,67 @@ fn get_extended_agent_card_routes_correctly() {
     let result = req.parse_request();
     assert!(matches!(
         result,
-        Ok(A2aRequestParams::GetAuthenticatedExtendedCard(_))
+        Ok(A2aRequestParams::GetExtendedAgentCard(_))
     ));
+}
+
+#[test]
+fn list_tasks_routes_correctly() {
+    let req = make_request("ListTasks", serde_json::json!({}));
+    assert!(matches!(
+        req.parse_request(),
+        Ok(A2aRequestParams::ListTasks(_))
+    ));
+}
+
+#[test]
+fn list_tasks_accepts_null_params() {
+    let req = make_request("ListTasks", serde_json::Value::Null);
+    assert!(matches!(
+        req.parse_request(),
+        Ok(A2aRequestParams::ListTasks(_))
+    ));
+}
+
+#[test]
+fn subscribe_to_task_routes_by_id() {
+    let req = make_request("SubscribeToTask", task_id_params("task-1"));
+    let Ok(A2aRequestParams::SubscribeToTask(params)) = req.parse_request() else {
+        panic!("SubscribeToTask must route");
+    };
+    assert_eq!(params.id.as_str(), "task-1");
+}
+
+#[test]
+fn legacy_v0_3_method_names_are_not_served() {
+    for method in [
+        "message/send",
+        "message/stream",
+        "tasks/get",
+        "tasks/cancel",
+        "tasks/resubscribe",
+    ] {
+        let req = make_request(method, minimal_message_params());
+        assert!(
+            matches!(
+                req.parse_request(),
+                Err(A2aParseError::UnsupportedMethod { .. })
+            ),
+            "{method} must be an unsupported method"
+        );
+    }
+}
+
+#[test]
+fn unsupported_methods_answer_32601_with_method_not_found_info() {
+    use systemprompt_agent::services::a2a_server::errors::JsonRpcErrorBuilder;
+    let json = serde_json::to_value(
+        JsonRpcErrorBuilder::method_not_found()
+            .with_metadata("method", "CreateTaskPushNotificationConfig")
+            .build(&RequestId::Number(1)),
+    )
+    .unwrap();
+    super::schema::assert_error_info_envelope(&json, -32601, "METHOD_NOT_FOUND");
 }
 
 #[test]

@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
-use systemprompt_agent::models::a2a::protocol::{MessageSendParams, TaskQueryParams};
-use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part, TextPart};
+use systemprompt_agent::models::a2a::protocol::{GetTaskParams, SendMessageParams};
+use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part};
 use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle_streaming_path;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
@@ -15,13 +15,12 @@ use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
 use systemprompt_test_fixtures::test_db_pool;
 
-fn send_params(ctx: &ContextId) -> MessageSendParams {
-    MessageSendParams {
+fn send_params(ctx: &ContextId) -> SendMessageParams {
+    SendMessageParams {
+        tenant: None,
         message: Message {
             role: MessageRole::User,
-            parts: vec![Part::Text(TextPart {
-                text: "hello".to_owned(),
-            })],
+            parts: vec![Part::text("hello".to_owned())],
             message_id: MessageId::generate(),
             context_id: ctx.clone(),
             task_id: None,
@@ -97,8 +96,9 @@ async fn streaming_path_unknown_context_streams_validation_error() {
     assert_eq!(event["jsonrpc"], serde_json::json!("2.0"));
     assert_eq!(event["id"], serde_json::json!(10));
     assert_eq!(event["error"]["code"], serde_json::json!(-32602));
+    assert_eq!(event["error"]["data"][0]["reason"], "INVALID_PARAMS");
     assert!(
-        event["error"]["data"]
+        event["error"]["data"][0]["metadata"]["detail"]
             .as_str()
             .is_some_and(|data| data.contains("Context validation failed")),
         "the wire error must preserve the validation diagnosis: {event}"
@@ -115,7 +115,8 @@ async fn streaming_path_rejects_a_non_streaming_method_on_the_wire() {
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
     let context = request_context(&ctx, &session, &user, "test_agent");
     let response = handle_streaming_path(
-        A2aRequestParams::GetTask(TaskQueryParams {
+        A2aRequestParams::GetTask(GetTaskParams {
+            tenant: None,
             id: TaskId::new(task_id.as_str()),
             history_length: None,
         }),
@@ -135,8 +136,9 @@ async fn streaming_path_rejects_a_non_streaming_method_on_the_wire() {
         event["error"]["message"],
         serde_json::json!("Method not found")
     );
+    assert_eq!(event["error"]["data"][0]["reason"], "METHOD_NOT_FOUND");
     assert_eq!(
-        event["error"]["data"],
+        event["error"]["data"][0]["metadata"]["detail"],
         serde_json::json!("Only SendStreamingMessage requests are supported for streaming")
     );
 }

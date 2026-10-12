@@ -1,5 +1,9 @@
 mod agent_card;
 mod error_codes;
 mod jsonrpc_compliance;
+mod list_tasks;
 mod method_routing;
+mod schema;
+mod stream_response;
 mod task_lifecycle;
+mod version_negotiation;
