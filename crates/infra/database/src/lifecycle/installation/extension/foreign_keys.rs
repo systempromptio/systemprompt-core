@@ -6,9 +6,11 @@
 //! Each key is skipped when `pg_constraint` already holds a foreign key on
 //! the same columns to the same referenced columns — whatever its name — so
 //! a key a migration authored under its own name is honoured rather than
-//! duplicated. A key that is missing is added `NOT VALID` and then validated
-//! inside a savepoint: on a fresh database that always succeeds and the
-//! result is indistinguishable from an inline declaration; on an existing
+//! duplicated. A key that is missing is added `NOT VALID` and then validated:
+//! on a fresh database inside a savepoint, where it always succeeds and the
+//! result is indistinguishable from an inline declaration; on an established
+//! database after the add commits, one statement per key, so the add's lock
+//! is not held through a scan of a populated table. On an existing
 //! database whose `CREATE TABLE IF NOT EXISTS` was a no-op the key may never
 //! have existed, and rows that violate it must not turn a boot into an
 //! outage — the key stays `NOT VALID`, enforced for new rows, and the warning
@@ -41,6 +43,7 @@ use crate::services::DatabaseProvider;
 enum FkOutcome {
     Present,
     Added,
+    AddedPendingValidation,
     AddedNotValid(RepositoryError),
     CannotCreate(RepositoryError),
 }
@@ -90,10 +93,15 @@ pub(super) async fn apply_foreign_keys(
 
     let total = keys.len();
     let mut drift = Vec::new();
+    let mut pending = Vec::new();
     for (idx, key) in keys.iter().enumerate() {
         let position = KeyPosition { n: idx + 1, total };
-        let step = match apply_one(tx.as_mut(), key).await {
-            Ok(outcome) => settle_outcome(outcome, key, extension_id, position, fresh),
+        let mut is_pending = false;
+        let step = match apply_one(tx.as_mut(), key, fresh).await {
+            Ok(outcome) => {
+                is_pending = matches!(outcome, FkOutcome::AddedPendingValidation);
+                settle_outcome(outcome, key, extension_id, position, fresh)
+            },
             Err(cause) => Err(KeyFailure {
                 context: format!(
                     "Foreign key {n}/{total} could not be probed or savepointed",
@@ -104,6 +112,7 @@ pub(super) async fn apply_foreign_keys(
         };
         match step {
             Ok(Some(found)) => drift.push(found),
+            Ok(None) if is_pending => pending.push((key, position)),
             Ok(None) => {},
             Err(KeyFailure { context, cause }) => {
                 let rollback_note = match tx.rollback().await {
@@ -118,7 +127,32 @@ pub(super) async fn apply_foreign_keys(
     tx.commit()
         .await
         .map_err(|e| failed("Failed to commit transaction".to_owned(), e))?;
+
+    // Why: Postgres takes VALIDATE CONSTRAINT under SHARE UPDATE EXCLUSIVE,
+    // which does not block writes, but only when it runs outside the
+    // transaction that added the key; inside it, the ADD's exclusive lock is
+    // held through the whole scan of an established table.
+    for (key, position) in pending {
+        if let Err(cause) = db.execute(&validate_sql(key).as_str(), &[]).await {
+            settle_outcome(
+                FkOutcome::AddedNotValid(cause),
+                key,
+                extension_id,
+                position,
+                fresh,
+            )
+            .ok();
+        }
+    }
     Ok(drift)
+}
+
+fn validate_sql(key: &DeferredForeignKey) -> String {
+    format!(
+        "ALTER TABLE {} VALIDATE CONSTRAINT {}",
+        key.table,
+        quote_identifier(&key.constraint_name)
+    )
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,7 +183,7 @@ fn settle_outcome(
             );
             Ok(None)
         },
-        FkOutcome::Added => Ok(None),
+        FkOutcome::Added | FkOutcome::AddedPendingValidation => Ok(None),
         FkOutcome::AddedNotValid(cause) => {
             warn!(
                 extension = %extension_id,
@@ -207,6 +241,7 @@ fn cannot_create_explanation(key: &DeferredForeignKey, position: KeyPosition) ->
 async fn apply_one(
     tx: &mut dyn DatabaseTransaction,
     key: &DeferredForeignKey,
+    fresh: bool,
 ) -> Result<FkOutcome, RepositoryError> {
     let params: [&dyn ToDbValue; 4] = [
         &key.table,
@@ -233,12 +268,11 @@ async fn apply_one(
     }
     tx.execute(&"RELEASE SAVEPOINT deferred_fk_add", &[])
         .await?;
+    if !fresh {
+        return Ok(FkOutcome::AddedPendingValidation);
+    }
 
-    let validate = format!(
-        "ALTER TABLE {} VALIDATE CONSTRAINT {}",
-        key.table,
-        quote_identifier(&key.constraint_name)
-    );
+    let validate = validate_sql(key);
     tx.execute(&"SAVEPOINT deferred_fk_validate", &[]).await?;
     match tx.execute(&validate.as_str(), &[]).await {
         Ok(_) => {

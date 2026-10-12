@@ -75,6 +75,11 @@ impl AnalyticsRepository {
         Ok(count)
     }
 
+    // Why: both heuristics judge a session in its first day only. The job
+    // runs every 15 minutes, and without a lower bound every unflagged web
+    // session ever recorded was re-judged on every tick; `NOT EXISTS` replaces
+    // a `NOT IN` that read all of engagement_events (and matched nothing at
+    // all had one session_id been NULL).
     pub async fn mark_ghost_sessions_as_bots(&self) -> SchedulerResult<i64> {
         // Why: a browser heuristic. Bridge, OAuth and API sessions never load
         // a landing page or run JavaScript, so without the source filter every
@@ -95,6 +100,7 @@ impl AnalyticsRepository {
                   AND landing_page IS NULL
                   AND entry_url IS NULL
                   AND started_at < NOW() - INTERVAL '5 minutes'
+                  AND started_at >= NOW() - INTERVAL '1 day'
                 RETURNING 1
             )
             SELECT COUNT(*)::BIGINT as "count!" FROM cleaned
@@ -124,9 +130,10 @@ impl AnalyticsRepository {
                   AND session_source = 'web'
                   AND request_count > 0
                   AND started_at < NOW() - INTERVAL '10 minutes'
-                  AND session_id NOT IN (
-                    SELECT DISTINCT session_id FROM engagement_events
-                    WHERE time_on_page_ms > 0
+                  AND started_at >= NOW() - INTERVAL '1 day'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM engagement_events e
+                    WHERE e.session_id = user_sessions.session_id AND e.time_on_page_ms > 0
                   )
                 RETURNING 1
             )
