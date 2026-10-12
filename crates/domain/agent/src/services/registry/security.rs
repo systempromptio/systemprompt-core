@@ -6,6 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use systemprompt_manifest::AgentOAuthConfig;
 
 use crate::models::a2a::{
@@ -57,8 +58,8 @@ pub fn oauth_to_security_config(
 }
 
 #[must_use]
-pub fn requirements_from_config(
-    requirements: &[HashMap<String, Vec<String>>],
+pub fn requirements_from_config<S: BuildHasher>(
+    requirements: &[HashMap<String, Vec<String>, S>],
 ) -> Vec<SecurityRequirement> {
     requirements
         .iter()

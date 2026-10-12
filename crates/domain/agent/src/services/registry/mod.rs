@@ -160,7 +160,7 @@ impl AgentRegistry {
                 extended_agent_card: Some(agent.card.capabilities.extended_agent_card),
             },
             default_input_modes: agent.card.default_input_modes.clone(),
-            default_output_modes: agent.card.default_output_modes.clone(),
+            default_output_modes: agent.card.default_output_modes,
             skills: all_skills,
             security_schemes,
             security_requirements,
