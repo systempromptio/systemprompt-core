@@ -1,6 +1,6 @@
-//! `OpenCode` 2.x loads only the user config, so the probe reads that tier
-//! alone: a provider block there is the host's real state, and one left in the
-//! retired admin tier is not.
+//! `OpenCode` 2.x loads only the user config, so the probe reads that tier: a
+//! provider block there is the host's real state, and one left only in the
+//! retired admin tier marks an enrolled host that sync must re-apply.
 
 use std::path::Path;
 
@@ -101,13 +101,32 @@ fn the_probe_never_shows_the_api_key() {
 }
 
 #[test]
-fn a_block_only_in_the_retired_admin_tier_is_not_installed() {
+fn a_block_only_in_the_retired_admin_tier_is_stale_so_sync_moves_it() {
     let snapshot = sandbox(Some(RETIRED_BLOCK), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Absent),
-        "OpenCode 2.x never reads the admin tier: {:?}",
+        matches!(snapshot.profile_state, ProfileState::Stale { .. }),
+        "an enrolled host whose block OpenCode 2.x never reads must be re-applied: {:?}",
         snapshot.profile_state
     );
+}
+
+#[test]
+fn after_reinstall_a_retired_admin_tier_no_longer_holds_the_state_back() {
+    let snapshot = sandbox(Some(RETIRED_BLOCK), |_| {
+        install();
+        OPENCODE_HOST.probe(&probe_env())
+    });
+    assert!(
+        matches!(snapshot.profile_state, ProfileState::Installed),
+        "{:?}",
+        snapshot.profile_state
+    );
+}
+
+#[test]
+fn nothing_anywhere_is_absent() {
+    let snapshot = sandbox(None, |_| OPENCODE_HOST.probe(&probe_env()));
+    assert!(matches!(snapshot.profile_state, ProfileState::Absent));
 }
 
 #[test]

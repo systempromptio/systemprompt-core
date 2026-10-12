@@ -35,7 +35,7 @@ use crate::drift::DesiredProfile;
 use crate::integration::host_app::{
     AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
     HostAppSnapshot, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    ProfileRemoval, ProfileState, StaleReason,
 };
 
 // Why: the CLI and the desktop app are two installs of one host; both read
@@ -76,12 +76,24 @@ impl HostApp for OpenCodeHost {
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
         let desired = env.desired_for(self);
-        let profile_state = ProfileState::classify(&ProfileProbe {
+        let profile_state = match ProfileState::classify(&ProfileProbe {
             present: &read.keys,
             observed: &read.observed,
             read_error: read.probe_error.as_deref(),
             desired: &desired,
-        });
+        }) {
+            // Why: a host enrolled before OpenCode 2.x has its block only in the
+            // retired admin tier, so the user config reads as never enrolled and
+            // sync, which re-applies only stale profiles, would never move it.
+            ProfileState::Absent if install::stale_admin_tier().is_some() => ProfileState::Stale {
+                reason: StaleReason::Settings,
+                keys: vec![
+                    config::PROVIDER_BASE_URL.to_owned(),
+                    config::ENABLED_PROVIDERS.to_owned(),
+                ],
+            },
+            state => state,
+        };
         let found = HostProcesses::from_enumeration(probe::list_opencode_processes());
         HostAppSnapshot {
             host_id: self.id(),
