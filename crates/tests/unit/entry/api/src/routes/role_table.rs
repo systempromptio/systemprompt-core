@@ -65,11 +65,24 @@ fn gateway_role_runs_no_workers() {
             runner_services: false,
         }
     );
-    for role in [NodeRole::All, NodeRole::Admin] {
-        let plan = lifecycle_plan(role);
-        assert!(plan.reconcile_mcp && plan.reconcile_agents && plan.scheduler);
-        assert!(!plan.runner_services);
-    }
+    assert_eq!(
+        lifecycle_plan(NodeRole::Admin),
+        LifecyclePlan {
+            reconcile_mcp: true,
+            reconcile_agents: true,
+            scheduler: true,
+            runner_services: false,
+        }
+    );
+    assert_eq!(
+        lifecycle_plan(NodeRole::All),
+        LifecyclePlan {
+            reconcile_mcp: true,
+            reconcile_agents: true,
+            scheduler: true,
+            runner_services: true,
+        }
+    );
 }
 
 #[test]

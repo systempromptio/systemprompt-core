@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 
 /// The part of the platform a node serves.
 ///
-/// `all` is a single-node deployment. `gateway` serves only the AI gateway,
+/// `all` is a single-node deployment: every surface, every worker, and the
+/// extensions' runner services, so one node runs the whole product.
+/// `gateway` serves only the AI gateway,
 /// the bridge consumer surface and the OAuth/discovery routes they depend on,
 /// and runs no scheduler, MCP or agent processes, so it scales horizontally.
 /// `admin` serves everything except the gateway and runs the workers.
@@ -40,7 +42,7 @@ impl NodeRole {
     }
 
     pub const fn runs_runner_services(self) -> bool {
-        matches!(self, Self::Runner)
+        matches!(self, Self::All | Self::Runner)
     }
 
     pub const fn as_str(self) -> &'static str {
