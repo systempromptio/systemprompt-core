@@ -17,7 +17,7 @@ mod desktop_policy;
 pub mod filesystem;
 pub mod hooks;
 pub mod marketplace;
-pub mod opencode;
+pub mod opencode_tier;
 pub mod proxy;
 #[cfg(target_os = "windows")]
 pub mod registry;
@@ -98,9 +98,7 @@ pub async fn run_checks(bridge: &BridgeContext) -> (Vec<Check>, bool) {
     checks.extend(proxy::check_proxy_client_config(&env));
     checks.extend(desktop_policy::check_settings(&env));
     checks.extend(claude_code::check_settings(&proxy.loopback().origin()));
-    if let Some(check) = opencode::check_admin_tier_models(bridge).await {
-        checks.push(check);
-    }
+    checks.extend(opencode_tier::check_retired_admin_tier());
     if let Some(check) = hooks::check_hook_urls(proxy.port()) {
         checks.push(check);
     }

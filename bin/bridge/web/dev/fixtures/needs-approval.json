@@ -49,7 +49,7 @@
     "in_progress": false
   },
   "sign_in_label": "Sign in with systemprompt",
-  "sign_in_hint": "Opens your browser \u2014 sign in there with your Odoo email and password.",
+  "sign_in_hint": "Opens your browser — sign in there with your Odoo email and password.",
   "host_apps": [
     {
       "id": "claude-desktop",
@@ -111,7 +111,8 @@
         "tone": "warn",
         "reason": {
           "code": "stale",
-          "cause": "managed_servers"
+          "cause": "settings",
+          "keys": "otlpEndpoint, configRecheckIntervalMinutes, deploymentDisplayName"
         },
         "action": {
           "code": "update-admin"
@@ -484,6 +485,7 @@
       "ready": 0,
       "attention": 1,
       "not_set_up": 0,
+      "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 4,
@@ -496,6 +498,7 @@
       "ready": 0,
       "attention": 1,
       "not_set_up": 0,
+      "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 4,

@@ -100,14 +100,9 @@ fn macos_payloads_render_explicit_unrestricted_egress_by_default() {
         .expect("the egress setting parses");
     let inputs = mdm_inputs(hosts.as_deref());
     let plist =
-        systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
-            .expect("prefs plist");
-    let mc = systemprompt_bridge::install::build_macos_mobileconfig(
-        &inputs,
-        "https://gateway.example",
-        None,
-    )
-    .expect("mobileconfig");
+        systemprompt_bridge::install::build_macos_prefs_plist(&inputs).expect("prefs plist");
+    let mc = systemprompt_bridge::install::build_macos_mobileconfig(&inputs, None)
+        .expect("mobileconfig");
     for rendered in [&plist, &mc] {
         assert!(
             rendered.contains("<key>coworkEgressAllowedHosts</key>"),
@@ -132,14 +127,9 @@ fn macos_payloads_render_array_when_opted_in() {
         .expect("the egress setting parses");
     let inputs = mdm_inputs(hosts.as_deref());
     let plist =
-        systemprompt_bridge::install::build_macos_prefs_plist(&inputs, "https://gateway.example")
-            .expect("prefs plist");
-    let mc = systemprompt_bridge::install::build_macos_mobileconfig(
-        &inputs,
-        "https://gateway.example",
-        None,
-    )
-    .expect("mobileconfig");
+        systemprompt_bridge::install::build_macos_prefs_plist(&inputs).expect("prefs plist");
+    let mc = systemprompt_bridge::install::build_macos_mobileconfig(&inputs, None)
+        .expect("mobileconfig");
     unsafe {
         std::env::remove_var(ENV);
     }
@@ -178,6 +168,10 @@ static MDM_POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store:
     });
 
 #[cfg(target_os = "macos")]
+static MDM_OVERRIDES: systemprompt_bridge::install::profile_inputs::ModelProtocolOverrides =
+    std::collections::BTreeMap::new();
+
+#[cfg(target_os = "macos")]
 fn mdm_inputs(
     egress_allowed_hosts: Option<&[String]>,
 ) -> systemprompt_bridge::install::MdmPayloadInputs<'_> {
@@ -186,5 +180,6 @@ fn mdm_inputs(
         loopback: &MDM_LOOPBACK,
         registry: &MDM_REGISTRY,
         egress_allowed_hosts,
+        overrides: &MDM_OVERRIDES,
     }
 }

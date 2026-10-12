@@ -40,6 +40,7 @@ pub mod gui;
 pub mod hash;
 pub mod host_sync;
 
+pub mod drift;
 pub mod i18n;
 pub mod ids;
 pub mod install;

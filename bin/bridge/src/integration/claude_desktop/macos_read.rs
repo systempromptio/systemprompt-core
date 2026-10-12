@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use super::shared::{API_KEY_KEY, DomainRead, KEYS_OF_INTEREST, redact_if_sensitive};
+use super::shared::DomainRead;
 
 #[derive(Debug, thiserror::Error)]
 enum DomainReadError {
@@ -45,17 +45,22 @@ enum DomainReadError {
     },
 }
 
-pub(super) fn read_domain(domain: &str) -> DomainRead {
+pub(super) fn read_domain(domain: &str, keys: &[&str]) -> DomainRead {
     let mut out = DomainRead::default();
-    if let Err(e) = read_domain_into(domain, &mut out) {
-        out.keys.clear();
-        out.api_key_fp = None;
-        out.probe_error = Some(e.to_string());
+    if let Err(e) = read_domain_into(domain, keys, &mut out) {
+        out = DomainRead {
+            probe_error: Some(e.to_string()),
+            ..DomainRead::default()
+        };
     }
     out
 }
 
-fn read_domain_into(domain: &str, out: &mut DomainRead) -> Result<(), DomainReadError> {
+fn read_domain_into(
+    domain: &str,
+    keys: &[&str],
+    out: &mut DomainRead,
+) -> Result<(), DomainReadError> {
     let mut plist_path = None;
     for candidate in super::macos::candidates(domain) {
         let exists = candidate
@@ -80,13 +85,9 @@ fn read_domain_into(domain: &str, out: &mut DomainRead) -> Result<(), DomainRead
         .transpose()?
         .unwrap_or(serde_json::Value::Null);
 
-    for key in KEYS_OF_INTEREST {
+    for key in keys {
         if let Some(raw) = read_key_raw(&plist_json, domain, key)? {
-            if *key == API_KEY_KEY {
-                out.api_key_fp = Some(crate::proxy::secret::fingerprint(raw.trim()));
-            }
-            out.keys
-                .insert((*key).to_owned(), redact_if_sensitive(key, raw));
+            out.record(key, raw);
         }
     }
     Ok(())

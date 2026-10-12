@@ -8,11 +8,6 @@ use std::collections::BTreeMap;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use systemprompt_models::bridge::host::HostKind;
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-use crate::integration::host_app::HostConfigSchema;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const DESKTOP_DOMAIN: &str = "com.anthropic.claudefordesktop";
@@ -23,42 +18,47 @@ pub(super) const API_KEY_KEY: &str = crate::cowork_compat::POLICY_API_KEY;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(super) const KEYS_OF_INTEREST: &[&str] = crate::cowork_compat::POLICY_KEYS;
 
+// Why: the probe reads every key the policy can carry, so a key a release
+// adds to the policy is compared from the release that writes it.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const REQUIRED_KEYS: &[&str] = &[
-    "inferenceProvider",
-    "inferenceGatewayBaseUrl",
-    API_KEY_KEY,
-    "inferenceModels",
-    "modelPrefer1mContext",
-    "alwaysStartWithDefaultModel",
-];
-
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: REQUIRED_KEYS,
-    display_keys: KEYS_OF_INTEREST,
-};
+pub(super) fn keys_to_read(desired: Option<&crate::drift::DesiredProfile>) -> Vec<&str> {
+    let mut keys: Vec<&str> = KEYS_OF_INTEREST
+        .iter()
+        .chain(crate::install::mdm::policy::WRITTEN_POLICY_KEYS)
+        .copied()
+        .collect();
+    if let Some(desired) = desired {
+        keys.extend(desired.keys());
+    }
+    keys.sort_unstable();
+    keys.dedup();
+    keys
+}
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Default)]
 pub(super) struct DomainRead {
     pub source_path: Option<String>,
     pub keys: BTreeMap<String, String>,
+    pub observed: BTreeMap<String, String>,
     pub api_key_fp: Option<String>,
     pub probe_error: Option<String>,
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-pub(super) fn secret_freshness(
-    installed_api_key_fp: Option<&str>,
-    env: &crate::integration::host_app::ProbeEnv,
-) -> crate::integration::host_app::Freshness {
-    let live = env.host_token_fingerprint(HostKind::ClaudeDesktop);
-    crate::integration::host_app::Freshness::compare(
-        installed_api_key_fp,
-        live.as_deref(),
-        "loopback secret",
-    )
+impl DomainRead {
+    pub(super) fn record(&mut self, name: &str, raw: String) {
+        let observed = if name == API_KEY_KEY {
+            let fp = crate::proxy::secret::fingerprint(raw.trim());
+            self.api_key_fp = Some(fp.clone());
+            fp
+        } else {
+            raw.clone()
+        };
+        self.observed.insert(name.to_owned(), observed);
+        self.keys
+            .insert(name.to_owned(), redact_if_sensitive(name, raw));
+    }
 }
 
 pub use crate::integration::host_app::ProfileGenInputs;

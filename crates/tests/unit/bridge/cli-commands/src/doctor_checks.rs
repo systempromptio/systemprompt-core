@@ -112,41 +112,48 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
     use systemprompt_bridge::cli::doctor::auth::check_host_profile_secrets;
     use systemprompt_bridge::ids::LoopbackSecret;
     use systemprompt_bridge::integration::HostKind;
-    use systemprompt_bridge::integration::host_app::ProbeEnv;
+    use systemprompt_bridge::integration::host_app::{
+        ModelProtocolOverrides, ProbeEnv, ProfileFacts,
+    };
     use systemprompt_bridge::proxy::scoped_token::host_token;
 
     sandbox(|root| {
-        let managed = root.join("managed");
-        std::fs::create_dir_all(&managed).expect("managed directory");
-        let config = root.join("systemprompt/systemprompt-bridge.toml");
-        std::fs::create_dir_all(config.parent().expect("config parent")).expect("config directory");
-        std::fs::write(
-            config,
-            format!("[opencode]\nmanaged_dir = '{}'\n", managed.display()),
-        )
-        .expect("bridge config");
-        let profile = managed.join("opencode.json");
-        std::fs::write(
-            &profile,
-            r#"{"provider":{"systemprompt":{"npm":"@ai-sdk/openai-compatible","options":{"baseURL":"http://127.0.0.1:1/v1","headers":{"x-inference-protocol":"openai"}},"models":{"gpt-4.1":{"name":"gpt-4.1"}}}},"model":"systemprompt/gpt-4.1","enabled_providers":["systemprompt"]}"#,
-        )
-        .expect("stale profile");
-        let auth = root.join("opencode/auth.json");
-        std::fs::create_dir_all(auth.parent().expect("auth parent")).expect("auth directory");
+        let profile = root.join("opencode/opencode.json");
+        std::fs::create_dir_all(profile.parent().expect("profile parent"))
+            .expect("opencode config directory");
         let host = HostKind::OpenCode;
         let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host);
-        std::fs::write(
-            &auth,
-            serde_json::json!({ "systemprompt": { "type": "api", "key": stale_token.as_str() } })
-                .to_string(),
-        )
-        .expect("stale auth token");
+        let write_profile = |key: &str| {
+            let mut doc = serde_json::json!({
+                "provider": { "systemprompt": {
+                    "npm": "@ai-sdk/openai-compatible",
+                    "name": "systemprompt.io gateway",
+                    "options": { "baseURL": "http://127.0.0.1:1/v1", "apiKey": key },
+                    "models": {}
+                } },
+                "enabled_providers": ["systemprompt"]
+            });
+            if let Ok(existing) = std::fs::read_to_string(&profile) {
+                doc = serde_json::from_str(&existing).expect("profile is JSON");
+                doc["provider"]["systemprompt"]["options"]["apiKey"] =
+                    serde_json::Value::String(key.to_owned());
+            }
+            std::fs::write(&profile, doc.to_string()).expect("write profile");
+        };
+        write_profile(stale_token.as_str());
 
+        let live_secret = LoopbackSecret::new("live-loopback-secret");
         let env = ProbeEnv {
             proxy_port: 48217,
-            loopback_secret: Some(LoopbackSecret::new("live-loopback-secret")),
             start_menu: std::sync::Arc::default(),
-            expected_managed_servers: None,
+            facts: Ok(ProfileFacts {
+                gateway_base_url: "http://127.0.0.1:48217".to_owned(),
+                secret: live_secret.clone(),
+                profile: None,
+                mcp_servers: None,
+                overrides: ModelProtocolOverrides::new(),
+                operator_org_uuid: None,
+            }),
             policy_writer_ready: false,
         };
         let stale = check_host_profile_secrets(&env).expect("stale installed profile is diagnosed");
@@ -163,13 +170,8 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
             stale.detail
         );
 
-        let live_token = host_token(env.loopback_secret.as_ref().expect("live secret"), host);
-        std::fs::write(
-            &auth,
-            serde_json::json!({ "systemprompt": { "type": "api", "key": live_token.as_str() } })
-                .to_string(),
-        )
-        .expect("repair auth token");
+        let live_token = host_token(&live_secret, host);
+        write_profile(live_token.as_str());
         let wrong_port = check_host_profile_secrets(&env).expect("port mismatch is diagnosed");
         assert_eq!(wrong_port.status, Status::Fail);
         assert!(
@@ -186,6 +188,21 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
         let healthy = check_host_profile_secrets(&env).expect("installed profile is reported");
         assert_eq!(healthy.status, Status::Ok, "{}", healthy.detail);
         assert!(healthy.detail.contains("match the live loopback secret"));
+
+        let drifted = std::fs::read_to_string(&profile)
+            .expect("read healthy profile")
+            .replace(
+                r#""enabled_providers":["systemprompt"]"#,
+                r#""enabled_providers":["systemprompt","opencode"]"#,
+            );
+        std::fs::write(&profile, drifted).expect("drift profile");
+        let behind = check_host_profile_secrets(&env).expect("drifted profile is diagnosed");
+        assert_eq!(behind.status, Status::Warn, "{}", behind.detail);
+        assert!(
+            behind.detail.contains("OpenCode (enabled_providers)"),
+            "{}",
+            behind.detail
+        );
     });
 }
 

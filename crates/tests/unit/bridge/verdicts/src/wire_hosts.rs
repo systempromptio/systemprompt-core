@@ -41,7 +41,6 @@ fn snapshot(profile_state: ProfileState, keys: BTreeMap<String, String>) -> Host
         app_installed: AppInstallState::Installed,
         probed_at_unix: 1_700_000_042,
         update_needs_approval: false,
-        declared_models: None,
     }
 }
 
@@ -126,6 +125,7 @@ fn a_stale_profile_reports_only_its_code_not_its_cause() {
     let snap = snapshot(
         ProfileState::Stale {
             reason: StaleReason::LoopbackSecret,
+            keys: vec!["inferenceGatewayApiKey".to_owned()],
         },
         BTreeMap::new(),
     );

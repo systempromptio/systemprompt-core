@@ -28,7 +28,6 @@ fn snapshot(probed_at_unix: u64) -> HostAppSnapshot {
         app_installed: AppInstallState::Installed,
         probed_at_unix,
         update_needs_approval: false,
-        declared_models: None,
     }
 }
 

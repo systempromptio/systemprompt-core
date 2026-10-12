@@ -19,15 +19,18 @@ pub(super) fn read_config() -> DomainRead {
     }
 }
 
-fn parse_into_keys(text: &str, source: &str) -> DomainRead {
-    let value: serde_yaml::Value = match serde_yaml::from_str(text) {
-        Ok(value) => value,
-        Err(e) => return DomainRead::unreadable(source, &e),
-    };
+pub(super) fn parse_into_keys(text: &str, source: &str) -> DomainRead {
+    match serde_yaml::from_str(text) {
+        Ok(value) => keys_of(&value, source),
+        Err(e) => DomainRead::unreadable(source, &e),
+    }
+}
+
+pub(super) fn keys_of(value: &serde_yaml::Value, source: &str) -> DomainRead {
     DomainRead::collect(
         source,
         KEYS_OF_INTEREST,
-        |dotted| lookup_dotted(&value, dotted),
+        |dotted| lookup_dotted(value, dotted),
         |_, raw| raw,
     )
 }

@@ -153,7 +153,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
     ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
         ctx.client.fetch_bridge_profile().await.map_err(|source| {
             crate::host_sync::ApplyError::Step {
-                context: "refresh desktop model catalog",
+                context: "refresh the bridge profile",
                 source: Box::new(source),
             }
         })?;
@@ -163,20 +163,28 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             loopback: ctx.loopback,
             registry: ctx.mcp_registry,
             egress_allowed_hosts: None,
+            overrides: &ctx.manifest.host_model_protocols,
         };
         #[cfg(target_os = "windows")]
         let report = {
             let mut report = report;
-            let config = crate::config::load().map_err(|e| crate::host_sync::ApplyError::Step {
-                context: "load the bridge config for the desktop policy's organization",
-                source: Box::new(e),
-            })?;
-            let facts = crate::install::policy_writer::RequestFacts {
-                org_uuid: config
-                    .deployment_organization_uuid
-                    .map(|uuid| uuid.as_str().to_owned()),
-                ..Default::default()
-            };
+            let entries: Vec<(String, String)> =
+                super::policy::reg_values(&super::desktop_policy_entries(&inputs).map_err(
+                    |e| crate::host_sync::ApplyError::Step {
+                        context: "render the desktop policy for the elevated writer",
+                        source: Box::new(e),
+                    },
+                )?)
+                .into_iter()
+                .map(|(name, _, value)| (name.to_owned(), value))
+                .collect();
+            let facts =
+                crate::install::policy_writer::facts_from_entries(&entries).map_err(|e| {
+                    crate::host_sync::ApplyError::Step {
+                        context: "derive the elevated writer's request from the desktop policy",
+                        source: Box::new(e),
+                    }
+                })?;
             match super::windows::delegate_to_writer(&inputs, facts) {
                 Ok(Some(line)) => {
                     tracing::info!(
@@ -221,6 +229,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
             loopback: ctx.loopback,
             registry: &empty,
             egress_allowed_hosts: None,
+            overrides: &ctx.manifest.host_model_protocols,
         }) {
             Ok(line) => {
                 tracing::info!(

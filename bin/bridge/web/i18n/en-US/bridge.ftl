@@ -154,6 +154,7 @@ agent-state-working = Working
 agent-state-ready = Ready
 agent-state-attention = Needs attention
 agent-state-not-set-up = Not set up
+agent-state-not-installed = Not installed
 agent-state-down = Not working
 agent-state-checking = Checking…
 agent-reason-governed = Governed
@@ -161,10 +162,13 @@ agent-reason-governed-checked = Governed · checked { $when }
 agent-reason-awaiting = Waiting for its first launch
 agent-reason-app-missing = The app is not installed on this computer
 agent-reason-stale = { $cause ->
-    [managed_servers] Its connector list is behind the gateway — update, then quit and relaunch the app
-    [model_list] Its model list is behind the gateway — update, then quit and relaunch the app
-   *[other] Its settings are out of date — repair, then restart the app
+    [loopback_secret] Its credential is out of date ({ $keys }) — repair, then restart the app
+    [proxy_port] It points at the wrong proxy port ({ $keys }) — repair, then restart the app
+    [managed_servers] Its connector list is behind the gateway ({ $keys }) — update, then quit and relaunch the app
+    [model_list] Its model list is behind the gateway ({ $keys }) — update, then quit and relaunch the app
+   *[other] Its settings are behind this release ({ $keys }) — update, then quit and relaunch the app
   }
+agent-reason-sync-failed = The last sync could not apply everything ({ $detail })
 agent-reason-partial = Some of its settings are missing ({ $missing })
 agent-reason-unverifiable = Its settings could not be checked ({ $detail })
 agent-reason-absent = This agent is not routed through systemprompt yet
@@ -173,7 +177,7 @@ agent-reason-no-models = No model this agent can use is available
 agent-reason-proxy-down = The local proxy is not responding
 agent-reason-never-probed = Not checked yet
 agent-reason-cloud-managed = Managed from the cloud — nothing to install on this computer
-agent-reason-not-routed = Not routed through the gateway — Claude Code still uses its own login
+agent-reason-not-routed = Not routed through the gateway — Claude Code still uses its own login; click Enrol to route it
 agent-action-repair = Repair
 agent-action-update = Update
 agent-action-update-admin = Update (administrator)
@@ -243,6 +247,7 @@ agents-fleet-all-working = all working
 agents-fleet-needs-attention = needs attention
 agents-fleet-not-working = not working
 agents-fleet-checking = checking…
+agents-fleet-none-installed = no agent apps installed
 agents-fleet-none-enabled = no agents enabled
 agents-fleet-none-set-up = no agents set up
 
@@ -336,7 +341,7 @@ marketplace-badge-signin = sign-in required
 marketplace-badge-syncing = syncing
 marketplace-badge-synced = synced
 marketplace-badge-degraded = synced with failures
-marketplace-badge-needs-approval = Claude Desktop needs approval
+marketplace-badge-needs-approval = an agent needs administrator approval
 marketplace-badge-never = never synced
 marketplace-detail-contents = Contents
 marketplace-detail-readme = README
@@ -558,7 +563,7 @@ overall-syncing = syncing
 overall-offline = offline
 overall-synced = synced
 overall-degraded = synced with failures
-overall-needs-approval = Claude Desktop needs approval
+overall-needs-approval = needs administrator approval
 overall-ready = ready
 overall-needs-sign-in = needs sign-in
 

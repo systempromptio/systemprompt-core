@@ -130,3 +130,13 @@ button.sp-mkt-cat {
   opacity: 0.85;
   border-color: var(--sp-accent-ring);
 }
+/* A badge whose outcome has a pane to fix it renders as a button; it keeps the
+   badge's look and only signals that it goes somewhere. */
+.sp-mkt-badge__link {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sp-mkt-badge__link:focus-visible { outline: 2px solid var(--sp-accent-ring); outline-offset: 2px; }

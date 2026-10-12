@@ -6,8 +6,8 @@ use std::sync::Arc;
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
-    ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, ProbeEnv,
+    ProfileGenInputs, ProfileInstalled, ProfileState, StaleReason,
 };
 use systemprompt_bridge::integration::host_apps;
 use systemprompt_bridge::integration::reapply::{
@@ -115,15 +115,10 @@ fn profile_body(models: &[&str]) -> serde_json::Value {
     })
 }
 
-fn probe_state_of_codex() -> ProfileState {
-    let env = ProbeEnv {
-        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret: None,
-        start_menu: Arc::default(),
-        expected_managed_servers: None,
-        policy_writer_ready: false,
-    };
-    CODEX_CLI_HOST.probe(&env).profile_state
+fn probe_state_of_codex(ctx: &BridgeContext) -> ProfileState {
+    CODEX_CLI_HOST
+        .probe(&ProbeEnv::for_bridge(ctx))
+        .profile_state
 }
 
 fn with_gateway<R>(
@@ -158,7 +153,7 @@ fn with_gateway<R>(
 fn a_host_that_was_never_set_up_is_left_alone_by_a_reapply() {
     let reports = with_gateway(None, |ctx, managed| {
         assert!(
-            matches!(probe_state_of_codex(), ProfileState::Absent),
+            matches!(probe_state_of_codex(ctx), ProfileState::Absent),
             "the sandbox starts with no host profile at all"
         );
         let reports = ctx.block_on(reapply_stale_profiles(
@@ -184,7 +179,13 @@ fn a_profile_baked_for_a_dead_port_is_repaired_and_reported_reapplied() {
     let (names, outcomes, rewritten) =
         with_gateway(Some(stale_managed_config()), |ctx, managed| {
             assert!(
-                matches!(probe_state_of_codex(), ProfileState::Stale { .. }),
+                matches!(
+                    probe_state_of_codex(ctx),
+                    ProfileState::Stale {
+                        reason: StaleReason::ProxyPort,
+                        ..
+                    }
+                ),
                 "the seeded profile points at a port the proxy does not hold"
             );
             let reports = ctx.block_on(reapply_stale_profiles(
@@ -219,32 +220,29 @@ fn a_profile_baked_for_a_dead_port_is_repaired_and_reported_reapplied() {
 }
 
 #[test]
-fn a_fresh_profile_is_not_rewritten_by_a_reapply() {
-    let fresh = stale_managed_config().replace(
-        &format!("127.0.0.1:{STALE_PORT}"),
-        &format!(
-            "127.0.0.1:{}",
-            systemprompt_bridge::proxy::DEFAULT_PROXY_PORT
-        ),
+fn a_profile_the_writer_just_wrote_is_not_rewritten_by_the_next_reapply() {
+    let (second, state, before, after) =
+        with_gateway(Some(stale_managed_config()), |ctx, managed| {
+            ctx.block_on(reapply_stale_profiles(
+                ctx,
+                &BTreeMap::new(),
+                Attendance::Attended,
+            ));
+            let before = fs::read_to_string(managed).expect("repaired readable");
+            let state = probe_state_of_codex(ctx);
+            let second = ctx.block_on(reapply_stale_profiles(
+                ctx,
+                &BTreeMap::new(),
+                Attendance::Attended,
+            ));
+            let after = fs::read_to_string(managed).expect("still readable");
+            (second.len(), state, before, after)
+        });
+    assert!(
+        matches!(state, ProfileState::Installed),
+        "what the writer wrote is exactly what the probe expects: {state:?}"
     );
-    let (reports_len, before, after) = with_gateway(Some(fresh), |ctx, managed| {
-        let before = fs::read_to_string(managed).expect("seed readable");
-        assert!(
-            matches!(probe_state_of_codex(), ProfileState::Installed),
-            "a profile on the live port is installed, not stale"
-        );
-        let reports = ctx.block_on(reapply_stale_profiles(
-            ctx,
-            &BTreeMap::new(),
-            Attendance::Attended,
-        ));
-        let after = fs::read_to_string(managed).expect("still readable");
-        (reports.len(), before, after)
-    });
-    assert_eq!(
-        reports_len, 0,
-        "a current profile is not a repair candidate"
-    );
+    assert_eq!(second, 0, "a current profile is not a repair candidate");
     assert_eq!(
         before, after,
         "an untouched host's file must be byte-identical after a reapply"
@@ -355,11 +353,6 @@ struct PromptingHost {
 static PROMPTING_HOST: PromptingHost = PromptingHost { os_denied: false };
 static DENIED_HOST: PromptingHost = PromptingHost { os_denied: true };
 
-static PROMPTING_SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: &["alpha"],
-    display_keys: &["alpha"],
-};
-
 impl HostApp for PromptingHost {
     fn id(&self) -> systemprompt_models::bridge::host::HostKind {
         systemprompt_models::bridge::host::HostKind::Hermes
@@ -367,10 +360,6 @@ impl HostApp for PromptingHost {
 
     fn display_name(&self) -> &'static str {
         "Prompting Host"
-    }
-
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &PROMPTING_SCHEMA
     }
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
@@ -386,8 +375,21 @@ impl HostApp for PromptingHost {
             app_installed: AppInstallState::Unknown,
             probed_at_unix: u64::from(env.proxy_port),
             update_needs_approval: false,
-            declared_models: None,
         }
+    }
+
+    fn desired(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<systemprompt_bridge::drift::DesiredProfile, HostAppError> {
+        Ok(systemprompt_bridge::drift::DesiredProfile::new())
+    }
+
+    fn app_installed(
+        &self,
+        _start_menu: &systemprompt_bridge::probe_cache::StartMenuCache,
+    ) -> AppInstallState {
+        AppInstallState::Unknown
     }
 
     fn generate_profile(
@@ -428,13 +430,7 @@ impl HostApp for PromptingHost {
 fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
     let host: &'static dyn HostApp = &PROMPTING_HOST;
     let (unattended, attended) = with_gateway(None, |ctx, _managed| {
-        let env = ProbeEnv {
-            proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-            loopback_secret: None,
-            start_menu: Arc::default(),
-            expected_managed_servers: None,
-            policy_writer_ready: false,
-        };
+        let env = ProbeEnv::for_bridge(ctx);
         let unattended = ctx.block_on(reapply_host(
             ctx,
             host,
@@ -463,13 +459,7 @@ fn a_host_that_would_prompt_is_declined_unattended_and_repaired_attended() {
 fn an_operating_system_denial_is_a_failure_not_a_decline() {
     let host: &'static dyn HostApp = &DENIED_HOST;
     let outcome = with_gateway(None, |ctx, _managed| {
-        let env = ProbeEnv {
-            proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-            loopback_secret: None,
-            start_menu: Arc::default(),
-            expected_managed_servers: None,
-            policy_writer_ready: false,
-        };
+        let env = ProbeEnv::for_bridge(ctx);
         ctx.block_on(reapply_host(
             ctx,
             host,

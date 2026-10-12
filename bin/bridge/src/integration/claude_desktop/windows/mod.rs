@@ -10,10 +10,7 @@ mod writer;
 
 use self::org_plugins::require_org_plugins_provisioned;
 use self::writer::install_through_writer;
-use super::shared::{
-    API_KEY_KEY, DESKTOP_DOMAIN, DomainRead, KEYS_OF_INTEREST, ProfileGenInputs,
-    redact_if_sensitive,
-};
+use super::shared::{DESKTOP_DOMAIN, DomainRead, ProfileGenInputs};
 use crate::config::store::{
     PolicyWrite, clear_managed_claude_policy, machine_claude_policy_keys, managed_policy_store,
 };
@@ -31,14 +28,14 @@ struct OrgPluginsUnusable {
     source: std::io::Error,
 }
 
-pub(super) fn read_domain(domain: &str) -> DomainRead {
+pub(super) fn read_domain(domain: &str, keys: &[&str]) -> DomainRead {
     let mut out = DomainRead::default();
 
     if domain != DESKTOP_DOMAIN {
         return out;
     }
 
-    let read = match managed_policy_store().read_managed_policy_keys(KEYS_OF_INTEREST) {
+    let read = match managed_policy_store().read_managed_policy_keys(keys) {
         Ok(read) => read,
         Err(e) => {
             out.probe_error = Some(format!("read the Claude Desktop managed policy: {e}"));
@@ -50,11 +47,7 @@ pub(super) fn read_domain(domain: &str) -> DomainRead {
     }
     out.source_path = read.source;
     for (name, value) in read.values {
-        if name == API_KEY_KEY {
-            out.api_key_fp = Some(crate::proxy::secret::fingerprint(value.trim()));
-        }
-        out.keys
-            .insert(name.clone(), redact_if_sensitive(&name, value));
+        out.record(&name, value);
     }
     out
 }
@@ -244,11 +237,10 @@ fn install_profile_elevated(path: &str) -> Result<ProfileInstalled, HostAppError
 
 pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
     let elevated = winproc::is_elevated();
-    let removed =
-        clear_managed_claude_policy(elevated, KEYS_OF_INTEREST).map_err(std::io::Error::other)?;
+    let written = super::shared::keys_to_read(None);
+    let removed = clear_managed_claude_policy(elevated, &written).map_err(std::io::Error::other)?;
     if !elevated {
-        let machine_keys =
-            machine_claude_policy_keys(KEYS_OF_INTEREST).map_err(std::io::Error::other)?;
+        let machine_keys = machine_claude_policy_keys(&written).map_err(std::io::Error::other)?;
         if !machine_keys.is_empty() {
             return Ok(ProfileRemoval::ManualStepRequired {
                 instruction: format!(

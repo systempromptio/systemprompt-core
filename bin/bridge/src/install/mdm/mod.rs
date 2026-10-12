@@ -57,6 +57,33 @@ pub struct MdmPayloadInputs<'a> {
     pub loopback: &'a crate::proxy::LoopbackEndpoint,
     pub registry: &'a crate::mcp_registry::McpRegistry,
     pub egress_allowed_hosts: Option<&'a [String]>,
+    pub overrides: &'a crate::install::profile_inputs::ModelProtocolOverrides,
+}
+
+// Why: the machine writers mint the loopback secret when none exists yet;
+// once it does, the policy is rendered from the same facts the probe compares
+// against, so a written policy reads back as current.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) fn desktop_policy_entries(
+    mcp: &MdmPayloadInputs<'_>,
+) -> Result<Vec<policy::PolicyEntry>, MdmError> {
+    mcp.loopback
+        .secret_or_mint()
+        .map_err(|source| MdmError::Io {
+            action: "read loopback secret",
+            path: crate::proxy::secret::secret_path().unwrap_or_default(),
+            source,
+        })?;
+    let facts = crate::install::profile_inputs::ProfileFacts::load(
+        mcp.loopback,
+        mcp.registry,
+        mcp.overrides.clone(),
+    )?;
+    let inputs = facts.inputs_for(
+        systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
+        policy::DESKTOP_SURFACES,
+    );
+    policy::desktop_policy(&inputs, mcp.egress_allowed_hosts)
 }
 
 #[cfg(target_os = "windows")]

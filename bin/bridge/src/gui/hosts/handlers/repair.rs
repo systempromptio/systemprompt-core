@@ -20,7 +20,7 @@ pub(crate) fn repair_stale_unattended(
     host_id: HostKind,
     snapshot: &HostAppSnapshot,
 ) {
-    let ProfileState::Stale { reason } = &snapshot.profile_state else {
+    let ProfileState::Stale { reason, .. } = &snapshot.profile_state else {
         return;
     };
     let state = app.state.snapshot();
@@ -38,6 +38,7 @@ pub(crate) fn repair_stale_unattended(
         StaleReason::ProxyPort => "the proxy port moved",
         StaleReason::ManagedServers => "its managed MCP server list is behind the gateway",
         StaleReason::ModelList => "its model list is behind the gateway",
+        StaleReason::Settings => "its settings are behind what this release writes",
     };
     app.append_log(format!(
         "[{host_id}] configuration profile is out of date — {why}; re-applying it"

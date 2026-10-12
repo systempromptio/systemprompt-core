@@ -1,12 +1,14 @@
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::drift::DesiredProfile;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, HostConfigSchema,
-    ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileState,
+    AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, ProbeEnv,
+    ProfileGenInputs, ProfileInstalled, ProfileState,
 };
 use systemprompt_bridge::integration::{
     ResolvedHost, SYNC_ONLY_AGENTS, find_host_by_id, host_apps, resolve_host,
 };
+use systemprompt_bridge::probe_cache::StartMenuCache;
 use systemprompt_bridge::{host_sync, register_host_app};
 use systemprompt_models::bridge::host::HostKind;
 
@@ -85,11 +87,6 @@ fn host_sync_registry_keeps_both_claude_desktop_facets() {
     );
 }
 
-static TEST_SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: &[],
-    display_keys: &[],
-};
-
 fn absent_snapshot(host_id: HostKind, display_name: &'static str) -> HostAppSnapshot {
     HostAppSnapshot {
         host_id,
@@ -103,7 +100,6 @@ fn absent_snapshot(host_id: HostKind, display_name: &'static str) -> HostAppSnap
         app_installed: AppInstallState::NotInstalled,
         probed_at_unix: 0,
         update_needs_approval: false,
-        declared_models: None,
     }
 }
 
@@ -125,11 +121,14 @@ impl HostApp for ShadowCodexHost {
     fn display_name(&self) -> &'static str {
         "Shadowed Codex"
     }
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &TEST_SCHEMA
-    }
     fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
         absent_snapshot(HostKind::CodexCli, "Shadowed Codex")
+    }
+    fn desired(&self, _inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        Ok(DesiredProfile::new())
+    }
+    fn app_installed(&self, _start_menu: &StartMenuCache) -> AppInstallState {
+        AppInstallState::NotInstalled
     }
     fn generate_profile(
         &self,

@@ -98,7 +98,7 @@ export function renderAgentDrawerDetail(drawer) {
       <p class="sp-drawer__lede">${escapeHtml(status.reason)}</p>
       ${actionButtons(drawer, host, status)}
       ${warnings(drawer, host, status)}
-      ${renderAgentDrawerHealth(hs)}
+      ${hs || host.can_verify !== false ? renderAgentDrawerHealth(hs) : ""}
       ${renderAgentDrawerModels(drawer, host)}
       ${configSection(host, hs)}
       ${removeSection(drawer, host, hs)}

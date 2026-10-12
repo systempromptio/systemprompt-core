@@ -40,11 +40,6 @@ const sessionUuid = async (native) => {
   return uuid;
 };
 
-const withSessionHeader = async (headers, sessionID) => ({
-  ...(headers || {}),
-  "x-opencode-session": await sessionUuid(sessionID),
-});
-
 const post = (body) => {
   const headers = {
     "content-type": "application/json",
@@ -61,95 +56,145 @@ const post = (body) => {
   }).catch(() => {});
 };
 
-const text = (parts) =>
-  (parts || [])
+const text = (content) => {
+  if (typeof content === "string") return content;
+  return (Array.isArray(content) ? content : [])
     .filter((part) => part && part.type === "text" && typeof part.text === "string")
     .map((part) => part.text)
     .join("\n");
+};
 
-// OpenCode's bus events, translated to the canonical hook vocabulary Claude
-// Code speaks natively, so the gateway sees one session lifecycle whichever
-// host produced it. `session.idle` is the end of an assistant turn (Stop);
-// `session.deleted` is the end of the session (SessionEnd).
+// OpenCode's session events, translated to the canonical hook vocabulary
+// Claude Code speaks natively, so the gateway sees one session lifecycle
+// whichever host produced it. `session.idle` is the end of an assistant turn
+// (Stop); `session.deleted` is the end of the session (SessionEnd).
 const LIFECYCLE = {
   "session.created": "SessionStart",
   "session.idle": "Stop",
   "session.deleted": "SessionEnd",
 };
 
-const lifecycleSession = (event) => {
-  const props = (event && event.properties) || {};
-  if (typeof props.sessionID === "string") return props.sessionID;
-  if (props.info && typeof props.info.id === "string") return props.info.id;
-  return "";
+const directories = new Map();
+const lastPrompt = new Map();
+
+const directoryOf = (sessionID) => directories.get(sessionID) || process.cwd();
+
+const onEvent = async (event) => {
+  const name = event && LIFECYCLE[event.type];
+  const native = event && event.data && event.data.sessionID;
+  if (!name || typeof native !== "string") return;
+  const location = event.data.location || event.location;
+  if (location && typeof location.directory === "string") {
+    directories.set(native, location.directory);
+  }
+  await post({
+    hook_event_name: name,
+    session_id: await sessionUuid(native),
+    native_session_id: native,
+    cwd: directoryOf(native),
+    native_host: HOST,
+    event_id: event.id || `${native}:${event.type}:${Date.now()}`,
+  });
+  if (event.type === "session.deleted") {
+    directories.delete(native);
+    lastPrompt.delete(native);
+  }
 };
 
-export const SystempromptHooks = async ({ directory }) => ({
-  event: async ({ event }) => {
-    const name = event && LIFECYCLE[event.type];
-    const native = lifecycleSession(event);
-    if (!name || !native) return;
-    await post({
-      hook_event_name: name,
-      session_id: await sessionUuid(native),
-      native_session_id: native,
-      cwd: directory,
-      native_host: HOST,
-      event_id: `${native}:${event.type}:${Date.now()}`,
-    });
-  },
-  // Whichever of these the pinned OpenCode supports carries the session to
-  // the proxy, which moves it into `metadata.user_id` for the gateway.
-  "chat.headers": async (input, output) => {
-    output.headers = output.headers || {};
-    output.headers["x-opencode-session"] = await sessionUuid(input.sessionID);
-  },
-  "chat.params": async (input, output) => {
-    output.options = {
-      ...(output.options || {}),
-      headers: await withSessionHeader(output.options && output.options.headers, input.sessionID),
+const watchEvents = (events) => {
+  const stream = events.subscribe();
+  const iterator = stream[Symbol.asyncIterator]();
+  (async () => {
+    for (;;) {
+      const next = await iterator.next();
+      if (next.done) return;
+      await onEvent(next.value).catch(() => {});
+    }
+  })().catch(() => {});
+  return () => (iterator.return ? iterator.return() : undefined);
+};
+
+// The chat request carries the session to the proxy, which moves it into
+// `metadata.user_id` for the gateway.
+const stampSession = async (input) => {
+  const headers = new Headers(input.request.headers);
+  headers.set("x-opencode-session", await sessionUuid(input.sessionID));
+  input.request = new Request(input.request, { headers });
+};
+
+// The context hook runs before every model step, so a prompt is reported once:
+// when the latest user message differs from the one last reported.
+const reportPrompt = async (input) => {
+  const messages = Array.isArray(input.messages) ? input.messages : [];
+  const latest = [...messages].reverse().find((m) => m && m.role === "user");
+  if (!latest) return;
+  const prompt = text(latest.content);
+  if (!prompt.trim()) return;
+  const key = `${messages.lastIndexOf(latest)}:${prompt}`;
+  if (lastPrompt.get(input.sessionID) === key) return;
+  lastPrompt.set(input.sessionID, key);
+  await post({
+    hook_event_name: "UserPromptSubmit",
+    session_id: await sessionUuid(input.sessionID),
+    native_session_id: input.sessionID,
+    cwd: directoryOf(input.sessionID),
+    prompt,
+    prompt_id: latest.id || crypto.randomUUID(),
+    native_host: HOST,
+  });
+};
+
+// Every tool completion is reported, not only skills: the gateway ingests
+// the result as an artifact keyed by the call id, so OpenCode's tool use
+// counts the same as Claude Code's. The output travels whole — the server
+// bounds, scans and stores it; nothing is trimmed on the way out.
+const reportTool = async (input) => {
+  const tool = typeof input.tool === "string" ? input.tool : "";
+  if (!tool) return;
+  const args = input.input && typeof input.input === "object" ? input.input : {};
+  const isSkill = tool === "skill";
+  const name = isSkill && typeof args.name === "string" ? args.name : "";
+  if (isSkill && !name) return;
+  const result = input.status === "completed" ? input.result || {} : {};
+  const output =
+    input.status === "error"
+      ? String((input.error && input.error.message) || input.error || "")
+      : result.output !== undefined
+        ? typeof result.output === "string"
+          ? result.output
+          : JSON.stringify(result.output)
+        : "";
+  const body = {
+    hook_event_name: "PostToolUse",
+    session_id: await sessionUuid(input.sessionID),
+    native_session_id: input.sessionID,
+    cwd: directoryOf(input.sessionID),
+    tool_name: tool,
+    tool_input: isSkill ? { name } : args,
+    tool_use_id: input.id,
+    tool_response: {
+      title: result.title,
+      output,
+      metadata: result.metadata,
+    },
+    native_host: HOST,
+  };
+  if (isSkill) body.skill_ref = SKILL_MAP[name] || `opencode:${name}`;
+  await post(body);
+};
+
+export default {
+  id: "systemprompt.hooks",
+  setup: async (ctx) => {
+    const registrations = await Promise.all([
+      ctx.session.hook("http.request", stampSession),
+      ctx.session.hook("context", reportPrompt),
+      ctx.tool.hook("execute.after", reportTool),
+    ]);
+    const stopEvents = watchEvents(ctx.event);
+    return async () => {
+      await stopEvents();
+      await Promise.all(registrations.map((r) => r.dispose()));
     };
   },
-  "chat.message": async (input, output) => {
-    const prompt = text(output && output.parts);
-    if (!prompt.trim()) return;
-    await post({
-      hook_event_name: "UserPromptSubmit",
-      session_id: await sessionUuid(input.sessionID),
-      native_session_id: input.sessionID,
-      cwd: directory,
-      prompt,
-      prompt_id: input.messageID || crypto.randomUUID(),
-      native_host: HOST,
-    });
-  },
-  // Every tool completion is reported, not only skills: the gateway ingests
-  // the result as an artifact keyed by the call id, so OpenCode's tool use
-  // counts the same as Claude Code's. The output travels whole — the server
-  // bounds, scans and stores it; nothing is trimmed on the way out.
-  "tool.execute.after": async (input, output) => {
-    const tool = typeof input.tool === "string" ? input.tool : "";
-    if (!tool) return;
-    const args = input.args || {};
-    const isSkill = tool === "skill";
-    const name = isSkill && typeof args.name === "string" ? args.name : "";
-    if (isSkill && !name) return;
-    const body = {
-      hook_event_name: "PostToolUse",
-      session_id: await sessionUuid(input.sessionID),
-      native_session_id: input.sessionID,
-      cwd: directory,
-      tool_name: tool,
-      tool_input: isSkill ? { name } : args,
-      tool_use_id: input.callID,
-      tool_response: {
-        title: output && output.title,
-        output: output && output.output !== undefined ? String(output.output) : "",
-        metadata: output && output.metadata,
-      },
-      native_host: HOST,
-    };
-    if (isSkill) body.skill_ref = SKILL_MAP[name] || `opencode:${name}`;
-    await post(body);
-  },
-});
+};

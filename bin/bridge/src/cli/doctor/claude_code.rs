@@ -6,8 +6,9 @@
 use std::path::{Path, PathBuf};
 
 use super::Check;
+use crate::config::paths::{CLAUDE_CONFIG_DIR_VAR, claude_config_dir_override};
 use crate::install::mdm::claude_code_settings::standalone_settings_path;
-use crate::integration::claude_code_routing::{self, CONFIG_DIR_VAR};
+use crate::integration::claude_code_routing;
 
 pub fn check_settings(origin: &str) -> Vec<Check> {
     let mut checks = Vec::new();
@@ -28,7 +29,7 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
             "not enrolled; run install --host claude-code to create gateway settings",
         ));
     }
-    let config_dir = claude_code_routing::config_dir_override();
+    let config_dir = claude_config_dir_override();
     checks.push(check_effective_routing(&read_paths(config_dir.as_deref())));
     checks.extend(config_dir.as_deref().map(check_config_dir_override));
     checks.extend(check_env_credentials(|key| std::env::var_os(key).is_some()));
@@ -69,7 +70,7 @@ pub fn check_config_dir_override(dir: &Path) -> Check {
     Check::warn(
         "claude code config dir",
         format!(
-            "{CONFIG_DIR_VAR}={} moves Claude Code's user settings; enrolment writes \
+            "{CLAUDE_CONFIG_DIR_VAR}={} moves Claude Code's user settings; enrolment writes \
              ~/.claude/settings.json, which this shell's Claude Code does not read",
             dir.display()
         ),

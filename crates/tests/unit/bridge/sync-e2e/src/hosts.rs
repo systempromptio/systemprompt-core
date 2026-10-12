@@ -886,11 +886,8 @@ fn claude_cli_mcp_projection_follows_the_user_manifest() {
     }
 }
 
-// Why: this is the 0.51.0 clean-install failure. With no bridge-owned Claude
-// Code settings file yet (no `install --apply`), the tool permission rules
-// have no carrier; that is a warning on the host, never a partial sync.
 #[test]
-fn a_clean_install_without_a_permissions_carrier_syncs_ok_with_a_host_warning() {
+fn a_clean_install_routes_claude_code_and_carries_its_permission_rules() {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(1)
         .enable_all()
@@ -919,25 +916,31 @@ fn a_clean_install_without_a_permissions_carrier_syncs_ok_with_a_host_warning() 
         "{:?}",
         summary.host_failures
     );
-    let warning = summary
-        .host_warnings
-        .iter()
-        .find(|w| w.host_id.as_str() == "claude-code")
-        .expect("the claude-code host warns about the missing carrier");
     assert!(
-        warning
-            .message
-            .contains("tool permission rules not applied: no Claude Code settings file"),
-        "{}",
-        warning.message
+        !summary
+            .host_warnings
+            .iter()
+            .any(|w| w.host_id.as_str() == "claude-code"
+                && w.message.contains("tool permission rules not applied")),
+        "{:?}",
+        summary.host_warnings
     );
+    let settings: serde_json::Value = serde_json::from_slice(
+        &fs::read(dirs.claude_home.join("settings.json")).expect("sync wrote the settings file"),
+    )
+    .unwrap();
+    assert!(
+        settings["env"]["ANTHROPIC_BASE_URL"].is_string(),
+        "{settings}"
+    );
+    assert!(settings["apiKeyHelper"].is_string(), "{settings}");
     assert!(
         dirs.state_home_path()
             .join("systemprompt-bridge")
             .join("metadata")
             .join("last-sync.json")
             .exists(),
-        "a sync that only warned records its sentinel"
+        "a clean sync records its sentinel"
     );
     let _ = &server;
 }

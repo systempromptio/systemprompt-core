@@ -4,7 +4,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod auth;
-pub(crate) mod desktop_catalog;
 pub mod errors;
 mod fetch;
 mod identity;
@@ -13,6 +12,7 @@ pub mod manifest;
 mod manifest_hosts;
 pub mod manifest_version;
 pub mod model_view;
+pub mod profile_cache;
 pub mod types;
 
 use std::net::SocketAddr;

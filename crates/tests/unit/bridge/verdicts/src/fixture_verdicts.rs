@@ -40,8 +40,18 @@ fn stale_reason_of(host: &Value) -> StaleReason {
     {
         Some("managed_servers") => StaleReason::ManagedServers,
         Some("proxy_port") => StaleReason::ProxyPort,
+        Some("model_list") => StaleReason::ModelList,
+        Some("settings") => StaleReason::Settings,
         _ => StaleReason::LoopbackSecret,
     }
+}
+
+fn stale_keys_of(host: &Value) -> Vec<String> {
+    host.pointer("/verdict/reason/keys")
+        .and_then(Value::as_str)
+        .filter(|k| !k.is_empty())
+        .map(|k| k.split(", ").map(str::to_owned).collect())
+        .unwrap_or_default()
 }
 
 fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
@@ -57,6 +67,7 @@ fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
         },
         "stale" => ProfileState::Stale {
             reason: stale_reason_of(host),
+            keys: stale_keys_of(host),
         },
         _ => ProfileState::Absent,
     }
@@ -86,7 +97,6 @@ fn snapshot_of(host: &Value, v: &Value) -> HostAppSnapshot {
         probed_at_unix: v.get("probed_at_unix").and_then(Value::as_u64).unwrap_or(0),
         update_needs_approval: host.pointer("/verdict/action/code").and_then(Value::as_str)
             == Some("update-admin"),
-        declared_models: None,
     }
 }
 
@@ -142,6 +152,7 @@ fn recompute(doc: &Value) -> Option<Value> {
         let unconfigured = strings(host.get("unconfigured_providers"));
         let v = verdict(&HostHealthInputs {
             snapshot: snap.as_ref(),
+            apply_failures: &[],
             proxy: &proxy,
             models: HostModelViewRef {
                 checked: host
@@ -193,6 +204,7 @@ fn recompute(doc: &Value) -> Option<Value> {
     for agent in SYNC_ONLY_AGENTS {
         let v = verdict(&HostHealthInputs {
             snapshot: None,
+            apply_failures: &[],
             proxy: &proxy,
             models: HostModelViewRef {
                 checked: false,

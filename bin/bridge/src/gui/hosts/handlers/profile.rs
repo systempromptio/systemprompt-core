@@ -121,11 +121,17 @@ fn verify_managed_servers(
         return Ok(None);
     }
     let env = app.probe_env();
-    let expected = env.expected_managed_servers.as_ref().map(Vec::len);
+    let expected = env
+        .facts
+        .as_ref()
+        .ok()
+        .and_then(|facts| facts.mcp_servers.as_ref())
+        .map(Vec::len);
     let snapshot = host.probe(&env);
     match snapshot.profile_state {
         crate::integration::ProfileState::Stale {
             reason: crate::integration::StaleReason::ManagedServers,
+            ..
         } => Err(ManagedServersUnverified {
             host_id,
             expected: expected.unwrap_or(0),

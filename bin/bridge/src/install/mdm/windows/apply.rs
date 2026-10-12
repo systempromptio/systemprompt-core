@@ -16,7 +16,7 @@ pub(in crate::install::mdm) fn apply(
 ) -> Result<mdm::MdmApplication, MdmError> {
     validate_gateway(gateway)?;
     let elevated = crate::winproc::is_elevated();
-    let values = policy_values(inputs, gateway)?;
+    let values = policy_values(inputs)?;
     let cfg = crate::config::load()?;
     let gateway_url = crate::config::gateway_url_or_default(&cfg);
     // Why: the machine anchor is what the policy writer verifies manifests

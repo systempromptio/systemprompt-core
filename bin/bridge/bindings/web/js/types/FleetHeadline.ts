@@ -3,4 +3,4 @@
 /**
  * The one-line summary code for the fleet — also the FTL key suffix.
  */
-export type FleetHeadline = "all-working" | "needs-attention" | "not-working" | "checking" | "none-enabled";
+export type FleetHeadline = "all-working" | "needs-attention" | "not-working" | "checking" | "none-installed" | "none-enabled";

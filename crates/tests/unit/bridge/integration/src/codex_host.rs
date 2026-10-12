@@ -2,26 +2,18 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
-    HostApp, ProbeEnv, ProfileGenInputs, ProfileState,
+    HostApp, ProfileGenInputs, ProfileState, StaleReason,
 };
 use tempfile::TempDir;
 
-fn probe_env() -> ProbeEnv {
-    ProbeEnv {
-        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret: None,
-        start_menu: std::sync::Arc::default(),
-        expected_managed_servers: None,
-        policy_writer_ready: false,
-    }
-}
+use crate::support::probe_env;
 
-fn codex_sandbox<R>(config_toml: Option<&str>, f: impl FnOnce() -> R) -> R {
+fn codex_sandbox<R>(managed_toml: Option<&str>, f: impl FnOnce() -> R) -> R {
     let home = TempDir::new().expect("codex home");
-    if let Some(body) = config_toml {
-        std::fs::write(home.path().join("config.toml"), body).expect("seed codex config");
+    let system = home.path().join("managed_config.toml");
+    if let Some(body) = managed_toml {
+        std::fs::write(&system, body).expect("seed codex managed config");
     }
-    let system = home.path().join("no-managed-config.toml");
     let vars: Vec<(&str, Option<String>)> = vec![
         ("CODEX_HOME", Some(home.path().display().to_string())),
         ("CODEX_SYSTEM_CONFIG", Some(system.display().to_string())),
@@ -71,13 +63,24 @@ fn an_absent_codex_config_probes_as_absent() {
 }
 
 #[test]
-fn a_complete_codex_config_probes_as_installed_with_a_redacted_tenant() {
+fn a_hand_written_codex_config_is_stale_on_the_settings_the_writer_would_change() {
     let snapshot = codex_sandbox(Some(COMPLETE), || CODEX_CLI_HOST.probe(&probe_env()));
-    assert!(
-        matches!(snapshot.profile_state, ProfileState::Installed),
-        "every required key is present, got {:?}",
-        snapshot.profile_state
-    );
+    match &snapshot.profile_state {
+        ProfileState::Stale { reason, keys } => {
+            assert_eq!(*reason, StaleReason::Settings, "{keys:?}");
+            assert!(
+                keys.contains(&"model_providers.systemprompt.auth.command".to_owned())
+                    && keys.contains(&"analytics.enabled".to_owned()),
+                "the helper path and the analytics switch differ from what the writer sets: \
+                 {keys:?}"
+            );
+            assert!(
+                !keys.contains(&"model_providers.systemprompt.base_url".to_owned()),
+                "the endpoint matches the running proxy: {keys:?}"
+            );
+        },
+        other => panic!("expected Stale, got {other:?}"),
+    }
     assert_eq!(
         snapshot
             .profile_keys
@@ -113,13 +116,13 @@ fn a_complete_codex_config_probes_as_installed_with_a_redacted_tenant() {
         snapshot
             .profile_source
             .as_deref()
-            .is_some_and(|s| s.ends_with("config.toml")),
+            .is_some_and(|s| s.ends_with("managed_config.toml")),
         "the probe reports which file it read"
     );
 }
 
 #[test]
-fn a_partial_codex_config_lists_the_missing_required_keys() {
+fn a_codex_config_without_the_endpoint_is_partial() {
     let snapshot = codex_sandbox(
         Some("model_provider = \"systemprompt\"\n\n[analytics]\nenabled = true\n"),
         || CODEX_CLI_HOST.probe(&probe_env()),
@@ -151,29 +154,21 @@ fn a_malformed_codex_config_is_unverifiable_not_absent() {
 }
 
 #[test]
-fn the_managed_config_wins_over_the_user_config() {
+fn a_provider_block_only_in_the_users_own_config_is_not_governance() {
     let home = TempDir::new().expect("codex home");
-    std::fs::write(
-        home.path().join("config.toml"),
-        "model_provider = \"user-choice\"\n",
-    )
-    .expect("user config");
-    let managed = home.path().join("managed.toml");
-    std::fs::write(&managed, "model_provider = \"managed-choice\"\n").expect("managed config");
-
+    std::fs::write(home.path().join("config.toml"), COMPLETE).expect("user config");
+    let managed = home.path().join("absent-managed.toml");
     let vars: Vec<(&str, Option<String>)> = vec![
         ("CODEX_HOME", Some(home.path().display().to_string())),
         ("CODEX_SYSTEM_CONFIG", Some(managed.display().to_string())),
     ];
     let snapshot = temp_env::with_vars(vars, || CODEX_CLI_HOST.probe(&probe_env()));
-    assert_eq!(
-        snapshot
-            .profile_keys
-            .get("model_provider")
-            .map(String::as_str),
-        Some("managed-choice"),
-        "the managed scope takes precedence"
+    assert!(
+        matches!(snapshot.profile_state, ProfileState::Absent),
+        "a block the user can edit must not read as installed: {:?}",
+        snapshot.profile_state
     );
+    assert!(snapshot.profile_keys.is_empty());
 }
 
 fn inputs() -> ProfileGenInputs {
@@ -276,27 +271,4 @@ fn the_codex_host_describes_itself_as_a_toml_cli_tool() {
         !CODEX_CLI_HOST.install_action_label().is_empty(),
         "the install action is labelled for the current platform"
     );
-}
-
-#[test]
-fn the_codex_schema_requires_the_provider_and_auth_keys() {
-    let schema = CODEX_CLI_HOST.config_schema();
-    assert!(
-        schema
-            .required_keys
-            .contains(&"model_providers.systemprompt.auth.command"),
-        "{:?}",
-        schema.required_keys
-    );
-    assert!(
-        schema.required_keys.contains(&"model_provider"),
-        "{:?}",
-        schema.required_keys
-    );
-    for key in schema.required_keys {
-        assert!(
-            schema.display_keys.contains(key),
-            "{key} is required but never displayed"
-        );
-    }
 }

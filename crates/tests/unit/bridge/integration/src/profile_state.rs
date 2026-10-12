@@ -1,354 +1,194 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
-use systemprompt_bridge::integration::{Freshness, ProfileProbe, ProfileState, StaleReason};
+use systemprompt_bridge::drift::{DesiredProfile, EntryRole, diff};
+use systemprompt_bridge::integration::host_app::{DesiredError, ProfileFactsError};
+use systemprompt_bridge::integration::{ProfileProbe, ProfileState, StaleReason};
 
 fn keys(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
     pairs
         .iter()
-        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
         .collect()
 }
 
-fn classify(
-    required: &[&str],
-    present: &BTreeMap<String, String>,
-    secret: Freshness,
-    endpoint: Freshness,
+fn desired() -> DesiredProfile {
+    let mut d = DesiredProfile::new();
+    d.push("api_key", "fp-live", EntryRole::Secret);
+    d.push("base_url", "http://127.0.0.1:48217/v1", EntryRole::Endpoint);
+    d.push("models", r#"["a","b"]"#, EntryRole::Models);
+    d.push("servers", r#"[{"name":"x"}]"#, EntryRole::ManagedServers);
+    d.push("telemetry", "false", EntryRole::Setting);
+    d.push("headers", r#"{"a":"1","b":"2"}"#, EntryRole::Setting);
+    d
+}
+
+fn current() -> BTreeMap<String, String> {
+    keys(&[
+        ("api_key", "fp-live"),
+        ("base_url", "http://127.0.0.1:48217/v1"),
+        ("models", r#"["a","b"]"#),
+        ("servers", r#"[{"name":"x"}]"#),
+        ("telemetry", "false"),
+        ("headers", r#"{"a":"1","b":"2"}"#),
+    ])
+}
+
+fn classify_with(
+    observed: &BTreeMap<String, String>,
+    desired: &Result<DesiredProfile, DesiredError>,
 ) -> ProfileState {
     ProfileState::classify(&ProfileProbe {
-        required,
-        present,
+        present: observed,
+        observed,
         read_error: None,
-        secret,
-        endpoint,
-        managed_servers: Freshness::Unchecked,
+        desired,
     })
 }
 
-#[test]
-fn empty_keys_means_absent() {
-    let s = classify(
-        &["a"],
-        &BTreeMap::new(),
-        Freshness::Unchecked,
-        Freshness::Unchecked,
-    );
-    assert!(matches!(s, ProfileState::Absent));
+fn classify(observed: &BTreeMap<String, String>) -> ProfileState {
+    classify_with(observed, &Ok(desired()))
 }
 
-#[test]
-fn all_required_present_means_installed() {
-    let s = classify(
-        &["a", "b"],
-        &keys(&[("a", "1"), ("b", "2"), ("extra", "x")]),
-        Freshness::Unchecked,
-        Freshness::Unchecked,
-    );
-    assert!(matches!(s, ProfileState::Installed));
+fn with(changes: &[(&str, Option<&str>)]) -> BTreeMap<String, String> {
+    let mut observed = current();
+    for (key, value) in changes {
+        match value {
+            Some(v) => observed.insert((*key).to_owned(), (*v).to_owned()),
+            None => observed.remove(*key),
+        };
+    }
+    observed
 }
 
-#[test]
-fn missing_required_key_means_partial() {
-    let s = classify(
-        &["a", "b", "c"],
-        &keys(&[("a", "1"), ("b", "2"), ("extra", "x")]),
-        Freshness::Unchecked,
-        Freshness::Unchecked,
-    );
-    match s {
-        ProfileState::Partial { missing_required } => {
-            assert_eq!(missing_required, vec!["c".to_string()]);
-        },
-        other => panic!("expected Partial, got {other:?}"),
+fn stale(state: &ProfileState) -> (StaleReason, Vec<String>) {
+    match state {
+        ProfileState::Stale { reason, keys } => (*reason, keys.clone()),
+        other => panic!("expected Stale, got {other:?}"),
     }
 }
 
 #[test]
-fn matching_secret_keeps_installed() {
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Fresh,
-        Freshness::Unchecked,
-    );
-    assert!(matches!(s, ProfileState::Installed));
+fn nothing_read_means_absent() {
+    assert!(matches!(classify(&BTreeMap::new()), ProfileState::Absent));
 }
 
 #[test]
-fn mismatched_secret_downgrades_installed_to_stale() {
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Stale,
-        Freshness::Unchecked,
+fn every_desired_key_matching_means_installed_whatever_else_is_there() {
+    let observed = with(&[("operator_key", Some("kept"))]);
+    assert!(matches!(classify(&observed), ProfileState::Installed));
+}
+
+#[test]
+fn json_equivalent_values_are_the_same_setting() {
+    let observed = with(&[
+        ("headers", Some(r#"{ "b": "2",  "a": "1" }"#)),
+        ("models", Some(r#"[ "a", "b" ]"#)),
+    ]);
+    assert!(
+        matches!(classify(&observed), ProfileState::Installed),
+        "a re-serialised value is not drift"
     );
-    assert!(matches!(
-        s,
-        ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret
+}
+
+#[test]
+fn a_missing_secret_or_endpoint_is_partial() {
+    for key in ["api_key", "base_url"] {
+        match classify(&with(&[(key, None)])) {
+            ProfileState::Partial { missing_required } => {
+                assert_eq!(missing_required, vec![key.to_owned()]);
+            },
+            other => panic!("{key}: expected Partial, got {other:?}"),
         }
-    ));
+    }
 }
 
 #[test]
-fn an_unchecked_secret_never_downgrades() {
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Unchecked,
-        Freshness::Unchecked,
-    );
-    assert!(matches!(s, ProfileState::Installed));
-}
-
-// A guard that cannot evaluate never reports green: a secret the host carries
-// but the probe could not read is reported as unverifiable, not installed.
-#[test]
-fn an_unverifiable_secret_is_reported_not_assumed_fresh() {
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Unverifiable {
-            reason: "the live secret could not be read".to_owned(),
-        },
-        Freshness::Unchecked,
-    );
-    assert!(
-        matches!(&s, ProfileState::Unverifiable { reason } if reason.contains("could not be read")),
-        "{s:?}"
-    );
+fn a_missing_setting_is_stale_not_partial() {
+    let (reason, keys) = stale(&classify(&with(&[("telemetry", None)])));
+    assert_eq!(reason, StaleReason::Settings);
+    assert_eq!(keys, vec!["telemetry".to_owned()]);
 }
 
 #[test]
-fn mismatched_secret_does_not_promote_partial_to_stale() {
-    let s = classify(
-        &["a", "b"],
-        &keys(&[("a", "1")]),
-        Freshness::Stale,
-        Freshness::Unchecked,
-    );
-    assert!(matches!(s, ProfileState::Partial { .. }));
+fn a_differing_setting_is_stale_for_settings() {
+    let (reason, keys) = stale(&classify(&with(&[("telemetry", Some("true"))])));
+    assert_eq!(reason, StaleReason::Settings);
+    assert_eq!(keys, vec!["telemetry".to_owned()]);
 }
 
 #[test]
-fn a_profile_baked_for_the_wrong_port_is_stale_not_installed() {
-    // The WSL2/Windows case: the proxy moved off the default port, so a profile
-    // written for the old one 403s on every request. Reporting it as Installed
-    // is what let the GUI call a dead configuration healthy.
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Unchecked,
-        Freshness::Stale,
-    );
-    assert!(
-        matches!(
-            s,
-            ProfileState::Stale {
-                reason: StaleReason::ProxyPort
-            }
-        ),
-        "{s:?}"
-    );
+fn a_differing_model_list_is_stale_for_the_model_list() {
+    let (reason, keys) = stale(&classify(&with(&[("models", Some(r#"["a"]"#))])));
+    assert_eq!(reason, StaleReason::ModelList);
+    assert_eq!(keys, vec!["models".to_owned()]);
 }
 
 #[test]
-fn a_matching_port_keeps_installed() {
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Unchecked,
-        Freshness::Fresh,
-    );
-    assert!(matches!(s, ProfileState::Installed));
+fn a_differing_server_list_is_stale_for_the_server_list() {
+    let (reason, _) = stale(&classify(&with(&[("servers", Some("[]"))])));
+    assert_eq!(reason, StaleReason::ManagedServers);
 }
 
 #[test]
-fn a_wrong_secret_is_named_ahead_of_a_wrong_port() {
-    // Both are fixed by the same re-apply, so the more familiar diagnosis wins.
-    let s = classify(
-        &["a"],
-        &keys(&[("a", "1")]),
-        Freshness::Stale,
-        Freshness::Stale,
-    );
+fn a_moved_port_is_stale_for_the_port() {
+    let (reason, _) = stale(&classify(&with(&[(
+        "base_url",
+        Some("http://127.0.0.1:1/v1"),
+    )])));
+    assert_eq!(reason, StaleReason::ProxyPort);
+    assert!(reason.breaks_routing());
+}
+
+#[test]
+fn a_stale_secret_is_named_ahead_of_every_other_drift() {
+    let (reason, keys) = stale(&classify(&with(&[
+        ("api_key", Some("fp-old")),
+        ("telemetry", Some("true")),
+        ("base_url", Some("http://127.0.0.1:1/v1")),
+    ])));
+    assert_eq!(reason, StaleReason::LoopbackSecret);
+    assert!(reason.breaks_routing());
+    assert_eq!(keys.len(), 3, "every drifted key is listed: {keys:?}");
+}
+
+#[test]
+fn settings_that_cannot_be_built_are_unverifiable_never_installed() {
+    let unbuildable: Result<DesiredProfile, DesiredError> = Err(DesiredError::Facts(Arc::new(
+        ProfileFactsError::LoopbackSecret(std::io::Error::other("secret unreadable")),
+    )));
     assert!(
         matches!(
-            s,
-            ProfileState::Stale {
-                reason: StaleReason::LoopbackSecret
-            }
+            classify_with(&current(), &unbuildable),
+            ProfileState::Unverifiable { reason } if reason.contains("secret unreadable")
         ),
-        "{s:?}"
+        "a guard that cannot evaluate never reports green"
     );
 }
 
-// An unreadable profile with nothing decoded is not "absent": absent would
-// invite a fresh install over a file the bridge could not even read.
 #[test]
 fn a_read_error_with_no_keys_is_unverifiable_not_absent() {
-    let s = ProfileState::classify(&ProfileProbe {
-        required: &["a"],
-        present: &BTreeMap::new(),
-        read_error: Some("config.toml: permission denied"),
-        secret: Freshness::Unchecked,
-        endpoint: Freshness::Unchecked,
-        managed_servers: Freshness::Unchecked,
+    let empty = BTreeMap::new();
+    let state = ProfileState::classify(&ProfileProbe {
+        present: &empty,
+        observed: &empty,
+        read_error: Some("permission denied"),
+        desired: &Ok(desired()),
     });
     assert!(
-        matches!(&s, ProfileState::Unverifiable { reason } if reason.contains("permission denied")),
-        "{s:?}"
+        matches!(&state, ProfileState::Unverifiable { reason } if reason == "permission denied"),
+        "{state:?}"
     );
 }
 
 #[test]
-fn freshness_compare_distinguishes_unchecked_from_unverifiable() {
-    assert_eq!(
-        Freshness::compare(Some("x"), Some("x"), "secret"),
-        Freshness::Fresh
+fn the_shared_diff_separates_missing_from_differing() {
+    let drift = diff(
+        &desired(),
+        &with(&[("telemetry", None), ("models", Some("[]"))]),
     );
-    assert_eq!(
-        Freshness::compare(Some("x"), Some("y"), "secret"),
-        Freshness::Stale
-    );
-    assert_eq!(
-        Freshness::compare(None, Some("y"), "secret"),
-        Freshness::Unchecked
-    );
-    assert!(matches!(
-        Freshness::compare(Some("x"), None, "secret"),
-        Freshness::Unverifiable { .. }
-    ));
-}
-
-#[test]
-fn endpoint_freshness_is_unchecked_for_an_absent_url_and_unverifiable_otherwise() {
-    assert_eq!(
-        ProfileState::endpoint_freshness(None, 48217),
-        Freshness::Unchecked
-    );
-    assert_eq!(
-        ProfileState::endpoint_freshness(Some(""), 48217),
-        Freshness::Unchecked
-    );
-    assert!(matches!(
-        ProfileState::endpoint_freshness(Some("https://gateway.example.com/v1"), 48217),
-        Freshness::Unverifiable { .. }
-    ));
-    assert!(matches!(
-        ProfileState::endpoint_freshness(Some("garbage"), 48217),
-        Freshness::Unverifiable { .. }
-    ));
-    assert_eq!(
-        ProfileState::endpoint_freshness(Some("http://127.0.0.1:48217"), 48217),
-        Freshness::Fresh
-    );
-    assert_eq!(
-        ProfileState::endpoint_freshness(Some("http://127.0.0.1:48218"), 48217),
-        Freshness::Stale
-    );
-}
-
-fn classify_with_servers(managed_servers: Freshness) -> ProfileState {
-    ProfileState::classify(&ProfileProbe {
-        required: &["a"],
-        present: &keys(&[("a", "1")]),
-        read_error: None,
-        secret: Freshness::Fresh,
-        endpoint: Freshness::Fresh,
-        managed_servers,
-    })
-}
-
-#[test]
-fn a_server_list_behind_the_registry_is_stale_for_that_reason() {
-    assert!(matches!(
-        classify_with_servers(Freshness::Stale),
-        ProfileState::Stale {
-            reason: StaleReason::ManagedServers
-        }
-    ));
-    assert!(classify_with_servers(Freshness::Fresh).is_installed());
-    assert!(classify_with_servers(Freshness::Unchecked).is_installed());
-}
-
-#[test]
-fn a_stale_secret_outranks_a_stale_server_list() {
-    let s = ProfileState::classify(&ProfileProbe {
-        required: &["a"],
-        present: &keys(&[("a", "1")]),
-        read_error: None,
-        secret: Freshness::Stale,
-        endpoint: Freshness::Fresh,
-        managed_servers: Freshness::Stale,
-    });
-    assert!(matches!(
-        s,
-        ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret
-        }
-    ));
-}
-
-fn names(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| (*s).to_owned()).collect()
-}
-
-const TWO: &str = r#"[{"name":"atlassian","url":"http://127.0.0.1:1/mcp/atlassian"},{"name":"systemprompt","url":"http://127.0.0.1:1/mcp/systemprompt"}]"#;
-
-// Why: this is the fact behind "Cowork shows two connectors, the bridge
-// shows four": the policy names the servers Claude Desktop may reach, and
-// only a comparison against the registry says the write did not land.
-#[test]
-fn managed_servers_compare_by_name_regardless_of_order() {
-    let expected = names(&["systemprompt", "atlassian"]);
-    assert_eq!(
-        ProfileState::managed_servers_freshness(Some(TWO), Some(&expected)),
-        Freshness::Fresh
-    );
-    let four = names(&[
-        "atlassian",
-        "google_workspace",
-        "salesforce-crm-dev",
-        "systemprompt",
-    ]);
-    assert_eq!(
-        ProfileState::managed_servers_freshness(Some(TWO), Some(&four)),
-        Freshness::Stale
-    );
-}
-
-#[test]
-fn an_unknown_expectation_is_unchecked_never_stale() {
-    assert_eq!(
-        ProfileState::managed_servers_freshness(Some(TWO), None),
-        Freshness::Unchecked,
-        "a registry the bridge has not loaded says nothing; a launch before the first sync must \
-         not read a good policy as stale and re-apply an empty list over it"
-    );
-    assert_eq!(
-        ProfileState::managed_servers_freshness(None, None),
-        Freshness::Unchecked
-    );
-}
-
-#[test]
-fn a_missing_list_is_fresh_only_when_nothing_is_expected() {
-    assert_eq!(
-        ProfileState::managed_servers_freshness(None, Some(&[])),
-        Freshness::Fresh
-    );
-    assert_eq!(
-        ProfileState::managed_servers_freshness(Some("  "), Some(&names(&["atlassian"]))),
-        Freshness::Stale
-    );
-}
-
-#[test]
-fn an_unparsable_list_is_unverifiable() {
-    let expected = names(&["atlassian"]);
-    assert!(matches!(
-        ProfileState::managed_servers_freshness(Some("not json"), Some(&expected)),
-        Freshness::Unverifiable { .. }
-    ));
+    assert_eq!(drift.missing, vec!["telemetry".to_owned()]);
+    assert_eq!(drift.differing, vec!["models".to_owned()]);
+    assert!(!drift.is_clean());
+    assert!(diff(&desired(), &current()).is_clean());
 }

@@ -2,6 +2,9 @@
 //! headline are computed from verdicts alone, so the card and the rows are
 //! structurally incapable of disagreeing.
 //!
+//! An agent whose app is not on this computer is counted but never folded
+//! into the fleet's state.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -32,6 +35,7 @@ pub enum FleetHeadline {
     NeedsAttention,
     NotWorking,
     Checking,
+    NoneInstalled,
     #[default]
     NoneEnabled,
 }
@@ -45,6 +49,7 @@ pub struct AgentFleetSummary {
     pub ready: usize,
     pub attention: usize,
     pub not_set_up: usize,
+    pub not_installed: usize,
     pub down: usize,
     pub checking: usize,
     pub running: usize,
@@ -70,18 +75,20 @@ impl AgentFleetSummary {
                 AgentState::Ready => s.ready += 1,
                 AgentState::Attention => s.attention += 1,
                 AgentState::NotSetUp => s.not_set_up += 1,
+                AgentState::NotInstalled => s.not_installed += 1,
                 AgentState::Down => s.down += 1,
                 AgentState::Checking => s.checking += 1,
             }
         }
 
-        s.state = if s.total == 0 {
+        let present = s.total - s.not_installed;
+        s.state = if present == 0 {
             FleetState::Unknown
         } else if s.down > 0 {
             FleetState::Err
         } else if s.attention > 0 || s.not_set_up > 0 {
             FleetState::Warn
-        } else if s.checking == s.total {
+        } else if s.checking == present {
             FleetState::Unknown
         } else {
             FleetState::Ok
@@ -92,6 +99,7 @@ impl AgentFleetSummary {
             FleetState::Warn => FleetHeadline::NeedsAttention,
             FleetState::Err => FleetHeadline::NotWorking,
             FleetState::Unknown if s.total == 0 => FleetHeadline::NoneEnabled,
+            FleetState::Unknown if present == 0 => FleetHeadline::NoneInstalled,
             FleetState::Unknown => FleetHeadline::Checking,
         };
         s

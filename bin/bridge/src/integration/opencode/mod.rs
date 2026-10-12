@@ -1,18 +1,12 @@
 //! `OpenCode` host integration: config, install, managed resources, probing.
 //!
-//! `OpenCode` merges config layers with the admin-controlled managed directory
-//! (`/etc/opencode`, `/Library/Application Support/opencode`,
-//! `%ProgramData%\opencode`) above every user and project file, so the
-//! bridge-owned `provider.systemprompt` block and default `model` are written
-//! there rather than somewhere a personal config casually overrides. That is
-//! tier preference, not enforcement: the file is mode 0644, Linux falls back to
-//! the user tier when `/etc` is unwritable, every platform writes the user tier
-//! when an existing admin file is read-only to this process (so its stale
-//! catalogue is at least extended), and nothing stops a user adding
-//! another provider. Governance is enforced at the gateway. The API
-//! key lives in the user's `auth.json`, and MCP connectors and skills — which
-//! unattended sync must be able to rewrite without a prompt — stay in the
-//! user's global config and skills directory.
+//! `OpenCode` 2.x loads only the user's global config
+//! (`~/.config/opencode/opencode.json`, on every platform), so the
+//! bridge-owned `provider.systemprompt` block — `apiKey` included — the
+//! `enabled_providers` allowlist and the default `model` are merged there,
+//! beside the MCP connectors. That is placement, not enforcement: nothing stops
+//! a user editing the file or connecting another provider, and sync rewrites
+//! it. Governance is enforced at the gateway.
 //!
 //! `OpenCode` takes the default `accepted_surfaces` — the empty slice, meaning
 //! every advertised provider. `OpenCode` speaks the OpenAI-compatible wire and
@@ -37,20 +31,15 @@ pub use managed_resources::OpenCodeSync;
 
 use systemprompt_models::bridge::host::HostKind;
 
+use crate::drift::DesiredProfile;
 use crate::integration::host_app::{
-    AppInstallState, ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled,
-    ProfileProbe, ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    ProfileRemoval, ProfileState,
 };
-use crate::integration::reapply::Attendance;
 
-#[must_use]
-pub fn admin_tier_models() -> Option<(std::path::PathBuf, Vec<String>)> {
-    install::admin_tier_models()
-}
-
-// Why: the CLI and the desktop app are two installs of one host; either one
-// reads the managed tier, so either one counts, and only a conclusive miss on
+// Why: the CLI and the desktop app are two installs of one host; both read
+// the same user config, so either one counts, and only a conclusive miss on
 // both is a miss.
 #[must_use]
 pub const fn install_state(cli: AppInstallState, desktop: AppInstallState) -> AppInstallState {
@@ -84,44 +73,16 @@ impl HostApp for OpenCodeHost {
         "OpenCode"
     }
 
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &config::SCHEMA
-    }
-
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        let endpoint = ProfileState::endpoint_freshness(
-            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
-            env.proxy_port,
-        );
-        // Why: auth.json holds the opencode host token; a stale one means the
-        // proxy will attribute OpenCode traffic as an unverified secret holder
-        // until sync re-renders it, so it must surface as Stale.
-        let secret = Freshness::compare(
-            install::installed_key_fingerprint(&config::auth_json_path()).as_deref(),
-            env.host_token_fingerprint(self.id()).as_deref(),
-            "opencode host token",
-        );
+        let desired = env.desired_for(self);
         let profile_state = ProfileState::classify(&ProfileProbe {
-            required: config::REQUIRED_KEYS,
             present: &read.keys,
+            observed: &read.observed,
             read_error: read.probe_error.as_deref(),
-            secret,
-            endpoint,
-            managed_servers: Freshness::Unchecked,
+            desired: &desired,
         });
         let found = HostProcesses::from_enumeration(probe::list_opencode_processes());
-        let desktop_candidates = config::desktop_candidates();
-        let app_installed = install_state(
-            crate::integration::app_launch::cli_installed(
-                config::BINARY,
-                &config::extra_bin_dirs(),
-            ),
-            crate::integration::app_launch::is_installed(
-                &config::desktop_locator(&desktop_candidates),
-                &env.start_menu,
-            ),
-        );
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
@@ -131,11 +92,31 @@ impl HostApp for OpenCodeHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed,
+            app_installed: self.app_installed(&env.start_menu),
             probed_at_unix: config::now_unix(),
-            update_needs_approval: install::admin_tier_needs_approval(),
-            declared_models: install::admin_tier_models().map(|(_, models)| models),
+            update_needs_approval: false,
         }
+    }
+
+    fn desired(&self, inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        let rendered: serde_json::Value =
+            serde_json::from_str(&install::provider_json_text(inputs)?)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        Ok(probe::keys_of(&rendered, "rendered profile").desired(config::role_of))
+    }
+
+    fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState {
+        let desktop_candidates = config::desktop_candidates();
+        install_state(
+            crate::integration::app_launch::cli_installed(
+                config::BINARY,
+                &config::extra_bin_dirs(),
+            ),
+            crate::integration::app_launch::is_installed(
+                &config::desktop_locator(&desktop_candidates),
+                start_menu,
+            ),
+        )
     }
 
     fn generate_profile(
@@ -146,11 +127,11 @@ impl HostApp for OpenCodeHost {
     }
 
     fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        install::install_profile(path, Attendance::Attended)
+        install::install_profile(path)
     }
 
     fn install_profile_unattended(&self, path: &str) -> Result<ProfileInstalled, HostAppError> {
-        install::install_profile(path, Attendance::Unattended)
+        install::install_profile(path)
     }
 
     fn remove_profile(&self) -> Result<ProfileRemoval, HostAppError> {
@@ -169,14 +150,10 @@ impl HostApp for OpenCodeHost {
     }
 
     fn install_action_label(&self) -> &'static str {
-        if cfg!(target_os = "macos") {
-            "merged into /Library/Application Support/opencode/opencode.json (API key in \
-             ~/.local/share/opencode/auth.json)"
-        } else if cfg!(target_os = "windows") {
-            "merged into %ProgramData%\\opencode\\opencode.json (API key in \
-             %USERPROFILE%\\.local\\share\\opencode\\auth.json)"
+        if cfg!(target_os = "windows") {
+            "merged into %USERPROFILE%\\.config\\opencode\\opencode.json"
         } else {
-            "merged into /etc/opencode/opencode.json (API key in ~/.local/share/opencode/auth.json)"
+            "merged into ~/.config/opencode/opencode.json"
         }
     }
 
@@ -186,7 +163,7 @@ impl HostApp for OpenCodeHost {
 
     fn description(&self) -> &'static str {
         "The open-source OpenCode coding agent (terminal, desktop and IDE). systemprompt-bridge \
-         installs admin-managed configuration that routes inference through the gateway, \
+         writes the configuration that routes inference through the gateway, \
          registers MCP connectors, and publishes managed skills."
     }
 
@@ -203,4 +180,9 @@ crate::register_host_sync!(OpenCodeSync);
 
 pub(crate) fn feedback_skill_root() -> std::path::PathBuf {
     config::skills_dir()
+}
+
+#[must_use]
+pub fn retired_admin_tier() -> Option<std::path::PathBuf> {
+    install::stale_admin_tier()
 }

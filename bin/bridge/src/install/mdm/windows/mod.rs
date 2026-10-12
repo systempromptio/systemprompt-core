@@ -129,7 +129,7 @@ pub(super) fn enforce_managed_policy(
     inputs: &super::MdmPayloadInputs<'_>,
 ) -> Result<String, MdmError> {
     ensure_workspace_dir()?;
-    let values = policy_values(inputs, &inputs.loopback.origin())?;
+    let values = policy_values(inputs)?;
     // Why: HKLM policy is the administrator channel and outranks the config
     // file, so self-learned trust is never written here — only
     // `install --apply --pubkey` pins a key out of band.
@@ -222,39 +222,10 @@ pub(super) fn remove_policy(store: &crate::config::store::PolicyStore) -> Result
 
 fn policy_values(
     inputs: &super::MdmPayloadInputs<'_>,
-    base_url: &str,
 ) -> Result<Vec<(&'static str, &'static str, String)>, MdmError> {
-    let secret = inputs
-        .loopback
-        .secret_or_mint()
-        .map_err(|source| MdmError::Io {
-            action: "read loopback secret",
-            path: crate::proxy::secret::secret_path().unwrap_or_default(),
-            source,
-        })?;
-    let host_token = super::policy::desktop_host_token(&secret);
-    let servers =
-        super::policy::mcp_entries(inputs.loopback, inputs.registry).map_err(|source| {
-            MdmError::Io {
-                action: "resolve managed MCP servers",
-                path: std::path::PathBuf::new(),
-                source,
-            }
-        })?;
-    let existing_models = crate::gateway::desktop_catalog::models()?;
-    let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
-        base_url,
-        host_token: &host_token,
-        models: existing_models,
-        headers: &std::collections::BTreeMap::new(),
-        egress_allowed_hosts: inputs.egress_allowed_hosts,
-        org_uuid: crate::config::load()?
-            .deployment_organization_uuid
-            .as_ref()
-            .map(crate::ids::DeploymentOrganizationUuid::as_str),
-        mcp_servers: servers.as_deref(),
-    })?;
-    Ok(super::policy::reg_values(&policy))
+    Ok(super::policy::reg_values(&super::desktop_policy_entries(
+        inputs,
+    )?))
 }
 
 fn validate_gateway(gateway: &str) -> Result<(), MdmError> {

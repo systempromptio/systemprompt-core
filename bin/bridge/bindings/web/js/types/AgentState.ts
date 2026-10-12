@@ -3,4 +3,4 @@
 /**
  * Host configuration, application and proxy health state.
  */
-export type AgentState = "working" | "ready" | "attention" | "not-set-up" | "down" | "checking";
+export type AgentState = "working" | "ready" | "attention" | "not-set-up" | "not-installed" | "down" | "checking";

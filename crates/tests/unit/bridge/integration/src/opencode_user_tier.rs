@@ -1,25 +1,16 @@
-//! The Linux user-tier fallback: where `/etc/opencode` cannot be written and
-//! there is no elevation to offer, `install` puts the provider block in the
-//! user config instead. A probe that ignored that tier would report a working
-//! host as unconfigured.
+//! `OpenCode` 2.x loads only the user config, so the probe reads that tier
+//! alone: a provider block there is the host's real state, and one left in the
+//! retired admin tier is not.
 
 use std::path::Path;
 
-use systemprompt_bridge::integration::host_app::{HostApp, ProbeEnv, ProfileState};
+use systemprompt_bridge::integration::host_app::{HostApp, ProfileRemoval, ProfileState};
 use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use tempfile::TempDir;
 
-fn probe_env() -> ProbeEnv {
-    ProbeEnv {
-        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret: None,
-        start_menu: std::sync::Arc::default(),
-        expected_managed_servers: None,
-        policy_writer_ready: false,
-    }
-}
+use crate::support::{inputs_for, probe_env};
 
-const PROVIDER_BLOCK: &str = r#"{
+const RETIRED_BLOCK: &str = r#"{
   "provider": {
     "systemprompt": {
       "npm": "@ai-sdk/openai-compatible",
@@ -39,8 +30,7 @@ fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
     .expect("bridge config");
 }
 
-// Seeds the managed tier and/or the user tier, then probes.
-fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
+fn sandbox<R>(managed: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     let root = TempDir::new().expect("sandbox");
     let managed_dir = root.path().join("managed");
     std::fs::create_dir_all(&managed_dir).expect("managed dir");
@@ -48,11 +38,6 @@ fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -
         std::fs::write(managed_dir.join("opencode.json"), body).expect("seed managed config");
     }
     let config_home = root.path().join("config");
-    if let Some(body) = user {
-        let dir = config_home.join("opencode");
-        std::fs::create_dir_all(&dir).expect("user dir");
-        std::fs::write(dir.join("opencode.json"), body).expect("seed user config");
-    }
     write_bridge_config(&config_home, &managed_dir);
     let vars: Vec<(&str, Option<String>)> = vec![
         ("HOME", Some(root.path().display().to_string())),
@@ -69,64 +54,62 @@ fn sandbox<R>(managed: Option<&str>, user: Option<&str>, f: impl FnOnce(&Path) -
     out
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn install() {
+    let generated = OPENCODE_HOST
+        .generate_profile(&inputs_for(&OPENCODE_HOST))
+        .expect("profile generated");
+    OPENCODE_HOST
+        .install_profile(&generated.path)
+        .expect("installed");
+    _ = std::fs::remove_file(&generated.path);
+}
+
 #[test]
-fn a_user_tier_provider_block_probes_as_installed_when_the_managed_tier_is_empty() {
-    let snapshot = sandbox(None, Some(PROVIDER_BLOCK), |_| {
+fn an_installed_user_tier_probes_as_installed_and_names_its_source() {
+    let snapshot = sandbox(None, |_| {
+        install();
         OPENCODE_HOST.probe(&probe_env())
     });
     assert!(
         matches!(snapshot.profile_state, ProfileState::Installed),
-        "the fallback tier must count as installed, got {:?}",
+        "{:?}",
         snapshot.profile_state
     );
     assert!(
         snapshot
             .profile_source
             .as_deref()
-            .is_some_and(|p| p.contains("config")),
-        "the source must name the user tier so the operator sees which tier answered: {:?}",
+            .is_some_and(|p| p.ends_with("opencode.json") && p.contains("config")),
+        "{:?}",
         snapshot.profile_source
     );
+    assert!(!snapshot.update_needs_approval, "the user tier never needs elevation");
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[test]
-fn the_managed_tier_still_wins_over_the_user_tier() {
-    let stale = r#"{
-      "provider": {
-        "systemprompt": {
-          "npm": "@ai-sdk/openai-compatible",
-          "options": { "baseURL": "http://127.0.0.1:1/v1" }
-        }
-      },
-      "enabled_providers": ["systemprompt"]
-    }"#;
-    let snapshot = sandbox(Some(stale), Some(PROVIDER_BLOCK), |_| {
+fn the_probe_never_shows_the_api_key() {
+    let snapshot = sandbox(None, |_| {
+        install();
         OPENCODE_HOST.probe(&probe_env())
     });
-    assert!(
-        matches!(snapshot.profile_state, ProfileState::Stale { .. }),
-        "a managed file on the wrong port is stale however good the user tier is, got {:?}",
-        snapshot.profile_state
-    );
+    let shown = snapshot
+        .profile_keys
+        .get("provider.systemprompt.options.apiKey")
+        .expect("the key's presence is reported");
+    let token = crate::support::host_token(systemprompt_models::bridge::host::HostKind::OpenCode);
+    assert_ne!(shown, &token, "the raw host token must not reach the GUI");
 }
 
-#[cfg(any(target_os = "macos", target_os = "windows"))]
 #[test]
-fn the_user_tier_is_not_read_where_elevation_exists() {
-    let snapshot = sandbox(None, Some(PROVIDER_BLOCK), |_| {
-        OPENCODE_HOST.probe(&probe_env())
-    });
+fn a_block_only_in_the_retired_admin_tier_is_not_installed() {
+    let snapshot = sandbox(Some(RETIRED_BLOCK), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
-        "macOS and Windows can prompt for elevation, so a user-tier block is not governance and \
-         must not mask a missing managed tier: {:?}",
+        "OpenCode 2.x never reads the admin tier: {:?}",
         snapshot.profile_state
     );
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[test]
 fn removal_treats_an_identical_managed_and_user_path_as_one_tier() {
     let root = TempDir::new().expect("sandbox");
@@ -154,10 +137,7 @@ fn removal_treats_an_identical_managed_and_user_path_as_one_tier() {
 
     let removal = temp_env::with_vars(vars, || OPENCODE_HOST.remove_profile())
         .expect("the single physical tier is cleaned once");
-    assert!(matches!(
-        removal,
-        systemprompt_bridge::integration::host_app::ProfileRemoval::Removed { .. }
-    ));
+    assert!(matches!(removal, ProfileRemoval::Removed { .. }));
     let retained: serde_json::Value =
         serde_json::from_slice(&std::fs::read(shared.join("opencode.json")).unwrap()).unwrap();
     assert_eq!(retained, serde_json::json!({"operator": {"retain": true}}));

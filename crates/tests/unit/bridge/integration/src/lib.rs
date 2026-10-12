@@ -17,6 +17,8 @@ mod cowork_artifacts;
 #[cfg(test)]
 mod doctor_hook_token;
 #[cfg(test)]
+mod drift_parity;
+#[cfg(test)]
 mod enrol_claude_code;
 #[cfg(test)]
 mod enrol_hosts;
@@ -41,13 +43,11 @@ mod node_deps;
 #[cfg(test)]
 mod opencode_default_model;
 #[cfg(test)]
-mod opencode_fallback;
-#[cfg(test)]
 mod opencode_host;
 #[cfg(test)]
 mod opencode_merge;
-#[cfg(all(test, unix))]
-mod opencode_read_only_admin_tier;
+#[cfg(test)]
+mod opencode_user_tier;
 #[cfg(test)]
 mod plugin_oauth;
 #[cfg(test)]
@@ -70,3 +70,5 @@ mod reapply_decision;
 mod reg_profile;
 #[cfg(test)]
 mod start_menu_cache;
+#[cfg(test)]
+mod support;

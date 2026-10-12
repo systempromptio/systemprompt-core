@@ -8,7 +8,8 @@
 use serde::Serialize;
 
 use crate::integration::host_app::{AppInstallState, ProfileState, StaleReason};
-use crate::proxy_probe::{ProxyHealth, ProxyProbeState};
+
+use crate::proxy_probe::ProxyProbeState;
 use crate::verdict::Tone;
 
 /// Host configuration, application and proxy health state.
@@ -21,18 +22,22 @@ pub enum AgentState {
     Ready,
     Attention,
     NotSetUp,
+    NotInstalled,
     Down,
     Checking,
 }
 
 impl AgentState {
+    // Why: an app that is not on this computer is a fact about the computer,
+    // not a fault in the agent, so it reads neutral and never asks for
+    // attention.
     #[must_use]
     pub const fn tone(self) -> Tone {
         match self {
             Self::Working | Self::Ready => Tone::Ok,
             Self::Attention | Self::NotSetUp => Tone::Warn,
             Self::Down => Tone::Err,
-            Self::Checking => Tone::Unknown,
+            Self::Checking | Self::NotInstalled => Tone::Unknown,
         }
     }
 }
@@ -49,7 +54,8 @@ pub enum AgentReason {
     Governed { when_unix: Option<u64> },
     Awaiting,
     AppMissing,
-    Stale { cause: StaleReason },
+    Stale { cause: StaleReason, keys: String },
+    SyncFailed { detail: String },
     Partial { missing: String },
     Unverifiable { detail: String },
     Absent,
@@ -77,52 +83,6 @@ pub enum AgentAction {
     Enrol,
 }
 
-/// Whether this agent is configured on this machine at all.
-///
-/// `LocalProfile` has a managed profile this bridge installs and probes
-/// locally; `SyncOnly` is
-/// gateway-enabled with no local profile — it syncs, it does not install.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-pub enum AgentSurface {
-    LocalProfile,
-    SyncOnly,
-}
-
-/// Actions available for a host surface.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HostCapabilities {
-    pub can_open: bool,
-    pub can_verify: bool,
-    pub can_repair: bool,
-    pub can_open_config: bool,
-    pub can_remove: bool,
-}
-
-impl HostCapabilities {
-    #[must_use]
-    pub const fn for_surface(surface: AgentSurface, can_open: bool) -> Self {
-        match surface {
-            AgentSurface::LocalProfile => Self {
-                can_open,
-                can_verify: true,
-                can_repair: true,
-                can_open_config: true,
-                can_remove: true,
-            },
-            AgentSurface::SyncOnly => Self {
-                can_open: false,
-                can_verify: false,
-                can_repair: false,
-                can_open_config: false,
-                can_remove: false,
-            },
-        }
-    }
-}
-
 /// The verdict for one agent, plus the three facts the GUI renders around it.
 ///
 /// `is_set_up` means the agent belongs in the Agents list rather than behind
@@ -143,41 +103,14 @@ pub struct AgentVerdict {
     pub is_running: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct HostHealthInputs<'a> {
-    pub snapshot: Option<&'a crate::integration::HostAppSnapshot>,
-    pub proxy: &'a ProxyHealth,
-    pub models: HostModelViewRef<'a>,
-    pub has_download_url: bool,
-    pub surface: AgentSurface,
-    pub manifest_synced: bool,
-    pub gateway_routed: bool,
-    pub can_open: bool,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct HostModelViewRef<'a> {
-    pub checked: bool,
-    pub available: bool,
-    pub unconfigured_providers: &'a [String],
-    pub compatible_models: &'a [String],
-}
-
-impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRef<'a> {
-    fn from(v: &'a crate::gateway::model_view::HostModelView) -> Self {
-        Self {
-            checked: v.checked,
-            available: v.available,
-            unconfigured_providers: &v.unconfigured_providers,
-            compatible_models: &v.compatible_models,
-        }
-    }
-}
-
 #[must_use]
 pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     if input.surface == AgentSurface::SyncOnly {
-        return super::sync_only::sync_only_verdict(input.manifest_synced, input.gateway_routed);
+        return super::sync_only::sync_only_verdict(
+            input.manifest_synced,
+            input.gateway_routed,
+            input.apply_failures,
+        );
     }
 
     let Some(snap) = input.snapshot else {
@@ -207,32 +140,26 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
 
     if snap.app_installed == AppInstallState::NotInstalled {
         return finish(
-            AgentState::Attention,
+            AgentState::NotInstalled,
             AgentReason::AppMissing,
             input.has_download_url.then_some(AgentAction::Download),
         );
     }
 
     match &snap.profile_state {
-        // Why: a profile behind the gateway's server list is not broken, it
-        // is out of date; the verb says so, and says when the write will ask
-        // for an administrator.
-        ProfileState::Stale {
-            reason: StaleReason::ManagedServers,
-        } => {
+        ProfileState::Stale { reason, keys } => {
+            let action = if reason.breaks_routing() {
+                AgentAction::Repair
+            } else {
+                update_action(snap)
+            };
             return finish(
                 AgentState::Attention,
                 AgentReason::Stale {
-                    cause: StaleReason::ManagedServers,
+                    cause: *reason,
+                    keys: keys.join(", "),
                 },
-                Some(update_action(snap)),
-            );
-        },
-        ProfileState::Stale { reason } => {
-            return finish(
-                AgentState::Attention,
-                AgentReason::Stale { cause: *reason },
-                Some(AgentAction::Repair),
+                Some(action),
             );
         },
         ProfileState::Partial { missing_required } => {
@@ -263,6 +190,10 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         ProfileState::Installed => {},
     }
 
+    if let Some(failed) = apply_failed(input.apply_failures) {
+        return finish(AgentState::Attention, failed.0, failed.1);
+    }
+
     if input.models.checked && !input.models.available {
         let reason = if input.models.unconfigured_providers.is_empty() {
             AgentReason::NoModels
@@ -272,20 +203,6 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
             }
         };
         return finish(AgentState::Attention, reason, None);
-    }
-
-    if input.models.checked
-        && input.models.available
-        && let Some(declared) = &snap.declared_models
-        && !same_models(declared, input.models.compatible_models)
-    {
-        return finish(
-            AgentState::Attention,
-            AgentReason::Stale {
-                cause: StaleReason::ModelList,
-            },
-            Some(update_action(snap)),
-        );
     }
 
     let open = input.can_open.then_some(AgentAction::Open);
@@ -307,6 +224,23 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
     }
 }
 
+#[must_use]
+pub fn apply_failed(failures: &[ApplyFailure]) -> Option<(AgentReason, Option<AgentAction>)> {
+    if failures.is_empty() {
+        return None;
+    }
+    let detail = failures
+        .iter()
+        .map(|f| format!("{}: {}", f.emitter, f.error))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let action = failures
+        .iter()
+        .all(|f| f.needs_elevation)
+        .then_some(AgentAction::UpdateAdmin);
+    Some((AgentReason::SyncFailed { detail }, action))
+}
+
 const fn update_action(snap: &crate::integration::HostAppSnapshot) -> AgentAction {
     if snap.update_needs_approval {
         AgentAction::UpdateAdmin
@@ -315,11 +249,8 @@ const fn update_action(snap: &crate::integration::HostAppSnapshot) -> AgentActio
     }
 }
 
-fn same_models(declared: &[String], served: &[String]) -> bool {
-    let declared: std::collections::BTreeSet<&str> = declared.iter().map(String::as_str).collect();
-    let served: std::collections::BTreeSet<&str> = served.iter().map(String::as_str).collect();
-    declared == served
-}
-
 pub use super::agent_fleet::{AgentFleetSummary, AgentFleets, FleetHeadline, FleetState};
+pub use super::agent_inputs::{
+    AgentSurface, ApplyFailure, HostCapabilities, HostHealthInputs, HostModelViewRef,
+};
 pub use super::sync_only::{SYNC_ONLY_AGENTS, SyncOnlyAgent, sync_only_agent};

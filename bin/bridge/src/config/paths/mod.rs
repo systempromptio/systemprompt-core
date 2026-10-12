@@ -178,3 +178,10 @@ fn can_create_in(dir: &std::path::Path) -> bool {
         Err(_) => false,
     }
 }
+
+pub const CLAUDE_CONFIG_DIR_VAR: &str = "CLAUDE_CONFIG_DIR";
+
+#[must_use]
+pub fn claude_config_dir_override() -> Option<PathBuf> {
+    std::env::var_os(CLAUDE_CONFIG_DIR_VAR).map(PathBuf::from)
+}

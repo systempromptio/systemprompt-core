@@ -8,6 +8,8 @@
 mod merge;
 mod render;
 
+pub(super) use render::managed_toml;
+
 use std::path::Path;
 
 use super::config;
@@ -18,7 +20,7 @@ use crate::integration::host_app::{
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = generated_profile::profile_uuids();
-    let toml_text = render::managed_toml(inputs)?;
+    let toml_text = managed_toml(inputs)?;
 
     if cfg!(target_os = "macos") {
         let xml = render::mobileconfig(&toml_text, &uuids.payload, &uuids.profile);

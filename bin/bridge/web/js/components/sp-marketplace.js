@@ -4,6 +4,7 @@ import { t } from "/assets/js/i18n.js";
 import { handleRovingKey } from "/assets/js/utils/roving.js";
 import { MKT_KINDS, createListingFetcher } from "/assets/js/services/marketplace-service.js";
 import { runAction } from "/assets/js/utils/action.js";
+import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
 import { renderMarketplaceHeader, renderMarketplaceCats, renderMarketplaceSearch, renderMarketplaceFooter } from "/assets/js/components/marketplace-shell.js";
 import "/assets/js/components/sp-marketplace-list.js";
 import "/assets/js/components/sp-marketplace-detail.js";
@@ -36,10 +37,7 @@ export class SpMarketplace extends SpElement {
   }
 
   _registerActions() {
-    this.registerAction("select-kind", (trigger) => {
-      this.kind = trigger.dataset.kind;
-      this.selectedId = null;
-    });
+    this.registerAction("select-kind", (trigger) => { this.kind = trigger.dataset.kind; this.selectedId = null; });
     this.registerAction("sync", (trigger) => runAction(trigger, SYNC_ACTION()));
     this.registerAction("validate", (trigger) => runAction(trigger, {
       run: () => bridge.validate(),
@@ -51,6 +49,7 @@ export class SpMarketplace extends SpElement {
       success: t("toast-folder-opened") || "Opened the configuration folder.",
       context: t("marketplace-action-open-folder") || "Open folder",
     }));
+    this.registerAction("open-overall", (trigger) => activateRailTab(trigger.dataset.target));
     this.registerAction("input:search", (trigger) => {
       this.search = trigger.value || "";
       this.selectedId = null;

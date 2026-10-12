@@ -102,6 +102,8 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         return Ok(report);
     }
 
+    ensure_routed(ctx)?;
+
     let manifest = ctx.manifest;
     let marketplaces = host_marketplaces(manifest);
     if marketplaces.is_empty() {
@@ -159,6 +161,22 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
         "installed and enabled org plugins for the standalone Claude Code CLI"
     );
     Ok(report)
+}
+
+// Why: Claude Code with no gateway keys in the settings it reads keeps the
+// user's own Anthropic login; an install that predates first-run enrolment is
+// never otherwise routed. Only an unrouted install is written, so a sync
+// never rewrites settings that already route.
+fn ensure_routed(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
+    if crate::integration::claude_code_routing::is_routed() {
+        return Ok(());
+    }
+    crate::integration::enrol::claude_code::route(&ctx.loopback.origin()).map_err(|source| {
+        ApplyError::Step {
+            context: "route Claude Code through the gateway",
+            source: Box::new(source),
+        }
+    })
 }
 
 fn mirror_marketplace(

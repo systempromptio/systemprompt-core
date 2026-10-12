@@ -2097,3 +2097,43 @@ fn an_absolute_manifest_file_path_is_refused_without_touching_external_state() {
     assert_eq!(fs::read(&sentinel).unwrap(), b"retain");
     let _ = (&b.server, &b.pat_dir);
 }
+
+#[test]
+fn sync_routes_an_unenrolled_claude_code_once_and_preserves_foreign_keys() {
+    let rt = setup_runtime();
+    let manifest = manifest_with(vec![], vec!["claude-code".into()]);
+    let (server, dirs, pat_dir) = rt.block_on(async {
+        let server = MockServer::start().await;
+        remount_settings_gateway(&server, &manifest, &["claude-sonnet"], None).await;
+        let pat_dir = fresh_dir("claude-code-auto-enrol");
+        let pat_file = pat_dir.join("pat.txt");
+        fs::write(&pat_file, "sp-live-test-pat").unwrap();
+        let dirs = sandbox(&server.uri(), &pat_file, None);
+        (server, dirs, pat_dir)
+    });
+    let settings = PathBuf::from(dirs.home.clone()).join(".claude/settings.json");
+    fs::create_dir_all(settings.parent().unwrap()).unwrap();
+    fs::write(&settings, r#"{"theme": "dark"}"#).unwrap();
+
+    run_sync(&dirs).expect("the first sync applies");
+    let routed: serde_json::Value = serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(routed["theme"], "dark", "a foreign key survives enrolment");
+    assert!(
+        routed["env"]["ANTHROPIC_BASE_URL"]
+            .as_str()
+            .is_some_and(|url| url.starts_with("http://127.0.0.1:")),
+        "{routed}"
+    );
+    assert!(routed["apiKeyHelper"].as_str().is_some_and(|h| !h.is_empty()), "{routed}");
+
+    let mut customised = routed.clone();
+    customised["env"]["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:1".into();
+    fs::write(&settings, serde_json::to_vec_pretty(&customised).unwrap()).unwrap();
+    run_sync(&dirs).expect("the second sync applies");
+    let after: serde_json::Value = serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
+    assert_eq!(
+        after["env"]["ANTHROPIC_BASE_URL"], "http://127.0.0.1:1",
+        "settings that already route are not re-enrolled"
+    );
+    let _ = (&pat_dir, &server);
+}

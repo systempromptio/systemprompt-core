@@ -11,9 +11,8 @@ pub enum MdmError {
     DesktopPolicy(#[from] systemprompt_models::bridge::desktop_policy::DesktopPolicyError),
     #[error(transparent)]
     Manifest(#[from] crate::gateway::manifest::ManifestError),
-    #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[error(transparent)]
-    DesktopCatalog(#[from] crate::gateway::desktop_catalog::CatalogError),
+    ProfileFacts(#[from] crate::install::profile_inputs::ProfileFactsError),
     #[error("policy partially completed {completed:?}; {source}")]
     Partial {
         completed: super::MdmApplication,

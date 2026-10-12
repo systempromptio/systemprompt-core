@@ -185,21 +185,27 @@ fn describe_snapshot(snap: &HostAppSnapshot, proxy_port: u16) -> String {
         },
         ProfileState::Unverifiable { reason } => format!("profile unverifiable ({reason})"),
         ProfileState::Absent => "profile not installed".to_owned(),
-        ProfileState::Stale { reason } => match reason {
-            StaleReason::LoopbackSecret => {
-                "profile secret out of date (re-apply required)".to_owned()
-            },
-            StaleReason::ProxyPort => format!(
-                "profile points at the wrong proxy port — this proxy is on {proxy_port} \
-                 (re-apply required)"
-            ),
-            StaleReason::ManagedServers => {
-                "profile's managed MCP server list is behind the gateway (update required)"
-                    .to_owned()
-            },
-            StaleReason::ModelList => {
-                "profile's model list is behind the gateway (update required)".to_owned()
-            },
+        ProfileState::Stale { reason, keys } => {
+            let what = match reason {
+                StaleReason::LoopbackSecret => {
+                    "profile secret out of date (re-apply required)".to_owned()
+                },
+                StaleReason::ProxyPort => format!(
+                    "profile points at the wrong proxy port — this proxy is on {proxy_port} \
+                     (re-apply required)"
+                ),
+                StaleReason::ManagedServers => {
+                    "profile's managed MCP server list is behind the gateway (update required)"
+                        .to_owned()
+                },
+                StaleReason::ModelList => {
+                    "profile's model list is behind the gateway (update required)".to_owned()
+                },
+                StaleReason::Settings => {
+                    "profile's settings are behind this release (update required)".to_owned()
+                },
+            };
+            format!("{what}; differs: {}", keys.join(", "))
         },
     };
     let process = match snap.host_running {

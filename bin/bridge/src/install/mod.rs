@@ -19,6 +19,7 @@ pub mod managed_mcp;
 mod managed_profile;
 pub mod mdm;
 pub mod policy_writer;
+pub mod profile_inputs;
 pub mod reg_values;
 mod schedule_apply;
 mod schedule_emit;

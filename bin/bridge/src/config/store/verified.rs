@@ -59,11 +59,7 @@ pub fn apply(
             hive
         };
     let current = store.read_policy_document(authoritative, target, &names)?;
-    let differing: Vec<String> = entries
-        .iter()
-        .filter(|(name, value)| current.get(name) != Some(value))
-        .map(|(name, _)| name.clone())
-        .collect();
+    let differing = crate::drift::differing_names(entries, &current);
     if authoritative != hive {
         if !differing.is_empty() {
             return Err(ConfigStoreError::HiveConflict { subkey, differing });
@@ -91,11 +87,7 @@ pub fn apply(
     // success.
     if hive == PolicyHive::User && store.policy_key_exists(PolicyHive::Machine, target)? {
         let machine = store.read_policy_document(PolicyHive::Machine, target, &names)?;
-        let differing: Vec<String> = entries
-            .iter()
-            .filter(|(name, value)| machine.get(name) != Some(value))
-            .map(|(name, _)| name.clone())
-            .collect();
+        let differing = crate::drift::differing_names(entries, &machine);
         if !differing.is_empty() {
             return Err(ConfigStoreError::HiveConflict { subkey, differing });
         }

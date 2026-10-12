@@ -3,55 +3,50 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::bridge::host::HostKind;
+use std::sync::Arc;
 
-use crate::ids::LoopbackSecret;
+use super::{HostApp, HostAppError, ProfileFacts, ProfileFactsError};
+use crate::drift::DesiredProfile;
 
-/// What a host probe needs to know about the proxy to judge a profile fresh:
-/// the port the proxy is on and the secret it accepts, from which the
-/// per-host token a desktop policy carries is derived.
+/// What a host probe needs to judge a profile current: the facts every
+/// host's settings are rendered from, and the proxy port for display.
 ///
-/// A value built by the caller from the [`crate::proxy::LoopbackEndpoint`],
-/// so a probe never reaches for process state and a test can hand it any
-/// port it likes.
+/// `facts` is an `Err` when they could not be read; every probe then reports
+/// its profile unverifiable rather than current. Tests build the value
+/// directly with whatever facts they need.
 #[derive(Debug, Clone)]
 pub struct ProbeEnv {
     pub proxy_port: u16,
-    pub loopback_secret: Option<LoopbackSecret>,
-    pub start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
-    pub expected_managed_servers: Option<Vec<String>>,
+    pub start_menu: Arc<crate::probe_cache::StartMenuCache>,
+    pub facts: Result<ProfileFacts, Arc<ProfileFactsError>>,
     pub policy_writer_ready: bool,
+}
+
+/// Why a host's expected settings could not be built for comparison.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum DesiredError {
+    #[error(transparent)]
+    Facts(Arc<ProfileFactsError>),
+    #[error(transparent)]
+    Render(Arc<HostAppError>),
 }
 
 impl ProbeEnv {
     #[must_use]
-    pub fn new(
-        loopback: &crate::proxy::LoopbackEndpoint,
-        start_menu: std::sync::Arc<crate::probe_cache::StartMenuCache>,
-    ) -> Self {
-        let loopback_secret = match loopback.secret() {
-            Ok(secret) => Some(secret),
-            Err(error) => {
-                tracing::warn!(error = %error, "loopback secret is unreadable; host probes report it as unverifiable");
-                None
-            },
-        };
+    pub fn for_bridge(bridge: &crate::context::BridgeContext) -> Self {
+        let loopback = bridge.proxy.loopback();
+        let facts = ProfileFacts::persisted_overrides()
+            .and_then(|overrides| ProfileFacts::load(loopback, &bridge.mcp_registry(), overrides))
+            .map_err(|error| {
+                tracing::warn!(error = %error, "host profile facts are unreadable; host probes report their settings as unverifiable");
+                Arc::new(error)
+            });
         Self {
             proxy_port: loopback.port(),
-            loopback_secret,
-            start_menu,
-            expected_managed_servers: None,
+            start_menu: Arc::clone(&bridge.start_menu),
+            facts,
             policy_writer_ready: false,
         }
-    }
-
-    #[must_use]
-    pub fn for_bridge(bridge: &crate::context::BridgeContext) -> Self {
-        Self::new(
-            bridge.proxy.loopback(),
-            std::sync::Arc::clone(&bridge.start_menu),
-        )
-        .with_managed_servers(bridge.proxy.loopback(), &bridge.mcp_registry())
         .with_policy_writer()
     }
 
@@ -74,44 +69,12 @@ impl ProbeEnv {
         self
     }
 
-    // Why: the registry is authoritative only once a sync has published it
-    // (the on-disk fragment exists); before that an empty registry means
-    // "not loaded", not "no servers". A catalog that cannot expand a wildcard
-    // tool policy withholds the whole list, and so does this.
-    #[must_use]
-    pub fn with_managed_servers(
-        mut self,
-        loopback: &crate::proxy::LoopbackEndpoint,
-        registry: &crate::mcp_registry::McpRegistry,
-    ) -> Self {
-        if !crate::mcp_registry::fragment_exists() {
-            return self;
-        }
-        self.expected_managed_servers = match crate::install::mdm::policy::mcp_entries(
-            loopback, registry,
-        ) {
-            Ok(entries) => entries.map(|list| list.into_iter().map(|e| e.name).collect()),
-            Err(error) => {
-                tracing::warn!(error = %error, "managed MCP servers could not be projected; the policy probe leaves them unchecked");
-                None
-            },
-        };
-        self
-    }
-
-    #[must_use]
-    pub fn loopback_secret_fingerprint(&self) -> Option<String> {
-        self.loopback_secret
+    pub fn desired_for(&self, host: &dyn HostApp) -> Result<DesiredProfile, DesiredError> {
+        let facts = self
+            .facts
             .as_ref()
-            .map(|s| crate::proxy::secret::fingerprint(s.as_str()))
-    }
-
-    #[must_use]
-    pub fn host_token_fingerprint(&self, host: HostKind) -> Option<String> {
-        self.loopback_secret.as_ref().map(|s| {
-            crate::proxy::secret::fingerprint(
-                crate::proxy::scoped_token::host_token(s, host).as_str(),
-            )
-        })
+            .map_err(|e| DesiredError::Facts(Arc::clone(e)))?;
+        host.desired(&facts.inputs_for(host.id(), host.accepted_surfaces()))
+            .map_err(|e| DesiredError::Render(Arc::new(e)))
     }
 }

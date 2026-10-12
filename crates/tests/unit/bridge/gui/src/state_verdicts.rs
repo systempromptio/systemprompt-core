@@ -1,6 +1,13 @@
+use std::collections::BTreeMap;
+
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::gui::hosts::state::HostState;
+use systemprompt_bridge::gui::server_json::state_payload;
 use systemprompt_bridge::gui::state::{
     AppState, AppStateSnapshot, GatewayProbeOutcome, GatewayStatus, VerifiedIdentity,
+};
+use systemprompt_bridge::integration::{
+    AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
 use systemprompt_bridge::obs::StartupFault;
 use systemprompt_bridge::sync::{HostFailure, SyncSummary};
@@ -189,6 +196,50 @@ fn report(host_failures: Vec<HostFailure>) -> SyncSummary {
     }
 }
 
+fn host(id: HostKind, profile_state: ProfileState, update_needs_approval: bool) -> HostState {
+    HostState {
+        snapshot: Some(HostAppSnapshot {
+            host_id: id,
+            display_name: "host",
+            profile_state,
+            profile_source: None,
+            profile_keys: BTreeMap::new(),
+            probe_error: None,
+            host_running: Some(true),
+            host_processes: Vec::new(),
+            app_installed: AppInstallState::Installed,
+            probed_at_unix: 1,
+            update_needs_approval,
+        }),
+        ..HostState::default()
+    }
+}
+
+fn with_hosts(mut snap: AppStateSnapshot, hosts: Vec<(HostKind, HostState)>) -> AppStateSnapshot {
+    snap.enabled_hosts = hosts.iter().map(|(id, _)| id.as_str().to_owned()).collect();
+    snap.hosts.by_id.extend(hosts);
+    snap
+}
+
+fn failure(id: HostKind, emitter: &str, needs_elevation: bool) -> HostFailure {
+    HostFailure {
+        host_id: id,
+        emitter: emitter.to_owned(),
+        error: "write refused".into(),
+        needs_elevation,
+    }
+}
+
+fn desktop_row(snap: &AppStateSnapshot) -> serde_json::Value {
+    let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
+    let payload = serde_json::to_value(state_payload(snap, &ctx.proxy)).expect("payload");
+    payload["hosts"]["host_apps"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|r| r["id"] == "claude-desktop"))
+        .map(|r| r["verdict"].clone())
+        .expect("desktop is listed")
+}
+
 #[test]
 fn a_clean_sync_report_reads_as_synced() {
     let mut snap = signed_in_after_sync();
@@ -196,67 +247,95 @@ fn a_clean_sync_report_reads_as_synced() {
     let verdict = snap.overall_verdict();
     assert_eq!(verdict.code, OverallCode::Synced);
     assert_eq!(verdict.tone, Tone::Ok);
-    assert!(!snap.last_sync_degraded());
 }
 
-// Why: the header pill said "synced" beside a toast naming a host that had
-// failed; the run's own report, not the presence of a summary line, decides.
+// Why: the v0.65.0 header said Claude Desktop needed approval while its row
+// said Working. Both now read the same verdict: approval is needed exactly
+// when some row's action is the administrator update.
 #[test]
-fn a_host_failure_in_the_last_report_reads_as_degraded_even_with_a_summary() {
-    let mut snap = signed_in_after_sync();
-    snap.last_sync_report = Some(report(vec![HostFailure {
-        host_id: HostKind::ClaudeDesktop,
-        emitter: "claude-desktop".to_owned(),
-        error: "mdm refresh: policy store unreadable".into(),
-        needs_elevation: false,
-    }]));
-    let verdict = snap.overall_verdict();
-    assert_eq!(verdict.code, OverallCode::Degraded);
-    assert_eq!(verdict.tone, Tone::Warn);
-    assert!(snap.last_sync_degraded());
-}
-
-// Why: a run that applied everywhere except the machine policy is one
-// approval short, and the badge names that gesture rather than "failures"
-// the user then hunts for; it stays a warning, never "synced".
-#[test]
-fn a_run_whose_only_failures_need_an_administrator_reads_as_needs_approval() {
-    let mut snap = signed_in_after_sync();
-    snap.last_sync_report = Some(report(vec![HostFailure {
-        host_id: HostKind::ClaudeDesktop,
-        emitter: "claude-desktop".to_owned(),
-        error: "mdm refresh: HKLM shadows HKCU".into(),
-        needs_elevation: true,
-    }]));
+fn needs_approval_is_exactly_a_row_whose_action_is_the_administrator_update() {
+    let drifted = ProfileState::Stale {
+        reason: StaleReason::Settings,
+        keys: vec!["otlpEndpoint".to_owned()],
+    };
+    let snap = with_hosts(
+        signed_in_after_sync(),
+        vec![(
+            HostKind::ClaudeDesktop,
+            host(HostKind::ClaudeDesktop, drifted.clone(), true),
+        )],
+    );
+    assert_eq!(desktop_row(&snap)["action"]["code"], "update-admin");
     let verdict = snap.overall_verdict();
     assert_eq!(verdict.code, OverallCode::NeedsApproval);
     assert_eq!(verdict.tone, Tone::Warn);
-    assert!(snap.last_sync_needs_approval());
-    assert!(
-        snap.last_sync_degraded(),
-        "an unapproved write still counts as degraded for the health fold"
+
+    let plain = with_hosts(
+        signed_in_after_sync(),
+        vec![(
+            HostKind::ClaudeDesktop,
+            host(HostKind::ClaudeDesktop, drifted, false),
+        )],
     );
+    assert_eq!(desktop_row(&plain)["action"]["code"], "update");
+    assert_ne!(plain.overall_verdict().code, OverallCode::NeedsApproval);
+}
+
+// Why: a machine-policy write that needed an administrator is history once
+// the live probe reads the policy current — a later repair wrote it — so the
+// header follows the probe, not the old run.
+#[test]
+fn an_approval_failure_the_probe_now_reads_as_current_is_superseded() {
+    let mut snap = with_hosts(
+        signed_in_after_sync(),
+        vec![(
+            HostKind::ClaudeDesktop,
+            host(HostKind::ClaudeDesktop, ProfileState::Installed, true),
+        )],
+    );
+    snap.last_sync_report = Some(report(vec![failure(
+        HostKind::ClaudeDesktop,
+        "claude-desktop",
+        true,
+    )]));
+    let row = desktop_row(&snap);
+    assert_ne!(row["reason"]["code"], "sync-failed", "{row}");
+    assert_eq!(snap.overall_verdict().code, OverallCode::Synced);
 }
 
 #[test]
-fn a_run_with_an_elevation_failure_beside_another_failure_stays_degraded() {
-    let mut snap = signed_in_after_sync();
-    snap.last_sync_report = Some(report(vec![
-        HostFailure {
-            host_id: HostKind::ClaudeDesktop,
-            emitter: "claude-desktop".to_owned(),
-            error: "mdm refresh: HKLM shadows HKCU".into(),
-            needs_elevation: true,
-        },
-        HostFailure {
-            host_id: HostKind::OpenCode,
-            emitter: "config".to_owned(),
-            error: "write failed".into(),
-            needs_elevation: false,
-        },
-    ]));
+fn a_failed_step_the_probe_cannot_see_shows_on_the_row_and_degrades_the_header() {
+    let mut snap = with_hosts(
+        signed_in_after_sync(),
+        vec![(
+            HostKind::ClaudeDesktop,
+            host(HostKind::ClaudeDesktop, ProfileState::Installed, false),
+        )],
+    );
+    snap.last_sync_report = Some(report(vec![failure(
+        HostKind::ClaudeDesktop,
+        "cowork-plugins",
+        false,
+    )]));
+    let row = desktop_row(&snap);
+    assert_eq!(row["state"], "attention", "{row}");
+    assert_eq!(row["reason"]["code"], "sync-failed", "{row}");
+    let verdict = snap.overall_verdict();
+    assert_eq!(verdict.code, OverallCode::Degraded);
+    assert_eq!(verdict.tone, Tone::Warn);
+}
+
+#[test]
+fn a_failure_on_a_host_that_is_not_listed_still_degrades_the_header() {
+    let mut snap = with_hosts(
+        signed_in_after_sync(),
+        vec![(
+            HostKind::ClaudeDesktop,
+            host(HostKind::ClaudeDesktop, ProfileState::Installed, false),
+        )],
+    );
+    snap.last_sync_report = Some(report(vec![failure(HostKind::OpenCode, "opencode", false)]));
     assert_eq!(snap.overall_verdict().code, OverallCode::Degraded);
-    assert!(!snap.last_sync_needs_approval());
 }
 
 #[test]

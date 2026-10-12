@@ -1,4 +1,4 @@
-//! Effective Desktop fleet settings, including legacy context defaults.
+//! Whether the installed Claude Desktop supports the signed fleet settings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,6 +6,10 @@
 use super::Check;
 use crate::integration::host_app::ProbeEnv;
 
+// Why: whether the installed Desktop settings match is the probe's verdict,
+// reported with every other host under "host profile secret"; this check adds
+// only what the probe cannot know — whether the installed Desktop understands
+// the fleet settings at all.
 pub(super) fn check_settings(env: &ProbeEnv) -> Vec<Check> {
     let Some(host) = crate::integration::registry::host_apps()
         .iter()
@@ -14,30 +18,13 @@ pub(super) fn check_settings(env: &ProbeEnv) -> Vec<Check> {
     else {
         return Vec::new();
     };
-    let snapshot = host.probe(env);
-    if snapshot.profile_keys.is_empty() {
+    if host.probe(env).profile_keys.is_empty() {
         return Vec::new();
     }
-    let policy = match crate::install::mdm::desktop_policy::verified_operator_policy() {
-        Ok(policy) => policy,
-        Err(error) => return vec![Check::fail("Desktop fleet policy", error.to_string())],
-    };
-    let expected = match crate::install::mdm::desktop_policy::resolved_settings(&policy) {
-        Ok(settings) => crate::install::mdm::policy::reg_values(&settings),
-        Err(error) => return vec![Check::fail("Desktop fleet policy", error.to_string())],
-    };
-    let different: Vec<_> = expected
-        .iter()
-        .filter(|(key, _, value)| snapshot.profile_keys.get(*key) != Some(value))
-        .map(|(key, _, _)| *key)
-        .collect();
-    let mut checks = version_checks(&policy);
-    if different.is_empty() {
-        checks.push(Check::ok("Desktop fleet policy", "Installed settings match the signed fleet defaults. Fully restart Desktop after a profile change; test a fresh Cowork task."));
-    } else {
-        checks.push(Check::warn("Desktop fleet policy", format!("Missing or different settings: {}. Repair the Desktop profile, approve it on macOS, then fully restart Desktop.", different.join(", "))));
+    match crate::install::mdm::desktop_policy::verified_operator_policy() {
+        Ok(policy) => version_checks(&policy),
+        Err(error) => vec![Check::fail("Desktop fleet policy", error.to_string())],
     }
-    checks
 }
 
 fn version_checks(policy: &crate::install::mdm::desktop_policy::DesktopPolicy) -> Vec<Check> {

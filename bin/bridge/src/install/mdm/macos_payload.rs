@@ -16,48 +16,15 @@ const MOBILECONFIG_TMPL: &str = include_str!("../templates/mobileconfig.tmpl");
 const MOBILECONFIG_BRIDGE_PAYLOAD_TMPL: &str =
     include_str!("../templates/mobileconfig_bridge_payload.tmpl");
 
-fn policy_body(
-    mcp: &MdmPayloadInputs<'_>,
-    gateway: &str,
-    indent: &str,
-) -> Result<String, super::MdmError> {
-    let secret = mcp
-        .loopback
-        .secret_or_mint()
-        .map_err(|source| super::MdmError::Io {
-            action: "read loopback secret",
-            path: crate::proxy::secret::secret_path().unwrap_or_default(),
-            source,
-        })?;
-    let host_token = super::policy::desktop_host_token(&secret);
-    let servers = super::policy::mcp_entries(mcp.loopback, mcp.registry).map_err(|source| {
-        super::MdmError::Io {
-            action: "resolve managed MCP servers",
-            path: std::path::PathBuf::new(),
-            source,
-        }
-    })?;
-    let existing_models = crate::gateway::desktop_catalog::models()?;
-    let policy = super::policy::claude_desktop_policy(&super::policy::PolicyInputs {
-        base_url: gateway,
-        host_token: &host_token,
-        models: existing_models,
-        headers: &std::collections::BTreeMap::new(),
-        egress_allowed_hosts: mcp.egress_allowed_hosts,
-        org_uuid: crate::config::load()?
-            .deployment_organization_uuid
-            .as_ref()
-            .map(crate::ids::DeploymentOrganizationUuid::as_str),
-        mcp_servers: servers.as_deref(),
-    })?;
-    Ok(super::policy::plist_body(&policy, indent))
+fn policy_body(mcp: &MdmPayloadInputs<'_>, indent: &str) -> Result<String, super::MdmError> {
+    Ok(super::policy::plist_body(
+        &super::desktop_policy_entries(mcp)?,
+        indent,
+    ))
 }
 
-pub fn build_prefs_plist(
-    mcp: &MdmPayloadInputs<'_>,
-    gateway: &str,
-) -> Result<String, super::MdmError> {
-    Ok(PREFS_PLIST_TMPL.replace("{policy_body}", &policy_body(mcp, gateway, "  ")?))
+pub fn build_prefs_plist(mcp: &MdmPayloadInputs<'_>) -> Result<String, super::MdmError> {
+    Ok(PREFS_PLIST_TMPL.replace("{policy_body}", &policy_body(mcp, "  ")?))
 }
 
 #[expect(
@@ -78,7 +45,6 @@ pub fn build_bridge_prefs_plist(pubkey: &str) -> Result<String, super::MdmError>
 )]
 pub fn build_mobileconfig(
     mcp: &MdmPayloadInputs<'_>,
-    gateway: &str,
     pubkey: Option<&str>,
 ) -> Result<String, super::MdmError> {
     let bridge_payload = pubkey
@@ -104,6 +70,6 @@ pub fn build_mobileconfig(
         .replace("{outer_payload_identifier}", PAYLOAD_IDENTIFIER)
         .replace("{inner_uuid}", &xml::stable_uuid(INNER_PAYLOAD_IDENTIFIER))
         .replace("{outer_uuid}", &xml::stable_uuid(PAYLOAD_IDENTIFIER))
-        .replace("{policy_body}", &policy_body(mcp, gateway, "      ")?)
+        .replace("{policy_body}", &policy_body(mcp, "      ")?)
         .replace("{bridge_payload}", &bridge_payload))
 }

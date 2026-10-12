@@ -43,26 +43,27 @@ pub(super) fn read_config() -> DomainRead {
     if let Some(read) = read_macos_managed() {
         return read;
     }
-    for path in [config::managed_config_path(), config::user_config_path()] {
-        let source = path.display().to_string();
-        match std::fs::read_to_string(&path) {
-            Ok(text) => return parse_into_keys(&text, &source),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
-            Err(e) => return DomainRead::unreadable(&source, &e),
-        }
+    let path = config::managed_config_path();
+    let source = path.display().to_string();
+    match std::fs::read_to_string(&path) {
+        Ok(text) => parse_into_keys(&text, &source),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => DomainRead::default(),
+        Err(e) => DomainRead::unreadable(&source, &e),
     }
-    DomainRead::default()
 }
 
-fn parse_into_keys(text: &str, source: &str) -> DomainRead {
-    let value: toml::Value = match toml::from_str(text) {
-        Ok(value) => value,
-        Err(e) => return DomainRead::unreadable(source, &e),
-    };
+pub(super) fn parse_into_keys(text: &str, source: &str) -> DomainRead {
+    match toml::from_str(text) {
+        Ok(value) => keys_of(&value, source),
+        Err(e) => DomainRead::unreadable(source, &e),
+    }
+}
+
+pub(super) fn keys_of(value: &toml::Value, source: &str) -> DomainRead {
     DomainRead::collect(
         source,
         KEYS_OF_INTEREST,
-        |dotted| lookup_dotted(&value, dotted),
+        |dotted| lookup_dotted(value, dotted),
         config::redact_if_sensitive,
     )
 }

@@ -5,7 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+
 use super::types::{AppStateSnapshot, GatewayStatus};
+use crate::integration::agent_health::{AgentAction, AgentState};
 use crate::verdict::{Tone, Verdict};
 pub use crate::wire::codes::{GatewayCode, HealthCode, IdentityCode, OverallCode, TokenCode};
 
@@ -81,13 +83,14 @@ impl AppStateSnapshot {
             return Verdict::new(Tone::Err, OverallCode::Offline);
         }
         if self.signed_in() {
-            // Why: a sync that applied everywhere except a host whose write
-            // needs an administrator is not "synced with failures" — it is one
-            // approval short, and the badge says which gesture is missing.
-            if self.last_sync_needs_approval() {
+            let verdicts = crate::gui::hosts::serde::host_verdicts(self);
+            if verdicts
+                .iter()
+                .any(|(_, v)| v.action == Some(AgentAction::UpdateAdmin))
+            {
                 return Verdict::new(Tone::Warn, OverallCode::NeedsApproval);
             }
-            if self.last_sync_degraded() {
+            if self.sync_left_failures() {
                 return Verdict::new(Tone::Warn, OverallCode::Degraded);
             }
             return if self.last_sync_summary.is_some() {
@@ -110,20 +113,18 @@ impl AppStateSnapshot {
         }
     }
 
-    #[must_use]
-    pub fn last_sync_needs_approval(&self) -> bool {
-        self.last_sync_report.as_ref().is_some_and(|sync| {
-            sync.malformed.is_empty()
-                && !sync.host_failures.is_empty()
-                && sync.host_failures.iter().all(|f| f.needs_elevation)
-        })
-    }
-
-    #[must_use]
-    pub fn last_sync_degraded(&self) -> bool {
-        self.last_sync_report
-            .as_ref()
-            .is_some_and(|sync| !sync.host_failures.is_empty() || !sync.malformed.is_empty())
+    // Why: a failed step the probe observes is judged by the probe (a later
+    // repair clears it, a remaining one is drift on the row); every other
+    // failure degrades the sync whatever that agent's row currently shows.
+    fn sync_left_failures(&self) -> bool {
+        let Some(sync) = &self.last_sync_report else {
+            return false;
+        };
+        !sync.malformed.is_empty()
+            || sync.host_failures.iter().any(|f| {
+                !crate::integration::find_host_by_id(f.host_id)
+                    .is_some_and(|host| host.probe_observes(&f.emitter, f.needs_elevation))
+            })
     }
 
     #[must_use]
@@ -141,13 +142,20 @@ impl AppStateSnapshot {
         if self.malformed_plugin_count.is_some_and(|n| n > 0) {
             tones.push(Tone::Err);
         }
-        if let Some(sync) = &self.last_sync_report {
-            if !sync.host_failures.is_empty() {
-                tones.push(Tone::Err);
-            }
-            if !sync.diagnostics.is_empty() || !sync.host_warnings.is_empty() {
-                tones.push(Tone::Warn);
-            }
+        let verdicts = crate::gui::hosts::serde::host_verdicts(self);
+        if self.sync_left_failures() {
+            tones.push(Tone::Err);
+        }
+        if verdicts
+            .iter()
+            .any(|(_, v)| v.state == AgentState::Attention)
+        {
+            tones.push(Tone::Warn);
+        }
+        if let Some(sync) = &self.last_sync_report
+            && (!sync.diagnostics.is_empty() || !sync.host_warnings.is_empty())
+        {
+            tones.push(Tone::Warn);
         }
         if tones.is_empty() {
             return Verdict::new(Tone::Unknown, HealthCode::NotChecked);

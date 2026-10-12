@@ -32,6 +32,9 @@ pub fn managed_settings_path() -> Option<PathBuf> {
     if adopts_machine_policy(&system) {
         return Some(system);
     }
+    if let Some(dir) = crate::config::paths::claude_config_dir_override() {
+        return Some(dir.join("settings.json"));
+    }
     Some(
         crate::basedirs::home_dir()?
             .join(".claude")

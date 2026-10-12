@@ -1,4 +1,5 @@
-// The OpenCode hooks plugin, loaded the way OpenCode loads it.
+// The OpenCode hooks plugin, loaded the way OpenCode 2.x loads it: a default
+// export `{ id, setup(ctx) }`, driven here through a fake plugin context.
 //
 // This file exists because the template shipped for three weeks with a stray
 // closing block that OpenCode rejected at load time ("Unexpected }"), so no
@@ -45,23 +46,71 @@ function captureFetch() {
   return calls;
 }
 
-test("the rendered plugin is a module OpenCode can load", async () => {
+function fakeContext() {
+  const hooks = {};
+  const register = (domain) => async (name, callback) => {
+    hooks[`${domain}.${name}`] = callback;
+    return { dispose: async () => delete hooks[`${domain}.${name}`] };
+  };
+  const queue = [];
+  let wake = null;
+  let closed = false;
+  const events = {
+    subscribe: () => ({
+      [Symbol.asyncIterator]: () => ({
+        next: async () => {
+          while (!queue.length && !closed) await new Promise((r) => (wake = r));
+          return queue.length ? { done: false, value: queue.shift() } : { done: true };
+        },
+        return: async () => {
+          closed = true;
+          if (wake) wake();
+          return { done: true };
+        },
+      }),
+    }),
+  };
+  const emit = async (event) => {
+    queue.push(event);
+    if (wake) wake();
+    await new Promise((r) => setTimeout(r, 10));
+  };
+  const ctx = { session: { hook: register("session") }, tool: { hook: register("tool") }, event: events };
+  return { ctx, hooks, emit };
+}
+
+async function loaded() {
   const mod = await renderedPlugin();
-  assert.equal(typeof mod.SystempromptHooks, "function");
-  const hooks = await mod.SystempromptHooks({ directory: "/work" });
-  for (const name of ["event", "chat.headers", "chat.params", "chat.message", "tool.execute.after"]) {
-    assert.equal(typeof hooks[name], "function", `${name} is a hook`);
+  const fake = fakeContext();
+  const cleanup = await mod.default.setup(fake.ctx);
+  return { ...fake, cleanup };
+}
+
+test("the rendered plugin is a module OpenCode 2.x can load", async () => {
+  const mod = await renderedPlugin();
+  assert.equal(typeof mod.default.id, "string");
+  assert.equal(typeof mod.default.setup, "function");
+  const { hooks, cleanup } = await loaded();
+  for (const name of ["session.http.request", "session.context", "tool.execute.after"]) {
+    assert.equal(typeof hooks[name], "function", `${name} is registered`);
   }
+  await cleanup();
+  assert.deepEqual(Object.keys(hooks), [], "cleanup disposes every hook");
 });
 
 test("a skill run posts PostToolUse with the mapped skill reference", async () => {
   const calls = captureFetch();
-  const { SystempromptHooks } = await renderedPlugin();
-  const hooks = await SystempromptHooks({ directory: "/work" });
-  await hooks["tool.execute.after"](
-    { tool: "skill", args: { name: "deep-research" }, sessionID: "ses_abc", callID: "call_1" },
-    { title: "deep-research", output: "done", metadata: {} },
-  );
+  const { hooks, cleanup } = await loaded();
+  await hooks["tool.execute.after"]({
+    tool: "skill",
+    input: { name: "deep-research" },
+    sessionID: "ses_abc",
+    messageID: "msg_1",
+    id: "call_1",
+    status: "completed",
+    result: { title: "deep-research", output: "done", metadata: {} },
+  });
+  await cleanup();
   assert.equal(calls.length, 1);
   const { url, init, body } = calls[0];
   assert.equal(url, TRACK_URL);
@@ -77,36 +126,48 @@ test("a skill run posts PostToolUse with the mapped skill reference", async () =
   assert.equal(body.tool_response.output, "done");
 });
 
-test("an unmapped skill and an ordinary tool are both reported", async () => {
+test("an unmapped skill, an ordinary tool and a failed tool are all reported", async () => {
   const calls = captureFetch();
-  const { SystempromptHooks } = await renderedPlugin();
-  const hooks = await SystempromptHooks({ directory: "/work" });
-  await hooks["tool.execute.after"](
-    { tool: "skill", args: { name: "local-only" }, sessionID: "ses_abc", callID: "call_2" },
-    { output: "" },
-  );
-  await hooks["tool.execute.after"](
-    { tool: "bash", args: { command: "ls" }, sessionID: "ses_abc", callID: "call_3" },
-    { output: "a\nb" },
-  );
+  const { hooks, cleanup } = await loaded();
+  const after = hooks["tool.execute.after"];
+  await after({ tool: "skill", input: { name: "local-only" }, sessionID: "ses_abc", id: "call_2", status: "completed", result: { output: "" } });
+  await after({ tool: "bash", input: { command: "ls" }, sessionID: "ses_abc", id: "call_3", status: "completed", result: { output: "a\nb" } });
+  await after({ tool: "bash", input: { command: "false" }, sessionID: "ses_abc", id: "call_4", status: "error", error: { message: "exit 1" } });
+  await cleanup();
   assert.equal(calls[0].body.skill_ref, "opencode:local-only");
   assert.equal(calls[1].body.tool_name, "bash");
   assert.deepEqual(calls[1].body.tool_input, { command: "ls" });
+  assert.equal(calls[1].body.tool_response.output, "a\nb");
   assert.equal(calls[1].body.skill_ref, undefined);
+  assert.equal(calls[2].body.tool_response.output, "exit 1");
 });
 
-test("chat headers carry the same v5 session id the lifecycle events use", async () => {
+test("a prompt is reported once however many model steps it spans", async () => {
   const calls = captureFetch();
-  const { SystempromptHooks } = await renderedPlugin();
-  const hooks = await SystempromptHooks({ directory: "/work" });
-  const output = { headers: {} };
-  await hooks["chat.headers"]({ sessionID: "ses_abc" }, output);
-  const linked = output.headers["x-opencode-session"];
-  assert.match(linked, UUID_V5);
-  await hooks.event({ event: { type: "session.created", properties: { sessionID: "ses_abc" } } });
+  const { hooks, cleanup } = await loaded();
+  const messages = [{ id: "msg_u1", role: "user", content: [{ type: "text", text: "hello" }] }];
+  await hooks["session.context"]({ sessionID: "ses_abc", messages });
+  await hooks["session.context"]({ sessionID: "ses_abc", messages: [...messages, { role: "assistant", content: "hi" }] });
+  await cleanup();
   assert.equal(calls.length, 1);
+  assert.equal(calls[0].body.hook_event_name, "UserPromptSubmit");
+  assert.equal(calls[0].body.prompt, "hello");
+  assert.equal(calls[0].body.prompt_id, "msg_u1");
+});
+
+test("chat requests carry the same v5 session id the lifecycle events use", async () => {
+  const calls = captureFetch();
+  const { hooks, emit, cleanup } = await loaded();
+  const input = { sessionID: "ses_abc", request: new Request("http://127.0.0.1/v1/chat/completions", { method: "POST", headers: { a: "b" } }) };
+  await hooks["session.http.request"](input);
+  const linked = input.request.headers.get("x-opencode-session");
+  assert.match(linked, UUID_V5);
+  assert.equal(input.request.headers.get("a"), "b", "existing headers are kept");
+  await emit({ id: "evt_1", type: "session.created", data: { sessionID: "ses_abc", location: { directory: "/work" } } });
+  await emit({ id: "evt_2", type: "session.text.delta", data: { sessionID: "ses_abc" } });
+  await cleanup();
+  assert.equal(calls.length, 1, "non-lifecycle events are not reported");
   assert.equal(calls[0].body.hook_event_name, "SessionStart");
   assert.equal(calls[0].body.session_id, linked);
-  await hooks.event({ event: { type: "message.updated", properties: {} } });
-  assert.equal(calls.length, 1, "non-lifecycle events are not reported");
+  assert.equal(calls[0].body.cwd, "/work");
 });
