@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use rmcp::ServiceExt;
 use rmcp::model::{
     CallToolRequestParams, ClientCapabilities, ClientConfig, ContentBlock, Implementation,
+    ProtocolVersion,
 };
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -52,7 +53,8 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
     let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
     let client = timeout(
         Duration::from_secs(timeout_secs),
@@ -95,7 +97,8 @@ pub async fn list_available_tools(
     let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
     let client = timeout(
         Duration::from_secs(timeout_secs),
