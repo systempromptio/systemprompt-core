@@ -6,6 +6,7 @@
 use crate::models::TaskRow;
 use crate::models::a2a::{Message, MessageRole, Part, TaskState};
 use crate::models::database_rows::TaskMessage;
+use crate::repository::parts::metadata_object;
 use systemprompt_models::a2a::TaskMetadata;
 use systemprompt_models::errors::ParseEnumError;
 use systemprompt_traits::RepositoryError;
@@ -23,13 +24,11 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
             .collect()
     });
 
-    let mut final_metadata = row.metadata.unwrap_or_else(|| serde_json::json!({}));
-    if let Some(client_id) = &row.client_message_id
-        && let Some(obj) = final_metadata.as_object_mut()
-    {
-        obj.insert(
+    let mut final_metadata = metadata_object(row.metadata).unwrap_or_default();
+    if let Some(client_id) = row.client_message_id {
+        final_metadata.insert(
             "clientMessageId".to_owned(),
-            serde_json::Value::String(client_id.clone()),
+            serde_json::Value::String(client_id),
         );
     }
 
@@ -44,11 +43,7 @@ pub(super) fn message_from_row(row: TaskMessage, parts: Vec<Part>) -> Message {
         message_id: row.message_id,
         task_id: Some(row.task_id),
         context_id: row.context_id,
-        metadata: if final_metadata == serde_json::json!({}) {
-            None
-        } else {
-            Some(final_metadata)
-        },
+        metadata: (!final_metadata.is_empty()).then_some(final_metadata),
         extensions: None,
         reference_task_ids,
     }

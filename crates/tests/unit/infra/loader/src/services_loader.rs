@@ -503,7 +503,6 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills:
@@ -511,7 +510,6 @@ agents:
           name: General Assistance
           description: General help
           tags: [help]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       mcpServers: { include: [fixture_mcp] }
       skills: { include: [general_assistance] }

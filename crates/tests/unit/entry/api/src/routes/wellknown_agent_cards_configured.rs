@@ -28,10 +28,8 @@ const SERVICES: &str = r#"agents:
       capabilities:
         streaming: true
         pushNotifications: true
-        stateTransitionHistory: true
       defaultInputModes: [text/plain]
       defaultOutputModes: [application/json]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: Follow configured policy.
       mcpServers:

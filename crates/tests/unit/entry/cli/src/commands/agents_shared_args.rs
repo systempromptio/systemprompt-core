@@ -102,9 +102,9 @@ fn each_field_alone_is_detected() {
             },
         ),
         (
-            "state_transition_history",
+            "extended_agent_card",
             AgentArgs {
-                state_transition_history: Some(false),
+                extended_agent_card: Some(false),
                 ..Default::default()
             },
         ),
@@ -173,7 +173,7 @@ fn false_valued_options_still_count_as_supplied() {
     let args = AgentArgs {
         streaming: Some(false),
         push_notifications: Some(false),
-        state_transition_history: Some(false),
+        extended_agent_card: Some(false),
         ..Default::default()
     };
     assert!(args.has_any_value());

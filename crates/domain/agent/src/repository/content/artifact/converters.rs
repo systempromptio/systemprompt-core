@@ -91,8 +91,7 @@ struct StoredArtifactMetadata {
     mcp_schema: Option<serde_json::Value>,
     is_internal: Option<bool>,
     execution_index: Option<usize>,
-    // JSON: A2A artifact extensions — open extension objects.
-    artifact_extensions: Vec<serde_json::Value>,
+    artifact_extensions: Vec<String>,
 }
 
 // JSON: JSONB artifact `metadata` column — open A2A metadata object.
@@ -116,7 +115,20 @@ fn stored_metadata(metadata: &serde_json::Value) -> StoredArtifactMetadata {
         artifact_extensions: metadata
             .get("artifact_extensions")
             .and_then(serde_json::Value::as_array)
-            .cloned()
+            .map(|items| items.iter().filter_map(stored_extension_uri).collect())
             .unwrap_or_default(),
+    }
+}
+
+// JSON: stored artifact extensions are URI strings; rows written before A2A 1.0
+// may hold `{"uri": ...}` objects, read one-way.
+fn stored_extension_uri(item: &serde_json::Value) -> Option<String> {
+    match item {
+        serde_json::Value::String(uri) => Some(uri.clone()),
+        serde_json::Value::Object(obj) => obj
+            .get("uri")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+        _ => None,
     }
 }

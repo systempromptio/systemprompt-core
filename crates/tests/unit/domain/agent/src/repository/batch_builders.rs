@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use systemprompt_agent::models::a2a::{MessageRole, Part};
+use systemprompt_agent::models::a2a::MessageRole;
 use systemprompt_agent::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
@@ -239,9 +239,9 @@ fn build_artifacts_assembles_metadata_and_parts() {
         Some(serde_json::json!({"kind": "markdown"}))
     );
     assert_eq!(artifact.parts.len(), 3);
-    assert!(matches!(artifact.parts[0], Part::Text(_)));
-    assert!(matches!(artifact.parts[1], Part::File(_)));
-    assert!(matches!(artifact.parts[2], Part::Data(_)));
+    assert!(artifact.parts[0].as_text().is_some());
+    assert!(artifact.parts[1].is_file());
+    assert!(artifact.parts[2].as_data().is_some());
     assert!(artifact.extensions.is_empty());
 }
 

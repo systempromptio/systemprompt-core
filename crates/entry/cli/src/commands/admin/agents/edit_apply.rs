@@ -27,7 +27,7 @@ fn edit_request(args: &EditArgs) -> AgentEditRequest {
         documentation_url: args.agent.documentation_url.clone(),
         streaming: args.agent.streaming,
         push_notifications: args.agent.push_notifications,
-        state_transition_history: args.agent.state_transition_history,
+        extended_agent_card: args.agent.extended_agent_card,
         provider: args.agent.provider.clone(),
         model: args.agent.model.clone(),
         system_prompt: args.agent.system_prompt.clone(),

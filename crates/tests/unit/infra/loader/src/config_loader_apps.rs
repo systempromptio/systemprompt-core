@@ -229,11 +229,9 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: "!include prompt.md"
     oauth: {required: false, scopes: [], audience: a2a}

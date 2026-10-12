@@ -1,7 +1,5 @@
 use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
-use systemprompt_agent::models::a2a::{
-    DataPart, FileContent, FilePart, Message, MessageRole, Part, TaskState, TextPart,
-};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::UpdateTaskAndSaveMessagesParams;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, TraceId, UserId};
@@ -64,17 +62,13 @@ async fn text_part_roundtrip() {
         MessageRole::User,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "question".to_owned(),
-        })],
+        vec![Part::text("question")],
     );
     let agent_msg = msg_with_parts(
         MessageRole::Agent,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "answer".to_owned(),
-        })],
+        vec![Part::text("answer")],
     );
     save_pair(
         &pool,
@@ -93,10 +87,8 @@ async fn text_part_roundtrip() {
         .await
         .expect("parts");
     assert_eq!(parts.len(), 1);
-    match &parts[0] {
-        Part::Text(t) => assert_eq!(t.text, "question"),
-        other => panic!("expected text, got {other:?}"),
-    }
+    let part = &parts[0];
+    assert_eq!(part.as_text(), Some("question"), "{part:?}");
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -108,22 +100,13 @@ async fn file_part_roundtrip() {
     let (user_id, session_id) = seed_user_and_session(&pool).await;
     let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
 
-    let file_part = Part::File(FilePart {
-        file: FileContent {
-            name: Some("report.txt".to_owned()),
-            mime_type: Some("text/plain".to_owned()),
-            bytes: Some("aGVsbG8=".to_owned()),
-            url: None,
-        },
-    });
+    let file_part = Part::raw("aGVsbG8=", "text/plain").with_filename("report.txt");
     let user_msg = msg_with_parts(MessageRole::User, &context_id, &task_id, vec![file_part]);
     let agent_msg = msg_with_parts(
         MessageRole::Agent,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "ok".to_owned(),
-        })],
+        vec![Part::text("ok")],
     );
     save_pair(
         &pool,
@@ -142,14 +125,10 @@ async fn file_part_roundtrip() {
         .await
         .expect("parts");
     assert_eq!(parts.len(), 1);
-    match &parts[0] {
-        Part::File(f) => {
-            assert_eq!(f.file.name.as_deref(), Some("report.txt"));
-            assert_eq!(f.file.mime_type.as_deref(), Some("text/plain"));
-            assert_eq!(f.file.bytes.as_deref(), Some("aGVsbG8="));
-        },
-        other => panic!("expected file, got {other:?}"),
-    }
+    let part = &parts[0];
+    assert_eq!(part.filename.as_deref(), Some("report.txt"));
+    assert_eq!(part.media_type.as_deref(), Some("text/plain"));
+    assert_eq!(part.as_raw(), Some("aGVsbG8="));
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -164,15 +143,13 @@ async fn data_part_roundtrip() {
     let mut map = serde_json::Map::new();
     map.insert("answer".to_owned(), serde_json::json!(42));
     map.insert("ok".to_owned(), serde_json::json!(true));
-    let data_part = Part::Data(DataPart { data: map });
+    let data_part = Part::data(serde_json::Value::Object(map));
 
     let user_msg = msg_with_parts(
         MessageRole::User,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "compute".to_owned(),
-        })],
+        vec![Part::text("compute")],
     );
     let agent_msg = msg_with_parts(MessageRole::Agent, &context_id, &task_id, vec![data_part]);
     save_pair(
@@ -192,13 +169,10 @@ async fn data_part_roundtrip() {
         .await
         .expect("parts");
     assert_eq!(parts.len(), 1);
-    match &parts[0] {
-        Part::Data(d) => {
-            assert_eq!(d.data.get("answer"), Some(&serde_json::json!(42)));
-            assert_eq!(d.data.get("ok"), Some(&serde_json::json!(true)));
-        },
-        other => panic!("expected data, got {other:?}"),
-    }
+    let part = &parts[0];
+    let data = part.as_data().expect("data part");
+    assert_eq!(data.get("answer"), Some(&serde_json::json!(42)));
+    assert_eq!(data.get("ok"), Some(&serde_json::json!(true)));
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -213,27 +187,16 @@ async fn mixed_parts_preserve_order() {
     let mut map = serde_json::Map::new();
     map.insert("k".to_owned(), serde_json::json!("v"));
     let parts = vec![
-        Part::Text(TextPart {
-            text: "first".to_owned(),
-        }),
-        Part::File(FilePart {
-            file: FileContent {
-                name: Some("f".to_owned()),
-                mime_type: Some("text/plain".to_owned()),
-                bytes: Some("ZGF0YQ==".to_owned()),
-                url: None,
-            },
-        }),
-        Part::Data(DataPart { data: map }),
+        Part::text("first"),
+        Part::raw("ZGF0YQ==", "text/plain").with_filename("f"),
+        Part::data(serde_json::Value::Object(map)),
     ];
     let agent_msg = msg_with_parts(MessageRole::Agent, &context_id, &task_id, parts);
     let user_msg = msg_with_parts(
         MessageRole::User,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "u".to_owned(),
-        })],
+        vec![Part::text("u")],
     );
     save_pair(
         &pool,
@@ -252,9 +215,9 @@ async fn mixed_parts_preserve_order() {
         .await
         .expect("parts");
     assert_eq!(read.len(), 3);
-    assert!(matches!(read[0], Part::Text(_)));
-    assert!(matches!(read[1], Part::File(_)));
-    assert!(matches!(read[2], Part::Data(_)));
+    assert!(read[0].as_text().is_some());
+    assert!(read[1].is_file());
+    assert!(read[2].as_data().is_some());
 
     r.tasks.delete_task(&task_id).await.ok();
 }

@@ -170,7 +170,7 @@ fn formatted_config_renders_only_present_sections_in_order() {
 #[test]
 fn agents_section_lists_port_endpoint_and_display_name() {
     let agent: AgentConfig = serde_yaml::from_str(
-        "name: helper\nport: 9001\nendpoint: /a2a\nenabled: true\ndev_only: false\nis_primary: false\ndefault: false\ntags: []\ncard:\n  protocolVersion: '1.0'\n  displayName: Helper Agent\n  description: Helps\n  version: 1.0.0\n  preferredTransport: JSONRPC\n  capabilities: {}\n  defaultInputModes: [text/plain]\n  defaultOutputModes: [text/plain]\n  supportsAuthenticatedExtendedCard: false\nmetadata: {}\noauth: {}\n",
+        "name: helper\nport: 9001\nendpoint: /a2a\nenabled: true\ndev_only: false\nis_primary: false\ndefault: false\ntags: []\ncard:\n  protocolVersion: '1.0'\n  displayName: Helper Agent\n  description: Helps\n  version: 1.0.0\n  preferredTransport: JSONRPC\n  capabilities: {}\n  defaultInputModes: [text/plain]\n  defaultOutputModes: [text/plain]\nmetadata: {}\noauth: {}\n",
     )
     .unwrap();
     let mut agents = HashMap::new();

@@ -328,12 +328,10 @@ const EXTRA_AGENT_TEMPLATE: &str = r#"agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes:
       - text/plain
       defaultOutputModes:
       - text/plain
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: You are a fixture agent.
       mcpServers:
@@ -374,12 +372,10 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes:
       - text/plain
       defaultOutputModes:
       - text/plain
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: You are a fixture agent.
       mcpServers:

@@ -1,5 +1,5 @@
 use super::{make_task, repos, seed_context_and_task, seed_user_and_session};
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::task::{RepoCreateTaskParams, UpdateTaskAndSaveMessagesParams};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId, TraceId, UserId};
@@ -8,7 +8,6 @@ use systemprompt_test_fixtures::test_db_pool;
 #[test]
 fn task_state_as_str_is_the_stored_and_wire_form_of_every_variant() {
     let cases = [
-        (TaskState::Pending, "TASK_STATE_PENDING"),
         (TaskState::Submitted, "TASK_STATE_SUBMITTED"),
         (TaskState::Working, "TASK_STATE_WORKING"),
         (TaskState::InputRequired, "TASK_STATE_INPUT_REQUIRED"),
@@ -17,7 +16,6 @@ fn task_state_as_str_is_the_stored_and_wire_form_of_every_variant() {
         (TaskState::Failed, "TASK_STATE_FAILED"),
         (TaskState::Rejected, "TASK_STATE_REJECTED"),
         (TaskState::AuthRequired, "TASK_STATE_AUTH_REQUIRED"),
-        (TaskState::Unknown, "TASK_STATE_UNKNOWN"),
     ];
     for (state, stored) in cases {
         assert_eq!(state.as_str(), stored);
@@ -38,9 +36,7 @@ fn make_message(
 ) -> Message {
     Message {
         role,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text.to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),

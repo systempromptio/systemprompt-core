@@ -70,8 +70,11 @@ pub struct AgentArgs {
     #[arg(long, help = "Enable push notifications capability")]
     pub push_notifications: Option<bool>,
 
-    #[arg(long, help = "Enable state transition history (default: true)")]
-    pub state_transition_history: Option<bool>,
+    #[arg(
+        long,
+        help = "Advertise an authenticated extended agent card (default: false)"
+    )]
+    pub extended_agent_card: Option<bool>,
 
     #[arg(long, help = "AI provider (e.g., anthropic, openai, gemini)")]
     pub provider: Option<String>,
@@ -112,7 +115,7 @@ impl AgentArgs {
             || self.documentation_url.is_some()
             || self.streaming.is_some()
             || self.push_notifications.is_some()
-            || self.state_transition_history.is_some()
+            || self.extended_agent_card.is_some()
             || self.provider.is_some()
             || self.model.is_some()
             || self.system_prompt.is_some()

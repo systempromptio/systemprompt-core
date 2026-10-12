@@ -10,7 +10,7 @@ LANGUAGE plpgsql STABLE AS $$
 BEGIN
     RETURN QUERY
     SELECT t.trace_id, MIN(t.created_at), MAX(t.created_at), COUNT(*),
-           bool_or(t.status IN ('TASK_STATE_PENDING', 'TASK_STATE_SUBMITTED', 'TASK_STATE_WORKING',
+           bool_or(t.status IN ('TASK_STATE_SUBMITTED', 'TASK_STATE_WORKING',
                                 'TASK_STATE_INPUT_REQUIRED', 'TASK_STATE_AUTH_REQUIRED')),
            bool_or(t.status IN ('TASK_STATE_FAILED', 'TASK_STATE_REJECTED')),
            bool_or(t.status = 'TASK_STATE_CANCELED'),

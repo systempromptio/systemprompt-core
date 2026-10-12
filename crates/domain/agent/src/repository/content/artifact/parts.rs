@@ -5,7 +5,7 @@
 
 use crate::models::ArtifactPartRow;
 use crate::models::a2a::Part;
-use crate::repository::parts::parts_from_rows;
+use crate::repository::parts::{parts_from_rows, row_values};
 use sqlx::PgPool;
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_traits::RepositoryError;
@@ -53,49 +53,24 @@ pub async fn persist_artifact_part(
 ) -> Result<(), RepositoryError> {
     let artifact_id_str = artifact_id.as_str();
     let context_id_str = context_id.as_str();
-    match part {
-        Part::Text(text_part) => {
-            sqlx::query!(
-                r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, text_content)
-                VALUES ($1, $2, 'text', $3, $4)"#,
-                artifact_id_str,
-                context_id_str,
-                sequence_number,
-                text_part.text
-            )
-            .execute(pool)
-            .await?;
-        },
-        Part::File(file_part) => {
-            sqlx::query!(
-                r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, file_name, file_mime_type, file_uri, file_bytes)
-                VALUES ($1, $2, 'file', $3, $4, $5, $6, $7)"#,
-                artifact_id_str,
-                context_id_str,
-                sequence_number,
-                file_part.file.name,
-                file_part.file.mime_type,
-                file_part.file.url.as_deref(),
-                file_part.file.bytes.as_deref()
-            )
-            .execute(pool)
-            .await?;
-        },
-        Part::Data(data_part) => {
-            let data_json =
-                serde_json::to_value(&data_part.data).map_err(RepositoryError::Serialization)?;
-            sqlx::query!(
-                r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, data_content)
-                VALUES ($1, $2, 'data', $3, $4)"#,
-                artifact_id_str,
-                context_id_str,
-                sequence_number,
-                data_json
-            )
-            .execute(pool)
-            .await?;
-        },
-    }
+    let values = row_values(part);
+    sqlx::query!(
+        r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, text_content, file_name, file_mime_type, file_uri, file_bytes, data_content, metadata)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, '{}'::jsonb))"#,
+        artifact_id_str,
+        context_id_str,
+        values.part_kind,
+        sequence_number,
+        values.text_content,
+        values.file_name,
+        values.file_mime_type,
+        values.file_uri,
+        values.file_bytes,
+        values.data_content,
+        values.metadata
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }

@@ -6,6 +6,7 @@
 
 use std::collections::HashMap;
 
+use serde::de::IgnoredAny;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_models::a2a::SecurityScheme;
@@ -14,7 +15,7 @@ use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::plugin::PluginComponentRef;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", try_from = "AgentCardConfigWire")]
 pub struct AgentCardConfig {
     pub protocol_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,9 +40,82 @@ pub struct AgentCardConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_schemes: Option<HashMap<String, SecurityScheme>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<HashMap<String, Vec<String>>>>,
+    pub security_requirements: Option<Vec<HashMap<String, Vec<String>>>>,
+}
+
+#[derive(Debug, thiserror::Error, Clone, Copy, PartialEq, Eq)]
+#[error("agent card key `{retired}` was removed in A2A 1.0; use `{replacement}`")]
+pub struct RetiredCardKeyError {
+    pub retired: &'static str,
+    pub replacement: &'static str,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AgentCardConfigWire {
+    protocol_version: String,
     #[serde(default)]
-    pub supports_authenticated_extended_card: bool,
+    name: Option<String>,
+    display_name: String,
+    description: String,
+    version: String,
+    #[serde(default = "default_transport")]
+    preferred_transport: String,
+    #[serde(default)]
+    icon_url: Option<String>,
+    #[serde(default)]
+    documentation_url: Option<String>,
+    #[serde(default)]
+    provider: Option<AgentProviderInfo>,
+    #[serde(default)]
+    capabilities: CapabilitiesConfig,
+    #[serde(default = "default_input_modes")]
+    default_input_modes: Vec<String>,
+    #[serde(default = "default_output_modes")]
+    default_output_modes: Vec<String>,
+    #[serde(default)]
+    security_schemes: Option<HashMap<String, SecurityScheme>>,
+    #[serde(default)]
+    security_requirements: Option<Vec<HashMap<String, Vec<String>>>>,
+    #[serde(default)]
+    security: Option<IgnoredAny>,
+    #[serde(default)]
+    supports_authenticated_extended_card: Option<IgnoredAny>,
+}
+
+impl TryFrom<AgentCardConfigWire> for AgentCardConfig {
+    type Error = RetiredCardKeyError;
+
+    fn try_from(wire: AgentCardConfigWire) -> Result<Self, Self::Error> {
+        if wire.security.is_some() {
+            return Err(RetiredCardKeyError {
+                retired: "card.security",
+                replacement: "card.securityRequirements",
+            });
+        }
+        if wire.supports_authenticated_extended_card.is_some() {
+            return Err(RetiredCardKeyError {
+                retired: "card.supportsAuthenticatedExtendedCard",
+                replacement: "card.capabilities.extendedAgentCard",
+            });
+        }
+        Ok(Self {
+            protocol_version: wire.protocol_version,
+            name: wire.name,
+            display_name: wire.display_name,
+            description: wire.description,
+            version: wire.version,
+            preferred_transport: wire.preferred_transport,
+            icon_url: wire.icon_url,
+            documentation_url: wire.documentation_url,
+            provider: wire.provider,
+            capabilities: wire.capabilities,
+            default_input_modes: wire.default_input_modes,
+            default_output_modes: wire.default_output_modes,
+            security_schemes: wire.security_schemes,
+            security_requirements: wire.security_requirements,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,14 +125,42 @@ pub struct AgentProviderInfo {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", try_from = "CapabilitiesConfigWire")]
 pub struct CapabilitiesConfig {
-    #[serde(default = "default_true")]
     pub streaming: bool,
-    #[serde(default)]
     pub push_notifications: bool,
+    pub extended_agent_card: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CapabilitiesConfigWire {
     #[serde(default = "default_true")]
-    pub state_transition_history: bool,
+    streaming: bool,
+    #[serde(default)]
+    push_notifications: bool,
+    #[serde(default)]
+    extended_agent_card: bool,
+    #[serde(default)]
+    state_transition_history: Option<IgnoredAny>,
+}
+
+impl TryFrom<CapabilitiesConfigWire> for CapabilitiesConfig {
+    type Error = RetiredCardKeyError;
+
+    fn try_from(wire: CapabilitiesConfigWire) -> Result<Self, Self::Error> {
+        if wire.state_transition_history.is_some() {
+            return Err(RetiredCardKeyError {
+                retired: "card.capabilities.stateTransitionHistory",
+                replacement: "nothing: A2A 1.0 always records task history; delete the key",
+            });
+        }
+        Ok(Self {
+            streaming: wire.streaming,
+            push_notifications: wire.push_notifications,
+            extended_agent_card: wire.extended_agent_card,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -100,7 +202,7 @@ impl Default for CapabilitiesConfig {
         Self {
             streaming: true,
             push_notifications: false,
-            state_transition_history: true,
+            extended_agent_card: false,
         }
     }
 }

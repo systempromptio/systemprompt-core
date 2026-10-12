@@ -26,12 +26,10 @@ fn agent_yaml(name: &str, port: u16, display: &str, enabled: bool) -> String {
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes:
       - text/plain
       defaultOutputModes:
       - text/plain
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: You are a fixture agent.
       mcpServers:

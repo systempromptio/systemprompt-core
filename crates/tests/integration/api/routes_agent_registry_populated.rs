@@ -136,10 +136,9 @@ const TWO_AGENTS: &str = r#"agents:
       description: Secondary registry fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      capabilities: { streaming: true, pushNotifications: false }
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: Secondary.
       mcpServers: { source: explicit }
@@ -162,10 +161,9 @@ const TWO_AGENTS: &str = r#"agents:
       description: Default registry fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      capabilities: { streaming: true, pushNotifications: false }
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: Default.
       mcpServers: { source: explicit, include: [fixture_tools] }

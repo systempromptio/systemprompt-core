@@ -13,10 +13,12 @@ pub mod protocol;
 
 pub use systemprompt_models::a2a::{
     AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
-    AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact, ArtifactMetadata,
-    McpServerMetadata, McpToolsParams, Message, MessageMetadata, MessageRole, OAuth2Flow,
-    OAuth2Flows, PROTOCOL_VERSION, Part, PartContent, ProtocolBinding, SecurityRequirement,
-    SecurityScheme, StringList, Task, TaskState, TaskStatus, VERSION_HEADER,
+    AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, ApiKeySecurityScheme, Artifact,
+    ArtifactMetadata, AuthorizationCodeOAuthFlow, ClientCredentialsOAuthFlow, DeviceCodeOAuthFlow,
+    HttpAuthSecurityScheme, McpServerMetadata, McpToolsParams, Message, MessageMetadata,
+    MessageRole, MutualTlsSecurityScheme, OAuth2SecurityScheme, OAuthFlows,
+    OpenIdConnectSecurityScheme, PROTOCOL_VERSION, Part, PartContent, ProtocolBinding,
+    SecurityRequirement, SecurityScheme, StringList, Task, TaskState, TaskStatus, VERSION_HEADER,
 };
 
 pub use protocol::{

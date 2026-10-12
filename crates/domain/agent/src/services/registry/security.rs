@@ -8,11 +8,14 @@
 use std::collections::HashMap;
 use systemprompt_manifest::AgentOAuthConfig;
 
-use crate::models::a2a::{OAuth2Flow, OAuth2Flows, SecurityScheme};
+use crate::models::a2a::{
+    AuthorizationCodeOAuthFlow, OAuth2SecurityScheme, OAuthFlows, SecurityRequirement,
+    SecurityScheme,
+};
 
 type SecurityConfig = (
     Option<HashMap<String, SecurityScheme>>,
-    Option<Vec<HashMap<String, Vec<String>>>>,
+    Option<Vec<SecurityRequirement>>,
 );
 
 pub fn oauth_to_security_config(
@@ -23,41 +26,57 @@ pub fn oauth_to_security_config(
         return (None, None);
     }
 
-    let flows = OAuth2Flows {
-        authorization_code: Some(OAuth2Flow {
-            authorization_url: Some(format!("{}/api/v1/core/oauth/authorize", api_external_url)),
-            token_url: Some(format!("{}/api/v1/core/oauth/token", api_external_url)),
-            refresh_url: Some(format!("{}/api/v1/core/oauth/token", api_external_url)),
-            scopes: oauth
-                .scopes
-                .iter()
-                .map(|s| (s.to_string(), format!("{} access", s)))
-                .collect(),
-        }),
-        implicit: None,
-        password: None,
-        client_credentials: None,
-    };
+    let flows = OAuthFlows::AuthorizationCode(AuthorizationCodeOAuthFlow {
+        authorization_url: format!("{api_external_url}/api/v1/core/oauth/authorize"),
+        token_url: format!("{api_external_url}/api/v1/core/oauth/token"),
+        refresh_url: Some(format!("{api_external_url}/api/v1/core/oauth/token")),
+        scopes: oauth
+            .scopes
+            .iter()
+            .map(|s| (s.to_string(), format!("{s} access")))
+            .collect(),
+        pkce_required: false,
+    });
 
-    let scheme = SecurityScheme::OAuth2 {
-        flows: Box::new(flows),
+    let scheme = SecurityScheme::OAuth2(OAuth2SecurityScheme {
         description: Some(format!(
             "OAuth 2.0 authentication for {} audience",
             oauth.audience
         )),
-    };
+        flows,
+        oauth2_metadata_url: None,
+    });
 
-    let mut schemes = HashMap::new();
-    schemes.insert("oauth2".to_owned(), scheme);
-
-    let mut requirement = HashMap::new();
-    requirement.insert(
-        "oauth2".to_owned(),
+    let schemes = HashMap::from([("oauth2".to_owned(), scheme)]);
+    let requirements = vec![SecurityRequirement::scheme(
+        "oauth2",
         oauth.scopes.iter().map(ToString::to_string).collect(),
-    );
-    let requirements = vec![requirement];
+    )];
 
     (Some(schemes), Some(requirements))
+}
+
+#[must_use]
+pub fn requirements_from_config(
+    requirements: &[HashMap<String, Vec<String>>],
+) -> Vec<SecurityRequirement> {
+    requirements
+        .iter()
+        .map(|requirement| {
+            let mut out = SecurityRequirement::default();
+            for (name, scopes) in requirement {
+                out.schemes
+                    .extend(SecurityRequirement::scheme(name.clone(), scopes.clone()).schemes);
+            }
+            out
+        })
+        .collect()
+}
+
+fn absolutize(url: &mut String, api_external_url: &str) {
+    if url.starts_with('/') {
+        *url = format!("{api_external_url}{url}");
+    }
 }
 
 #[expect(
@@ -65,31 +84,29 @@ pub fn oauth_to_security_config(
     reason = "concrete HashMap is the documented input type"
 )]
 pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
-    if let Some(SecurityScheme::OAuth2 { flows, .. }) = schemes.get_mut("oauth2")
-        && let Some(auth_code) = flows.authorization_code.as_mut()
-    {
-        auth_code.authorization_url = auth_code.authorization_url.as_ref().map(|url| {
-            if url.starts_with('/') {
-                format!("{api_external_url}{url}")
-            } else {
-                url.clone()
+    let Some(SecurityScheme::OAuth2(oauth2)) = schemes.get_mut("oauth2") else {
+        return;
+    };
+    match &mut oauth2.flows {
+        OAuthFlows::AuthorizationCode(flow) => {
+            absolutize(&mut flow.authorization_url, api_external_url);
+            absolutize(&mut flow.token_url, api_external_url);
+            if let Some(refresh) = flow.refresh_url.as_mut() {
+                absolutize(refresh, api_external_url);
             }
-        });
-
-        auth_code.token_url = auth_code.token_url.as_ref().map(|url| {
-            if url.starts_with('/') {
-                format!("{api_external_url}{url}")
-            } else {
-                url.clone()
+        },
+        OAuthFlows::ClientCredentials(flow) => {
+            absolutize(&mut flow.token_url, api_external_url);
+            if let Some(refresh) = flow.refresh_url.as_mut() {
+                absolutize(refresh, api_external_url);
             }
-        });
-
-        auth_code.refresh_url = auth_code.refresh_url.as_ref().map(|url| {
-            if url.starts_with('/') {
-                format!("{api_external_url}{url}")
-            } else {
-                url.clone()
+        },
+        OAuthFlows::DeviceCode(flow) => {
+            absolutize(&mut flow.device_authorization_url, api_external_url);
+            absolutize(&mut flow.token_url, api_external_url);
+            if let Some(refresh) = flow.refresh_url.as_mut() {
+                absolutize(refresh, api_external_url);
             }
-        });
+        },
     }
 }

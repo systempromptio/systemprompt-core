@@ -17,8 +17,8 @@ pub mod database_rows;
 pub mod runtime;
 
 pub use a2a::{
-    AgentCapabilities, AgentCard, AgentSkill, Artifact, DataPart, Message, Part, ProtocolBinding,
-    Task, TaskState, TaskStatus, TextPart,
+    AgentCapabilities, AgentCard, AgentSkill, Artifact, Message, Part, ProtocolBinding, Task,
+    TaskState, TaskStatus,
 };
 
 pub use agent_info::AgentInfo;

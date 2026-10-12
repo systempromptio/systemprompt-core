@@ -73,7 +73,7 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &SkillId) -> Result<Ag
         examples: config.examples,
         input_modes: config.input_modes,
         output_modes: config.output_modes,
-        security: None,
+        security_requirements: None,
     })
 }
 

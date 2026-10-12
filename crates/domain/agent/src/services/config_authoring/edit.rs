@@ -31,7 +31,7 @@ pub struct AgentEditRequest {
     pub documentation_url: Option<String>,
     pub streaming: Option<bool>,
     pub push_notifications: Option<bool>,
-    pub state_transition_history: Option<bool>,
+    pub extended_agent_card: Option<bool>,
     pub provider: Option<String>,
     pub model: Option<String>,
     pub system_prompt: Option<String>,
@@ -130,10 +130,10 @@ impl AgentConfigAuthoringService {
                 "card.capabilities.push_notifications: {push_notifications}"
             ));
         }
-        if let Some(state_transition_history) = request.state_transition_history {
-            agent.card.capabilities.state_transition_history = state_transition_history;
+        if let Some(extended_agent_card) = request.extended_agent_card {
+            agent.card.capabilities.extended_agent_card = extended_agent_card;
             changes.push(format!(
-                "card.capabilities.state_transition_history: {state_transition_history}"
+                "card.capabilities.extended_agent_card: {extended_agent_card}"
             ));
         }
     }

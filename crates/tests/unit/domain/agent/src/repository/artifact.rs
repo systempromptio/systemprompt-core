@@ -1,7 +1,5 @@
 use super::{repos, seed_context_and_task, seed_user_and_session};
-use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
-};
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
@@ -36,9 +34,7 @@ async fn create_and_get_artifact_by_id() {
         &artifact_id,
         &context_id,
         &task_id,
-        vec![Part::Text(TextPart {
-            text: "hello".to_owned(),
-        })],
+        vec![Part::text("hello")],
     );
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
@@ -86,18 +82,9 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         &context_id,
         &task_id,
         vec![
-            Part::Text(TextPart {
-                text: "t".to_owned(),
-            }),
-            Part::File(FilePart {
-                file: FileContent {
-                    name: Some("a.bin".to_owned()),
-                    mime_type: Some("application/octet-stream".to_owned()),
-                    bytes: Some("AAAA".to_owned()),
-                    url: None,
-                },
-            }),
-            Part::Data(DataPart { data: map }),
+            Part::text("t"),
+            Part::raw("AAAA", "application/octet-stream").with_filename("a.bin"),
+            Part::data(serde_json::Value::Object(map)),
         ],
     );
     artifacts
@@ -111,9 +98,9 @@ async fn artifact_with_all_part_kinds_roundtrip() {
         .expect("get")
         .expect("present");
     assert_eq!(fetched.parts.len(), 3);
-    assert!(matches!(fetched.parts[0], Part::Text(_)));
-    assert!(matches!(fetched.parts[1], Part::File(_)));
-    assert!(matches!(fetched.parts[2], Part::Data(_)));
+    assert!(fetched.parts[0].as_text().is_some());
+    assert!(fetched.parts[1].is_file());
+    assert!(fetched.parts[2].as_data().is_some());
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -127,23 +114,14 @@ async fn create_artifact_upserts_on_conflict() {
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
-    let mut artifact = make_artifact(
-        &artifact_id,
-        &context_id,
-        &task_id,
-        vec![Part::Text(TextPart {
-            text: "v1".to_owned(),
-        })],
-    );
+    let mut artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("v1")]);
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
         .await
         .expect("create");
 
     artifact.title = Some("renamed".to_owned());
-    artifact.parts = vec![Part::Text(TextPart {
-        text: "v2".to_owned(),
-    })];
+    artifact.parts = vec![Part::text("v2")];
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
         .await
@@ -156,10 +134,8 @@ async fn create_artifact_upserts_on_conflict() {
         .expect("present");
     assert_eq!(fetched.title.as_deref(), Some("renamed"));
     assert_eq!(fetched.parts.len(), 1);
-    match &fetched.parts[0] {
-        Part::Text(t) => assert_eq!(t.text, "v2"),
-        other => panic!("expected text, got {other:?}"),
-    }
+    let part = &fetched.parts[0];
+    assert_eq!(part.as_text(), Some("v2"), "{part:?}");
 
     r.tasks.delete_task(&task_id).await.ok();
 }
@@ -173,14 +149,7 @@ async fn list_artifacts_by_task_context_and_user() {
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
-    let artifact = make_artifact(
-        &artifact_id,
-        &context_id,
-        &task_id,
-        vec![Part::Text(TextPart {
-            text: "x".to_owned(),
-        })],
-    );
+    let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
         .await
@@ -219,14 +188,7 @@ async fn validate_artifact_ownership() {
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
-    let artifact = make_artifact(
-        &artifact_id,
-        &context_id,
-        &task_id,
-        vec![Part::Text(TextPart {
-            text: "x".to_owned(),
-        })],
-    );
+    let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
         .await
@@ -258,14 +220,7 @@ async fn delete_artifact() {
     let artifacts = r.artifacts.clone();
 
     let artifact_id = ArtifactId::generate();
-    let artifact = make_artifact(
-        &artifact_id,
-        &context_id,
-        &task_id,
-        vec![Part::Text(TextPart {
-            text: "x".to_owned(),
-        })],
-    );
+    let artifact = make_artifact(&artifact_id, &context_id, &task_id, vec![Part::text("x")]);
     artifacts
         .create_artifact(&task_id, &context_id, &artifact)
         .await
