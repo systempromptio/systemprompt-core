@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 use rmcp::ServiceExt;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
+use rmcp::model::{ClientCapabilities, ClientConfig, Implementation};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -59,7 +59,7 @@ pub async fn list_tools_unauthenticated(
         config,
     );
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
     );
@@ -101,7 +101,7 @@ pub async fn list_tools_authenticated(
     let transport =
         StreamableHttpClientTransport::with_client(HttpClientWithContext::new(context)?, config);
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
     );

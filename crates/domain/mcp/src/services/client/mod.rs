@@ -16,7 +16,7 @@
 
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
-use rmcp::model::{ClientInfo, Implementation, ProtocolVersion};
+use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -62,7 +62,7 @@ impl McpClient {
         })?;
         let transport = build_transport(server_config, context, false).await?;
 
-        let client_info = ClientInfo::new(
+        let client_info = ClientConfig::new(
             capabilities::client_capabilities(false),
             Implementation::new("systemprompt-mcp-client", "1.0.0"),
         )

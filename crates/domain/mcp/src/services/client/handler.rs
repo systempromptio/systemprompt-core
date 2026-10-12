@@ -5,19 +5,19 @@
 
 use super::elicitation::{self, SharedElicitationDelegate};
 use rmcp::handler::client::progress::ProgressDispatcher;
-use rmcp::model::{ClientInfo, ProgressNotificationParam};
+use rmcp::model::{ClientConfig, ProgressNotificationParam};
 use rmcp::service::NotificationContext;
 use rmcp::{ClientHandler, RoleClient};
 
 #[derive(Debug, Clone)]
 pub struct McpClientHandler {
     progress_dispatcher: ProgressDispatcher,
-    client_info: ClientInfo,
+    client_info: ClientConfig,
     elicitation: Option<SharedElicitationDelegate>,
 }
 
 impl McpClientHandler {
-    pub fn new(client_info: ClientInfo) -> Self {
+    pub fn new(client_info: ClientConfig) -> Self {
         Self {
             progress_dispatcher: ProgressDispatcher::new(),
             client_info,
@@ -65,7 +65,7 @@ impl ClientHandler for McpClientHandler {
         );
     }
 
-    fn get_info(&self) -> ClientInfo {
+    fn get_info(&self) -> ClientConfig {
         self.client_info.clone()
     }
 }

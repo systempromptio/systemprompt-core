@@ -10,7 +10,7 @@
 
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
+use rmcp::model::{ClientCapabilities, ClientConfig, Implementation};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -155,7 +155,7 @@ async fn connect_and_validate(
     })?;
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(
             format!("systemprompt.io MCP Validator for {service_name}"),

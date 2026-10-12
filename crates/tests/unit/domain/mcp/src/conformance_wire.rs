@@ -376,6 +376,24 @@ fn unstamped_tool_list_result_is_rejected_by_2026_07_28_schema() {
 }
 
 #[test]
+fn rmcp_filled_cache_hints_make_a_bare_tool_list_valid_for_2026_07_28() {
+    let tool = ConformanceTool.tool_definition(&McpServerId::new("systemprompt"));
+    let mut result = rmcp::model::ServerResult::ListToolsResult(
+        rmcp::model::ListToolsResult::with_all_items(vec![tool]),
+    );
+    result.fill_missing_cache_hints();
+    let json = serde_json::to_value(&result).expect("serializes");
+
+    assert_eq!(json["ttlMs"], 0);
+    assert_eq!(json["cacheScope"], "private");
+    let validator = result_validator(SCHEMA_2026_07_28, "ListToolsResult");
+    assert!(
+        validator.validate(&json).is_ok(),
+        "2026-07-28 schema rejects an rmcp-filled tools/list: {json}"
+    );
+}
+
+#[test]
 fn artifact_viewer_resource_list_validates_against_all_schemas() {
     let result =
         systemprompt_mcp::build_artifact_viewer_resource(&systemprompt_mcp::ArtifactViewerConfig {

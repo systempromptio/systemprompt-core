@@ -1,25 +1,27 @@
-//! Live MCP auth probe: an `initialize` → `tools/list` round-trip through the
-//! bridge's loopback proxy, exercising the full auth chain the host app uses.
+//! Live MCP auth probe through the bridge's loopback proxy.
+//!
+//! It exercises the full auth chain the host app uses, speaking MCP 2026-07-28
+//! first and falling back to the legacy `initialize` handshake.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::{Duration, Instant};
 
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-
 use crate::mcp_registry::McpRegistry;
 use crate::proxy::LoopbackEndpoint;
 
+mod handshake;
 mod rpc;
 mod types;
 
+pub use handshake::probe_endpoint;
 pub use types::{McpAuthState, McpServerAuth, McpTool};
 
-use rpc::{initialize_body, list_tools};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(6);
-pub(super) const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
+pub(super) const MCP_PROTOCOL_VERSION: &str = "2026-07-28";
+pub(super) const LEGACY_PROTOCOL_VERSION: &str = "2025-11-25";
 pub(super) const SESSION_HEADER: &str = "mcp-session-id";
 
 #[must_use]
@@ -133,127 +135,19 @@ async fn probe_one(
     probe_endpoint(client, slug, &url, &bearer).await
 }
 
-pub async fn probe_endpoint(
-    client: &reqwest::Client,
+pub(super) struct ProbeOutcome {
+    pub state: McpAuthState,
+    pub http_status: Option<u16>,
+    pub latency_ms: Option<u64>,
+    pub error: Option<String>,
+}
+
+pub(super) fn result(
     slug: &str,
     url: &str,
-    bearer: &str,
+    probed_at_unix: u64,
+    outcome: ProbeOutcome,
 ) -> McpServerAuth {
-    let probed_at_unix = now_unix();
-    let started = Instant::now();
-    let resp = client
-        .post(url)
-        .header(AUTHORIZATION, bearer)
-        .header(CONTENT_TYPE, "application/json")
-        .header(ACCEPT, "application/json, text/event-stream")
-        .json(&initialize_body())
-        .send()
-        .await;
-
-    let resp = match resp {
-        Ok(r) => r,
-        Err(e) => {
-            let state = if e.is_timeout() {
-                McpAuthState::ProbeTimeout
-            } else if e.is_connect() {
-                McpAuthState::ProxyUnreachable
-            } else {
-                McpAuthState::ProtocolError
-            };
-            return result(
-                slug,
-                url,
-                probed_at_unix,
-                ProbeOutcome {
-                    state,
-                    http_status: None,
-                    latency_ms: Some(elapsed_ms(started)),
-                    error: Some(e.to_string()),
-                },
-            );
-        },
-    };
-
-    let status = resp.status();
-    let http = status.as_u16();
-    let latency = elapsed_ms(started);
-
-    if !status.is_success() {
-        let state = match http {
-            403 => McpAuthState::LoopbackMismatch,
-            401 => McpAuthState::GatewayUnauthorized,
-            404 => McpAuthState::NotRegistered,
-            _ => McpAuthState::UpstreamError,
-        };
-        let error = match resp.text().await {
-            Ok(body) => snippet(&body),
-            Err(e) => format!("response body unreadable: {e}"),
-        };
-        return result(
-            slug,
-            url,
-            probed_at_unix,
-            ProbeOutcome {
-                state,
-                http_status: Some(http),
-                latency_ms: Some(latency),
-                error: Some(error),
-            },
-        );
-    }
-
-    let session = resp
-        .headers()
-        .get(SESSION_HEADER)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| crate::ids::McpSessionId::try_new(v).ok());
-    drop(resp);
-
-    let tools = match list_tools(
-        client,
-        url,
-        bearer,
-        session.as_ref().map(crate::ids::McpSessionId::as_str),
-    )
-    .await
-    {
-        Ok(tools) => tools,
-        Err(error) => {
-            return result(
-                slug,
-                url,
-                probed_at_unix,
-                ProbeOutcome {
-                    state: McpAuthState::ProtocolError,
-                    http_status: Some(http),
-                    latency_ms: Some(latency),
-                    error: Some(error.to_string()),
-                },
-            );
-        },
-    };
-
-    McpServerAuth {
-        id: slug.to_owned(),
-        url: url.to_owned(),
-        state: McpAuthState::Authenticated,
-        tools,
-        http_status: Some(http),
-        latency_ms: Some(latency),
-        error: None,
-        session_id: session,
-        probed_at_unix,
-    }
-}
-
-struct ProbeOutcome {
-    state: McpAuthState,
-    http_status: Option<u16>,
-    latency_ms: Option<u64>,
-    error: Option<String>,
-}
-
-fn result(slug: &str, url: &str, probed_at_unix: u64, outcome: ProbeOutcome) -> McpServerAuth {
     McpServerAuth {
         id: slug.to_owned(),
         url: url.to_owned(),
@@ -267,7 +161,7 @@ fn result(slug: &str, url: &str, probed_at_unix: u64, outcome: ProbeOutcome) -> 
     }
 }
 
-fn snippet(body: &str) -> String {
+pub(super) fn snippet(body: &str) -> String {
     let trimmed = body.trim();
     if trimmed.len() <= 200 {
         return trimmed.to_owned();
@@ -279,11 +173,11 @@ fn snippet(body: &str) -> String {
     format!("{}…", &trimmed[..end])
 }
 
-fn elapsed_ms(started: Instant) -> u64 {
+pub(super) fn elapsed_ms(started: Instant) -> u64 {
     u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX)
 }
 
-fn now_unix() -> u64 {
+pub(super) fn now_unix() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())

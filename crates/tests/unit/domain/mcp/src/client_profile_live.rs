@@ -8,8 +8,8 @@
 use std::sync::{Arc, Mutex};
 
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, ClientCapabilities, ClientInfo,
-    ErrorData, Implementation, ServerInfo,
+    CallToolRequestParams, CallToolResponse, CallToolResult, ClientCapabilities, ClientConfig,
+    ErrorData, Implementation, ServerConfig,
 };
 use rmcp::service::RequestContext;
 use rmcp::{RoleServer, ServerHandler, ServiceExt};
@@ -23,8 +23,8 @@ struct ProfileRecorder {
 }
 
 impl ServerHandler for ProfileRecorder {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::default()
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::default()
     }
 
     async fn call_tool(
@@ -44,7 +44,7 @@ async fn profile_seen_by_server(capabilities: ClientCapabilities, name: &str) ->
     let (client_side, server_side) = tokio::io::duplex(16 * 1024);
     let server_task = tokio::spawn(async move { recorder.serve(server_side).await });
 
-    let handler = McpClientHandler::new(ClientInfo::new(
+    let handler = McpClientHandler::new(ClientConfig::new(
         capabilities,
         Implementation::new(name, "1.0.0"),
     ));
