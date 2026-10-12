@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `rmcp` 3.3.0 → 3.5.1; the served revision stays `2026-07-28`. Public signatures use `ServerConfig`/`ClientConfig` in place of the deprecated `ServerInfo`/`ClientInfo` aliases.
+
 ### Added
 
 - **Trace facts feed.** `trace_facts_mcp(keys)` and statement triggers on `mcp_tool_executions` (insert, update, delete) queue traces for the `trace_facts` projection. Migration 020 queues the traces of existing executions.

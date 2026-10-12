@@ -2,8 +2,13 @@
 
 ## [0.66.0] - 2026-10-12
 
+### Changed
+
+- **Dependencies:** reqwest 0.13 (rustls, platform certificate verifier), rmcp 3.5.1, opener 0.9, zip 9, tray-icon 0.26, muda 0.21.
+
 ### Fixed
 
+- **Bridge:** the connector probe speaks MCP `2026-07-28` (`server/discover`) and falls back to `initialize` at `2025-11-25`. It was hard-coded to `2025-06-18`.
 - **Bridge:** every agent is judged by one comparison against exactly what its writer would put in place. Before, each probe checked a few facts (Claude Desktop: the secret, the endpoint port and the connector names; Codex: key presence only) while sync enforced the whole profile, so the Agents row read "Working" while the header, built from the last sync's failures, read "Claude Desktop needs approval". On a machine whose `HKLM\SOFTWARE\Policies\Claude` was ~20 values behind, both were on screen at once. Now `drift::diff` compares a host's rendered profile to the keys it holds; the probe, the sync's own hive-conflict check and `doctor` all use it, and the row names the keys that differ.
 - **Bridge:** the Desktop policy is rendered from one set of inputs on every path. Sync wrote it with no protocol header and the organization from the local config, Repair with the header and the organization from the gateway, so each rewrote the other's values. `ProfileFacts` now assembles the inputs once, from a cached copy of the gateway's bridge profile (`bridge-profile.json`, replacing `desktop-models.json`), for Repair, sync, install, the elevated policy writer and the probe; the operator's `deployment_organization_uuid` outranks the gateway's.
 - **Bridge:** the header pill, the Marketplace badge, the health verdict and the Agents rows read one set of per-agent verdicts. A failed sync step the probe observes (the Desktop machine-policy write) is superseded by the probe, so a later repair clears the header; a failed step it cannot observe (Cowork plugins, skills, connectors, Claude Code's sync) shows on that agent's row as "The last sync could not apply everything". "needs approval" means some agent's fix needs an administrator, and clicking the pill opens Agents.

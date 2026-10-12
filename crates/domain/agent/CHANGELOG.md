@@ -2,10 +2,15 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- A2A 1.0.1 JSON-RPC binding: `A2A_PROTOCOL_VERSION` is `"1.0"` and requests without `A2A-Version: 1.0` are refused with `-32009`. Streams emit `StreamResponse` frames, `SendMessage` returns `SendMessageResult`, and error `data` is `google.rpc.ErrorInfo`. Agent YAML `card.security` is `card.security_requirements` and `card.supports_authenticated_extended_card` is `card.capabilities.extended_agent_card`. Migration 016 moves stored `TASK_STATE_PENDING` rows to `SUBMITTED` and `TASK_STATE_UNKNOWN` rows to `FAILED`.
+
 ### Added
 
 - **Agent runs.** An agent whose `metadata.agent_run` holds a `RunRequest` template, served by a process whose `AgentState` carries an `AgentRunLauncher` (`AgentState::with_agent_run_launcher`, `agent_run_launcher()`), answers `message/send` and `message/stream` by persisting a `Submitted` task and queuing a run (`origin_kind` `a2a`, `origin_id` the task id) with the message text as its `prompt`; the streaming call answers with one event carrying that task. `tasks/cancel` on such a task cancels the run through the launcher. Continuing an existing task this way is refused. Without a launcher or the metadata, behaviour is unchanged.
 - `TaskRepository::transition_task_in_tx(tx, task_id, state, at)` (and the free `repository::task::transition_task_in_tx`): the versioned, `can_transition_to`-validated task transition inside a caller's transaction, so a run moves its task in the same commit as its own row.
+- `ListTasks`, bound to the caller, with `contextId`/`status` filters and `pageSize`/`pageToken` paging.
 - **Context counters.** `user_contexts` gains `task_count`, `message_count` and `last_message_at`, kept by statement triggers on `agent_tasks` and `task_messages` (additive on insert, an exact recount through `refresh_user_context_counters` on delete or move). Counter writes no longer bump `updated_at`. `list_contexts_with_stats` reads the columns and the new `get_context_with_stats` fetches one row, so `ContextProvider::get_context` no longer lists every context. `trace_facts_agent(keys)` and statement triggers on `agent_tasks` feed the `trace_facts` projection. Migration 015 adds the columns (NULL = pending) and queues every context and task trace.
 
 ## [0.63.0] - 2026-10-07

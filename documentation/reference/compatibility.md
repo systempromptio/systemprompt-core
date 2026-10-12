@@ -43,8 +43,8 @@ code changes.
 
 | Protocol | Tracked revision | Notes |
 |----------|------------------|-------|
-| MCP (Model Context Protocol) | `2026-07-28` | Negotiated explicitly, not via `ProtocolVersion::LATEST`. Older revisions down to `2025-06-18` negotiate down. Streamable-HTTP and stdio transports; signed manifest allowlist for server identity. Carried by `rmcp` 3.1.3 |
-| A2A (Agent-to-Agent) | 0.3.0 | `A2A_PROTOCOL_VERSION`; Task / Message / TaskState types per the current public spec |
+| MCP (Model Context Protocol) | `2026-07-28` | Negotiated explicitly, not via `ProtocolVersion::LATEST`. Older revisions down to `2025-06-18` negotiate down. Streamable-HTTP and stdio transports; signed manifest allowlist for server identity. Carried by `rmcp` 3.5.1, whose `ProtocolVersion::LATEST` now equals the served revision. The server fills missing cache hints for `2026-07-28` peers |
+| A2A (Agent-to-Agent) | 1.0.1 | JSON-RPC binding. Every JSON-RPC request to an agent endpoint must carry `A2A-Version: 1.0` (header, or `?A2A-Version=1.0`); absent or unsupported is `-32009 VersionNotSupportedError` (HTTP 400). Agent-card GETs are unversioned. `A2A_PROTOCOL_VERSION` is `1.0` |
 | OAuth 2.x / OIDC | PKCE S256 (RFC 7636); OIDC 1.0 Core | PKCE mandatory for the authorisation code flow; `plain` is rejected. Discovery + standard claims. RFC 7009 revocation, RFC 9728 protected-resource metadata |
 | Prometheus exposition | 0.0.4 text format | via `/metrics` on the configured metrics listener |
 
@@ -63,9 +63,9 @@ identifier, not a release number.
 | Tokio | 1.53 |
 | Axum | 0.8 |
 | SQLx | 0.9 (postgres, compile-time macros, rustls) |
-| rmcp | 3.1.3 (exact pin) |
+| rmcp | 3.5.1 (exact pin) |
 | jsonwebtoken | 10 (`rust_crypto` backend) |
-| reqwest | 0.12 (rustls) |
+| reqwest | 0.13 (rustls, platform certificate verifier, `ring` crypto provider) |
 | webauthn-rs | 0.5 |
 
 > **Note on the PostgreSQL floor.** 18+ is the documented and supported requirement, and is
@@ -107,3 +107,4 @@ Per-release detail is in `CHANGELOG.md`.
 | 2026-04-23 | Initial public publication. |
 | 2026-05-22 | Corrected axum 0.7.x → 0.8 and sqlx 0.7.x → 0.8 against root `Cargo.toml`. Pinned Tokio to 1.49, Postgres to 18+, and added rmcp 1.6 / webauthn-rs 0.5. Restated the MCP revision as 1.6 (the version tracked via `rmcp`) and the OAuth row as OAuth 2.x / OIDC with PKCE S256. | <!-- version-ok: revision log -->
 | 2026-08-28 | Full fidelity pass against `next` @ 0.41.0 after ~29 minors of drift. Corrected Tokio 1.49 → 1.53, SQLx 0.8 → 0.9, glibc 2.28 → 2.35, and the current line 0.39.x → 0.41.x. Replaced the incorrect "MCP 1.6 (via rmcp 1.6)" with the real tracked revision `2026-07-28` carried by `rmcp` 3.1.3, and corrected A2A 0.2.x → 0.3.0. Added the MSRV (1.96), the toolchain pin date, and `jsonwebtoken` — the crate the one accepted RSA advisory depends on. Added the inbound protocol-compatibility table, which had no entry despite the OpenAI-compatible surface shipping in 0.40.0. Replaced the hardcoded model lists with the configuration-driven reality. Corrected the release-target list to the three targets actually built, and clarified that they are bridge binaries. Flagged the documented-vs-tested PostgreSQL floor. | <!-- version-ok: revision log -->
+| 2026-10-12 | 0.66.0: A2A 0.3.0 → 1.0.1 (JSON-RPC binding, mandatory `A2A-Version` header), rmcp 3.1.3 → 3.5.1 (served MCP revision unchanged at `2026-07-28`), reqwest 0.12 → 0.13. | <!-- version-ok: revision log -->
