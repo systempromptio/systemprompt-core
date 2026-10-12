@@ -17,12 +17,14 @@ use crate::models::{User, UserRole};
 impl From<User> for AuthUser {
     fn from(user: User) -> Self {
         let is_active = user.is_active();
+        let is_service_account = user.is_service_account();
         Self {
             id: user.id,
             name: user.name,
             email: user.email,
             roles: user.roles,
             is_active,
+            is_service_account,
         }
     }
 }

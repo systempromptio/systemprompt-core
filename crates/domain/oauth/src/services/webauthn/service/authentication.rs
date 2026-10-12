@@ -27,6 +27,7 @@ impl WebAuthnService {
                 source,
             })?
             .ok_or(OauthError::AuthenticationUnavailable)?;
+        crate::services::refuse_service_account(user.is_service_account, &user.id)?;
 
         let user_credentials = self.get_user_credentials(&user.id).await?;
 

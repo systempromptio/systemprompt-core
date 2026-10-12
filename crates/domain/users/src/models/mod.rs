@@ -16,7 +16,7 @@ use sqlx::FromRow;
 use systemprompt_identifiers::{ApiKeyId, DeviceCertId, SessionId, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 
-pub use systemprompt_models::auth::{UserRole, UserStatus};
+pub use systemprompt_models::auth::{AccountKind, UserRole, UserStatus};
 
 mod rows;
 pub(crate) use rows::{
@@ -38,6 +38,8 @@ pub struct User {
     pub is_scanner: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(default)]
+    pub account_kind: AccountKind,
 }
 
 #[must_use]
@@ -48,6 +50,10 @@ pub fn normalise_email(email: &str) -> String {
 impl User {
     pub const fn is_active(&self) -> bool {
         self.status.is_active()
+    }
+
+    pub const fn is_service_account(&self) -> bool {
+        self.account_kind.is_service()
     }
 
     pub fn is_admin(&self) -> bool {
@@ -164,6 +170,9 @@ pub struct UserApiKey {
     pub revoked_at: Option<DateTime<Utc>>,
     pub limits: ApiKeyLimits,
     pub scopes: Vec<ScopeBinding>,
+    /// Caller purpose bound by the key's issuer and forwarded to the
+    /// credential broker as `x-systemprompt-caller`; the bearer cannot set it.
+    pub purpose: Option<String>,
 }
 
 impl UserApiKey {

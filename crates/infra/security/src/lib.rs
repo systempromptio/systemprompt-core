@@ -63,6 +63,7 @@
 pub mod at_rest;
 pub mod auth;
 pub mod authz;
+pub mod connector_grant;
 pub mod credential;
 pub mod error;
 pub mod extraction;

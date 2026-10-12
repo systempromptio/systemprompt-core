@@ -11,6 +11,7 @@
 pub mod analytics;
 pub mod authz;
 pub mod bot_detector;
+pub mod caller_purpose;
 pub mod client_addr;
 pub mod context;
 pub mod cors;
@@ -29,6 +30,7 @@ pub mod trailing_slash;
 pub use analytics::*;
 pub use authz::{AuthzPolicy, authz_gate};
 pub use bot_detector::*;
+pub use caller_purpose::strip_caller_purpose;
 pub use context::{
     A2AContextMiddleware, ContextExtractor, McpContextMiddleware, PublicContextMiddleware,
     UserOnlyContextMiddleware,

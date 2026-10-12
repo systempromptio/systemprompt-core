@@ -25,3 +25,8 @@ pub const USER_ROLES: &str = "x-user-roles";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
+/// Caller purpose sent to the credential broker. Set only from a credential
+/// the issuer bound it to; an inbound copy is stripped at the API edge.
+pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
+/// The MCP server a credential-broker request is for.
+pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";

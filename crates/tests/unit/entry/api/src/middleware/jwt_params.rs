@@ -25,6 +25,7 @@ fn jwt_context(user_id: &UserId, session_id: &SessionId) -> JwtUserContext {
         attributes: BTreeMap::new(),
         jti: Some(AccessTokenId::new("jti-123")),
         exp: 1_900_000_000,
+        purpose: None,
     }
 }
 

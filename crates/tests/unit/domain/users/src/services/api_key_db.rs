@@ -39,6 +39,7 @@ async fn issue_then_verify_round_trip_touches_usage() {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await
         .expect("issue");
@@ -75,6 +76,7 @@ async fn issue_rejects_blank_name() {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await;
     assert!(matches!(result, Err(UserError::Validation(_))));
@@ -91,6 +93,7 @@ async fn verify_rejects_malformed_and_mismatched_secrets() {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await
         .expect("issue");
@@ -132,6 +135,7 @@ async fn expired_key_fails_verification() {
             expires_at: Some(Utc::now() - Duration::hours(1)),
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await
         .expect("issue");
@@ -156,6 +160,7 @@ async fn revoke_disables_key_and_is_idempotent() {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await
         .expect("issue");

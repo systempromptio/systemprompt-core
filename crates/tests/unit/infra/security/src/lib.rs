@@ -70,4 +70,6 @@ mod signing_key_independence;
 mod signing_key_pem_roundtrip;
 
 #[cfg(test)]
+mod connector_grant;
+#[cfg(test)]
 mod policy_recovery;

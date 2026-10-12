@@ -384,6 +384,7 @@ fn user_cache_ttl_expiry_and_admin_role() {
         email: "cache@example.com".to_owned(),
         roles: vec!["admin".to_owned()],
         is_active: true,
+        is_service_account: false,
     };
 
     let fresh = UserCache::with_ttl(Duration::from_secs(3600));

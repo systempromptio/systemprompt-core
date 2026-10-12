@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS user_api_keys (
     budget_microdollars BIGINT,
     max_requests INTEGER,
     request_window_seconds INTEGER,
+    purpose TEXT,
     CONSTRAINT user_api_keys_window_required CHECK (
         (budget_microdollars IS NULL AND max_requests IS NULL)
         OR COALESCE(request_window_seconds, 0) > 0

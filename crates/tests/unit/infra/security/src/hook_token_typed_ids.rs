@@ -43,6 +43,7 @@ fn hook_claims(plugin_id: &str, subject: &str) -> JwtClaims {
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: Some(PluginId::new(plugin_id)),
         act: None,
+        purpose: None,
     }
 }
 

@@ -57,6 +57,7 @@ impl JwtService {
             rate_limit_tier: Some(RateLimitTier::Admin),
             plugin_id: None,
             act: None,
+            purpose: None,
         };
 
         let kid = authority::active_kid().map_err(JwtError::Signing)?;

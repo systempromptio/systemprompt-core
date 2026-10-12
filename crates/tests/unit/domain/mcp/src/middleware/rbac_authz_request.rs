@@ -38,6 +38,7 @@ fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Valu
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,
         act: None,
+        purpose: None,
     }
 }
 
@@ -51,6 +52,7 @@ fn execution_with(context: &str, task: Option<&str>) -> ExecutionContext {
         call_source: None,
         agent_name: AgentName::system(),
         tool_model_config: None,
+        caller_purpose: None,
     }
 }
 

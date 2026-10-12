@@ -31,6 +31,7 @@ pub struct JwtUserContext {
     pub attributes: BTreeMap<String, serde_json::Value>,
     pub jti: Option<AccessTokenId>,
     pub exp: i64,
+    pub purpose: Option<String>,
 }
 
 pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserContext> {
@@ -54,5 +55,6 @@ pub fn extract_user_context(token: &str, issuer: &str) -> AuthResult<JwtUserCont
         attributes: claims.attributes,
         jti: (!claims.jti.is_empty()).then(|| AccessTokenId::new(claims.jti)),
         exp: claims.exp,
+        purpose: claims.purpose,
     })
 }

@@ -55,6 +55,7 @@ impl UserProvider for SeedingUserProvider {
             email: email.to_owned(),
             roles: Vec::new(),
             is_active: true,
+            is_service_account: false,
         })
     }
     async fn create_anonymous(&self, fingerprint: &str) -> AuthResult<AuthUser> {
@@ -64,6 +65,7 @@ impl UserProvider for SeedingUserProvider {
             email: String::new(),
             roles: Vec::new(),
             is_active: true,
+            is_service_account: false,
         })
     }
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {

@@ -19,7 +19,9 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
-pub use authenticated_user::load_authenticated_user;
+pub use authenticated_user::{
+    load_authenticated_user, load_interactive_user, refuse_service_account,
+};
 pub use bridge::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeCode, BridgeExchangeRequest,
     BridgeOAuthClient, exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,

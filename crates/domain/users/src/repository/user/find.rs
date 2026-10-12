@@ -16,7 +16,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = $1 AND status != $2
             "#,
@@ -38,7 +38,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE email = $1 AND status != $2
             "#,
@@ -59,7 +59,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE name = $1 AND status != $2
             ORDER BY created_at ASC
@@ -82,7 +82,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE $1 = ANY(roles) AND status != $2
             ORDER BY created_at DESC
@@ -105,7 +105,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
             ORDER BY created_at ASC
@@ -128,7 +128,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE $1 = ANY(roles) AND status != $2
             ORDER BY created_at ASC
@@ -151,7 +151,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE id = $1 AND status = $2
             "#,

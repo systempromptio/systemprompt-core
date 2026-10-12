@@ -103,6 +103,12 @@ pub async fn login_for_profile(
         args.email.as_deref(),
     )
     .await?;
+    if admin_user.is_service_account() {
+        anyhow::bail!(
+            "User '{}' is a service account; service accounts cannot open an interactive session",
+            admin_user.name
+        );
+    }
 
     progress(args, "Creating session...");
     let session_id = create_local_session_row(

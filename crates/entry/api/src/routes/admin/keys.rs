@@ -109,6 +109,7 @@ async fn issue_key(
             expires_at: body.expires_at,
             limits: &body.limits,
             scopes: &body.scopes,
+            purpose: None,
         })
         .await?;
 

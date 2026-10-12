@@ -45,10 +45,33 @@ pub(crate) async fn post_form(
     uri: &str,
     form: &[(&str, String)],
 ) -> Result<String, CredentialError> {
+    send_with_retry(uri, |client| client.post(uri).form(form)).await
+}
+
+/// POSTs with an `Authorization: Bearer` header and no body, the shape of a
+/// GitHub App installation-token exchange.
+pub(crate) async fn post_bearer(
+    uri: &str,
+    bearer: &str,
+    headers: &[(&str, &str)],
+) -> Result<String, CredentialError> {
+    send_with_retry(uri, |client| {
+        headers.iter().fold(
+            client.post(uri).bearer_auth(bearer),
+            |request, (name, value)| request.header(*name, *value),
+        )
+    })
+    .await
+}
+
+async fn send_with_retry<B>(uri: &str, build: B) -> Result<String, CredentialError>
+where
+    B: Fn(&reqwest::Client) -> reqwest::RequestBuilder,
+{
     let client = client()?;
     let mut attempt = 0;
     loop {
-        let outcome = attempt_post(client, uri, form).await;
+        let outcome = attempt_send(build(client)).await;
         let retryable = matches!(
             outcome,
             Err(Retryable::Transport(_) | Retryable::Unavailable { .. })
@@ -77,17 +100,8 @@ enum Retryable {
     Refused { status: String, body: String },
 }
 
-async fn attempt_post(
-    client: &reqwest::Client,
-    uri: &str,
-    form: &[(&str, String)],
-) -> Result<String, Retryable> {
-    let response = client
-        .post(uri)
-        .form(form)
-        .send()
-        .await
-        .map_err(Retryable::Transport)?;
+async fn attempt_send(request: reqwest::RequestBuilder) -> Result<String, Retryable> {
+    let response = request.send().await.map_err(Retryable::Transport)?;
 
     let status = response.status();
     let body = response.text().await.map_err(Retryable::Transport)?;

@@ -65,7 +65,7 @@ impl OauthError {
             | Self::TokenMissingKid
             | Self::TokenUnknownKid { .. } => OauthErrorKind::InvalidToken,
             Self::Validation(_) | Self::InvalidUrl { .. } => OauthErrorKind::InvalidRequest,
-            Self::Unauthorized(_) => OauthErrorKind::AccessDenied,
+            Self::Unauthorized(_) | Self::ServiceAccountInteractive => OauthErrorKind::AccessDenied,
             Self::UsernameTaken(_) => OauthErrorKind::UsernameUnavailable,
             Self::EmailRegistered(_) => OauthErrorKind::EmailExists,
             Self::UserNotFound(_) => OauthErrorKind::NotFound,

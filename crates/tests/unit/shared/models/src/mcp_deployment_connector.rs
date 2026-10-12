@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::mcp::capabilities::ToolVisibility;
 use systemprompt_models::mcp::deployment::{
-    ConnectorConfig, ConnectorIdentity, ToolMetadata, ToolUiConfig,
+    ConnectorConfig, ConnectorGrant, ConnectorIdentity, ToolMetadata, ToolUiConfig,
 };
 use systemprompt_models::mcp::{Deployment, McpServerType, OAuthRequirement, Settings};
 
@@ -53,6 +53,11 @@ fn connector() -> ConnectorConfig {
         identity: None,
         client_id_secret: Some("acme_client_id".to_owned()),
         client_secret: Some("acme_client_secret".to_owned()),
+        grant: ConnectorGrant::AuthorizationCode,
+        token_url: None,
+        private_key_secret: None,
+        installation_id: None,
+        app_id: None,
     }
 }
 

@@ -59,6 +59,11 @@ pub fn build_context(params: BuildContextParams) -> RequestContext {
     if let Some(token) = auth_token.filter(|token| !token.is_empty()) {
         ctx = ctx.with_auth_token(JwtToken::new(token));
     }
+    // Why: the caller purpose comes only from the signed `purpose` claim an
+    // in-process issuer stamped, never from a request header the bearer sent.
+    if let Some(purpose) = jwt_context.purpose {
+        ctx = ctx.with_caller_purpose(purpose);
+    }
     ctx
 }
 

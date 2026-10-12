@@ -21,6 +21,7 @@ pub struct CreateApiKeyParams<'a> {
     pub expires_at: Option<DateTime<Utc>>,
     pub limits: &'a ApiKeyLimits,
     pub scopes: &'a [ScopeBinding],
+    pub purpose: Option<&'a str>,
 }
 
 impl UserRepository {
@@ -31,11 +32,13 @@ impl UserRepository {
             r#"
             INSERT INTO user_api_keys
                 (id, user_id, name, key_prefix, key_hash, expires_at,
-                 model_allowlist, budget_microdollars, max_requests, request_window_seconds)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 model_allowlist, budget_microdollars, max_requests, request_window_seconds,
+                 purpose)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id, user_id, name, key_prefix, key_hash,
                       created_at, last_used_at, expires_at, revoked_at,
                       model_allowlist, budget_microdollars, max_requests, request_window_seconds,
+                      purpose,
                       ARRAY[]::TEXT[] AS "scope_dimensions!", ARRAY[]::TEXT[] AS "scope_values!"
             "#,
             params.id.as_str(),
@@ -48,6 +51,7 @@ impl UserRepository {
             params.limits.budget_microdollars,
             params.limits.max_requests,
             params.limits.request_window_seconds,
+            params.purpose,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -87,7 +91,7 @@ impl UserRepository {
             SELECT k.id, k.user_id, k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
-                   k.request_window_seconds,
+                   k.request_window_seconds, k.purpose,
                    ARRAY(SELECT s.dimension FROM user_api_key_scopes s
                          WHERE s.key_id = k.id ORDER BY s.dimension) AS "scope_dimensions!",
                    ARRAY(SELECT s.value FROM user_api_key_scopes s
@@ -111,7 +115,7 @@ impl UserRepository {
             SELECT k.id, k.user_id, k.name, k.key_prefix, k.key_hash,
                    k.created_at, k.last_used_at, k.expires_at, k.revoked_at,
                    k.model_allowlist, k.budget_microdollars, k.max_requests,
-                   k.request_window_seconds,
+                   k.request_window_seconds, k.purpose,
                    ARRAY(SELECT s.dimension FROM user_api_key_scopes s
                          WHERE s.key_id = k.id ORDER BY s.dimension) AS "scope_dimensions!",
                    ARRAY(SELECT s.value FROM user_api_key_scopes s

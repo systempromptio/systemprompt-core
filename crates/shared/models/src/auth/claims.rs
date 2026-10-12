@@ -119,6 +119,10 @@ pub struct JwtClaims {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub act: Option<ActClaim>,
+    /// Caller purpose bound by the token's issuer (in-process minting only),
+    /// forwarded to the credential broker as `x-systemprompt-caller`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
 }
 
 fn serialize_audiences<S>(auds: &[JwtAudience], s: S) -> Result<S::Ok, S::Error>

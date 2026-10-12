@@ -67,6 +67,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             roles: vec![],
             permissions: vec![],
             attributes: std::collections::BTreeMap::new(),
+            account_kind: systemprompt_models::auth::AccountKind::Person,
         };
 
         let permissions = params
@@ -107,6 +108,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             resource: None,
             plugin_id: None,
             client_id: None,
+            purpose: None,
         };
 
         let jti = AccessTokenId::new(generate_secure_token("jwt"));

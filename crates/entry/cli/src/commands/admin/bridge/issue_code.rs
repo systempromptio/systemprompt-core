@@ -5,7 +5,9 @@
 
 use anyhow::Result;
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_oauth::services::issue_bridge_exchange_code;
+use systemprompt_users::{UserRepository, UserService};
 
 use super::types::ExchangeCodeIssuedOutput;
 use crate::context::CommandContext;
@@ -26,7 +28,9 @@ pub(super) async fn execute(args: IssueCodeArgs, ctx: &CommandContext) -> Result
 
     let user_id = super::resolve_user_id(app.db_pool(), &args.user_ref).await?;
 
-    let issued = issue_bridge_exchange_code(&app.oauth_repositories().oauth, &user_id).await?;
+    let users = UserService::new(Arc::new(UserRepository::new(app.db_pool())));
+    let issued =
+        issue_bridge_exchange_code(&app.oauth_repositories().oauth, &users, &user_id).await?;
 
     let output = ExchangeCodeIssuedOutput {
         user_id: user_id.clone(),

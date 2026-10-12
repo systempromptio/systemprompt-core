@@ -15,7 +15,8 @@ use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_traits::RepositoryError;
 
 use super::{
-    ApiKeyLimits, User, UserActivity, UserApiKey, UserDeviceCert, UserStatus, UserWithSessions,
+    AccountKind, ApiKeyLimits, User, UserActivity, UserApiKey, UserDeviceCert, UserStatus,
+    UserWithSessions,
 };
 use crate::error::UserError;
 
@@ -53,6 +54,7 @@ pub(crate) struct UserRow {
     pub is_scanner: bool,
     pub created_at: Option<DateTime<Utc>>,
     pub updated_at: Option<DateTime<Utc>>,
+    pub account_kind: String,
 }
 
 impl TryFrom<UserRow> for User {
@@ -73,6 +75,9 @@ impl TryFrom<UserRow> for User {
             is_scanner: row.is_scanner,
             created_at: required(row.created_at, "created_at")?,
             updated_at: required(row.updated_at, "updated_at")?,
+            account_kind: row.account_kind.parse::<AccountKind>().map_err(|source| {
+                UserError::Repository(RepositoryError::decode("users.account_kind", source))
+            })?,
         })
     }
 }
@@ -144,6 +149,7 @@ pub(crate) struct UserApiKeyRow {
     pub budget_microdollars: Option<i64>,
     pub max_requests: Option<i32>,
     pub request_window_seconds: Option<i32>,
+    pub purpose: Option<String>,
     pub scope_dimensions: Vec<String>,
     pub scope_values: Vec<String>,
 }
@@ -166,6 +172,7 @@ impl From<UserApiKeyRow> for UserApiKey {
                 max_requests: row.max_requests,
                 request_window_seconds: row.request_window_seconds,
             },
+            purpose: row.purpose,
             scopes: row
                 .scope_dimensions
                 .into_iter()

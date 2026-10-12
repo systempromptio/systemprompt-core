@@ -51,6 +51,7 @@ async fn issue(
             expires_at: None,
             limits: &limits,
             scopes,
+            purpose: None,
         })
         .await
         .expect("issue");

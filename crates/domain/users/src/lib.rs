@@ -42,13 +42,14 @@ pub use extension::UsersExtension;
 
 pub use error::{Result, UserError, UserResult};
 pub use models::{
-    ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown, UserDeviceCert,
-    UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions, normalise_email,
+    AccountKind, ApiKeyLimits, NewApiKey, User, UserActivity, UserApiKey, UserCountBreakdown,
+    UserDeviceCert, UserExport, UserRole, UserSession, UserStats, UserStatus, UserWithSessions,
+    normalise_email,
 };
 pub use repository::{
     ArchiveOutcome, ArchiveParams, ArchiveState, BanDuration, BanIpParams, BanIpWithMetadataParams,
     BannedIp, BannedIpRepository, CreateApiKeyParams, EnrollDeviceCertParams,
-    MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, PurgeCount, SessionRepository,
+    MERGE_EXCLUDED_SECURITY_TABLES, MergeResult, NewServiceAccount, PurgeCount, SessionRepository,
     UserRateLimitBucketRepository, UserRepository, UsersRoleDirectory,
 };
 pub use services::{

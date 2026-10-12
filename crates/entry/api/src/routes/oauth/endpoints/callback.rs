@@ -23,7 +23,7 @@ use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::middleware::client_addr::ClientIp;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
-use systemprompt_oauth::services::load_authenticated_user;
+use systemprompt_oauth::services::load_interactive_user;
 use systemprompt_traits::ExtractSignals;
 
 #[derive(Debug, Deserialize)]
@@ -147,7 +147,7 @@ async fn exchange_code_for_token(
         .await?;
 
     let user =
-        load_authenticated_user(state.user_provider().as_ref(), &validation_result.user_id).await?;
+        load_interactive_user(state.user_provider().as_ref(), &validation_result.user_id).await?;
 
     let permissions = parse_permissions(&validation_result.scope)?;
 

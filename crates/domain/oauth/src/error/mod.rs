@@ -70,6 +70,9 @@ pub enum OauthError {
     #[error("passkey authentication is not available for this account")]
     AuthenticationUnavailable,
 
+    #[error("service accounts cannot obtain an interactive credential")]
+    ServiceAccountInteractive,
+
     #[error("registration state expired or not found")]
     RegistrationStateExpired,
 

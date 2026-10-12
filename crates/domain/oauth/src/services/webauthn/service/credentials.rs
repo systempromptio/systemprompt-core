@@ -99,6 +99,7 @@ impl WebAuthnService {
                 source,
             })?;
         if let Some(user) = user {
+            crate::services::refuse_service_account(user.is_service_account, &user.id)?;
             self.get_user_credentials(&user.id).await
         } else {
             Ok(Vec::new())

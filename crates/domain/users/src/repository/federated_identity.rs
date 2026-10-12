@@ -49,7 +49,7 @@ impl UserRepository {
                 r#"
                 SELECT id, name, email, full_name, display_name, status,
                        email_verified, roles, avatar_url, is_bot, is_scanner,
-                       created_at, updated_at
+                       created_at, updated_at, account_kind
                 FROM users WHERE id = $1
                 "#,
                 existing.user_id
@@ -81,7 +81,7 @@ impl UserRepository {
             )
             VALUES ($1, $2, $3, $4, $5, $6, false, $7::TEXT[], false, $8, $8)
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             fields.id.as_str(),
             fields.name,
@@ -130,7 +130,7 @@ async fn link_by_verified_email(
         r#"
         SELECT id, name, email, full_name, display_name, status,
                email_verified, roles, avatar_url, is_bot, is_scanner,
-               created_at, updated_at
+               created_at, updated_at, account_kind
         FROM users WHERE email = $1 AND status != $2
         "#,
         email,

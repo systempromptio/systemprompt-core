@@ -71,6 +71,9 @@ pub async fn get_or_create_admin(
         .await
         .context("Failed to query user by email")?
     {
+        if user.is_service_account() {
+            anyhow::bail!("{email} is a service account; it cannot open a CLI session");
+        }
         if user.is_admin() {
             return Ok(user);
         }
@@ -191,6 +194,9 @@ pub async fn resolve_local_admin(
 
     if !user.is_active() {
         anyhow::bail!("Local admin user '{admin_name}' exists but is not active.");
+    }
+    if user.is_service_account() {
+        anyhow::bail!("User '{admin_name}' is a service account; it cannot open a CLI session.");
     }
     if !user.is_admin() {
         anyhow::bail!(

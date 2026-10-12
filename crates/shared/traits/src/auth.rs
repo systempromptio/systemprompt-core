@@ -34,6 +34,9 @@ pub enum AuthProviderError {
     #[error("Insufficient permissions")]
     InsufficientPermissions,
 
+    #[error("Service accounts cannot sign in interactively")]
+    ServiceAccountInteractiveLogin,
+
     #[error("Internal error: {0}")]
     Internal(#[source] BoxedSource),
 }
@@ -45,6 +48,19 @@ pub struct AuthUser {
     pub email: String,
     pub roles: Vec<String>,
     pub is_active: bool,
+    /// A non-human service account: it never receives an interactive
+    /// credential (session login, passkey, bridge code, authorization code).
+    pub is_service_account: bool,
+}
+
+impl AuthUser {
+    /// Refuses a service account on every interactive sign-in path.
+    pub const fn ensure_interactive(&self) -> AuthResult<()> {
+        if self.is_service_account {
+            return Err(AuthProviderError::ServiceAccountInteractiveLogin);
+        }
+        Ok(())
+    }
 }
 
 /// Federated-identity claim payload passed to

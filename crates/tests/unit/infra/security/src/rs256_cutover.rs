@@ -43,6 +43,7 @@ fn sample_claims(iss: &str) -> JwtClaims {
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,
         act: None,
+        purpose: None,
     }
 }
 

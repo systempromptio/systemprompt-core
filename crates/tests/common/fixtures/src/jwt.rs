@@ -71,6 +71,7 @@ pub fn mint_bridge_jwt(user_id: &UserId, email: &str, issuer: &str) -> JwtToken 
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,
         act: None,
+        purpose: None,
     };
 
     let kid = active_kid().expect("active kid present");

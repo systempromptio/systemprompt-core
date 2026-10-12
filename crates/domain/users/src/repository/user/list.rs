@@ -83,7 +83,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
               AND ($4 OR NOT ($5 = ANY(roles)))
@@ -112,7 +112,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
               AND NOT ($2 = ANY(roles))
@@ -152,7 +152,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
               AND ($4 OR NOT ($5 = ANY(roles)))
@@ -217,7 +217,7 @@ impl UserRepository {
             UserRow,
             r#"
             SELECT id, name, email, full_name, display_name, status, email_verified,
-                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             FROM users
             WHERE status != $1
               AND ($2::text IS NULL OR status = $2)

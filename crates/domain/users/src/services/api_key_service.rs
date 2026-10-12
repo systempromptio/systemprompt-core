@@ -27,6 +27,9 @@ pub struct IssueApiKeyParams<'a> {
     pub expires_at: Option<DateTime<Utc>>,
     pub limits: &'a ApiKeyLimits,
     pub scopes: &'a [ScopeBinding],
+    /// Caller purpose bound to the key by its issuer (for example
+    /// `workflow:<id>`); `None` for a person's own key.
+    pub purpose: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +67,7 @@ impl ApiKeyService {
                 expires_at: params.expires_at,
                 limits: params.limits,
                 scopes: params.scopes,
+                purpose: params.purpose,
             })
             .await?;
 

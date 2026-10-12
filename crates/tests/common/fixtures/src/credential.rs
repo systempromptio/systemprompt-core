@@ -139,6 +139,7 @@ fn mint_jwt_internal(
         rate_limit_tier: Some(rate_limit_tier),
         plugin_id: None,
         act: None,
+        purpose: None,
     };
     let kid = active_kid().expect("active kid present");
     let mut header = Header::new(Algorithm::RS256);

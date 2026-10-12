@@ -136,6 +136,7 @@ fn anon_user(id: &str) -> AuthUser {
         email: format!("{id}@example.com"),
         roles: vec![],
         is_active: true,
+        is_service_account: false,
     }
 }
 

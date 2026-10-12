@@ -51,6 +51,7 @@ pub(super) fn authenticated_user(user: &User) -> AuthenticatedUser {
         permissions: permissions_for(&user.roles),
         roles: user.roles.clone(),
         attributes: std::collections::BTreeMap::new(),
+        account_kind: user.account_kind,
     }
 }
 
@@ -66,6 +67,7 @@ pub(super) fn mint_a2a_token(
         resource: None,
         plugin_id: None,
         client_id: None,
+        purpose: None,
     };
     let signing = JwtSigningParams {
         issuer: &ctx.config().jwt_issuer,

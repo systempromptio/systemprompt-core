@@ -31,6 +31,7 @@ pub(super) async fn issue_pat(
             expires_at: Some(Utc::now() + ttl),
             limits: &limits,
             scopes: &req.scopes,
+            purpose: None,
         })
         .await
         .map_err(|source| AgentRunsError::ApiKey {
