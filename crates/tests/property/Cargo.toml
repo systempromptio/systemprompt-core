@@ -20,7 +20,6 @@ proptest = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-proptest-derive = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }

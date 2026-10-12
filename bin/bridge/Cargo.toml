@@ -49,8 +49,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "json"] }
 tracing-appender = "0.2"
 backtrace = "0.3"
-opener = { version = "0.8", features = ["reveal"] }
-zip = { version = "8", default-features = false, features = ["deflate"] }
+opener = { version = "0.9", features = ["reveal"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 uuid = { version = "1", features = ["v4", "v5"] }
 zeroize = { version = "1", features = ["zeroize_derive"] }
 tokio = { version = "1.53", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
@@ -112,8 +112,8 @@ apple-native-keyring-store = { version = "1", features = ["keychain"] }
 security-framework = "3"
 core-foundation = "0.10"
 core-foundation-sys = "0.8"
-tray-icon = "0.25"
-muda = "0.20"
+tray-icon = "0.26"
+muda = "0.21"
 winit = "0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -121,8 +121,8 @@ raw-window-handle = "0.6"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-native-keyring-store = "1"
-tray-icon = "0.25"
-muda = "0.20"
+tray-icon = "0.26"
+muda = "0.21"
 winit = "0.31.0-beta.3"
 wry = { version = "0.57", default-features = false, features = ["os-webview", "devtools"] }
 image = { version = "0.25", default-features = false, features = ["png", "ico"] }

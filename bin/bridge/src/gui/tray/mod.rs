@@ -128,13 +128,15 @@ pub fn build(
     let icon_normal = icon::decode_icon()?;
     let icon_alert = icon::decode_alert_icon()?;
 
-    let tray = TrayIconBuilder::new()
+    let builder = TrayIconBuilder::new()
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
-        .with_tooltip(text::tooltip(initial))
-        .with_icon(icon_normal.clone())
-        .with_icon_as_template(cfg!(target_os = "macos"))
-        .build()?;
+        .with_tooltip(text::tooltip(initial));
+    #[cfg(target_os = "macos")]
+    let builder = builder.with_icon_templated(icon_normal.clone());
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.with_icon(icon_normal.clone());
+    let tray = builder.build()?;
 
     Ok(TrayHandles {
         tray,
@@ -191,6 +193,9 @@ pub fn refresh(
             TrayStatus::Normal => handles.icon_normal.clone(),
             TrayStatus::Alert => handles.icon_alert.clone(),
         };
+        #[cfg(target_os = "macos")]
+        handles.tray.set_icon_templated(Some(icon))?;
+        #[cfg(not(target_os = "macos"))]
         handles.tray.set_icon(Some(icon))?;
         handles.status = target;
     }
