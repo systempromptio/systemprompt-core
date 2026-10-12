@@ -31,6 +31,7 @@ pub mod lease;
 pub mod outcome;
 pub mod repository;
 pub mod request;
+pub mod runner;
 pub mod service;
 
 pub use a2a::{TaskUpdate, task_events};
@@ -51,3 +52,4 @@ pub use layout::RunLayout;
 pub use outcome::{ErrorClass, RunOutcome, RunStatus};
 pub use repository::{AgentRunRepository, AgentRunRow};
 pub use request::{HostKind, McpServerSpec, PermissionMode, RunRequest};
+pub use runner::{A2aRunHandler, A2aRunnerConfig, A2aRunnerService, AGENT_RUN_ORIGIN_KIND};

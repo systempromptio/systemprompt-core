@@ -34,3 +34,7 @@ mod a2a;
 mod a2a_repository;
 #[cfg(test)]
 mod task_link;
+#[cfg(test)]
+mod runner;
+#[cfg(test)]
+mod runner_claim;

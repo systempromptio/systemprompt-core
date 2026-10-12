@@ -268,6 +268,7 @@ Every gateway call a host makes carries the run's credentials (`RunCredentials`:
 | `repository` | `AgentRunRepository`, `AgentRunRow`, `NewAgentRun`, `RunStarted` |
 | `lease` | `LeaseRenewer`, `LeaseSpec`, `DEFAULT_RENEW_EVERY`, `DEFAULT_LEASE` |
 | `service` | `ClaimLoop`, `RunHandler`, `ClaimedRun`, `DbEventSink`, `claimer_id` |
+| `runner` | `A2aRunnerService` (the extension's runner service, claiming `origin_kind = "a2a"`), `A2aRunHandler`, `A2aRunnerConfig`, `credential_request`, `AGENT_RUN_ORIGIN_KIND` |
 | `error` | `AgentRunsError`, `AgentRunsResult` |
 
 ## License
