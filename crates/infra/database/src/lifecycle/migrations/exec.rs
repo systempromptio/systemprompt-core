@@ -72,7 +72,16 @@ pub(super) async fn execute_statements_transactional(
 
     let started = Instant::now();
     let total = statements.len();
-    match apply_in_transaction(tx.as_mut(), statements, ext_id, migration, timeout, tracking).await {
+    match apply_in_transaction(
+        tx.as_mut(),
+        statements,
+        ext_id,
+        migration,
+        timeout,
+        tracking,
+    )
+    .await
+    {
         Ok(()) => {},
         Err(step) => {
             let rollback_note = match tx.rollback().await {
