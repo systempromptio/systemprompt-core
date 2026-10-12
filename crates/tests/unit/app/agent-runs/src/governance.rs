@@ -1,9 +1,9 @@
 //! Golden tests for the governance hooks file: Claude Code gets a plugin
 //! dir with `plugin.json` and `hooks/hooks.json`; Codex CLI gets nothing.
 
-use systemprompt_headless::governance::hooks_schema::{HooksFile, PluginManifest, TRACK_EVENTS};
-use systemprompt_headless::governance::{HookBases, hooks_file};
-use systemprompt_headless::{HostKind, RunLayout};
+use systemprompt_agent_runs::governance::hooks_schema::{HooksFile, PluginManifest, TRACK_EVENTS};
+use systemprompt_agent_runs::governance::{HookBases, hooks_file};
+use systemprompt_agent_runs::{HostKind, RunLayout};
 use systemprompt_identifiers::PluginId;
 
 fn bases() -> HookBases {

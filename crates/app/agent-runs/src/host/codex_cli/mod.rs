@@ -22,7 +22,7 @@ use std::sync::Mutex;
 use super::{
     Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
 };
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::event::RunEventPayload;
 use crate::outcome::RunOutcome;
 use crate::request::{HostKind, RunRequest};
@@ -60,7 +60,7 @@ impl HeadlessHost for CodexCli {
         }
     }
 
-    fn prepare(&self, ctx: &PrepareContext<'_>) -> HeadlessResult<HostInvocation> {
+    fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation> {
         let paths = args::CodexPaths::new(ctx.layout);
         write_file(
             &paths.config_toml,
@@ -96,15 +96,15 @@ impl HeadlessHost for CodexCli {
     }
 }
 
-fn write_file(path: &Path, contents: &str) -> HeadlessResult<()> {
+fn write_file(path: &Path, contents: &str) -> AgentRunsResult<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|source| layout_error(parent, source))?;
     }
     std::fs::write(path, contents).map_err(|source| layout_error(path, source))
 }
 
-fn layout_error(path: &Path, source: std::io::Error) -> HeadlessError {
-    HeadlessError::Layout {
+fn layout_error(path: &Path, source: std::io::Error) -> AgentRunsError {
+    AgentRunsError::Layout {
         path: path.to_path_buf(),
         source,
     }

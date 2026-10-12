@@ -1,4 +1,4 @@
-//! Unit tests for systemprompt-headless crate
+//! Unit tests for systemprompt-agent-runs crate
 //!
 //! Tests cover:
 //! - RunEventPayload serde round-trips through the tagged `kind` form

@@ -35,7 +35,7 @@ pub use diff::{DiffEntry, DiffKind, DiffSummary};
 pub use sink::EventSink;
 
 use crate::credentials::RunCredentials;
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::event::{RunEventPayload, RunnerLevel};
 use crate::host::{Execution, ExitInfo, HeadlessHost, HostInvocation, PrepareContext, host_for};
 use crate::layout::RunLayout;
@@ -75,10 +75,10 @@ pub struct RunReport {
     pub stderr_tail: Vec<String>,
 }
 
-pub async fn execute(params: ExecuteParams<'_>) -> HeadlessResult<RunReport> {
+pub async fn execute(params: ExecuteParams<'_>) -> AgentRunsResult<RunReport> {
     match host_for(params.request.host) {
         Execution::Unsupported { reason } => {
-            let result = Err(HeadlessError::UnsupportedHost {
+            let result = Err(AgentRunsError::UnsupportedHost {
                 host: params.request.host,
                 reason,
             });
@@ -91,7 +91,7 @@ pub async fn execute(params: ExecuteParams<'_>) -> HeadlessResult<RunReport> {
 pub async fn execute_with_host(
     host: &dyn HeadlessHost,
     params: ExecuteParams<'_>,
-) -> HeadlessResult<RunReport> {
+) -> AgentRunsResult<RunReport> {
     let layout = params.layout;
     let result = run(host, &params).await;
     let kept = home_keep::preserve(layout, host.persistent_home_paths()).await;
@@ -104,15 +104,15 @@ pub async fn execute_with_host(
 
 async fn finish(
     layout: &RunLayout,
-    result: HeadlessResult<RunReport>,
-) -> HeadlessResult<RunReport> {
+    result: AgentRunsResult<RunReport>,
+) -> AgentRunsResult<RunReport> {
     let removed = layout.remove_home().await;
     let report = result?;
     removed?;
     Ok(report)
 }
 
-async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> HeadlessResult<RunReport> {
+async fn run(host: &dyn HeadlessHost, params: &ExecuteParams<'_>) -> AgentRunsResult<RunReport> {
     let ctx = PrepareContext {
         request: params.request,
         layout: params.layout,
@@ -164,7 +164,7 @@ async fn drive(
     params: &ExecuteParams<'_>,
     invocation: &HostInvocation,
     sink: &mut pump::BufferedSink<'_>,
-) -> HeadlessResult<(Vec<String>, ExitInfo)> {
+) -> AgentRunsResult<(Vec<String>, ExitInfo)> {
     let started = Instant::now();
     let mut owned = spawn::spawn_owned_supervised(invocation)?;
     let stdout = owned.child.stdout.take();

@@ -1,5 +1,5 @@
-CREATE TABLE IF NOT EXISTS headless_run_events (
-    run_id TEXT NOT NULL REFERENCES headless_runs(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS agent_run_events (
+    run_id TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
     seq BIGINT NOT NULL,
     kind TEXT NOT NULL
         CHECK (kind IN ('init', 'assistant_text', 'tool_use', 'tool_result', 'hook', 'result', 'stderr', 'runner')),
@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS headless_run_events (
     PRIMARY KEY (run_id, seq)
 );
 
-CREATE INDEX IF NOT EXISTS idx_headless_run_events_tool_use ON headless_run_events(run_id, tool_use_id);
+CREATE INDEX IF NOT EXISTS idx_agent_run_events_tool_use ON agent_run_events(run_id, tool_use_id);

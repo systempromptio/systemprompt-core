@@ -1,7 +1,7 @@
-//! `systemprompt-headless` — host-generic headless coding-agent executor.
+//! `systemprompt-agent-runs` — durable, leased, governed coding-agent runs across hosts.
 //!
 //! A product (an agent farm, a workflow engine) queues a [`RunRequest`] as a
-//! `headless_runs` row. A claim loop running inside an extension's
+//! `agent_runs` row. A claim loop running inside an extension's
 //! `RunnerService` claims it, prepares a private [`RunLayout`], issues the
 //! run ephemeral credentials so every gateway call is attributed, spawns the
 //! host named by [`HostKind`] as an owned supervised subprocess and decodes
@@ -31,18 +31,18 @@ pub mod request;
 pub mod service;
 
 pub use credentials::{IssueRunCredentials, RunCredentials};
-pub use error::{HeadlessError, HeadlessResult};
+pub use error::{AgentRunsError, AgentRunsResult};
 pub use event::{HookDecision, RunEvent, RunEventKind, RunEventPayload, RunnerLevel};
 pub use execute::{
     DiffEntry, DiffKind, DiffSummary, EventSink, ExecuteParams, RunReport, execute,
     execute_with_host,
 };
-pub use extension::HeadlessExtension;
+pub use extension::AgentRunsExtension;
 pub use host::{
     Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
     host_for,
 };
 pub use layout::RunLayout;
 pub use outcome::{ErrorClass, RunOutcome, RunStatus};
-pub use repository::{HeadlessRunRepository, HeadlessRunRow};
+pub use repository::{AgentRunRepository, AgentRunRow};
 pub use request::{HostKind, McpServerSpec, PermissionMode, RunRequest};

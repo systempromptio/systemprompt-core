@@ -6,9 +6,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use systemprompt_headless::execute::{ExecuteParams, RunReport, execute_with_host};
-use systemprompt_headless::{
-    ErrorClass, EventSink, ExitInfo, HeadlessHost, HeadlessResult, HostCapabilities, HostEvent,
+use systemprompt_agent_runs::execute::{ExecuteParams, RunReport, execute_with_host};
+use systemprompt_agent_runs::{
+    ErrorClass, EventSink, ExitInfo, HeadlessHost, AgentRunsResult, HostCapabilities, HostEvent,
     HostInvocation, HostKind, PermissionMode, PrepareContext, RunCredentials, RunEvent,
     RunEventPayload, RunLayout, RunOutcome, RunRequest, RunStatus, RunnerLevel,
 };
@@ -33,7 +33,7 @@ impl HeadlessHost for ShHost {
         HostCapabilities::default()
     }
 
-    fn prepare(&self, ctx: &PrepareContext<'_>) -> HeadlessResult<HostInvocation> {
+    fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation> {
         Ok(HostInvocation {
             program: "/bin/sh".to_owned(),
             args: vec!["-c".to_owned(), self.script.clone()],
@@ -99,12 +99,12 @@ pub(crate) struct CollectSink {
 
 #[async_trait]
 impl EventSink for CollectSink {
-    async fn emit(&self, batch: Vec<RunEvent>) -> HeadlessResult<()> {
+    async fn emit(&self, batch: Vec<RunEvent>) -> AgentRunsResult<()> {
         self.batches.lock().unwrap().push(batch);
         Ok(())
     }
 
-    async fn session_observed(&self, session_id: &HostSessionId) -> HeadlessResult<()> {
+    async fn session_observed(&self, session_id: &HostSessionId) -> AgentRunsResult<()> {
         self.sessions.lock().unwrap().push(session_id.clone());
         Ok(())
     }

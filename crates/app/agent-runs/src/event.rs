@@ -2,7 +2,7 @@
 //!
 //! Every host adapter decodes its own stream (Claude Code `stream-json`, Codex
 //! CLI `--json`) into [`RunEventPayload`]s; the executor numbers them into
-//! [`RunEvent`]s and persists them in `headless_run_events`, whose `kind`
+//! [`RunEvent`]s and persists them in `agent_run_events`, whose `kind`
 //! column checks the eight [`RunEventKind`] spellings.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

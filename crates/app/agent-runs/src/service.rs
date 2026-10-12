@@ -13,24 +13,24 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{HeadlessRunId, HostSessionId};
+use systemprompt_identifiers::{AgentRunId, HostSessionId};
 use systemprompt_traits::OwnedTask;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::error::HeadlessResult;
+use crate::error::AgentRunsResult;
 use crate::event::RunEvent;
 use crate::execute::EventSink;
 use crate::lease::{DEFAULT_LEASE, DEFAULT_RENEW_EVERY, LeaseRenewer, LeaseSpec};
-use crate::repository::{HeadlessRunRepository, HeadlessRunRow};
+use crate::repository::{AgentRunRepository, AgentRunRow};
 
 /// A run the loop claimed. `run_token` is cancelled on shutdown or when the
 /// lease is lost.
 #[derive(Debug, Clone)]
 pub struct ClaimedRun {
-    pub row: HeadlessRunRow,
+    pub row: AgentRunRow,
     pub run_token: CancellationToken,
-    pub repo: HeadlessRunRepository,
+    pub repo: AgentRunRepository,
 }
 
 /// Runs one claimed run to its end: calls `execute` and `finish`.
@@ -40,12 +40,12 @@ pub struct ClaimedRun {
 /// in traits is not.
 #[async_trait]
 pub trait RunHandler: Send + Sync {
-    async fn run(&self, claimed: ClaimedRun) -> HeadlessResult<()>;
+    async fn run(&self, claimed: ClaimedRun) -> AgentRunsResult<()>;
 }
 
 #[derive(Debug, Clone)]
 pub struct ClaimLoop {
-    pub repo: HeadlessRunRepository,
+    pub repo: AgentRunRepository,
     pub origin_kind: String,
     pub claimed_by: String,
     pub max_concurrent: usize,
@@ -63,7 +63,7 @@ pub fn claimer_id(hostname: &str) -> String {
 
 impl ClaimLoop {
     #[must_use]
-    pub fn new(repo: HeadlessRunRepository, origin_kind: &str, claimed_by: String) -> Self {
+    pub fn new(repo: AgentRunRepository, origin_kind: &str, claimed_by: String) -> Self {
         Self {
             repo,
             origin_kind: origin_kind.to_owned(),
@@ -126,7 +126,7 @@ impl ClaimLoop {
 
     fn spawn_run(
         &self,
-        row: HeadlessRunRow,
+        row: AgentRunRow,
         shutdown: &CancellationToken,
         handler: &Arc<dyn RunHandler>,
     ) -> OwnedTask<()> {
@@ -144,7 +144,7 @@ impl ClaimLoop {
             repo: self.repo.clone(),
         };
         let handler = Arc::clone(handler);
-        OwnedTask::spawn("headless_run", async move {
+        OwnedTask::spawn("agent_run", async move {
             let run_id = claimed.row.id.clone();
             if let Err(error) = handler.run(claimed).await {
                 tracing::error!(%run_id, %error, "headless run handler failed");
@@ -170,28 +170,28 @@ fn log_join(result: Result<(), tokio::task::JoinError>) {
     }
 }
 
-/// Persists a run's events in `headless_run_events` and records the host
+/// Persists a run's events in `agent_run_events` and records the host
 /// session id on the run row.
 #[derive(Debug, Clone)]
 pub struct DbEventSink {
-    repo: HeadlessRunRepository,
-    run_id: HeadlessRunId,
+    repo: AgentRunRepository,
+    run_id: AgentRunId,
 }
 
 impl DbEventSink {
     #[must_use]
-    pub const fn new(repo: HeadlessRunRepository, run_id: HeadlessRunId) -> Self {
+    pub const fn new(repo: AgentRunRepository, run_id: AgentRunId) -> Self {
         Self { repo, run_id }
     }
 }
 
 #[async_trait]
 impl EventSink for DbEventSink {
-    async fn emit(&self, batch: Vec<RunEvent>) -> HeadlessResult<()> {
+    async fn emit(&self, batch: Vec<RunEvent>) -> AgentRunsResult<()> {
         self.repo.insert_events_batch(&self.run_id, &batch).await
     }
 
-    async fn session_observed(&self, session_id: &HostSessionId) -> HeadlessResult<()> {
+    async fn session_observed(&self, session_id: &HostSessionId) -> AgentRunsResult<()> {
         self.repo
             .update_host_session(&self.run_id, session_id)
             .await

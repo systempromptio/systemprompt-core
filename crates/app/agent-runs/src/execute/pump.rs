@@ -22,7 +22,7 @@ use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 use super::sink::EventSink;
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::event::{RunEvent, RunEventPayload};
 use crate::host::HeadlessHost;
 
@@ -38,7 +38,7 @@ pub(super) struct BufferedSink<'a> {
     last_flush: Instant,
     session_seen: bool,
     pub payloads: Vec<RunEventPayload>,
-    failure: Option<HeadlessError>,
+    failure: Option<AgentRunsError>,
 }
 
 impl std::fmt::Debug for BufferedSink<'_> {
@@ -118,7 +118,7 @@ impl<'a> BufferedSink<'a> {
         }
     }
 
-    pub(super) fn finish(self) -> HeadlessResult<Vec<RunEventPayload>> {
+    pub(super) fn finish(self) -> AgentRunsResult<Vec<RunEventPayload>> {
         self.failure.map_or(Ok(self.payloads), Err)
     }
 }

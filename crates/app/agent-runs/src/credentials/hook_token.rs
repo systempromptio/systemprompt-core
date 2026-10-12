@@ -13,7 +13,7 @@ use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::{IssuedPluginToken, PluginTokenService, PluginTokenSubject};
 use systemprompt_users::UserRepository;
 
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 
 const SECONDS_PER_DAY: i64 = 86_400;
 
@@ -33,7 +33,7 @@ pub(super) struct HookTokenRequest<'a> {
 pub(super) async fn mint_hook_token(
     users: &UserRepository,
     req: HookTokenRequest<'_>,
-) -> HeadlessResult<MintedHookToken> {
+) -> AgentRunsResult<MintedHookToken> {
     let HookTokenRequest {
         issuer,
         user_id,
@@ -44,11 +44,11 @@ pub(super) async fn mint_hook_token(
     let user = users
         .find_by_id(user_id)
         .await
-        .map_err(|source| HeadlessError::UserStore {
+        .map_err(|source| AgentRunsError::UserStore {
             step: "load run user",
             source,
         })?
-        .ok_or_else(|| HeadlessError::UserNotFound {
+        .ok_or_else(|| AgentRunsError::UserNotFound {
             user_id: user_id.clone(),
         })?;
     let subject = PluginTokenSubject {
@@ -59,7 +59,7 @@ pub(super) async fn mint_hook_token(
     let days = token_days(ttl);
     let expires_at = Utc::now() + chrono::Duration::days(i64::from(days));
     let minted = PluginTokenService::issue(subject, issuer, plugin_id.clone(), days, session_id)
-        .map_err(|source| HeadlessError::PluginToken { source })?;
+        .map_err(|source| AgentRunsError::PluginToken { source })?;
     Ok(MintedHookToken {
         issued: minted,
         expires_at,
@@ -71,11 +71,11 @@ pub(super) async fn revoke_hook_token(
     jti: &AccessTokenId,
     user_id: &UserId,
     exp: DateTime<Utc>,
-) -> HeadlessResult<()> {
+) -> AgentRunsResult<()> {
     oauth
         .revoke_jti(jti, user_id, exp)
         .await
-        .map_err(|source| HeadlessError::PluginToken { source })
+        .map_err(|source| AgentRunsError::PluginToken { source })
 }
 
 fn token_days(ttl: chrono::Duration) -> u32 {

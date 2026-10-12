@@ -13,32 +13,32 @@
 
 use std::time::Duration;
 
-use systemprompt_identifiers::HeadlessRunId;
+use systemprompt_identifiers::AgentRunId;
 
-use super::{HeadlessRunRepository, HeadlessRunRow};
-use crate::error::HeadlessResult;
+use super::{AgentRunRepository, AgentRunRow};
+use crate::error::AgentRunsResult;
 
-impl HeadlessRunRepository {
+impl AgentRunRepository {
     pub async fn claim_queued(
         &self,
         origin_kind: &str,
         claimed_by: &str,
         lease: Duration,
-    ) -> HeadlessResult<Option<HeadlessRunRow>> {
+    ) -> AgentRunsResult<Option<AgentRunRow>> {
         let claimed = sqlx::query_scalar!(
             r#"
-            UPDATE headless_runs
+            UPDATE agent_runs
             SET status = 'preparing', claimed_by = $2, claimed_at = NOW(),
                 lease_until = NOW() + make_interval(secs => $3::double precision)
             WHERE id = (
-                SELECT id FROM headless_runs
+                SELECT id FROM agent_runs
                 WHERE status = 'queued' AND origin_kind = $1
                   AND (not_before IS NULL OR not_before <= NOW())
                 ORDER BY created_at
                 LIMIT 1
                 FOR UPDATE SKIP LOCKED
             )
-            RETURNING id AS "id: HeadlessRunId"
+            RETURNING id AS "id: AgentRunId"
             "#,
             origin_kind,
             claimed_by,
@@ -54,13 +54,13 @@ impl HeadlessRunRepository {
 
     pub async fn renew_lease(
         &self,
-        id: &HeadlessRunId,
+        id: &AgentRunId,
         claimed_by: &str,
         lease: Duration,
-    ) -> HeadlessResult<bool> {
+    ) -> AgentRunsResult<bool> {
         let result = sqlx::query!(
             r#"
-            UPDATE headless_runs
+            UPDATE agent_runs
             SET lease_until = NOW() + make_interval(secs => $3::double precision)
             WHERE id = $1 AND claimed_by = $2 AND status IN ('preparing', 'running')
             "#,
@@ -77,16 +77,16 @@ impl HeadlessRunRepository {
         &self,
         origin_kind: &str,
         max_attempts: i32,
-    ) -> HeadlessResult<Vec<HeadlessRunId>> {
+    ) -> AgentRunsResult<Vec<AgentRunId>> {
         let ids = sqlx::query_scalar!(
             r#"
             WITH stale AS (
-                SELECT id, attempt < $2 AS retry FROM headless_runs
+                SELECT id, attempt < $2 AS retry FROM agent_runs
                 WHERE origin_kind = $1 AND status IN ('preparing', 'running')
                   AND lease_until < NOW()
                 FOR UPDATE SKIP LOCKED
             )
-            UPDATE headless_runs r
+            UPDATE agent_runs r
             SET status = CASE WHEN s.retry THEN 'queued' ELSE 'failed' END,
                 attempt = CASE WHEN s.retry THEN r.attempt + 1 ELSE r.attempt END,
                 request = CASE WHEN s.retry THEN jsonb_set(
@@ -100,7 +100,7 @@ impl HeadlessRunRepository {
                 claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
             FROM stale s
             WHERE r.id = s.id
-            RETURNING r.id AS "id: HeadlessRunId"
+            RETURNING r.id AS "id: AgentRunId"
             "#,
             origin_kind,
             max_attempts,

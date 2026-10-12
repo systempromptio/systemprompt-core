@@ -4,10 +4,10 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use systemprompt_headless::host::claude_code::ClaudeCode;
-use systemprompt_headless::host::claude_code::args::{child_env, claude_args};
-use systemprompt_headless::host::claude_code::plugin::HostFiles;
-use systemprompt_headless::{
+use systemprompt_agent_runs::host::claude_code::ClaudeCode;
+use systemprompt_agent_runs::host::claude_code::args::{child_env, claude_args};
+use systemprompt_agent_runs::host::claude_code::plugin::HostFiles;
+use systemprompt_agent_runs::{
     ErrorClass, ExitInfo, HeadlessHost, HookDecision, HostKind, McpServerSpec, PermissionMode,
     PrepareContext, RunEventKind, RunEventPayload, RunLayout, RunRequest, RunStatus,
 };

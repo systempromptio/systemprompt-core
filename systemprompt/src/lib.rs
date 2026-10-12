@@ -25,7 +25,7 @@
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
 //! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
-//! | `headless` | `systemprompt-headless` | Headless coding-agent runs (Claude Code, Codex CLI) with a common event contract and a leased claim queue. Not part of `full` yet. |
+//! | `agent-runs` | `systemprompt-agent-runs` | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
@@ -243,10 +243,10 @@ pub mod slack {
     pub use systemprompt_slack::*;
 }
 
-#[cfg(feature = "headless")]
-#[cfg_attr(docsrs, doc(cfg(feature = "headless")))]
-pub mod headless {
-    pub use systemprompt_headless::*;
+#[cfg(feature = "agent-runs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "agent-runs")))]
+pub mod agent_runs {
+    pub use systemprompt_agent_runs::*;
 }
 
 #[cfg(feature = "teams")]

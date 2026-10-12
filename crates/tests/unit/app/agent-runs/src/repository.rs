@@ -1,4 +1,4 @@
-//! DB-backed tests for `HeadlessRunRepository`: claim exclusivity, lease
+//! DB-backed tests for `AgentRunRepository`: claim exclusivity, lease
 //! renewal, stale reclaim and event batches. Each test uses its own
 //! `origin_kind` so concurrent tests never see each other's rows. Tests fail
 //! when `DATABASE_URL` is unset.
@@ -8,22 +8,22 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
-use systemprompt_headless::repository::NewHeadlessRun;
-use systemprompt_headless::{
-    HeadlessRunRepository, PermissionMode, RunEvent, RunEventPayload, RunRequest,
+use systemprompt_agent_runs::repository::NewAgentRun;
+use systemprompt_agent_runs::{
+    AgentRunRepository, PermissionMode, RunEvent, RunEventPayload, RunRequest,
 };
-use systemprompt_identifiers::{HeadlessRunId, HostSessionId, UserId};
+use systemprompt_identifiers::{AgentRunId, HostSessionId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 pub(crate) struct Fixture {
-    pub repo: HeadlessRunRepository,
+    pub repo: AgentRunRepository,
     pub origin_kind: String,
     pub user_id: UserId,
 }
 
 pub(crate) async fn fixture() -> Fixture {
     let pool = test_db_pool().await;
-    let repo = HeadlessRunRepository::new(&pool);
+    let repo = AgentRunRepository::new(&pool);
     let tag = uuid::Uuid::new_v4().simple().to_string();
     let user_id = UserId::new(format!("headless-test-{tag}"));
     sqlx::query("INSERT INTO users (id, name, email) VALUES ($1, $1, $1 || '@test.invalid')")
@@ -64,10 +64,10 @@ pub(crate) fn request() -> RunRequest {
     }
 }
 
-pub(crate) async fn queue(f: &Fixture) -> HeadlessRunId {
-    let id = HeadlessRunId::generate();
+pub(crate) async fn queue(f: &Fixture) -> AgentRunId {
+    let id = AgentRunId::generate();
     f.repo
-        .insert_run(NewHeadlessRun {
+        .insert_run(NewAgentRun {
             id: &id,
             origin_kind: &f.origin_kind,
             origin_id: "origin-1",
@@ -80,8 +80,8 @@ pub(crate) async fn queue(f: &Fixture) -> HeadlessRunId {
     id
 }
 
-async fn expire_lease(f: &Fixture, id: &HeadlessRunId) {
-    sqlx::query("UPDATE headless_runs SET lease_until = NOW() - INTERVAL '1 second' WHERE id = $1")
+async fn expire_lease(f: &Fixture, id: &AgentRunId) {
+    sqlx::query("UPDATE agent_runs SET lease_until = NOW() - INTERVAL '1 second' WHERE id = $1")
         .bind(id.as_str())
         .execute(f.repo.write_pool())
         .await

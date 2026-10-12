@@ -1,10 +1,10 @@
-# systemprompt-headless
+# systemprompt-agent-runs
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt-headless.svg?style=flat-square)](https://crates.io/crates/systemprompt-headless)
-[![Docs.rs](https://img.shields.io/docsrs/systemprompt-headless?style=flat-square)](https://docs.rs/systemprompt-headless)
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-agent-runs.svg?style=flat-square)](https://crates.io/crates/systemprompt-agent-runs)
+[![Docs.rs](https://img.shields.io/docsrs/systemprompt-agent-runs?style=flat-square)](https://docs.rs/systemprompt-agent-runs)
 [![License: BSL-1.1](https://img.shields.io/badge/license-BSL--1.1-2b6cb0?style=flat-square)](https://github.com/systempromptio/systemprompt-core/blob/main/LICENSE)
 
-A host-generic headless coding-agent executor. It runs a coding-agent CLI as an owned, supervised subprocess, decodes its output into one `RunEvent` contract, issues each run ephemeral attributed credentials, and drives a leased claim queue over a single `headless_runs` table shared by every product that queues runs.
+Durable, leased, governed coding-agent runs across hosts. It runs a coding-agent CLI as an owned, supervised subprocess, decodes its output into one `RunEvent` contract, issues each run ephemeral attributed credentials, and drives a leased claim queue over a single `agent_runs` table shared by every product that queues runs.
 
 **Layer**: App. It composes the users and oauth domain crates for credential issuance. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
 
@@ -17,13 +17,13 @@ A host-generic headless coding-agent executor. It runs a coding-agent CLI as an 
 | `OpenCode` | `opencode` | unsupported | OpenCode 0.5.1 `run` prints no machine-readable event stream and `serve` is an HTTP server, so there is no line protocol to supervise |
 | `Hermes` | `hermes` | unsupported | not installed on any verified host and its headless output has not been captured, so no decoder exists |
 
-`host_for(kind)` returns `Execution::Supported(Box<dyn HeadlessHost>)` or `Execution::Unsupported { reason }`. `execute` on an unsupported host returns `HeadlessError::UnsupportedHost` after cleaning `home/`. Each adapter reports its `HostCapabilities { hooks, resume, structured_output, mcp }`.
+`host_for(kind)` returns `Execution::Supported(Box<dyn HeadlessHost>)` or `Execution::Unsupported { reason }`. `execute` on an unsupported host returns `AgentRunsError::UnsupportedHost` after cleaning `home/`. Each adapter reports its `HostCapabilities { hooks, resume, structured_output, mcp }`.
 
 ## Contract
 
 ### `RunRequest`
 
-Stored as `headless_runs.request` (JSONB). The `host` column is taken from `request.host`.
+Stored as `agent_runs.request` (JSONB). The `host` column is taken from `request.host`.
 
 | Field | Type | Meaning |
 |-------|------|---------|
@@ -50,7 +50,7 @@ Stored as `headless_runs.request` (JSONB). The `host` column is taken from `requ
 
 ### Event kinds
 
-`RunEventPayload` is serialised with `kind` as its tag. `RunEvent` adds `seq`, `kind`, `tool_name`, `tool_use_id` and `created_at`; rows land in `headless_run_events` keyed `(run_id, seq)` in arrival order.
+`RunEventPayload` is serialised with `kind` as its tag. `RunEvent` adds `seq`, `kind`, `tool_name`, `tool_use_id` and `created_at`; rows land in `agent_run_events` keyed `(run_id, seq)` in arrival order.
 
 | `kind` | Payload fields | Source |
 |--------|----------------|--------|
@@ -73,7 +73,7 @@ Stored as `headless_runs.request` (JSONB). The `host` column is taken from `requ
 
 ### `RunStatus` and `ErrorClass`
 
-`RunStatus` is `headless_runs.status`: `queued` → `preparing` (claimed) → `running` → one terminal state. `RunStatus::is_terminal` is true for `succeeded`, `failed`, `cancelled` and `timed_out`.
+`RunStatus` is `agent_runs.status`: `queued` → `preparing` (claimed) → `running` → one terminal state. `RunStatus::is_terminal` is true for `succeeded`, `failed`, `cancelled` and `timed_out`.
 
 | `ErrorClass` | Meaning |
 |--------------|---------|
@@ -103,18 +103,18 @@ Stored as `headless_runs.request` (JSONB). The `host` column is taken from `requ
 
 ## Consumer sketch
 
-A product owns its own table, queues a `headless_runs` row with its `origin_kind` (`HeadlessRunRepository::insert_run` or `insert_run_in_tx` with a `NewHeadlessRun`), and runs a `ClaimLoop` from a `RunnerService`.
+A product owns its own table, queues a `agent_runs` row with its `origin_kind` (`AgentRunRepository::insert_run` or `insert_run_in_tx` with a `NewAgentRun`), and runs a `ClaimLoop` from a `RunnerService`.
 
 ```rust
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_headless::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
-use systemprompt_headless::execute::{ExecuteParams, execute};
-use systemprompt_headless::governance::{HookBases, hooks_file};
-use systemprompt_headless::service::{ClaimLoop, ClaimedRun, DbEventSink, RunHandler, claimer_id};
+use systemprompt_agent_runs::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
+use systemprompt_agent_runs::execute::{ExecuteParams, execute};
+use systemprompt_agent_runs::governance::{HookBases, hooks_file};
+use systemprompt_agent_runs::service::{ClaimLoop, ClaimedRun, DbEventSink, RunHandler, claimer_id};
 use systemprompt_database::DbPool;
-use systemprompt_headless::{HeadlessResult, HeadlessRunRepository, RunLayout, RunRequest};
+use systemprompt_agent_runs::{AgentRunsResult, AgentRunRepository, RunLayout, RunRequest};
 use systemprompt_provider_contracts::JobContext;
 use systemprompt_traits::RunnerService;
 use tokio_util::sync::CancellationToken;
@@ -131,7 +131,7 @@ impl RunnerService for FarmRunner {
 
     async fn run(&self, ctx: JobContext, shutdown: CancellationToken) {
         let Ok(db) = ctx.get::<DbPool>().cloned() else { return };
-        let repo = HeadlessRunRepository::new(&db);
+        let repo = AgentRunRepository::new(&db);
         let handler = Arc::new(FarmHandler {
             credentials: RunCredentialService::new(&db, "https://example.invalid"),
             gateway: "https://example.invalid".to_owned(),
@@ -154,7 +154,7 @@ struct FarmHandler {
 
 #[async_trait]
 impl RunHandler for FarmHandler {
-    async fn run(&self, claimed: ClaimedRun) -> HeadlessResult<()> {
+    async fn run(&self, claimed: ClaimedRun) -> AgentRunsResult<()> {
         let row = &claimed.row;
         let request: RunRequest = serde_json::from_value(row.request.clone())?;
         let layout = RunLayout::new(format!("/var/runs/{}", row.id));
@@ -214,15 +214,15 @@ fn runner_services(&self) -> Vec<Arc<dyn RunnerService>> {
 }
 ```
 
-The snippet abbreviates error conversion. A real handler maps its own errors into `HeadlessError`, passes `seq_after` from the last persisted event on a resumed attempt, and reads URLs from its config rather than literals.
+The snippet abbreviates error conversion. A real handler maps its own errors into `AgentRunsError`, passes `seq_after` from the last persisted event on a resumed attempt, and reads URLs from its config rather than literals.
 
 ## Origins
 
-Every product owns its own rows and holds a foreign key to `headless_runs.id`. `headless_runs` never references a product table; `(origin_kind, origin_id)` points back.
+Every product owns its own rows and holds a foreign key to `agent_runs.id`. `agent_runs` never references a product table; `(origin_kind, origin_id)` points back.
 
 | `origin_kind` | Product | Product row |
 |---------------|---------|-------------|
-| `agent_farm_run` | Dynapps agent farm | `agent_farm_runs.headless_run_id` |
+| `agent_farm_run` | Dynapps agent farm | `agent_farm_runs.agent_run_id` |
 | `workflow_step` | Astound workflows | the workflow step row |
 
 A `ClaimLoop` claims only its own `origin_kind`, so products sharing a database never take each other's runs.
@@ -265,10 +265,10 @@ Every gateway call a host makes carries the run's credentials (`RunCredentials`:
 | `execute` | `execute`, `execute_with_host`, `ExecuteParams`, `RunReport`, `EventSink`, `DiffSummary` |
 | `credentials` | `RunCredentialService`, `IssueRunCredentials`, `RunCredentials`, `RunCredentialLimits` |
 | `governance` | `hooks_file`, `hooks_document`, `HookBases` |
-| `repository` | `HeadlessRunRepository`, `HeadlessRunRow`, `NewHeadlessRun`, `RunStarted` |
+| `repository` | `AgentRunRepository`, `AgentRunRow`, `NewAgentRun`, `RunStarted` |
 | `lease` | `LeaseRenewer`, `LeaseSpec`, `DEFAULT_RENEW_EVERY`, `DEFAULT_LEASE` |
 | `service` | `ClaimLoop`, `RunHandler`, `ClaimedRun`, `DbEventSink`, `claimer_id` |
-| `error` | `HeadlessError`, `HeadlessResult` |
+| `error` | `AgentRunsError`, `AgentRunsResult` |
 
 ## License
 

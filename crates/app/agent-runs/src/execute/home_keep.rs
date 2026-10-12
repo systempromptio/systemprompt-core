@@ -12,7 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::layout::RunLayout;
 
 const KEEP_DIR: &str = "home-keep";
@@ -21,7 +21,7 @@ fn keep_root(layout: &RunLayout) -> PathBuf {
     layout.host.join(KEEP_DIR)
 }
 
-pub(super) async fn restore(layout: &RunLayout, paths: &[&str]) -> HeadlessResult<()> {
+pub(super) async fn restore(layout: &RunLayout, paths: &[&str]) -> AgentRunsResult<()> {
     for rel in paths {
         let from = keep_root(layout).join(rel);
         if tokio::fs::try_exists(&from)
@@ -35,7 +35,7 @@ pub(super) async fn restore(layout: &RunLayout, paths: &[&str]) -> HeadlessResul
     Ok(())
 }
 
-pub(super) async fn preserve(layout: &RunLayout, paths: &[&str]) -> HeadlessResult<()> {
+pub(super) async fn preserve(layout: &RunLayout, paths: &[&str]) -> AgentRunsResult<()> {
     for rel in paths {
         let from = layout.home.join(rel);
         if tokio::fs::try_exists(&from)
@@ -49,7 +49,7 @@ pub(super) async fn preserve(layout: &RunLayout, paths: &[&str]) -> HeadlessResu
     Ok(())
 }
 
-async fn replace(from: &Path, to: &Path) -> HeadlessResult<()> {
+async fn replace(from: &Path, to: &Path) -> AgentRunsResult<()> {
     match tokio::fs::remove_dir_all(to).await {
         Ok(()) => {},
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {},
@@ -66,8 +66,8 @@ async fn replace(from: &Path, to: &Path) -> HeadlessResult<()> {
     tokio::fs::rename(from, to).await.map_err(|e| err(from, e))
 }
 
-fn err(path: &Path, source: std::io::Error) -> HeadlessError {
-    HeadlessError::Layout {
+fn err(path: &Path, source: std::io::Error) -> AgentRunsError {
+    AgentRunsError::Layout {
         path: path.to_path_buf(),
         source,
     }

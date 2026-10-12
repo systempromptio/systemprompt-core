@@ -1,4 +1,4 @@
-//! Summarises the workspace diff a run produced (`headless_runs.diff_summary`).
+//! Summarises the workspace diff a run produced (`agent_runs.diff_summary`).
 //!
 //! The executor snapshots every file's SHA-256 under the host's working
 //! directory before the spawn and after the exit; [`workspace_diff`] compares

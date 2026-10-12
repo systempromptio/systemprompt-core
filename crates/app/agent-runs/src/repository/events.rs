@@ -1,4 +1,4 @@
-//! Event inserts into and reads from `headless_run_events`.
+//! Event inserts into and reads from `agent_run_events`.
 //!
 //! A batch is one `UNNEST` insert; a replayed `seq` is ignored, and an empty
 //! tool name or id is stored as `NULL`.
@@ -7,18 +7,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::HeadlessRunId;
+use systemprompt_identifiers::AgentRunId;
 
-use super::HeadlessRunRepository;
-use crate::error::HeadlessResult;
+use super::AgentRunRepository;
+use crate::error::AgentRunsResult;
 use crate::event::{RunEvent, RunEventKind, RunEventPayload};
 
-impl HeadlessRunRepository {
+impl AgentRunRepository {
     pub async fn insert_events_batch(
         &self,
-        run_id: &HeadlessRunId,
+        run_id: &AgentRunId,
         events: &[RunEvent],
-    ) -> HeadlessResult<()> {
+    ) -> AgentRunsResult<()> {
         if events.is_empty() {
             return Ok(());
         }
@@ -39,7 +39,7 @@ impl HeadlessRunRepository {
         let created: Vec<DateTime<Utc>> = events.iter().map(|e| e.created_at).collect();
         sqlx::query!(
             r#"
-            INSERT INTO headless_run_events
+            INSERT INTO agent_run_events
                 (run_id, seq, kind, tool_name, tool_use_id, payload, created_at)
             SELECT $1, u.seq, u.kind, NULLIF(u.tool_name, ''), NULLIF(u.tool_use_id, ''),
                    u.payload, u.created_at
@@ -63,14 +63,14 @@ impl HeadlessRunRepository {
 
     pub async fn list_events_after(
         &self,
-        run_id: &HeadlessRunId,
+        run_id: &AgentRunId,
         after_seq: i64,
         limit: i64,
-    ) -> HeadlessResult<Vec<RunEvent>> {
+    ) -> AgentRunsResult<Vec<RunEvent>> {
         let rows = sqlx::query!(
             r#"
             SELECT seq, kind, tool_name, tool_use_id, payload, created_at
-            FROM headless_run_events
+            FROM agent_run_events
             WHERE run_id = $1 AND seq > $2
             ORDER BY seq
             LIMIT $3
@@ -95,9 +95,9 @@ impl HeadlessRunRepository {
             .collect()
     }
 
-    pub async fn count_events(&self, run_id: &HeadlessRunId) -> HeadlessResult<i64> {
+    pub async fn count_events(&self, run_id: &AgentRunId) -> AgentRunsResult<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM headless_run_events WHERE run_id = $1"#,
+            r#"SELECT COUNT(*) AS "count!" FROM agent_run_events WHERE run_id = $1"#,
             run_id.as_str(),
         )
         .fetch_one(self.write_pool())

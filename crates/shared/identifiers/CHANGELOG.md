@@ -4,7 +4,7 @@
 
 ### Added
 
-- `HeadlessRunId` (`uuid` arm, the `headless_runs.id`) and `HostSessionId` (`non_empty`, the session id a coding-agent host reports for its own conversation).
+- `AgentRunId` (`uuid` arm, the `agent_runs.id`) and `HostSessionId` (`non_empty`, the session id a coding-agent host reports for its own conversation).
 
 ## [0.63.0] - 2026-10-07
 

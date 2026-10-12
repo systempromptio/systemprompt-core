@@ -13,7 +13,7 @@ group_prefixes() {
     # tests ride this shard rather than adding a CI matrix entry.
     app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/" ;;
     app-scheduler) echo "/tests/unit/app/scheduler/" ;;
-    app-headless)  echo "/tests/unit/app/headless/" ;;
+    app-agent-runs)  echo "/tests/unit/app/agent-runs/" ;;
     app-generator) echo "/tests/unit/app/generator/" ;;
     app-oauth-issuance) echo "/tests/unit/app/oauth-issuance/" ;;
     entry-api)     echo "/tests/unit/entry/api/" ;;
@@ -39,7 +39,7 @@ group_prefixes() {
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }
-SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-headless app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
+SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
 group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true

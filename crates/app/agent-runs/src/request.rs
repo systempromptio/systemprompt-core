@@ -1,9 +1,9 @@
 //! [`RunRequest`]: everything a host needs to run one headless turn.
 //!
-//! The request is stored verbatim as `headless_runs.request` (JSONB), so it is
+//! The request is stored verbatim as `agent_runs.request` (JSONB), so it is
 //! the contract between the product that queues a run and the executor that
 //! claims it. [`HostKind`] names the coding-agent host; its spelling is the
-//! `headless_runs.host` column.
+//! `agent_runs.host` column.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

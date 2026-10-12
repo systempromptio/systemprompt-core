@@ -1,8 +1,8 @@
 //! Codex CLI adapter: outcome classification over the live and documented
 //! fixtures, and defensive line decoding.
 
-use systemprompt_headless::host::codex_cli::CodexCli;
-use systemprompt_headless::{
+use systemprompt_agent_runs::host::codex_cli::CodexCli;
+use systemprompt_agent_runs::{
     ErrorClass, ExitInfo, HeadlessHost, RunEventKind, RunEventPayload, RunStatus,
 };
 

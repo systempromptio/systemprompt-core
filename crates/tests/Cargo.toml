@@ -64,7 +64,7 @@ members = [
     "unit/app/generator",
     "unit/app/oauth-issuance",
     "unit/app/runtime",
-    "unit/app/headless",
+    "unit/app/agent-runs",
     "unit/app/scheduler",
     # Unit tests - entry layer
     "unit/entry/api",
@@ -271,7 +271,7 @@ systemprompt-slack = { path = "../domain/slack" }
 systemprompt-teams = { path = "../domain/teams" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
-systemprompt-headless = { path = "../app/headless" }
+systemprompt-agent-runs = { path = "../app/agent-runs" }
 systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }

@@ -1,4 +1,4 @@
-//! [`HeadlessRunRepository`]: the `headless_runs` and `headless_run_events`
+//! [`AgentRunRepository`]: the `agent_runs` and `agent_run_events`
 //! queries.
 //!
 //! Row writes for the run lifecycle live here; the claim, lease and reclaim
@@ -21,23 +21,23 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ApiKeyId, HeadlessRunId, HostSessionId, SessionId, UserId};
+use systemprompt_identifiers::{ApiKeyId, AgentRunId, HostSessionId, SessionId, UserId};
 
-pub use rows::HeadlessRunRow;
+pub use rows::AgentRunRow;
 
-use crate::error::HeadlessResult;
+use crate::error::AgentRunsResult;
 use crate::outcome::RunOutcome;
 use crate::request::RunRequest;
 
 #[derive(Debug, Clone)]
-pub struct HeadlessRunRepository {
+pub struct AgentRunRepository {
     write_pool: Arc<PgPool>,
 }
 
 /// A run to queue. The `host` column is taken from `request.host`.
 #[derive(Debug, Clone, Copy)]
-pub struct NewHeadlessRun<'a> {
-    pub id: &'a HeadlessRunId,
+pub struct NewAgentRun<'a> {
+    pub id: &'a AgentRunId,
     pub origin_kind: &'a str,
     pub origin_id: &'a str,
     pub user_id: &'a UserId,
@@ -54,7 +54,7 @@ pub struct RunStarted<'a> {
     pub api_key_id: Option<&'a ApiKeyId>,
 }
 
-impl HeadlessRunRepository {
+impl AgentRunRepository {
     #[must_use]
     pub fn new(db: &DbPool) -> Self {
         Self {
@@ -72,7 +72,7 @@ impl HeadlessRunRepository {
         &self.write_pool
     }
 
-    pub async fn insert_run(&self, run: NewHeadlessRun<'_>) -> HeadlessResult<()> {
+    pub async fn insert_run(&self, run: NewAgentRun<'_>) -> AgentRunsResult<()> {
         let mut tx = self.write_pool.begin().await?;
         Self::insert_run_in_tx(&mut tx, run).await?;
         tx.commit().await?;
@@ -81,12 +81,12 @@ impl HeadlessRunRepository {
 
     pub async fn insert_run_in_tx(
         tx: &mut Transaction<'_, Postgres>,
-        run: NewHeadlessRun<'_>,
-    ) -> HeadlessResult<()> {
+        run: NewAgentRun<'_>,
+    ) -> AgentRunsResult<()> {
         let request = serde_json::to_value(run.request)?;
         sqlx::query!(
             r#"
-            INSERT INTO headless_runs
+            INSERT INTO agent_runs
                 (id, origin_kind, origin_id, user_id, host, status, request, attempt, not_before)
             VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8)
             "#,
@@ -106,13 +106,13 @@ impl HeadlessRunRepository {
 
     pub async fn update_started(
         &self,
-        id: &HeadlessRunId,
+        id: &AgentRunId,
         started: RunStarted<'_>,
-    ) -> HeadlessResult<()> {
+    ) -> AgentRunsResult<()> {
         let run_dir = started.run_dir.to_string_lossy();
         sqlx::query!(
             r#"
-            UPDATE headless_runs
+            UPDATE agent_runs
             SET status = 'running', started_at = NOW(), run_dir = $2, pid = $3,
                 gateway_session_id = $4, api_key_id = $5
             WHERE id = $1
@@ -130,11 +130,11 @@ impl HeadlessRunRepository {
 
     pub async fn update_host_session(
         &self,
-        id: &HeadlessRunId,
+        id: &AgentRunId,
         host_session_id: &HostSessionId,
-    ) -> HeadlessResult<()> {
+    ) -> AgentRunsResult<()> {
         sqlx::query!(
-            "UPDATE headless_runs SET host_session_id = $2 WHERE id = $1",
+            "UPDATE agent_runs SET host_session_id = $2 WHERE id = $1",
             id.as_str(),
             host_session_id.as_str(),
         )
@@ -143,10 +143,10 @@ impl HeadlessRunRepository {
         Ok(())
     }
 
-    pub async fn update_cancel_requested(&self, id: &HeadlessRunId) -> HeadlessResult<()> {
+    pub async fn update_cancel_requested(&self, id: &AgentRunId) -> AgentRunsResult<()> {
         sqlx::query!(
             r#"
-            UPDATE headless_runs SET cancel_requested_at = COALESCE(cancel_requested_at, NOW())
+            UPDATE agent_runs SET cancel_requested_at = COALESCE(cancel_requested_at, NOW())
             WHERE id = $1
             "#,
             id.as_str(),
@@ -156,9 +156,9 @@ impl HeadlessRunRepository {
         Ok(())
     }
 
-    pub async fn find_cancel_requested(&self, id: &HeadlessRunId) -> HeadlessResult<bool> {
+    pub async fn find_cancel_requested(&self, id: &AgentRunId) -> AgentRunsResult<bool> {
         let requested = sqlx::query_scalar!(
-            r#"SELECT cancel_requested_at IS NOT NULL AS "requested!" FROM headless_runs WHERE id = $1"#,
+            r#"SELECT cancel_requested_at IS NOT NULL AS "requested!" FROM agent_runs WHERE id = $1"#,
             id.as_str(),
         )
         .fetch_optional(self.write_pool.as_ref())
@@ -169,13 +169,13 @@ impl HeadlessRunRepository {
     // JSON: the workspace diff summary, stored verbatim in `diff_summary`.
     pub async fn finish(
         &self,
-        id: &HeadlessRunId,
+        id: &AgentRunId,
         outcome: &RunOutcome,
         diff_summary: Option<&serde_json::Value>,
-    ) -> HeadlessResult<bool> {
+    ) -> AgentRunsResult<bool> {
         let result = sqlx::query!(
             r#"
-            UPDATE headless_runs
+            UPDATE agent_runs
             SET status = $2, error_class = $3, input_tokens = $4, output_tokens = $5,
                 cost_microdollars = $6, turns = $7, duration_ms = $8,
                 structured_output = $9, exit_code = $10, error = $11, diff_summary = $12,

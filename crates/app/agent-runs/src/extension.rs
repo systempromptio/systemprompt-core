@@ -1,7 +1,7 @@
 //! Extension-framework registration for the headless crate.
 //!
-//! [`HeadlessExtension`] declares the `headless_runs` and
-//! `headless_run_events` tables and registers itself with the platform
+//! [`AgentRunsExtension`] declares the `agent_runs` and
+//! `agent_run_events` tables and registers itself with the platform
 //! extension registry via [`register_extension!`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -10,20 +10,20 @@
 use systemprompt_extension::prelude::*;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct HeadlessExtension;
+pub struct AgentRunsExtension;
 
-impl Extension for HeadlessExtension {
+impl Extension for AgentRunsExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
-            id: "headless",
-            name: "Headless",
+            id: "agent_runs",
+            name: "Agent runs",
             version: env!("CARGO_PKG_VERSION"),
         }
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::new("headless_runs", include_str!("../schema/headless_runs.sql"))
+            SchemaDefinition::new("agent_runs", include_str!("../schema/agent_runs.sql"))
                 .with_required_columns(vec![
                     "id".into(),
                     "user_id".into(),
@@ -32,8 +32,8 @@ impl Extension for HeadlessExtension {
                     "lease_until".into(),
                 ]),
             SchemaDefinition::new(
-                "headless_run_events",
-                include_str!("../schema/headless_run_events.sql"),
+                "agent_run_events",
+                include_str!("../schema/agent_run_events.sql"),
             )
             .with_required_columns(vec!["run_id".into(), "seq".into(), "kind".into()]),
         ]
@@ -48,4 +48,4 @@ impl Extension for HeadlessExtension {
     }
 }
 
-register_extension!(HeadlessExtension);
+register_extension!(AgentRunsExtension);

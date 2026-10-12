@@ -24,12 +24,12 @@ macro_rules! text_enum {
         }
 
         impl std::str::FromStr for $name {
-            type Err = crate::error::HeadlessError;
+            type Err = crate::error::AgentRunsError;
 
             fn from_str(value: &str) -> Result<Self, Self::Err> {
                 match value {
                     $($text => Ok(Self::$variant),)+
-                    _ => Err(crate::error::HeadlessError::$err { value: value.to_owned() }),
+                    _ => Err(crate::error::AgentRunsError::$err { value: value.to_owned() }),
                 }
             }
         }

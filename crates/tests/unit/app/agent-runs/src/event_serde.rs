@@ -1,6 +1,6 @@
 //! `RunEventPayload` round-trips through serde with its `kind` tag.
 
-use systemprompt_headless::{HookDecision, RunEventKind, RunEventPayload};
+use systemprompt_agent_runs::{HookDecision, RunEventKind, RunEventPayload};
 use systemprompt_identifiers::HostSessionId;
 
 fn round_trip(payload: &RunEventPayload) -> RunEventPayload {

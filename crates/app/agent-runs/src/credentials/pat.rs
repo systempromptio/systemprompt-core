@@ -14,14 +14,14 @@ use systemprompt_identifiers::{ApiKeyId, ApiKeySecret, UserId};
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams};
 
 use super::{IssueRunCredentials, RunCredentialLimits};
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 
 const MICRODOLLARS_PER_USD: f64 = 1_000_000.0;
 
 pub(super) async fn issue_pat(
     keys: &ApiKeyService,
     req: &IssueRunCredentials,
-) -> HeadlessResult<(ApiKeyId, ApiKeySecret)> {
+) -> AgentRunsResult<(ApiKeyId, ApiKeySecret)> {
     let ttl = chrono_ttl(req.ttl)?;
     let limits = api_key_limits(req.limits, req.ttl)?;
     let issued = keys
@@ -33,7 +33,7 @@ pub(super) async fn issue_pat(
             scopes: &req.scopes,
         })
         .await
-        .map_err(|source| HeadlessError::ApiKey {
+        .map_err(|source| AgentRunsError::ApiKey {
             step: "issue",
             source,
         })?;
@@ -44,20 +44,20 @@ pub(super) async fn revoke_pat(
     keys: &ApiKeyService,
     id: &ApiKeyId,
     user_id: &UserId,
-) -> HeadlessResult<bool> {
+) -> AgentRunsResult<bool> {
     keys.revoke(id, user_id)
         .await
-        .map_err(|source| HeadlessError::ApiKey {
+        .map_err(|source| AgentRunsError::ApiKey {
             step: "revoke",
             source,
         })
 }
 
-pub(super) fn chrono_ttl(ttl: Duration) -> HeadlessResult<chrono::Duration> {
-    chrono::Duration::from_std(ttl).map_err(|source| HeadlessError::CredentialTtl { source })
+pub(super) fn chrono_ttl(ttl: Duration) -> AgentRunsResult<chrono::Duration> {
+    chrono::Duration::from_std(ttl).map_err(|source| AgentRunsError::CredentialTtl { source })
 }
 
-fn api_key_limits(limits: RunCredentialLimits, ttl: Duration) -> HeadlessResult<ApiKeyLimits> {
+fn api_key_limits(limits: RunCredentialLimits, ttl: Duration) -> AgentRunsResult<ApiKeyLimits> {
     let budget_microdollars = limits.max_budget_usd.map(microdollars).transpose()?;
     let max_requests = limits
         .max_requests
@@ -72,10 +72,10 @@ fn api_key_limits(limits: RunCredentialLimits, ttl: Duration) -> HeadlessResult<
     })
 }
 
-fn microdollars(usd: f64) -> HeadlessResult<i64> {
+fn microdollars(usd: f64) -> AgentRunsResult<i64> {
     let scaled = (usd * MICRODOLLARS_PER_USD).round();
     if !scaled.is_finite() || scaled < 0.0 || scaled > 9.0e15 {
-        return Err(HeadlessError::InvalidBudget { usd });
+        return Err(AgentRunsError::InvalidBudget { usd });
     }
     #[expect(
         clippy::cast_possible_truncation,

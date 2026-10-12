@@ -1,7 +1,7 @@
 //! The run lifecycle and its terminal [`RunOutcome`].
 //!
-//! [`RunStatus`] is the `headless_runs.status` column and [`ErrorClass`] the
-//! `headless_runs.error_class` column; both spellings match the table's
+//! [`RunStatus`] is the `agent_runs.status` column and [`ErrorClass`] the
+//! `agent_runs.error_class` column; both spellings match the table's
 //! `CHECK` constraints.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -47,7 +47,7 @@ text_enum!(
 );
 
 // JSON: the host's structured final answer, shaped by the caller's
-// `RunRequest::output_schema`, stored in `headless_runs.structured_output`.
+// `RunRequest::output_schema`, stored in `agent_runs.structured_output`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RunOutcome {
     pub status: RunStatus,

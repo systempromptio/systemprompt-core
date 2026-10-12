@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use systemprompt_headless::lease::{LeaseRenewer, LeaseSpec};
+use systemprompt_agent_runs::lease::{LeaseRenewer, LeaseSpec};
 use tokio_util::sync::CancellationToken;
 
 use crate::repository::{fixture, queue};
@@ -30,7 +30,7 @@ async fn renewer_keeps_a_held_lease_and_cancels_on_loss() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(!token.is_cancelled());
 
-    sqlx::query("UPDATE headless_runs SET claimed_by = 'b' WHERE id = $1")
+    sqlx::query("UPDATE agent_runs SET claimed_by = 'b' WHERE id = $1")
         .bind(id.as_str())
         .execute(f.repo.write_pool())
         .await

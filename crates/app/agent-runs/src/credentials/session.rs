@@ -13,13 +13,13 @@ use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_users::SessionRepository;
 
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 
 pub(super) async fn open_session(
     creator: &SessionCreationService,
     user_id: &UserId,
     ttl: chrono::Duration,
-) -> HeadlessResult<SessionId> {
+) -> AgentRunsResult<SessionId> {
     creator
         .create_authenticated_session_with_ttl(
             user_id,
@@ -28,17 +28,17 @@ pub(super) async fn open_session(
             ttl,
         )
         .await
-        .map_err(|source| HeadlessError::Session { source })
+        .map_err(|source| AgentRunsError::Session { source })
 }
 
 pub(super) async fn end_session(
     sessions: &SessionRepository,
     session_id: &SessionId,
-) -> HeadlessResult<()> {
+) -> AgentRunsResult<()> {
     sessions
         .revoke_session(session_id)
         .await
-        .map_err(|source| HeadlessError::UserStore {
+        .map_err(|source| AgentRunsError::UserStore {
             step: "end session",
             source,
         })

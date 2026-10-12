@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::host::PrepareContext;
 use crate::request::{McpServerSpec, RunRequest};
 
@@ -65,7 +65,7 @@ pub fn mcp_config_json(request: &RunRequest) -> McpConfig<'_> {
     }
 }
 
-pub fn write_host_files(ctx: &PrepareContext<'_>) -> HeadlessResult<HostFiles> {
+pub fn write_host_files(ctx: &PrepareContext<'_>) -> AgentRunsResult<HostFiles> {
     let host_dir = &ctx.layout.host;
     let mcp_config = if ctx.request.mcp_servers.is_empty() {
         None
@@ -83,19 +83,19 @@ pub fn write_host_files(ctx: &PrepareContext<'_>) -> HeadlessResult<HostFiles> {
     })
 }
 
-fn create_dir(path: &Path) -> HeadlessResult<()> {
+fn create_dir(path: &Path) -> AgentRunsResult<()> {
     std::fs::create_dir_all(path).map_err(|source| layout_error(path, source))
 }
 
-fn write(path: &Path, bytes: &[u8]) -> HeadlessResult<()> {
+fn write(path: &Path, bytes: &[u8]) -> AgentRunsResult<()> {
     if let Some(parent) = path.parent() {
         create_dir(parent)?;
     }
     std::fs::write(path, bytes).map_err(|source| layout_error(path, source))
 }
 
-fn layout_error(path: &Path, source: std::io::Error) -> HeadlessError {
-    HeadlessError::Layout {
+fn layout_error(path: &Path, source: std::io::Error) -> AgentRunsError {
+    AgentRunsError::Layout {
         path: path.to_path_buf(),
         source,
     }

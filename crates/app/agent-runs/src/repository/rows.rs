@@ -1,21 +1,21 @@
-//! [`HeadlessRunRow`]: one `headless_runs` row as decoded, and the reads
+//! [`AgentRunRow`]: one `agent_runs` row as decoded, and the reads
 //! that return it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{ApiKeyId, HeadlessRunId, HostSessionId, SessionId, UserId};
+use systemprompt_identifiers::{ApiKeyId, AgentRunId, HostSessionId, SessionId, UserId};
 
-use super::HeadlessRunRepository;
-use crate::error::HeadlessResult;
+use super::AgentRunRepository;
+use crate::error::AgentRunsResult;
 
-/// One `headless_runs` row. `host`, `status` and `error_class` stay
+/// One `agent_runs` row. `host`, `status` and `error_class` stay
 /// their column text here; [`crate::HostKind`], [`crate::RunStatus`] and
 /// [`crate::ErrorClass`] parse them.
 #[derive(Debug, Clone, sqlx::FromRow)]
-pub struct HeadlessRunRow {
-    pub id: HeadlessRunId,
+pub struct AgentRunRow {
+    pub id: AgentRunId,
     pub origin_kind: String,
     pub origin_id: String,
     pub user_id: UserId,
@@ -52,12 +52,12 @@ pub struct HeadlessRunRow {
     pub updated_at: DateTime<Utc>,
 }
 
-impl HeadlessRunRepository {
-    pub async fn find_run(&self, id: &HeadlessRunId) -> HeadlessResult<Option<HeadlessRunRow>> {
+impl AgentRunRepository {
+    pub async fn find_run(&self, id: &AgentRunId) -> AgentRunsResult<Option<AgentRunRow>> {
         let row = sqlx::query_as!(
-            HeadlessRunRow,
+            AgentRunRow,
             r#"
-            SELECT id AS "id: HeadlessRunId", origin_kind, origin_id,
+            SELECT id AS "id: AgentRunId", origin_kind, origin_id,
                    user_id AS "user_id: UserId", host, status, request, attempt,
                    not_before, claimed_by, lease_until, claimed_at, run_dir,
                    gateway_session_id AS "gateway_session_id: SessionId",
@@ -66,7 +66,7 @@ impl HeadlessRunRepository {
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
                    exit_code, error, diff_summary, cancel_requested_at, created_at, updated_at
-            FROM headless_runs
+            FROM agent_runs
             WHERE id = $1
             "#,
             id.as_str(),
@@ -80,11 +80,11 @@ impl HeadlessRunRepository {
         &self,
         origin_kind: &str,
         origin_id: &str,
-    ) -> HeadlessResult<Vec<HeadlessRunRow>> {
+    ) -> AgentRunsResult<Vec<AgentRunRow>> {
         let rows = sqlx::query_as!(
-            HeadlessRunRow,
+            AgentRunRow,
             r#"
-            SELECT id AS "id: HeadlessRunId", origin_kind, origin_id,
+            SELECT id AS "id: AgentRunId", origin_kind, origin_id,
                    user_id AS "user_id: UserId", host, status, request, attempt,
                    not_before, claimed_by, lease_until, claimed_at, run_dir,
                    gateway_session_id AS "gateway_session_id: SessionId",
@@ -93,7 +93,7 @@ impl HeadlessRunRepository {
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
                    exit_code, error, diff_summary, cancel_requested_at, created_at, updated_at
-            FROM headless_runs
+            FROM agent_runs
             WHERE origin_kind = $1 AND origin_id = $2
             ORDER BY created_at
             "#,

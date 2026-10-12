@@ -1,19 +1,19 @@
 # Headless Schema
 
-PostgreSQL schema for the `systemprompt-headless` crate. Each table lives in its own `.sql` file and is embedded at compile time via `include_str!` in `extension.rs`; versioned migrations would live under `schema/migrations/` and are discovered by `build.rs`.
+PostgreSQL schema for the `systemprompt-agent-runs` crate. Each table lives in its own `.sql` file and is embedded at compile time via `include_str!` in `extension.rs`; versioned migrations would live under `schema/migrations/` and are discovered by `build.rs`.
 
 ## Tables
 
 | File | Table | Purpose |
 |------|-------|---------|
-| `headless_runs.sql` | `headless_runs` | One row per headless run: origin, owner, host, status, the `RunRequest` JSONB, the claim lease, the run's credentials and its outcome. |
-| `headless_run_events.sql` | `headless_run_events` | The run's decoded `RunEvent`s in arrival order, keyed `(run_id, seq)`. |
+| `agent_runs.sql` | `agent_runs` | One row per headless run: origin, owner, host, status, the `RunRequest` JSONB, the claim lease, the run's credentials and its outcome. |
+| `agent_run_events.sql` | `agent_run_events` | The run's decoded `RunEvent`s in arrival order, keyed `(run_id, seq)`. |
 
 The claim index `(status, not_before, created_at)` serves `FOR UPDATE SKIP LOCKED`; the partial lease index serves stale-run reclaim. `updated_at` is maintained by `update_timestamp_trigger()` from the database extension.
 
 ## Origins
 
-`(origin_kind, origin_id)` names the product row that queued the run (`agent_farm_run`, `workflow_step`). Products own their rows and hold the foreign key to `headless_runs.id`; this schema references no product table.
+`(origin_kind, origin_id)` names the product row that queued the run (`agent_farm_run`, `workflow_step`). Products own their rows and hold the foreign key to `agent_runs.id`; this schema references no product table.
 
 ## Lease columns
 

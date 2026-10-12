@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio::process::Child;
 
 use super::command::build_command;
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::host::HostInvocation;
 
 const TERM_GRACE: Duration = Duration::from_secs(5);
@@ -40,10 +40,10 @@ pub(super) struct OwnedChild {
     pub guard: KillGuard,
 }
 
-pub(super) fn spawn_owned_supervised(invocation: &HostInvocation) -> HeadlessResult<OwnedChild> {
+pub(super) fn spawn_owned_supervised(invocation: &HostInvocation) -> AgentRunsResult<OwnedChild> {
     let child = build_command(invocation)
         .spawn()
-        .map_err(|source| HeadlessError::Spawn {
+        .map_err(|source| AgentRunsError::Spawn {
             program: invocation.program.clone(),
             source,
         })?;

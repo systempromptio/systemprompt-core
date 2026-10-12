@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use systemprompt_identifiers::HostSessionId;
 
 use crate::credentials::RunCredentials;
-use crate::error::HeadlessResult;
+use crate::error::AgentRunsResult;
 use crate::event::RunEventPayload;
 use crate::layout::RunLayout;
 use crate::outcome::RunOutcome;
@@ -82,7 +82,7 @@ pub trait HeadlessHost: Send + Sync {
         &[]
     }
 
-    fn prepare(&self, ctx: &PrepareContext<'_>) -> HeadlessResult<HostInvocation>;
+    fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation>;
 
     fn parse_line(&self, line: &str) -> Vec<HostEvent>;
 

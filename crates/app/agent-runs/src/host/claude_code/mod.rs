@@ -16,7 +16,7 @@ pub mod stream_json;
 use super::{
     Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
 };
-use crate::error::HeadlessResult;
+use crate::error::AgentRunsResult;
 use crate::event::RunEventPayload;
 use crate::outcome::RunOutcome;
 use crate::request::{HostKind, RunRequest};
@@ -45,7 +45,7 @@ impl HeadlessHost for ClaudeCode {
         }
     }
 
-    fn prepare(&self, ctx: &PrepareContext<'_>) -> HeadlessResult<HostInvocation> {
+    fn prepare(&self, ctx: &PrepareContext<'_>) -> AgentRunsResult<HostInvocation> {
         let files = plugin::write_host_files(ctx)?;
         Ok(HostInvocation {
             program: CLAUDE_PROGRAM.to_owned(),

@@ -5,10 +5,10 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use systemprompt_headless::{RunEvent, RunEventPayload, RunStatus, RunnerLevel};
+use systemprompt_agent_runs::{RunEvent, RunEventPayload, RunStatus, RunnerLevel};
 use tokio_util::sync::CancellationToken;
 
-use systemprompt_headless::RunLayout;
+use systemprompt_agent_runs::RunLayout;
 
 use crate::execute_support::{ShHost, run_in, run_script, run_with};
 
@@ -144,7 +144,7 @@ async fn child_environment_is_allowlisted() {
     )
     .await;
     let env = std::fs::read_to_string(run.layout.workspace.join("env.out")).unwrap();
-    let mut allowed: Vec<&str> = systemprompt_headless::execute::INHERITED_ENV.to_vec();
+    let mut allowed: Vec<&str> = systemprompt_agent_runs::execute::INHERITED_ENV.to_vec();
     // Why: /bin/sh itself exports PWD, SHLVL and `_` into its children.
     allowed.extend(["RUN_MARK", "PWD", "SHLVL", "_", "OLDPWD"]);
     for line in env.lines().filter(|l| !l.is_empty()) {

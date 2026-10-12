@@ -1,17 +1,17 @@
 [package]
-name = "systemprompt-headless-tests"
+name = "systemprompt-agent-runs-tests"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-headless crate"
+description = "Unit tests for systemprompt-agent-runs crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-headless = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 serde_json = { workspace = true }
 systemprompt-models = { workspace = true }

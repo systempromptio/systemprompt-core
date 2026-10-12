@@ -12,10 +12,10 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use systemprompt_headless::host::codex_cli::CodexCli;
-use systemprompt_headless::host::codex_cli::args::{CodexPaths, agents_md, build_args, build_env};
-use systemprompt_headless::host::codex_cli::config_toml::{quote, render, sandbox_mode};
-use systemprompt_headless::{
+use systemprompt_agent_runs::host::codex_cli::CodexCli;
+use systemprompt_agent_runs::host::codex_cli::args::{CodexPaths, agents_md, build_args, build_env};
+use systemprompt_agent_runs::host::codex_cli::config_toml::{quote, render, sandbox_mode};
+use systemprompt_agent_runs::{
     Execution, ExitInfo, HeadlessHost, HostKind, McpServerSpec, PermissionMode, PrepareContext,
     RunCredentials, RunEventKind, RunEventPayload, RunLayout, RunRequest, host_for,
 };

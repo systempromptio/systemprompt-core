@@ -1,6 +1,6 @@
-//! Typed error boundary for the `systemprompt-headless` crate.
+//! Typed error boundary for the `systemprompt-agent-runs` crate.
 //!
-//! [`HeadlessError`] is returned from every public, non-trait signature. Each
+//! [`AgentRunsError`] is returned from every public, non-trait signature. Each
 //! variant carries its cause through `#[from]` or `#[source]`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -12,7 +12,7 @@ use systemprompt_traits::RepositoryError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum HeadlessError {
+pub enum AgentRunsError {
     #[error("unknown headless host '{value}'")]
     UnknownHost { value: String },
 
@@ -105,10 +105,10 @@ pub enum HeadlessError {
     Repository(#[from] RepositoryError),
 }
 
-impl From<sqlx::Error> for HeadlessError {
+impl From<sqlx::Error> for AgentRunsError {
     fn from(error: sqlx::Error) -> Self {
         Self::Repository(RepositoryError::from(error))
     }
 }
 
-pub type HeadlessResult<T> = Result<T, HeadlessError>;
+pub type AgentRunsResult<T> = Result<T, AgentRunsError>;

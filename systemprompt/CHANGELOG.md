@@ -4,7 +4,7 @@
 
 ### Added
 
-- `headless` feature: the `systemprompt::headless` module re-exports `systemprompt-headless`; part of `full`.
+- `agent-runs` feature: the `systemprompt::agent_runs` module re-exports `systemprompt-agent-runs`; part of `full`.
 
 ## [0.53.0] - 2026-09-15
 

@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use systemprompt_headless::credentials::{
+use systemprompt_agent_runs::credentials::{
     IssueRunCredentials, RunCredentialLimits, RunCredentialService,
 };
 use systemprompt_identifiers::{PluginId, ScopeDimension, UserId};
@@ -60,7 +60,7 @@ async fn session_expiry_secs(pool: &systemprompt_database::DbPool, id: &str) -> 
 #[tokio::test]
 async fn issue_then_revoke_round_trips_every_credential() {
     install_test_signing_key();
-    let database = DisposableDb::with_schema("headless_credentials").await;
+    let database = DisposableDb::with_schema("agent_run_credentials").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(&pool, ISSUER);
@@ -137,7 +137,7 @@ async fn issue_then_revoke_round_trips_every_credential() {
 
 #[tokio::test]
 async fn issue_without_plugin_mints_no_hook_token() {
-    let database = DisposableDb::with_schema("headless_credentials_noplugin").await;
+    let database = DisposableDb::with_schema("agent_run_credentials_noplugin").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
     let service = RunCredentialService::new(&pool, ISSUER);
@@ -151,7 +151,7 @@ async fn issue_without_plugin_mints_no_hook_token() {
 
 #[tokio::test]
 async fn issue_for_unknown_user_leaves_no_live_key() {
-    let database = DisposableDb::with_schema("headless_credentials_nouser").await;
+    let database = DisposableDb::with_schema("agent_run_credentials_nouser").await;
     let pool = database.test_pool().await;
     let ghost = UserId::new(uuid::Uuid::new_v4().to_string());
     let service = RunCredentialService::new(&pool, ISSUER);

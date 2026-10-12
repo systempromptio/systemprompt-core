@@ -11,7 +11,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunLayout {
@@ -35,7 +35,7 @@ impl RunLayout {
         }
     }
 
-    pub async fn create(&self) -> HeadlessResult<()> {
+    pub async fn create(&self) -> AgentRunsResult<()> {
         for dir in [&self.home, &self.workspace, &self.logs, &self.host] {
             tokio::fs::create_dir_all(dir)
                 .await
@@ -44,7 +44,7 @@ impl RunLayout {
         Ok(())
     }
 
-    pub async fn remove_home(&self) -> HeadlessResult<()> {
+    pub async fn remove_home(&self) -> AgentRunsResult<()> {
         match tokio::fs::remove_dir_all(&self.home).await {
             Ok(()) => Ok(()),
             Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -53,8 +53,8 @@ impl RunLayout {
     }
 }
 
-fn layout_error(path: &Path, source: std::io::Error) -> HeadlessError {
-    HeadlessError::Layout {
+fn layout_error(path: &Path, source: std::io::Error) -> AgentRunsError {
+    AgentRunsError::Layout {
         path: path.to_path_buf(),
         source,
     }

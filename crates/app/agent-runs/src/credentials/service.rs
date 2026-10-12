@@ -22,7 +22,7 @@ use super::hook_token::{HookTokenRequest, mint_hook_token, revoke_hook_token};
 use super::pat::{chrono_ttl, issue_pat, revoke_pat};
 use super::session::{end_session, open_session};
 use super::{IssueRunCredentials, RunCredentials};
-use crate::error::HeadlessResult;
+use crate::error::AgentRunsResult;
 
 #[derive(Clone)]
 pub struct RunCredentialService {
@@ -57,7 +57,7 @@ impl RunCredentialService {
         }
     }
 
-    pub async fn issue(&self, req: IssueRunCredentials) -> HeadlessResult<RunCredentials> {
+    pub async fn issue(&self, req: IssueRunCredentials) -> AgentRunsResult<RunCredentials> {
         let ttl = chrono_ttl(req.ttl)?;
         let (api_key_id, pat) = issue_pat(&self.keys, &req).await?;
         let session = match open_session(&self.creator, &req.user_id, ttl).await {
@@ -104,7 +104,7 @@ impl RunCredentialService {
         }
     }
 
-    pub async fn revoke(&self, credentials: &RunCredentials) -> HeadlessResult<()> {
+    pub async fn revoke(&self, credentials: &RunCredentials) -> AgentRunsResult<()> {
         let user_id = &credentials.user_id;
         let pat = revoke_pat(&self.keys, &credentials.api_key_id, user_id)
             .await

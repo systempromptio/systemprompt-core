@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS headless_runs (
+CREATE TABLE IF NOT EXISTS agent_runs (
     id TEXT PRIMARY KEY,
     origin_kind TEXT NOT NULL,
     origin_id TEXT NOT NULL,
@@ -36,14 +36,14 @@ CREATE TABLE IF NOT EXISTS headless_runs (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_headless_runs_claim ON headless_runs(status, not_before, created_at);
-CREATE INDEX IF NOT EXISTS idx_headless_runs_lease ON headless_runs(lease_until)
+CREATE INDEX IF NOT EXISTS idx_agent_runs_claim ON agent_runs(status, not_before, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_lease ON agent_runs(lease_until)
     WHERE status IN ('preparing', 'running');
-CREATE INDEX IF NOT EXISTS idx_headless_runs_origin ON headless_runs(origin_kind, origin_id);
-CREATE INDEX IF NOT EXISTS idx_headless_runs_user_created ON headless_runs(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_headless_runs_gateway_session ON headless_runs(gateway_session_id);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_origin ON agent_runs(origin_kind, origin_id);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_user_created ON agent_runs(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_gateway_session ON agent_runs(gateway_session_id);
 
-CREATE OR REPLACE TRIGGER update_headless_runs_updated_at
-    BEFORE UPDATE ON headless_runs
+CREATE OR REPLACE TRIGGER update_agent_runs_updated_at
+    BEFORE UPDATE ON agent_runs
     FOR EACH ROW
     EXECUTE FUNCTION update_timestamp_trigger();

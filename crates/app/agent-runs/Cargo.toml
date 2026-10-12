@@ -1,5 +1,5 @@
 [package]
-name = "systemprompt-headless"
+name = "systemprompt-agent-runs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

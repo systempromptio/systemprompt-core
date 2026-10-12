@@ -19,7 +19,7 @@ use serde::Serialize;
 use systemprompt_identifiers::PluginId;
 
 use self::hooks_schema::{HookMatcher, HooksFile, HttpHook, PluginManifest, TRACK_EVENTS};
-use crate::error::{HeadlessError, HeadlessResult};
+use crate::error::{AgentRunsError, AgentRunsResult};
 use crate::layout::RunLayout;
 use crate::request::HostKind;
 
@@ -62,7 +62,7 @@ pub async fn hooks_file(
     token: &str,
     bases: &HookBases,
     layout: &RunLayout,
-) -> HeadlessResult<Option<PathBuf>> {
+) -> AgentRunsResult<Option<PathBuf>> {
     if host != HostKind::ClaudeCode {
         return Ok(None);
     }
@@ -86,9 +86,9 @@ fn with_plugin(base: &str, plugin_id: &PluginId) -> String {
     format!("{base}{separator}plugin_id={}", plugin_id.as_str())
 }
 
-async fn write_json<T: Serialize + Sync>(path: &Path, value: &T) -> HeadlessResult<()> {
+async fn write_json<T: Serialize + Sync>(path: &Path, value: &T) -> AgentRunsResult<()> {
     let bytes = serde_json::to_vec_pretty(value)?;
-    let hooks_error = |source| HeadlessError::HooksWrite {
+    let hooks_error = |source| AgentRunsError::HooksWrite {
         path: path.to_path_buf(),
         source,
     };

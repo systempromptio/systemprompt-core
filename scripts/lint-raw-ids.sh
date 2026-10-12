@@ -69,7 +69,7 @@ BOUNDARY=(
     "crates/domain/oauth/src/services/validation/id_jag.rs|jti|ID-JAG assertion wire claim (RFC draft), replay-keyed verbatim"
     "crates/shared/models/src/api/cloud/usage.rs|agent_name|cloud API response field deserialised verbatim"
     "crates/app/gateway/src/captures.rs|tool_name|provider wire tool_use name captured verbatim for audit"
-    "crates/app/headless/src/event.rs|tool_name|host stream tool name relayed verbatim; built-in host tools (Bash, Edit) are not MCP tools"
+    "crates/app/agent-runs/src/event.rs|tool_name|host stream tool name relayed verbatim; built-in host tools (Bash, Edit) are not MCP tools"
     "crates/infra/security/src/authz/audit/repository.rs|tool_name|governance_decisions.tool_name mixes tool names, entity ids and a merge label"
     "crates/app/scheduler/src/repository/otlp/records.rs|tool_name|governance_decisions.tool_name read back for export (same mixed column)"
     "crates/shared/identifiers/src/actor.rs|tool_name|Actor::from_tool_name parses an external tool-name string"

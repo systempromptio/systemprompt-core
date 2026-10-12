@@ -2,7 +2,7 @@
 
 use std::str::FromStr;
 
-use systemprompt_headless::{ErrorClass, Execution, HostKind, RunStatus, host_for};
+use systemprompt_agent_runs::{ErrorClass, Execution, HostKind, RunStatus, host_for};
 
 #[test]
 fn host_kind_round_trips() {
