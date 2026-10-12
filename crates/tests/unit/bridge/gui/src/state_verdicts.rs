@@ -233,7 +233,7 @@ fn failure(id: HostKind, emitter: &str, needs_elevation: bool) -> HostFailure {
 fn desktop_row(snap: &AppStateSnapshot) -> serde_json::Value {
     let ctx = BridgeContext::start(ProxyMode::Attach).expect("runtime builds");
     let payload = serde_json::to_value(state_payload(snap, &ctx.proxy)).expect("payload");
-    payload["hosts"]["host_apps"]
+    payload["host_apps"]
         .as_array()
         .and_then(|rows| rows.iter().find(|r| r["id"] == "claude-desktop"))
         .map(|r| r["verdict"].clone())
