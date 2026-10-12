@@ -100,6 +100,15 @@ pub trait SubjectAttributeProvider: Send + Sync + Debug {
     fn dimension(&self) -> SubjectDimension;
 
     async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError>;
+
+    /// Whether a request with no header and no key binding for this dimension
+    /// is attributed to the first value the user holds. `false` makes the
+    /// dimension header-only: such a request carries no attribution for it,
+    /// while a header or key binding is still verified against
+    /// [`Self::values_for`].
+    fn default_attribution(&self) -> bool {
+        true
+    }
 }
 
 /// Shared handle to a registered provider.
