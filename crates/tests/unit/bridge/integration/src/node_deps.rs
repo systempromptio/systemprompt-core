@@ -5,8 +5,10 @@
 
 use std::path::Path;
 
+#[cfg(unix)]
+use systemprompt_bridge::sync::apply::node_deps::carry_over;
 use systemprompt_bridge::sync::apply::node_deps::{
-    NodeInstall, binary_on_path, carry_over, install,
+    NodeInstall, binary_on_path, install,
 };
 use tempfile::{TempDir, tempdir};
 

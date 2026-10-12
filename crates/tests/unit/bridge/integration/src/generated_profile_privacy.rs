@@ -2,13 +2,20 @@
 //! secret: it is written owner-only under the brand's temp dir, its UUIDs are
 //! real UUIDs, and installing it consumes the file.
 
+#[cfg(unix)]
 use std::path::Path;
 
+#[cfg(unix)]
 use systemprompt_bridge::ids::HostToken;
-use systemprompt_bridge::integration::generated_profile::{self, profile_uuids};
+use systemprompt_bridge::integration::generated_profile::profile_uuids;
+#[cfg(unix)]
+use systemprompt_bridge::integration::generated_profile;
+#[cfg(unix)]
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
+#[cfg(unix)]
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
 
+#[cfg(unix)]
 fn inputs() -> ProfileGenInputs {
     ProfileGenInputs {
         model_limits: Default::default(),
