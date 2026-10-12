@@ -3,7 +3,8 @@
 //! [`handle_complete`] persists the finished task and broadcasts the success
 //! events; [`record_failure`] / [`announce_failure`] and
 //! [`announce_cancelled`] cover the failure and cancellation paths. Every
-//! terminal frame goes through the event loop's single status emitter.
+//! terminal frame goes through the event loop's single status emitter, and
+//! the stream closes after it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

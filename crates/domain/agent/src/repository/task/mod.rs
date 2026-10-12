@@ -21,7 +21,8 @@ mod task_updates;
 pub use constructor::TaskConstructor;
 pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub use queries::{
-    TaskContextInfo, find_task, find_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
+    ListTasksFilter, TaskContextInfo, count_tasks, find_task, find_task_context_info,
+    get_tasks_by_user_id, list_tasks, list_tasks_by_context,
 };
 pub use state::{
     apply_notification_status, transition_task_in_tx, update_task_failed_with_error,
@@ -193,5 +194,18 @@ impl TaskRepository {
                 format!("{task_id} for user {user_id}"),
             )),
         }
+    }
+
+    pub async fn list_tasks(
+        &self,
+        filter: ListTasksFilter<'_>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<Task>, RepositoryError> {
+        list_tasks(&self.pool, &self.constructor, filter, limit, offset).await
+    }
+
+    pub async fn count_tasks(&self, filter: ListTasksFilter<'_>) -> Result<i64, RepositoryError> {
+        count_tasks(&self.pool, filter).await
     }
 }

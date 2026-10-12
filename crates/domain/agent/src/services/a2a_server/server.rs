@@ -55,6 +55,7 @@ fn cors_layer(origins: &[String]) -> Result<CorsLayer, crate::error::AgentError>
             http::header::AUTHORIZATION,
             http::header::CONTENT_TYPE,
             http::header::ACCEPT,
+            http::HeaderName::from_static("a2a-version"),
         ]))
 }
 

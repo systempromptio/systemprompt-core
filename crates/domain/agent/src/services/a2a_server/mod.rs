@@ -3,7 +3,8 @@
 //! Hosts the JSON-RPC endpoint and agent-card discovery via [`Server`] (or the
 //! [`run_standalone`] entry point), with submodules for authentication
 //! ([`auth`]), error envelopes ([`errors`]), request [`handlers`], and the
-//! streaming and processing pipelines.
+//! streaming and processing pipelines, and A2A protocol [`version`]
+//! negotiation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +17,7 @@ pub mod processing;
 pub mod server;
 pub mod standalone;
 pub mod streaming;
+pub mod version;
 
 pub use active_tasks::{ActiveTaskGuard, ActiveTasks};
 pub use handlers::AgentHandlerState;

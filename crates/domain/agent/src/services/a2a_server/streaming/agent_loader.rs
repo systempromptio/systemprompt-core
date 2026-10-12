@@ -13,7 +13,8 @@ use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::repository::task::TaskRepository;
 use crate::services::registry::AgentRegistry;
 
-use super::initialization::create_jsonrpc_error_event;
+use super::frames::jsonrpc_error_event;
+use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub(super) struct LoadAgentRuntimeParams<'a> {
     pub registry: AgentResult<AgentRegistry>,
@@ -45,9 +46,9 @@ pub(super) async fn load_agent_runtime(
             );
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
             if tx
-                .try_send(create_jsonrpc_error_event(
-                    -32603,
-                    "Failed to load agent registry - check system logs for details",
+                .try_send(jsonrpc_error_event(
+                    JsonRpcErrorBuilder::internal_error()
+                        .with_metadata("detail", "Failed to load agent registry"),
                     request_id,
                 ))
                 .is_err()
@@ -65,9 +66,9 @@ pub(super) async fn load_agent_runtime(
             tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
             if tx
-                .try_send(create_jsonrpc_error_event(
-                    -32603,
-                    "Agent not found",
+                .try_send(jsonrpc_error_event(
+                    JsonRpcErrorBuilder::internal_error()
+                        .with_metadata("detail", "Agent not found"),
                     request_id,
                 ))
                 .is_err()

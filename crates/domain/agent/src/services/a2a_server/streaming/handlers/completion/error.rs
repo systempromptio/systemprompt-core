@@ -1,6 +1,7 @@
 //! Stream failure and cancellation handling: the task-state write and the
 //! terminal announcements are separate steps so a failure discovered after
-//! the state was already written (persistence) is announced exactly once.
+//! the state was already written (persistence) is announced exactly once. The
+//! terminal status frame is the last frame before the stream closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +12,7 @@ use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
 
 use super::send_a2a_status_event;
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
@@ -33,6 +35,7 @@ pub(in crate::services::a2a_server::streaming) async fn record_failure(
 
 pub(in crate::services::a2a_server::streaming) struct AnnounceFailureParams<'a> {
     pub tx: &'a Sender<Event>,
+    pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub error: String,
     pub code: &'a str,
@@ -45,6 +48,7 @@ pub(in crate::services::a2a_server::streaming) async fn announce_failure(
 ) {
     let AnnounceFailureParams {
         tx,
+        request_id,
         webhook_context,
         error,
         code,
@@ -57,7 +61,7 @@ pub(in crate::services::a2a_server::streaming) async fn announce_failure(
         message: None,
         timestamp: Some(chrono::Utc::now()),
     };
-    send_a2a_status_event(tx, task_id, context_id, failed_status, true).await;
+    send_a2a_status_event(tx, request_id, task_id, context_id, failed_status).await;
 
     let a2a_event = A2AEventBuilder::task_status_update(
         task_id.clone(),
@@ -77,6 +81,7 @@ pub(in crate::services::a2a_server::streaming) async fn announce_failure(
 
 pub(in crate::services::a2a_server::streaming) async fn announce_cancelled(
     tx: &Sender<Event>,
+    request_id: &NumberOrString,
     webhook_context: &WebhookContext,
     task_id: &TaskId,
     context_id: &ContextId,
@@ -86,7 +91,7 @@ pub(in crate::services::a2a_server::streaming) async fn announce_cancelled(
         message: None,
         timestamp: Some(chrono::Utc::now()),
     };
-    send_a2a_status_event(tx, task_id, context_id, canceled_status, true).await;
+    send_a2a_status_event(tx, request_id, task_id, context_id, canceled_status).await;
 
     let a2a_event = A2AEventBuilder::task_status_update(
         task_id.clone(),

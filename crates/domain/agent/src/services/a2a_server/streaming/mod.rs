@@ -9,6 +9,7 @@ mod agent_loader;
 pub mod broadcast;
 mod event_loop;
 mod event_loop_lifecycle;
+mod frames;
 mod handlers;
 mod initialization;
 mod initialization_steps;
@@ -22,6 +23,7 @@ pub use event_loop::{ProcessEventsParams, process_events};
 pub use event_loop_lifecycle::{
     EmitRunStartedParams, emit_run_started, handle_stream_creation_error,
 };
+pub use frames::{jsonrpc_error_event, stream_response_event, stream_response_frame};
 pub use messages::{
     CreateSseStreamParams, StreamRejected, create_sse_stream, create_sse_stream_with_registry,
 };

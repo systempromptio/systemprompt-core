@@ -2,10 +2,11 @@
 //!
 //! [`handle_complete`] builds and validates the final [`Task`], persists it
 //! with its messages — the guarded `Completed` transition commits in the same
-//! transaction as the messages — and then broadcasts the A2A, AG-UI and
-//! webhook success events. A failure before the commit leaves the task in its
-//! `Working` state and is returned as a [`CompletionFailure`] for the event
-//! loop to record and announce.
+//! transaction as the messages — then streams one `lastChunk` artifact update
+//! per artifact and broadcasts the A2A, AG-UI and webhook success events,
+//! ending with the terminal status frame. A failure before the commit leaves
+//! the task in its `Working` state and is returned as a [`CompletionFailure`]
+//! for the event loop to record and announce.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,16 +21,18 @@ use systemprompt_traits::validation::Validate;
 use tokio::sync::mpsc::Sender;
 
 use super::success::{BroadcastTaskSuccessParams, broadcast_task_success};
-use crate::models::a2a::{
-    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
-};
+use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::protocol::{StreamResponse, TaskArtifactUpdateEvent};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use crate::services::a2a_server::processing::message::{
     MessageProcessor, PersistCompletedTaskOnProcessorParams,
 };
+use crate::services::a2a_server::streaming::frames::send_stream_response;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub(in crate::services::a2a_server::streaming) struct HandleCompleteParams<'a> {
     pub tx: &'a Sender<Event>,
+    pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub full_text: String,
     pub artifacts: Vec<Artifact>,
@@ -67,6 +70,7 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
 ) -> Result<(), CompletionFailure> {
     let HandleCompleteParams {
         tx,
+        request_id,
         webhook_context,
         full_text,
         artifacts,
@@ -119,8 +123,14 @@ pub(in crate::services::a2a_server::streaming) async fn handle_complete(
         })?;
     outcome.record_undelivered_broadcasts();
 
+    for artifact in artifacts.iter().cloned() {
+        let update = TaskArtifactUpdateEvent::new(task_id.clone(), context_id.clone(), artifact);
+        send_stream_response(tx, StreamResponse::ArtifactUpdate(update), request_id).await;
+    }
+
     broadcast_task_success(BroadcastTaskSuccessParams {
         tx,
+        request_id,
         webhook_context,
         task_id,
         context_id,
@@ -158,9 +168,7 @@ fn build_complete_task(params: BuildCompleteTaskParams<'_>) -> Task {
     let now = chrono::Utc::now();
     let agent_message = Message {
         role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart {
-            text: params.full_text.to_owned(),
-        })],
+        parts: vec![Part::text(params.full_text)],
         message_id: params.message_id.clone(),
         task_id: Some(params.task_id.clone()),
         context_id: params.context_id.clone(),
