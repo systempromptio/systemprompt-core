@@ -24,12 +24,13 @@ mod orphans;
 mod queries;
 mod repository;
 mod settlement;
+mod settlement_outcome;
 mod trace;
 
 pub use admission::{AdmissionWrite, PreparedDigest};
 pub use message_operations::{InsertToolCallParams, RequestMessageRow};
 pub use orphans::{ORPHAN_AGE, ORPHANED_REASON, OrphanedRequest};
 pub use repository::AiRequestRepository;
-pub use settlement::{
+pub use settlement_outcome::{
     SettleCompletion, SettledFailure, SettledToolCall, SettlementOutcome, SettlementUsage,
 };
