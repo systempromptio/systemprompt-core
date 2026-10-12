@@ -5,7 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-use systemprompt_wire::canonical::{CanonicalRequest, ReasoningEffort, ResponseFormat};
+use systemprompt_wire::canonical::{
+    CanonicalRequest, CanonicalTool, ReasoningEffort, ResponseFormat,
+};
 
 use super::token_estimate::estimate_input_tokens;
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
@@ -17,11 +19,26 @@ use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 /// loops are `thinking` / `min_reasoning_effort` / `stream` and the model name
 /// itself — the full tool catalogue is typically resent on every step, so
 /// `requires_tools` / `min_tools` are weak signals retained for completeness.
+///
+/// Two tool predicates exist because a tool's *name* and its *kind* are
+/// different facts. `tool_names_any` matches the names a client gives its own
+/// tools, and an agent host such as Claude Code declares its whole catalogue
+/// (`WebSearch`, `WebFetch`, `ToolSearch`, `Bash`, …) on every turn, so a name
+/// taken from that catalogue selects every turn the host ever sends.
+/// `tool_types_any` matches the provider-defined `type` of a server tool
+/// (`web_search_20250305`, `web_fetch_*`, `tool_search_tool_regex_*`), which
+/// only appears when the request really asks the upstream to run that tool.
+/// A route that exists to reach a provider's native tool service must use
+/// `tool_types_any`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RouteMatch {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_names_any: Vec<String>,
+    /// Prefixes of server tool `type`s; `web_search` covers every dated
+    /// `web_search_YYYYMMDD` version.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_types_any: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires_tools: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,6 +63,14 @@ impl RouteMatch {
                 .tools
                 .iter()
                 .any(|tool| self.tool_names_any.contains(&tool.name)))
+            && (self.tool_types_any.is_empty()
+                || request.tools.iter().any(|tool| {
+                    server_tool_type(tool).is_some_and(|kind| {
+                        self.tool_types_any
+                            .iter()
+                            .any(|prefix| kind.starts_with(prefix))
+                    })
+                }))
             && self
                 .requires_tools
                 .is_none_or(|want| request.tools.is_empty() != want)
@@ -71,6 +96,9 @@ impl RouteMatch {
         if !self.tool_names_any.is_empty() {
             out.push("tool_names_any");
         }
+        if !self.tool_types_any.is_empty() {
+            out.push("tool_types_any");
+        }
         if self.requires_tools.is_some() {
             out.push("requires_tools");
         }
@@ -95,7 +123,7 @@ impl RouteMatch {
         out
     }
 
-    pub const fn validate(&self) -> GatewayResult<()> {
+    pub fn validate(&self) -> GatewayResult<()> {
         if matches!(self.min_tools, Some(0)) {
             return Err(GatewayProfileError::RouteMatchZeroMinTools);
         }
@@ -104,8 +132,27 @@ impl RouteMatch {
         {
             return Err(GatewayProfileError::RouteMatchContradictoryTools);
         }
+        if let Some(bad) = self
+            .tool_types_any
+            .iter()
+            .find(|prefix| prefix.is_empty() || prefix.chars().any(char::is_whitespace))
+        {
+            return Err(GatewayProfileError::RouteMatchBadToolType(bad.clone()));
+        }
         Ok(())
     }
+}
+
+/// The provider-defined `type` of a server tool, or `None` for a client tool.
+///
+/// Only the Anthropic inbound wire keeps the raw definition, and only server
+/// tools carry a `type` there (`custom` is the explicit client-tool marker).
+fn server_tool_type(tool: &CanonicalTool) -> Option<&str> {
+    tool.anthropic_definition
+        .as_ref()
+        .and_then(|definition| definition.get("type"))
+        .and_then(serde_json::Value::as_str)
+        .filter(|kind| *kind != "custom")
 }
 
 /// Governance demands a route places on its *target*, not on the request.

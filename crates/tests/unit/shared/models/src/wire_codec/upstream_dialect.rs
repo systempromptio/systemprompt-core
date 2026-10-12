@@ -113,3 +113,62 @@ fn vertex_body_names_no_model_and_pins_the_vertex_version() {
     UpstreamDialect::new(WireProtocol::Gemini, Hosting::Vertex).finish_body(&mut gemini);
     assert_eq!(gemini, body());
 }
+
+#[test]
+fn vertex_downgrades_web_search_and_drops_the_server_tools_it_does_not_run() {
+    let mut vertex = body_with_tools();
+    UpstreamDialect::new(WireProtocol::Anthropic, Hosting::Vertex).finish_body(&mut vertex);
+    assert_eq!(
+        vertex["tools"],
+        json!([
+            {"type": "web_search_20250305", "name": "web_search", "max_uses": 3},
+            {"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"},
+            {"name": "WebSearch", "input_schema": {"type": "object"}},
+            {"name": "web_fetch", "input_schema": {"type": "object"}},
+        ]),
+        "web search is downgraded; web fetch, code execution and the advisor are removed; \
+         tool search and client tools (whatever they are named) are untouched"
+    );
+
+    let mut first = body_with_tools();
+    let expected = first.clone();
+    UpstreamDialect::new(WireProtocol::Anthropic, Hosting::FirstParty).finish_body(&mut first);
+    assert_eq!(
+        first["tools"], expected["tools"],
+        "Anthropic's own API serves every tool and version"
+    );
+}
+
+#[test]
+fn vertex_drops_the_tools_key_when_nothing_it_runs_remains() {
+    let Value::Object(mut body) = json!({
+        "model": "m",
+        "tools": [{"type": "web_fetch_20250910", "name": "web_fetch"}]
+    }) else {
+        unreachable!("object literal")
+    };
+    UpstreamDialect::new(WireProtocol::Anthropic, Hosting::Vertex).finish_body(&mut body);
+    assert!(
+        !body.contains_key("tools"),
+        "an empty tools array is itself a 400 on the Messages API"
+    );
+}
+
+fn body_with_tools() -> Map<String, Value> {
+    let Value::Object(body) = json!({
+        "model": "claude-sonnet-5",
+        "tools": [
+            {"type": "web_search_20260318", "name": "web_search", "max_uses": 3,
+             "allowed_callers": ["code_execution_20260120"], "response_inclusion": "excluded"},
+            {"type": "web_fetch_20260318", "name": "web_fetch"},
+            {"type": "code_execution_20260521", "name": "code_execution"},
+            {"type": "advisor_20260501", "name": "advisor", "model": "claude-opus-5-5"},
+            {"type": "tool_search_tool_regex_20251119", "name": "tool_search_tool_regex"},
+            {"name": "WebSearch", "input_schema": {"type": "object"}},
+            {"name": "web_fetch", "input_schema": {"type": "object"}},
+        ]
+    }) else {
+        unreachable!("object literal")
+    };
+    body
+}

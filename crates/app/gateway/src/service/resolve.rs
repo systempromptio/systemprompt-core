@@ -231,14 +231,14 @@ pub fn describe_route_match(
         (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
     });
 
-    let any = declarative.is_some() || selector.is_some() || governance.is_some();
-    (any || scope.is_some()).then(|| {
-        [declarative, selector, governance, scope]
+    let identity = Some(format!("route:{}", route.effective_id()));
+    Some(
+        [identity, declarative, selector, governance, scope]
             .into_iter()
             .flatten()
             .collect::<Vec<_>>()
-            .join(";")
-    })
+            .join(";"),
+    )
 }
 
 pub fn enforce_route_requirements(

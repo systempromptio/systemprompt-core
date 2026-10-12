@@ -881,6 +881,94 @@ fn route_match_predicates_evaluate_against_request() {
     );
 }
 
+fn tool(name: &str, definition: Option<serde_json::Value>) -> CanonicalTool {
+    CanonicalTool {
+        anthropic_definition: definition,
+        name: name.to_owned(),
+        description: None,
+        input_schema: serde_json::Value::Null,
+        cache_control: None,
+    }
+}
+
+#[test]
+fn tool_types_any_matches_server_tools_by_type_prefix_never_by_name() {
+    let by_type = RouteMatch {
+        tool_types_any: vec!["web_search".to_owned(), "tool_search_tool_regex".to_owned()],
+        ..RouteMatch::default()
+    };
+
+    let mut server = req("m");
+    server.tools = vec![tool(
+        "web_search",
+        Some(serde_json::json!({"type": "web_search_20250305", "name": "web_search"})),
+    )];
+    assert!(
+        by_type.matches_request(&server),
+        "a dated server tool type matches its prefix"
+    );
+
+    let mut deferred = req("m");
+    deferred.tools = vec![tool(
+        "tool_search_tool_regex",
+        Some(serde_json::json!({"type": "tool_search_tool_regex_20251119"})),
+    )];
+    assert!(by_type.matches_request(&deferred));
+
+    let mut claude_code = req("m");
+    claude_code.tools = ["WebSearch", "WebFetch", "ToolSearch", "Bash"]
+        .into_iter()
+        .map(|name| {
+            tool(
+                name,
+                Some(serde_json::json!({"name": name, "input_schema": {"type": "object"}})),
+            )
+        })
+        .collect();
+    assert!(
+        !by_type.matches_request(&claude_code),
+        "a client tool has no server type, whatever it is called"
+    );
+
+    let mut explicit_custom = req("m");
+    explicit_custom.tools = vec![tool(
+        "web_search",
+        Some(serde_json::json!({"type": "custom", "name": "web_search"})),
+    )];
+    assert!(!by_type.matches_request(&explicit_custom));
+
+    let mut no_definition = req("m");
+    no_definition.tools = vec![tool("web_search", None)];
+    assert!(
+        !by_type.matches_request(&no_definition),
+        "a tool parsed from a non-Anthropic wire cannot be a server tool"
+    );
+
+    assert_eq!(by_type.matched_predicates(), vec!["tool_types_any"]);
+}
+
+#[test]
+fn tool_types_any_rejects_empty_or_spaced_prefixes() {
+    for bad in ["", "web search"] {
+        assert!(matches!(
+            RouteMatch {
+                tool_types_any: vec![bad.to_owned()],
+                ..RouteMatch::default()
+            }
+            .validate(),
+            Err(GatewayProfileError::RouteMatchBadToolType(_))
+        ));
+    }
+    assert!(
+        RouteMatch {
+            tool_types_any: vec!["web_fetch".to_owned()],
+            ..RouteMatch::default()
+        }
+        .validate()
+        .is_ok()
+    );
+}
+
 #[test]
 fn route_match_min_input_tokens_uses_text_estimate() {
     let mut r = req("m");
@@ -975,6 +1063,7 @@ fn matched_predicates_lists_set_fields_in_declaration_order() {
 
     let full = RouteMatch {
         tool_names_any: Vec::new(),
+        tool_types_any: Vec::new(),
         requires_tools: Some(true),
         min_tools: Some(2),
         thinking: Some(true),

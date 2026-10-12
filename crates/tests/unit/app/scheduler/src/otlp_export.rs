@@ -82,7 +82,7 @@ fn request(id: &str, trace_id: Option<&str>, status: &str) -> RequestRow {
         served_provider: Some("vertex".to_owned()),
         model: Some("claude-sonnet-5".to_owned()),
         requested_model: Some("claude-sonnet-5".to_owned()),
-        route_match: Some("failover:anthropic->vertex".to_owned()),
+        route_match: Some("route:claude-star;failover:anthropic->vertex".to_owned()),
         input_tokens: Some(120),
         output_tokens: Some(40),
         cache_read_tokens: None,

@@ -85,6 +85,9 @@ pub enum GatewayProfileError {
     #[error("route `when` sets `requires_tools: false` but also a positive `min_tools`")]
     RouteMatchContradictoryTools,
 
+    #[error("route `when.tool_types_any` entry `{0}` is not a server tool type prefix")]
+    RouteMatchBadToolType(String),
+
     #[error(
         "gateway route '{route}' (model_pattern '{pattern}') reaches no priced model: provider \
          '{provider}' declares no model matching the pattern and the route sets no `pricing:` \
