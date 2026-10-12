@@ -59,7 +59,8 @@ hyper = { version = "1", features = ["http1", "server"] }
 hyper-util = { version = "0.1", features = ["server", "server-auto", "tokio"] }
 http-body-util = "0.1"
 http = "1.5"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "form"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 url = "2.5"
 futures-util = "0.3"
 bytes = "1"

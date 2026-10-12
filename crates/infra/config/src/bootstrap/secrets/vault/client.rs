@@ -37,7 +37,7 @@ impl VaultHttp {
             .map_err(|e| VaultError::Address(Box::new(e)))?;
 
         let mut builder = reqwest::Client::builder()
-            .use_rustls_tls()
+            .tls_backend_rustls()
             .redirect(Policy::none())
             .connect_timeout(CONNECT_TIMEOUT)
             .timeout(Duration::from_secs(cfg.timeout_secs));
@@ -52,7 +52,7 @@ impl VaultHttp {
                     path: path.to_owned(),
                     source: Box::new(e),
                 })?;
-            builder = builder.add_root_certificate(cert);
+            builder = builder.tls_certs_merge([cert]);
         }
 
         let client = builder.build().map_err(VaultError::ClientBuild)?;

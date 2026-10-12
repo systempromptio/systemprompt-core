@@ -77,7 +77,7 @@ tabled = { workspace = true }
 inventory = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
-reqwest-eventsource = { workspace = true }
+rustls = { workspace = true }
 futures-util = { workspace = true }
 # The CLI drives MCP servers over the streamable-HTTP client *trait*, supplying
 # our own reqwest-0.12 `HttpClientWithContext` via `with_client`. The `-reqwest`

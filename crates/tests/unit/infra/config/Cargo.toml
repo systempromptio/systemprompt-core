@@ -27,3 +27,5 @@ systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+tokio-rustls = { workspace = true }
+reqwest = { workspace = true }

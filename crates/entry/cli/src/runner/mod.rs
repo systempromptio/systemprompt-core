@@ -28,9 +28,25 @@ use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::env_overrides::EnvOverrides;
 
 pub async fn run() -> Result<()> {
+    install_tls_crypto_provider();
     let outcome = Box::pin(run_inner()).await;
     structured_output::finalize(&outcome);
     outcome
+}
+
+// Why: reqwest 0.13 is built with `rustls-no-provider` so the tree carries ring
+// only (sqlx already uses it); rustls then needs a process-wide provider before
+// the first client is built, or reqwest panics.
+fn install_tls_crypto_provider() {
+    if rustls::crypto::CryptoProvider::get_default().is_some() {
+        return;
+    }
+    if rustls::crypto::ring::default_provider()
+        .install_default()
+        .is_err()
+    {
+        tracing::debug!("rustls crypto provider was installed concurrently");
+    }
 }
 
 async fn run_inner() -> Result<()> {

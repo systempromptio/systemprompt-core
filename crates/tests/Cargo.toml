@@ -178,7 +178,7 @@ indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API
 axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "query", "form"] }
 http = "1.5"
 handlebars = "6"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
@@ -219,6 +219,7 @@ sha2 = "0.11"
 
 # Testing utilities
 wiremock = "0.6"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "logging", "tls12"] }
 webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"] }
 webauthn-authenticator-rs = { version = "0.5", default-features = false, features = ["softtoken"] }
 keyring-core = "1"

@@ -196,7 +196,8 @@ indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API (for API crate)
 axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "query", "form"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 http = "1.5"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
@@ -247,7 +248,6 @@ schemars = { version = "1.2", features = ["derive", "chrono04"] }
 url = "2.5"
 urlencoding = "2.1"
 async-stream = "0.3"
-reqwest-eventsource = "0.6"
 wiremock = "0.6"
 
 # Markdown and templating
@@ -261,13 +261,13 @@ quick-xml = { version = "0.42", features = ["serialize"] }
 sse-stream = "0.2.6"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
-# NO HTTP stack. In rmcp >=1.7 a *second* reqwest (0.13, alongside the workspace's
-# 0.12) is dragged in only by the `auth` and `transport-streamable-http-client-reqwest`
-# features. We do NOT enable either: the crates that call MCP over HTTP (domain/mcp,
-# entry/cli) take only the `transport-streamable-http-client` *trait* and implement
-# it with their own reqwest-0.12 `HttpClientWithContext`, so the whole tree resolves
-# to a single reqwest. Every other dependent (notably the desktop bridge) only uses
-# `rmcp::model` via systemprompt-models.
+# NO HTTP stack. We do NOT enable `auth` or `transport-streamable-http-client-reqwest`:
+# the crates that call MCP over HTTP (domain/mcp, entry/cli) take only the
+# `transport-streamable-http-client` *trait* and implement it with our own
+# `HttpClientWithContext`, so every MCP request carries the context headers, passes
+# the SSRF guard (`validate_outbound_url`) and is held to our body limits. Every
+# other dependent (notably the desktop bridge) only uses `rmcp::model` via
+# systemprompt-models.
 rmcp = { version = "=3.5.1" }
 
 # Security
