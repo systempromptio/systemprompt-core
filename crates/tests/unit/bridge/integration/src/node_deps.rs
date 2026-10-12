@@ -7,9 +7,7 @@ use std::path::Path;
 
 #[cfg(unix)]
 use systemprompt_bridge::sync::apply::node_deps::carry_over;
-use systemprompt_bridge::sync::apply::node_deps::{
-    NodeInstall, binary_on_path, install,
-};
+use systemprompt_bridge::sync::apply::node_deps::{NodeInstall, binary_on_path, install};
 use tempfile::{TempDir, tempdir};
 
 fn plugin_with(files: &[(&str, &str)]) -> TempDir {

@@ -8,7 +8,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use systemprompt_agent_runs::execute::{ExecuteParams, RunReport, execute_with_host};
 use systemprompt_agent_runs::{
-    ErrorClass, EventSink, ExitInfo, HeadlessHost, AgentRunsResult, HostCapabilities, HostEvent,
+    AgentRunsResult, ErrorClass, EventSink, ExitInfo, HeadlessHost, HostCapabilities, HostEvent,
     HostInvocation, HostKind, PermissionMode, PrepareContext, RunCredentials, RunEvent,
     RunEventPayload, RunLayout, RunOutcome, RunRequest, RunStatus, RunnerLevel,
 };

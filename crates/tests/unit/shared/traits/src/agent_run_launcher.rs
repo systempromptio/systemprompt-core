@@ -20,5 +20,8 @@ fn unavailable_keeps_its_source() {
     let io = std::io::Error::other("db down");
     let error = AgentRunLaunchError::unavailable(io);
     assert_eq!(error.to_string(), "agent run launcher unavailable");
-    assert_eq!(error.source().map(ToString::to_string).as_deref(), Some("db down"));
+    assert_eq!(
+        error.source().map(ToString::to_string).as_deref(),
+        Some("db down")
+    );
 }

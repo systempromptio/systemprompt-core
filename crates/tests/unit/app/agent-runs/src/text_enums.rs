@@ -21,7 +21,10 @@ fn host_kind_round_trips() {
 
 #[test]
 fn status_and_error_class_round_trip() {
-    assert_eq!(RunStatus::from_str("timed_out").expect("parse"), RunStatus::TimedOut);
+    assert_eq!(
+        RunStatus::from_str("timed_out").expect("parse"),
+        RunStatus::TimedOut
+    );
     assert!(RunStatus::TimedOut.is_terminal());
     assert!(!RunStatus::Running.is_terminal());
     assert_eq!(
@@ -32,6 +35,12 @@ fn status_and_error_class_round_trip() {
 
 #[test]
 fn undeclared_hosts_are_unsupported() {
-    assert!(matches!(host_for(HostKind::OpenCode), Execution::Unsupported { .. }));
-    assert!(matches!(host_for(HostKind::Hermes), Execution::Unsupported { .. }));
+    assert!(matches!(
+        host_for(HostKind::OpenCode),
+        Execution::Unsupported { .. }
+    ));
+    assert!(matches!(
+        host_for(HostKind::Hermes),
+        Execution::Unsupported { .. }
+    ));
 }

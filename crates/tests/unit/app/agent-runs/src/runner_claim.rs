@@ -7,10 +7,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use systemprompt_agent_runs::RepositoryRunLauncher;
 use systemprompt_agent_runs::credentials::RunCredentialService;
 use systemprompt_agent_runs::runner::{A2aRunHandler, A2aRunnerConfig};
 use systemprompt_agent_runs::service::{ClaimLoop, claimer_id};
-use systemprompt_agent_runs::RepositoryRunLauncher;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_test_fixtures::{install_test_signing_key, test_db_pool};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLauncher};
@@ -56,8 +56,11 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
         script: "echo done".to_owned(),
         keep: &[],
     };
-    let handler = A2aRunHandler::new(RunCredentialService::new(&pool, "https://issuer.test"), config)
-        .with_host(Arc::new(host));
+    let handler = A2aRunHandler::new(
+        RunCredentialService::new(&pool, "https://issuer.test"),
+        config,
+    )
+    .with_host(Arc::new(host));
     let mut claim = ClaimLoop::new(f.repo.clone(), &f.origin_kind, claimer_id("test"));
     claim.poll_every = Duration::from_millis(100);
     let shutdown = CancellationToken::new();

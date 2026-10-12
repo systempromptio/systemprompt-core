@@ -18,8 +18,14 @@ use crate::repository::request;
 fn config_derives_gateway_and_hooks_from_the_internal_url() {
     let config = A2aRunnerConfig::new("http://127.0.0.1:8080/", "iss", Path::new("/data"));
     assert_eq!(config.gateway_base_url, "http://127.0.0.1:8080");
-    assert_eq!(config.hooks.govern_url, "http://127.0.0.1:8080/api/public/hooks/govern");
-    assert_eq!(config.hooks.track_url, "http://127.0.0.1:8080/api/public/hooks/track");
+    assert_eq!(
+        config.hooks.govern_url,
+        "http://127.0.0.1:8080/api/public/hooks/govern"
+    );
+    assert_eq!(
+        config.hooks.track_url,
+        "http://127.0.0.1:8080/api/public/hooks/track"
+    );
     assert_eq!(config.issuer, "iss");
     let id = AgentRunId::new("run-1");
     assert_eq!(config.layout(&id).root, Path::new("/data/agent-runs/run-1"));

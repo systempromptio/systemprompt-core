@@ -90,12 +90,22 @@ async fn run_lifecycle_moves_its_task() {
     f.repo.update_started(&id, started).await.expect("started");
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_WORKING");
 
-    assert!(f.repo.finish(&id, &succeeded(), None).await.expect("finish"));
+    assert!(
+        f.repo
+            .finish(&id, &succeeded(), None)
+            .await
+            .expect("finish")
+    );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 
     let mut again = succeeded();
     again.status = RunStatus::Failed;
-    assert!(!f.repo.finish(&id, &again, None).await.expect("second finish"));
+    assert!(
+        !f.repo
+            .finish(&id, &again, None)
+            .await
+            .expect("second finish")
+    );
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_COMPLETED");
 }
 
@@ -109,7 +119,12 @@ async fn finish_on_a_terminal_task_still_records_the_run() {
         .execute(f.repo.write_pool())
         .await
         .expect("cancel task");
-    assert!(f.repo.finish(&id, &succeeded(), None).await.expect("finish"));
+    assert!(
+        f.repo
+            .finish(&id, &succeeded(), None)
+            .await
+            .expect("finish")
+    );
     let row = f.repo.find_run(&id).await.expect("find").expect("row");
     assert_eq!(row.status, "succeeded");
     assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_CANCELED");

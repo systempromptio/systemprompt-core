@@ -7,34 +7,34 @@
 #![allow(clippy::all)]
 
 #[cfg(test)]
-mod event_serde;
-#[cfg(test)]
-mod text_enums;
-#[cfg(test)]
-mod claude_code;
-#[cfg(test)]
-mod credentials;
-#[cfg(test)]
-mod governance;
-#[cfg(test)]
-mod execute;
-#[cfg(test)]
-mod repository;
-#[cfg(test)]
-mod lease;
-#[cfg(test)]
-mod codex_cli;
-#[cfg(test)]
-mod execute_support;
-#[cfg(test)]
-mod codex_cli_outcome;
-#[cfg(test)]
 mod a2a;
 #[cfg(test)]
 mod a2a_repository;
 #[cfg(test)]
-mod task_link;
+mod claude_code;
+#[cfg(test)]
+mod codex_cli;
+#[cfg(test)]
+mod codex_cli_outcome;
+#[cfg(test)]
+mod credentials;
+#[cfg(test)]
+mod event_serde;
+#[cfg(test)]
+mod execute;
+#[cfg(test)]
+mod execute_support;
+#[cfg(test)]
+mod governance;
+#[cfg(test)]
+mod lease;
+#[cfg(test)]
+mod repository;
 #[cfg(test)]
 mod runner;
 #[cfg(test)]
 mod runner_claim;
+#[cfg(test)]
+mod task_link;
+#[cfg(test)]
+mod text_enums;

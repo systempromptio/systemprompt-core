@@ -7,9 +7,9 @@ use std::path::Path;
 
 #[cfg(unix)]
 use systemprompt_bridge::ids::HostToken;
-use systemprompt_bridge::integration::generated_profile::profile_uuids;
 #[cfg(unix)]
 use systemprompt_bridge::integration::generated_profile;
+use systemprompt_bridge::integration::generated_profile::profile_uuids;
 #[cfg(unix)]
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 #[cfg(unix)]

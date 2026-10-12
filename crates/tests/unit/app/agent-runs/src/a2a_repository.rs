@@ -9,7 +9,11 @@ use crate::repository::{fixture, request};
 #[tokio::test]
 async fn run_keeps_its_task_and_context() {
     let f = fixture().await;
-    let (id, task_id, context_id) = (AgentRunId::generate(), TaskId::generate(), ContextId::generate());
+    let (id, task_id, context_id) = (
+        AgentRunId::generate(),
+        TaskId::generate(),
+        ContextId::generate(),
+    );
     f.repo
         .insert_run(NewAgentRun {
             id: &id,

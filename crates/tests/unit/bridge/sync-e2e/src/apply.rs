@@ -2124,7 +2124,12 @@ fn sync_routes_an_unenrolled_claude_code_once_and_preserves_foreign_keys() {
             .is_some_and(|url| url.starts_with("http://127.0.0.1:")),
         "{routed}"
     );
-    assert!(routed["apiKeyHelper"].as_str().is_some_and(|h| !h.is_empty()), "{routed}");
+    assert!(
+        routed["apiKeyHelper"]
+            .as_str()
+            .is_some_and(|h| !h.is_empty()),
+        "{routed}"
+    );
 
     let mut customised = routed.clone();
     customised["env"]["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:1".into();
