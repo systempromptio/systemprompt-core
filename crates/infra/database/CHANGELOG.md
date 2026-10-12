@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- `projection_backlog` (schema + migration `002`): the one queue every projection drains from, with `queue_projection_backlog`, `take_projection_backlog` (`FOR UPDATE SKIP LOCKED`), `requeue_projection_backlog` and `projection_backlog_depth`. Nothing is backfilled by the migration; a fresh install creates the table from the schema file.
+- `projection` module — `drain`, `drain_with_sql`, `queue`, `depth`, `DrainReport` — and its rustdoc, which states the data paradigm (ledger, stamped fact, counter, projection, rollup; four parts in base schema; NULL means pending).
+- `backfill_statements` / `BackfillStatement`: the shared detector of data-populating migration statements (`UPDATE`, `DELETE`, select-driven `INSERT`, `SELECT refresh_*()`), exempting the keys-only `INSERT INTO projection_backlog … SELECT`. Both repositories' `no_backfill_after_floor` gates use it.
+
+
+## [Unreleased]
+
 ### Changed
 
 - A fresh install logs one summary line per extension for the stamped retirement migrations it executed; the per-file line is DEBUG.

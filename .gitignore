@@ -211,3 +211,5 @@ scripts/rust-contracts/target/
 !scripts/pre-push.sh
 !scripts/test-release-proof.py
 !scripts/check-offline.sh
+!scripts/lint-ledger-reads.sh
+!scripts/ledger-reads-baseline.txt

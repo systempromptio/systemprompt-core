@@ -4,6 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod backfill;
 mod classify;
 mod extension;
 mod fk_deferral;
@@ -15,6 +16,7 @@ mod routine_refs;
 mod seeds;
 mod undeclared;
 
+pub use backfill::{BackfillStatement, PROJECTION_BACKLOG, backfill_statements};
 pub use extension::current::{SchemaCurrency, schema_currency};
 pub use extension::install_extension_schemas_full;
 pub use fk_deferral::{

@@ -13,6 +13,7 @@ lint-async-trait
 lint-owned-tasks
 lint-json-value
 lint-table-ownership
+lint-ledger-reads
 lint-silent-skips
 lint-schema
 lint-extensions

@@ -1102,6 +1102,11 @@ lint-json-value:
 lint-table-ownership:
     ./scripts/lint-table-ownership.sh
 
+# Repository SQL reads stored facts, never aggregates the ledger; the baseline
+# only shrinks (systemprompt_database::projection).
+lint-ledger-reads:
+    ./scripts/lint-ledger-reads.sh
+
 # Profiles are the source of truth; an env read outside the sanctioned boot
 # readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.
 lint-env-vars:
