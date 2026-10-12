@@ -165,7 +165,7 @@ fn test_a2a_response_send_message() {
 
     let task = Task::default();
     let request_id = RequestId::String("req-1".to_string());
-    let response = A2aResponse::send_message(SendMessageResult::Task(task), request_id);
+    let response = A2aResponse::send_message(SendMessageResult::Task(Box::new(task)), request_id);
 
     match response {
         A2aResponse::SendMessage(res) => {

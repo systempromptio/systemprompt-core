@@ -164,7 +164,8 @@ fn a2a_parse_error_invalid_params_display() {
 #[test]
 fn a2a_response_send_message_constructor() {
     let task = systemprompt_agent::Task::default();
-    let resp = A2aResponse::send_message(SendMessageResult::Task(task), string_id("id-1"));
+    let resp =
+        A2aResponse::send_message(SendMessageResult::Task(Box::new(task)), string_id("id-1"));
     assert!(matches!(resp, A2aResponse::SendMessage(_)));
 }
 
@@ -407,7 +408,7 @@ fn list_tasks_response_constructor_serialises_spec_fields() {
 fn send_message_response_wraps_result_oneof() {
     let task = systemprompt_agent::Task::default();
     let value = serde_json::to_value(A2aResponse::send_message(
-        SendMessageResult::Task(task),
+        SendMessageResult::Task(Box::new(task)),
         string_id("id-sm"),
     ))
     .unwrap();

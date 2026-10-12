@@ -82,11 +82,7 @@ pub enum StreamResponse {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "A2A SendMessageResponse oneof — the result is moved once onto the wire"
-)]
 pub enum SendMessageResult {
-    Task(Task),
-    Message(Message),
+    Task(Box<Task>),
+    Message(Box<Message>),
 }
