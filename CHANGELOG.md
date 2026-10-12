@@ -6,7 +6,6 @@
 
 - **Database:** a fresh install logs one `Fresh install: executed the stamped retirement migrations` line per extension that had any, with the count, instead of one INFO line per retirement migration; the per-file line is DEBUG. The log of a clean install now reads clean.
 - **Database:** `assess_freshness` no longer counts the `extension_migrations` ledger among an extension's owned tables. The ledger is created before any freshness is read, so the `database` extension that owns it was established on every empty database and ran its one migration instead of stamping it.
-- **Database:** `001_prune_prefix_duplicate_indexes` is retired behind a tombstone. Its end state has always been the declarative `extension_migrations.sql`, and every deployment that needed it has the slot applied or stamped.
 - **Docs:** `internal/guides/migrations.md` describes the install order as it runs: the retire phase, freshness with the ledger excluded, baseline stamping and the stamped retirements that execute on a fresh extension.
 
 ## [0.65.1] - 2026-10-09
