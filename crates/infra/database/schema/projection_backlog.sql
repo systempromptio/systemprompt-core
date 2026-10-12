@@ -44,16 +44,23 @@ $$;
 -- drainers work the same queue without taking the same key twice; a
 -- transaction that rolls back puts its keys straight back. Keys past
 -- `max_attempts` are left queued for an operator.
+--
+-- The batch is picked once (a materialized CTE) and deleted by key through
+-- the primary key. Written as `key IN (<locking subquery>)`, a migration
+-- that queues tens of thousands of keys into a table last analyzed empty
+-- gets a nested-loop plan that re-runs the locking subquery per queued row:
+-- quadratic, and a 64k-key backlog never finished its first batch.
 CREATE OR REPLACE FUNCTION take_projection_backlog(projection_name TEXT, batch INTEGER, max_attempts INTEGER DEFAULT 5)
 RETURNS TEXT[] LANGUAGE sql AS $$
-WITH taken AS (
+WITH picked AS MATERIALIZED (
+    SELECT q.key FROM projection_backlog q
+    WHERE q.projection = projection_name AND q.attempts <= max_attempts
+    ORDER BY q.queued_at, q.key
+    LIMIT GREATEST(batch, 1)
+    FOR UPDATE SKIP LOCKED
+), taken AS (
     DELETE FROM projection_backlog b
-    WHERE b.projection = projection_name AND b.key IN (
-        SELECT q.key FROM projection_backlog q
-        WHERE q.projection = projection_name AND q.attempts <= max_attempts
-        ORDER BY q.queued_at, q.key
-        LIMIT GREATEST(batch, 1)
-        FOR UPDATE SKIP LOCKED)
+    WHERE b.projection = projection_name AND b.key = ANY (ARRAY(SELECT p.key FROM picked p))
     RETURNING b.key)
 SELECT COALESCE(array_agg(key), '{}'::TEXT[]) FROM taken
 $$;

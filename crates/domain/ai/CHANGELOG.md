@@ -6,6 +6,7 @@
 
 - **Trace facts feed.** `trace_facts_ai(keys)` and statement triggers on `ai_requests` (insert, update, delete) queue traces for the `trace_facts` projection. Migration 039 queues the traces of existing requests.
 - `ai_usage_rollup_hourly(bucket, user_id, provider, model, agent_name, synthetic)` with additive request, token, cost, latency and cache-hit measures, kept current by statement triggers on `ai_requests` (insert adds, delete subtracts, update moves changed rows). `agent_name` is the request's task agent at write time; absent dimensions are `''`. `refresh_ai_usage_rollup_hourly(keys)` rebuilds whole UTC hours; migration 040 queues every pre-existing hour for the scheduler's `backfill_rollups` job.
+- `ai_requests.has_offered_tools`: whether the request offered the model client tools, stamped by the request's owner in the writing transaction (the gateway admission at insert, the offered-tools upsert for writers that store the tools after the row), so a reader no longer joins `ai_request_payloads` to ask. Migration 041 adds the column and queues the requests that predate it for `refresh_ai_request_tool_flag(keys)` (schema `ai_request_tool_flag.sql`); NULL means not yet projected.
 
 ### Changed
 

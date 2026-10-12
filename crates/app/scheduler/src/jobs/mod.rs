@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod ai_request_tool_flag_rollup;
 mod analytics_event_link_facts_rollup;
 mod backfill_rollups;
 mod backfill_session_geo;
@@ -30,6 +31,7 @@ pub mod usage_anomaly_scan;
 mod user_context_counters_rollup;
 pub mod vertex_discovery;
 
+pub use ai_request_tool_flag_rollup::AiRequestToolFlagRollupJob;
 pub use analytics_event_link_facts_rollup::AnalyticsEventLinkFactsRollupJob;
 pub use backfill_rollups::BackfillRollupsJob;
 pub use backfill_session_geo::BackfillSessionGeoJob;

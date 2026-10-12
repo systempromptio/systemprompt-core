@@ -168,6 +168,9 @@ where
                 VALUES (encode(sha256(convert_to($2::jsonb::text, 'UTF8')), 'hex'), $2)
                 ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
                 RETURNING sha256
+            ), flagged AS (
+                UPDATE ai_requests SET has_offered_tools = TRUE
+                WHERE id = $1 AND has_offered_tools IS DISTINCT FROM TRUE
             )
             INSERT INTO ai_request_payloads (
                 ai_request_id, offered_tools_sha256, created_at, updated_at
