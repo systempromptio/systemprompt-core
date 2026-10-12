@@ -95,7 +95,7 @@ impl ClaimLoop {
                     Ok(Some(row)) => in_flight.push(self.spawn_run(row, &shutdown, &handler)),
                     Ok(None) => break,
                     Err(error) => {
-                        tracing::error!(%error, origin_kind = %self.origin_kind, "headless claim failed");
+                        tracing::error!(%error, origin_kind = %self.origin_kind, "agent run claim failed");
                         break;
                     },
                 }
@@ -117,10 +117,10 @@ impl ClaimLoop {
             .await
         {
             Ok(ids) if !ids.is_empty() => {
-                tracing::warn!(count = ids.len(), origin_kind = %self.origin_kind, "reclaimed stale headless runs");
+                tracing::warn!(count = ids.len(), origin_kind = %self.origin_kind, "reclaimed stale agent runs");
             },
             Ok(_) => {},
-            Err(error) => tracing::error!(%error, "headless stale reclaim failed"),
+            Err(error) => tracing::error!(%error, "agent run stale reclaim failed"),
         }
     }
 
@@ -147,7 +147,7 @@ impl ClaimLoop {
         OwnedTask::spawn("agent_run", async move {
             let run_id = claimed.row.id.clone();
             if let Err(error) = handler.run(claimed).await {
-                tracing::error!(%run_id, %error, "headless run handler failed");
+                tracing::error!(%run_id, %error, "agent run handler failed");
             }
             renewer.stop().await;
         })
@@ -166,7 +166,7 @@ async fn reap(in_flight: &mut Vec<OwnedTask<()>>) {
 
 fn log_join(result: Result<(), tokio::task::JoinError>) {
     if let Err(error) = result {
-        tracing::error!(%error, "headless run task panicked");
+        tracing::error!(%error, "agent run task panicked");
     }
 }
 

@@ -1,4 +1,4 @@
-# Headless Schema
+# Agent Runs Schema
 
 PostgreSQL schema for the `systemprompt-agent-runs` crate. Each table lives in its own `.sql` file and is embedded at compile time via `include_str!` in `extension.rs`; versioned migrations would live under `schema/migrations/` and are discovered by `build.rs`.
 
@@ -6,7 +6,7 @@ PostgreSQL schema for the `systemprompt-agent-runs` crate. Each table lives in i
 
 | File | Table | Purpose |
 |------|-------|---------|
-| `agent_runs.sql` | `agent_runs` | One row per headless run: origin, owner, host, status, the `RunRequest` JSONB, the claim lease, the run's credentials and its outcome. |
+| `agent_runs.sql` | `agent_runs` | One row per agent run: origin, owner, host, status, the `RunRequest` JSONB, the claim lease, the run's credentials and its outcome. |
 | `agent_run_events.sql` | `agent_run_events` | The run's decoded `RunEvent`s in arrival order, keyed `(run_id, seq)`. |
 
 The claim index `(status, not_before, created_at)` serves `FOR UPDATE SKIP LOCKED`; the partial lease index serves stale-run reclaim. `updated_at` is maintained by `update_timestamp_trigger()` from the database extension.

@@ -63,17 +63,17 @@ async fn renew_loop(repo: AgentRunRepository, spec: LeaseSpec, token: Cancellati
         {
             Ok(true) => last_renewed = Instant::now(),
             Ok(false) => {
-                tracing::warn!(run_id = %spec.run_id, "headless run lease lost; cancelling run");
+                tracing::warn!(run_id = %spec.run_id, "agent run lease lost; cancelling run");
                 token.cancel();
                 return;
             },
             Err(error) if last_renewed.elapsed() >= spec.lease => {
-                tracing::error!(run_id = %spec.run_id, %error, "headless run lease lapsed; cancelling run");
+                tracing::error!(run_id = %spec.run_id, %error, "agent run lease lapsed; cancelling run");
                 token.cancel();
                 return;
             },
             Err(error) => {
-                tracing::warn!(run_id = %spec.run_id, %error, "headless run lease renewal failed; retrying");
+                tracing::warn!(run_id = %spec.run_id, %error, "agent run lease renewal failed; retrying");
             },
         }
     }
