@@ -7,6 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_run;
 pub mod helpers;
 mod non_streaming;
 mod streaming;

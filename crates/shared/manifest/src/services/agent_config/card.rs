@@ -78,6 +78,11 @@ pub struct AgentMetadataConfig {
     pub max_output_tokens: Option<u32>,
     #[serde(default)]
     pub tool_model_overrides: ToolModelOverrides,
+    // JSON: an agent-runs `RunRequest` template, opaque here. When set, the
+    // A2A server queues each message as a headless agent run instead of
+    // answering inline; the message becomes the template's `prompt`.
+    #[serde(default, alias = "agent_run", skip_serializing_if = "Option::is_none")]
+    pub agent_run: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -4,6 +4,7 @@
 
 ### Added
 
+- `AgentMetadataConfig::agent_run` (`agentRun`, alias `agent_run`) and `DiskAgentConfig::agent_run`: an optional agent-runs `RunRequest` template, opaque JSON here. When set, the agent's A2A server queues each message as a headless agent run. Defaults to none.
 - `NodeRole::Runner` and `NodeRole::runs_runner_services()`, true for `All` and `Runner`: a single-node deployment starts the extensions' runner services; a runner node starts only them.
 
 ### Breaking

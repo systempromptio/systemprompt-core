@@ -6,7 +6,8 @@
 //! [`rows`]. `insert_run_in_tx` queues inside the caller's transaction so a
 //! product can insert its own row atomically; `finish` returns `false` when
 //! the run was already terminal, so a second finish never overwrites the
-//! first.
+//! first. When a run carries an A2A `task_id`, `update_started` and
+//! `finish` move the task in the same transaction ([`task_link`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +15,7 @@
 pub mod claim;
 pub mod events;
 pub mod rows;
+pub mod task_link;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -28,7 +30,7 @@ use systemprompt_identifiers::{
 pub use rows::AgentRunRow;
 
 use crate::error::AgentRunsResult;
-use crate::outcome::RunOutcome;
+use crate::outcome::{RunOutcome, RunStatus};
 use crate::request::RunRequest;
 
 #[derive(Debug, Clone)]
@@ -117,12 +119,14 @@ impl AgentRunRepository {
         started: RunStarted<'_>,
     ) -> AgentRunsResult<()> {
         let run_dir = started.run_dir.to_string_lossy();
-        sqlx::query!(
+        let mut tx = self.write_pool.begin().await?;
+        let task_id = sqlx::query_scalar!(
             r#"
             UPDATE agent_runs
             SET status = 'running', started_at = NOW(), run_dir = $2, pid = $3,
                 gateway_session_id = $4, api_key_id = $5
             WHERE id = $1
+            RETURNING task_id AS "task_id: TaskId"
             "#,
             id.as_str(),
             run_dir.as_ref(),
@@ -130,8 +134,13 @@ impl AgentRunRepository {
             started.gateway_session_id.map(SessionId::as_str),
             started.api_key_id.map(ApiKeyId::as_str),
         )
-        .execute(self.write_pool.as_ref())
-        .await?;
+        .fetch_optional(&mut *tx)
+        .await?
+        .flatten();
+        if let Some(task_id) = task_id {
+            task_link::transition_task(&mut tx, &task_id, RunStatus::Running).await?;
+        }
+        tx.commit().await?;
         Ok(())
     }
 
@@ -180,7 +189,8 @@ impl AgentRunRepository {
         outcome: &RunOutcome,
         diff_summary: Option<&serde_json::Value>,
     ) -> AgentRunsResult<bool> {
-        let result = sqlx::query!(
+        let mut tx = self.write_pool.begin().await?;
+        let finished = sqlx::query_scalar!(
             r#"
             UPDATE agent_runs
             SET status = $2, error_class = $3, input_tokens = $4, output_tokens = $5,
@@ -190,6 +200,7 @@ impl AgentRunRepository {
                 finished_at = NOW(), lease_until = NULL
             WHERE id = $1
               AND status NOT IN ('succeeded', 'failed', 'cancelled', 'timed_out')
+            RETURNING task_id AS "task_id: TaskId"
             "#,
             id.as_str(),
             outcome.status.as_str(),
@@ -205,8 +216,15 @@ impl AgentRunRepository {
             diff_summary,
             outcome.session_id.as_ref().map(HostSessionId::as_str),
         )
-        .execute(self.write_pool.as_ref())
+        .fetch_optional(&mut *tx)
         .await?;
-        Ok(result.rows_affected() == 1)
+        let Some(task_id) = finished else {
+            return Ok(false);
+        };
+        if let Some(task_id) = task_id {
+            task_link::transition_task(&mut tx, &task_id, outcome.status).await?;
+        }
+        tx.commit().await?;
+        Ok(true)
     }
 }

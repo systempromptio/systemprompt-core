@@ -2,7 +2,8 @@
 //!
 //! [`AgentRunsExtension`] declares the `agent_runs` and
 //! `agent_run_events` tables and registers itself with the platform
-//! extension registry via [`register_extension!`].
+//! extension registry via [`register_extension!`]. [`AgentRunsExtension::launcher`]
+//! is the `AgentRunLauncher` entry hands to the A2A server.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -11,6 +12,13 @@ use systemprompt_extension::prelude::*;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AgentRunsExtension;
+
+impl AgentRunsExtension {
+    #[must_use]
+    pub fn launcher(db: &systemprompt_database::DbPool) -> systemprompt_traits::DynAgentRunLauncher {
+        crate::launcher::RepositoryRunLauncher::shared(db)
+    }
+}
 
 impl Extension for AgentRunsExtension {
     fn metadata(&self) -> ExtensionMetadata {

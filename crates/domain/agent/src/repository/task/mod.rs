@@ -23,7 +23,10 @@ pub use mutations::{CreateTaskParams, create_task, track_agent_in_context};
 pub use queries::{
     TaskContextInfo, find_task, find_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
-pub use state::{apply_notification_status, update_task_failed_with_error, update_task_state};
+pub use state::{
+    apply_notification_status, transition_task_in_tx, update_task_failed_with_error,
+    update_task_state,
+};
 pub use task_updates::{PersistMessagesTxParams, UpdateTaskAndSaveMessagesParams};
 
 use crate::models::a2a::{Task, TaskState};
@@ -133,6 +136,15 @@ impl TaskRepository {
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
         update_task_state(&self.write_pool, task_id, state, timestamp).await
+    }
+
+    pub async fn transition_task_in_tx(
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        task_id: &systemprompt_identifiers::TaskId,
+        state: TaskState,
+        at: &chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), RepositoryError> {
+        transition_task_in_tx(tx, task_id, state, at).await
     }
 
     pub async fn apply_notification_status(

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+### Added
+
+- `RunnerService { fn name(&self) -> &'static str; async fn run(&self, ctx: JobContext, shutdown: CancellationToken) }`: long-running work an extension runs on `runner` (and `all`) nodes.
+- `AgentRunLauncher` (`enqueue(AgentRunLaunch) -> AgentRunId`, `cancel(&AgentRunId)`, `run_for_task(&TaskId) -> Option<AgentRunId>`), `AgentRunLaunch { user_id, task_id, context_id, request, origin_kind, origin_id }` with the agent-runs `RunRequest` as opaque JSON, `AgentRunLaunchError { InvalidRequest, NotFound, Unavailable }` and `DynAgentRunLauncher`: the seam through which the A2A server queues a task as a headless agent run without depending on the app crate that runs it.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

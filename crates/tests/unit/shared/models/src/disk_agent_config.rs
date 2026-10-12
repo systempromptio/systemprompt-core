@@ -53,6 +53,7 @@ fn valid_disk(name: &str) -> DiskAgentConfig {
         model: Some("claude".to_owned()),
         card: empty_card(),
         oauth: OAuthConfig::default(),
+        agent_run: None,
     }
 }
 

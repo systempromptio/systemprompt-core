@@ -1,4 +1,5 @@
-//! Streaming A2A message handling over SSE.
+//! Streaming A2A message handling over SSE. A message queued as an agent
+//! run answers with one event carrying the `Submitted` task.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -55,6 +56,21 @@ pub(super) async fn handle_streaming_request(
             return Ok(invalid_params_stream(&request_id, &err.to_string()).map(Ok));
         }
 
+        let launched =
+            super::agent_run::launch_if_configured(&params.message, &agent_name, &state, &context)
+                .await;
+        match launched {
+            Ok(Some(task)) => {
+                let event = json!({"jsonrpc": "2.0", "result": task, "id": &request_id});
+                return Ok(single_event_stream(&event).map(Ok));
+            },
+            Ok(None) => {},
+            Err(failure) => {
+                let event = json!(failure.into_jsonrpc(&request_id));
+                return Ok(single_event_stream(&event).map(Ok));
+            },
+        }
+
         Ok(create_sse_stream(CreateSseStreamParams {
             message: params.message,
             agent_name,
@@ -82,6 +98,14 @@ pub(super) async fn handle_streaming_request(
         }
         Ok(ReceiverStream::new(rx).map(Ok))
     }
+}
+
+fn single_event_stream(event: &serde_json::Value) -> ReceiverStream<Event> {
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    if let Err(e) = tx.try_send(Event::default().data(event.to_string())) {
+        tracing::warn!(error = %e, "Failed to send event to SSE client");
+    }
+    ReceiverStream::new(rx)
 }
 
 fn invalid_params_stream(request_id: &NumberOrString, data: &str) -> ReceiverStream<Event> {

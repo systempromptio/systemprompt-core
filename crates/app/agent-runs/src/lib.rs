@@ -25,6 +25,7 @@ pub mod execute;
 pub mod extension;
 pub mod governance;
 pub mod host;
+pub mod launcher;
 pub mod layout;
 pub mod lease;
 pub mod outcome;
@@ -45,6 +46,7 @@ pub use host::{
     Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
     host_for,
 };
+pub use launcher::RepositoryRunLauncher;
 pub use layout::RunLayout;
 pub use outcome::{ErrorClass, RunOutcome, RunStatus};
 pub use repository::{AgentRunRepository, AgentRunRow};

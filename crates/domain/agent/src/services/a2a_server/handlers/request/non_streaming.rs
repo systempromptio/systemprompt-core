@@ -2,7 +2,8 @@
 //!
 //! `GetTask` and `CancelTask` are bound to the caller: a task owned by
 //! another user is answered as not found. `CancelTask` stops the running
-//! pipeline on this server and persists the `Canceled` state.
+//! pipeline on this server and persists the `Canceled` state; a task backed
+//! by an agent run is cancelled through the run (see [`super::agent_run`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,7 +41,7 @@ pub(super) enum RequestFailure {
 }
 
 impl RequestFailure {
-    fn internal<E>(context: &'static str, source: E) -> Self
+    pub(super) fn internal<E>(context: &'static str, source: E) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,
     {
@@ -147,6 +148,12 @@ async fn send_message(
     )
     .await?;
 
+    if let Some(task) =
+        super::agent_run::launch_if_configured(&message, agent_name, state, context).await?
+    {
+        return Ok(task);
+    }
+
     let message_processor = MessageProcessor::new(
         Arc::clone(state.agent_state.repositories()),
         Arc::clone(&state.ai_service),
@@ -170,6 +177,10 @@ async fn cancel_task(
     let task = owned_task(task_repo, task_id).await?;
     if task.status.state.is_terminal() {
         return Err(RequestFailure::TaskNotCancelable(task_id.clone()));
+    }
+
+    if super::agent_run::cancel_run(task_id, state).await? {
+        return owned_task(task_repo, task_id).await;
     }
 
     if state.active_tasks.cancel(task_id) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+### Added
+
+- `admin agents run` hands the agent's A2A server the agent-runs launcher (`AgentRunsExtension::launcher`), so an agent with `metadata.agent_run` queues its messages as headless runs. The crate now depends on `systemprompt-agent-runs`.
+
 ## [0.65.1] - 2026-10-09
 
 ### Added

@@ -3,6 +3,8 @@
 //! Each transition reads the current row `FOR UPDATE`, validates the move
 //! against [`TaskState::can_transition_to`], and guards the write with a
 //! version check so concurrent updates fail loudly rather than clobber.
+//! [`transition_task_in_tx`] runs one inside a caller's transaction, so an
+//! agent run can move its task in the same commit as its own row.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -26,6 +28,15 @@ pub async fn update_task_state(
     transition_in_tx(&mut tx, task_id, state, timestamp).await?;
     tx.commit().await?;
     Ok(())
+}
+
+pub async fn transition_task_in_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    task_id: &TaskId,
+    state: TaskState,
+    timestamp: &chrono::DateTime<chrono::Utc>,
+) -> Result<(), RepositoryError> {
+    transition_in_tx(tx, task_id, state, timestamp).await
 }
 
 pub(super) async fn transition_in_tx(

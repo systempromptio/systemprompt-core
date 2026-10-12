@@ -32,3 +32,5 @@ mod codex_cli_outcome;
 mod a2a;
 #[cfg(test)]
 mod a2a_repository;
+#[cfg(test)]
+mod task_link;
