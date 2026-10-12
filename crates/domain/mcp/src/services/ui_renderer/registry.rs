@@ -7,7 +7,7 @@ use super::{UiRenderer, UiResource};
 use crate::error::{McpDomainError, McpDomainResult};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_models::a2a::{Artifact, Part};
+use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::CliArtifact;
 
 pub struct UiRendererRegistry {
@@ -70,13 +70,11 @@ pub fn resolve_artifact_type(artifact: &Artifact) -> &str {
     artifact
         .parts
         .iter()
-        .find_map(|part| match part {
-            Part::Data(data) => data
-                .data
-                .get("x-artifact-type")
-                .or_else(|| data.data.get("artifact_type"))
-                .and_then(serde_json::Value::as_str),
-            Part::Text(_) | Part::File(_) => None,
+        .find_map(|part| {
+            let data = part.as_data()?;
+            data.get("x-artifact-type")
+                .or_else(|| data.get("artifact_type"))
+                .and_then(serde_json::Value::as_str)
         })
         .unwrap_or(declared)
 }

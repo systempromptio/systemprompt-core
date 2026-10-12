@@ -7,6 +7,7 @@ use crate::error::{ClientError, ClientResult};
 use reqwest::{Client, Response};
 use serde::de::DeserializeOwned;
 use systemprompt_identifiers::JwtToken;
+use systemprompt_models::a2a;
 
 async fn extract_error(response: Response) -> ClientError {
     let status = response.status().as_u16();
@@ -51,6 +52,19 @@ pub(super) async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
     token: Option<&JwtToken>,
 ) -> ClientResult<T> {
     let response = send_checked(apply_auth(client.post(url), token).json(body)).await?;
+    Ok(response.json().await?)
+}
+
+pub(super) async fn post_a2a<T: DeserializeOwned, B: serde::Serialize + Sync>(
+    client: &Client,
+    url: &str,
+    body: &B,
+    token: Option<&JwtToken>,
+) -> ClientResult<T> {
+    let request = apply_auth(client.post(url), token)
+        .header(a2a::VERSION_HEADER, a2a::PROTOCOL_VERSION)
+        .json(body);
+    let response = send_checked(request).await?;
     Ok(response.json().await?)
 }
 

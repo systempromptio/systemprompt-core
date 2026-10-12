@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_mcp::McpDomainResult;
 use systemprompt_mcp::services::ui_renderer::{UiRenderer, UiRendererRegistry, UiResource};
 use systemprompt_models::artifacts::types::ArtifactType;
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part, TextPart};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 const CUSTOM_TYPE: &str = "acme_invoice";
 
@@ -40,9 +40,7 @@ fn artifact(artifact_type: &str) -> Artifact {
         id: systemprompt_identifiers::ArtifactId::generate(),
         title: None,
         description: None,
-        parts: vec![Part::Text(TextPart {
-            text: "body".to_owned(),
-        })],
+        parts: vec![Part::text("body".to_owned())],
         extensions: vec![],
         metadata,
     }

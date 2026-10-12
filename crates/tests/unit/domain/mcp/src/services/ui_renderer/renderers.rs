@@ -13,9 +13,7 @@ use systemprompt_models::artifacts::dashboard::{
     StatusSectionData, TableSectionData, TextSectionData,
 };
 use systemprompt_models::artifacts::types::ChartType;
-use systemprompt_models::{
-    A2aArtifact as Artifact, ArtifactMetadata, ArtifactType, DataPart, Part, TextPart,
-};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, ArtifactType, Part};
 
 fn dashboard_artifact(dashboard: &DashboardArtifact) -> Artifact {
     make_artifact(
@@ -65,13 +63,11 @@ fn data_part(data: serde_json::Value) -> Part {
             m
         },
     };
-    Part::Data(DataPart { data: map })
+    Part::data(serde_json::Value::Object(map))
 }
 
 fn text_part(text: &str) -> Part {
-    Part::Text(TextPart {
-        text: text.to_string(),
-    })
+    Part::text(text.to_string())
 }
 
 #[test]

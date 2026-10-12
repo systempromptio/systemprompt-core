@@ -6,12 +6,10 @@ use systemprompt_mcp::services::ui_renderer::UiRenderer;
 use systemprompt_mcp::services::ui_renderer::templates::{ChartRenderer, TableRenderer};
 use systemprompt_models::artifacts::chart::{ChartArtifact, ChartDataset};
 use systemprompt_models::artifacts::types::ChartType;
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 fn data_part(data: serde_json::Value) -> Part {
-    Part::Data(DataPart {
-        data: data.as_object().cloned().expect("object payload"),
-    })
+    Part::data(data)
 }
 
 fn artifact(artifact_type: &str, parts: Vec<Part>) -> Artifact {

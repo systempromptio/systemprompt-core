@@ -6,7 +6,7 @@
 
 use systemprompt_mcp::services::ui_renderer::templates::TableRenderer;
 use systemprompt_mcp::services::ui_renderer::{ArtifactTheme, UiRenderer, active_theme};
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 const HARNESS_TOKENS: &str = "--mcpui-accent: #ff00aa;";
 const HARNESS_EXTRA_CSS: &str = ".harness-marker { display: none; }";
@@ -27,12 +27,9 @@ fn table_artifact() -> Artifact {
         id: systemprompt_identifiers::ArtifactId::generate(),
         title: None,
         description: None,
-        parts: vec![Part::Data(DataPart {
-            data: serde_json::json!({"columns": ["a"], "data": [{"a": 1}]})
-                .as_object()
-                .cloned()
-                .expect("object"),
-        })],
+        parts: vec![Part::data(
+            serde_json::json!({"columns": ["a"], "data": [{"a": 1}]}),
+        )],
         extensions: vec![],
         metadata,
     }

@@ -2,7 +2,7 @@ use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
 use systemprompt_mcp::services::ui_renderer::registry::{
     create_default_registry, resolve_artifact_type,
 };
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 fn make_artifact(artifact_type: &str, parts: Vec<Part>) -> Artifact {
     let metadata = ArtifactMetadata::new(
@@ -29,7 +29,7 @@ fn data_part(data: serde_json::Value) -> Part {
             m
         },
     };
-    Part::Data(DataPart { data: map })
+    Part::data(serde_json::Value::Object(map))
 }
 
 #[test]
