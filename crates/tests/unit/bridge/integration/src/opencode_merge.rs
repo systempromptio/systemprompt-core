@@ -179,7 +179,10 @@ fn a_non_object_user_config_is_never_overwritten() {
             .install_profile(&generated.path)
             .expect_err("a foreign config aborts the install");
         assert!(err.to_string().contains("refusing"), "{err}");
-        assert_eq!(std::fs::read_to_string(&p.user).expect("config"), "[1, 2, 3]");
+        assert_eq!(
+            std::fs::read_to_string(&p.user).expect("config"),
+            "[1, 2, 3]"
+        );
         _ = std::fs::remove_file(&generated.path);
     });
 }

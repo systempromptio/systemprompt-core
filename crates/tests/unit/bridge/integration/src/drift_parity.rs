@@ -67,7 +67,11 @@ fn opencode_sandbox<R>(f: impl FnOnce(&Path) -> R) -> R {
         ),
         ("SP_BRIDGE_CONFIG", None),
     ];
-    let user = root.path().join("config").join("opencode").join("opencode.json");
+    let user = root
+        .path()
+        .join("config")
+        .join("opencode")
+        .join("opencode.json");
     temp_env::with_vars(vars, || f(&user))
 }
 

@@ -83,7 +83,10 @@ fn an_installed_user_tier_probes_as_installed_and_names_its_source() {
         "{:?}",
         snapshot.profile_source
     );
-    assert!(!snapshot.update_needs_approval, "the user tier never needs elevation");
+    assert!(
+        !snapshot.update_needs_approval,
+        "the user tier never needs elevation"
+    );
 }
 
 #[test]
