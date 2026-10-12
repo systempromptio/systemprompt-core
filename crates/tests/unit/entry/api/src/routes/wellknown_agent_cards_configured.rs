@@ -9,7 +9,7 @@ use systemprompt_test_fixtures::{
 use tower::ServiceExt;
 
 #[path = "../../../../../contract/src/a2a/schema.rs"]
-#[allow(
+#[expect(
     dead_code,
     reason = "shared with the contract crate; this test uses only assert_valid"
 )]
