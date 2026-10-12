@@ -60,6 +60,25 @@ pub struct CostDirective {
     pub triggers: TriggerPolicy,
 }
 
+impl CostDirective {
+    /// The measured cost projected onto a table holding `live_rows`.
+    ///
+    /// A measurement is taken on a fixture, and a customer's table can be
+    /// orders of magnitude larger, so the projection grows linearly with how
+    /// far the live table exceeds the declared `rows`. It never shrinks below
+    /// the measurement: a smaller table is not evidence of a faster disk.
+    #[must_use]
+    pub fn projected(&self, live_rows: u64) -> Duration {
+        let declared = self.rows.max(1);
+        if live_rows <= declared {
+            return self.measured;
+        }
+        let ratio = live_rows.div_ceil(declared);
+        self.measured
+            .saturating_mul(u32::try_from(ratio).unwrap_or(u32::MAX))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CostDirectiveError {
     #[error("`@cost` must name {0}")]

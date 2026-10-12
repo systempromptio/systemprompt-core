@@ -92,3 +92,14 @@ fn an_ordinary_migration_declares_nothing() {
     );
     assert_eq!(cost::parse("").expect("parses"), None);
 }
+
+#[test]
+fn projection_grows_with_the_live_table_and_never_shrinks() {
+    let declared = cost::parse("-- @cost: rows=1000 measured=4s triggers=live\n")
+        .expect("parses")
+        .expect("present");
+    assert_eq!(declared.projected(0), Duration::from_secs(4));
+    assert_eq!(declared.projected(1000), Duration::from_secs(4));
+    assert_eq!(declared.projected(1001), Duration::from_secs(8));
+    assert_eq!(declared.projected(250_000), Duration::from_secs(1000));
+}

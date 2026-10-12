@@ -169,10 +169,10 @@ fn failure(error: &LoaderError) -> anyhow::Error {
              run before any migration",
         ),
         _ if text.contains("canceling statement due to statement timeout") => Some(
-            "statement timeout: a migration statement ran past its bound. Row triggers on the \
-             tables it writes are already suspended; if the table is far larger than the \
-             migration's @cost measurement, rerun attended with \
-             SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS=0",
+            "statement timeout: a migration statement ran past its bound (its @cost measurement \
+             projected onto the live hot-table size, capped at 30 minutes). The transaction rolled back, so nothing is half \
+             applied. Stop every other instance against this database, then rerun the one-off \
+             migrate attended with SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS=0",
         ),
         _ if text.contains("lock timeout") => Some(
             "lock timeout: another session holds a lock on a table this migration alters; stop \

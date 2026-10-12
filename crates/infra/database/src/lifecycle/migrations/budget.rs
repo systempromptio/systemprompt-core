@@ -29,6 +29,15 @@
 //! operator setting it is attending a specific run and knows what the author
 //! could not.
 //!
+//! A measurement is taken on the author's fixture, so a derived bound is
+//! projected onto the live database before it is applied: the measured cost
+//! grows linearly with how far the largest hot table the migration names
+//! exceeds the declared `rows` (see `CostDirective::projected`). Without it a
+//! migration measured on a thousand sessions cancelled itself on a customer
+//! holding a hundred times that. `MAX_DERIVED_TIMEOUT` caps the projection:
+//! past half an hour the boot is better refused, and attended with
+//! `TIMEOUT_ENV`, than left silent.
+//!
 //! `lock_timeout` is much shorter than `statement_timeout` on purpose: waiting
 //! on a lock means another session holds the table, and blocking the whole
 //! boot behind it is never the right answer.
@@ -40,18 +49,23 @@ use std::time::Duration;
 
 use systemprompt_extension::{Migration, cost};
 
+use crate::HOT_TABLES;
+use crate::services::DatabaseProvider;
+
 pub(crate) const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub(crate) const MEASURED_SAFETY_FACTOR: u32 = 10;
 
 pub(crate) const MIN_DERIVED_TIMEOUT: Duration = Duration::from_secs(30);
 
+pub(crate) const MAX_DERIVED_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
 pub(crate) const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub(crate) const TIMEOUT_ENV: &str = "SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS";
 
 #[must_use]
-pub(crate) fn statement_timeout(migration: &Migration) -> Option<Duration> {
+pub(crate) fn statement_timeout(migration: &Migration, live_rows: u64) -> Option<Duration> {
     match env_timeout() {
         EnvTimeout::Unset => {},
         EnvTimeout::Disabled => return None,
@@ -60,12 +74,38 @@ pub(crate) fn statement_timeout(migration: &Migration) -> Option<Duration> {
     if let Ok(Some(declared)) = cost::parse(migration.sql) {
         return Some(
             declared
-                .measured
+                .projected(live_rows)
                 .saturating_mul(MEASURED_SAFETY_FACTOR)
-                .max(MIN_DERIVED_TIMEOUT),
+                .clamp(MIN_DERIVED_TIMEOUT, MAX_DERIVED_TIMEOUT),
         );
     }
     Some(DEFAULT_STATEMENT_TIMEOUT)
+}
+
+/// The largest row estimate among the hot tables `migration` names, or `0`
+/// when it declares no cost (nothing to project) or names none of them.
+// Why: `reltuples` is the planner's estimate (-1 before the first ANALYZE),
+// read instead of `count(*)` so measuring the table never costs a scan of it.
+pub(crate) async fn live_rows(db: &dyn DatabaseProvider, migration: &Migration) -> u64 {
+    if !matches!(cost::parse(migration.sql), Ok(Some(_))) {
+        return 0;
+    }
+    let mut largest: u64 = 0;
+    for table in HOT_TABLES.iter().filter(|t| migration.sql.contains(**t)) {
+        let estimate = db
+            .fetch_optional(
+                &"SELECT reltuples::bigint AS estimate FROM pg_class WHERE oid = to_regclass($1)",
+                &[table],
+            )
+            .await
+            .ok()
+            .flatten()
+            .and_then(|row| row.get("estimate").and_then(serde_json::Value::as_i64))
+            .and_then(|rows| u64::try_from(rows).ok())
+            .unwrap_or(0);
+        largest = largest.max(estimate);
+    }
+    largest
 }
 
 enum EnvTimeout {
