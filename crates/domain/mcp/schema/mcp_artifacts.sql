@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS mcp_artifacts (
     secret_redactions INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ,
+    artifact_kind TEXT,
     FOREIGN KEY (mcp_execution_id) REFERENCES mcp_tool_executions(mcp_execution_id) ON DELETE CASCADE,
     FOREIGN KEY (payload_sha256) REFERENCES artifact_payloads(sha256) ON DELETE SET NULL
 );

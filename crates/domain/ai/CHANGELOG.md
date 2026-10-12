@@ -5,6 +5,7 @@
 ### Changed
 
 - `SettleCompletion` gains `next_message_sequence: Option<i32>`; the assistant row is inserted with that number instead of `MAX(sequence_number) + 1` over `ai_request_messages`. `None` skips the row with a warning.
+- `tool_call_ledger.is_builtin` reads the execution's stored `is_builtin`, which excludes `mcp__` tools a vantage point reported under its own name. The view gains `input_summary` and `artifact_kind` from the same row. Executed rows not yet projected show NULL.
 
 ## [0.65.0] - 2026-10-09
 

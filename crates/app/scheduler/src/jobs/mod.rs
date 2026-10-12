@@ -19,6 +19,7 @@ mod malicious_ip_blacklist;
 mod no_js_cleanup;
 pub mod otlp_export;
 mod thought_signature_cleanup;
+mod tool_row_facts_rollup;
 pub mod usage_anomaly_scan;
 pub mod vertex_discovery;
 
@@ -33,5 +34,6 @@ pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;
 pub use otlp_export::OtlpExportJob;
 pub use thought_signature_cleanup::ThoughtSignatureCleanupJob;
+pub use tool_row_facts_rollup::ToolRowFactsRollupJob;
 pub use usage_anomaly_scan::UsageAnomalyScanJob;
 pub use vertex_discovery::VertexDiscoveryJob;

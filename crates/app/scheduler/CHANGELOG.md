@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `tool_row_facts_rollup` job (`ToolRowFactsRollupJob`, every minute at `:15`): drains the `tool_row_facts` projection backlog, 500 keys per batch, for up to 20 s per tick.
+
 ## [0.64.0] - 2026-10-08
 
 ### Added
