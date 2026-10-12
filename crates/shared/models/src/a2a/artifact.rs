@@ -13,11 +13,12 @@ use systemprompt_identifiers::ArtifactId;
 pub struct Artifact {
     #[serde(rename = "artifactId")]
     pub id: ArtifactId,
-    #[serde(rename = "name")]
+    #[serde(default, rename = "name", skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub parts: Vec<Part>,
-    // JSON: A2A `Artifact.extensions` entries are spec-defined as free-form.
-    pub extensions: Vec<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<String>,
     pub metadata: ArtifactMetadata,
 }

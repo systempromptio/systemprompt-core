@@ -40,6 +40,11 @@ serde_roundtrip!(
     ArtifactMetadata
 );
 serde_roundtrip!(artifact_roundtrip, arb_artifact(), Artifact);
+serde_roundtrip!(
+    security_scheme_roundtrip,
+    arb_security_scheme(),
+    SecurityScheme
+);
 serde_roundtrip!(task_roundtrip, arb_task(), Task);
 serde_roundtrip!(agent_skill_roundtrip, arb_agent_skill(), AgentSkill);
 serde_roundtrip!(

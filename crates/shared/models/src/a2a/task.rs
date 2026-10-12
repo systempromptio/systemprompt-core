@@ -17,8 +17,11 @@ pub struct Task {
     pub id: TaskId,
     pub context_id: ContextId,
     pub status: TaskStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history: Option<Vec<Message>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<Vec<Artifact>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<TaskMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
@@ -45,7 +48,9 @@ impl Default for Task {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TaskStatus {
     pub state: TaskState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 

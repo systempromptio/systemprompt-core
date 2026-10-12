@@ -28,7 +28,9 @@ pub use artifact_summary::ArtifactSummary;
 pub use mcp_extension::{McpServerMetadata, McpToolsParams, MessageMetadata};
 pub use message::{Message, MessageRole, Part, PartContent, PartContentError};
 pub use security::{
-    ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityRequirement, SecurityScheme, StringList,
+    ApiKeyLocation, ApiKeySecurityScheme, AuthorizationCodeOAuthFlow, ClientCredentialsOAuthFlow,
+    DeviceCodeOAuthFlow, HttpAuthSecurityScheme, MutualTlsSecurityScheme, OAuth2SecurityScheme,
+    OAuthFlows, OpenIdConnectSecurityScheme, SecurityRequirement, SecurityScheme, StringList,
 };
 pub use stream::{
     SendMessageResult, StreamResponse, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,

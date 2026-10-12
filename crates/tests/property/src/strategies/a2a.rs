@@ -237,25 +237,64 @@ pub fn arb_api_key_location() -> impl Strategy<Value = ApiKeyLocation> {
     ]
 }
 
+pub fn arb_oauth_flows() -> impl Strategy<Value = OAuthFlows> {
+    let scopes = proptest::collection::hash_map("[a-z]{1,8}", "[a-zA-Z ]{1,20}", 0..3);
+    prop_oneof![
+        (scopes.clone(), any::<bool>()).prop_map(|(scopes, pkce_required)| {
+            OAuthFlows::AuthorizationCode(AuthorizationCodeOAuthFlow {
+                authorization_url: "https://example.com/authorize".to_string(),
+                token_url: "https://example.com/token".to_string(),
+                refresh_url: None,
+                scopes,
+                pkce_required,
+            })
+        }),
+        scopes.clone().prop_map(|scopes| {
+            OAuthFlows::ClientCredentials(ClientCredentialsOAuthFlow {
+                token_url: "https://example.com/token".to_string(),
+                refresh_url: Some("https://example.com/refresh".to_string()),
+                scopes,
+            })
+        }),
+        scopes.prop_map(|scopes| {
+            OAuthFlows::DeviceCode(DeviceCodeOAuthFlow {
+                device_authorization_url: "https://example.com/device".to_string(),
+                token_url: "https://example.com/token".to_string(),
+                refresh_url: None,
+                scopes,
+            })
+        }),
+    ]
+}
+
 pub fn arb_security_scheme() -> impl Strategy<Value = SecurityScheme> {
     prop_oneof![
         ("[a-z]{1,10}", arb_api_key_location()).prop_map(|(name, location)| {
-            SecurityScheme::ApiKey {
+            SecurityScheme::ApiKey(ApiKeySecurityScheme {
                 name,
                 location,
                 description: None,
-            }
+            })
         }),
-        Just(SecurityScheme::Http {
+        Just(SecurityScheme::HttpAuth(HttpAuthSecurityScheme {
             scheme: "bearer".to_string(),
             bearer_format: Some("JWT".to_string()),
             description: None,
+        })),
+        arb_oauth_flows().prop_map(|flows| {
+            SecurityScheme::OAuth2(OAuth2SecurityScheme {
+                description: None,
+                flows,
+                oauth2_metadata_url: None,
+            })
         }),
-        Just(SecurityScheme::OpenIdConnect {
+        Just(SecurityScheme::OpenIdConnect(OpenIdConnectSecurityScheme {
             open_id_connect_url: "https://example.com/.well-known/openid-configuration".to_string(),
             description: None,
-        }),
-        Just(SecurityScheme::MutualTls { description: None }),
+        })),
+        Just(SecurityScheme::MutualTls(MutualTlsSecurityScheme {
+            description: None
+        })),
     ]
 }
 

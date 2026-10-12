@@ -21,7 +21,9 @@ pub struct Message {
     pub task_id: Option<TaskId>,
     pub context_id: ContextId,
     // JSON: A2A `Message.metadata` is spec-defined as a free-form object.
-    pub metadata: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Map<String, serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extensions: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_task_ids: Option<Vec<TaskId>>,
