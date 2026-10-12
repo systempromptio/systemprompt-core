@@ -263,7 +263,6 @@ fn message_send_params_with_configuration() {
     };
     let params = SendMessageParams {
         tenant: None,
-        tenant: None,
         message: minimal_message(),
         configuration: Some(config),
         metadata: None,
