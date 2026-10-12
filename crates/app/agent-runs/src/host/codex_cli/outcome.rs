@@ -36,6 +36,7 @@ pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest
         structured_output: None,
         exit_code: exit.code,
         error: None,
+        final_text: RunOutcome::last_assistant_text(events),
     };
     let mut failure: Option<String> = None;
     let mut completed = false;

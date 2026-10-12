@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     error TEXT,
     diff_summary JSONB,
     cancel_requested_at TIMESTAMPTZ,
+    task_id TEXT,
+    context_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -42,6 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_lease ON agent_runs(lease_until)
 CREATE INDEX IF NOT EXISTS idx_agent_runs_origin ON agent_runs(origin_kind, origin_id);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_user_created ON agent_runs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_gateway_session ON agent_runs(gateway_session_id);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id) WHERE task_id IS NOT NULL;
 
 CREATE OR REPLACE TRIGGER update_agent_runs_updated_at
     BEFORE UPDATE ON agent_runs

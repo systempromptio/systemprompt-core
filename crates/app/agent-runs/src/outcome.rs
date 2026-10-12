@@ -2,7 +2,8 @@
 //!
 //! [`RunStatus`] is the `agent_runs.status` column and [`ErrorClass`] the
 //! `agent_runs.error_class` column; both spellings match the table's
-//! `CHECK` constraints.
+//! `CHECK` constraints. [`RunOutcome::final_text`] is the run's last
+//! `assistant_text`, the answer an A2A caller reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -62,4 +63,16 @@ pub struct RunOutcome {
     pub structured_output: Option<serde_json::Value>,
     pub exit_code: Option<i32>,
     pub error: Option<String>,
+    #[serde(default)]
+    pub final_text: Option<String>,
+}
+
+impl RunOutcome {
+    #[must_use]
+    pub fn last_assistant_text(events: &[crate::event::RunEventPayload]) -> Option<String> {
+        events.iter().rev().find_map(|event| match event {
+            crate::event::RunEventPayload::AssistantText { text } => Some(text.clone()),
+            _ => None,
+        })
+    }
 }

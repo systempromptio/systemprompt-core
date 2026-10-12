@@ -5,7 +5,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{ApiKeyId, AgentRunId, HostSessionId, SessionId, UserId};
+use systemprompt_identifiers::{
+    AgentRunId, ApiKeyId, ContextId, HostSessionId, SessionId, TaskId, UserId,
+};
 
 use super::AgentRunRepository;
 use crate::error::AgentRunsResult;
@@ -48,6 +50,8 @@ pub struct AgentRunRow {
     // JSON: the workspace diff summary.
     pub diff_summary: Option<serde_json::Value>,
     pub cancel_requested_at: Option<DateTime<Utc>>,
+    pub task_id: Option<TaskId>,
+    pub context_id: Option<ContextId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -65,7 +69,9 @@ impl AgentRunRepository {
                    host_session_id AS "host_session_id: HostSessionId",
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
-                   exit_code, error, diff_summary, cancel_requested_at, created_at, updated_at
+                   exit_code, error, diff_summary, cancel_requested_at,
+                   task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",
+                   created_at, updated_at
             FROM agent_runs
             WHERE id = $1
             "#,
@@ -92,7 +98,9 @@ impl AgentRunRepository {
                    host_session_id AS "host_session_id: HostSessionId",
                    pid, started_at, finished_at, duration_ms, error_class, turns,
                    input_tokens, output_tokens, cost_microdollars, structured_output,
-                   exit_code, error, diff_summary, cancel_requested_at, created_at, updated_at
+                   exit_code, error, diff_summary, cancel_requested_at,
+                   task_id AS "task_id: TaskId", context_id AS "context_id: ContextId",
+                   created_at, updated_at
             FROM agent_runs
             WHERE origin_kind = $1 AND origin_id = $2
             ORDER BY created_at

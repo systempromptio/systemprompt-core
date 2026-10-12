@@ -23,6 +23,11 @@ fn codex_sample_outcome_succeeds_with_structured_output() {
         (2140, 38, 1)
     );
     assert_eq!(out.structured_output, Some(serde_json::json!({"count": 2})));
+    let final_text = out.final_text.as_deref().expect("final agent message");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(final_text.trim()).expect("json answer"),
+        serde_json::json!({"count": 2})
+    );
     assert_eq!(
         out.session_id.map(|s| s.as_str().to_owned()).as_deref(),
         Some("01a130c4-47d1-7c02-8e70-20ab9d91b57c")

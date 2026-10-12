@@ -87,6 +87,7 @@ impl HeadlessHost for ShHost {
             structured_output: None,
             exit_code: exit.code,
             error: None,
+            final_text: None,
         }
     }
 }

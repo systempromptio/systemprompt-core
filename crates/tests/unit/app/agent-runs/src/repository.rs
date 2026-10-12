@@ -74,6 +74,8 @@ pub(crate) async fn queue(f: &Fixture) -> AgentRunId {
             user_id: &f.user_id,
             request: &request(),
             not_before: None,
+            task_id: None,
+            context_id: None,
         })
         .await
         .expect("insert run");

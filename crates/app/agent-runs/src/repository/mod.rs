@@ -21,7 +21,9 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Postgres, Transaction};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ApiKeyId, AgentRunId, HostSessionId, SessionId, UserId};
+use systemprompt_identifiers::{
+    AgentRunId, ApiKeyId, ContextId, HostSessionId, SessionId, TaskId, UserId,
+};
 
 pub use rows::AgentRunRow;
 
@@ -43,6 +45,8 @@ pub struct NewAgentRun<'a> {
     pub user_id: &'a UserId,
     pub request: &'a RunRequest,
     pub not_before: Option<DateTime<Utc>>,
+    pub task_id: Option<&'a TaskId>,
+    pub context_id: Option<&'a ContextId>,
 }
 
 /// What a started host reported, written when the run turns `running`.
@@ -87,8 +91,9 @@ impl AgentRunRepository {
         sqlx::query!(
             r#"
             INSERT INTO agent_runs
-                (id, origin_kind, origin_id, user_id, host, status, request, attempt, not_before)
-            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8)
+                (id, origin_kind, origin_id, user_id, host, status, request, attempt, not_before,
+                 task_id, context_id)
+            VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10)
             "#,
             run.id.as_str(),
             run.origin_kind,
@@ -98,6 +103,8 @@ impl AgentRunRepository {
             request,
             i32::try_from(run.request.attempt).unwrap_or(i32::MAX),
             run.not_before,
+            run.task_id.map(TaskId::as_str),
+            run.context_id.map(ContextId::as_str),
         )
         .execute(&mut **tx)
         .await?;

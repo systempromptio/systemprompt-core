@@ -78,6 +78,7 @@ pub fn classify(exit: ExitInfo, events: &[RunEventPayload], request: &RunRequest
         structured_output: None,
         exit_code: exit.code,
         error: verdict.error,
+        final_text: RunOutcome::last_assistant_text(events),
     };
     if let Some(RunEventPayload::Result {
         num_turns,

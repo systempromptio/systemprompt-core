@@ -28,3 +28,7 @@ mod codex_cli;
 mod execute_support;
 #[cfg(test)]
 mod codex_cli_outcome;
+#[cfg(test)]
+mod a2a;
+#[cfg(test)]
+mod a2a_repository;

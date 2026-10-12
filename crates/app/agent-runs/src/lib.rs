@@ -1,4 +1,5 @@
-//! `systemprompt-agent-runs` — durable, leased, governed coding-agent runs across hosts.
+//! `systemprompt-agent-runs` — durable, leased, governed coding-agent runs
+//! across hosts.
 //!
 //! A product (an agent farm, a workflow engine) queues a [`RunRequest`] as a
 //! `agent_runs` row. A claim loop running inside an extension's
@@ -16,6 +17,7 @@
 
 mod macros;
 
+pub mod a2a;
 pub mod credentials;
 pub mod error;
 pub mod event;
@@ -30,6 +32,7 @@ pub mod repository;
 pub mod request;
 pub mod service;
 
+pub use a2a::{TaskUpdate, task_events};
 pub use credentials::{IssueRunCredentials, RunCredentials};
 pub use error::{AgentRunsError, AgentRunsResult};
 pub use event::{HookDecision, RunEvent, RunEventKind, RunEventPayload, RunnerLevel};

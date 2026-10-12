@@ -4,6 +4,10 @@
 
 ### Added
 
+- `agent_runs.task_id` and `agent_runs.context_id` (nullable, `idx_agent_runs_task` partial index): the A2A task a run reports through. `NewAgentRun` and `AgentRunRow` carry both as `Option<TaskId>` / `Option<ContextId>`.
+- `RunOutcome::final_text` (`#[serde(default)]`): the run's last `assistant_text`, filled by both the Claude Code and Codex CLI outcome classifiers; `RunOutcome::last_assistant_text(events)`.
+- `a2a` module: `From<RunStatus> for TaskState` (queued→submitted, preparing/running→working, succeeded→completed, failed/timed_out→failed, cancelled→canceled) and the partial `RunStatus::from_task_state`; `RunOutcome::artifacts(run_id, task_id, context_id)` (one artifact, data part from `structured_output` then text part from `final_text`; `ArtifactMetadata` needs the task and context, so both are parameters); `RunRequest::prompt_from_message` (text verbatim, data as fenced pretty JSON, files as one naming line, blank-line separated); `task_events(run_id, task_id, context_id, event) -> Vec<TaskUpdate>`.
+- `TaskUpdate { Status(Box<TaskStatusUpdateEvent>), Artifact(Box<TaskArtifactUpdateEvent>) }`: core keeps the two A2A streaming payloads as separate structs in `systemprompt-agent`, so this crate defines the one enum over both. The crate now depends on `systemprompt-agent`.
 - New crate: a host-generic headless coding-agent executor over one `agent_runs` table shared by every origin.
 - Contract types: `RunRequest`, `HostKind`, `PermissionMode`, `McpServerSpec`, the `RunEvent` / `RunEventPayload` / `RunEventKind` event stream with `HookDecision` and `RunnerLevel`, `RunStatus`, `ErrorClass`, `RunOutcome` and `RunLayout`.
 - Host adapters behind `HeadlessHost` and `host_for(kind) -> Execution`: Claude Code (`claude -p --output-format stream-json`) and Codex CLI (`codex exec --json`). OpenCode and Hermes resolve to `Execution::Unsupported` with a stated reason.
