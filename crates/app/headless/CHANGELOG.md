@@ -13,3 +13,4 @@
 - `HeadlessRunRepository`: queue insert, `claim_queued` (`FOR UPDATE SKIP LOCKED`), lease renewal, `reclaim_stale` with `resume_session_id` carry-over, event batches, cancel requests and an idempotent `finish`.
 - `LeaseRenewer` (30 s renew, 90 s lease) and `ClaimLoop` with `RunHandler`, `ClaimedRun`, `DbEventSink` and `claimer_id`, run from an extension's `RunnerService`.
 - `HeadlessExtension` owns the `headless_runs` and `headless_run_events` tables.
+- `RunRequest::attribution_scopes` is a list of `ScopeBinding`s sent header-only: both hosts put `x-systemprompt-scope-<dimension>: <value>` on every gateway call (`RunRequest::scope_headers`), so a workflow or project can roll traces and cost up per run without binding the run's key to the value.

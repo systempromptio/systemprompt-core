@@ -120,10 +120,7 @@ pub fn child_env(ctx: &PrepareContext<'_>) -> Vec<(String, String)> {
         ("TERM", "dumb".to_owned()),
         ("ANTHROPIC_BASE_URL", base.to_owned()),
         ("ANTHROPIC_AUTH_TOKEN", creds.pat.as_str().to_owned()),
-        (
-            "ANTHROPIC_CUSTOM_HEADERS",
-            format!("x-session-id: {}", creds.gateway_session_id.as_str()),
-        ),
+        ("ANTHROPIC_CUSTOM_HEADERS", custom_headers(ctx)),
         ("SYSTEMPROMPT_API_URL", base.to_owned()),
         ("DISABLE_AUTOUPDATER", "1".to_owned()),
         ("DISABLE_TELEMETRY", "1".to_owned()),
@@ -133,4 +130,22 @@ pub fn child_env(ctx: &PrepareContext<'_>) -> Vec<(String, String)> {
         vars.push(("SYSTEMPROMPT_TOKEN", token.clone()));
     }
     vars.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()
+}
+
+// Claude Code reads `ANTHROPIC_CUSTOM_HEADERS` as newline-separated
+// `Name: value` lines and sends each on every API call.
+fn custom_headers(ctx: &PrepareContext<'_>) -> String {
+    let session = format!(
+        "x-session-id: {}",
+        ctx.credentials.gateway_session_id.as_str()
+    );
+    std::iter::once(session)
+        .chain(
+            ctx.request
+                .scope_headers()
+                .into_iter()
+                .map(|(name, value)| format!("{name}: {value}")),
+        )
+        .collect::<Vec<_>>()
+        .join("\n")
 }

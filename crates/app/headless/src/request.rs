@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{HostSessionId, PluginId};
+use systemprompt_models::attribution::ScopeBinding;
 
 use crate::macros::text_enum;
 
@@ -89,12 +90,33 @@ pub struct RunRequest {
     pub resume_session_id: Option<HostSessionId>,
     #[serde(default = "first_attempt")]
     pub attempt: u32,
+    /// Header-only attribution: every gateway call the run makes carries one
+    /// `x-systemprompt-scope-<dimension>: <value>` header per binding, so a
+    /// trace or cost rollup can key on it without the run's API key being
+    /// bound to the value (`workflow=<run_id>`, `project=<id>`, …).
     #[serde(default)]
-    pub attribution_scopes: Vec<String>,
+    pub attribution_scopes: Vec<ScopeBinding>,
     #[serde(default)]
     pub plugin_id: Option<PluginId>,
     #[serde(default)]
     pub plugin_dirs: Vec<PathBuf>,
+}
+
+impl RunRequest {
+    /// Gateway headers for [`Self::attribution_scopes`], keyed
+    /// `x-systemprompt-scope-<dimension>`.
+    #[must_use]
+    pub fn scope_headers(&self) -> BTreeMap<String, String> {
+        self.attribution_scopes
+            .iter()
+            .map(|binding| {
+                (
+                    format!("x-systemprompt-scope-{}", binding.dimension.as_str()),
+                    binding.value.clone(),
+                )
+            })
+            .collect()
+    }
 }
 
 const fn first_attempt() -> u32 {

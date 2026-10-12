@@ -19,7 +19,10 @@ use systemprompt_headless::{
     Execution, ExitInfo, HeadlessHost, HostKind, McpServerSpec, PermissionMode, PrepareContext,
     RunCredentials, RunEventKind, RunEventPayload, RunLayout, RunRequest, host_for,
 };
-use systemprompt_identifiers::{ApiKeyId, ApiKeySecret, HostSessionId, SessionId, UserId};
+use systemprompt_identifiers::{
+    ApiKeyId, ApiKeySecret, HostSessionId, ScopeDimension, SessionId, UserId,
+};
+use systemprompt_models::attribution::ScopeBinding;
 
 pub(crate) const SAMPLE: &str = include_str!("../fixtures/codex-exec-sample.jsonl");
 pub(crate) const LIVE_401: &str = include_str!("../fixtures/codex-exec-401.jsonl");
@@ -168,6 +171,10 @@ fn codex_config_toml_golden() {
             headers: BTreeMap::new(),
         },
     );
+    req.attribution_scopes = vec![ScopeBinding {
+        dimension: ScopeDimension::try_new("workflow").expect("dimension"),
+        value: "run-1".into(),
+    }];
     let expected = r#"model_provider = "systemprompt"
 approval_policy = "never"
 sandbox_mode = "workspace-write"
@@ -180,7 +187,7 @@ name = "systemprompt"
 base_url = "https://gw.example/v1"
 wire_api = "responses"
 env_key = "SYSTEMPROMPT_PAT"
-http_headers = { "x-session-id" = "sess-1", "x-systemprompt-client" = "headless-codex" }
+http_headers = { "x-session-id" = "sess-1", "x-systemprompt-client" = "headless-codex", "x-systemprompt-scope-workflow" = "run-1" }
 
 [mcp_servers."fs"]
 command = "fs-mcp"

@@ -55,13 +55,14 @@ pub fn render(
     line(&mut out, "base_url", &quote(&base));
     line(&mut out, "wire_api", &quote("responses"));
     line(&mut out, "env_key", &quote(PAT_ENV));
-    let headers = BTreeMap::from([
+    let mut headers = BTreeMap::from([
         (
             "x-session-id".to_owned(),
             credentials.gateway_session_id.as_str().to_owned(),
         ),
         ("x-systemprompt-client".to_owned(), CLIENT_HEADER.to_owned()),
     ]);
+    headers.extend(request.scope_headers());
     line(&mut out, "http_headers", &table(&headers));
     for (name, spec) in &request.mcp_servers {
         out.push_str(&format!("\n[mcp_servers.{}]\n", quote(name)));

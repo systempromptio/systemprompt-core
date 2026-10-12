@@ -5,13 +5,14 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use systemprompt_headless::host::claude_code::ClaudeCode;
-use systemprompt_headless::host::claude_code::args::claude_args;
+use systemprompt_headless::host::claude_code::args::{child_env, claude_args};
 use systemprompt_headless::host::claude_code::plugin::HostFiles;
 use systemprompt_headless::{
     ErrorClass, ExitInfo, HeadlessHost, HookDecision, HostKind, McpServerSpec, PermissionMode,
-    RunEventKind, RunEventPayload, RunRequest, RunStatus,
+    PrepareContext, RunEventKind, RunEventPayload, RunLayout, RunRequest, RunStatus,
 };
-use systemprompt_identifiers::HostSessionId;
+use systemprompt_identifiers::{HostSessionId, ScopeDimension};
+use systemprompt_models::attribution::ScopeBinding;
 
 fn request() -> RunRequest {
     RunRequest {
@@ -270,4 +271,39 @@ fn claude_code_outcome_crash_timeout_cancel_schema() {
         (out.status, out.error_class),
         (RunStatus::Failed, ErrorClass::OutputInvalid)
     );
+}
+
+#[test]
+fn claude_env_sends_attribution_scopes_as_custom_headers() {
+    let mut req = request();
+    req.attribution_scopes = vec![
+        ScopeBinding {
+            dimension: ScopeDimension::try_new("workflow").expect("dimension"),
+            value: "run-1".into(),
+        },
+        ScopeBinding {
+            dimension: ScopeDimension::try_new("project").expect("dimension"),
+            value: "odoo".into(),
+        },
+    ];
+    let layout = RunLayout::new(std::path::Path::new("/run"));
+    let creds = crate::codex_cli::credentials();
+    let ctx = PrepareContext {
+        request: &req,
+        layout: &layout,
+        credentials: &creds,
+        gateway_base_url: "http://gw/",
+        hooks_file: None,
+    };
+    let env = child_env(&ctx);
+    let headers = env
+        .iter()
+        .find(|(k, _)| k == "ANTHROPIC_CUSTOM_HEADERS")
+        .map(|(_, v)| v.as_str())
+        .expect("custom headers");
+    assert_eq!(
+        headers,
+        "x-session-id: sess-1\nx-systemprompt-scope-project: odoo\nx-systemprompt-scope-workflow: run-1"
+    );
+    assert!(request().scope_headers().is_empty());
 }
