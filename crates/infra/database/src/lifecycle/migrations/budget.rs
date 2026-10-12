@@ -31,7 +31,7 @@
 //!
 //! A measurement is taken on the author's fixture, so a derived bound is
 //! projected onto the live database before it is applied: the measured cost
-//! grows linearly with how far the largest hot table the migration names
+//! grows linearly with how far the largest table the migration names
 //! exceeds the declared `rows` (see `CostDirective::projected`). Without it a
 //! migration measured on a thousand sessions cancelled itself on a customer
 //! holding a hundred times that. `MAX_DERIVED_TIMEOUT` caps the projection:
@@ -49,7 +49,6 @@ use std::time::Duration;
 
 use systemprompt_extension::{Migration, cost};
 
-use crate::HOT_TABLES;
 use crate::services::DatabaseProvider;
 
 pub(crate) const DEFAULT_STATEMENT_TIMEOUT: Duration = Duration::from_secs(300);
@@ -58,7 +57,7 @@ pub(crate) const MEASURED_SAFETY_FACTOR: u32 = 10;
 
 pub(crate) const MIN_DERIVED_TIMEOUT: Duration = Duration::from_secs(30);
 
-pub(crate) const MAX_DERIVED_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+pub(crate) const MAX_DERIVED_TIMEOUT: Duration = Duration::from_mins(30);
 
 pub(crate) const LOCK_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -82,30 +81,48 @@ pub(crate) fn statement_timeout(migration: &Migration, live_rows: u64) -> Option
     Some(DEFAULT_STATEMENT_TIMEOUT)
 }
 
-/// The largest row estimate among the hot tables `migration` names, or `0`
-/// when it declares no cost (nothing to project) or names none of them.
-// Why: `reltuples` is the planner's estimate (-1 before the first ANALYZE),
-// read instead of `count(*)` so measuring the table never costs a scan of it.
+/// The largest row estimate among the tables `migration` names, or `0` when
+/// it declares no cost (nothing to project) or names no populated table.
+// Why: every table, not a fixed hot list — a downstream extension's busiest
+// table is unknown to core, and a backfill over it timed out a customer's
+// upgrade. `reltuples` is the planner's estimate (-1 before the first
+// ANALYZE), read instead of `count(*)` so sizing a table never scans it.
 pub(crate) async fn live_rows(db: &dyn DatabaseProvider, migration: &Migration) -> u64 {
     if !matches!(cost::parse(migration.sql), Ok(Some(_))) {
         return 0;
     }
-    let mut largest: u64 = 0;
-    for table in HOT_TABLES.iter().filter(|t| migration.sql.contains(**t)) {
-        let estimate = db
-            .fetch_optional(
-                &"SELECT reltuples::bigint AS estimate FROM pg_class WHERE oid = to_regclass($1)",
-                &[table],
-            )
-            .await
-            .ok()
-            .flatten()
-            .and_then(|row| row.get("estimate").and_then(serde_json::Value::as_i64))
-            .and_then(|rows| u64::try_from(rows).ok())
-            .unwrap_or(0);
-        largest = largest.max(estimate);
-    }
-    largest
+    let rows = db
+        .fetch_all(
+            &"SELECT c.relname::text AS name, c.reltuples::bigint AS estimate FROM pg_class c \
+              JOIN pg_namespace n ON n.oid = c.relnamespace \
+              WHERE c.relkind IN ('r', 'p') AND n.nspname = current_schema() AND c.reltuples > 0",
+            &[],
+        )
+        .await
+        .inspect_err(|error| {
+            tracing::warn!(%error, "Table size estimates unavailable; migration bound not projected");
+        })
+        .unwrap_or_default();
+    rows.iter()
+        .filter_map(|row| {
+            let name = row.get("name")?.as_str()?;
+            let estimate = row.get("estimate")?.as_i64()?;
+            if !names_table(migration.sql, name) {
+                return None;
+            }
+            u64::try_from(estimate).ok()
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+fn names_table(sql: &str, table: &str) -> bool {
+    let is_ident = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    sql.match_indices(table).any(|(at, _)| {
+        let before = sql[..at].chars().next_back();
+        let after = sql[at + table.len()..].chars().next();
+        !before.is_some_and(is_ident) && !after.is_some_and(is_ident)
+    })
 }
 
 enum EnvTimeout {
