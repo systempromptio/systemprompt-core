@@ -8,7 +8,7 @@ use systemprompt_api::routes::agent::contexts::webhook::event_loader::{
     load_execution_step, load_task_created,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId, UserId};
-use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
+use systemprompt_models::a2a::{Message, MessageRole, Part, Task};
 use systemprompt_models::execution::{ExecutionStep, StepContent, StepStatus};
 
 fn request(event_type: &str) -> WebhookRequest {
@@ -25,9 +25,7 @@ fn request(event_type: &str) -> WebhookRequest {
 fn sample_message(context_id: &ContextId) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hello".to_owned(),
-        })],
+        parts: vec![Part::text("hello".to_owned())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: context_id.clone(),

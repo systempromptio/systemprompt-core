@@ -1,4 +1,4 @@
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     build_canceled_task, build_completed_task,
 };
@@ -8,7 +8,7 @@ use systemprompt_models::a2a::TaskState;
 fn user_msg(ctx: &ContextId, task: &TaskId, text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart { text: text.into() })],
+        parts: vec![Part::text(text)],
         message_id: MessageId::generate(),
         task_id: Some(task.clone()),
         context_id: ctx.clone(),

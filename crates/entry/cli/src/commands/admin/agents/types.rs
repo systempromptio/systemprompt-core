@@ -121,7 +121,8 @@ pub struct RegistryAgentInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageOutput {
     pub agent: String,
-    pub task: Task,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task: Option<Task>,
     pub message_sent: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response: Option<String>,

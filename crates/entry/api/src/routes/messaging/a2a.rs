@@ -1,6 +1,6 @@
 //! The A2A backend leg of the messaging pipeline.
 //!
-//! Mints a per-user bearer, builds the blocking `message/send` request the
+//! Mints a per-user bearer, builds the blocking `SendMessage` request the
 //! proxy forwards to the agent service, runs it through [`ProxyEngine`], and
 //! extracts the agent's reply text.
 //!
@@ -14,9 +14,9 @@ use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
-use systemprompt_agent::models::a2a::protocol::MessageSendConfiguration;
 use systemprompt_agent::models::a2a::{
-    A2aJsonRpcRequest, Message, MessageRole, MessageSendParams, Part, Task, TextPart,
+    A2aJsonRpcRequest, Message, MessageRole, PROTOCOL_VERSION, Part, SendMessageConfiguration,
+    SendMessageParams, SendMessageResult, VERSION_HEADER,
 };
 use systemprompt_identifiers::{
     Actor, AgentName, ContextId, JwtToken, MessageId, ServiceName, SessionId, TraceId,
@@ -91,9 +91,7 @@ pub(super) fn build_a2a_request(
 ) -> Result<Request<Body>, MessagingError> {
     let message = Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: inbound.text.clone(),
-        })],
+        parts: vec![Part::text(inbound.text.clone())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: context_id.clone(),
@@ -101,12 +99,13 @@ pub(super) fn build_a2a_request(
         extensions: None,
         reference_task_ids: None,
     };
-    let params = MessageSendParams {
+    let params = SendMessageParams {
+        tenant: None,
         message,
-        configuration: Some(MessageSendConfiguration {
+        configuration: Some(SendMessageConfiguration {
             accepted_output_modes: None,
             history_length: None,
-            blocking: Some(true),
+            return_immediately: false,
         }),
         metadata: None,
     };
@@ -123,6 +122,7 @@ pub(super) fn build_a2a_request(
         .uri("/")
         .header(AUTHORIZATION, format!("Bearer {token}"))
         .header(CONTENT_TYPE, "application/json")
+        .header(VERSION_HEADER, PROTOCOL_VERSION)
         .body(Body::from(body))
         .map_err(MessagingError::Request)?;
 
@@ -159,7 +159,7 @@ pub(super) async fn run_agent(
     let bytes = to_bytes(response.into_body(), MAX_A2A_RESPONSE_BYTES)
         .await
         .map_err(MessagingError::ResponseBody)?;
-    let parsed: JsonRpcResponse<Task> =
+    let parsed: JsonRpcResponse<SendMessageResult> =
         serde_json::from_slice(&bytes).map_err(MessagingError::Response)?;
 
     if let Some(err) = parsed.error {
@@ -171,11 +171,13 @@ pub(super) async fn run_agent(
     Ok(reply_text(parsed.result.as_ref()))
 }
 
-pub fn reply_text(task: Option<&Task>) -> String {
-    let Some(task) = task else {
-        return String::new();
+pub fn reply_text(result: Option<&SendMessageResult>) -> String {
+    let message = match result {
+        Some(SendMessageResult::Task(task)) => task.status.message.as_ref(),
+        Some(SendMessageResult::Message(message)) => Some(&**message),
+        None => None,
     };
-    let Some(message) = task.status.message.as_ref() else {
+    let Some(message) = message else {
         return String::new();
     };
     message

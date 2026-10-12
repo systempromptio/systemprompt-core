@@ -10,9 +10,7 @@ mod builders;
 
 pub use builders::{build_canceled_task, build_completed_task};
 
-use crate::models::a2a::{
-    Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart,
-};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::TaskMetadata;
 
@@ -80,9 +78,7 @@ impl TaskBuilder {
     pub fn build(self) -> Task {
         let agent_message = Message {
             role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: self.response_text.clone(),
-            })],
+            parts: vec![Part::text(self.response_text.clone())],
             message_id: self.id.clone(),
             task_id: Some(self.task_id.clone()),
             context_id: self.context_id.clone(),
@@ -96,9 +92,7 @@ impl TaskBuilder {
                 user_msg,
                 Message {
                     role: MessageRole::Agent,
-                    parts: vec![Part::Text(TextPart {
-                        text: self.response_text.clone(),
-                    })],
+                    parts: vec![Part::text(self.response_text.clone())],
                     message_id: MessageId::generate(),
                     task_id: Some(self.task_id.clone()),
                     context_id: self.context_id.clone(),

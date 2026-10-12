@@ -22,7 +22,7 @@ pub mod logs_db;
 pub mod logs_disk;
 mod message;
 mod message_request;
-mod message_streaming;
+pub mod message_streaming;
 pub mod process_stop;
 pub mod registry;
 mod run;

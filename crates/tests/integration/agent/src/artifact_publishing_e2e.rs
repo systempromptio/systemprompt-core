@@ -2,7 +2,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::McpToolName;
 
 use anyhow::Result;
-use systemprompt_agent::models::a2a::{Artifact, Part, TextPart};
+use systemprompt_agent::models::a2a::{Artifact, Part};
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::SkillService;
 use systemprompt_agent::services::artifact_publishing::{
@@ -35,9 +35,7 @@ fn make_artifact(
         id: ArtifactId::generate(),
         title: Some("Hello".to_string()),
         description: Some("Sample artifact".to_string()),
-        parts: vec![Part::Text(TextPart {
-            text: "body".to_string(),
-        })],
+        parts: vec![Part::text("body".to_string())],
         extensions: vec![],
         metadata: ArtifactMetadata::new("text".to_string(), ctx_id.clone(), task_id.clone()),
     }

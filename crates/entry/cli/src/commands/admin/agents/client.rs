@@ -10,6 +10,7 @@ use serde::de::DeserializeOwned;
 use std::time::Duration;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, JsonRpcResponse};
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::a2a::{PROTOCOL_VERSION, VERSION_HEADER};
 
 pub(super) fn ensure_agent_exists(name: &str) -> Result<()> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
@@ -49,6 +50,7 @@ where
         .post(agent_url)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", auth_token))
+        .header(VERSION_HEADER, PROTOCOL_VERSION)
         .json(request)
         .send()
         .await

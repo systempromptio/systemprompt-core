@@ -8,7 +8,7 @@
 //! the exact A2A JSON-RPC bodies `dispatch_messaging` parses.
 
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use systemprompt_runtime::AppContext;
 use wiremock::MockServer;
 
@@ -22,22 +22,24 @@ pub async fn seed_agent_backend(ctx: &AppContext, mock: &MockServer) -> Result<(
     seed_running_service(ctx, test_messaging_agent(), "agent", mock.address().port()).await
 }
 
-// A successful `message/send` response whose terminal status message carries
+// A successful `SendMessage` response whose terminal status message carries
 // `text` — the shape the dispatch reply extraction joins text parts from.
 #[must_use]
 pub fn agent_reply_response_json(text: &str) -> Value {
     json!({
         "jsonrpc": "2.0",
         "result": {
-            "id": format!("task-{}", uuid::Uuid::new_v4()),
-            "contextId": uuid::Uuid::new_v4().to_string(),
-            "status": {
-                "state": "TASK_STATE_COMPLETED",
-                "message": {
-                    "role": "ROLE_AGENT",
-                    "parts": [{ "text": text }],
-                    "messageId": uuid::Uuid::new_v4().to_string(),
-                    "contextId": uuid::Uuid::new_v4().to_string()
+            "task": {
+                "id": format!("task-{}", uuid::Uuid::new_v4()),
+                "contextId": uuid::Uuid::new_v4().to_string(),
+                "status": {
+                    "state": "TASK_STATE_COMPLETED",
+                    "message": {
+                        "role": "ROLE_AGENT",
+                        "parts": [{ "text": text }],
+                        "messageId": uuid::Uuid::new_v4().to_string(),
+                        "contextId": uuid::Uuid::new_v4().to_string()
+                    }
                 }
             }
         },

@@ -20,7 +20,7 @@ use crate::error::ArtifactError;
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
-use serde_json::{Value as JsonValue, json};
+use serde_json::Value as JsonValue;
 use systemprompt_identifiers::{
     ArtifactId, ContextId, McpExecutionId, McpToolName, SkillId, SkillName, TaskId,
 };
@@ -164,7 +164,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
         description: None,
         parts,
         metadata,
-        extensions: vec![json!(systemprompt_models::a2a::ARTIFACT_RENDERING_URI)],
+        extensions: vec![systemprompt_models::a2a::ARTIFACT_RENDERING_URI.to_owned()],
     })
 }
 

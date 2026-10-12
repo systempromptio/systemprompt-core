@@ -3,8 +3,7 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, Task, TaskState, TaskStatus,
-    TextPart,
+    Artifact, ArtifactMetadata, Part, Task, TaskState, TaskStatus,
 };
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::ContextRepository;
@@ -80,23 +79,9 @@ async fn seed_artifact(pool: &DbPool, context_id: &ContextId, task_id: &TaskId) 
         title: Some("cli artifact".to_owned()),
         description: Some("shown by the CLI".to_owned()),
         parts: vec![
-            Part::Text(TextPart {
-                text: "short text".to_owned(),
-            }),
-            Part::Data(DataPart {
-                data: serde_json::json!({"answer": 42})
-                    .as_object()
-                    .unwrap()
-                    .clone(),
-            }),
-            Part::File(FilePart {
-                file: FileContent {
-                    name: Some("report.txt".to_owned()),
-                    mime_type: Some("text/plain".to_owned()),
-                    bytes: Some("aGVsbG8=".to_owned()),
-                    url: None,
-                },
-            }),
+            Part::text("short text"),
+            Part::data(serde_json::json!({"answer": 42})),
+            Part::raw("aGVsbG8=", "text/plain").with_filename("report.txt"),
         ],
         extensions: vec![],
         metadata: ArtifactMetadata::new("text".to_owned(), context_id.clone(), task_id.clone())

@@ -5,7 +5,7 @@
 //! seeded as a running `agent` service. The agent's `oauth.required = false`
 //! (fixture `config.yaml`) lets the proxy forward the minted A2A token without
 //! a check, so the full path — federated identity, authz hook, token mint,
-//! blocking `message/send`, reply extraction — runs against live
+//! blocking `SendMessage`, reply extraction — runs against live
 //! infrastructure.
 
 use systemprompt_api::routes::messaging::{
@@ -21,7 +21,7 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_traits::SenderIdentity;
 use uuid::Uuid;
-use wiremock::matchers::method;
+use wiremock::matchers::{header, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const ISSUER: &str = "https://slack.com";
@@ -46,6 +46,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
 
 async fn mount_reply(mock: &MockServer, text: &str) {
     Mock::given(method("POST"))
+        .and(header("A2A-Version", "1.0"))
         .respond_with(ResponseTemplate::new(200).set_body_json(agent_reply_response_json(text)))
         .mount(mock)
         .await;

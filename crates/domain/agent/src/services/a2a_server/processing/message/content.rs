@@ -6,7 +6,7 @@
 
 use base64::Engine;
 
-use crate::models::a2a::{FilePart, Message, Part};
+use crate::models::a2a::{Message, Part, PartContent};
 use systemprompt_models::{
     AiContentPart, is_supported_audio, is_supported_image, is_supported_text, is_supported_video,
 };
@@ -16,30 +16,28 @@ pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>
     let mut content_parts = Vec::new();
 
     for part in &message.parts {
-        match part {
-            Part::Text(text_part) => {
+        match &part.content {
+            PartContent::Text(text) => {
                 if text_content.is_empty() {
-                    text_content.clone_from(&text_part.text);
+                    text_content.clone_from(text);
                 }
-                content_parts.push(AiContentPart::text(&text_part.text));
+                content_parts.push(AiContentPart::text(text));
             },
-            Part::File(file_part) => {
-                if let Some(content_part) = file_to_content_part(file_part) {
+            PartContent::Raw(bytes) => {
+                if let Some(content_part) = file_to_content_part(part, bytes) {
                     content_parts.push(content_part);
                 }
             },
-            Part::Data(_) => {},
+            PartContent::Url(_) | PartContent::Data(_) => {},
         }
     }
 
     (text_content, content_parts)
 }
 
-fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
-    let mime_type = file_part.file.mime_type.as_deref()?;
-    let file_name = file_part.file.name.as_deref().unwrap_or("unnamed");
-
-    let bytes = file_part.file.bytes.as_deref()?;
+fn file_to_content_part(part: &Part, bytes: &str) -> Option<AiContentPart> {
+    let mime_type = part.media_type.as_deref()?;
+    let file_name = part.filename.as_deref().unwrap_or("unnamed");
 
     if is_supported_image(mime_type) {
         return Some(AiContentPart::image(mime_type, bytes));

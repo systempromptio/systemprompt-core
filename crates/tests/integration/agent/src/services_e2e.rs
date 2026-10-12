@@ -197,7 +197,7 @@ async fn context_provider_service_lists_user_contexts() -> Result<()> {
 
 #[tokio::test]
 async fn message_service_persists_messages_for_task() -> Result<()> {
-    use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+    use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
     use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
     use systemprompt_identifiers::MessageId;
 
@@ -214,9 +214,7 @@ async fn message_service_persists_messages_for_task() -> Result<()> {
             message_id: MessageId::new(format!("m1_{}", fx.tag)),
             task_id: Some(task_id.clone()),
             context_id: fx.context_id.clone(),
-            parts: vec![Part::Text(TextPart {
-                text: "first user message".into(),
-            })],
+            parts: vec![Part::text("first user message")],
             metadata: None,
             extensions: None,
             reference_task_ids: None,
@@ -226,9 +224,7 @@ async fn message_service_persists_messages_for_task() -> Result<()> {
             message_id: MessageId::new(format!("m2_{}", fx.tag)),
             task_id: Some(task_id.clone()),
             context_id: fx.context_id.clone(),
-            parts: vec![Part::Text(TextPart {
-                text: "agent reply".into(),
-            })],
+            parts: vec![Part::text("agent reply")],
             metadata: None,
             extensions: None,
             reference_task_ids: None,
@@ -317,7 +313,7 @@ async fn message_service_creates_tool_execution_message() -> Result<()> {
 
 #[tokio::test]
 async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> Result<()> {
-    use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TextPart};
+    use systemprompt_agent::models::a2a::{Message, MessageRole, Part};
     use systemprompt_agent::services::context::ContextService;
     use systemprompt_agent::services::message::{MessageService, PersistMessagesParams};
     use systemprompt_identifiers::MessageId;
@@ -344,9 +340,7 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
                     message_id: MessageId::new(format!("h1_{}", fx.tag)),
                     task_id: Some(first_task.clone()),
                     context_id: fx.context_id.clone(),
-                    parts: vec![Part::Text(TextPart {
-                        text: "first question".into(),
-                    })],
+                    parts: vec![Part::text("first question")],
                     metadata: None,
                     extensions: None,
                     reference_task_ids: None,
@@ -356,9 +350,7 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
                     message_id: MessageId::new(format!("h2_{}", fx.tag)),
                     task_id: Some(first_task.clone()),
                     context_id: fx.context_id.clone(),
-                    parts: vec![Part::Text(TextPart {
-                        text: "first answer".into(),
-                    })],
+                    parts: vec![Part::text("first answer")],
                     metadata: None,
                     extensions: None,
                     reference_task_ids: None,
@@ -379,9 +371,7 @@ async fn context_service_loads_ordered_user_and_agent_history_across_tasks() -> 
                 message_id: MessageId::new(format!("h3_{}", fx.tag)),
                 task_id: Some(second_task.clone()),
                 context_id: fx.context_id.clone(),
-                parts: vec![Part::Text(TextPart {
-                    text: "follow-up question".into(),
-                })],
+                parts: vec![Part::text("follow-up question")],
                 metadata: None,
                 extensions: None,
                 reference_task_ids: None,
