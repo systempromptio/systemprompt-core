@@ -4,7 +4,7 @@
 
 ### Added
 
-- `headless` feature: the `systemprompt::headless` module re-exports `systemprompt-headless`. Opt-in; not part of `full`.
+- `headless` feature: the `systemprompt::headless` module re-exports `systemprompt-headless`; part of `full`.
 
 ## [0.53.0] - 2026-09-15
 

@@ -104,6 +104,7 @@ full = [
     "systemprompt-logging/cli",
     "config",
     "dep:systemprompt-files",
+    "headless",
     # Infrastructure crates for extension authors
     "loader",
     "events",

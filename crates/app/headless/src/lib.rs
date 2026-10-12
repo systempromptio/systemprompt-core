@@ -33,11 +33,13 @@ pub mod service;
 pub use credentials::{IssueRunCredentials, RunCredentials};
 pub use error::{HeadlessError, HeadlessResult};
 pub use event::{HookDecision, RunEvent, RunEventKind, RunEventPayload, RunnerLevel};
-pub use execute::{EventSink, execute};
-pub use execute::{DiffEntry, DiffKind, DiffSummary, ExecuteParams, RunReport, execute_with_host};
+pub use execute::{
+    DiffEntry, DiffKind, DiffSummary, EventSink, ExecuteParams, RunReport, execute,
+    execute_with_host,
+};
 pub use extension::HeadlessExtension;
 pub use host::{
-    ExitInfo, Execution, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
+    Execution, ExitInfo, HeadlessHost, HostCapabilities, HostEvent, HostInvocation, PrepareContext,
     host_for,
 };
 pub use layout::RunLayout;
