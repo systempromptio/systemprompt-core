@@ -134,10 +134,16 @@ fn artifact_update_event_uses_spec_names() {
 fn send_message_result_tags_task_and_message() {
     let task = Task::default();
     let value = serde_json::to_value(SendMessageResult::Task(Box::new(task.clone()))).unwrap();
-    assert!(value.get("task").is_some());
+    assert!(value["task"].get("createdAt").is_none());
+    assert!(value["task"].get("lastModified").is_none());
+    let expected = Task {
+        created_at: None,
+        last_modified: None,
+        ..task
+    };
     assert_eq!(
         serde_json::from_value::<SendMessageResult>(value).unwrap(),
-        SendMessageResult::Task(Box::new(task))
+        SendMessageResult::Task(Box::new(expected))
     );
 
     let value = serde_json::to_value(SendMessageResult::Message(Box::new(message()))).unwrap();
@@ -399,10 +405,9 @@ fn task_with_history_and_artifacts_conforms_to_schema() {
     let task = Task {
         history: Some(vec![message()]),
         artifacts: Some(vec![artifact()]),
-        created_at: None,
-        last_modified: None,
         ..Task::default()
     };
+    assert!(task.created_at.is_some());
     let value = serde_json::to_value(SendMessageResult::Task(Box::new(task))).unwrap();
     assert_conforms("Send Message Response", &value);
 }

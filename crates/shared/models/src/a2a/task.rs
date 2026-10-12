@@ -23,9 +23,9 @@ pub struct Task {
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<TaskMetadata>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub last_modified: Option<chrono::DateTime<chrono::Utc>>,
 }
 
