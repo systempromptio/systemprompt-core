@@ -251,7 +251,7 @@ async fn apply_notification_status_parses_state() {
     let now = chrono::Utc::now();
 
     r.tasks
-        .apply_notification_status(&task_id, "working", &now)
+        .apply_notification_status(&task_id, "TASK_STATE_WORKING", &now)
         .await
         .expect("notify working");
     let task = r.tasks.find_task(&task_id).await.expect("get").unwrap();
