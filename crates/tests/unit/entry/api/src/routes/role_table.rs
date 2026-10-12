@@ -62,12 +62,30 @@ fn gateway_role_runs_no_workers() {
             reconcile_mcp: false,
             reconcile_agents: false,
             scheduler: false,
+            runner_services: false,
         }
     );
     for role in [NodeRole::All, NodeRole::Admin] {
         let plan = lifecycle_plan(role);
         assert!(plan.reconcile_mcp && plan.reconcile_agents && plan.scheduler);
+        assert!(!plan.runner_services);
     }
+}
+
+#[test]
+fn runner_role_serves_probes_and_runs_only_runner_services() {
+    assert_eq!(route_groups(NodeRole::Runner), &[RouteGroup::Probes]);
+    assert_eq!(
+        lifecycle_plan(NodeRole::Runner),
+        LifecyclePlan {
+            reconcile_mcp: false,
+            reconcile_agents: false,
+            scheduler: false,
+            runner_services: true,
+        }
+    );
+    let role: NodeRole = serde_json::from_str("\"runner\"").expect("runner parses");
+    assert_eq!(role, NodeRole::Runner);
 }
 
 #[test]

@@ -2,16 +2,20 @@
 //!
 //! The startup phases a node runs follow its `server.role`
 //! ([`super::routes::role::lifecycle_plan`]): a gateway node spawns no MCP
-//! servers or agents and runs no scheduler.
+//! servers or agents and runs no scheduler; a runner node does neither and
+//! instead starts every extension's [`systemprompt_traits::RunnerService`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_identifiers::Actor;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::SchedulerHandle;
-use systemprompt_traits::{OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender};
+use systemprompt_traits::{
+    Dependencies, JobContext, OwnedTask, Phase, StartupEvent, StartupEventExt, StartupEventSender,
+};
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
@@ -49,6 +53,9 @@ pub async fn run_server(
     } else {
         None
     };
+    if plan.runner_services {
+        start_runner_services(&ctx);
+    }
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
@@ -85,6 +92,33 @@ pub async fn run_server(
     forced_exit.abort();
 
     serve_result
+}
+
+fn start_runner_services(ctx: &AppContext) {
+    let shared = Arc::new(ctx.clone());
+    let mut started = 0usize;
+    for extension in ctx.extension_registry().extensions() {
+        for service in extension.runner_services() {
+            let name = service.name();
+            let actor = Actor::job(ctx.system_admin().id().clone(), name);
+            let dependencies = Dependencies::new()
+                .with(Arc::clone(ctx.app_paths_arc()))
+                .with(ctx.db_pool().clone())
+                .with(Arc::clone(&shared));
+            let job_ctx = JobContext::new(actor, dependencies);
+            ctx.background_tasks()
+                .spawn_cancellable(name, move |shutdown| async move {
+                    service.run(job_ctx, shutdown).await;
+                });
+            tracing::info!(
+                extension = extension.id(),
+                service = name,
+                "runner service started"
+            );
+            started += 1;
+        }
+    }
+    tracing::info!(started, "runner services started");
 }
 
 async fn run_agents_phase(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {

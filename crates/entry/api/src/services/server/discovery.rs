@@ -174,6 +174,16 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .with_state(ctx.clone())
 }
 
+/// The health and admission probes alone, for a node that serves nothing else.
+pub fn probes_router(ctx: &AppContext) -> Router {
+    Router::new()
+        .route(ApiPaths::HEALTH, get(handle_health))
+        .route("/health", get(handle_health))
+        .route(ApiPaths::LIVEZ, get(handle_livez))
+        .route(ApiPaths::READYZ, get(handle_readyz))
+        .with_state(ctx.clone())
+}
+
 pub fn authenticated_discovery_router(ctx: &AppContext) -> Router {
     Router::new()
         .route("/api/v1/health/detail", get(handle_health_detail))

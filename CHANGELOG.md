@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [0.66.0] - Unreleased
+
+### Added
+
+- **Server:** `server.role: runner`. A runner node mounts only the health and admission probes (`/health`, `/api/v1/health`, `/livez`, `/readyz`, new route group `RouteGroup::Probes`) plus the metrics listener, runs no scheduler, spawns no MCP servers or agents, serves no gateway or admin routes, and needs no `web.dist` or services-cache write access. It starts every extension's runner services instead, so long-running work (a workflow step executor that spawns subprocesses) scales on its own Deployment. `all`, `gateway` and `admin` are unchanged.
+- **Extension:** `Extension::runner_services() -> Vec<Arc<dyn systemprompt_traits::RunnerService>>` (default empty). `RunnerService { fn name(&self) -> &'static str; async fn run(&self, ctx: JobContext, shutdown: CancellationToken) }` is started once per runner replica as a supervised background task, given the same `JobContext` dependencies a job gets (`DbPool`, `Arc<AppContext>`, `Arc<AppPaths>`, actor = the system admin as `job:<name>`), and its token is cancelled on shutdown. Replicas coordinate through the database themselves. This is a new seam rather than a `JobScope::Runner`: a job scope only chooses the claim policy, and running the scheduler on a runner would also run bootstrap jobs (prerenders into `web/dist`) and cron owners the node must not run; a poller also wants a loop, not a cron tick.
+
+### Breaking
+
+- **Manifest Rust API:** `NodeRole` gains `Runner`; exhaustive matches on it must handle the new variant. `NodeRole::runs_runner_services()` is new.
+- **API Rust API:** `LifecyclePlan` gains `runner_services: bool`; `RouteGroup` gains `Probes`. Struct literals and exhaustive matches must be updated.
 
 ### Changed
 

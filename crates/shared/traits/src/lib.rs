@@ -59,6 +59,8 @@ pub mod managed_resources;
 pub mod ownership;
 pub mod registry;
 pub mod repository;
+pub mod runner_service;
+pub use runner_service::RunnerService;
 pub mod storage;
 pub mod tool_executions;
 pub mod validation;

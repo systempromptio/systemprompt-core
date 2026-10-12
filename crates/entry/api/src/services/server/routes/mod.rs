@@ -108,6 +108,10 @@ fn build_routes(
         router =
             router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
     }
+    if serves(RouteGroup::Probes) {
+        router =
+            router.merge(probes_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
+    }
     if serves(RouteGroup::AuthenticatedDiscovery) {
         router = router.merge(
             authenticated_discovery_router(ctx)
@@ -185,6 +189,10 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
 
 fn discovery_router(ctx: &AppContext) -> Router {
     super::builder::discovery_router(ctx)
+}
+
+fn probes_router(ctx: &AppContext) -> Router {
+    super::builder::probes_router(ctx)
 }
 
 fn authenticated_discovery_router(ctx: &AppContext) -> Router {
