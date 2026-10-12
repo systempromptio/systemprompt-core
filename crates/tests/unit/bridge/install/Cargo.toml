@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 chrono = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -23,3 +24,6 @@ ed25519-dalek = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

@@ -11,5 +11,9 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true, features = ["ts-export"] }
 ts-rs = "12"
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

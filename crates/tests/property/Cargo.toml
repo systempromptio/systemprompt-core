@@ -10,6 +10,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
@@ -23,3 +24,6 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

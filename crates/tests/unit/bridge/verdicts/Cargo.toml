@@ -11,8 +11,12 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-models = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

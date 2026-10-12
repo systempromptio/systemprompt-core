@@ -14,6 +14,7 @@ name = "systemprompt-test-migrate"
 path = "src/main.rs"
 
 [dependencies]
+reqwest = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 systemprompt-database = { workspace = true }
@@ -34,3 +35,6 @@ systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-users = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

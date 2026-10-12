@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
@@ -27,3 +28,6 @@ hostname = "0.4"
 
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

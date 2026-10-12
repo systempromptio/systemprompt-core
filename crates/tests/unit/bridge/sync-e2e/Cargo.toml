@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 semver = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-models = { workspace = true }
@@ -28,3 +29,6 @@ base64 = { workspace = true }
 ed25519-dalek = { workspace = true }
 
 [dev-dependencies]
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

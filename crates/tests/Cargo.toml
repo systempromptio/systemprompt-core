@@ -178,6 +178,10 @@ indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API
 axum = "0.8"
+# Why: production reqwest is built with `rustls-no-provider` and panics at
+# `Client::build()` without an installed rustls provider. The `rustls` feature
+# here adds the aws-lc fallback, but cargo unifies features per built package,
+# so every test crate whose graph reaches reqwest declares it directly.
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls", "query", "form"] }
 http = "1.5"
 handlebars = "6"
