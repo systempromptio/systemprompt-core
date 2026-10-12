@@ -9,6 +9,9 @@
 - `projection` module — `drain`, `drain_with_sql`, `queue`, `depth`, `DrainReport` — and its rustdoc, which states the data paradigm (ledger, stamped fact, counter, projection, rollup; four parts in base schema; NULL means pending).
 - `backfill_statements` / `BackfillStatement`: the shared detector of data-populating migration statements (`UPDATE`, `DELETE`, select-driven `INSERT`, `SELECT refresh_*()`), exempting the keys-only `INSERT INTO projection_backlog … SELECT`. Both repositories' `no_backfill_after_floor` gates use it.
 
+### Changed
+
+- `backfill_statements` accepts `SELECT DISTINCT` in a keys-only queue insert: the keys collapse before the insert instead of one conflict check per ledger row.
 
 ## [Unreleased]
 

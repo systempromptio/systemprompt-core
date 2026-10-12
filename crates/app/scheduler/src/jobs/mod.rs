@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod analytics_event_link_facts_rollup;
 mod backfill_rollups;
 mod backfill_session_geo;
 mod behavioral_analysis;
@@ -21,6 +22,7 @@ mod malicious_ip_blacklist;
 mod no_js_cleanup;
 pub mod otlp_export;
 mod projection_drain;
+mod session_bot_type_rollup;
 mod thought_signature_cleanup;
 mod tool_row_facts_rollup;
 mod trace_facts_rollup;
@@ -28,6 +30,7 @@ pub mod usage_anomaly_scan;
 mod user_context_counters_rollup;
 pub mod vertex_discovery;
 
+pub use analytics_event_link_facts_rollup::AnalyticsEventLinkFactsRollupJob;
 pub use backfill_rollups::BackfillRollupsJob;
 pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;
@@ -40,6 +43,7 @@ pub use log_summary_rollup::LogSummaryRollupJob;
 pub use malicious_ip_blacklist::MaliciousIpBlacklistJob;
 pub use no_js_cleanup::NoJsCleanupJob;
 pub use otlp_export::OtlpExportJob;
+pub use session_bot_type_rollup::SessionBotTypeRollupJob;
 pub use thought_signature_cleanup::ThoughtSignatureCleanupJob;
 pub use tool_row_facts_rollup::ToolRowFactsRollupJob;
 pub use trace_facts_rollup::TraceFactsRollupJob;

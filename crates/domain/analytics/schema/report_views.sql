@@ -190,7 +190,7 @@ SELECT
     src.gateway_conversation_id, src.provider_request_id, src.event_type,
     src.event_category, src.severity, src.endpoint, src.error_code,
     src.response_time_ms, src.agent_id, src.task_id, src.message,
-    src.metadata, src.event_data, src."timestamp"
+    src.metadata, src.event_data, src."timestamp", src.target_url, src.is_external
 FROM analytics_events src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
@@ -225,6 +225,13 @@ SELECT
     src.bucket, src.user_id, src.agent_name, src.status, src.task_count,
     src.exec_sum_ms, src.exec_n, src.last_started_at
 FROM agent_task_rollup_hourly src
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
+
+CREATE OR REPLACE VIEW report_link_click_hourly AS
+SELECT src.bucket, src.user_id, src.endpoint, src.target_url, src.is_external, src.clicks
+FROM analytics_link_click_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );

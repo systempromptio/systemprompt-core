@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `report_analytics_events` exposes `target_url` and `is_external`; the traffic navigation queries read those columns instead of `event_data->>'target_url'` / `event_data->>'is_external'`.
+
 ### Added
 
 - `tool_usage_rollup_hourly` and `agent_task_rollup_hourly`, statement-trigger hourly rollups of `mcp_tool_executions` and `agent_tasks`, with `refresh_*_rollup_hourly(keys)` projectors; migration 018 queues every pre-existing hour for `backfill_rollups`. `report_ai_usage_hourly`, `report_tool_usage_hourly` and `report_agent_task_hourly` apply the deleted-user filter to the rollups through their user dimension.

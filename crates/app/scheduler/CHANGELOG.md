@@ -8,6 +8,10 @@
 - `backfill_rollups` job (`BackfillRollupsJob`, every minute at `:45`): drains the `ai_usage_rollup_hourly`, `tool_usage_rollup_hourly` and `agent_task_rollup_hourly` backlogs, 24 hours per batch, up to 15 s per rollup per tick.
 - `tool_row_facts_rollup` job (`ToolRowFactsRollupJob`, every minute at `:15`): drains the `tool_row_facts` projection backlog, 500 keys per batch, for up to 20 s per tick.
 
+### Changed
+
+- `managed_inventory_refresh` drains the `managed_installation_coverage` projection instead of rebuilding every owner's coverage on every tick. New drainers `session_bot_type_rollup` and `analytics_event_link_facts_rollup`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Added

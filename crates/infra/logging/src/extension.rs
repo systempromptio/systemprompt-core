@@ -53,6 +53,12 @@ impl Extension for LoggingExtension {
                 "log_count".into(),
             ]),
             SchemaDefinition::sql_only(include_str!("../schema/trace_facts_logs.sql")),
+            SchemaDefinition::new(
+                "analytics_link_click_rollup_hourly",
+                include_str!("../schema/analytics_link_click_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec!["bucket".into(), "endpoint".into(), "clicks".into()]),
+            SchemaDefinition::sql_only(include_str!("../schema/analytics_event_link_facts.sql")),
         ]
     }
 
