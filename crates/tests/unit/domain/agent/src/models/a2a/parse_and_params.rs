@@ -1,7 +1,8 @@
 use systemprompt_agent::{
-    A2aJsonRpcRequest, A2aRequestParams, A2aResponse, Task, TaskIdParams, TaskQueryParams,
-    TaskState, TaskStatus,
+    A2aJsonRpcRequest, A2aRequestParams, A2aResponse, CancelTaskParams, GetTaskParams,
+    SendMessageResult, Task, TaskState, TaskStatus,
 };
+use systemprompt_identifiers::TaskId;
 use systemprompt_models::errors::ParseEnumError;
 
 #[test]
@@ -125,9 +126,10 @@ fn test_parse_invalid_params() {
 }
 
 #[test]
-fn test_task_query_params_serialize() {
-    let params = TaskQueryParams {
-        id: "task-789".to_string().into(),
+fn test_get_task_params_serialize() {
+    let params = GetTaskParams {
+        tenant: None,
+        id: TaskId::new("task-789"),
         history_length: Some(10),
     };
 
@@ -137,18 +139,20 @@ fn test_task_query_params_serialize() {
 }
 
 #[test]
-fn test_task_query_params_optional_history_length() {
+fn test_get_task_params_optional_history_length() {
     let json = r#"{"id": "task-def"}"#;
-    let params: TaskQueryParams = serde_json::from_str(json).unwrap();
+    let params: GetTaskParams = serde_json::from_str(json).unwrap();
 
     assert_eq!(params.id, "task-def");
     assert_eq!(params.history_length, None);
 }
 
 #[test]
-fn test_task_id_params_serialize() {
-    let params = TaskIdParams {
-        id: "task-123".to_string().into(),
+fn test_cancel_task_params_serialize() {
+    let params = CancelTaskParams {
+        tenant: None,
+        id: TaskId::new("task-123"),
+        metadata: None,
     };
 
     let json = serde_json::to_string(&params).unwrap();
@@ -161,7 +165,7 @@ fn test_a2a_response_send_message() {
 
     let task = Task::default();
     let request_id = RequestId::String("req-1".to_string());
-    let response = A2aResponse::send_message(task, request_id);
+    let response = A2aResponse::send_message(SendMessageResult::Task(task), request_id);
 
     match response {
         A2aResponse::SendMessage(res) => {
@@ -230,25 +234,19 @@ fn test_task_status_default() {
 #[test]
 fn test_task_state_parsing() {
     let states = vec![
-        ("pending", TaskState::Pending),
-        ("submitted", TaskState::Submitted),
-        ("working", TaskState::Working),
-        ("completed", TaskState::Completed),
-        ("failed", TaskState::Failed),
-        ("canceled", TaskState::Canceled),
-        ("rejected", TaskState::Rejected),
-        ("input-required", TaskState::InputRequired),
-        ("auth-required", TaskState::AuthRequired),
-        ("unknown", TaskState::Unknown),
+        ("TASK_STATE_SUBMITTED", TaskState::Submitted),
+        ("TASK_STATE_WORKING", TaskState::Working),
+        ("TASK_STATE_COMPLETED", TaskState::Completed),
+        ("TASK_STATE_FAILED", TaskState::Failed),
+        ("TASK_STATE_CANCELED", TaskState::Canceled),
+        ("TASK_STATE_REJECTED", TaskState::Rejected),
+        ("TASK_STATE_INPUT_REQUIRED", TaskState::InputRequired),
+        ("TASK_STATE_AUTH_REQUIRED", TaskState::AuthRequired),
     ];
 
     for (input, expected) in states {
         let parsed: TaskState = input.parse().unwrap();
-        assert!(
-            matches!(&parsed, e if std::mem::discriminant(e) == std::mem::discriminant(&expected)),
-            "Failed for input: {}",
-            input
-        );
+        assert_eq!(parsed, expected, "Failed for input: {input}");
     }
 }
 

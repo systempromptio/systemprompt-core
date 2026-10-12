@@ -89,63 +89,81 @@ fn test_task_status_default() {
 }
 
 #[test]
-fn test_task_state_pending() {
-    let state: TaskState = "pending".parse().unwrap();
-    assert!(matches!(state, TaskState::Pending));
-}
-
-#[test]
 fn test_task_state_submitted() {
-    let state: TaskState = "submitted".parse().unwrap();
-    assert!(matches!(state, TaskState::Submitted));
+    let state: TaskState = "TASK_STATE_SUBMITTED".parse().unwrap();
+    assert_eq!(state, TaskState::Submitted);
+    assert_eq!(state.as_str(), "TASK_STATE_SUBMITTED");
 }
 
 #[test]
 fn test_task_state_working() {
-    let state: TaskState = "working".parse().unwrap();
-    assert!(matches!(state, TaskState::Working));
+    let state: TaskState = "TASK_STATE_WORKING".parse().unwrap();
+    assert_eq!(state, TaskState::Working);
+    assert_eq!(state.as_str(), "TASK_STATE_WORKING");
 }
 
 #[test]
 fn test_task_state_completed() {
-    let state: TaskState = "completed".parse().unwrap();
-    assert!(matches!(state, TaskState::Completed));
+    let state: TaskState = "TASK_STATE_COMPLETED".parse().unwrap();
+    assert_eq!(state, TaskState::Completed);
+    assert_eq!(state.as_str(), "TASK_STATE_COMPLETED");
 }
 
 #[test]
 fn test_task_state_failed() {
-    let state: TaskState = "failed".parse().unwrap();
-    assert!(matches!(state, TaskState::Failed));
+    let state: TaskState = "TASK_STATE_FAILED".parse().unwrap();
+    assert_eq!(state, TaskState::Failed);
+    assert_eq!(state.as_str(), "TASK_STATE_FAILED");
 }
 
 #[test]
 fn test_task_state_canceled() {
-    let state: TaskState = "canceled".parse().unwrap();
-    assert!(matches!(state, TaskState::Canceled));
+    let state: TaskState = "TASK_STATE_CANCELED".parse().unwrap();
+    assert_eq!(state, TaskState::Canceled);
+    assert_eq!(state.as_str(), "TASK_STATE_CANCELED");
 }
 
 #[test]
 fn test_task_state_rejected() {
-    let state: TaskState = "rejected".parse().unwrap();
-    assert!(matches!(state, TaskState::Rejected));
+    let state: TaskState = "TASK_STATE_REJECTED".parse().unwrap();
+    assert_eq!(state, TaskState::Rejected);
+    assert_eq!(state.as_str(), "TASK_STATE_REJECTED");
 }
 
 #[test]
 fn test_task_state_input_required() {
-    let state: TaskState = "input-required".parse().unwrap();
-    assert!(matches!(state, TaskState::InputRequired));
+    let state: TaskState = "TASK_STATE_INPUT_REQUIRED".parse().unwrap();
+    assert_eq!(state, TaskState::InputRequired);
+    assert_eq!(state.as_str(), "TASK_STATE_INPUT_REQUIRED");
 }
 
 #[test]
 fn test_task_state_auth_required() {
-    let state: TaskState = "auth-required".parse().unwrap();
-    assert!(matches!(state, TaskState::AuthRequired));
+    let state: TaskState = "TASK_STATE_AUTH_REQUIRED".parse().unwrap();
+    assert_eq!(state, TaskState::AuthRequired);
+    assert_eq!(state.as_str(), "TASK_STATE_AUTH_REQUIRED");
 }
 
 #[test]
-fn test_task_state_unknown() {
-    let state: TaskState = "unknown".parse().unwrap();
-    assert!(matches!(state, TaskState::Unknown));
+fn test_task_state_rejects_legacy_lowercase() {
+    for legacy in [
+        "submitted",
+        "working",
+        "input-required",
+        "pending",
+        "unknown",
+    ] {
+        let err = legacy.parse::<TaskState>().unwrap_err();
+        assert_eq!(err.value, legacy);
+    }
+}
+
+#[test]
+fn test_task_state_rejects_removed_wire_values() {
+    for removed in ["TASK_STATE_PENDING", "TASK_STATE_UNKNOWN"] {
+        assert!(removed.parse::<TaskState>().is_err());
+        assert!(serde_json::from_value::<TaskState>(serde_json::json!(removed)).is_err());
+    }
 }
 
 #[test]

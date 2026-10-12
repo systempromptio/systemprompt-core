@@ -16,9 +16,9 @@ pub struct AgentCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub push_notifications: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_transition_history: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub extensions: Option<Vec<AgentExtension>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extended_agent_card: Option<bool>,
 }
 
 impl Default for AgentCapabilities {
@@ -26,8 +26,8 @@ impl Default for AgentCapabilities {
         Self {
             streaming: Some(true),
             push_notifications: Some(false),
-            state_transition_history: Some(true),
             extensions: None,
+            extended_agent_card: Some(false),
         }
     }
 }
@@ -41,8 +41,8 @@ impl AgentCapabilities {
         if self.push_notifications.is_none() {
             self.push_notifications = Some(false);
         }
-        if self.state_transition_history.is_none() {
-            self.state_transition_history = Some(true);
+        if self.extended_agent_card.is_none() {
+            self.extended_agent_card = Some(false);
         }
         self
     }

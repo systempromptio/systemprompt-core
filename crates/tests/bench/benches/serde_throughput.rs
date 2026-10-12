@@ -22,9 +22,9 @@ fn minimal_task() -> Task {
 fn full_task() -> Task {
     let message = Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "Hello, this is a test message with some content".to_string(),
-        })],
+        parts: vec![Part::text(
+            "Hello, this is a test message with some content",
+        )],
         message_id: MessageId::generate(),
         task_id: Some(TaskId::generate()),
         context_id: ContextId::generate(),
@@ -37,9 +37,7 @@ fn full_task() -> Task {
         id: ArtifactId::generate(),
         title: Some("Test Artifact".to_string()),
         description: Some("A test artifact description".to_string()),
-        parts: vec![Part::Text(TextPart {
-            text: "Artifact content".to_string(),
-        })],
+        parts: vec![Part::text("Artifact content")],
         extensions: vec![],
         metadata: ArtifactMetadata {
             artifact_type: "text".to_string(),
@@ -82,7 +80,8 @@ fn agent_card() -> AgentCard {
         supported_interfaces: vec![AgentInterface {
             url: "https://example.com/a2a".to_string(),
             protocol_binding: ProtocolBinding::JsonRpc,
-            protocol_version: "1.0.0".to_string(),
+            tenant: None,
+            protocol_version: PROTOCOL_VERSION.to_string(),
         }],
         version: "1.0.0".to_string(),
         capabilities: AgentCapabilities::default(),
@@ -95,7 +94,7 @@ fn agent_card() -> AgentCard {
                 examples: Some(vec!["search for rust".to_string()]),
                 input_modes: None,
                 output_modes: None,
-                security: None,
+                security_requirements: None,
             },
             AgentSkill {
                 id: "code".to_string(),
@@ -105,7 +104,7 @@ fn agent_card() -> AgentCard {
                 examples: None,
                 input_modes: None,
                 output_modes: None,
-                security: None,
+                security_requirements: None,
             },
         ],
         default_input_modes: vec!["text".to_string()],

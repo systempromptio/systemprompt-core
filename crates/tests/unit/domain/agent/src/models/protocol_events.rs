@@ -1,16 +1,14 @@
-//! Unit tests for A2A protocol event types
-//!
-//! Tests cover:
-//! - TaskStatusUpdateEvent construction and serialization
-//! - TaskArtifactUpdateEvent construction and serialization
-
-use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
-use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, Part, TaskState, TaskStatus, TextPart,
+use systemprompt_agent::models::a2a::protocol::{
+    StreamResponse, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
 };
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TaskState, TaskStatus};
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 
 const TEST_CONTEXT_ID_A: &str = "00000000-0000-4000-8000-000000000001";
+
+fn context_id() -> ContextId {
+    ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")
+}
 
 fn create_test_artifact(id: &str) -> Artifact {
     Artifact {
@@ -19,155 +17,99 @@ fn create_test_artifact(id: &str) -> Artifact {
         description: Some("Test artifact description".to_string()),
         parts: vec![],
         extensions: vec![],
-        metadata: ArtifactMetadata::new(
-            "text".to_string(),
-            ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-            TaskId::new("task-1"),
-        ),
+        metadata: ArtifactMetadata::new("text".to_string(), context_id(), TaskId::new("task-1")),
     }
 }
 
-fn create_working_status() -> TaskStatus {
-    let mut status = TaskStatus::default();
-    status.state = TaskState::Working;
-    status
-}
-
-fn create_completed_status() -> TaskStatus {
-    let mut status = TaskStatus::default();
-    status.state = TaskState::Completed;
-    status
-}
-
-fn create_failed_status() -> TaskStatus {
-    let mut status = TaskStatus::default();
-    status.state = TaskState::Failed;
-    status
+fn status(state: TaskState) -> TaskStatus {
+    TaskStatus {
+        state,
+        ..TaskStatus::default()
+    }
 }
 
 #[test]
 fn test_task_status_update_event_new() {
-    let status = create_working_status();
     let event = TaskStatusUpdateEvent::new(
-        "task-123",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        status,
-        false,
+        TaskId::new("task-123"),
+        context_id(),
+        status(TaskState::Working),
     );
 
-    assert_eq!(event.kind, "status-update");
     assert_eq!(event.task_id, "task-123");
     assert_eq!(event.context_id.as_str(), TEST_CONTEXT_ID_A);
-    assert!(!event.is_final);
+    assert!(event.metadata.is_none());
 }
 
 #[test]
-fn test_task_status_update_event_final() {
-    let status = create_completed_status();
+fn test_task_status_update_event_serialize_has_no_kind_or_final() {
     let event = TaskStatusUpdateEvent::new(
-        "task-abc",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        status,
-        true,
+        TaskId::new("task-1"),
+        context_id(),
+        status(TaskState::Failed),
     );
+    let value = serde_json::to_value(&event).unwrap();
 
-    assert!(event.is_final);
-    assert!(matches!(event.status.state, TaskState::Completed));
+    assert_eq!(value["taskId"], "task-1");
+    assert_eq!(value["contextId"], TEST_CONTEXT_ID_A);
+    assert_eq!(value["status"]["state"], "TASK_STATE_FAILED");
+    assert!(value.get("kind").is_none());
+    assert!(value.get("final").is_none());
 }
 
 #[test]
-fn test_task_status_update_event_serialize() {
-    let status = create_failed_status();
+fn test_status_update_stream_response_is_tagged() {
     let event = TaskStatusUpdateEvent::new(
-        "task-1",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        status,
-        true,
+        TaskId::new("t1"),
+        context_id(),
+        status(TaskState::Completed),
     );
-    let json = serde_json::to_string(&event).unwrap();
+    let value = serde_json::to_value(StreamResponse::StatusUpdate(event)).unwrap();
 
-    assert!(json.contains("status-update"));
-    assert!(json.contains("task-1"));
-    assert!(json.contains(TEST_CONTEXT_ID_A));
-    assert!(json.contains("TASK_STATE_FAILED"));
+    assert_eq!(
+        value["statusUpdate"]["status"]["state"],
+        "TASK_STATE_COMPLETED"
+    );
 }
 
 #[test]
-fn test_task_status_update_event_to_jsonrpc_response() {
-    let status = TaskStatus::default();
-    let event = TaskStatusUpdateEvent::new(
-        "t1",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        status,
-        false,
-    );
-    let response = event.to_jsonrpc_response();
-
-    assert_eq!(response["jsonrpc"], "2.0");
-    assert!(response["result"].is_object());
-}
-
-#[test]
-fn test_task_artifact_update_event_new() {
-    let artifact = create_test_artifact("art-1");
+fn test_task_artifact_update_event_new_defaults_to_single_chunk() {
     let event = TaskArtifactUpdateEvent::new(
-        "task-1",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        artifact,
-        false,
+        TaskId::new("task-1"),
+        context_id(),
+        create_test_artifact("art-1"),
     );
 
-    assert_eq!(event.kind, "artifact-update");
     assert_eq!(event.task_id, "task-1");
-    assert_eq!(event.context_id.as_str(), TEST_CONTEXT_ID_A);
-    assert!(!event.is_final);
+    assert!(!event.append);
+    assert!(event.last_chunk);
 }
 
 #[test]
-fn test_task_artifact_update_event_with_parts() {
+fn test_task_artifact_update_event_chunking() {
     let mut artifact = create_test_artifact("art-2");
-    artifact.parts = vec![Part::Text(TextPart {
-        text: "Some content".to_string(),
-    })];
+    artifact.parts = vec![Part::text("Some content")];
 
-    let event = TaskArtifactUpdateEvent::new(
-        "task-2",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        artifact,
-        true,
-    );
+    let event = TaskArtifactUpdateEvent::new(TaskId::new("task-2"), context_id(), artifact)
+        .chunk(true, false);
 
-    assert!(event.is_final);
+    assert!(event.append);
+    assert!(!event.last_chunk);
     assert_eq!(event.artifact.parts.len(), 1);
 }
 
 #[test]
 fn test_task_artifact_update_event_serialize() {
-    let artifact = create_test_artifact("art-3");
     let event = TaskArtifactUpdateEvent::new(
-        "t1",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        artifact,
-        false,
+        TaskId::new("t1"),
+        context_id(),
+        create_test_artifact("art-3"),
     );
-    let json = serde_json::to_string(&event).unwrap();
+    let value = serde_json::to_value(StreamResponse::ArtifactUpdate(event)).unwrap();
+    let inner = &value["artifactUpdate"];
 
-    assert!(json.contains("artifact-update"));
-    assert!(json.contains("t1"));
-    assert!(json.contains(TEST_CONTEXT_ID_A));
-}
-
-#[test]
-fn test_task_artifact_update_event_to_jsonrpc_response() {
-    let artifact = create_test_artifact("art-4");
-    let event = TaskArtifactUpdateEvent::new(
-        "t",
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
-        artifact,
-        true,
-    );
-    let response = event.to_jsonrpc_response();
-
-    assert_eq!(response["jsonrpc"], "2.0");
-    assert!(response["result"].is_object());
+    assert_eq!(inner["taskId"], "t1");
+    assert_eq!(inner["artifact"]["artifactId"], "art-3");
+    assert_eq!(inner["lastChunk"], true);
+    assert!(inner.get("kind").is_none());
 }

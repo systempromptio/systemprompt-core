@@ -14,11 +14,10 @@ fn minimal_card(name: &str, version: &str) -> AgentCard {
         documentation_url: None,
         capabilities: AgentCapabilities::default(),
         security_schemes: None,
-        security: None,
+        security_requirements: None,
         default_input_modes: vec!["text/plain".to_string()],
         default_output_modes: vec!["text/plain".to_string()],
         skills: vec![],
-        supports_authenticated_extended_card: None,
         signatures: None,
     }
 }
@@ -64,7 +63,7 @@ fn agent_info_skills_count_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
         AgentSkill {
             id: "s2".to_string(),
@@ -74,7 +73,7 @@ fn agent_info_skills_count_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
     ];
     let info = AgentInfo::from_card(id, card, true).with_skills(skills);
@@ -137,7 +136,7 @@ fn agent_info_with_skills_and_mcp_combined() {
         examples: None,
         input_modes: None,
         output_modes: None,
-        security: None,
+        security_requirements: None,
     }];
     let mcp = PluginComponentRef {
         include: vec!["srv1".to_string()],

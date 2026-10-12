@@ -97,8 +97,7 @@ pub mod users;
 
 pub use a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentProvider, Artifact as A2aArtifact,
-    ArtifactMetadata, DataPart, FileContent, FilePart, Part, Task, TaskMetadata, TaskState,
-    TaskStatus, TextPart,
+    ArtifactMetadata, Part, PartContent, Task, TaskMetadata, TaskState, TaskStatus,
 };
 pub use agui::{
     AgUiEvent, AgUiEventBuilder, AgUiEventType, CustomPayload, GenericCustomPayload,

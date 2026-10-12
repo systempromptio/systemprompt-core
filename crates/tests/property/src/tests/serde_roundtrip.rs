@@ -26,9 +26,9 @@ serde_roundtrip!(
     ProtocolBinding
 );
 serde_roundtrip!(message_role_roundtrip, arb_message_role(), MessageRole);
-serde_roundtrip!(text_part_roundtrip, arb_text_part(), TextPart);
-serde_roundtrip!(file_part_roundtrip, arb_file_part(), FilePart);
-serde_roundtrip!(data_part_roundtrip, arb_data_part(), DataPart);
+serde_roundtrip!(text_part_roundtrip, arb_text_part(), Part);
+serde_roundtrip!(file_part_roundtrip, arb_file_part(), Part);
+serde_roundtrip!(data_part_roundtrip, arb_data_part(), Part);
 serde_roundtrip!(part_roundtrip, arb_part(), Part);
 serde_roundtrip!(message_roundtrip, arb_message(), Message);
 serde_roundtrip!(task_status_roundtrip, arb_task_status(), TaskStatus);

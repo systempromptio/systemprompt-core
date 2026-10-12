@@ -91,3 +91,24 @@ pub struct OAuth2Flow {
     pub refresh_url: Option<String>,
     pub scopes: HashMap<String, String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct SecurityRequirement {
+    #[serde(default)]
+    pub schemes: HashMap<String, StringList>,
+}
+
+impl SecurityRequirement {
+    #[must_use]
+    pub fn scheme(name: impl Into<String>, scopes: Vec<String>) -> Self {
+        Self {
+            schemes: HashMap::from([(name.into(), StringList { list: scopes })]),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct StringList {
+    #[serde(default)]
+    pub list: Vec<String>,
+}

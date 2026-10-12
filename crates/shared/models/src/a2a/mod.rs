@@ -13,6 +13,7 @@ pub mod mcp_extension;
 pub mod message;
 pub mod methods;
 pub mod security;
+pub mod stream;
 pub mod task;
 pub mod task_metadata;
 pub mod transport;
@@ -25,8 +26,16 @@ pub use artifact::Artifact;
 pub use artifact_metadata::ArtifactMetadata;
 pub use artifact_summary::ArtifactSummary;
 pub use mcp_extension::{McpServerMetadata, McpToolsParams, MessageMetadata};
-pub use message::{DataPart, FileContent, FilePart, Message, MessageRole, Part, TextPart};
-pub use security::{ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityScheme};
+pub use message::{Message, MessageRole, Part, PartContent, PartContentError};
+pub use security::{
+    ApiKeyLocation, OAuth2Flow, OAuth2Flows, SecurityRequirement, SecurityScheme, StringList,
+};
+pub use stream::{
+    SendMessageResult, StreamResponse, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
+};
 pub use task::{Task, TaskState, TaskStatus};
 pub use task_metadata::{TaskMetadata, TaskType, agent_names};
 pub use transport::ProtocolBinding;
+
+pub const PROTOCOL_VERSION: &str = "1.0";
+pub const VERSION_HEADER: &str = "A2A-Version";

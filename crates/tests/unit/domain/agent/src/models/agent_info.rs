@@ -18,7 +18,8 @@ fn create_test_card() -> AgentCard {
         supported_interfaces: vec![AgentInterface {
             url: "/api/v1/agents/test".to_string(),
             protocol_binding: ProtocolBinding::JsonRpc,
-            protocol_version: "1.0.0".to_string(),
+            tenant: None,
+            protocol_version: "1.0".to_string(),
         }],
         version: "1.0.0".to_string(),
         icon_url: None,
@@ -26,11 +27,10 @@ fn create_test_card() -> AgentCard {
         documentation_url: None,
         capabilities: Default::default(),
         security_schemes: None,
-        security: None,
+        security_requirements: None,
         default_input_modes: vec!["text/plain".to_string()],
         default_output_modes: vec!["text/plain".to_string()],
         skills: vec![],
-        supports_authenticated_extended_card: None,
         signatures: None,
     }
 }
@@ -103,7 +103,7 @@ fn test_agent_info_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
         AgentSkill {
             id: "skill-2".to_string(),
@@ -113,7 +113,7 @@ fn test_agent_info_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
     ];
 
@@ -150,7 +150,7 @@ fn test_agent_info_builder_chain() {
         examples: None,
         input_modes: None,
         output_modes: None,
-        security: None,
+        security_requirements: None,
     }];
     let servers = systemprompt_models::plugin::PluginComponentRef {
         include: vec!["brave".to_string()],
@@ -187,7 +187,7 @@ fn test_agent_info_skills_count_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
         AgentSkill {
             id: "2".to_string(),
@@ -197,7 +197,7 @@ fn test_agent_info_skills_count_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
         AgentSkill {
             id: "3".to_string(),
@@ -207,7 +207,7 @@ fn test_agent_info_skills_count_with_skills() {
             examples: None,
             input_modes: None,
             output_modes: None,
-            security: None,
+            security_requirements: None,
         },
     ];
 

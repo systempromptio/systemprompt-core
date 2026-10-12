@@ -1,46 +1,46 @@
 use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_agent::models::a2a::protocol::{
-    MessageSendConfiguration, TaskNotCancelableError, TaskNotFoundError, UnsupportedOperationError,
+    SendMessageConfiguration, TaskNotCancelableError, TaskNotFoundError, UnsupportedOperationError,
 };
 use systemprompt_identifiers::TaskId;
 
 #[test]
-fn message_send_configuration_serialize_camel_case() {
-    let cfg = MessageSendConfiguration {
+fn send_message_configuration_serialize_camel_case() {
+    let cfg = SendMessageConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string()]),
         history_length: Some(50),
-        blocking: Some(true),
+        return_immediately: true,
     };
     let json = serde_json::to_string(&cfg).unwrap();
     assert!(json.contains("acceptedOutputModes"));
     assert!(json.contains("historyLength"));
-    assert!(json.contains("blocking"));
+    assert!(json.contains("returnImmediately"));
 }
 
 #[test]
-fn message_send_configuration_deserialize_camel_case() {
+fn send_message_configuration_deserialize_camel_case() {
     let json = r#"{
         "acceptedOutputModes": ["text/plain"],
         "historyLength": 10,
-        "blocking": false
+        "returnImmediately": false
     }"#;
-    let cfg: MessageSendConfiguration = serde_json::from_str(json).unwrap();
+    let cfg: SendMessageConfiguration = serde_json::from_str(json).unwrap();
     assert_eq!(cfg.history_length, Some(10));
-    assert_eq!(cfg.blocking, Some(false));
+    assert!(!cfg.return_immediately);
 }
 
 #[test]
-fn message_send_configuration_optional_fields_none() {
-    let cfg = MessageSendConfiguration {
+fn send_message_configuration_optional_fields_none() {
+    let cfg = SendMessageConfiguration {
         accepted_output_modes: None,
         history_length: None,
-        blocking: None,
+        return_immediately: false,
     };
     let json = serde_json::to_string(&cfg).unwrap();
-    let back: MessageSendConfiguration = serde_json::from_str(&json).unwrap();
+    let back: SendMessageConfiguration = serde_json::from_str(&json).unwrap();
     assert!(back.accepted_output_modes.is_none());
     assert!(back.history_length.is_none());
-    assert!(back.blocking.is_none());
+    assert!(!back.return_immediately);
 }
 
 #[test]

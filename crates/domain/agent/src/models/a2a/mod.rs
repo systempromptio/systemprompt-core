@@ -14,12 +14,14 @@ pub mod protocol;
 pub use systemprompt_models::a2a::{
     AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature, AgentExtension,
     AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact, ArtifactMetadata,
-    DataPart, FileContent, FilePart, McpServerMetadata, McpToolsParams, Message, MessageMetadata,
-    MessageRole, OAuth2Flow, OAuth2Flows, Part, ProtocolBinding, SecurityScheme, Task, TaskState,
-    TaskStatus, TextPart,
+    McpServerMetadata, McpToolsParams, Message, MessageMetadata, MessageRole, OAuth2Flow,
+    OAuth2Flows, PROTOCOL_VERSION, Part, PartContent, ProtocolBinding, SecurityRequirement,
+    SecurityScheme, StringList, Task, TaskState, TaskStatus, VERSION_HEADER,
 };
 
 pub use protocol::{
-    A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse, MessageSendParams,
-    TaskIdParams, TaskQueryParams,
+    A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse, CancelTaskParams,
+    GetExtendedAgentCardParams, GetTaskParams, ListTasksParams, ListTasksResult,
+    SendMessageConfiguration, SendMessageParams, SendMessageResult, StreamResponse,
+    SubscribeToTaskParams, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
 };

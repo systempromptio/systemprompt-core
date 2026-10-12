@@ -145,7 +145,7 @@ fn test_agent_capabilities_default() {
 
     assert_eq!(caps.streaming, Some(true));
     assert_eq!(caps.push_notifications, Some(false));
-    assert_eq!(caps.state_transition_history, Some(true));
+    assert_eq!(caps.extended_agent_card, Some(false));
     assert!(caps.extensions.is_none());
 }
 
@@ -154,15 +154,15 @@ fn test_agent_capabilities_normalize_none_values() {
     let caps = AgentCapabilities {
         streaming: None,
         push_notifications: None,
-        state_transition_history: None,
         extensions: None,
+        extended_agent_card: None,
     };
 
     let normalized = caps.normalize();
 
     assert_eq!(normalized.streaming, Some(true));
     assert_eq!(normalized.push_notifications, Some(false));
-    assert_eq!(normalized.state_transition_history, Some(true));
+    assert_eq!(normalized.extended_agent_card, Some(false));
 }
 
 #[test]
@@ -170,15 +170,15 @@ fn test_agent_capabilities_normalize_preserves_existing() {
     let caps = AgentCapabilities {
         streaming: Some(false),
         push_notifications: Some(true),
-        state_transition_history: Some(false),
         extensions: None,
+        extended_agent_card: Some(true),
     };
 
     let normalized = caps.normalize();
 
     assert_eq!(normalized.streaming, Some(false));
     assert_eq!(normalized.push_notifications, Some(true));
-    assert_eq!(normalized.state_transition_history, Some(false));
+    assert_eq!(normalized.extended_agent_card, Some(true));
 }
 
 #[test]

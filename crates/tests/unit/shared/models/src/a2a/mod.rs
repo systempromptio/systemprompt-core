@@ -2,3 +2,4 @@
 
 mod card_and_capabilities;
 mod extension_skill_task;
+mod wire_1_0;

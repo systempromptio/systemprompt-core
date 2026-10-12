@@ -7,11 +7,13 @@
 mod events;
 mod requests;
 
-pub use events::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
+pub use events::{
+    SendMessageResult, StreamResponse, TaskArtifactUpdateEvent, TaskStatusUpdateEvent,
+};
 pub use requests::{
-    A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse,
-    CancelTaskResponse, GetAuthenticatedExtendedCardResponse, GetTaskResponse,
-    MessageSendConfiguration, MessageSendParams, SendMessageResponse, SendStreamingMessageResponse,
-    TaskIdParams, TaskNotCancelableError, TaskNotFoundError, TaskQueryParams,
-    TaskResubscriptionRequest, UnsupportedOperationError,
+    A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse, CancelTaskParams,
+    CancelTaskResponse, GetExtendedAgentCardParams, GetExtendedAgentCardResponse, GetTaskParams,
+    GetTaskResponse, ListTasksParams, ListTasksResponse, ListTasksResult, SendMessageConfiguration,
+    SendMessageParams, SendMessageResponse, SubscribeToTaskParams, TaskNotCancelableError,
+    TaskNotFoundError, UnsupportedOperationError,
 };
