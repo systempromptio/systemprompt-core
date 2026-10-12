@@ -74,7 +74,8 @@ impl CostDirective {
             return self.measured;
         }
         let ratio = live_rows.div_ceil(declared);
-        self.measured.saturating_mul(u32::try_from(ratio).unwrap_or(u32::MAX))
+        self.measured
+            .saturating_mul(u32::try_from(ratio).unwrap_or(u32::MAX))
     }
 }
 
