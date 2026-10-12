@@ -41,8 +41,7 @@ pub async fn parse_a2a_request(
                 builder.log_warn(format!("Invalid params for A2A method '{method}': {e}"))
             },
         };
-        let (status, error_response) = builder.build_with_status(request_id);
-        (status, Json(error_response)).into_response()
+        (StatusCode::BAD_REQUEST, Json(builder.build(request_id))).into_response()
     })
 }
 

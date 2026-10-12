@@ -73,26 +73,16 @@ async fn parse_a2a_request_missing_context_id_is_bad_request() {
         .expect("read JSON-RPC error body");
     let payload: serde_json::Value =
         serde_json::from_slice(&body).expect("valid JSON-RPC error response");
-    assert_eq!(
-        payload
-            .pointer("/error/data/error")
-            .and_then(serde_json::Value::as_str),
-        Some("contextId is required"),
-        "unexpected JSON-RPC remediation envelope: {payload}"
-    );
-    assert_eq!(
-        payload
-            .pointer("/error/data/instructions/step1/endpoint")
-            .and_then(serde_json::Value::as_str),
-        Some("POST /api/v1/core/oauth/session"),
-        "unexpected JWT acquisition instruction: {payload}"
-    );
-    assert_eq!(
-        payload
-            .pointer("/error/data/instructions/step2/endpoint")
-            .and_then(serde_json::Value::as_str),
-        Some("POST /api/v1/core/contexts"),
-        "unexpected context creation instruction: {payload}"
+    assert_eq!(payload["id"], 7);
+    assert_eq!(payload["error"]["code"], -32602);
+    let info = &payload["error"]["data"][0];
+    assert_eq!(info["reason"], "INVALID_PARAMS", "{payload}");
+    assert_eq!(info["metadata"]["method"], "SendStreamingMessage");
+    assert!(
+        info["metadata"]["hint"]
+            .as_str()
+            .is_some_and(|hint| hint.contains("POST /api/v1/core/contexts")),
+        "unexpected context creation remediation: {payload}"
     );
 }
 
@@ -105,6 +95,16 @@ async fn parse_a2a_request_unknown_method_is_bad_request() {
         .await
         .expect_err("unknown method must be rejected");
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = axum::body::to_bytes(response.into_body(), 1_048_576)
+        .await
+        .expect("read JSON-RPC error body");
+    let payload: serde_json::Value = serde_json::from_slice(&body).expect("JSON-RPC error");
+    assert_eq!(payload["error"]["code"], -32601);
+    assert_eq!(payload["error"]["data"][0]["reason"], "METHOD_NOT_FOUND");
+    assert_eq!(
+        payload["error"]["data"][0]["metadata"]["method"],
+        "no/such/method"
+    );
 }
 
 fn user_message(ctx: &ContextId) -> systemprompt_agent::models::a2a::Message {

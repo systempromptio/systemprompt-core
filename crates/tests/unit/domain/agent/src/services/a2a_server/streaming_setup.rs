@@ -203,9 +203,10 @@ async fn task_insert_failure_streams_internal_error_without_dispatch_or_partial_
             event.contains(r#"\"id\":41"#)
                 && event.contains(r#"\"code\":-32603"#)
                 && event.contains("Failed to create task")
-                && event.contains("fixture task insert rejection")
+                && event.contains(r#"\"reason\":\"INTERNAL\""#)
+                && !event.contains("fixture task insert rejection")
         }),
-        "task persistence failure is correlated and diagnosed on the stream: {events:?}"
+        "task persistence failure is correlated on the stream with a fixed 5xx detail: {events:?}"
     );
     assert!(
         repos_handle

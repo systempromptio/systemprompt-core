@@ -8,6 +8,13 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 
+#[path = "../../../../../contract/src/a2a/schema.rs"]
+#[allow(
+    dead_code,
+    reason = "shared with the contract crate; this test uses only assert_valid"
+)]
+mod a2a_schema;
+
 const SERVICES: &str = r#"agents:
   configured_agent:
     name: configured_agent
@@ -19,7 +26,7 @@ const SERVICES: &str = r#"agents:
     default: true
     tags: [governance]
     card:
-      protocolVersion: 0.3.0
+      protocolVersion: "1.0"
       name: Configured Agent
       displayName: Configured Agent
       description: Governed configured agent
@@ -83,7 +90,8 @@ async fn configured_default_named_and_list_cards_share_the_public_agent_contract
         named["supportedInterfaces"][0]["protocolBinding"],
         "HTTP+JSON"
     );
-    assert_eq!(named["supportedInterfaces"][0]["protocolVersion"], "0.3.0");
+    assert_eq!(named["supportedInterfaces"][0]["protocolVersion"], "1.0");
+    a2a_schema::assert_valid("AgentCard", &named);
     assert_eq!(
         named["supportedInterfaces"][0]["url"],
         "https://agents.example.test/base/api/v1/agents/configured_agent"
