@@ -90,7 +90,10 @@ async fn a_vault_signed_by_an_unconfigured_ca_is_refused() {
 
     assert!(!server.await.unwrap(), "the TLS handshake was rejected");
     assert!(
-        matches!(err, SecretsBootstrapError::Vault(VaultError::Exhausted { .. })),
+        matches!(
+            err,
+            SecretsBootstrapError::Vault(VaultError::Exhausted { .. })
+        ),
         "got {err}"
     );
 }
