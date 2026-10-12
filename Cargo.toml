@@ -35,6 +35,7 @@ members = [
     # Application layer
     "crates/app/runtime",
     "crates/app/scheduler",
+    "crates/app/headless",
     "crates/app/generator",
     "crates/app/oauth-issuance",
     "crates/app/gateway",
@@ -327,6 +328,7 @@ systemprompt-slack = { path = "crates/domain/slack", version = "0.66.0" }
 systemprompt-teams = { path = "crates/domain/teams", version = "0.66.0" }
 systemprompt-runtime = { path = "crates/app/runtime", version = "0.66.0" }
 systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.66.0" }
+systemprompt-headless = { path = "crates/app/headless", version = "0.66.0" }
 systemprompt-generator = { path = "crates/app/generator", version = "0.66.0" }
 systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0.66.0" }
 systemprompt-gateway = { path = "crates/app/gateway", version = "0.66.0" }

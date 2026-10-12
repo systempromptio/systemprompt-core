@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+### Added
+
+- `headless` feature: the `systemprompt::headless` module re-exports `systemprompt-headless`. Opt-in; not part of `full`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

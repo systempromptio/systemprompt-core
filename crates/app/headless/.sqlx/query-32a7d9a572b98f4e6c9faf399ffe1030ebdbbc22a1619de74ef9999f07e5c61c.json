@@ -1,0 +1,90 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT seq, kind, tool_name, tool_use_id, payload, created_at\n            FROM headless_run_events\n            WHERE run_id = $1 AND seq > $2\n            ORDER BY seq\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "seq"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "payload",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "payload"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "headless_run_events",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "32a7d9a572b98f4e6c9faf399ffe1030ebdbbc22a1619de74ef9999f07e5c61c"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO headless_run_events\n                (run_id, seq, kind, tool_name, tool_use_id, payload, created_at)\n            SELECT $1, u.seq, u.kind, NULLIF(u.tool_name, ''), NULLIF(u.tool_use_id, ''),\n                   u.payload, u.created_at\n            FROM UNNEST(\n                $2::bigint[], $3::text[], $4::text[], $5::text[], $6::jsonb[], $7::timestamptz[]\n            ) AS u(seq, kind, tool_name, tool_use_id, payload, created_at)\n            ON CONFLICT (run_id, seq) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "JsonbArray",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67b25abec400577a7914ed4799ed9c51fe2a48ef877ba0af16c0edfd2eff2e23"
+}

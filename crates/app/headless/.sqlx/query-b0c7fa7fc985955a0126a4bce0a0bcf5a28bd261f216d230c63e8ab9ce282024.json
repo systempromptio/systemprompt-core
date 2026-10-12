@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE headless_runs\n            SET lease_until = NOW() + make_interval(secs => $3::double precision)\n            WHERE id = $1 AND claimed_by = $2 AND status IN ('preparing', 'running')\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b0c7fa7fc985955a0126a4bce0a0bcf5a28bd261f216d230c63e8ab9ce282024"
+}

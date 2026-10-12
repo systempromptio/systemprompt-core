@@ -4360,6 +4360,7 @@ dependencies = [
  "systemprompt-files",
  "systemprompt-gateway",
  "systemprompt-generator",
+ "systemprompt-headless",
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",
@@ -4884,6 +4885,33 @@ dependencies = [
  "thiserror 2.0.19",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "systemprompt-headless"
+version = "0.66.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "inventory",
+ "nix",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "walkdir",
 ]
 
 [[package]]

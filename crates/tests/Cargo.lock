@@ -8343,6 +8343,55 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-headless"
+version = "0.66.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
+ "inventory",
+ "nix",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "systemprompt-headless-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde_json",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-headless",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-oauth",
+ "systemprompt-security",
+ "systemprompt-test-fixtures",
+ "systemprompt-users",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-identifiers"
 version = "0.66.0"
 dependencies = [

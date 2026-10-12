@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+### Added
+
+- `NodeRole::Runner` and `NodeRole::runs_runner_services()`, true for `All` and `Runner`: a single-node deployment starts the extensions' runner services; a runner node starts only them.
+
+### Breaking
+
+- `NodeRole` gains `Runner`; exhaustive matches must handle it.
+
 ## [0.65.0] - 2026-10-09
 
 ### Added

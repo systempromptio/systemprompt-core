@@ -80,6 +80,10 @@ slack = ["dep:systemprompt-slack"]
 # Fully opt-in: excluded from `default` and `full`.
 teams = ["dep:systemprompt-teams"]
 
+# Headless coding-agent executor (Claude Code, Codex CLI runs with a leased
+# claim queue). Opt-in while the crate is being built out.
+headless = ["dep:systemprompt-headless"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -151,6 +155,7 @@ systemprompt-marketplace = { workspace = true, optional = true }
 systemprompt-slack = { workspace = true, optional = true }
 systemprompt-teams = { workspace = true, optional = true }
 systemprompt-scheduler = { workspace = true, optional = true }
+systemprompt-headless = { workspace = true, optional = true }
 systemprompt-files = { workspace = true, optional = true }
 
 # External dependencies for prelude re-exports
