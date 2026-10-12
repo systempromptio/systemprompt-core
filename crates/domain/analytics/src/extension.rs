@@ -41,6 +41,11 @@ impl Extension for AnalyticsExtension {
                 include_str!("../schema/usage_rollups.sql"),
             )
             .with_required_columns(vec!["bucket".into(), "execution_count".into()]),
+            SchemaDefinition::new(
+                "agent_task_rollup_hourly",
+                include_str!("../schema/agent_task_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec!["bucket".into(), "task_count".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
         ]
     }

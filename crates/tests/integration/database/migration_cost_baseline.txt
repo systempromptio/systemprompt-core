@@ -17,6 +17,7 @@ ai/035_backfill_session_ai_counters
 events/001_actor_attribution
 events/004_durable_consumption
 logging/001_split_context_id
+logging/011_analytics_event_link_facts
 mcp/014_pair_hook_attestations
 users/002_add_user_sessions_is_ai_crawler
 users/004_user_sessions_revoked_at

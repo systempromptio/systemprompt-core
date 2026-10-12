@@ -371,6 +371,15 @@ async fn insert_log(pool: &sqlx::PgPool, trace_id: &str, level: &str) {
     .unwrap();
 }
 
+async fn project_trace_facts(pool: &sqlx::PgPool, trace_ids: &[&str]) {
+    let keys: Vec<String> = trace_ids.iter().map(|id| (*id).to_owned()).collect();
+    sqlx::query("SELECT refresh_trace_facts($1)")
+        .bind(keys)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
 #[tokio::test]
 async fn list_traces_derives_status_for_non_agent_traces() {
     let pool = std::sync::Arc::new(test_pg_pool().await);
@@ -393,6 +402,19 @@ async fn list_traces_derives_status_for_non_agent_traces() {
     insert_mcp_execution(&pool, &mcp_timeout, "timeout").await;
     insert_log(&pool, &log_err, "ERROR").await;
     insert_log(&pool, &log_info, "INFO").await;
+    project_trace_facts(
+        &pool,
+        &[
+            &ai_completed,
+            &ai_failed,
+            &ai_pending,
+            &mcp_ok,
+            &mcp_timeout,
+            &log_err,
+            &log_info,
+        ],
+    )
+    .await;
 
     let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::clone(&pool)));
     let items = svc.list_traces(&TraceListFilter::new(1000)).await.unwrap();

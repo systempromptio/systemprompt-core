@@ -9470,6 +9470,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "systemprompt-agent",
+ "systemprompt-agent-runs",
  "systemprompt-ai",
  "systemprompt-analytics",
  "systemprompt-content",

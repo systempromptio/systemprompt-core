@@ -20,7 +20,15 @@ fn extension_is_required() {
 fn schemas_include_logs_and_analytics() {
     let schemas = LoggingExtension.schemas();
     let names: Vec<&str> = schemas.iter().filter_map(|s| s.table.as_deref()).collect();
-    assert_eq!(names, vec!["logs", "analytics_events"]);
+    assert_eq!(
+        names,
+        vec![
+            "logs",
+            "analytics_events",
+            "log_rollup_hourly",
+            "analytics_link_click_rollup_hourly"
+        ]
+    );
 }
 
 #[test]

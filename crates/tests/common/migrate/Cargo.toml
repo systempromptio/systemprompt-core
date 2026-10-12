@@ -22,6 +22,7 @@ systemprompt-extension = { workspace = true }
 # Force every schema-bearing extension to link into this binary so
 # ExtensionRegistry::discover() picks up their inventory entries.
 systemprompt-agent = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-content = { workspace = true }
