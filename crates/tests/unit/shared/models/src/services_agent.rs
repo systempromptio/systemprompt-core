@@ -129,6 +129,10 @@ securityRequirements:
   - apiKey: []
 "#;
     let card: AgentCardConfig = serde_yaml::from_str(yaml).expect("typed card");
+    let written = serde_yaml::to_string(&card).expect("write card");
+    assert!(written.contains("apiKeySecurityScheme:"), "{written}");
+    let reread: AgentCardConfig = serde_yaml::from_str(&written).expect("reread card");
+    assert_eq!(reread.security_schemes, card.security_schemes);
     assert!(
         card.security_schemes
             .expect("schemes")
