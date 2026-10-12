@@ -74,10 +74,12 @@ pub(super) async fn execute_statements_transactional(
     let total = statements.len();
     match apply_in_transaction(
         tx.as_mut(),
-        statements,
+        StatementPlan {
+            statements,
+            timeout,
+        },
         ext_id,
         migration,
-        timeout,
         tracking,
     )
     .await
@@ -118,14 +120,22 @@ pub(super) async fn execute_statements_transactional(
     Ok(())
 }
 
+struct StatementPlan<'a> {
+    statements: &'a [String],
+    timeout: Option<std::time::Duration>,
+}
+
 async fn apply_in_transaction(
     tx: &mut dyn DatabaseTransaction,
-    statements: &[String],
+    plan: StatementPlan<'_>,
     ext_id: &ExtensionId,
     migration: &Migration,
-    timeout: Option<std::time::Duration>,
     tracking: Option<TrackingWrite<'_>>,
 ) -> Result<(), MigrationStepError> {
+    let StatementPlan {
+        statements,
+        timeout,
+    } = plan;
     // Why: LOCAL, so the bound dies with this transaction and never leaks
     // onto a pooled connection the application later reuses.
     for setting in budget::timeout_statements(timeout, true) {

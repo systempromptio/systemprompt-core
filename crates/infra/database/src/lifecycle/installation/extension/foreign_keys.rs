@@ -132,16 +132,9 @@ pub(super) async fn apply_foreign_keys(
     // which does not block writes, but only when it runs outside the
     // transaction that added the key; inside it, the ADD's exclusive lock is
     // held through the whole scan of an established table.
-    for (key, position) in pending {
+    for (key, _) in pending {
         if let Err(cause) = db.execute(&validate_sql(key).as_str(), &[]).await {
-            settle_outcome(
-                FkOutcome::AddedNotValid(cause),
-                key,
-                extension_id,
-                position,
-                fresh,
-            )
-            .ok();
+            warn_left_not_valid(&cause, key, extension_id);
         }
     }
     Ok(drift)
@@ -185,15 +178,7 @@ fn settle_outcome(
         },
         FkOutcome::Added | FkOutcome::AddedPendingValidation => Ok(None),
         FkOutcome::AddedNotValid(cause) => {
-            warn!(
-                extension = %extension_id,
-                table = %key.source_table,
-                constraint = %key.constraint_name,
-                cause = %cause,
-                "Validating a foreign key the declarative schema declares failed; the key is \
-                 left NOT VALID (enforced for new rows). Repair the cause, then run \
-                 ALTER TABLE … VALIDATE CONSTRAINT."
-            );
+            warn_left_not_valid(&cause, key, extension_id);
             Ok(None)
         },
         FkOutcome::CannotCreate(cause) => {
@@ -221,6 +206,22 @@ fn settle_outcome(
             }))
         },
     }
+}
+
+fn warn_left_not_valid(
+    cause: &RepositoryError,
+    key: &DeferredForeignKey,
+    extension_id: &ExtensionId,
+) {
+    warn!(
+        extension = %extension_id,
+        table = %key.source_table,
+        constraint = %key.constraint_name,
+        cause = %cause,
+        "Validating a foreign key the declarative schema declares failed; the key is left NOT \
+         VALID (enforced for new rows). Repair the cause, then run ALTER TABLE … VALIDATE \
+         CONSTRAINT."
+    );
 }
 
 fn cannot_create_explanation(key: &DeferredForeignKey, position: KeyPosition) -> String {
