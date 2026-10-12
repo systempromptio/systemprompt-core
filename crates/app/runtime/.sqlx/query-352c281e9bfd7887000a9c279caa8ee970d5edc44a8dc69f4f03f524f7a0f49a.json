@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) as \"count!\" FROM logs",
+  "query": "SELECT COALESCE(SUM(log_count), 0)::BIGINT as \"count!\" FROM log_rollup_hourly",
   "describe": {
     "columns": [
       {
@@ -17,5 +17,5 @@
       null
     ]
   },
-  "hash": "797847fd07ef39ae61e7704cb2bbda312452e105d2fe14287d2bf91f67324275"
+  "hash": "352c281e9bfd7887000a9c279caa8ee970d5edc44a8dc69f4f03f524f7a0f49a"
 }

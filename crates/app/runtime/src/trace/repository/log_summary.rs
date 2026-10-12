@@ -1,4 +1,6 @@
-//! Log summary aggregates: level counts, module counts, time range.
+//! Log summary over the `log_rollup_hourly` counters: level counts, module
+//! counts, time range and total. A `since` selects whole UTC hours, from the
+//! hour it falls in.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,9 +33,9 @@ impl TraceRepository {
         let rows = sqlx::query_as!(
             LevelRow,
             r#"
-        SELECT level as "level!", COUNT(*) as "count"
-        FROM logs
-        WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)
+        SELECT level as "level!", SUM(log_count)::BIGINT as "count"
+        FROM log_rollup_hourly
+        WHERE ($1::TIMESTAMPTZ IS NULL OR bucket >= date_trunc('hour', $1, 'UTC'))
         GROUP BY level
         "#,
             since
@@ -59,9 +61,9 @@ impl TraceRepository {
         let rows = sqlx::query_as!(
             ModuleRow,
             r#"
-        SELECT module as "module!", COUNT(*) as "count"
-        FROM logs
-        WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)
+        SELECT module as "module!", SUM(log_count)::BIGINT as "count"
+        FROM log_rollup_hourly
+        WHERE ($1::TIMESTAMPTZ IS NULL OR bucket >= date_trunc('hour', $1, 'UTC'))
         GROUP BY module
         ORDER BY count DESC
         LIMIT $2
@@ -85,9 +87,9 @@ impl TraceRepository {
         let row = sqlx::query_as!(
             TimeRangeRow,
             r#"
-        SELECT MIN(timestamp) as "earliest", MAX(timestamp) as "latest"
-        FROM logs
-        WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)
+        SELECT MIN(first_at) as "earliest", MAX(last_at) as "latest"
+        FROM log_rollup_hourly
+        WHERE ($1::TIMESTAMPTZ IS NULL OR bucket >= date_trunc('hour', $1, 'UTC'))
         "#,
             since
         )
@@ -101,9 +103,11 @@ impl TraceRepository {
     }
 
     pub async fn total_log_count(&self) -> Result<i64> {
-        sqlx::query_scalar!(r#"SELECT COUNT(*) as "count!" FROM logs"#)
-            .fetch_one(&*self.pool)
-            .await
-            .map_err(TraceError::from)
+        sqlx::query_scalar!(
+            r#"SELECT COALESCE(SUM(log_count), 0)::BIGINT as "count!" FROM log_rollup_hourly"#
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .map_err(TraceError::from)
     }
 }

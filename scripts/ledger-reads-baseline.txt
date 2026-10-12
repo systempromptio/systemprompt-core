@@ -8,11 +8,6 @@
 crates/app/runtime/src/trace/repository/audit.rs#5468da9f3f
 crates/app/runtime/src/trace/repository/audit.rs#57825bfb32
 crates/app/runtime/src/trace/repository/events.rs#8bfa8e4f4f
-crates/app/runtime/src/trace/repository/list.rs#23ed6014fb
-crates/app/runtime/src/trace/repository/log_summary.rs#05e3e1d7b1
-crates/app/runtime/src/trace/repository/log_summary.rs#0857651fc9
-crates/app/runtime/src/trace/repository/log_summary.rs#31abf2fa19
-crates/app/runtime/src/trace/repository/log_summary.rs#b7c94163c0
 crates/app/runtime/src/trace/repository/request_stats.rs#5d3cc9fef5
 crates/app/runtime/src/trace/repository/request_stats.rs#8386d71498
 crates/app/runtime/src/trace/repository/request_stats.rs#f9d3d34c65
@@ -30,7 +25,6 @@ crates/app/scheduler/src/repository/security/mod.rs#663886a386
 crates/app/scheduler/src/repository/security/mod.rs#a5ee304058
 crates/app/scheduler/src/repository/security/mod.rs#acbfa8eb40
 crates/domain/agent/src/repository/context/message/queries.rs#1b1b181983
-crates/domain/agent/src/repository/context/queries.rs#f92796b23b
 crates/domain/ai/src/repository/ai_requests/queries.rs#d6ac909636
 crates/domain/ai/src/repository/ai_requests/queries.rs#e0b1df6373
 crates/domain/ai/src/repository/ai_requests/trace.rs#ecf42d4434

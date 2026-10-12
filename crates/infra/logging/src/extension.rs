@@ -42,6 +42,17 @@ impl Extension for LoggingExtension {
                     "severity".into(),
                     "timestamp".into(),
                 ]),
+            SchemaDefinition::new(
+                "log_rollup_hourly",
+                include_str!("../schema/log_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec![
+                "bucket".into(),
+                "level".into(),
+                "module".into(),
+                "log_count".into(),
+            ]),
+            SchemaDefinition::sql_only(include_str!("../schema/trace_facts_logs.sql")),
         ]
     }
 

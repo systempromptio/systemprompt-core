@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Trace facts feed.** `trace_facts_ai(keys)` and statement triggers on `ai_requests` (insert, update, delete) queue traces for the `trace_facts` projection. Migration 039 queues the traces of existing requests.
+
 ### Changed
 
 - `SettleCompletion` gains `next_message_sequence: Option<i32>`; the assistant row is inserted with that number instead of `MAX(sequence_number) + 1` over `ai_request_messages`. `None` skips the row with a warning.

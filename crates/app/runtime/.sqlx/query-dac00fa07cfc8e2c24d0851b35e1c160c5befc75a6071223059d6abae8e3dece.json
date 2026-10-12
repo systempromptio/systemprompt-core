@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT MIN(timestamp) as \"earliest\", MAX(timestamp) as \"latest\"\n        FROM logs\n        WHERE ($1::TIMESTAMPTZ IS NULL OR timestamp >= $1)\n        ",
+  "query": "\n        SELECT MIN(first_at) as \"earliest\", MAX(last_at) as \"latest\"\n        FROM log_rollup_hourly\n        WHERE ($1::TIMESTAMPTZ IS NULL OR bucket >= date_trunc('hour', $1, 'UTC'))\n        ",
   "describe": {
     "columns": [
       {
@@ -26,5 +26,5 @@
       null
     ]
   },
-  "hash": "c9d3594f192ffc59d88b649a608119a26f0590605c467e70cd6c8bc760e5882c"
+  "hash": "dac00fa07cfc8e2c24d0851b35e1c160c5befc75a6071223059d6abae8e3dece"
 }

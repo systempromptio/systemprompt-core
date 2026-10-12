@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **`log_rollup_hourly` counters.** Log rows counted per UTC hour, level and module with first/last timestamps, added by a statement trigger in the writer's insert; a delete queues its hours for `refresh_log_rollup_hourly`. `trace_facts_logs(keys)` and the logs statement triggers feed the `trace_facts` projection. Migration 010 adds the table and queues every existing hour and logged trace.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

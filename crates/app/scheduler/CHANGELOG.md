@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Projection drainers** `trace_facts_rollup` (every 10 s), `user_context_counters_rollup` and `log_summary_rollup` (every minute), sharing one drain tick over `projection::drain_with_sql`.
 - `tool_row_facts_rollup` job (`ToolRowFactsRollupJob`, every minute at `:15`): drains the `tool_row_facts` projection backlog, 500 keys per batch, for up to 20 s per tick.
 
 ## [0.64.0] - 2026-10-08

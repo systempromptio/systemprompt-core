@@ -98,9 +98,10 @@ impl Extension for McpExtension {
                 SchemaDefinition::new(*name, *sql)
                     .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect())
             })
-            .chain(std::iter::once(SchemaDefinition::sql_only(include_str!(
-                "../schema/tool_row_facts.sql"
-            ))))
+            .chain([
+                SchemaDefinition::sql_only(include_str!("../schema/tool_row_facts.sql")),
+                SchemaDefinition::sql_only(include_str!("../schema/trace_facts_mcp.sql")),
+            ])
             .collect()
     }
     fn dependencies(&self) -> Vec<&'static str> {

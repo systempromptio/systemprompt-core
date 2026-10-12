@@ -117,6 +117,7 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             "expires_at",
         ])),
         SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
+        SchemaDefinition::sql_only(include_str!("../schema/trace_facts_ai.sql")),
     ]
 }
 

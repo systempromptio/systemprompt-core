@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n                c.context_id as \"context_id!\",\n                c.user_id as \"user_id!\",\n                c.name as \"name!\",\n                c.kind as \"kind!: ContextKind\",\n                c.created_at as \"created_at!\",\n                c.updated_at as \"updated_at!\",\n                COALESCE(COUNT(DISTINCT t.task_id), 0)::bigint as \"task_count!\",\n                COALESCE(COUNT(DISTINCT m.id), 0)::bigint as \"message_count!\",\n                MAX(m.created_at) as last_message_at\n            FROM user_contexts c\n            LEFT JOIN agent_tasks t ON t.context_id = c.context_id\n            LEFT JOIN task_messages m ON m.task_id = t.task_id\n            WHERE c.user_id = $1\n            GROUP BY c.context_id\n            ORDER BY c.updated_at DESC",
+  "query": "SELECT context_id as \"context_id: ContextId\", user_id as \"user_id: UserId\", name,\n                kind as \"kind: ContextKind\", created_at,\n                updated_at, COALESCE(task_count, 0) as \"task_count!\",\n                COALESCE(message_count, 0) as \"message_count!\", last_message_at\n            FROM user_contexts\n            WHERE context_id = $1 AND user_id = $2",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "context_id!",
+        "name": "context_id: ContextId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id!",
+        "name": "user_id: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "name!",
+        "name": "name",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "kind!: ContextKind",
+        "name": "kind: ContextKind",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -49,7 +49,7 @@
       },
       {
         "ordinal": 4,
-        "name": "created_at!",
+        "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -60,7 +60,7 @@
       },
       {
         "ordinal": 5,
-        "name": "updated_at!",
+        "name": "updated_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
@@ -85,11 +85,17 @@
         "ordinal": 8,
         "name": "last_message_at",
         "type_info": "Timestamptz",
-        "origin": "Expression"
+        "origin": {
+          "Table": {
+            "table": "user_contexts",
+            "name": "last_message_at"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
+        "Text",
         "Text"
       ]
     },
@@ -102,8 +108,8 @@
       false,
       null,
       null,
-      null
+      true
     ]
   },
-  "hash": "7d0ad977c7fd39ea1a158ec8c368e95ad9ded5fe58c4f62db167968cafa46711"
+  "hash": "9a4f86bfa0a1ac6bc5dcdb7fab09ba94dc92658b4a55b62a9429862dfece12e3"
 }
