@@ -82,7 +82,7 @@ pub(crate) async fn queue(f: &Fixture) -> AgentRunId {
     id
 }
 
-async fn expire_lease(f: &Fixture, id: &AgentRunId) {
+pub(crate) async fn expire_lease(f: &Fixture, id: &AgentRunId) {
     sqlx::query("UPDATE agent_runs SET lease_until = NOW() - INTERVAL '1 second' WHERE id = $1")
         .bind(id.as_str())
         .execute(f.repo.write_pool())

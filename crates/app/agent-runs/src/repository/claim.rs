@@ -6,17 +6,19 @@
 //! no longer ours (reclaimed by another claimer, or terminal).
 //! `reclaim_stale` re-queues an expired run below `max_attempts` with its
 //! attempt bumped and `resume_session_id` set from the host session, and
-//! fails the rest as `host_crashed`; it returns every reclaimed id.
+//! fails the rest as `host_crashed`, moving a failed run's A2A task to
+//! `Failed` in the same transaction; it returns every reclaimed id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 
-use systemprompt_identifiers::AgentRunId;
+use systemprompt_identifiers::{AgentRunId, TaskId};
 
-use super::{AgentRunRepository, AgentRunRow};
+use super::{AgentRunRepository, AgentRunRow, task_link};
 use crate::error::AgentRunsResult;
+use crate::outcome::RunStatus;
 
 impl AgentRunRepository {
     pub async fn claim_queued(
@@ -78,7 +80,8 @@ impl AgentRunRepository {
         origin_kind: &str,
         max_attempts: i32,
     ) -> AgentRunsResult<Vec<AgentRunId>> {
-        let ids = sqlx::query_scalar!(
+        let mut tx = self.write_pool().begin().await?;
+        let rows = sqlx::query!(
             r#"
             WITH stale AS (
                 SELECT id, attempt < $2 AS retry FROM agent_runs
@@ -100,13 +103,23 @@ impl AgentRunRepository {
                 claimed_by = NULL, claimed_at = NULL, lease_until = NULL, pid = NULL
             FROM stale s
             WHERE r.id = s.id
-            RETURNING r.id AS "id: AgentRunId"
+            RETURNING r.id AS "id: AgentRunId", r.status, r.task_id AS "task_id?: TaskId"
             "#,
             origin_kind,
             max_attempts,
         )
-        .fetch_all(self.write_pool())
+        .fetch_all(&mut *tx)
         .await?;
+        let mut ids = Vec::with_capacity(rows.len());
+        for row in rows {
+            if row.status == "failed"
+                && let Some(task_id) = &row.task_id
+            {
+                task_link::transition_task(&mut tx, task_id, RunStatus::Failed).await?;
+            }
+            ids.push(row.id);
+        }
+        tx.commit().await?;
         Ok(ids)
     }
 }

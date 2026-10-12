@@ -1,15 +1,17 @@
 //! DB-backed: a run linked to an A2A task moves the task in the same
 //! transaction as its own row, and the launcher queues, finds and cancels
-//! task-backed runs. Fails when `DATABASE_URL` is unset.
+//! task-backed runs, and a final-attempt reclaim fails the
+//! task. Fails when `DATABASE_URL` is unset.
 
 use std::path::Path;
+use std::time::Duration;
 
 use systemprompt_agent_runs::repository::{NewAgentRun, RunStarted};
 use systemprompt_agent_runs::{ErrorClass, RepositoryRunLauncher, RunOutcome, RunStatus};
 use systemprompt_identifiers::{AgentRunId, ContextId, TaskId};
 use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher};
 
-use crate::repository::{Fixture, fixture, request};
+use crate::repository::{Fixture, expire_lease, fixture, request};
 
 async fn insert_task(f: &Fixture) -> (TaskId, ContextId) {
     let (task_id, context_id) = (TaskId::generate(), ContextId::generate());
@@ -146,4 +148,28 @@ async fn launcher_queues_finds_and_cancels_a_task_run() {
         launcher.enqueue(bad).await,
         Err(AgentRunLaunchError::InvalidRequest(_))
     ));
+}
+
+#[tokio::test]
+async fn final_attempt_reclaim_fails_its_task() {
+    let f = fixture().await;
+    let (task_id, context_id) = insert_task(&f).await;
+    let id = queue_for(&f, &task_id, &context_id).await;
+    f.repo
+        .claim_queued(&f.origin_kind, "a", Duration::from_secs(90))
+        .await
+        .expect("claim")
+        .expect("row");
+    expire_lease(&f, &id).await;
+    assert_eq!(
+        f.repo
+            .reclaim_stale(&f.origin_kind, 1)
+            .await
+            .expect("reclaim"),
+        vec![id.clone()]
+    );
+    let row = f.repo.find_run(&id).await.expect("find").expect("row");
+    assert_eq!(row.status, "failed");
+    assert_eq!(row.error_class.as_deref(), Some("host_crashed"));
+    assert_eq!(task_state(&f, &task_id).await, "TASK_STATE_FAILED");
 }
