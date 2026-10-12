@@ -1,4 +1,4 @@
-//! Agent analytics queries over the hourly task and AI usage rollups.
+//! Agent analytics queries over `agent_tasks` and joined `ai_requests`.
 //!
 //! [`AgentAnalyticsRepository`] aggregates per-agent task counts, success
 //! rates, execution time, and cost, exposing list, detail, and summary-stat

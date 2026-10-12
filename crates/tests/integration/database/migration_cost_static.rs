@@ -340,7 +340,6 @@ fn the_backfill_detector_allows_ddl_and_keys_only_queueing() {
         "CREATE INDEX IF NOT EXISTS i ON t(n);",
         "INSERT INTO projection_backlog (projection, key) SELECT 'conversation_facts', context_id FROM conversation_facts_backlog ON CONFLICT DO NOTHING;",
         "INSERT INTO projection_backlog (projection, key) SELECT 'p', id FROM ledger WHERE fact IS NULL;",
-        "INSERT INTO projection_backlog (projection, key) SELECT DISTINCT 'p', to_char(date_trunc('hour', created_at, 'UTC'), 'YYYY-MM-DD\"T\"HH24:00:00Z') FROM ledger ON CONFLICT DO NOTHING;",
         "INSERT INTO t (id) VALUES ('x');",
         "DROP TABLE IF EXISTS old;",
         "CREATE OR REPLACE FUNCTION f() RETURNS void LANGUAGE sql AS $$ UPDATE t SET n = 1 $$;",

@@ -1,7 +1,5 @@
-//! Registers analytics-owned engagement and reputation schemas, the hourly
-//! tool and agent-task rollups, the report views over source tables, and
-//! migrations. It depends on `agent` (and through it `ai` and `mcp`) because
-//! the rollup triggers sit on their tables.
+//! Registers analytics-owned engagement and reputation schemas, the report
+//! views over source tables, and migrations.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -36,17 +34,12 @@ impl Extension for AnalyticsExtension {
                 include_str!("../schema/fingerprint_reputation.sql"),
             )
             .with_required_columns(vec!["fingerprint_hash".into()]),
-            SchemaDefinition::new(
-                "tool_usage_rollup_hourly",
-                include_str!("../schema/usage_rollups.sql"),
-            )
-            .with_required_columns(vec!["bucket".into(), "execution_count".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
         ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users", "agent"]
+        vec!["users"]
     }
 
     fn migrations(&self) -> Vec<Migration> {

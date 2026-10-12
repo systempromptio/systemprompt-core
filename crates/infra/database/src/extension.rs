@@ -39,8 +39,6 @@ impl Extension for DatabaseExtension {
                 "key".into(),
                 "attempts".into(),
             ]),
-            SchemaDefinition::new("trace_facts", include_str!("../schema/trace_facts.sql"))
-                .with_required_columns(vec!["trace_id".into(), "first_at".into(), "status".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
         ]
     }

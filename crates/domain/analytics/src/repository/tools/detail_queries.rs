@@ -2,12 +2,7 @@
 //!
 //! Drills into a single MCP tool (matched by name substring): summary stats,
 //! status breakdown, top error messages, usage by agent, and the execution
-//! series for trend charts. The existence check and the status breakdown read
-//! the hourly rollup (`report_tool_usage_hourly`), widening the window to
-//! whole UTC hours at its start. The rest stay on `report_mcp_tool_executions`
-//! for their window: summary stats carry a p95, top errors group by message
-//! text, usage by agent tells a direct call from an unlinked task, and the
-//! trend series is per execution — none of which a rollup can add up.
+//! series for trend charts, all over `mcp_tool_executions`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -81,10 +76,10 @@ impl ToolAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", tool_filter);
         let count = sqlx::query_scalar!(
-            r#"SELECT COALESCE(SUM(execution_count), 0)::bigint as "count!" FROM report_tool_usage_hourly WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND tool_name ILIKE $3"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM report_mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"#,
+            pattern,
             start,
-            end,
-            pattern
+            end
         )
         .fetch_one(&*self.pool)
         .await?;
@@ -128,15 +123,15 @@ impl ToolAnalyticsRepository {
         sqlx::query_as!(
             ToolStatusBreakdownRow,
             r#"
-            SELECT status as "status!", SUM(execution_count)::bigint as "status_count!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND tool_name ILIKE $3
+            SELECT status as "status!", COUNT(*)::bigint as "status_count!"
+            FROM report_mcp_tool_executions
+            WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3
             GROUP BY status
             ORDER BY 2 DESC
             "#,
+            pattern,
             start,
-            end,
-            pattern
+            end
         )
         .fetch_all(&*self.pool)
         .await

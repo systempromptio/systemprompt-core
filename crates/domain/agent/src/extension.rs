@@ -23,10 +23,6 @@ impl Extension for AgentExtension {
         schemas.extend(artifact_schemas());
         schemas.extend(context_schemas());
         schemas.extend(task_tracking_schemas());
-        schemas.extend([
-            SchemaDefinition::sql_only(include_str!("../schema/user_context_counters.sql")),
-            SchemaDefinition::sql_only(include_str!("../schema/trace_facts_agent.sql")),
-        ]);
         schemas
     }
 

@@ -17,8 +17,6 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     metadata TEXT,
     event_data JSONB DEFAULT '{}',
     timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    target_url TEXT,
-    is_external BOOLEAN,
 
     CONSTRAINT analytics_events_session_id_fkey
         FOREIGN KEY (session_id)
@@ -36,5 +34,3 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_timestamp ON analytics_events(ti
 
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_data
     ON analytics_events USING GIN (event_data);
-CREATE INDEX IF NOT EXISTS idx_analytics_events_link_clicks
-    ON analytics_events(timestamp, endpoint, target_url) WHERE event_type = 'link_click';

@@ -89,9 +89,7 @@ fn select_of(node: Option<&Node>) -> Option<&protobuf::SelectStmt> {
 
 // Why: a keys-only queue insert projects two columns from one relation with
 // no join, aggregate or grouping — it costs one index scan, which is the
-// whole point of queuing instead of rebuilding. DISTINCT is allowed: it
-// collapses the keys before the insert instead of leaving one conflict check
-// per ledger row to `ON CONFLICT DO NOTHING`.
+// whole point of queuing instead of rebuilding.
 fn is_keys_only(select: &protobuf::SelectStmt) -> bool {
     let single_relation = select.from_clause.len() == 1
         && matches!(
@@ -103,6 +101,7 @@ fn is_keys_only(select: &protobuf::SelectStmt) -> bool {
         && select.group_clause.is_empty()
         && select.having_clause.is_none()
         && select.with_clause.is_none()
+        && select.distinct_clause.is_empty()
 }
 
 fn refresh_call(select: &protobuf::SelectStmt) -> Option<String> {

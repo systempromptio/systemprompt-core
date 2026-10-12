@@ -1,9 +1,7 @@
 //! Tool execution leaderboard queries (filtered + unfiltered) for the
 //! analytics CLI surface. A host-native tool a client hook reported (Bash,
 //! Read, …) is recorded under the vantage point's own name as its server;
-//! those pseudo-servers are not MCP tools and stay out of every list. Every
-//! list reads the hourly rollup (`report_tool_usage_hourly`), widening the
-//! window to whole UTC hours at its start.
+//! those pseudo-servers are not MCP tools and stay out of every list.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -70,16 +68,16 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY CASE WHEN SUM(execution_count) > 0
-                THEN COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::float / SUM(execution_count)::float
+            ORDER BY CASE WHEN COUNT(*) > 0
+                THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
                 ELSE 0 END DESC
             LIMIT $4
             "#,
@@ -106,15 +104,15 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY COALESCE(SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0), 0) DESC
+            ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
             LIMIT $4
             "#,
             start,
@@ -140,15 +138,15 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2 AND server_name ILIKE $3
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY SUM(execution_count) DESC
+            ORDER BY COUNT(*) DESC
             LIMIT $4
             "#,
             start,
@@ -191,16 +189,16 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY CASE WHEN SUM(execution_count) > 0
-                THEN COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::float / SUM(execution_count)::float
+            ORDER BY CASE WHEN COUNT(*) > 0
+                THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float
                 ELSE 0 END DESC
             LIMIT $3
             "#,
@@ -225,15 +223,15 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY COALESCE(SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0), 0) DESC
+            ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
             LIMIT $3
             "#,
             start,
@@ -257,15 +255,15 @@ impl ToolAnalyticsRepository {
             SELECT
                 tool_name as "tool_name!",
                 server_name as "server_name!",
-                SUM(execution_count)::bigint as "execution_count!",
-                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "success_count!",
-                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as "avg_time!",
-                MAX(last_at) as "last_used!"
-            FROM report_tool_usage_hourly
-            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                COUNT(*)::bigint as "execution_count!",
+                COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                MAX(created_at) as "last_used!"
+            FROM report_mcp_tool_executions
+            WHERE created_at >= $1 AND created_at < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             GROUP BY tool_name, server_name
-            ORDER BY SUM(execution_count) DESC
+            ORDER BY COUNT(*) DESC
             LIMIT $3
             "#,
             start,

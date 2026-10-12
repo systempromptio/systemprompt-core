@@ -171,8 +171,5 @@ fn operation_schemas() -> Vec<SchemaDefinition> {
             "managed_installation_coverage",
             include_str!("../schema/managed_installation_coverage.sql"),
         ),
-        SchemaDefinition::sql_only(include_str!(
-            "../schema/managed_installation_coverage_queue.sql"
-        )),
     ]
 }

@@ -1,11 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Added
-
-- **Stored bot type.** `user_sessions.bot_type` holds the user-agent bot taxonomy label (`session_bot_type`, schema `session_bot_type.sql`), stamped by statement triggers when a session is inserted or a classification flag changes; `v_bot_sessions` reads the column instead of re-deriving the label per row. Migration 023 adds the column and queues existing bot sessions for `refresh_session_bot_type`, drained by the `session_bot_type_rollup` job.
-
 ## [0.65.0] - 2026-10-09
 
 ### Changed

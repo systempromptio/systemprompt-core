@@ -1,11 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Changed
-
-- **Trace list and log summary read stored facts.** `list_traces` reads `trace_facts` (a `since` keeps traces whose last activity is in the window; a tool filter matches the stored tool names) and the log summary reads `log_rollup_hourly` (a `since` selects whole UTC hours) instead of aggregating the ledgers on every call.
-
 ## [0.65.0] - 2026-10-09
 
 ### Fixed

@@ -1,24 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Changed
-
-- `report_analytics_events` exposes `target_url` and `is_external`; the traffic navigation queries read those columns instead of `event_data->>'target_url'` / `event_data->>'is_external'`.
-
-### Added
-
-- `tool_usage_rollup_hourly` and `agent_task_rollup_hourly`, statement-trigger hourly rollups of `mcp_tool_executions` and `agent_tasks`, with `refresh_*_rollup_hourly(keys)` projectors; migration 018 queues every pre-existing hour for `backfill_rollups`. `report_ai_usage_hourly`, `report_tool_usage_hourly` and `report_agent_task_hourly` apply the deleted-user filter to the rollups through their user dimension.
-
-### Changed
-
-- Overview, request stats and model usage, platform and per-user cost sums and breakdowns (model, provider, agent), tool lists, tool existence and status breakdown, and agent lists, stats, summary, status and hour-of-day reads come from the hourly rollups instead of re-aggregating the ledger: 20-160x faster on a production copy. A window is widened to whole UTC hours at its start; whole-hour windows return what the ledger did. Percentiles, distinct conversation counts, top-error strings, per-tool usage by agent, trend series and row lists still read the ledger for their window.
-- The extension depends on `agent` (and through it `ai` and `mcp`), because the rollup triggers sit on their tables.
-
-### Fixed
-
-- `AgentAnalyticsRepository::list_agents` joined `ai_requests` onto `agent_tasks` row by row, so a task appeared once per request: `task_count` and `completed_count` counted requests and the average execution time was weighted by them. Tasks and cost are now aggregated per agent before they are joined; cost is the agent's requests in the window.
-
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

@@ -190,48 +190,8 @@ SELECT
     src.gateway_conversation_id, src.provider_request_id, src.event_type,
     src.event_category, src.severity, src.endpoint, src.error_code,
     src.response_time_ms, src.agent_id, src.task_id, src.message,
-    src.metadata, src.event_data, src."timestamp", src.target_url, src.is_external
+    src.metadata, src.event_data, src."timestamp"
 FROM analytics_events src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
--- The hourly usage rollups, behind the same deleted-user filter: a rollup
--- keeps the user as a dimension so the filter applies to it unchanged, and a
--- user deleted or restored later needs no rebuild.
-CREATE OR REPLACE VIEW report_ai_usage_hourly AS
-SELECT
-    src.bucket, src.user_id, src.provider, src.model, src.agent_name,
-    src.synthetic, src.request_count, src.tokens, src.input_tokens,
-    src.output_tokens, src.reasoning_tokens, src.cache_read_tokens,
-    src.cache_creation_tokens, src.cost_microdollars, src.latency_sum_ms,
-    src.latency_n, src.cache_hits
-FROM ai_usage_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_tool_usage_hourly AS
-SELECT
-    src.bucket, src.user_id, src.tool_name, src.server_name, src.agent_name,
-    src.status, src.execution_count, src.exec_sum_ms, src.exec_n, src.last_at
-FROM tool_usage_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_agent_task_hourly AS
-SELECT
-    src.bucket, src.user_id, src.agent_name, src.status, src.task_count,
-    src.exec_sum_ms, src.exec_n, src.last_started_at
-FROM agent_task_rollup_hourly src
-WHERE NOT EXISTS (
-    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
-);
-
-CREATE OR REPLACE VIEW report_link_click_hourly AS
-SELECT src.bucket, src.user_id, src.endpoint, src.target_url, src.is_external, src.clicks
-FROM analytics_link_click_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
