@@ -81,8 +81,6 @@ pub struct DrainReport {
 /// and the keys taken, rebuild them and return how many rows were written.
 pub type RefreshFuture<'c> = BoxFuture<'c, Result<u64, RepositoryError>>;
 
-/// Queues keys for `projection`. Returns how many were newly queued; keys
-/// already waiting stay where they are.
 pub async fn queue<'e, E>(
     executor: E,
     projection: &str,
@@ -99,7 +97,6 @@ where
     Ok(queued)
 }
 
-/// Keys still pending for `projection` — "facts pending" on an admin page.
 pub async fn depth<'e, E>(executor: E, projection: &str) -> Result<i64, RepositoryError>
 where
     E: PgExecutor<'e>,
@@ -111,11 +108,6 @@ where
     Ok(depth)
 }
 
-/// Drains `projection` in batches of `batch` keys until the queue is empty
-/// or `budget` is spent. Each batch is taken, refreshed and removed in one
-/// transaction; a batch whose refresh fails is rolled back, re-queued with
-/// `attempts + 1`, logged, and ends the tick — the next tick retries it, and
-/// a key past the retry budget is left for an operator.
 pub async fn drain<F>(
     pool: &PgPool,
     projection: &str,
@@ -169,9 +161,6 @@ where
     Ok(report)
 }
 
-/// [`drain`] for a projection whose refresh is the SQL function
-/// `projector(keys TEXT[]) RETURNS BIGINT`. The name is validated as a bare
-/// lower-case identifier before it is spliced; the keys are bound.
 pub async fn drain_with_sql(
     pool: &PgPool,
     projection: &str,

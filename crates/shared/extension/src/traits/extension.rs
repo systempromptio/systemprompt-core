@@ -45,7 +45,6 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
-    /// Long-running services started only on a `server.role: runner` node.
     fn runner_services(&self) -> Vec<Arc<dyn RunnerService>> {
         vec![]
     }

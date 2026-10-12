@@ -174,7 +174,6 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .with_state(ctx.clone())
 }
 
-/// The health and admission probes alone, for a node that serves nothing else.
 pub fn probes_router(ctx: &AppContext) -> Router {
     Router::new()
         .route(ApiPaths::HEALTH, get(handle_health))

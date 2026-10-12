@@ -35,8 +35,6 @@ use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 pub struct RouteMatch {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_names_any: Vec<String>,
-    /// Prefixes of server tool `type`s; `web_search` covers every dated
-    /// `web_search_YYYYMMDD` version.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_types_any: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -143,10 +141,9 @@ impl RouteMatch {
     }
 }
 
-/// The provider-defined `type` of a server tool, or `None` for a client tool.
-///
-/// Only the Anthropic inbound wire keeps the raw definition, and only server
-/// tools carry a `type` there (`custom` is the explicit client-tool marker).
+// Why: only the Anthropic inbound wire keeps the raw definition, and only
+// server tools carry a `type` there (`custom` is the explicit client-tool
+// marker).
 fn server_tool_type(tool: &CanonicalTool) -> Option<&str> {
     tool.anthropic_definition
         .as_ref()

@@ -11,6 +11,12 @@
 //! upgraded database by a path the fresh one never takes, on the boot path,
 //! at a cost that grows with history.
 //!
+//! The detector reports `UPDATE`, `DELETE`, select-driven `INSERT` and any
+//! `SELECT` that calls a `refresh_*` routine; the single sanctioned keys-only
+//! `INSERT INTO projection_backlog SELECT <projection>, <key> FROM <one
+//! relation>` is not reported. An unparseable body yields nothing, since
+//! `check_migration_references` already refuses it with the parse error.
+//!
 //! Both repositories' static gates (`no_backfill_after_floor`) use this one
 //! detector so "backfill" means the same thing on each side.
 //!
@@ -32,12 +38,6 @@ pub struct BackfillStatement {
     pub form: &'static str,
 }
 
-/// Every statement in `sql` that writes rows from other rows: `UPDATE`,
-/// `DELETE`, select-driven `INSERT` and any `SELECT` that calls a
-/// `refresh_*` routine. The single sanctioned form — `INSERT INTO
-/// projection_backlog SELECT <projection>, <key> FROM <one relation>` with no
-/// join — is not reported. An unparseable body yields nothing;
-/// `check_migration_references` already refuses it with the parse error.
 #[must_use]
 pub fn backfill_statements(sql: &str) -> Vec<BackfillStatement> {
     let Ok(parsed) = pg_query::parse(sql) else {

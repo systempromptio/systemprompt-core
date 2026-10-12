@@ -53,6 +53,10 @@ impl TriggerPolicy {
 
 /// A parsed `-- @cost:` line: `rows` is what the migration wrote in a real
 /// run, `measured` the wall clock of the slowest single statement in that run.
+///
+/// Projected onto a live table, the cost grows linearly with how far the table
+/// exceeds `rows` and never shrinks below `measured`: a smaller table is not
+/// evidence of a faster disk.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CostDirective {
     pub rows: u64,
@@ -61,12 +65,6 @@ pub struct CostDirective {
 }
 
 impl CostDirective {
-    /// The measured cost projected onto a table holding `live_rows`.
-    ///
-    /// A measurement is taken on a fixture, and a customer's table can be
-    /// orders of magnitude larger, so the projection grows linearly with how
-    /// far the live table exceeds the declared `rows`. It never shrinks below
-    /// the measurement: a smaller table is not evidence of a faster disk.
     #[must_use]
     pub fn projected(&self, live_rows: u64) -> Duration {
         let declared = self.rows.max(1);
