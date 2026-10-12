@@ -144,18 +144,14 @@ impl UpstreamDialect {
     }
 }
 
-/// Vertex AI serves Claude's web search only as the basic `web_search_20250305`
-/// tool: the dated successors (dynamic filtering, response inclusion) and the
-/// fields only they accept are refused with a 400. A client that asks for the
-/// newer variant still wants a web search, so the definition is rewritten to
-/// the one Vertex runs.
+// Why: Vertex AI serves Claude's web search only as the basic
+// `web_search_20250305` tool; the dated successors and the fields only they
+// accept are refused with a 400, so a newer definition is rewritten to the
+// one Vertex runs.
 // JSON: provider request body — upstream wire format finished per dialect.
 pub fn downgrade_vertex_web_search(tool: &mut Value) {
     const BASIC_WEB_SEARCH: &str = "web_search_20250305";
     const NEWER_ONLY_FIELDS: [&str; 2] = ["allowed_callers", "response_inclusion"];
-    let Some(obj) = tool.as_object_mut() else {
-        return;
-    };
     let is_newer_web_search = server_tool_type(tool)
         .is_some_and(|kind| kind.starts_with("web_search_") && kind != BASIC_WEB_SEARCH);
     if !is_newer_web_search {
@@ -173,12 +169,11 @@ pub fn downgrade_vertex_web_search(tool: &mut Value) {
     }
 }
 
-/// Server tools Google Cloud does not run for Claude: web fetch, code
-/// execution and the advisor tool. Vertex refuses the whole request when one
-/// is declared, so the definition is removed and the model simply does not
-/// have that tool; an installation that wants them routes those requests to
-/// a provider that serves them. Client tools carry no server `type` and are
-/// never touched.
+// Why: Google Cloud does not run web fetch, code execution or the advisor
+// tool for Claude, and Vertex refuses the whole request when one is declared,
+// so the definition is removed; an installation that wants them routes those
+// requests to a provider that serves them. Client tools carry no server
+// `type` and are never touched.
 #[must_use]
 pub fn is_tool_absent_on_vertex(tool: &Value) -> bool {
     const ABSENT_ON_VERTEX: [&str; 3] = ["web_fetch_", "code_execution_", "advisor_"];

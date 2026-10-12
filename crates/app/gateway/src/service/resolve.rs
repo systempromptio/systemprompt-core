@@ -97,7 +97,7 @@ pub(super) async fn resolve_upstream<'a>(
     let planned = plan_chain(registry, request, &route, &selection, ai_request_id)?;
     let deployments = planned.deployments;
     let route_match_descriptor = join_segments(
-        describe_route_match(&route, declarative, selector, scope),
+        Some(describe_route_match(&route, declarative, selector, scope)),
         planned.descriptor,
     );
     let Some(primary) = deployments.first().cloned() else {
@@ -225,20 +225,18 @@ pub fn describe_route_match(
     declarative: Option<String>,
     selector: Option<String>,
     scope: Option<String>,
-) -> Option<String> {
+) -> String {
     let governance = route.requires.as_ref().and_then(|r| {
         let declared = r.declared();
         (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
     });
 
     let identity = Some(format!("route:{}", route.effective_id()));
-    Some(
-        [identity, declarative, selector, governance, scope]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>()
-            .join(";"),
-    )
+    [identity, declarative, selector, governance, scope]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(";")
 }
 
 pub fn enforce_route_requirements(

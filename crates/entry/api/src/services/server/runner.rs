@@ -103,7 +103,7 @@ fn start_runner_services(ctx: &AppContext) {
             let actor = Actor::job(ctx.system_admin().id().clone(), name);
             let dependencies = Dependencies::new()
                 .with(Arc::clone(ctx.app_paths_arc()))
-                .with(ctx.db_pool().clone())
+                .with(Arc::clone(ctx.db_pool()))
                 .with(Arc::clone(&shared));
             let job_ctx = JobContext::new(actor, dependencies);
             ctx.background_tasks()
