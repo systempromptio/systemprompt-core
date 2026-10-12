@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `SettleCompletion` gains `next_message_sequence: Option<i32>`; the assistant row is inserted with that number instead of `MAX(sequence_number) + 1` over `ai_request_messages`. `None` skips the row with a warning.
+
 ## [0.65.0] - 2026-10-09
 
 ### Changed

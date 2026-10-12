@@ -33,6 +33,8 @@ pub(crate) struct Completion {
     pub payload: PayloadCapture,
     pub assistant: Option<String>,
     pub tools: Vec<CapturedToolCall>,
+    #[serde(default)]
+    pub next_message_sequence: Option<i32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

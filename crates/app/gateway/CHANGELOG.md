@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Replayed `tool_result` ingest is flat per turn: the per-conversation ingest mark skips the replayed prefix when the pinning block is still at its index (else a full scan), one batched lookup skips blocks whose gateway ingest has already settled, and the mark advances only when every ingest in the turn succeeded. Was `10 + 7(n-1)` queries on turn `n`; now 13.
+- Settlement carries the assistant message's `sequence_number` from the admitted message count (journal `Completion.next_message_sequence`, `#[serde(default)]`); a receipt journaled by an older binary records no assistant text rather than re-reading the ledger.
+
 ## [0.65.0] - 2026-10-09
 
 ### Changed

@@ -39,6 +39,11 @@ pub struct SettleCompletion<'a> {
     pub payload: UpsertPayloadParams<'a>,
     pub assistant_text: Option<&'a str>,
     pub tool_calls: &'a [SettledToolCall],
+    /// The sequence number the assistant message takes: the count of
+    /// messages admission wrote, carried from memory. `None` only for a
+    /// receipt journaled before the count was carried; its assistant text is
+    /// then not recorded rather than numbered by re-reading the ledger.
+    pub next_message_sequence: Option<i32>,
 }
 
 /// What a failed request still consumed.
@@ -261,18 +266,25 @@ async fn insert_turn(
         .execute(&mut **tx)
         .await?;
     }
-    if let Some(text) = completion.assistant_text {
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
-            SELECT $1::varchar, 'assistant', $2, COALESCE(MAX(sequence_number), -1) + 1
-            FROM ai_request_messages WHERE request_id = $1::varchar
-            "#,
-            request_id.as_str(),
-            text
-        )
-        .execute(&mut **tx)
-        .await?;
+    match (completion.assistant_text, completion.next_message_sequence) {
+        (Some(text), Some(sequence)) => {
+            sqlx::query!(
+                r#"
+                INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
+                VALUES ($1, 'assistant', $2, $3)
+                "#,
+                request_id.as_str(),
+                text,
+                sequence
+            )
+            .execute(&mut **tx)
+            .await?;
+        },
+        (Some(_), None) => tracing::warn!(
+            request_id = %request_id,
+            "assistant text not recorded: the receipt predates the carried message count"
+        ),
+        (None, _) => {},
     }
     Ok(())
 }

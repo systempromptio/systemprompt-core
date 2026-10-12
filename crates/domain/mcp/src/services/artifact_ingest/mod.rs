@@ -34,7 +34,7 @@ use systemprompt_security::policy::secrets::SecretScanner;
 use crate::error::McpDomainResult;
 use crate::repository::{
     ArtifactFindingRepository, ArtifactIngestRepositories, ArtifactPayloadRepository,
-    McpArtifactRecord, McpArtifactRepository, ToolUsageRepository,
+    McpArtifactRecord, McpArtifactRepository, ToolResultIngestMarkRepository, ToolUsageRepository,
 };
 
 pub use classify::Classified;
@@ -92,6 +92,7 @@ pub struct ArtifactIngest {
     payloads: Arc<ArtifactPayloadRepository>,
     findings: Arc<ArtifactFindingRepository>,
     executions: Arc<ToolUsageRepository>,
+    ingest_marks: Arc<ToolResultIngestMarkRepository>,
     secrets: Option<Arc<SecretScanner>>,
     scanners: RwLock<Vec<Arc<dyn ArtifactScanner>>>,
 }
@@ -116,6 +117,7 @@ impl ArtifactIngest {
             payloads: repos.payloads,
             findings: repos.findings,
             executions: repos.executions,
+            ingest_marks: repos.ingest_marks,
             secrets,
             scanners: RwLock::new(Vec::new()),
         }
@@ -145,6 +147,11 @@ impl ArtifactIngest {
     #[must_use]
     pub fn artifacts(&self) -> &McpArtifactRepository {
         &self.artifacts
+    }
+
+    #[must_use]
+    pub fn ingest_marks(&self) -> &ToolResultIngestMarkRepository {
+        &self.ingest_marks
     }
 
     #[must_use]

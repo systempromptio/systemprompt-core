@@ -69,6 +69,17 @@ const TABLES: &[(&str, &str, &[&str])] = &[
         include_str!("../schema/mcp_artifact_findings.sql"),
         &["artifact_id", "phase", "category", "scanner"],
     ),
+    (
+        "tool_result_ingest_marks",
+        include_str!("../schema/tool_result_ingest_marks.sql"),
+        &[
+            "user_id",
+            "scope_id",
+            "gateway_conversation_id",
+            "last_message_index",
+            "boundary_tool_use_id",
+        ],
+    ),
 ];
 
 impl Extension for McpExtension {

@@ -53,6 +53,7 @@ async fn upsert_request_then_response_coexist() {
                 },
                 assistant_text: None,
                 tool_calls: &[],
+                next_message_sequence: None,
             }),
         )
         .await

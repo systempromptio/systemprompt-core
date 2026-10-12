@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `tool_result_ingest_marks` (schema + migration `018`): per replayed conversation `(user_id, scope_id, gateway_conversation_id)`, the last message index whose `tool_result` blocks the gateway ingested and the `tool_use_id` that pins it. `ToolResultIngestMarkRepository` (`find_mark`, `set_mark`, `list_settled_gateway_call_ids`), reached through `ArtifactIngest::ingest_marks()`; `ArtifactIngestRepositories` gains `ingest_marks`.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

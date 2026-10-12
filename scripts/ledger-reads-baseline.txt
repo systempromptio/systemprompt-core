@@ -33,7 +33,6 @@ crates/domain/agent/src/repository/context/message/queries.rs#1b1b181983
 crates/domain/agent/src/repository/context/queries.rs#f92796b23b
 crates/domain/ai/src/repository/ai_requests/queries.rs#d6ac909636
 crates/domain/ai/src/repository/ai_requests/queries.rs#e0b1df6373
-crates/domain/ai/src/repository/ai_requests/settlement.rs#eede5a324c
 crates/domain/ai/src/repository/ai_requests/trace.rs#ecf42d4434
 crates/domain/ai/src/repository/ai_usage_anomaly.rs#7e120a62d9
 crates/domain/analytics/src/repository/agents/detail_queries.rs#0ed983f2c9

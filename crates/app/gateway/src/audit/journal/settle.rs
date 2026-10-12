@@ -59,6 +59,7 @@ pub(super) async fn settle(settlement: &Settlement, receipt: &Receipt) -> Result
             },
             assistant_text: completion.assistant.as_deref(),
             tool_calls: &tools,
+            next_message_sequence: completion.next_message_sequence,
         })
     } else if let Some(error) = &receipt.failure {
         failed_outcome(error, receipt.partial.as_ref())

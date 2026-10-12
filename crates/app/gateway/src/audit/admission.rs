@@ -123,6 +123,8 @@ impl GatewayAudit {
             return Ok(());
         };
         self.write_admission(&pending).await?;
+        let admitted = i32::try_from(pending.messages.len()).unwrap_or(i32::MAX);
+        self.admitted_messages.get_or_init(|| admitted);
         let lease = super::journal::reserve(
             &self.settlement.journal,
             super::journal::Receipt::pending(

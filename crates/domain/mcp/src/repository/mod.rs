@@ -9,6 +9,7 @@ mod artifact_finding;
 mod artifact_ingest;
 mod artifact_payload;
 mod external_session;
+mod ingest_mark;
 mod ownership;
 mod proxy_identity;
 mod session;
@@ -23,6 +24,7 @@ pub use artifact_finding::{
 pub use artifact_ingest::ArtifactIngestRepositories;
 pub use artifact_payload::{ArtifactPayloadRecord, ArtifactPayloadRepository};
 pub use external_session::ExternalSessionBinding;
+pub use ingest_mark::{IngestMark, IngestMarkKey, ToolResultIngestMarkRepository};
 pub use ownership::McpOwnerReassignment;
 pub use proxy_identity::{McpProxyIdentityRepository, ProxyIdentityRow};
 pub use session::{McpSessionRecord, McpSessionRepository};

@@ -65,6 +65,7 @@ impl GatewayAudit {
                     input: truncate_for_tool_input(&tool.tool_input),
                 })
                 .collect(),
+            next_message_sequence: self.admitted_messages.get().copied(),
         };
         let mut receipt = super::journal::Receipt::pending(
             self.ctx.ai_request_id.clone(),

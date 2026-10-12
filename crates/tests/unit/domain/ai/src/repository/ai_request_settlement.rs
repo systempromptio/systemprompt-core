@@ -40,6 +40,7 @@ fn completion<'a>(
         },
         assistant_text: Some("the answer"),
         tool_calls: tools,
+        next_message_sequence: Some(0),
     })
 }
 
