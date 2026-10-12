@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod backfill_rollups;
 mod backfill_session_geo;
 mod behavioral_analysis;
 mod cleanup_empty_contexts;
@@ -27,6 +28,7 @@ pub mod usage_anomaly_scan;
 mod user_context_counters_rollup;
 pub mod vertex_discovery;
 
+pub use backfill_rollups::BackfillRollupsJob;
 pub use backfill_session_geo::BackfillSessionGeoJob;
 pub use behavioral_analysis::BehavioralAnalysisJob;
 pub use cleanup_empty_contexts::CleanupEmptyContextsJob;

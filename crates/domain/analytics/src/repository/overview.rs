@@ -3,6 +3,9 @@
 //! [`OverviewAnalyticsRepository`] reads the headline counts shown on the
 //! analytics overview — conversations, agent/task activity, AI requests,
 //! tool executions, sessions, and cost — each scoped to a time window.
+//! Request, tool and task figures come from the hourly rollups, so a window
+//! is widened to whole UTC hours at its start: every hour that begins before
+//! `end` and does not end before `start` counts in full.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,11 +57,11 @@ impl OverviewAnalyticsRepository {
             OverviewAgentRow,
             r#"
             SELECT
-                COUNT(DISTINCT agent_name)::bigint as "active_agents!",
-                COUNT(*)::bigint as "total_tasks!",
-                COUNT(*) FILTER (WHERE status = 'TASK_STATE_COMPLETED')::bigint as "completed_tasks!"
-            FROM report_agent_tasks
-            WHERE started_at >= $1 AND started_at < $2
+                COUNT(DISTINCT NULLIF(agent_name, ''))::bigint as "active_agents!",
+                COALESCE(SUM(task_count), 0)::bigint as "total_tasks!",
+                COALESCE(SUM(task_count) FILTER (WHERE status = 'TASK_STATE_COMPLETED'), 0)::bigint as "completed_tasks!"
+            FROM report_agent_task_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
             "#,
             start,
             end
@@ -77,11 +80,11 @@ impl OverviewAnalyticsRepository {
             OverviewRequestRow,
             r#"
             SELECT
-                COUNT(*)::bigint as "total!",
-                SUM(tokens_used)::bigint as "total_tokens",
-                AVG(latency_ms)::float8 as "avg_latency"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
+                COALESCE(SUM(request_count), 0)::bigint as "total!",
+                SUM(tokens)::bigint as "total_tokens",
+                (SUM(latency_sum_ms)::numeric / NULLIF(SUM(latency_n), 0))::float8 as "avg_latency"
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
             "#,
             start,
             end
@@ -100,10 +103,10 @@ impl OverviewAnalyticsRepository {
             OverviewToolRow,
             r#"
             SELECT
-                COUNT(*)::bigint as "total!",
-                COUNT(*) FILTER (WHERE status = 'success')::bigint as "successful!"
-            FROM report_mcp_tool_executions
-            WHERE created_at >= $1 AND created_at < $2
+                COALESCE(SUM(execution_count), 0)::bigint as "total!",
+                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "successful!"
+            FROM report_tool_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
               AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
             "#,
             start,
@@ -152,8 +155,8 @@ impl OverviewAnalyticsRepository {
             OverviewCostRow,
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
             "#,
             start,
             end

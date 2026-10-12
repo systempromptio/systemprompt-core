@@ -1,8 +1,12 @@
 //! Per-user cost queries for `CostAnalyticsRepository`.
 //!
-//! Scopes spend, token, and conversation reads from `ai_requests` to a single
-//! [`UserId`], including model/agent breakdowns and recent-context summaries
-//! used for per-user billing and usage views.
+//! Scopes spend, token, and conversation reads to a single [`UserId`],
+//! including model/agent breakdowns and recent-context summaries used for
+//! per-user billing and usage views. Spend, tokens and the per-model cost
+//! breakdown read the hourly rollup (`report_ai_usage_hourly`), widening the
+//! window to whole UTC hours at its start. The conversation reads stay on
+//! `report_ai_requests` for their window: each counts distinct contexts, which
+//! no rollup can add up, and the recent-contexts list is per conversation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -29,14 +33,14 @@ impl CostAnalyticsRepository {
             CostSummaryRow,
             r#"
             SELECT
-                COUNT(*)::bigint as "requests!",
+                COALESCE(SUM(request_count), 0)::bigint as "requests!",
                 SUM(cost_microdollars)::bigint as "cost",
-                SUM(tokens_used)::bigint as "tokens",
+                SUM(tokens)::bigint as "tokens",
                 SUM(reasoning_tokens)::bigint as "reasoning_tokens",
                 SUM(cache_read_tokens)::bigint as "cache_read_tokens",
                 SUM(cache_creation_tokens)::bigint as "cache_creation_tokens"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
               AND NOT synthetic AND user_id = $3
             "#,
             start,
@@ -58,8 +62,8 @@ impl CostAnalyticsRepository {
             PreviousCostRow,
             r#"
             SELECT SUM(cost_microdollars)::bigint as "cost"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
               AND NOT synthetic AND user_id = $3
             "#,
             start,
@@ -84,12 +88,12 @@ impl CostAnalyticsRepository {
             SELECT
                 model as "name!",
                 COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
-                COUNT(*)::bigint as "requests!",
-                COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
+                SUM(request_count)::bigint as "requests!",
+                COALESCE(SUM(tokens), 0)::bigint as "tokens!"
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
               AND NOT synthetic AND user_id = $4
-              AND model IS NOT NULL
+              AND model <> ''
             GROUP BY model
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
             LIMIT $3

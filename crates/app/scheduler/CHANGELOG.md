@@ -5,6 +5,7 @@
 ### Added
 
 - **Projection drainers** `trace_facts_rollup` (every 10 s), `user_context_counters_rollup` and `log_summary_rollup` (every minute), sharing one drain tick over `projection::drain_with_sql`.
+- `backfill_rollups` job (`BackfillRollupsJob`, every minute at `:45`): drains the `ai_usage_rollup_hourly`, `tool_usage_rollup_hourly` and `agent_task_rollup_hourly` backlogs, 24 hours per batch, up to 15 s per rollup per tick.
 - `tool_row_facts_rollup` job (`ToolRowFactsRollupJob`, every minute at `:15`): drains the `tool_row_facts` projection backlog, 500 keys per batch, for up to 20 s per tick.
 
 ## [0.64.0] - 2026-10-08

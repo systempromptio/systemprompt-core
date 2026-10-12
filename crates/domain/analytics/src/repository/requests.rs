@@ -1,9 +1,12 @@
-//! AI-request analytics over the `ai_requests` table.
+//! AI-request analytics.
 //!
 //! [`RequestAnalyticsRepository`] reports token, cost, latency, and
 //! cache-hit stats, per-model usage breakdowns, trend series, and a paged
 //! request list, each optionally filtered by a model substring and the list
-//! by user as well.
+//! by user as well. Stats and the model breakdown read the hourly rollup
+//! (`report_ai_usage_hourly`), widening the window to whole UTC hours at its
+//! start; the trend series and the request list are per-request reads of
+//! `report_ai_requests`, which no rollup answers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -42,18 +45,18 @@ impl RequestAnalyticsRepository {
                 RequestStatsRow,
                 r#"
                 SELECT
-                    COUNT(*)::bigint as "total!",
-                    SUM(tokens_used)::bigint as "total_tokens",
+                    COALESCE(SUM(request_count), 0)::bigint as "total!",
+                    SUM(tokens)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
                     SUM(reasoning_tokens)::bigint as "reasoning_tokens",
                     SUM(cache_read_tokens)::bigint as "cache_read_tokens",
                     SUM(cache_creation_tokens)::bigint as "cache_creation_tokens",
                     SUM(cost_microdollars)::bigint as "cost",
-                    AVG(latency_ms)::float8 as "avg_latency",
-                    COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM report_ai_requests
-                WHERE created_at >= $1 AND created_at < $2
+                    (SUM(latency_sum_ms)::numeric / NULLIF(SUM(latency_n), 0))::float8 as "avg_latency",
+                    COALESCE(SUM(cache_hits), 0)::bigint as "cache_hits!"
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
                   AND model ILIKE $3
                 "#,
                 start,
@@ -68,18 +71,18 @@ impl RequestAnalyticsRepository {
                 RequestStatsRow,
                 r#"
                 SELECT
-                    COUNT(*)::bigint as "total!",
-                    SUM(tokens_used)::bigint as "total_tokens",
+                    COALESCE(SUM(request_count), 0)::bigint as "total!",
+                    SUM(tokens)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
                     SUM(reasoning_tokens)::bigint as "reasoning_tokens",
                     SUM(cache_read_tokens)::bigint as "cache_read_tokens",
                     SUM(cache_creation_tokens)::bigint as "cache_creation_tokens",
                     SUM(cost_microdollars)::bigint as "cost",
-                    AVG(latency_ms)::float8 as "avg_latency",
-                    COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
-                FROM report_ai_requests
-                WHERE created_at >= $1 AND created_at < $2
+                    (SUM(latency_sum_ms)::numeric / NULLIF(SUM(latency_n), 0))::float8 as "avg_latency",
+                    COALESCE(SUM(cache_hits), 0)::bigint as "cache_hits!"
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
                 "#,
                 start,
                 end
@@ -102,15 +105,15 @@ impl RequestAnalyticsRepository {
             SELECT
                 provider as "provider!",
                 model as "model!",
-                COUNT(*)::bigint as "request_count!",
-                SUM(tokens_used)::bigint as "total_tokens",
+                SUM(request_count)::bigint as "request_count!",
+                SUM(tokens)::bigint as "total_tokens",
                 SUM(cost_microdollars)::bigint as "total_cost",
-                AVG(latency_ms)::float8 as "avg_latency"
-            FROM report_ai_requests
-            WHERE created_at >= $1 AND created_at < $2
-              AND provider IS NOT NULL AND model IS NOT NULL
+                (SUM(latency_sum_ms)::numeric / NULLIF(SUM(latency_n), 0))::float8 as "avg_latency"
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND provider <> '' AND model <> ''
             GROUP BY provider, model
-            ORDER BY COUNT(*) DESC
+            ORDER BY SUM(request_count) DESC
             LIMIT $3
             "#,
             start,
