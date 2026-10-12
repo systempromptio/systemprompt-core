@@ -1,7 +1,9 @@
-//! Registers analytics-owned engagement and reputation schemas, the hourly
-//! tool and agent-task rollups, the report views over source tables, and
-//! migrations. It depends on `agent` (and through it `ai` and `mcp`) because
-//! the rollup triggers sit on their tables.
+//! Registers analytics-owned schemas, rollups, report views and migrations.
+//!
+//! That covers the engagement and reputation schemas, the hourly tool and
+//! agent-task rollups, and the report views over source tables. It depends on
+//! `agent` (and through it `ai` and `mcp`) because the rollup triggers sit on
+//! their tables.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

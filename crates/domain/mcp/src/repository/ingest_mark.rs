@@ -19,9 +19,9 @@ use crate::error::McpDomainResult;
 /// Which replayed conversation a mark belongs to.
 #[derive(Debug, Clone)]
 pub struct IngestMarkKey {
-    pub user_id: UserId,
-    pub scope_id: String,
-    pub gateway_conversation_id: String,
+    pub user: UserId,
+    pub scope: String,
+    pub conversation: String,
 }
 
 /// The boundary a later turn resumes after.
@@ -52,9 +52,9 @@ impl ToolResultIngestMarkRepository {
             FROM tool_result_ingest_marks
             WHERE user_id = $1 AND scope_id = $2 AND gateway_conversation_id = $3
             "#,
-            key.user_id.as_str(),
-            key.scope_id,
-            key.gateway_conversation_id
+            key.user.as_str(),
+            key.scope,
+            key.conversation
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -80,9 +80,9 @@ impl ToolResultIngestMarkRepository {
                 boundary_tool_use_id = EXCLUDED.boundary_tool_use_id,
                 updated_at = EXCLUDED.updated_at
             "#,
-            key.user_id.as_str(),
-            key.scope_id,
-            key.gateway_conversation_id,
+            key.user.as_str(),
+            key.scope,
+            key.conversation,
             index,
             mark.boundary_tool_use_id.as_str()
         )

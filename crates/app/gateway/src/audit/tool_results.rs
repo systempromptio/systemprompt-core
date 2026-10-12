@@ -117,12 +117,12 @@ fn resume_index(mark: Option<&IngestMark>, results: &[ReplayedResult]) -> usize 
 
 fn mark_key(ctx: &GatewayRequestContext) -> IngestMarkKey {
     IngestMarkKey {
-        user_id: ctx.user_id.clone(),
-        scope_id: ctx
+        user: ctx.user_id.clone(),
+        scope: ctx
             .client_session_id
             .as_ref()
             .map_or_else(|| ctx.context_id.to_string(), ToString::to_string),
-        gateway_conversation_id: ctx
+        conversation: ctx
             .gateway_conversation_id
             .as_ref()
             .map(ToString::to_string)
