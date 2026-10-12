@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- A fresh install logs one summary line per extension for the stamped retirement migrations it executed; the per-file line is DEBUG.
+- `assess_freshness` excludes the `extension_migrations` ledger from an extension's owned-table count, so the `database` extension can be assessed fresh.
+- `001_prune_prefix_duplicate_indexes` is retired behind a tombstone; the declarative `extension_migrations.sql` is its end state.
+
 ## [0.65.0] - 2026-10-09
 
 ### Fixed
