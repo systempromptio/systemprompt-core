@@ -465,7 +465,7 @@ fn edit_apply_covers_field_groups() {
         "false",
         "--push-notifications",
         "true",
-        "--state-transition-history",
+        "--extended-agent-card",
         "false",
         "--provider",
         "anthropic",
