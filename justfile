@@ -914,6 +914,7 @@ install-nextest:
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
 # whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
 # Groups: shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
+[positional-arguments]
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -936,7 +937,7 @@ test-shard GROUP *args:
     SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
     echo "▶ running shard {{GROUP}} (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
-        bash scripts/test-shard.sh {{GROUP}} {{args}}
+        bash scripts/test-shard.sh "$@"
 
 # Run every CI shard sequentially, each against its own fresh database.
 # Bounded compile + run memory per shard (no OOM); same definitions as CI.
