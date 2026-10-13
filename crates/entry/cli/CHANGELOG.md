@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Changed
+
+- `admin config secret set` refuses a profile whose secrets come from Vault or an external source: the file it would edit is ignored at boot, so the edit would silently do nothing. Rotate the secret at its source and run `admin config secret check`.
+- `admin config secret check` builds the external provider for `secrets.source: external` and reports its `kind`, and the store's `generation`, `last_reload_at` and `last_error`.
+
 ## [0.66.0] - Unreleased
 
 ### Added

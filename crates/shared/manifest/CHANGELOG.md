@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `profile.secrets.source: external` and `profile.secrets.external: { kind, refresh_secs, <provider config> }` (`ExternalSecretsConfig`); `SecretsConfig::external` and `SecretsSource::External`, with `SecretsSource::source_name` for messages.
+
+### Changed
+
+- `BUNDLE_ALLOWED_DIRS` includes `workflows/`, so a composed services root keeps every bundle's workflow definitions.
+
 ## [0.66.0] - Unreleased
 
 ### Added

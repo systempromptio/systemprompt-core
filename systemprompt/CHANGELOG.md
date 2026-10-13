@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `systemprompt::sso` re-exports the SSO seam: the traits (`SsoProvider`, `SsoIdentityPolicy`, `AuthEventSink`, `ReplayGuard`, …), the driver (`SsoDriver`, `RoleResolver`, `plan_resolution`, `mint_browser_session`, …), the registration macros `register_sso_provider!`, `register_auth_event_sink!` and `register_role_resolver!`, and the API route helpers (`router`, `SsoRouteState`, `SSO_BASE`).
+
 ## [0.66.0] - Unreleased
 
 ### Added

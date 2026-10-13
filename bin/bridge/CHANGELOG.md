@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Fixed
+
+- **macOS:** the Claude Desktop probe compared plist string lists by their comma-joined display text against the profile's JSON rendering, so `inferenceModels`, `coworkEgressAllowedHosts`, `disabledBuiltinTools` and `otlpContentCapture` always read as drifted: the agent stayed Stale ("model list is behind the gateway"), Repair / Update as administrator rewrote a correct policy without clearing it, and the unattended repair re-offered a `.mobileconfig` on every launch. `DomainRead` now records a display text and a compare text separately; only the display is joined. Windows (registry values already JSON) is unchanged.
+
 ## [0.66.0] - 2026-10-12
 
 ### Changed

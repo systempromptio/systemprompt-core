@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- **SSO: a vendor-neutral browser-redirect seam.** `systemprompt_traits::sso` declares `SsoProvider` (start, callback, metadata, paths), `SsoIdentityPolicy` (domain allow-list, group-to-role mapping, provisioning rules, and `link_by_email`: a verified email claim may bind to the active interactive account that owns it), `AuthEventSink`, `ReplayGuard`, `ExternalIdentity`, `GatedIdentity`, `SsoRefusal` and `SsoError`. `systemprompt-oauth-issuance` adds `SsoDriver`, which owns state correlation, replay protection, policy, federated resolution (`plan_resolution`: federated link, email link, provision, refuse), session minting and audit, and discovers providers, event sinks and a `RoleResolver` through `register_sso_provider!`, `register_auth_event_sink!` and `register_role_resolver!`; `DirectoryOnlyRoleResolver` is the default. `systemprompt-api` mounts the generic routes `/api/v1/core/sso/{id}/start`, `/api/v1/core/sso/{id}/callback` and `/api/v1/core/sso/{id}/metadata`; a downstream crate registers a provider and aliases its own paths onto them. The facade re-exports the seam as `systemprompt::sso`. Postgres backs the state bindings and replay guard (oauth migration `020_sso_state.sql`, tables `sso_state_bindings` and `sso_replay_guard`, purged with the other expired OAuth rows) and the login audit (users migration `025_sso_login_events.sql`, `PostgresAuthEventSink`). `UserProvider` gains `find_federated` and `link_federated` (default implementations: not found, no-op).
+- **Secrets: a pluggable external source and a reloadable store.** A profile may declare `secrets.source: external` with `secrets.external: { kind, refresh_secs, … }`; a linked crate provides the document through `register_secrets_source!`, resolved at the same fail-closed precedence as Vault. The in-memory store keeps its `&'static` accessor but can be reloaded (`SecretsBootstrap::reload`, `generation`, `status`, `refresh_interval`): a generation counter, a diff of the changed keys, and a refusal to swap when a pinned identity key would change (master key, pepper, manifest seed, database URL, and now `signing_key_pem` and `jwt_secret`). `admin config secret set` refuses a Vault- or external-managed profile, since the file it would edit is ignored at boot; `admin config secret check` reports the external kind, generation, last reload and last error.
+
+### Changed
+
+- **Services bundles carry `workflows/`.** `BUNDLE_ALLOWED_DIRS` now keeps a composed root's `workflows/` directory. An instance whose services tree is composed from pinned sources lost every workflow definition: the workflows sync plane declared zero definitions and a manual start answered "No workflow <id>".
+
+### Breaking
+
+- `PostgresAuthEventSink::new(repo)` takes the login-events repository and is `const`; `SsoLoginSuccess::session_id` and `MintedSession::session_id` are typed `SessionId` rather than strings.
+- `SecretsSource` gains the `External` variant, so an exhaustive match over it must name it; `SecretsConfig` gains the optional `external` section (`deny_unknown_fields` profile schemas downstream must regenerate).
+
+### Fixed
+
+- **Bridge (macOS):** the Claude Desktop probe read a plist array back as its comma-joined display text while the desired profile renders lists as JSON, so every string-list key (`inferenceModels`, `coworkEgressAllowedHosts`, `disabledBuiltinTools`, `otlpContentCapture`) drifted forever: the agent stayed Stale, Repair rewrote a correct policy without clearing it, and the unattended repair re-offered a `.mobileconfig` on every launch. The probe now records a display text and a compare text separately. Windows is unchanged.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

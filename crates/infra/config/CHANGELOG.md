@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `register_secrets_source!` (`SecretsSourceRegistration`): a linked crate provides the secrets document for a profile with `secrets.source: external`, resolved by `build_external_provider` at the same fail-closed precedence as Vault; `registered_external_kinds` lists what is linked and `process_env_lookup` is the environment the provider reads.
+- `SecretsBootstrap::reload` (`ReloadOutcome`), `generation`, `status` (`SecretsStatus`) and `refresh_interval`: the in-memory store keeps its `&'static` accessor but can be swapped at runtime. `diff_secrets` names the changed keys, and a reload is refused when a pinned identity key would change: master key, pepper, manifest seed, database URL, `signing_key_pem` or `jwt_secret`.
+
+### Changed
+
+- `ResolvedSource` gains `External(ExternalSecretsConfig)`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

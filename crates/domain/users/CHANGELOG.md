@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- Migration `025_sso_login_events.sql` and the `sso_login_events` table; `PostgresAuthEventSink` (`services::sso_events`) records every SSO success and refusal through the `sso_login_events` repository.
+- `UserProvider::find_federated` and `link_federated` on the user provider; `repository::federated_identity` adds `find_federated`, `link_federated` and `find_or_create_federated`.
+
+### Changed
+
+- `PostgresAuthEventSink::new(repo)` takes the login-events repository and is `const`. Login events carry a typed `SessionId`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

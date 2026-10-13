@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- Migration `020_sso_state.sql`: `sso_state_bindings` (one row per started SSO login, bound to its browser cookie and return target) and `sso_replay_guard` (consumed assertion and nonce identifiers). The repositories `oauth::sso_state` and `oauth::sso_replay` implement the state binding and `ReplayGuard` for `SsoDriver` with checked queries.
+
+### Changed
+
+- The expired-row cleanup also deletes consumed or expired SSO state bindings and replay markers (`delete_expired_sso_states`, `delete_expired_sso_replays`); its summary gains `sso_states` and `sso_replays`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

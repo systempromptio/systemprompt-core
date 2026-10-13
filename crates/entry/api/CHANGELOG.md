@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `routes::sso`: `GET /api/v1/core/sso/{id}/start`, the `{id}/callback` route (GET and POST, by the provider's return binding) and `GET /api/v1/core/sso/{id}/metadata`, served by the registered `SsoProvider` through `SsoDriver`. `SsoRouteState`, `router`, `start_response`, `into_response`, `binder_from_headers` and `SSO_BASE` let a downstream alias its own paths onto the same handlers.
+
+### Changed
+
+- The OAuth callback cookie helpers moved to `routes::oauth::cookie` and are shared with the SSO routes.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added
