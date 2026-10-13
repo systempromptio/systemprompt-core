@@ -31,7 +31,7 @@ pub fn into_response(outcome: FinishOutcome) -> Response {
     }
 }
 
-pub fn start_response(outcome: StartOutcome) -> Response {
+pub fn start_response(outcome: &StartOutcome) -> Response {
     with_cookie(
         Redirect::to(&outcome.redirect_url).into_response(),
         &outcome.binder_cookie,

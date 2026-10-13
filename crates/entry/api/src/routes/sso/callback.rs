@@ -8,6 +8,7 @@ use axum::Form;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::Response;
+use systemprompt_oauth_issuance::sso::SsoCallback;
 use systemprompt_traits::ExtractSignals;
 use systemprompt_traits::sso::{SsoReturn, SsoReturnBinding};
 
@@ -27,8 +28,10 @@ pub(super) async fn handle_callback_query(
         &id,
         &headers,
         caller_ip,
-        SsoReturnBinding::Query,
-        params,
+        SsoReturn {
+            binding: SsoReturnBinding::Query,
+            params,
+        },
     )
     .await
 }
@@ -45,8 +48,10 @@ pub(super) async fn handle_callback_form(
         &id,
         &headers,
         caller_ip,
-        SsoReturnBinding::Form,
-        params,
+        SsoReturn {
+            binding: SsoReturnBinding::Form,
+            params,
+        },
     )
     .await
 }
@@ -56,8 +61,7 @@ async fn finish(
     id: &str,
     headers: &HeaderMap,
     caller_ip: Option<std::net::IpAddr>,
-    binding: SsoReturnBinding,
-    params: Vec<(String, String)>,
+    ret: SsoReturn,
 ) -> Response {
     let analytics = state.analytics.extract_analytics(
         headers,
@@ -71,10 +75,12 @@ async fn finish(
         .driver
         .finish(
             id,
-            SsoReturn { binding, params },
-            binder.as_deref(),
-            &analytics,
-            caller_ip,
+            SsoCallback {
+                ret,
+                binder_cookie: binder.as_deref(),
+                analytics: &analytics,
+                ip: caller_ip,
+            },
         )
         .await;
     into_response(outcome)

@@ -29,20 +29,22 @@ struct Attempt {
     external_sub: Option<String>,
 }
 
+#[derive(Debug)]
+pub struct SsoCallback<'a> {
+    pub ret: SsoReturn,
+    pub binder_cookie: Option<&'a str>,
+    pub analytics: &'a SessionAnalytics,
+    pub ip: Option<IpAddr>,
+}
+
 struct Correlated {
     state: Option<SsoStateContext>,
     return_to: String,
 }
 
 impl SsoDriver {
-    pub async fn finish(
-        &self,
-        id: &str,
-        ret: SsoReturn,
-        binder_cookie: Option<&str>,
-        analytics: &SessionAnalytics,
-        ip: Option<IpAddr>,
-    ) -> FinishOutcome {
+    pub async fn finish(&self, id: &str, callback: SsoCallback<'_>) -> FinishOutcome {
+        let ip = callback.ip;
         let Some(provider) = self.provider(id) else {
             return FinishOutcome::Refused {
                 login_path: UNKNOWN_PROVIDER_LOGIN_PATH.to_owned(),
@@ -52,10 +54,7 @@ impl SsoDriver {
         };
         let clear_binder = self.cleared_binder(Some(provider.as_ref()));
         let mut attempt = Attempt::default();
-        match self
-            .run_finish(&provider, ret, binder_cookie, analytics, ip, &mut attempt)
-            .await
-        {
+        match self.run_finish(&provider, callback, &mut attempt).await {
             Ok((access_token, max_age_secs, return_to)) => FinishOutcome::Success {
                 access_token,
                 max_age_secs,
@@ -85,12 +84,15 @@ impl SsoDriver {
     async fn run_finish(
         &self,
         provider: &Arc<dyn SsoProvider>,
-        ret: SsoReturn,
-        binder_cookie: Option<&str>,
-        analytics: &SessionAnalytics,
-        ip: Option<IpAddr>,
+        callback: SsoCallback<'_>,
         attempt: &mut Attempt,
     ) -> Result<(String, i64, String), SsoError> {
+        let SsoCallback {
+            ret,
+            binder_cookie,
+            analytics,
+            ip,
+        } = callback;
         let id = provider.id();
         let correlated = self
             .correlate(provider.as_ref(), &ret, binder_cookie)

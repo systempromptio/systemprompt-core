@@ -25,7 +25,7 @@ pub(super) async fn handle_start(
         return StatusCode::NOT_FOUND.into_response();
     };
     match state.driver.start(&id, query.redirect.as_deref()).await {
-        Ok(outcome) => start_response(outcome),
+        Ok(outcome) => start_response(&outcome),
         Err(err) => {
             tracing::warn!(provider_id = %id, error = %err, "SSO start failed");
             refused_redirect(provider.login_path(), err.reason_code())
