@@ -108,3 +108,43 @@ async fn client_credentials_mints_once_and_caches() {
     assert_eq!(grant.token(&key).await.expect("mints"), "machine-token");
     assert_eq!(grant.token(&key).await.expect("cached"), "machine-token");
 }
+
+#[tokio::test]
+async fn an_api_token_answers_a_basic_header_without_an_exchange() {
+    let grant = MachineGrant::ApiToken {
+        email: "bot@example.com".to_owned(),
+        api_token: "tok".to_owned(),
+    };
+    assert_eq!(
+        grant
+            .authorization("connector-test:api-token")
+            .await
+            .expect("encodes"),
+        "Basic Ym90QGV4YW1wbGUuY29tOnRvaw=="
+    );
+}
+
+#[tokio::test]
+async fn a_minted_grant_answers_a_bearer_header() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({"access_token": "minted", "expires_in": 600})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let grant = MachineGrant::ClientCredentials {
+        token_url: format!("{}/token", server.uri()),
+        client_id: "id".to_owned(),
+        client_secret: "secret".to_owned(),
+        scopes: Vec::new(),
+    };
+    let key = format!("connector-test:bearer:{}", server.uri());
+    assert_eq!(
+        grant.authorization(&key).await.expect("mints"),
+        "Bearer minted"
+    );
+}

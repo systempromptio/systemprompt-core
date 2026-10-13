@@ -8,7 +8,13 @@
 //! secret to `token_url`. `app_installation` signs an RS256 app JWT and
 //! exchanges it for an installation token (GitHub Apps). Either token is
 //! cached until shortly before it expires and then minted again; there is no
-//! refresh token to rotate.
+//! refresh token to rotate. `api_token` is the Basic pair (Atlassian) a
+//! caller holds at runtime; it needs no exchange, so it is encoded, not
+//! minted, but it answers through the same [`MachineGrant::authorization`].
+//!
+//! A grant is plain data, so a caller that stores credentials itself (a
+//! service account's sealed secret) builds one directly and keys the cache by
+//! whatever identifies the credential's current rotation.
 //!
 //! Every exchange goes through [`crate::credential`]'s one HTTP client, so it
 //! carries the same timeouts and single retry as a provider credential, and a
@@ -26,6 +32,8 @@ mod error;
 
 use std::time::Duration;
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde::Deserialize;
 use systemprompt_models::mcp::deployment::{ConnectorConfig, ConnectorGrant};
 
@@ -51,6 +59,10 @@ pub enum MachineGrant {
         app_id: String,
         private_key_pem: String,
     },
+    ApiToken {
+        email: String,
+        api_token: String,
+    },
 }
 
 impl std::fmt::Debug for MachineGrant {
@@ -67,6 +79,7 @@ impl std::fmt::Debug for MachineGrant {
                 .field("token_url", token_url)
                 .field("app_id", app_id)
                 .finish_non_exhaustive(),
+            Self::ApiToken { .. } => f.debug_struct("ApiToken").finish_non_exhaustive(),
         }
     }
 }
@@ -131,6 +144,14 @@ impl MachineGrant {
             .map_err(ConnectorGrantError::Credential)
     }
 
+    pub async fn authorization(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
+        let scheme = match self {
+            Self::ApiToken { .. } => "Basic",
+            Self::ClientCredentials { .. } | Self::AppInstallation { .. } => "Bearer",
+        };
+        Ok(format!("{scheme} {}", self.token(cache_key).await?))
+    }
+
     async fn mint(&self) -> Result<(String, Duration), CredentialError> {
         match self {
             Self::ClientCredentials {
@@ -170,6 +191,10 @@ impl MachineGrant {
                     clamp_ttl(Some(remaining.max(1).unsigned_abs())),
                 ))
             },
+            Self::ApiToken { email, api_token } => Ok((
+                STANDARD.encode(format!("{email}:{api_token}")),
+                clamp_ttl(None),
+            )),
         }
     }
 }
