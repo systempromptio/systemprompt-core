@@ -49,10 +49,10 @@ fn check(schema: &Value, value: &Value, path: &str, errors: &mut Vec<String>) {
         }
         return;
     }
-    if let Some(options) = schema["enum"].as_array() {
-        if !options.contains(value) {
-            errors.push(format!("{path}: {value} is not one of {options:?}"));
-        }
+    if let Some(options) = schema["enum"].as_array()
+        && !options.contains(value)
+    {
+        errors.push(format!("{path}: {value} is not one of {options:?}"));
     }
     let Some(kind) = schema["type"].as_str() else {
         return;

@@ -11,6 +11,7 @@ use systemprompt_users::{DemoteResult, PromoteResult, User, UserStatus};
 
 fn create_test_user(roles: Vec<String>) -> User {
     User {
+        account_kind: Default::default(),
         id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),

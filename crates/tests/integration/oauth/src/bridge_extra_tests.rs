@@ -88,7 +88,7 @@ async fn exchange_code_issued_and_consumed_once() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
 
-    let issued = issue_bridge_exchange_code(&oauth_repo(&db), &user_id)
+    let issued = issue_bridge_exchange_code(&oauth_repo(&db), &user_provider(&db), &user_id)
         .await
         .expect("issue exchange code");
     assert!(!issued.code.is_empty());

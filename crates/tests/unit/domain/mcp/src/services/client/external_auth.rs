@@ -174,9 +174,15 @@ async fn fetch_bearer_rejects_unreadable_body() {
 
 #[tokio::test]
 async fn fetch_bearer_maps_transport_failure() {
-    let err = fetch_external_bearer("http://127.0.0.1:1/token", "jwt", "broker-secret", "srv")
-        .await
-        .expect_err("connection refused surfaces");
+    let err = fetch_external_bearer(
+        "http://127.0.0.1:1/token",
+        "jwt",
+        "broker-secret",
+        "srv",
+        None,
+    )
+    .await
+    .expect_err("connection refused surfaces");
     assert!(err.to_string().contains("token accessor request failed"));
 }
 

@@ -11,6 +11,7 @@ use systemprompt_users::{User, UserStatus};
 
 fn make_user(status: UserStatus, roles: Vec<&str>) -> User {
     User {
+        account_kind: Default::default(),
         id: UserId::new("u-provider"),
         name: "provider-user".to_string(),
         email: "provider@example.com".to_string(),

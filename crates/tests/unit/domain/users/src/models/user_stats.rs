@@ -186,6 +186,7 @@ fn user_export_debug() {
 #[test]
 fn user_export_from_user_conversion() {
     let user = User {
+        account_kind: Default::default(),
         id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
@@ -216,6 +217,7 @@ fn user_export_from_user_conversion() {
 #[test]
 fn user_export_from_minimal_user() {
     let user = User {
+        account_kind: Default::default(),
         id: fixture_user_id(),
         name: "minimal".to_string(),
         email: "minimal@example.com".to_string(),
