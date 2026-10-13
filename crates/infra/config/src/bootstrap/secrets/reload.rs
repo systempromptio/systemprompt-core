@@ -69,6 +69,7 @@ pub(super) fn install(secrets: Secrets) -> Result<&'static Secrets, SecretsBoots
     }
     let leaked: &'static Secrets = Box::leak(Box::new(secrets));
     *slot = Some(leaked);
+    drop(slot);
     GENERATION.store(1, Ordering::SeqCst);
     *STATUS.write().unwrap_or_else(PoisonError::into_inner) = Some(SecretsStatus {
         source: active_source_name(),
