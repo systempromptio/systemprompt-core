@@ -22,8 +22,9 @@ use tokio_util::sync::CancellationToken;
 
 /// A service runs until its `shutdown` token is cancelled. Returning early ends
 /// the service for the life of the process; it is not restarted.
-// Why: services are held as `Arc<dyn RunnerService>`; native `async fn` in
-// traits is not `dyn`-compatible.
+///
+/// Services are held as `Arc<dyn RunnerService>`, so the trait uses
+/// `#[async_trait]`: native `async fn` in traits is not `dyn`-compatible.
 #[async_trait]
 pub trait RunnerService: Send + Sync + 'static {
     fn name(&self) -> &'static str;

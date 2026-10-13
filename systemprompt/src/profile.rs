@@ -4,6 +4,9 @@
 //! `ProfileBootstrap` loader when the `config` feature is enabled and the
 //! `ServicesBootstrap` cell (provider catalog, gateway routes) when `loader`
 //! is.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
 
 #[cfg(feature = "config")]
 pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};

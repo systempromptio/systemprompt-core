@@ -81,6 +81,7 @@ BOUNDARY=(
     "crates/infra/logging/src/services/cli/banners.rs|service_name profile_name|terminal display arguments"
     "crates/app/generator/src/error/mod.rs|provider_id|page-data provider registry key, not the gateway ProviderId"
     "crates/app/oauth-issuance/src/request.rs|client_id plugin_id|RFC 6749 token-request form fields deserialised verbatim"
+    "crates/infra/security/src/connector_grant/mod.rs|client_id|a third-party OAuth client id resolved from a secret and posted verbatim to an external token endpoint; not a systemprompt ClientId"
 )
 
 # Derived names whose call sites still carry the raw type: `name|reason`. The
