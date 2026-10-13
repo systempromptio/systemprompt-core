@@ -1,7 +1,8 @@
-//! Expiry sweeps over the OAuth-owned tables: refresh tokens, authorization
-//! codes, state bindings, JTI revocations, ID-JAG replay markers, bridge
-//! exchange codes, `WebAuthn` ceremony challenges, and SSO state and replay
-//! markers.
+//! Expiry sweeps over the OAuth-owned tables.
+//!
+//! Covers refresh tokens, authorization codes, state bindings, JTI
+//! revocations, ID-JAG replay markers, bridge exchange codes, `WebAuthn`
+//! ceremony challenges, and SSO state and replay markers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

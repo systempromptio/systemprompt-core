@@ -81,25 +81,10 @@ impl Extension for UsersExtension {
                 "window_start".into(),
                 "hits".into(),
             ]),
-            SchemaDefinition::new(
-                "federated_identities",
-                include_str!("../schema/federated_identities.sql"),
-            )
-            .with_required_columns(vec![
-                "issuer".into(),
-                "external_sub".into(),
-                "user_id".into(),
-            ]),
-            SchemaDefinition::new(
-                "sso_login_events",
-                include_str!("../schema/sso_login_events.sql"),
-            )
-            .with_required_columns(vec![
-                "provider_id".into(),
-                "outcome".into(),
-                "occurred_at".into(),
-            ]),
         ]
+        .into_iter()
+        .chain(federation_schemas())
+        .collect()
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
@@ -112,3 +97,26 @@ impl Extension for UsersExtension {
 }
 
 register_extension!(UsersExtension);
+
+fn federation_schemas() -> [SchemaDefinition; 2] {
+    [
+        SchemaDefinition::new(
+            "federated_identities",
+            include_str!("../schema/federated_identities.sql"),
+        )
+        .with_required_columns(vec![
+            "issuer".into(),
+            "external_sub".into(),
+            "user_id".into(),
+        ]),
+        SchemaDefinition::new(
+            "sso_login_events",
+            include_str!("../schema/sso_login_events.sql"),
+        )
+        .with_required_columns(vec![
+            "provider_id".into(),
+            "outcome".into(),
+            "occurred_at".into(),
+        ]),
+    ]
+}
