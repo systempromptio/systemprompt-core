@@ -42,6 +42,7 @@ fn request(user_id: &UserId, plugin: Option<&str>) -> IssueRunCredentials {
             max_budget_usd: Some(2.5),
             max_requests: Some(40),
         },
+        purpose: Some("farm:test-run".to_owned()),
     }
 }
 
