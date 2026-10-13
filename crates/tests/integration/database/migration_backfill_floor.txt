@@ -4,7 +4,8 @@
 # (which stamps migrations) and an upgrade reach one state by one path.
 # A floor may only rise to a migration that exists; it never moves past one
 # that backfills.
-agent=014
+# agent 016 rewrites the two retired A2A 0.3 task states (PENDING → SUBMITTED, UNKNOWN → FAILED) before tightening the CHECK constraint.
+agent=016
 ai=038
 analytics=017
 content=005
