@@ -52,8 +52,10 @@ pub trait AgentRunLauncher: Send + Sync {
 
     async fn cancel(&self, run_id: &AgentRunId) -> Result<(), AgentRunLaunchError>;
 
-    async fn run_for_task(&self, task_id: &TaskId)
-    -> Result<Option<AgentRunId>, AgentRunLaunchError>;
+    async fn run_for_task(
+        &self,
+        task_id: &TaskId,
+    ) -> Result<Option<AgentRunId>, AgentRunLaunchError>;
 }
 
 pub type DynAgentRunLauncher = std::sync::Arc<dyn AgentRunLauncher>;

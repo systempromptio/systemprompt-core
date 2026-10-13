@@ -18,8 +18,14 @@ use tracing::info;
 
 const ROLLUPS: [(&str, &str); 3] = [
     ("ai_usage_rollup_hourly", "refresh_ai_usage_rollup_hourly"),
-    ("tool_usage_rollup_hourly", "refresh_tool_usage_rollup_hourly"),
-    ("agent_task_rollup_hourly", "refresh_agent_task_rollup_hourly"),
+    (
+        "tool_usage_rollup_hourly",
+        "refresh_tool_usage_rollup_hourly",
+    ),
+    (
+        "agent_task_rollup_hourly",
+        "refresh_agent_task_rollup_hourly",
+    ),
 ];
 const BATCH: i32 = 24;
 const BUDGET: Duration = Duration::from_secs(15);

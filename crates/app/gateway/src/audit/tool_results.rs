@@ -109,8 +109,7 @@ async fn ingest_new(
 fn resume_index(mark: Option<&IngestMark>, results: &[ReplayedResult]) -> usize {
     mark.filter(|mark| {
         results.iter().any(|r| {
-            r.message_index == mark.last_message_index
-                && r.tool_use_id == mark.boundary_tool_use_id
+            r.message_index == mark.last_message_index && r.tool_use_id == mark.boundary_tool_use_id
         })
     })
     .map_or(0, |mark| mark.last_message_index + 1)

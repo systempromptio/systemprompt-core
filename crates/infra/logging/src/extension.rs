@@ -57,7 +57,11 @@ impl Extension for LoggingExtension {
                 "analytics_link_click_rollup_hourly",
                 include_str!("../schema/analytics_link_click_rollup_hourly.sql"),
             )
-            .with_required_columns(vec!["bucket".into(), "endpoint".into(), "clicks".into()]),
+            .with_required_columns(vec![
+                "bucket".into(),
+                "endpoint".into(),
+                "clicks".into(),
+            ]),
             SchemaDefinition::sql_only(include_str!("../schema/analytics_event_link_facts.sql")),
         ]
     }
