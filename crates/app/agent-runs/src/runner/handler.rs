@@ -70,7 +70,11 @@ impl A2aRunHandler {
         let row = &claimed.row;
         let request: RunRequest = serde_json::from_value(row.request.clone())?;
         if claimed.repo.find_cancel_requested(&row.id).await? {
-            let outcome = unexecuted(RunStatus::Cancelled, ErrorClass::Ok, "cancelled before start");
+            let outcome = unexecuted(
+                RunStatus::Cancelled,
+                ErrorClass::Ok,
+                "cancelled before start",
+            );
             claimed.repo.finish(&row.id, &outcome, None).await?;
             return Ok(());
         }
@@ -130,7 +134,10 @@ impl A2aRunHandler {
         watcher.abort();
         let report = report?;
         let diff = serde_json::to_value(&report.diff)?;
-        claimed.repo.finish(id, &report.outcome, Some(&diff)).await?;
+        claimed
+            .repo
+            .finish(id, &report.outcome, Some(&diff))
+            .await?;
         Ok(())
     }
 }
@@ -143,7 +150,11 @@ impl RunHandler for A2aRunHandler {
         };
         let id = &claimed.row.id;
         tracing::error!(run_id = %id, %error, "A2A run failed before it finished");
-        let outcome = unexecuted(RunStatus::Failed, ErrorClass::HostCrashed, &error.to_string());
+        let outcome = unexecuted(
+            RunStatus::Failed,
+            ErrorClass::HostCrashed,
+            &error.to_string(),
+        );
         claimed.repo.finish(id, &outcome, None).await?;
         Ok(())
     }
