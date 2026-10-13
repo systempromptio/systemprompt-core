@@ -44,6 +44,7 @@ pub const BUNDLE_ALLOWED_DIRS: &[&str] = &[
     "skills",
     "slack",
     "web",
+    "workflows",
 ];
 
 pub const MARKETPLACE_BUNDLE_DIRS: &[&str] = &[
