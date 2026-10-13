@@ -62,6 +62,7 @@ pub use db_value::{DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_date
 
 mod actor;
 mod agent;
+mod agent_run;
 mod ai;
 mod auth;
 mod bridge;
@@ -78,7 +79,6 @@ mod execution;
 mod extension;
 mod gateway_boot;
 mod gateway_conversation;
-mod agent_run;
 mod hook;
 mod instance;
 mod jobs;
@@ -114,6 +114,7 @@ pub mod macros;
 
 pub use actor::{Actor, ActorKind, ActorKindTag};
 pub use agent::{AgentId, AgentName, ExternalAgentId};
+pub use agent_run::{AgentRunId, HostSessionId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,
 };
@@ -136,7 +137,6 @@ pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use extension::ExtensionId;
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
-pub use agent_run::{AgentRunId, HostSessionId};
 pub use hook::HookId;
 pub use instance::InstanceId;
 pub use jobs::{JobName, ScheduledJobId};
