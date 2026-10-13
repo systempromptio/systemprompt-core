@@ -85,7 +85,7 @@ impl SecretsConfig {
         Ok(())
     }
 
-    fn forbid_external(&self) -> Result<(), ProfileError> {
+    const fn forbid_external(&self) -> Result<(), ProfileError> {
         if self.external.is_some() {
             return Err(ProfileError::ExternalBlockUnexpected {
                 secrets_source: self.source_name(),
