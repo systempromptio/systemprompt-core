@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod codes;
 pub mod error_info;
 pub mod jsonrpc;
 

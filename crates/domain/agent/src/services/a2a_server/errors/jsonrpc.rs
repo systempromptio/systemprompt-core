@@ -19,6 +19,12 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_logging::LogLevel;
 use systemprompt_models::a2a::PROTOCOL_VERSION;
 
+pub use super::codes::{
+    CONTENT_TYPE_NOT_SUPPORTED, EXTENDED_AGENT_CARD_NOT_CONFIGURED, EXTENSION_SUPPORT_REQUIRED,
+    INTERNAL_ERROR, INVALID_AGENT_RESPONSE, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND,
+    PARSE_ERROR, PUSH_NOTIFICATION_NOT_SUPPORTED, TASK_NOT_CANCELABLE, TASK_NOT_FOUND,
+    UNSUPPORTED_OPERATION, VERSION_NOT_SUPPORTED, http_status_for,
+};
 use super::error_info::{A2aErrorInfo, A2aErrorReason};
 
 pub type JsonRpcErrorResponse = JsonRpcResponse<()>;
@@ -30,20 +36,6 @@ pub struct UnidentifiedErrorResponse {
     pub id: Option<NumberOrString>,
 }
 
-pub const TASK_NOT_FOUND: i32 = -32001;
-pub const TASK_NOT_CANCELABLE: i32 = -32002;
-pub const PUSH_NOTIFICATION_NOT_SUPPORTED: i32 = -32003;
-pub const UNSUPPORTED_OPERATION: i32 = -32004;
-pub const CONTENT_TYPE_NOT_SUPPORTED: i32 = -32005;
-pub const INVALID_AGENT_RESPONSE: i32 = -32006;
-pub const EXTENDED_AGENT_CARD_NOT_CONFIGURED: i32 = -32007;
-pub const EXTENSION_SUPPORT_REQUIRED: i32 = -32008;
-pub const VERSION_NOT_SUPPORTED: i32 = -32009;
-pub const INVALID_REQUEST: i32 = -32600;
-pub const METHOD_NOT_FOUND: i32 = -32601;
-pub const INVALID_PARAMS: i32 = -32602;
-pub const INTERNAL_ERROR: i32 = -32603;
-pub const PARSE_ERROR: i32 = -32700;
 
 #[derive(Debug)]
 pub struct JsonRpcErrorBuilder {
@@ -159,21 +151,7 @@ impl JsonRpcErrorBuilder {
     }
 
     pub const fn http_status(&self) -> StatusCode {
-        match self.code {
-            TASK_NOT_FOUND | METHOD_NOT_FOUND => StatusCode::NOT_FOUND,
-            TASK_NOT_CANCELABLE => StatusCode::CONFLICT,
-            CONTENT_TYPE_NOT_SUPPORTED => StatusCode::UNSUPPORTED_MEDIA_TYPE,
-            INVALID_AGENT_RESPONSE => StatusCode::BAD_GATEWAY,
-            PUSH_NOTIFICATION_NOT_SUPPORTED
-            | UNSUPPORTED_OPERATION
-            | EXTENDED_AGENT_CARD_NOT_CONFIGURED
-            | EXTENSION_SUPPORT_REQUIRED
-            | VERSION_NOT_SUPPORTED
-            | INVALID_REQUEST
-            | INVALID_PARAMS
-            | PARSE_ERROR => StatusCode::BAD_REQUEST,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+        http_status_for(self.code)
     }
 
     pub fn build_with_status(
