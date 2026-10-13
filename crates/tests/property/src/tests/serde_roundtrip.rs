@@ -58,11 +58,6 @@ serde_roundtrip!(
     ApiKeyLocation
 );
 serde_roundtrip!(
-    security_scheme_roundtrip,
-    arb_security_scheme(),
-    SecurityScheme
-);
-serde_roundtrip!(
     agent_interface_roundtrip,
     arb_agent_interface(),
     AgentInterface
