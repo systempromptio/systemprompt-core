@@ -21,6 +21,7 @@ pub type SharedSecretsProvider = Box<dyn DynSecretsProvider>;
 pub type SecretsSourceFactory =
     fn(&ExternalSecretsConfig, EnvLookup) -> Result<SharedSecretsProvider, SecretsBootstrapError>;
 
+#[derive(Debug, Clone, Copy)]
 pub struct SecretsSourceRegistration {
     pub kind: &'static str,
     pub factory: SecretsSourceFactory,
@@ -28,11 +29,9 @@ pub struct SecretsSourceRegistration {
 
 inventory::collect!(SecretsSourceRegistration);
 
-/// The process environment as an [`EnvLookup`] — what the boot loader hands
-/// every registered factory.
 #[must_use]
 pub fn process_env_lookup() -> EnvLookup {
-    Box::new(|name| std::env::var(name).ok())
+    Box::new(systemprompt_manifest::read_env_optional)
 }
 
 pub fn build_external_provider(

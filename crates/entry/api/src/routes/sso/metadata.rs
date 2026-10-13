@@ -10,7 +10,7 @@ use axum::response::{IntoResponse, Response};
 
 use super::SsoRouteState;
 
-pub async fn handle_metadata(
+pub(super) async fn handle_metadata(
     Path(id): Path<String>,
     State(state): State<SsoRouteState>,
 ) -> Response {

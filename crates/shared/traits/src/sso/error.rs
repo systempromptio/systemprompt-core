@@ -37,8 +37,6 @@ impl SsoError {
         Self::Internal(source.into())
     }
 
-    /// The value of `?sso=` on the login page. Deliberately coarse: it never
-    /// tells a browser more than which message to show.
     #[must_use]
     pub const fn reason_code(&self) -> &'static str {
         match self {
@@ -55,8 +53,6 @@ impl SsoError {
         }
     }
 
-    /// The reason recorded on the audit row; splits the cases `reason_code`
-    /// folds together.
     #[must_use]
     pub const fn audit_reason(&self) -> &'static str {
         match self {

@@ -29,7 +29,8 @@ impl std::fmt::Debug for SsoHookContext {
     }
 }
 
-/// One inventory submission per [`register_sso_provider!`] call.
+/// One inventory submission per
+/// [`register_sso_provider!`](crate::register_sso_provider) call.
 #[derive(Debug, Clone, Copy)]
 pub struct SsoProviderRegistration {
     pub factory: fn(&SsoHookContext) -> Option<Arc<dyn SsoProvider>>,
@@ -37,7 +38,8 @@ pub struct SsoProviderRegistration {
 
 inventory::collect!(SsoProviderRegistration);
 
-/// One inventory submission per [`register_auth_event_sink!`] call.
+/// One inventory submission per
+/// [`register_auth_event_sink!`](crate::register_auth_event_sink) call.
 #[derive(Debug, Clone, Copy)]
 pub struct AuthEventSinkRegistration {
     pub factory: fn(&SsoHookContext) -> Arc<dyn AuthEventSink>,

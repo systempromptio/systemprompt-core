@@ -15,7 +15,7 @@ use super::SsoRouteState;
 use super::respond::{binder_from_headers, into_response};
 use crate::services::middleware::client_addr::ClientIp;
 
-pub async fn handle_callback_query(
+pub(super) async fn handle_callback_query(
     Path(id): Path<String>,
     State(state): State<SsoRouteState>,
     ClientIp(caller_ip): ClientIp,
@@ -33,7 +33,7 @@ pub async fn handle_callback_query(
     .await
 }
 
-pub async fn handle_callback_form(
+pub(super) async fn handle_callback_form(
     Path(id): Path<String>,
     State(state): State<SsoRouteState>,
     ClientIp(caller_ip): ClientIp,

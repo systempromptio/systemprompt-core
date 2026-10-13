@@ -116,6 +116,7 @@ pub struct ExternalIdentity {
     pub tenant_id: Option<String>,
     pub assertion_id: Option<String>,
     pub assertion_expires_at: Option<DateTime<Utc>>,
+    // JSON: the IdP's claim set is provider-defined; kept verbatim for audit.
     pub raw_claims: serde_json::Value,
 }
 
@@ -150,7 +151,6 @@ pub trait SsoProvider: Send + Sync + Debug {
 
     fn default_return_to(&self) -> &str;
 
-    /// Whether an IdP-initiated return with no matching state may sign in.
     fn allow_unsolicited(&self) -> bool {
         false
     }

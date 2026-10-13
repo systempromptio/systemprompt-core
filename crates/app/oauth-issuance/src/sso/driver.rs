@@ -20,6 +20,8 @@ use systemprompt_traits::sso::{
 };
 use systemprompt_users::PostgresAuthEventSink;
 
+use crate::repository::SsoRepositories;
+
 use super::cookie::CookieSpec;
 use super::registry::{SsoHookContext, discover_providers, discover_sinks};
 
@@ -70,8 +72,6 @@ impl std::fmt::Debug for SsoDriver {
 }
 
 impl SsoDriver {
-    /// Runs every registered provider and sink factory once. The core
-    /// `sso_login_events` sink is always first.
     pub fn discover(
         db: &DbPool,
         session_service: Arc<SessionCreationService>,
@@ -81,8 +81,12 @@ impl SsoDriver {
             db: Arc::clone(db),
             config: Arc::clone(&config),
         };
-        let repo = OAuthRepository::new(db);
-        let mut sinks: Vec<Arc<dyn AuthEventSink>> = vec![Arc::new(PostgresAuthEventSink::new(db))];
+        let SsoRepositories {
+            oauth: repo,
+            login_events,
+        } = SsoRepositories::new(db);
+        let mut sinks: Vec<Arc<dyn AuthEventSink>> =
+            vec![Arc::new(PostgresAuthEventSink::new(login_events))];
         sinks.extend(discover_sinks(&ctx));
         let providers = discover_providers(&ctx);
         if !providers.is_empty() {

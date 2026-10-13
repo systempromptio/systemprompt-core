@@ -13,7 +13,7 @@ use std::net::IpAddr;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SessionId, UserId};
 
 use super::{GatedIdentity, SsoError};
 
@@ -23,7 +23,7 @@ pub struct SsoLoginSuccess<'a> {
     pub provider_id: &'a str,
     pub issuer: &'a str,
     pub user_id: &'a UserId,
-    pub session_id: &'a str,
+    pub session_id: &'a SessionId,
     pub identity: &'a GatedIdentity,
     pub created: bool,
     pub ip: Option<IpAddr>,
@@ -42,7 +42,8 @@ pub struct SsoLoginRefused<'a> {
 }
 
 /// Receives every SSO sign-in outcome. A sink must not fail the sign-in: it
-/// logs its own errors.
+/// logs its own errors. Held as `Arc<dyn AuthEventSink>` so several sinks fan
+/// out from one driver.
 #[async_trait]
 pub trait AuthEventSink: Send + Sync + Debug {
     async fn on_login_success(&self, event: &SsoLoginSuccess<'_>);
@@ -52,10 +53,10 @@ pub trait AuthEventSink: Send + Sync + Debug {
     async fn on_logout(&self, _user_id: &UserId, _session_id: &str) {}
 }
 
-/// Single-use marker for IdP assertions, authoritative across instances.
+/// Single-use marker for `IdP` assertions, authoritative across instances.
+/// Held as `Arc<dyn ReplayGuard>` by the driver.
 #[async_trait]
 pub trait ReplayGuard: Send + Sync + Debug {
-    /// `true` the first time `(scope, id)` is seen, `false` on every replay.
     async fn claim(
         &self,
         scope: &str,

@@ -1,5 +1,5 @@
-//! `start`: remember the attempt server-side, bind it to this browser, and
-//! hand back the identity provider's redirect.
+//! An attempt is remembered server-side and bound to this browser before the
+//! identity provider's redirect is handed back.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,9 +14,6 @@ use super::driver::{SsoDriver, StartOutcome};
 
 pub const SSO_STATE_TTL_SECS: i64 = 600;
 
-/// `return_to` when it is a same-origin relative path, else `None`. Rejects
-/// scheme-relative (`//host`), backslash and control-character tricks that
-/// browsers resolve off-origin.
 #[must_use]
 pub fn sanitize_return_to(return_to: &str) -> Option<&str> {
     let candidate = return_to.trim();

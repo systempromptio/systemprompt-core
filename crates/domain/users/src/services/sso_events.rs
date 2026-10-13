@@ -6,7 +6,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_traits::sso::{AuthEventSink, SsoLoginRefused, SsoLoginSuccess};
 
 use crate::repository::{NewSsoLoginEvent, SsoLoginEventRepository};
@@ -20,10 +19,8 @@ pub struct PostgresAuthEventSink {
 }
 
 impl PostgresAuthEventSink {
-    pub fn new(db: &DbPool) -> Self {
-        Self {
-            repo: SsoLoginEventRepository::new(db),
-        }
+    pub const fn new(repo: SsoLoginEventRepository) -> Self {
+        Self { repo }
     }
 
     async fn write(&self, event: NewSsoLoginEvent<'_>) {

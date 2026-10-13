@@ -23,8 +23,6 @@ pub struct CookieSpec {
 }
 
 impl CookieSpec {
-    /// A binder cookie. `SameSite=None` requires `Secure`, so it degrades to
-    /// `Lax` when `secure` is off.
     #[must_use]
     pub fn binder(
         value: String,
@@ -49,7 +47,6 @@ impl CookieSpec {
         }
     }
 
-    /// The `Set-Cookie` header value.
     #[must_use]
     pub fn header_value(&self) -> String {
         let secure = if self.secure { "; Secure" } else { "" };
@@ -63,7 +60,6 @@ impl CookieSpec {
         )
     }
 
-    /// The same cookie, emptied and expired.
     #[must_use]
     pub fn clear(&self) -> Self {
         Self {
@@ -74,7 +70,6 @@ impl CookieSpec {
     }
 }
 
-/// The binder cookie's value from a raw `Cookie` header.
 #[must_use]
 pub fn binder_from_cookie_header(header: &str) -> Option<&str> {
     header

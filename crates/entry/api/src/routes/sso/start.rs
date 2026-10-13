@@ -12,11 +12,11 @@ use super::SsoRouteState;
 use super::respond::{refused_redirect, start_response};
 
 #[derive(Debug, Deserialize)]
-pub struct StartQuery {
+pub(super) struct StartQuery {
     pub redirect: Option<String>,
 }
 
-pub async fn handle_start(
+pub(super) async fn handle_start(
     Path(id): Path<String>,
     Query(query): Query<StartQuery>,
     State(state): State<SsoRouteState>,

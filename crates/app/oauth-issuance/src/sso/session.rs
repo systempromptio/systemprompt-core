@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{AccessTokenId, SessionSource, UserId};
+use systemprompt_identifiers::{AccessTokenId, SessionId, SessionSource, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_oauth::services::{
@@ -31,7 +31,7 @@ pub struct BrowserSessionSubject<'a> {
 pub struct MintedSession {
     pub access_token: String,
     pub max_age_secs: i64,
-    pub session_id: String,
+    pub session_id: SessionId,
 }
 
 #[must_use]
@@ -86,6 +86,6 @@ pub async fn mint_browser_session(
     Ok(MintedSession {
         access_token,
         max_age_secs: config.jwt_access_token_expiration,
-        session_id: session_id.as_str().to_owned(),
+        session_id,
     })
 }

@@ -1,5 +1,5 @@
-//! `finish`: correlate the return with its `start`, let the provider validate
-//! it, then run the same checks for every provider — replay, email, policy,
+//! Correlates an `IdP` return with its start, lets the provider validate it,
+//! then runs the same checks for every provider — replay, email, policy,
 //! provisioning — before minting the session. Every outcome is audited.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -23,7 +23,6 @@ use super::session::{BrowserSessionSubject, mint_browser_session};
 const UNKNOWN_PROVIDER_LOGIN_PATH: &str = "/";
 const DEFAULT_REPLAY_WINDOW_SECS: i64 = 3600;
 
-/// Identity known so far, so a refusal can be audited with it.
 #[derive(Debug, Default)]
 struct Attempt {
     email: Option<String>,

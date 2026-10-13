@@ -7,8 +7,6 @@
 use axum::http::{HeaderValue, header};
 use axum::response::{IntoResponse, Redirect, Response};
 
-/// A redirect to `destination` that sets the `access_token` cookie
-/// (`HttpOnly; Secure; SameSite=Strict`) for `max_age_secs`.
 pub fn session_cookie_redirect(
     access_token: &str,
     destination: &str,

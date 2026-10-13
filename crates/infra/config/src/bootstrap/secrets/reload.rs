@@ -78,9 +78,6 @@ pub(super) fn install(secrets: Secrets) -> Result<&'static Secrets, SecretsBoots
     Ok(leaked)
 }
 
-/// Names of every key whose value differs between two generations, sorted.
-/// Fails with [`SecretsBootstrapError::ReloadRejected`] when one of them is in
-/// [`PINNED_SECRET_KEYS`].
 pub fn diff_secrets(old: &Secrets, new: &Secrets) -> Result<Vec<String>, SecretsBootstrapError> {
     let old = as_fields(old)?;
     let new = as_fields(new)?;
@@ -112,8 +109,6 @@ fn as_fields(
 }
 
 impl SecretsBootstrap {
-    /// Re-runs the boot loader for the active profile and swaps in the result
-    /// when any value changed. Concurrent calls are serialised.
     pub async fn reload() -> ConfigResult<ReloadOutcome> {
         let _guard = RELOAD_LOCK.lock().await;
         let active = current().ok_or(SecretsBootstrapError::NotInitialized)?;
@@ -167,8 +162,6 @@ impl SecretsBootstrap {
             .clone()
     }
 
-    /// The scheduled-reload interval: `secrets.external.refresh_secs`, never
-    /// below the 60 s floor, and `None` for every other source.
     #[must_use]
     pub fn refresh_interval() -> Option<Duration> {
         let config = ProfileBootstrap::get().ok()?.secrets.as_ref()?;

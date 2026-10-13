@@ -25,6 +25,7 @@
 pub mod client_credentials;
 pub mod error;
 pub mod orchestrator;
+mod repository;
 pub mod request;
 mod session;
 pub mod sso;

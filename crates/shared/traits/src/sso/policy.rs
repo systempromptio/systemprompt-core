@@ -1,6 +1,6 @@
 //! Identity policy applied to every browser-redirect SSO sign-in.
 //!
-//! A provider validates the IdP's answer and yields an [`ExternalIdentity`];
+//! A provider validates the `IdP`'s answer and yields an [`ExternalIdentity`];
 //! the policy then decides whether that identity may sign in here and with
 //! which roles. The checks run in a fixed order — email domain, group
 //! overage, group requirement — so the first refusal is always the same one
@@ -70,7 +70,6 @@ pub struct GatedIdentity {
 }
 
 impl SsoIdentityPolicy {
-    /// Case-insensitive domain match; an empty allow-list admits every domain.
     #[must_use]
     pub fn email_allowed(&self, email: &str) -> bool {
         if self.allowed_email_domains.is_empty() {
@@ -84,8 +83,6 @@ impl SsoIdentityPolicy {
             .any(|allowed| allowed.trim_start_matches('@').eq_ignore_ascii_case(domain))
     }
 
-    /// Roles granted by exact group names, then by single-`*` glob patterns,
-    /// deduplicated in first-seen order.
     #[must_use]
     pub fn roles_for_groups(&self, groups: &[String]) -> Vec<String> {
         let mut roles: Vec<String> = Vec::new();
@@ -111,8 +108,6 @@ impl SsoIdentityPolicy {
         roles
     }
 
-    /// Admit or refuse an identity whose email the caller already resolved
-    /// and lowercased.
     pub fn gate(
         &self,
         identity: &ExternalIdentity,

@@ -12,8 +12,6 @@ use systemprompt_oauth_issuance::sso::{
 
 use crate::routes::oauth::cookie::session_cookie_redirect;
 
-/// `Success` sets the session cookie and redirects to `return_to`; `Refused`
-/// redirects to `{login_path}?sso={reason}`. Both expire the binder cookie.
 pub fn into_response(outcome: FinishOutcome) -> Response {
     match outcome {
         FinishOutcome::Success {
@@ -33,7 +31,6 @@ pub fn into_response(outcome: FinishOutcome) -> Response {
     }
 }
 
-/// The redirect to the identity provider, setting the binder cookie.
 pub fn start_response(outcome: StartOutcome) -> Response {
     with_cookie(
         Redirect::to(&outcome.redirect_url).into_response(),
@@ -46,7 +43,6 @@ pub(super) fn refused_redirect(login_path: &str, reason: &str) -> Response {
     Redirect::to(&format!("{login_path}{separator}sso={reason}")).into_response()
 }
 
-/// The binder cookie's value across every `Cookie` header on the request.
 pub fn binder_from_headers(headers: &HeaderMap) -> Option<String> {
     headers
         .get_all(header::COOKIE)

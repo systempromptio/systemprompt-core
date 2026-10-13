@@ -123,8 +123,8 @@ impl OauthCleanupRepository {
     }
 
     pub async fn delete_expired_sso_states(&self) -> OauthResult<u64> {
-        let result = sqlx::query(
-            "DELETE FROM sso_state_bindings WHERE expires_at < NOW() OR consumed_at IS NOT NULL",
+        let result = sqlx::query!(
+            "DELETE FROM sso_state_bindings WHERE expires_at < NOW() OR consumed_at IS NOT NULL"
         )
         .execute(&*self.write_pool)
         .await?;
@@ -132,7 +132,7 @@ impl OauthCleanupRepository {
     }
 
     pub async fn delete_expired_sso_replays(&self) -> OauthResult<u64> {
-        let result = sqlx::query("DELETE FROM sso_replay_guard WHERE expires_at < NOW()")
+        let result = sqlx::query!("DELETE FROM sso_replay_guard WHERE expires_at < NOW()")
             .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected())

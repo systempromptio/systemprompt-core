@@ -14,21 +14,20 @@ use super::OAuthRepository;
 use crate::error::OauthResult;
 
 impl OAuthRepository {
-    /// `true` the first time `(scope, id)` is claimed.
     pub async fn claim_sso_replay(
         &self,
         scope: &str,
         id: &str,
         expires_at: DateTime<Utc>,
     ) -> OauthResult<bool> {
-        let result = sqlx::query(
+        let result = sqlx::query!(
             "INSERT INTO sso_replay_guard (scope, id, expires_at)
              VALUES ($1, $2, $3)
              ON CONFLICT (scope, id) DO NOTHING",
+            scope,
+            id,
+            expires_at
         )
-        .bind(scope)
-        .bind(id)
-        .bind(expires_at)
         .execute(self.write_pool_ref())
         .await?;
         Ok(result.rows_affected() == 1)

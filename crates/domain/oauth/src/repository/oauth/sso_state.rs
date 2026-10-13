@@ -11,7 +11,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use sqlx::Row;
 use subtle::ConstantTimeEq;
 
 use super::OAuthRepository;
@@ -41,7 +40,6 @@ pub struct SsoStateRow {
 }
 
 impl SsoStateRow {
-    /// Whether `binder` is the cookie this state was issued to.
     pub fn binder_matches(&self, binder: &str) -> OauthResult<bool> {
         let presented = hash_at_rest(binder)?;
         Ok(bool::from(
@@ -54,20 +52,20 @@ impl OAuthRepository {
     pub async fn store_sso_state(&self, params: &SsoStateParams<'_>) -> OauthResult<()> {
         let state_hash = hash_at_rest(params.state)?;
         let binder_hash = hash_at_rest(params.binder)?;
-        sqlx::query(
+        sqlx::query!(
             "INSERT INTO sso_state_bindings
              (state_hash, provider_id, return_to, binder_hash, request_id, nonce,
               pkce_verifier, created_at, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, now(), $8)",
+            state_hash,
+            params.provider_id,
+            params.return_to,
+            binder_hash,
+            params.request_id,
+            params.nonce,
+            params.pkce_verifier,
+            params.expires_at
         )
-        .bind(state_hash)
-        .bind(params.provider_id)
-        .bind(params.return_to)
-        .bind(binder_hash)
-        .bind(params.request_id)
-        .bind(params.nonce)
-        .bind(params.pkce_verifier)
-        .bind(params.expires_at)
         .execute(self.write_pool_ref())
         .await?;
         Ok(())
@@ -79,7 +77,8 @@ impl OAuthRepository {
         state: &str,
     ) -> OauthResult<Option<SsoStateRow>> {
         let state_hash = hash_at_rest(state)?;
-        let row = sqlx::query(
+        let row = sqlx::query_as!(
+            SsoStateRow,
             "UPDATE sso_state_bindings
                 SET consumed_at = now()
               WHERE state_hash = $1
@@ -87,22 +86,11 @@ impl OAuthRepository {
                 AND consumed_at IS NULL
                 AND expires_at > now()
               RETURNING provider_id, return_to, binder_hash, request_id, nonce, pkce_verifier",
+            state_hash,
+            provider_id
         )
-        .bind(state_hash)
-        .bind(provider_id)
         .fetch_optional(self.write_pool_ref())
         .await?;
-
-        row.map(|r| -> OauthResult<SsoStateRow> {
-            Ok(SsoStateRow {
-                provider_id: r.try_get("provider_id")?,
-                return_to: r.try_get("return_to")?,
-                binder_hash: r.try_get("binder_hash")?,
-                request_id: r.try_get("request_id")?,
-                nonce: r.try_get("nonce")?,
-                pkce_verifier: r.try_get("pkce_verifier")?,
-            })
-        })
-        .transpose()
+        Ok(row)
     }
 }

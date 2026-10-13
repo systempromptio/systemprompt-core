@@ -10,7 +10,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Lowest accepted `refresh_secs`; bounds how often a reload may run.
 pub const MIN_EXTERNAL_REFRESH_SECS: u64 = 60;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

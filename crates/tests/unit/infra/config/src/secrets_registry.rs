@@ -23,7 +23,10 @@ impl SecretsProvider for StubProvider {
             serde_json::Value::String("postgres://stub".to_owned()),
         );
         if let Some(token) = &self.token {
-            fields.insert("anthropic".to_owned(), serde_json::Value::String(token.clone()));
+            fields.insert(
+                "anthropic".to_owned(),
+                serde_json::Value::String(token.clone()),
+            );
         }
         Ok(SecretsDocument::new(fields))
     }
@@ -109,7 +112,9 @@ fn a_factory_error_is_returned_unchanged() {
     else {
         panic!("failing factory built");
     };
-    assert!(matches!(err, SecretsBootstrapError::External { ref kind, .. } if kind == "registry-test-failing"));
+    assert!(
+        matches!(err, SecretsBootstrapError::External { ref kind, .. } if kind == "registry-test-failing")
+    );
     assert!(err.to_string().contains("backend unreachable"));
 }
 
