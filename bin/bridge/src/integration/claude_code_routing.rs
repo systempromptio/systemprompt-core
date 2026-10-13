@@ -78,15 +78,14 @@ pub fn routing(paths: &[PathBuf], expected: &Expected) -> Routing {
         .filter_map(|path| std::fs::read_to_string(path).ok())
         .filter_map(|body| serde_json::from_str(&body).ok())
         .collect();
-    let effective = |pick: &dyn Fn(
-        &serde_json::Map<String, serde_json::Value>,
-    ) -> Option<&serde_json::Value>| {
-        docs.iter()
-            .filter_map(|doc| pick(doc).and_then(serde_json::Value::as_str))
-            .find(|s| !s.is_empty())
-    };
-    let base_url = effective(&|doc| doc.get("env").and_then(|env| env.get("ANTHROPIC_BASE_URL")));
-    let helper = effective(&|doc| doc.get("apiKeyHelper"));
+    let base_url = docs
+        .iter()
+        .filter_map(|doc| doc.get("env")?.get("ANTHROPIC_BASE_URL")?.as_str())
+        .find(|s| !s.is_empty());
+    let helper = docs
+        .iter()
+        .filter_map(|doc| doc.get("apiKeyHelper")?.as_str())
+        .find(|s| !s.is_empty());
     let (Some(base_url), Some(helper)) = (base_url, helper) else {
         return Routing::Unrouted;
     };

@@ -9,6 +9,7 @@ use std::path::Path;
 use systemprompt_bridge::auth::plugin_oauth::{self, OAuthClientCreds};
 use systemprompt_bridge::cli::doctor::{self, Status};
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
+use systemprompt_bridge::install::mdm::claude_code_settings::current_helper_command;
 use systemprompt_identifiers::ClientId;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
@@ -85,7 +86,7 @@ fn write_claude_code_settings(root: &Path, origin: &str) {
         dir.join("settings.json"),
         serde_json::to_vec(&serde_json::json!({
             "env": { "ANTHROPIC_BASE_URL": origin },
-            "apiKeyHelper": "systemprompt-bridge credential-helper"
+            "apiKeyHelper": current_helper_command().expect("helper command resolves")
         }))
         .unwrap(),
     )
