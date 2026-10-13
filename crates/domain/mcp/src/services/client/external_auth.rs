@@ -8,6 +8,19 @@
 //! injected onto the outbound MCP request while the systemprompt credential is
 //! withheld.
 //!
+//! A connector on a machine grant (`client_credentials`, `app_installation`) is
+//! served by core itself: no user, no broker, one identity per deployment.
+//!
+//! `fetch_external_bearer` asks the credential broker for a server's bearer on
+//! behalf of the JWT's user. The request names the MCP server
+//! (`x-systemprompt-mcp-server`) and, when the request context carries one, the
+//! caller purpose (`x-systemprompt-caller`). The broker may refuse by purpose:
+//! a service account's credential can be scoped to the workflows allowed to use
+//! it. Trust rule: the purpose is set by the issuer of a credential (an API
+//! key's `purpose`, a JWT's `purpose` claim minted in-process), never by its
+//! bearer. It comes only from `RequestContext::caller_purpose()`; an inbound
+//! `x-systemprompt-caller` header is stripped at the API edge and never read.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -81,8 +94,6 @@ pub(super) async fn resolve_external_bearer(
     .await
 }
 
-/// A connector on a machine grant (`client_credentials`, `app_installation`)
-/// is served by core itself: no user, no broker, one identity per deployment.
 async fn machine_grant_bearer(ext: &ExternalAuth, server: &str) -> McpDomainResult<Option<String>> {
     let Ok(deployment) = crate::services::deployment::DeploymentService::get_deployment(server)
     else {
@@ -119,19 +130,6 @@ pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
     rewrite_url_for_internal_use(&accessor)
 }
 
-/// Asks the credential broker for `server`'s bearer on behalf of the JWT's
-/// user.
-///
-/// The request names the MCP server (`x-systemprompt-mcp-server`) and, when
-/// the request context carries one, the caller purpose
-/// (`x-systemprompt-caller`, omitted when `caller_purpose` is `None`). The
-/// broker may refuse by purpose: a service account's credential can be scoped
-/// to the workflows allowed to use it.
-///
-/// Trust rule: the purpose is set by the issuer of a credential (an API key's
-/// `purpose`, a JWT's `purpose` claim minted in-process), never by its bearer.
-/// It comes only from `RequestContext::caller_purpose()`; an inbound
-/// `x-systemprompt-caller` header is stripped at the API edge and never read.
 pub async fn fetch_external_bearer(
     accessor: &str,
     jwt: &str,

@@ -7,6 +7,7 @@ use std::time::Duration;
 use systemprompt_agent_runs::credentials::{
     IssueRunCredentials, RunCredentialLimits, RunCredentialService,
 };
+use systemprompt_agent_runs::repository::RunCredentialRepositories;
 use systemprompt_identifiers::{PluginId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::auth::Permission;
@@ -64,7 +65,7 @@ async fn issue_then_revoke_round_trips_every_credential() {
     let database = DisposableDb::with_schema("agent_run_credentials").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
-    let service = RunCredentialService::new(&pool, ISSUER);
+    let service = RunCredentialService::new(RunCredentialRepositories::new(&pool), ISSUER);
 
     let creds = service
         .issue(request(&user, Some("farm-governance")))
@@ -141,7 +142,7 @@ async fn issue_without_plugin_mints_no_hook_token() {
     let database = DisposableDb::with_schema("agent_run_credentials_noplugin").await;
     let pool = database.test_pool().await;
     let user = seed_user(&pool).await;
-    let service = RunCredentialService::new(&pool, ISSUER);
+    let service = RunCredentialService::new(RunCredentialRepositories::new(&pool), ISSUER);
     let creds = service.issue(request(&user, None)).await.expect("issue");
     assert!(creds.hook_token.is_none());
     assert!(creds.hook_token_jti.is_none());
@@ -155,7 +156,7 @@ async fn issue_for_unknown_user_leaves_no_live_key() {
     let database = DisposableDb::with_schema("agent_run_credentials_nouser").await;
     let pool = database.test_pool().await;
     let ghost = UserId::new(uuid::Uuid::new_v4().to_string());
-    let service = RunCredentialService::new(&pool, ISSUER);
+    let service = RunCredentialService::new(RunCredentialRepositories::new(&pool), ISSUER);
     assert!(service.issue(request(&ghost, None)).await.is_err());
     let live: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM user_api_keys WHERE user_id = $1 AND revoked_at IS NULL",

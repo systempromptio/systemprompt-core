@@ -36,7 +36,7 @@ pub use systemprompt_agent::services::a2a_server::handlers::request::agent_run::
 use crate::credentials::{IssueRunCredentials, RunCredentialLimits, RunCredentialService};
 use crate::governance::HookBases;
 use crate::layout::RunLayout;
-use crate::repository::AgentRunRepository;
+use crate::repository::AgentRunRepositories;
 use crate::request::RunRequest;
 use crate::service::{ClaimLoop, claimer_id};
 
@@ -44,7 +44,6 @@ pub const A2A_RUNNER_MAX_CONCURRENT: usize = 2;
 pub const A2A_RUNS_DIR: &str = "agent-runs";
 pub const CREDENTIAL_GRACE: Duration = Duration::from_secs(300);
 const SERVICE_NAME: &str = "agent_runs_a2a";
-const FALLBACK_HOSTNAME: &str = "localhost";
 const GOVERN_PATH: &str = "/api/public/hooks/govern";
 const TRACK_PATH: &str = "/api/public/hooks/track";
 
@@ -127,14 +126,15 @@ impl RunnerService for A2aRunnerService {
             &config.jwt_issuer,
             paths.storage().data(),
         );
-        let handler = A2aRunHandler::new(RunCredentialService::new(&db, &runner.issuer), runner);
-        let hostname =
-            systemprompt_manifest::config::stable_instance_id(|name| std::env::var(name).ok())
-                .unwrap_or_else(|| FALLBACK_HOSTNAME.to_owned());
+        let repos = AgentRunRepositories::new(&db);
+        let handler = A2aRunHandler::new(
+            RunCredentialService::new(repos.credentials, &runner.issuer),
+            runner,
+        );
         let mut claim = ClaimLoop::new(
-            AgentRunRepository::new(&db),
+            repos.runs,
             AGENT_RUN_ORIGIN_KIND,
-            claimer_id(&hostname),
+            claimer_id(config.instance_id.as_str()),
         );
         claim.max_concurrent = A2A_RUNNER_MAX_CONCURRENT;
         claim.run(shutdown, Arc::new(handler)).await;

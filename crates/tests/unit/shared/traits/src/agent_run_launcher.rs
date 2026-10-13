@@ -7,8 +7,11 @@ use systemprompt_traits::AgentRunLaunchError;
 
 #[test]
 fn launch_error_messages() {
-    let invalid = AgentRunLaunchError::InvalidRequest("missing host".into());
-    assert_eq!(invalid.to_string(), "invalid run request: missing host");
+    let cause = serde_json::from_str::<serde_json::Value>("{").unwrap_err();
+    let cause_text = cause.to_string();
+    let invalid = AgentRunLaunchError::InvalidRequest(cause);
+    assert_eq!(invalid.to_string(), "invalid run request");
+    assert_eq!(invalid.source().map(ToString::to_string), Some(cause_text));
 
     let id = AgentRunId::generate();
     let missing = AgentRunLaunchError::NotFound(id.clone());

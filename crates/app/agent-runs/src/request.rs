@@ -5,6 +5,12 @@
 //! claims it. [`HostKind`] names the coding-agent host; its spelling is the
 //! `agent_runs.host` column.
 //!
+//! `RunRequest::attribution_scopes` is header-only attribution: every gateway
+//! call the run makes carries one `x-systemprompt-scope-<dimension>: <value>`
+//! header per binding (`scope_headers`), so a trace or cost rollup can key on
+//! it without the run's API key being bound to the value (`workflow=<run_id>`,
+//! `project=<id>`, …).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -90,10 +96,6 @@ pub struct RunRequest {
     pub resume_session_id: Option<HostSessionId>,
     #[serde(default = "first_attempt")]
     pub attempt: u32,
-    /// Header-only attribution: every gateway call the run makes carries one
-    /// `x-systemprompt-scope-<dimension>: <value>` header per binding, so a
-    /// trace or cost rollup can key on it without the run's API key being
-    /// bound to the value (`workflow=<run_id>`, `project=<id>`, …).
     #[serde(default)]
     pub attribution_scopes: Vec<ScopeBinding>,
     #[serde(default)]
@@ -103,8 +105,6 @@ pub struct RunRequest {
 }
 
 impl RunRequest {
-    /// Gateway headers for [`Self::attribution_scopes`], keyed
-    /// `x-systemprompt-scope-<dimension>`.
     #[must_use]
     pub fn scope_headers(&self) -> BTreeMap<String, String> {
         self.attribution_scopes

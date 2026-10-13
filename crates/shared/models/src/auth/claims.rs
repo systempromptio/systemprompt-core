@@ -5,6 +5,10 @@
 //! (PBAC, RBAC, ABAC). [`ActClaim`] models the recursive `act` delegation
 //! chain, capped at [`MAX_ACT_CHAIN_DEPTH`].
 //!
+//! The `purpose` claim is the caller purpose bound by the token's issuer
+//! (in-process minting only), forwarded to the credential broker as
+//! `x-systemprompt-caller`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -119,8 +123,6 @@ pub struct JwtClaims {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub act: Option<ActClaim>,
-    /// Caller purpose bound by the token's issuer (in-process minting only),
-    /// forwarded to the credential broker as `x-systemprompt-caller`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
 }

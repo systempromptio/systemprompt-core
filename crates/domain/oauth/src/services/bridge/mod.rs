@@ -1,5 +1,8 @@
 //! Bridge session exchange code generation and consumption.
 //!
+//! A bridge exchange's `purpose` is the caller purpose bound to the credential
+//! that authenticated it (an API key's `purpose`), stamped into the bridge JWT.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -48,8 +51,6 @@ pub struct BridgeAccessRequest<'a> {
     pub client_id: ClientId,
     pub session_source: SessionSource,
     pub ttl_seconds: u64,
-    /// Caller purpose bound to the credential that authenticated this
-    /// exchange (an API key's `purpose`), stamped into the bridge JWT.
     pub purpose: Option<String>,
 }
 

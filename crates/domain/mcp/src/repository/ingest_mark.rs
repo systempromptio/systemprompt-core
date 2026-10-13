@@ -5,6 +5,11 @@
 //! ingested and the `tool_use_id` that pins it. The gateway reads the mark
 //! before a turn and writes it after every result in the turn was ingested.
 //!
+//! `list_settled_gateway_call_ids` returns the call ids whose gateway ingest
+//! has already settled: the artifact exists, the gateway was the last vantage
+//! point to see it, its session and trace are stamped and its execution is
+//! exactly correlated. Re-ingesting one of these would change no row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -91,10 +96,6 @@ impl ToolResultIngestMarkRepository {
         Ok(())
     }
 
-    /// The call ids among `call_ids` whose gateway ingest has already settled:
-    /// the artifact exists, the gateway was the last vantage point to see it,
-    /// its session and trace are stamped and its execution is exactly
-    /// correlated. Re-ingesting one of these would change no row.
     pub async fn list_settled_gateway_call_ids(
         &self,
         call_ids: &[String],

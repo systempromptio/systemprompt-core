@@ -1,5 +1,8 @@
 //! JWT and client-secret generation primitives.
 //!
+//! The `purpose` claim carries the caller purpose. Only in-process issuers set
+//! it; no endpoint copies it from a request.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -36,8 +39,6 @@ pub struct JwtConfig {
     pub plugin_id: Option<PluginId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
-    /// Caller purpose stamped into the `purpose` claim. Only in-process
-    /// issuers set it; no endpoint copies it from a request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<String>,
 }

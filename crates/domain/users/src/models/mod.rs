@@ -7,6 +7,10 @@
 //! [`UserApiKey`] / [`NewApiKey`] and [`UserDeviceCert`]. Role and status
 //! enums are re-exported from `systemprompt_models::auth`.
 //!
+//! An API key's `purpose` is the caller purpose bound by the key's issuer and
+//! forwarded to the credential broker as `x-systemprompt-caller`; the bearer
+//! cannot set it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -170,8 +174,6 @@ pub struct UserApiKey {
     pub revoked_at: Option<DateTime<Utc>>,
     pub limits: ApiKeyLimits,
     pub scopes: Vec<ScopeBinding>,
-    /// Caller purpose bound by the key's issuer and forwarded to the
-    /// credential broker as `x-systemprompt-caller`; the bearer cannot set it.
     pub purpose: Option<String>,
 }
 

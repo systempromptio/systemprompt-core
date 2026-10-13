@@ -5,6 +5,11 @@
 //! all is refused rather than handed a permission-less principal, and a
 //! service account is refused on every interactive path.
 //!
+//! `load_interactive_user` is `load_authenticated_user` for a credential a
+//! person holds interactively (authorization code, refresh, bridge session,
+//! passkey link): `refuse_service_account` refuses a service account with
+//! `OauthError::ServiceAccountInteractive`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -63,9 +68,6 @@ pub async fn load_authenticated_user(
     )
 }
 
-/// [`load_authenticated_user`] for a credential a person holds interactively
-/// (authorization code, refresh, bridge session, passkey link): a service
-/// account is refused with [`OauthError::ServiceAccountInteractive`].
 pub async fn load_interactive_user(
     users: &dyn UserProvider,
     user_id: &UserId,
@@ -75,7 +77,6 @@ pub async fn load_interactive_user(
     Ok(user)
 }
 
-/// Refuses an interactive credential for a service account.
 pub fn refuse_service_account(is_service_account: bool, user_id: &UserId) -> OauthResult<()> {
     if is_service_account {
         tracing::warn!(%user_id, "interactive credential refused for a service account");

@@ -1,5 +1,8 @@
 //! Context read queries.
 //!
+//! Stats counters still NULL belong to a context queued for its first count
+//! (migration 015); they read as zero until the drainer fills them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,8 +17,6 @@ fn stored_context_id(raw: String) -> Result<ContextId, RepositoryError> {
     ContextId::try_new(raw).map_err(|e| RepositoryError::decode("context_id", e))
 }
 
-/// Counters still NULL belong to a context queued for its first count
-/// (migration 015); they read as zero until the drainer fills them.
 struct ContextStatsRow {
     context_id: ContextId,
     user_id: UserId,

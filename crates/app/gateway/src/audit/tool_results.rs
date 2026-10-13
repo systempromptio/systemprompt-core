@@ -11,6 +11,9 @@
 //! its key and enriches it, so a result is stored once however many turns
 //! repeat it. The work runs off the request path.
 //!
+//! A turn resumes just past the ingest mark when the block that pinned it is
+//! still where it was, and rescans the whole history otherwise.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -104,8 +107,6 @@ async fn ingest_new(
     }
 }
 
-/// The first message index this turn has to look at: just past the mark when
-/// the block that pinned it is still where it was, else the whole history.
 fn resume_index(mark: Option<&IngestMark>, results: &[ReplayedResult]) -> usize {
     mark.filter(|mark| {
         results.iter().any(|r| {

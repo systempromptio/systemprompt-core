@@ -29,8 +29,8 @@ pub struct AgentRunLaunch {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AgentRunLaunchError {
-    #[error("invalid run request: {0}")]
-    InvalidRequest(String),
+    #[error("invalid run request")]
+    InvalidRequest(#[source] serde_json::Error),
     #[error("agent run {0} not found")]
     NotFound(AgentRunId),
     #[error("agent run launcher unavailable")]

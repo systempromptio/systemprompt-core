@@ -48,8 +48,6 @@ pub(crate) async fn post_form(
     send_with_retry(uri, |client| client.post(uri).form(form)).await
 }
 
-/// POSTs with an `Authorization: Bearer` header and no body, the shape of a
-/// GitHub App installation-token exchange.
 pub(crate) async fn post_bearer(
     uri: &str,
     bearer: &str,

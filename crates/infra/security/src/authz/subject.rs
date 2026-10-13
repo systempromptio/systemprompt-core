@@ -92,6 +92,12 @@ pub static NO_SUBJECT_ATTRIBUTES: SubjectAttributes = SubjectAttributes::EMPTY;
 
 /// Looks up the values a user holds for one extension-owned dimension.
 ///
+/// `default_attribution` says whether a request with no header and no key
+/// binding for this dimension is attributed to the first value the user holds.
+/// `false` makes the dimension header-only: such a request carries no
+/// attribution for it, while a header or key binding is still verified against
+/// `values_for`.
+///
 /// `#[async_trait]` because providers are held as
 /// [`SharedSubjectAttributeProvider`], an `Arc<dyn …>`, so the trait must stay
 /// `dyn`-compatible.
@@ -101,11 +107,6 @@ pub trait SubjectAttributeProvider: Send + Sync + Debug {
 
     async fn values_for(&self, user_id: &UserId) -> Result<Vec<String>, super::AuthzError>;
 
-    /// Whether a request with no header and no key binding for this dimension
-    /// is attributed to the first value the user holds. `false` makes the
-    /// dimension header-only: such a request carries no attribution for it,
-    /// while a header or key binding is still verified against
-    /// [`Self::values_for`].
     fn default_attribution(&self) -> bool {
         true
     }

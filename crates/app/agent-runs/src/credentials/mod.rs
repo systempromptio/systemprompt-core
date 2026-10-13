@@ -6,6 +6,10 @@
 //! issues and revokes them in-process, with no HTTP round trip to the
 //! gateway.
 //!
+//! `IssueRunCredentials::purpose` is the caller purpose bound to the PAT by its
+//! issuer (`farm:<run_id>`, `workflow:<id>`); the broker reads it from the
+//! credential, never from a client header. `None` issues an unpurposed key.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -54,8 +58,5 @@ pub struct IssueRunCredentials {
     pub scopes: Vec<ScopeBinding>,
     pub plugin_id: Option<PluginId>,
     pub limits: RunCredentialLimits,
-    /// Caller purpose bound to the PAT by its issuer (`farm:<run_id>`,
-    /// `workflow:<id>`); the broker reads it from the credential, never from
-    /// a client header. `None` issues an unpurposed key.
     pub purpose: Option<String>,
 }

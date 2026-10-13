@@ -41,8 +41,8 @@ impl RepositoryRunLauncher {
 #[async_trait]
 impl AgentRunLauncher for RepositoryRunLauncher {
     async fn enqueue(&self, launch: AgentRunLaunch) -> Result<AgentRunId, AgentRunLaunchError> {
-        let request: RunRequest = serde_json::from_value(launch.request)
-            .map_err(|e| AgentRunLaunchError::InvalidRequest(e.to_string()))?;
+        let request: RunRequest =
+            serde_json::from_value(launch.request).map_err(AgentRunLaunchError::InvalidRequest)?;
         let id = AgentRunId::generate();
         self.repo
             .insert_run(NewAgentRun {

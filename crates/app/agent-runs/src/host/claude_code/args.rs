@@ -132,7 +132,7 @@ pub fn child_env(ctx: &PrepareContext<'_>) -> Vec<(String, String)> {
     vars.into_iter().map(|(k, v)| (k.to_owned(), v)).collect()
 }
 
-// Claude Code reads `ANTHROPIC_CUSTOM_HEADERS` as newline-separated
+// Why: Claude Code reads `ANTHROPIC_CUSTOM_HEADERS` as newline-separated
 // `Name: value` lines and sends each on every API call.
 fn custom_headers(ctx: &PrepareContext<'_>) -> String {
     let session = format!(

@@ -48,7 +48,9 @@ pub(super) async fn execute_streaming(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response.text().await.with_context(|| {
+            format!("Agent stream request failed with status {status}; its body was unreadable")
+        })?;
         anyhow::bail!("Agent stream request failed with status {status}: {body}");
     }
 

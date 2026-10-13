@@ -12,7 +12,6 @@
 
 use std::sync::Arc;
 
-use systemprompt_database::DbPool;
 use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::{SessionProvider, UserProvider};
@@ -23,6 +22,7 @@ use super::pat::{chrono_ttl, issue_pat, revoke_pat};
 use super::session::{end_session, open_session};
 use super::{IssueRunCredentials, RunCredentials};
 use crate::error::AgentRunsResult;
+use crate::repository::RunCredentialRepositories;
 
 #[derive(Clone)]
 pub struct RunCredentialService {
@@ -43,15 +43,19 @@ impl std::fmt::Debug for RunCredentialService {
 }
 
 impl RunCredentialService {
-    pub fn new(pool: &DbPool, issuer: impl Into<String>) -> Self {
-        let users = Arc::new(UserRepository::new(pool));
-        let session_provider: Arc<dyn SessionProvider> = Arc::new(SessionRepository::new(pool));
+    pub fn new(repos: RunCredentialRepositories, issuer: impl Into<String>) -> Self {
+        let RunCredentialRepositories {
+            users,
+            sessions,
+            oauth,
+        } = repos;
+        let session_provider: Arc<dyn SessionProvider> = Arc::new(sessions.clone());
         let user_provider: Arc<dyn UserProvider> = Arc::new(UserService::new(Arc::clone(&users)));
         Self {
             keys: ApiKeyService::new(Arc::clone(&users)),
-            sessions: SessionRepository::new(pool),
+            sessions,
             creator: SessionCreationService::new(session_provider, user_provider),
-            oauth: OAuthRepository::new(pool),
+            oauth,
             users,
             issuer: issuer.into(),
         }

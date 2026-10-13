@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use systemprompt_agent_runs::RepositoryRunLauncher;
 use systemprompt_agent_runs::credentials::RunCredentialService;
+use systemprompt_agent_runs::repository::RunCredentialRepositories;
 use systemprompt_agent_runs::runner::{A2aRunHandler, A2aRunnerConfig};
 use systemprompt_agent_runs::service::{ClaimLoop, claimer_id};
 use systemprompt_identifiers::{ContextId, TaskId};
@@ -57,7 +58,7 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
         keep: &[],
     };
     let handler = A2aRunHandler::new(
-        RunCredentialService::new(&pool, "https://issuer.test"),
+        RunCredentialService::new(RunCredentialRepositories::new(&pool), "https://issuer.test"),
         config,
     )
     .with_host(Arc::new(host));

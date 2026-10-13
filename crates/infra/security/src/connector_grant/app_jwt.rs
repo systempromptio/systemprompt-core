@@ -24,7 +24,6 @@ pub struct AppJwtClaims {
     pub iss: String,
 }
 
-/// The claims for an app JWT issued at `now` (unix seconds).
 #[must_use]
 pub fn app_jwt_claims(app_id: &str, now: u64) -> AppJwtClaims {
     AppJwtClaims {

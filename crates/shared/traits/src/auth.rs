@@ -5,6 +5,11 @@
 //! `dyn`-compatible. `RoleProvider` is only used through concrete types and
 //! declares native `async` methods.
 //!
+//! `is_service_account` marks a non-human service account: it never receives an
+//! interactive credential (session login, passkey, bridge code, authorization
+//! code), and `ensure_interactive` refuses it on every interactive sign-in
+//! path.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -48,13 +53,10 @@ pub struct AuthUser {
     pub email: String,
     pub roles: Vec<String>,
     pub is_active: bool,
-    /// A non-human service account: it never receives an interactive
-    /// credential (session login, passkey, bridge code, authorization code).
     pub is_service_account: bool,
 }
 
 impl AuthUser {
-    /// Refuses a service account on every interactive sign-in path.
     pub const fn ensure_interactive(&self) -> AuthResult<()> {
         if self.is_service_account {
             return Err(AuthProviderError::ServiceAccountInteractiveLogin);

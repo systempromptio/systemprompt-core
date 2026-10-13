@@ -12,6 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod bundle;
 pub mod claim;
 pub mod events;
 pub mod rows;
@@ -27,6 +28,7 @@ use systemprompt_identifiers::{
     AgentRunId, ApiKeyId, ContextId, HostSessionId, SessionId, TaskId, UserId,
 };
 
+pub use bundle::{AgentRunRepositories, RunCredentialRepositories};
 pub use rows::AgentRunRow;
 
 use crate::error::AgentRunsResult;

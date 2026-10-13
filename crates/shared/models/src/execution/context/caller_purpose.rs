@@ -2,16 +2,16 @@
 //! credential is being asked for. It is set by a credential's issuer, never
 //! by its bearer.
 //!
+//! Only an issuer-bound source may bind the caller purpose: an API key's
+//! `purpose`, a JWT's `purpose` claim, or in-process code. It is never set from
+//! a request header.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::RequestContext;
 
 impl RequestContext {
-    /// Binds the caller purpose (for example `workflow:<id>`), forwarded to
-    /// the credential broker as `x-systemprompt-caller`. Only an issuer-bound
-    /// source may call this: an API key's `purpose`, a JWT's `purpose` claim,
-    /// or in-process code. Never set it from a request header.
     pub fn with_caller_purpose(mut self, purpose: String) -> Self {
         self.execution.caller_purpose = Some(purpose);
         self

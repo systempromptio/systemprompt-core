@@ -14,6 +14,10 @@
 //! carries the same timeouts and single retry as a provider credential, and a
 //! test points `token_url` at a mock server.
 //!
+//! `machine_token` mints, or reads from cache, the machine token for a server's
+//! connector, resolving its secret references from the bootstrapped secrets
+//! document; a cached token is minted again once it nears expiry.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -68,8 +72,6 @@ impl std::fmt::Debug for MachineGrant {
 }
 
 impl MachineGrant {
-    /// Resolves `connector`'s secret references through `secret`, which maps a
-    /// secret name to its value.
     pub fn resolve<F>(
         server: &str,
         connector: &ConnectorConfig,
@@ -123,7 +125,6 @@ impl MachineGrant {
         }
     }
 
-    /// The cached token for this grant, minted again once it nears expiry.
     pub async fn token(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
         token_for(cache_key, || async { self.mint().await })
             .await
@@ -164,15 +165,15 @@ impl MachineGrant {
                     .expires_at
                     .signed_duration_since(chrono::Utc::now())
                     .num_seconds();
-                let ttl = u64::try_from(remaining).ok();
-                Ok((response.token, clamp_ttl(ttl)))
+                Ok((
+                    response.token,
+                    clamp_ttl(Some(remaining.max(1).unsigned_abs())),
+                ))
             },
         }
     }
 }
 
-/// Mints (or reads from cache) the machine token for `server`'s connector,
-/// resolving its secret references from the bootstrapped secrets document.
 pub async fn machine_token(
     server: &str,
     connector: &ConnectorConfig,

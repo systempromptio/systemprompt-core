@@ -2,6 +2,12 @@
 //! completion's payload, assistant text and tool calls, or what a failure
 //! still consumed.
 //!
+//! `next_message_sequence` is the sequence number the assistant message takes:
+//! the count of messages admission wrote, carried from memory. It is `None`
+//! only for a receipt journaled before the count was carried; that receipt's
+//! assistant text is then not recorded rather than numbered by re-reading the
+//! ledger.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -35,10 +41,6 @@ pub struct SettleCompletion<'a> {
     pub payload: UpsertPayloadParams<'a>,
     pub assistant_text: Option<&'a str>,
     pub tool_calls: &'a [SettledToolCall],
-    /// The sequence number the assistant message takes: the count of
-    /// messages admission wrote, carried from memory. `None` only for a
-    /// receipt journaled before the count was carried; its assistant text is
-    /// then not recorded rather than numbered by re-reading the ledger.
     pub next_message_sequence: Option<i32>,
 }
 

@@ -19,6 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use systemprompt_traits::OwnedTask;
 
 use super::{A2aRunnerConfig, credential_request};
 use crate::credentials::{RunCredentialService, RunCredentials};
@@ -177,11 +178,11 @@ fn unexecuted(status: RunStatus, error_class: ErrorClass, error: &str) -> RunOut
     }
 }
 
-fn watch_cancel(claimed: &ClaimedRun) -> tokio::task::JoinHandle<()> {
+fn watch_cancel(claimed: &ClaimedRun) -> OwnedTask<()> {
     let repo = claimed.repo.clone();
     let token = claimed.run_token.clone();
     let id = claimed.row.id.clone();
-    tokio::spawn(async move {
+    OwnedTask::spawn("agent_run_cancel_watch", async move {
         loop {
             tokio::select! {
                 () = token.cancelled() => return,
