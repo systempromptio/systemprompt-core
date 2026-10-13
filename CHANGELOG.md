@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- **Bridge (Claude Code CLI):** after a reinstall moved the bridge executable or its port, Claude Code kept asking for a login: routing only checked that `ANTHROPIC_BASE_URL` and `apiKeyHelper` were set, so a dead helper still read as routed and sync never rewrote it. Routing now compares the effective values with what this bridge would write (`Routed` / `Stale` / `Unrouted`); the doctor, the GUI verdict and the sync repair share that answer, sync rewrites stale settings, and managed-settings removal recognises a moved Windows helper as the bridge's own.
 - **Bridge (macOS):** the Claude Desktop probe read a plist array back as its comma-joined display text while the desired profile renders lists as JSON, so every string-list key (`inferenceModels`, `coworkEgressAllowedHosts`, `disabledBuiltinTools`, `otlpContentCapture`) drifted forever: the agent stayed Stale, Repair rewrote a correct policy without clearing it, and the unattended repair re-offered a `.mobileconfig` on every launch. The probe now records a display text and a compare text separately. Windows is unchanged.
 
 ## [0.66.0] - 2026-10-13
