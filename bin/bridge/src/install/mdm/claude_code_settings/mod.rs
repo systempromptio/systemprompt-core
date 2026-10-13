@@ -11,7 +11,7 @@
 mod helper;
 mod merge;
 
-pub use helper::windows_helper_command;
+pub use helper::{is_bridge_windows_helper, windows_helper_command};
 use helper::{key_helper_path, prepare_helper, shell_command_for};
 pub mod model_picker;
 pub mod permissions;
@@ -69,6 +69,11 @@ fn can_write(path: &Path) -> bool {
             .is_some_and(|dir| tempfile::Builder::new().tempfile_in(dir).is_ok()),
         Ok(_) | Err(_) => false,
     }
+}
+
+#[must_use]
+pub fn current_helper_command() -> Option<String> {
+    key_helper_path().map(|helper| shell_command_for(&helper))
 }
 
 pub fn standalone_settings_path() -> Option<PathBuf> {

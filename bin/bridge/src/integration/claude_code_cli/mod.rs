@@ -46,6 +46,8 @@ use marketplace::{
 
 use systemprompt_models::bridge::host::HostKind;
 
+use crate::integration::claude_code_routing::Routing;
+
 use crate::config::paths;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
 use crate::ids::PluginId;
@@ -164,18 +166,23 @@ fn apply_install(ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
 }
 
 // Why: Claude Code with no gateway keys in the settings it reads keeps the
-// user's own Anthropic login; an install that predates first-run enrolment is
-// never otherwise routed. Only an unrouted install is written, so a sync
-// never rewrites settings that already route.
+// user's own Anthropic login, and a helper naming a bridge executable that a
+// reinstall moved is set but dead. Only settings whose effective keys differ
+// from what this bridge would write are rewritten.
 fn ensure_routed(ctx: &HostSyncCtx<'_>) -> Result<(), ApplyError> {
-    if crate::integration::claude_code_routing::is_routed() {
-        return Ok(());
+    let origin = ctx.loopback.origin();
+    match crate::integration::claude_code_routing::current_routing(Some(&origin)) {
+        Routing::Routed => return Ok(()),
+        Routing::Stale(key) => tracing::warn!(
+            target: "bridge::claude-code-cli",
+            stale = key.as_str(),
+            "Claude Code settings name a stale gateway value; rewriting them"
+        ),
+        Routing::Unrouted => {},
     }
-    crate::integration::enrol::claude_code::route(&ctx.loopback.origin()).map_err(|source| {
-        ApplyError::Step {
-            context: "route Claude Code through the gateway",
-            source: Box::new(source),
-        }
+    crate::integration::enrol::claude_code::route(&origin).map_err(|source| ApplyError::Step {
+        context: "route Claude Code through the gateway",
+        source: Box::new(source),
     })
 }
 

@@ -8,8 +8,20 @@ use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::claude_code::{
     check_config_dir_override, check_effective_routing, check_env_credentials, read_paths,
 };
-use systemprompt_bridge::integration::claude_code_routing::routes_through_gateway;
+use systemprompt_bridge::install::mdm::claude_code_settings::{
+    is_bridge_windows_helper, windows_helper_command,
+};
+use systemprompt_bridge::integration::claude_code_routing::{Expected, Routing, StaleKey, routing};
 use tempfile::TempDir;
+
+const BASE_URL: &str = "http://127.0.0.1:48217";
+
+fn expected(helper: &str) -> Expected {
+    Expected {
+        helper: helper.to_owned(),
+        base_url: Some(BASE_URL.to_owned()),
+    }
+}
 
 fn write(dir: &Path, name: &str, body: &str) -> PathBuf {
     let path = dir.join(name);
@@ -27,7 +39,7 @@ fn routing_fails_when_no_read_file_carries_base_url_and_helper() {
     );
     let missing = dir.path().join("managed-settings.json");
 
-    let check = check_effective_routing(&[missing, user]);
+    let check = check_effective_routing(&[missing, user], Some(&expected("/bin/helper")));
 
     assert_eq!(check.status, Status::Fail);
     assert!(check.detail.contains("ask for a login"), "{}", check.detail);
@@ -48,7 +60,10 @@ fn routing_fails_when_only_the_base_url_is_present() {
         r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}}"#,
     );
 
-    assert_eq!(check_effective_routing(&[user]).status, Status::Fail);
+    assert_eq!(
+        check_effective_routing(&[user], Some(&expected("/bin/helper"))).status,
+        Status::Fail
+    );
 }
 
 #[test]
@@ -65,7 +80,7 @@ fn routing_passes_when_policy_and_user_files_together_route() {
         r#"{"apiKeyHelper": "/bin/helper"}"#,
     );
 
-    let check = check_effective_routing(&[policy, user]);
+    let check = check_effective_routing(&[policy, user], Some(&expected("/bin/helper")));
 
     assert_eq!(check.status, Status::Ok, "{}", check.detail);
     assert!(
@@ -110,7 +125,7 @@ fn environment_credentials_that_outrank_the_helper_are_warned_about() {
     );
 }
 
-// The GUI's Claude Code verdict reads `routes_through_gateway`; the doctor's
+// The GUI's Claude Code verdict reads `routing`; the doctor's
 // check must pass exactly when it does, or the two disagree about one machine.
 #[test]
 fn the_doctor_check_and_the_gui_verdict_agree_on_routing() {
@@ -123,15 +138,121 @@ fn the_doctor_check_and_the_gui_verdict_agree_on_routing() {
         ),
         (r#"{"apiKeyHelper": "/bin/helper"}"#, false),
         (
-            r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/h"}"#,
+            r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/helper"}"#,
             true,
         ),
         ("{ not json", false),
     ] {
         let user = write(dir.path(), "settings.json", body);
         let paths = [dir.path().join("managed-settings.json"), user];
-        assert_eq!(routes_through_gateway(&paths), routed, "{body}");
-        let status = check_effective_routing(&paths).status;
+        assert_eq!(
+            routing(&paths, &expected("/bin/helper")).is_routed(),
+            routed,
+            "{body}"
+        );
+        let status = check_effective_routing(&paths, Some(&expected("/bin/helper"))).status;
         assert_eq!(status == Status::Ok, routed, "{body}: {status:?}");
+    }
+}
+
+#[test]
+fn a_helper_naming_a_moved_bridge_executable_is_stale() {
+    let dir = TempDir::new().expect("dir");
+    let old = windows_helper_command(Path::new(r"C:\Users\me\Desktop\bridge.exe"));
+    let new = windows_helper_command(Path::new(r"C:\Program Files\Bridge\bridge.exe"));
+    let user = write(
+        dir.path(),
+        "settings.json",
+        &serde_json::json!({"env": {"ANTHROPIC_BASE_URL": BASE_URL}, "apiKeyHelper": old})
+            .to_string(),
+    );
+
+    assert_eq!(
+        routing(std::slice::from_ref(&user), &expected(&new)),
+        Routing::Stale(StaleKey::ApiKeyHelper)
+    );
+    let check = check_effective_routing(&[user], Some(&expected(&new)));
+    assert_eq!(check.status, Status::Fail);
+    assert!(check.detail.contains("apiKeyHelper"), "{}", check.detail);
+    assert!(!check.detail.contains("EncodedCommand"), "{}", check.detail);
+}
+
+#[test]
+fn a_base_url_naming_another_port_is_stale() {
+    let dir = TempDir::new().expect("dir");
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48300"}, "apiKeyHelper": "/bin/helper"}"#,
+    );
+
+    assert_eq!(
+        routing(&[user], &expected("/bin/helper")),
+        Routing::Stale(StaleKey::BaseUrl)
+    );
+}
+
+#[test]
+fn an_unknown_port_judges_the_helper_alone() {
+    let dir = TempDir::new().expect("dir");
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48300"}, "apiKeyHelper": "/bin/helper"}"#,
+    );
+    let want = Expected {
+        helper: "/bin/helper".to_owned(),
+        base_url: None,
+    };
+
+    assert_eq!(routing(&[user], &want), Routing::Routed);
+}
+
+#[test]
+fn a_stale_policy_helper_outranks_a_current_user_helper() {
+    let dir = TempDir::new().expect("dir");
+    let policy = write(
+        dir.path(),
+        "managed-settings.json",
+        r#"{"apiKeyHelper": "/old/helper"}"#,
+    );
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/helper"}"#,
+    );
+
+    assert_eq!(
+        routing(&[policy, user], &expected("/bin/helper")),
+        Routing::Stale(StaleKey::ApiKeyHelper)
+    );
+}
+
+#[test]
+fn no_expected_helper_is_never_routed() {
+    let dir = TempDir::new().expect("dir");
+    let user = write(
+        dir.path(),
+        "settings.json",
+        r#"{"env": {"ANTHROPIC_BASE_URL": "http://127.0.0.1:48217"}, "apiKeyHelper": "/bin/helper"}"#,
+    );
+
+    assert_eq!(check_effective_routing(&[user], None).status, Status::Fail);
+}
+
+#[test]
+fn a_bridge_windows_helper_is_recognised_wherever_the_executable_lives() {
+    for exe in [r"C:\Users\me\Desktop\bridge.exe", r"D:\it's here\b.exe"] {
+        assert!(
+            is_bridge_windows_helper(&windows_helper_command(Path::new(exe))),
+            "{exe}"
+        );
+    }
+    for foreign in [
+        "/bin/helper",
+        "powershell.exe -NoProfile -NonInteractive -EncodedCommand !!!",
+        "powershell.exe -NoProfile -NonInteractive -EncodedCommand ZQBjAGgAbwAgAGgAaQA=",
+    ] {
+        assert!(!is_bridge_windows_helper(foreign), "{foreign}");
     }
 }

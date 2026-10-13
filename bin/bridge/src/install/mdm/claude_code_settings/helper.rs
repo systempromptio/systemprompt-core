@@ -32,9 +32,37 @@ pub fn windows_helper_command(executable: &Path) -> String {
     // named bare and resolved by the launching shell.
     let bytes: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
     format!(
-        "powershell.exe -NoProfile -NonInteractive -EncodedCommand {}",
+        "powershell.exe -NoProfile -NonInteractive{ENCODED_COMMAND}{}",
         STANDARD.encode(bytes)
     )
+}
+
+const ENCODED_COMMAND: &str = " -EncodedCommand ";
+
+// Why: Claude Code's settings carry the Windows helper base64-encoded, so a
+// helper naming an executable a reinstall moved is recognisable as ours only
+// by decoding it.
+#[must_use]
+pub fn is_bridge_windows_helper(command: &str) -> bool {
+    let Some((prefix, encoded)) = command.split_once(ENCODED_COMMAND) else {
+        return false;
+    };
+    if !prefix.starts_with("powershell.exe") {
+        return false;
+    }
+    let Ok(bytes) = STANDARD.decode(encoded.trim()) else {
+        return false;
+    };
+    if bytes.len() % 2 != 0 {
+        return false;
+    }
+    let units: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+        .collect();
+    String::from_utf16(&units).is_ok_and(|script| {
+        script.ends_with("credential-helper --host claude-code; exit $LASTEXITCODE")
+    })
 }
 
 #[cfg(unix)]

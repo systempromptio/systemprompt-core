@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use super::Check;
 use crate::config::paths::{CLAUDE_CONFIG_DIR_VAR, claude_config_dir_override};
 use crate::install::mdm::claude_code_settings::standalone_settings_path;
-use crate::integration::claude_code_routing;
+use crate::integration::claude_code_routing::{self, Routing};
 
 pub fn check_settings(origin: &str) -> Vec<Check> {
     let mut checks = Vec::new();
@@ -30,7 +30,10 @@ pub fn check_settings(origin: &str) -> Vec<Check> {
         ));
     }
     let config_dir = claude_config_dir_override();
-    checks.push(check_effective_routing(&read_paths(config_dir.as_deref())));
+    checks.push(check_effective_routing(
+        &read_paths(config_dir.as_deref()),
+        claude_code_routing::expected(Some(origin)).as_ref(),
+    ));
     checks.extend(config_dir.as_deref().map(check_config_dir_override));
     checks.extend(check_env_credentials(|key| std::env::var_os(key).is_some()));
     checks
@@ -42,28 +45,43 @@ pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
 
 // Why: a user upgraded past an enrolment that no longer applies sees only a
 // login prompt; the per-file checks pass for files Claude Code never reads.
-pub fn check_effective_routing(paths: &[PathBuf]) -> Check {
+pub fn check_effective_routing(
+    paths: &[PathBuf],
+    expected: Option<&claude_code_routing::Expected>,
+) -> Check {
     let name = "claude code routing";
     let listed = paths
         .iter()
         .map(|path| path.display().to_string())
         .collect::<Vec<_>>()
         .join(", ");
-    if claude_code_routing::routes_through_gateway(paths) {
-        return Check::ok(name, format!("gateway routing and helper set in {listed}"));
-    }
     let standalone = standalone_settings_path().map_or_else(
         || "the bridge's claude-code-settings.json".to_owned(),
         |path| path.display().to_string(),
     );
-    Check::fail(
-        name,
-        format!(
-            "Claude Code will ask for a login: none of {listed} sets both ANTHROPIC_BASE_URL and \
-             apiKeyHelper; run install --host claude-code, or launch with `claude --settings \
-             {standalone}`"
+    let routing = expected.map_or(Routing::Unrouted, |want| {
+        claude_code_routing::routing(paths, want)
+    });
+    match routing {
+        Routing::Routed => Check::ok(name, format!("gateway routing and helper set in {listed}")),
+        Routing::Stale(key) => Check::fail(
+            name,
+            format!(
+                "Claude Code will ask for a login: the {} in {listed} is not the one this bridge \
+                 writes (a reinstall moved the bridge or its port); run sync or install --host \
+                 claude-code to rewrite it — the managed-settings file needs an elevated shell",
+                key.as_str()
+            ),
         ),
-    )
+        Routing::Unrouted => Check::fail(
+            name,
+            format!(
+                "Claude Code will ask for a login: none of {listed} sets both ANTHROPIC_BASE_URL \
+                 and apiKeyHelper; run install --host claude-code, or launch with `claude \
+                 --settings {standalone}`"
+            ),
+        ),
+    }
 }
 
 pub fn check_config_dir_override(dir: &Path) -> Check {
