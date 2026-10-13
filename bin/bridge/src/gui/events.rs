@@ -193,6 +193,10 @@ pub enum UiEvent {
         host_id: HostKind,
         reply_to: ReplyId,
     },
+    AgentEnrol {
+        host_id: HostKind,
+        reply_to: ReplyId,
+    },
     SetupComplete,
     FirstRunStart,
 

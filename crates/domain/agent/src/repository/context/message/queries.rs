@@ -10,7 +10,7 @@ use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId,
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::{Message, MessageRole, Part};
-use crate::repository::parts::part_from_row;
+use crate::repository::parts::{metadata_object, part_from_row};
 use crate::repository::task::constructor::batch_queries;
 
 pub async fn get_messages_by_task(
@@ -66,7 +66,7 @@ pub async fn get_messages_by_task(
             task_id: Some(row.task_id),
             context_id: row.context_id,
             parts,
-            metadata: row.metadata,
+            metadata: metadata_object(row.metadata),
             extensions: None,
             reference_task_ids,
         });
@@ -127,7 +127,7 @@ pub async fn get_messages_by_context(
             task_id: Some(row.task_id),
             context_id: row.context_id,
             parts,
-            metadata: row.metadata,
+            metadata: metadata_object(row.metadata),
             extensions: None,
             reference_task_ids: None,
         });

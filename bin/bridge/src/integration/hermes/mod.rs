@@ -28,9 +28,10 @@ pub use install::{install_profile_into, remove_profile_from};
 
 use systemprompt_models::bridge::host::HostKind;
 
+use crate::drift::{DesiredProfile, EntryRole};
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
-    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
     ProfileRemoval, ProfileState,
 };
 
@@ -48,32 +49,22 @@ impl HostApp for HermesHost {
         "Hermes"
     }
 
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &config::SCHEMA
-    }
-
+    // Why: HERMES_HOME/.env holds the hermes host token; a stale one leaves
+    // Hermes traffic attributed as an unverified secret holder until sync
+    // re-renders it, so it is part of what "current" means.
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
-        let read = probe::read_config();
-        let endpoint = ProfileState::endpoint_freshness(
-            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
-            env.proxy_port,
-        );
-        // Why: HERMES_HOME/.env holds the hermes host token; a stale one
-        // leaves Hermes traffic attributed as an unverified secret holder
-        // until sync re-renders it, so it must surface as Stale.
-        let secret = Freshness::compare(
+        let mut read = probe::read_config();
+        if let Some(fp) =
             install::installed_key_fingerprint(&config::env_path_in(&config::hermes_home()))
-                .as_deref(),
-            env.host_token_fingerprint(self.id()).as_deref(),
-            "hermes host token",
-        );
+        {
+            read.observed.insert(config::ENV_KEY_ENTRY.to_owned(), fp);
+        }
+        let desired = env.desired_for(self);
         let profile_state = ProfileState::classify(&ProfileProbe {
-            required: config::REQUIRED_KEYS,
             present: &read.keys,
+            observed: &read.observed,
             read_error: read.probe_error.as_deref(),
-            secret,
-            endpoint,
-            managed_servers: Freshness::Unchecked,
+            desired: &desired,
         });
         let found = HostProcesses::from_enumeration(probe::list_hermes_processes());
         HostAppSnapshot {
@@ -85,13 +76,26 @@ impl HostApp for HermesHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed: crate::integration::app_launch::is_installed(
-                &locator(),
-                &env.start_menu,
-            ),
+            app_installed: self.app_installed(&env.start_menu),
             probed_at_unix: config::now_unix(),
             update_needs_approval: false,
         }
+    }
+
+    fn desired(&self, inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        let rendered: serde_yaml::Value = serde_yaml::from_str(&install::managed_yaml(inputs)?)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        let mut desired = probe::keys_of(&rendered, "rendered profile").desired(config::role_of);
+        desired.push(
+            config::ENV_KEY_ENTRY,
+            crate::proxy::secret::fingerprint(inputs.host_token.as_str()),
+            EntryRole::Secret,
+        );
+        Ok(desired)
+    }
+
+    fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState {
+        crate::integration::app_launch::is_installed(&locator(), start_menu)
     }
 
     fn generate_profile(

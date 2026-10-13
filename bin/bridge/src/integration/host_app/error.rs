@@ -27,6 +27,8 @@ pub enum HostAppError {
     #[error("this agent cannot be opened from the bridge")]
     OpenUnsupported,
     #[error(transparent)]
+    Policy(#[from] crate::install::mdm::MdmError),
+    #[error(transparent)]
     Io(#[from] io::Error),
 }
 

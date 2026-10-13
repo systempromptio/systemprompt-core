@@ -56,6 +56,7 @@ async fn limits_and_scopes_round_trip_through_issue_verify_and_list() {
             expires_at: None,
             limits: &limited(),
             scopes: &scopes,
+            purpose: None,
         })
         .await
         .expect("issue");
@@ -92,6 +93,7 @@ async fn an_unlimited_key_has_no_limits_and_allows_every_model() {
             expires_at: None,
             limits: &ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await
         .expect("issue");
@@ -109,6 +111,7 @@ async fn rejected(ctx: &Ctx, limits: ApiKeyLimits, scopes: &[ScopeBinding]) -> S
             expires_at: None,
             limits: &limits,
             scopes,
+            purpose: None,
         })
         .await
     {
@@ -172,6 +175,7 @@ async fn the_database_refuses_a_ceiling_without_a_window() {
             expires_at: None,
             limits: &limits,
             scopes: &[],
+            purpose: None,
         })
         .await;
     let error = result.expect_err("the window CHECK refuses the row");

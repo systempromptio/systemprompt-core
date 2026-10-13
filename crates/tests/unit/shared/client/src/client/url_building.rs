@@ -7,16 +7,14 @@
 
 use systemprompt_client::SystempromptClient;
 use systemprompt_identifiers::{AgentName, ContextId, JwtToken, MessageId, TaskId};
-use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart};
-use wiremock::matchers::{method, path, query_param};
+use systemprompt_models::a2a::{Message, MessageRole, Part};
+use wiremock::matchers::{body_partial_json, header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn user_message(context_id: &ContextId, text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text)],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: context_id.clone(),
@@ -203,6 +201,14 @@ async fn test_send_message_builds_correct_url_and_envelope() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/agents/my-agent/"))
+        .and(header("A2A-Version", "1.0"))
+        .and(body_partial_json(serde_json::json!({
+            "method": "SendMessage",
+            "params": {
+                "message": { "parts": [{ "text": "hello" }] },
+                "configuration": { "returnImmediately": false }
+            }
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0",
             "result": {},
@@ -234,10 +240,7 @@ async fn test_send_message_requires_auth_header_when_token_set() {
 
     Mock::given(method("POST"))
         .and(path("/api/v1/agents/agent-x/"))
-        .and(wiremock::matchers::header(
-            "Authorization",
-            "Bearer msg-token",
-        ))
+        .and(header("Authorization", "Bearer msg-token"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "jsonrpc": "2.0",
             "result": {},

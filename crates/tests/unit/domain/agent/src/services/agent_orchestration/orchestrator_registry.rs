@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -18,8 +18,8 @@ use systemprompt_config::paths::AppPaths;
 use systemprompt_manifest::ServicesConfig;
 use uuid::Uuid;
 
-use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use systemprompt_test_fixtures::test_db_pool;
+use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state_for};
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -34,11 +34,8 @@ fn app_paths() -> Arc<AppPaths> {
     Arc::new(bootstrap.app_paths.clone())
 }
 
-fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -57,9 +54,10 @@ fn registry_with(names_and_ports: &[(&AgentName, u16)]) -> AgentRegistry {
 
 async fn make_orchestrator(
     pool: &systemprompt_database::DbPool,
+    instance: &InstanceId,
     names_and_ports: &[(&AgentName, u16)],
 ) -> AgentOrchestrator {
-    let agent_state = make_agent_state(pool);
+    let agent_state = make_agent_state_for(pool, instance);
     let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
         .await
         .expect("orchestrator");
@@ -70,11 +68,12 @@ async fn make_orchestrator(
 #[tokio::test]
 async fn detailed_status_reports_configured_agents() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_status");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9450)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9450)]).await;
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9450)
         .await
         .expect("register");
@@ -90,15 +89,19 @@ async fn detailed_status_reports_configured_agents() {
     let all = orchestrator.list_all().await.expect("list_all");
     assert!(all.iter().any(|(id, _)| id == &name));
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }
 
 #[tokio::test]
 async fn validate_agent_reports_missing_and_failed() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_validate");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9451)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9451)]).await;
 
     let missing = orchestrator
         .validate_agent(&AgentName::new("__no_such_agent"))
@@ -113,7 +116,7 @@ async fn validate_agent_reports_missing_and_failed() {
         missing.issues
     );
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 9451)
         .await
         .expect("register");
@@ -125,17 +128,21 @@ async fn validate_agent_reports_missing_and_failed() {
             .any(|i| i.contains("failed state") || i.contains("Health check"))
     );
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }
 
 #[tokio::test]
 async fn validate_agent_running_agent_reaches_health_check() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_health");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9452)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9452)]).await;
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, std::os::unix::process::parent_id(), 9452)
         .await
         .expect("register");
@@ -150,36 +157,44 @@ async fn validate_agent_running_agent_reaches_health_check() {
 
     let _results = orchestrator.health_check_all().await.expect("health all");
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }
 
 #[tokio::test]
 async fn delete_agent_with_live_pid_removes_service_row() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_delete");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9453)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9453)]).await;
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, std::os::unix::process::parent_id(), 9453)
         .await
         .expect("register");
 
     orchestrator.delete_agent(&name).await.expect("delete");
 
-    let status = db_service(&pool).get_status(&name).await.expect("status");
+    let status = db_service(&pool, &instance)
+        .get_status(&name)
+        .await
+        .expect("status");
     assert!(matches!(status, AgentStatus::Failed { .. }));
 }
 
 #[tokio::test]
 async fn delete_all_agents_deletes_configured_agents() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("orchreg_bulk_a");
     let b = unique_name("orchreg_bulk_b");
-    let orchestrator = make_orchestrator(&pool, &[(&a, 9454), (&b, 9455)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&a, 9454), (&b, 9455)]).await;
 
-    let db = db_service(&pool);
+    let db = db_service(&pool, &instance);
     db.register_agent(&a, DEAD_PID, 9454).await.expect("reg a");
     db.register_agent(&b, DEAD_PID, 9455).await.expect("reg b");
 
@@ -190,8 +205,9 @@ async fn delete_all_agents_deletes_configured_agents() {
 #[tokio::test]
 async fn delete_all_agents_empty_registry_is_zero() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let orchestrator = make_orchestrator(&pool, &[]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[]).await;
     let deleted = orchestrator.delete_all_agents().await.expect("delete all");
     assert_eq!(deleted, 0);
 }
@@ -199,11 +215,12 @@ async fn delete_all_agents_empty_registry_is_zero() {
 #[tokio::test]
 async fn start_agent_already_running_is_rejected() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_running");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 9457)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 9457)]).await;
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, std::os::unix::process::parent_id(), 9457)
         .await
         .expect("register");
@@ -214,30 +231,38 @@ async fn start_agent_already_running_is_rejected() {
         .expect_err("already running");
     assert!(err.to_string().to_lowercase().contains("running"));
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }
 
 #[tokio::test]
 async fn start_agent_missing_binary_fails_after_prerequisites() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_spawnfail");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 39457)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39457)]).await;
 
     let result = orchestrator.start_agent(&name, None).await;
     assert!(result.is_err(), "spawn without a worker binary must fail");
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }
 
 #[tokio::test]
 async fn restart_agent_dead_pid_row_reaches_start_path() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("orchreg_restart");
-    let orchestrator = make_orchestrator(&pool, &[(&name, 39458)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, 39458)]).await;
 
-    db_service(&pool)
+    db_service(&pool, &instance)
         .register_agent(&name, DEAD_PID, 39458)
         .await
         .expect("register");
@@ -245,5 +270,8 @@ async fn restart_agent_dead_pid_row_reaches_start_path() {
     let result = orchestrator.restart_agent(&name, None).await;
     assert!(result.is_err(), "restart without a worker binary must fail");
 
-    db_service(&pool).remove_agent_service(&name).await.ok();
+    db_service(&pool, &instance)
+        .remove_agent_service(&name)
+        .await
+        .ok();
 }

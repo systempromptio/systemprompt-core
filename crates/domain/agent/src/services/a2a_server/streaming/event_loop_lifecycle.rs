@@ -1,7 +1,7 @@
 //! Lifecycle helpers for the streaming event loop:
 //! - emit the A2A `working` status update when streaming begins,
 //! - the single emitter for A2A `TaskStatusUpdate` frames on the SSE channel
-//!   (exactly one frame per task carries `final: true`),
+//!   (the stream closes after exactly one terminal status),
 //! - record stream-creation failures.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -13,28 +13,23 @@ use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
 
-use crate::models::a2a::protocol::TaskStatusUpdateEvent;
+use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::protocol::{StreamResponse, TaskStatusUpdateEvent};
 use crate::models::a2a::{TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
 
+use super::frames::send_stream_response;
 use super::webhook_client::WebhookContext;
 
 pub(super) async fn send_a2a_status_event(
     tx: &Sender<Event>,
+    request_id: &NumberOrString,
     task_id: &TaskId,
     context_id: &ContextId,
     status: TaskStatus,
-    is_final: bool,
 ) {
-    let event = TaskStatusUpdateEvent::new(task_id.clone(), context_id.clone(), status, is_final);
-    let jsonrpc = event.to_jsonrpc_response();
-    if tx
-        .send(Event::default().data(jsonrpc.to_string()))
-        .await
-        .is_err()
-    {
-        tracing::trace!("Failed to send status event, channel closed");
-    }
+    let event = TaskStatusUpdateEvent::new(task_id.clone(), context_id.clone(), status);
+    send_stream_response(tx, StreamResponse::StatusUpdate(event), request_id).await;
 }
 
 #[expect(
@@ -43,6 +38,7 @@ pub(super) async fn send_a2a_status_event(
 )]
 pub struct EmitRunStartedParams<'a> {
     pub tx: &'a Sender<Event>,
+    pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub context_id: &'a ContextId,
     pub task_id: &'a TaskId,
@@ -52,6 +48,7 @@ pub struct EmitRunStartedParams<'a> {
 pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
     let EmitRunStartedParams {
         tx,
+        request_id,
         webhook_context,
         context_id,
         task_id,
@@ -68,6 +65,7 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
 
     send_a2a_status_event(
         tx,
+        request_id,
         task_id,
         context_id,
         TaskStatus {
@@ -75,7 +73,6 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
             message: None,
             timestamp: Some(working_timestamp),
         },
-        false,
     )
     .await;
 

@@ -25,6 +25,9 @@ CREATE TABLE IF NOT EXISTS mcp_tool_executions (
     correlation VARCHAR(16) NOT NULL DEFAULT 'exact' CHECK (correlation IN ('exact', 'inferred')),
     payload_sha256 CHAR(64),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    input_summary TEXT,
+    is_builtin BOOLEAN,
+    artifact_kind TEXT,
     UNIQUE (user_id, mcp_execution_id)
 );
 CREATE INDEX IF NOT EXISTS idx_mcp_tool_executions_status ON mcp_tool_executions(status);

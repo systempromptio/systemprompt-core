@@ -21,7 +21,8 @@ use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 use wiremock::MockServer;
 
-use crate::harness::{default_tools_json, mount_mcp_endpoint, unique_instance};
+use crate::harness::{default_tools_json, mount_mcp_endpoint};
+use systemprompt_test_fixtures::unique_instance;
 
 async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     let db = test_db_pool().await;

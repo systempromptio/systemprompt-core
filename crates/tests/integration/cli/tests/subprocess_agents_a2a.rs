@@ -11,7 +11,7 @@ use systemprompt_cli_integration_tests::full_bootstrap::{
     full_fixture,
 };
 use systemprompt_cli_integration_tests::mcp_stub::stub_port;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{header, method, path};
 use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
 
 struct StreamFrameMatcher {
@@ -48,7 +48,12 @@ impl Match for StreamFrameMatcher {
         let one_session_token = authorizations
             .first()
             .is_some_and(|first| authorizations.iter().all(|value| value == first));
-        body["jsonrpc"] == "2.0"
+        let versioned = request
+            .headers
+            .get("a2a-version")
+            .is_some_and(|value| value == "1.0");
+        versioned
+            && body["jsonrpc"] == "2.0"
             && body["method"] == "SendStreamingMessage"
             && body["params"]["message"]["parts"] == json!([{"text": self.text}])
             && !accepts.is_empty()
@@ -204,11 +209,12 @@ fn message_non_streaming_roundtrip() {
     let port = spawn_server_from(move || {
         let body = json!({
             "jsonrpc": "2.0",
-            "result": completed_task_json(),
+            "result": { "task": completed_task_json() },
             "id": "1"
         });
         let mock = Mock::given(method("POST"))
             .and(path(agent_path.as_str()))
+            .and(header("A2A-Version", "1.0"))
             .respond_with(ResponseTemplate::new(200).set_body_json(body));
         vec![mock]
     });
@@ -302,44 +308,44 @@ fn message_streaming_roundtrip() {
         let chunk = json!({
             "jsonrpc": "2.0",
             "result": {
-                "kind": "status-update",
-                "taskId": "task-cov-2",
-                "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                "status": {
-                    "state": "TASK_STATE_WORKING",
-                    "message": {
-                        "role": "ROLE_AGENT",
-                        "parts": [{"text": "chunk one "}],
-                        "messageId": "msg-s-1",
-                        "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                        "metadata": null,
-                        "extensions": null
-                    },
-                    "timestamp": null
-                },
-                "final": false
+                "statusUpdate": {
+                    "taskId": "task-cov-2",
+                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                    "status": {
+                        "state": "TASK_STATE_WORKING",
+                        "message": {
+                            "role": "ROLE_AGENT",
+                            "parts": [{"text": "chunk one "}],
+                            "messageId": "msg-s-1",
+                            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                            "metadata": null,
+                            "extensions": null
+                        },
+                        "timestamp": null
+                    }
+                }
             },
             "id": "1"
         });
         let done = json!({
             "jsonrpc": "2.0",
             "result": {
-                "kind": "status-update",
-                "taskId": "task-cov-2",
-                "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                "status": {
-                    "state": "TASK_STATE_COMPLETED",
-                    "message": {
-                        "role": "ROLE_AGENT",
-                        "parts": [{"text": "chunk two"}],
-                        "messageId": "msg-s-2",
-                        "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                        "metadata": null,
-                        "extensions": null
-                    },
-                    "timestamp": null
-                },
-                "final": true
+                "statusUpdate": {
+                    "taskId": "task-cov-2",
+                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                    "status": {
+                        "state": "TASK_STATE_COMPLETED",
+                        "message": {
+                            "role": "ROLE_AGENT",
+                            "parts": [{"text": "chunk two"}],
+                            "messageId": "msg-s-2",
+                            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                            "metadata": null,
+                            "extensions": null
+                        },
+                        "timestamp": null
+                    }
+                }
             },
             "id": "1"
         });
@@ -459,7 +465,7 @@ fn edit_apply_covers_field_groups() {
         "false",
         "--push-notifications",
         "true",
-        "--state-transition-history",
+        "--extended-agent-card",
         "false",
         "--provider",
         "anthropic",
@@ -643,7 +649,7 @@ fn configure_owned_web_paths() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_details() {
+async fn message_streaming_reports_jsonrpc_error_details() {
     tokio::task::spawn_blocking(|| {
         full_fixture();
         configure_owned_web_paths();
@@ -661,7 +667,7 @@ async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_detail
         },
         "id": "stream-error"
     });
-    let sse = format!("data: not-json\n\ndata: {error}\n\n");
+    let sse = format!("data: {error}\n\n");
     Mock::given(method("POST"))
         .and(path(format!("/api/v1/agents/{FIXTURE_AGENT}")))
         .and(StreamFrameMatcher {
@@ -704,7 +710,7 @@ async fn message_streaming_skips_invalid_frame_then_reports_jsonrpc_error_detail
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn message_streaming_rejects_eof_without_a_final_task() {
+async fn message_streaming_rejects_close_before_a_terminal_state() {
     tokio::task::spawn_blocking(|| {
         full_fixture();
         configure_owned_web_paths();
@@ -716,23 +722,23 @@ async fn message_streaming_rejects_eof_without_a_final_task() {
     let partial = json!({
         "jsonrpc": "2.0",
         "result": {
-            "kind": "status-update",
-            "taskId": "task-incomplete",
-            "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-            "status": {
-                "state": "TASK_STATE_WORKING",
-                "message": {
-                    "role": "ROLE_AGENT",
-                    "parts": [{"text": "partial response"}],
-                    "messageId": "msg-incomplete",
-                    "contextId": "b8a7c0de-1111-2222-3333-444455556666",
-                    "metadata": null,
-                    "extensions": null
-                },
-                "timestamp": null
+                "statusUpdate": {
+                "taskId": "task-incomplete",
+                "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                "status": {
+                    "state": "TASK_STATE_WORKING",
+                    "message": {
+                        "role": "ROLE_AGENT",
+                        "parts": [{"text": "partial response"}],
+                        "messageId": "msg-incomplete",
+                        "contextId": "b8a7c0de-1111-2222-3333-444455556666",
+                        "metadata": null,
+                        "extensions": null
+                    },
+                    "timestamp": null
+                }
+                }
             },
-            "final": false
-        },
         "id": "stream-incomplete"
     });
     Mock::given(method("POST"))
@@ -772,7 +778,7 @@ async fn message_streaming_rejects_eof_without_a_final_task() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stdout.contains("partial response"), "{stdout}");
     assert!(
-        stderr.contains("Stream ended without final task"),
+        stderr.contains("Stream closed while task task-incomplete was still TASK_STATE_WORKING"),
         "{stderr}"
     );
 }

@@ -3,13 +3,13 @@
 //! Each test runs against its own instance id, so the instance-wide sweeps see
 //! only the rows that test seeded and never another test's.
 
-use crate::harness::{internal_mcp_config, unique_instance};
+use crate::harness::internal_mcp_config;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::sync::{
     cleanup_stale_services, delete_crashed_services, delete_disabled_services, sync_database_state,
 };
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 #[tokio::test]
 async fn cleanup_stale_services_empty_table_returns_ok() {

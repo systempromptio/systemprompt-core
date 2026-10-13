@@ -13,7 +13,8 @@ pub use skill::{AgentCardSignature, AgentInterface, AgentProvider, AgentSkill};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::security::SecurityScheme;
+use super::PROTOCOL_VERSION;
+use super::security::{SecurityRequirement, SecurityScheme};
 use super::transport::ProtocolBinding;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -33,13 +34,11 @@ pub struct AgentCard {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub security_schemes: Option<HashMap<String, SecurityScheme>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<HashMap<String, Vec<String>>>>,
+    pub security_requirements: Option<Vec<SecurityRequirement>>,
     pub default_input_modes: Vec<String>,
     pub default_output_modes: Vec<String>,
     #[serde(default)]
     pub skills: Vec<AgentSkill>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub supports_authenticated_extended_card: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signatures: Option<Vec<AgentCardSignature>>,
 }
@@ -95,7 +94,8 @@ impl AgentCardBuilder {
                 supported_interfaces: vec![AgentInterface {
                     url,
                     protocol_binding: ProtocolBinding::JsonRpc,
-                    protocol_version: "1.0.0".to_owned(),
+                    tenant: None,
+                    protocol_version: PROTOCOL_VERSION.to_owned(),
                 }],
                 version,
                 icon_url: None,
@@ -103,11 +103,10 @@ impl AgentCardBuilder {
                 documentation_url: None,
                 capabilities: AgentCapabilities::default(),
                 security_schemes: None,
-                security: None,
+                security_requirements: None,
                 default_input_modes: vec!["text/plain".to_owned()],
                 default_output_modes: vec!["text/plain".to_owned()],
                 skills: Vec::new(),
-                supports_authenticated_extended_card: Some(false),
                 signatures: None,
             },
         }
@@ -122,6 +121,12 @@ impl AgentCardBuilder {
     #[must_use]
     pub const fn with_push_notifications(mut self) -> Self {
         self.agent_card.capabilities.push_notifications = Some(true);
+        self
+    }
+
+    #[must_use]
+    pub const fn with_extended_agent_card(mut self) -> Self {
+        self.agent_card.capabilities.extended_agent_card = Some(true);
         self
     }
 

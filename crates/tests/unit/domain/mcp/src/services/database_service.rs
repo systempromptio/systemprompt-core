@@ -10,7 +10,7 @@ use systemprompt_mcp::services::database::DatabaseService;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-use crate::harness::unique_instance;
+use systemprompt_test_fixtures::unique_instance;
 
 async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRepository) {
     let db = test_db_pool().await;

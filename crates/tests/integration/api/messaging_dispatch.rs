@@ -5,7 +5,7 @@
 //! seeded as a running `agent` service. The agent's `oauth.required = false`
 //! (fixture `config.yaml`) lets the proxy forward the minted A2A token without
 //! a check, so the full path — federated identity, authz hook, token mint,
-//! blocking `message/send`, reply extraction — runs against live
+//! blocking `SendMessage`, reply extraction — runs against live
 //! infrastructure.
 
 use systemprompt_api::routes::messaging::{
@@ -21,7 +21,7 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_traits::SenderIdentity;
 use uuid::Uuid;
-use wiremock::matchers::method;
+use wiremock::matchers::{header, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const ISSUER: &str = "https://slack.com";
@@ -46,6 +46,7 @@ fn inbound(external_user_id: &str, text: &str) -> MessagingInbound {
 
 async fn mount_reply(mock: &MockServer, text: &str) {
     Mock::given(method("POST"))
+        .and(header("A2A-Version", "1.0"))
         .respond_with(ResponseTemplate::new(200).set_body_json(agent_reply_response_json(text)))
         .mount(mock)
         .await;
@@ -60,7 +61,7 @@ async fn allow_yields_the_agents_reply_text() -> anyhow::Result<()> {
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "the agent replied").await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let outcome = dispatch_messaging(&ctx, inbound(&user, "hi"))
@@ -110,7 +111,7 @@ async fn agent_json_rpc_error_surfaces_as_dispatch_error() -> anyhow::Result<()>
         )
         .mount(&backend)
         .await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let err = dispatch_messaging(&ctx, inbound(&user, "hi"))
@@ -132,7 +133,7 @@ async fn first_contact_creates_a_federated_user_reused_on_the_second_call() -> a
 
     let backend = MockServer::start().await;
     mount_reply(&backend, "ok").await;
-    seed_agent_backend(&pool, &backend).await?;
+    seed_agent_backend(&ctx, &backend).await?;
 
     let user = format!("U_{}", Uuid::new_v4().simple());
     let pg = pool.pool();

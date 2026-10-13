@@ -2,7 +2,13 @@
 //!
 //! The user row belongs to the users domain and is read through the shared
 //! `UserProvider` trait. A user whose stored roles parse to no permission at
-//! all is refused rather than handed a permission-less principal.
+//! all is refused rather than handed a permission-less principal, and a
+//! service account is refused on every interactive path.
+//!
+//! `load_interactive_user` is `load_authenticated_user` for a credential a
+//! person holds interactively (authorization code, refresh, bridge session,
+//! passkey link): `refuse_service_account` refuses a service account with
+//! `OauthError::ServiceAccountInteractive`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +16,7 @@
 use std::str::FromStr;
 
 use systemprompt_identifiers::UserId;
-use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::auth::{AccountKind, AuthenticatedUser, Permission};
 use systemprompt_traits::UserProvider;
 
 use crate::error::{OauthError, OauthResult};
@@ -51,11 +57,30 @@ pub async fn load_authenticated_user(
         ));
     }
 
-    Ok(AuthenticatedUser::new_with_roles(
-        user.id,
-        user.name,
-        user.email,
-        permissions,
-        user.roles,
-    ))
+    let account_kind = if user.is_service_account {
+        AccountKind::Service
+    } else {
+        AccountKind::Person
+    };
+    Ok(
+        AuthenticatedUser::new_with_roles(user.id, user.name, user.email, permissions, user.roles)
+            .with_account_kind(account_kind),
+    )
+}
+
+pub async fn load_interactive_user(
+    users: &dyn UserProvider,
+    user_id: &UserId,
+) -> OauthResult<AuthenticatedUser> {
+    let user = load_authenticated_user(users, user_id).await?;
+    refuse_service_account(user.account_kind.is_service(), user_id)?;
+    Ok(user)
+}
+
+pub fn refuse_service_account(is_service_account: bool, user_id: &UserId) -> OauthResult<()> {
+    if is_service_account {
+        tracing::warn!(%user_id, "interactive credential refused for a service account");
+        return Err(OauthError::ServiceAccountInteractive);
+    }
+    Ok(())
 }

@@ -133,10 +133,11 @@ async fn a_dry_run_cleanup_reports_without_stopping_anything() {
     // live, so a dry run has to report it without removing it.
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, server_type, status, port, pid) \
-         VALUES ('fixture', $1, 'mcp', 'internal', 'running', 65000, $2)",
+         VALUES ($3, $1, 'mcp', 'internal', 'running', 65000, $2)",
     )
     .bind(&probe)
     .bind(std::process::id() as i32)
+    .bind(app.config().instance_id.as_str())
     .execute(&raw)
     .await
     .expect("seed a live-pid service row the sweeper must leave alone in a dry run");

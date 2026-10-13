@@ -55,6 +55,7 @@ impl UserProvider for MockUserProvider {
             email: email.to_string(),
             roles: Vec::new(),
             is_active: true,
+            is_service_account: false,
         };
         self.created_users
             .lock()
@@ -68,6 +69,7 @@ impl UserProvider for MockUserProvider {
                 email: email.to_string(),
                 roles: Vec::new(),
                 is_active: true,
+                is_service_account: false,
             });
         }
         Ok(user)
@@ -80,6 +82,7 @@ impl UserProvider for MockUserProvider {
             email: String::new(),
             roles: Vec::new(),
             is_active: true,
+            is_service_account: false,
         })
     }
 
@@ -112,6 +115,7 @@ fn make_test_user(id: &str, name: &str, email: &str) -> AuthUser {
         email: email.to_string(),
         roles: vec!["user".to_string()],
         is_active: true,
+        is_service_account: false,
     }
 }
 

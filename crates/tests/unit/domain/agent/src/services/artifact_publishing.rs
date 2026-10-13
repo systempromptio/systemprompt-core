@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::McpToolName;
 
-use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
 use systemprompt_agent::services::SkillService;
@@ -61,9 +61,7 @@ fn artifact(
         id: id.clone(),
         title: Some("pub-artifact".to_owned()),
         description: None,
-        parts: vec![Part::Text(TextPart {
-            text: "body".to_owned(),
-        })],
+        parts: vec![Part::text("body".to_owned())],
         extensions: vec![],
         metadata,
     }

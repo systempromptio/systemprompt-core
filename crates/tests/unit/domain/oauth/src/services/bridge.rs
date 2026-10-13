@@ -132,10 +132,13 @@ fn bridge_oauth_client_serialises_secret() {
 // two be told apart.
 mod stored_form {
     use super::hash_exchange_code;
+    use std::sync::Arc;
+
     use systemprompt_identifiers::UserId;
     use systemprompt_oauth::repository::OAuthRepository;
     use systemprompt_oauth::services::issue_bridge_exchange_code;
     use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row, test_db_pool};
+    use systemprompt_users::{UserRepository, UserService};
     use uuid::Uuid;
 
     // Why: a copy of this table must not yield a working code. Storing the
@@ -152,7 +155,8 @@ mod stored_form {
             .await
             .expect("seed user");
 
-        let issued = issue_bridge_exchange_code(&repo, &user)
+        let users = UserService::new(Arc::new(UserRepository::new(&pool)));
+        let issued = issue_bridge_exchange_code(&repo, &users, &user)
             .await
             .expect("issue exchange code");
 

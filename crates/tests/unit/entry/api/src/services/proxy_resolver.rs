@@ -9,7 +9,7 @@
 use systemprompt_api::services::proxy::ProxyError;
 use systemprompt_api::services::proxy::resolver::ServiceResolver;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_test_fixtures::{
     closed_db_pool, ensure_test_bootstrap, test_app_context, test_db_pool,
 };
@@ -26,16 +26,17 @@ fn unique_name(prefix: &str) -> String {
     )
 }
 
-async fn seed_service(pool: &DbPool, name: &str, status: &str) {
+async fn seed_service(pool: &DbPool, instance: &InstanceId, name: &str, status: &str) {
     let inner = pool.pool();
     sqlx::query(
         "INSERT INTO services (instance_id, name, module_name, status, port, pid)
-         VALUES ('test-instance', $1, 'mcp', $2, 0, $3)
+         VALUES ($4, $1, 'mcp', $2, 0, $3)
          ON CONFLICT (instance_id, name) DO UPDATE SET status = $2",
     )
     .bind(name)
     .bind(status)
     .bind(i32::try_from(std::process::id()).expect("pid fits in i32"))
+    .bind(instance.as_str())
     .execute(inner.as_ref())
     .await
     .expect("seed the services row");
@@ -90,7 +91,7 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("stopped");
-    seed_service(&pool, &name, "stopped").await;
+    seed_service(&pool, &ctx.config().instance_id, &name, "stopped").await;
 
     let error = ServiceResolver::resolve(&ServiceName::new(&name), &ctx)
         .await
@@ -124,7 +125,7 @@ async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retri
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_unregistered");
-    seed_service(&pool, &name, "error").await;
+    seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
     let outcome = tokio::time::timeout(
         std::time::Duration::from_secs(20),
@@ -162,14 +163,15 @@ async fn a_crashed_service_that_comes_back_running_is_returned_to_the_caller() {
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_recovers");
-    seed_service(&pool, &name, "error").await;
+    seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
     let flipper = {
         let pool = pool.clone();
+        let instance = ctx.config().instance_id.clone();
         let name = name.clone();
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-            seed_service(&pool, &name, "running").await;
+            seed_service(&pool, &instance, &name, "running").await;
         })
     };
 
@@ -203,7 +205,7 @@ async fn a_read_failure_on_the_restart_recheck_is_reported_as_a_database_error()
     let boot = ensure_test_bootstrap();
     let ctx = test_app_context(&pool, &boot.database_url);
     let name = unique_name("crashed_then_outage");
-    seed_service(&pool, &name, "error").await;
+    seed_service(&pool, &ctx.config().instance_id, &name, "error").await;
 
     let closer = {
         let pool = pool.clone();

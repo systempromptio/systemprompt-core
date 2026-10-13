@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
@@ -27,6 +28,7 @@ uuid = { workspace = true }
 [package.metadata.cargo-machete]
 # Used by test modules included via #[path="../*.rs"] outside src/, which cargo-machete's scan doesn't follow.
 ignored = [
+    "reqwest",
     "anyhow",
     "sqlx",
     "systemprompt-database",

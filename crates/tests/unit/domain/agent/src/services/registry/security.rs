@@ -1,13 +1,40 @@
 use std::collections::HashMap;
-use systemprompt_agent::SecurityScheme;
+use systemprompt_agent::models::a2a::{
+    ApiKeyLocation, ApiKeySecurityScheme, AuthorizationCodeOAuthFlow, ClientCredentialsOAuthFlow,
+    OAuth2SecurityScheme, OAuthFlows, SecurityScheme,
+};
 use systemprompt_agent::services::registry::security::{
-    oauth_to_security_config, override_oauth_urls,
+    oauth_to_security_config, override_oauth_urls, requirements_from_config,
 };
 use systemprompt_manifest::AgentOAuthConfig;
 use systemprompt_models::auth::{JwtAudience, Permission};
 
+fn auth_code(scheme: &SecurityScheme) -> &AuthorizationCodeOAuthFlow {
+    match scheme {
+        SecurityScheme::OAuth2(OAuth2SecurityScheme {
+            flows: OAuthFlows::AuthorizationCode(flow),
+            ..
+        }) => flow,
+        other => panic!("expected an OAuth2 authorization-code scheme, got {other:?}"),
+    }
+}
+
+fn auth_code_scheme(authorize: &str, token: &str, refresh: &str) -> SecurityScheme {
+    SecurityScheme::OAuth2(OAuth2SecurityScheme {
+        description: None,
+        flows: OAuthFlows::AuthorizationCode(AuthorizationCodeOAuthFlow {
+            authorization_url: authorize.to_owned(),
+            token_url: token.to_owned(),
+            refresh_url: Some(refresh.to_owned()),
+            scopes: HashMap::new(),
+            pkce_required: false,
+        }),
+        oauth2_metadata_url: None,
+    })
+}
+
 #[test]
-fn test_oauth_to_security_config_required() {
+fn oauth_required_yields_oauth2_scheme_and_requirement() {
     let oauth = AgentOAuthConfig {
         required: true,
         scopes: vec![Permission::Admin, Permission::User],
@@ -16,19 +43,16 @@ fn test_oauth_to_security_config_required() {
 
     let (schemes, reqs) = oauth_to_security_config(&oauth, "https://api.example.com");
 
-    let schemes = schemes.expect("expected Some");
-    assert!(schemes.contains_key("oauth2"));
-
-    let reqs = reqs.expect("expected Some");
+    assert!(schemes.expect("schemes").contains_key("oauth2"));
+    let reqs = reqs.expect("requirements");
     assert_eq!(reqs.len(), 1);
-    assert!(reqs[0].contains_key("oauth2"));
-    let scopes = &reqs[0]["oauth2"];
-    assert!(scopes.contains(&"admin".to_string()));
-    assert!(scopes.contains(&"user".to_string()));
+    let scopes = &reqs[0].schemes["oauth2"].list;
+    assert!(scopes.contains(&"admin".to_owned()));
+    assert!(scopes.contains(&"user".to_owned()));
 }
 
 #[test]
-fn test_oauth_to_security_config_not_required() {
+fn oauth_not_required_yields_nothing() {
     let oauth = AgentOAuthConfig {
         required: false,
         scopes: vec![Permission::Admin],
@@ -42,43 +66,40 @@ fn test_oauth_to_security_config_not_required() {
 }
 
 #[test]
-fn test_oauth_to_security_config_urls_constructed_correctly() {
+fn oauth_urls_and_description_are_built_from_the_external_url() {
     let oauth = AgentOAuthConfig {
         required: true,
         scopes: vec![],
-        audience: JwtAudience::Resource("my-audience".to_string()),
+        audience: JwtAudience::Resource("my-audience".to_owned()),
     };
 
     let (schemes, _) = oauth_to_security_config(&oauth, "https://myhost.com");
-
-    let schemes = schemes.expect("expected Some");
-    match schemes.get("oauth2").expect("expected oauth2 key") {
-        SecurityScheme::OAuth2 { flows, description } => {
-            let auth_code = flows
-                .authorization_code
-                .as_ref()
-                .expect("expected auth code flow");
-            assert_eq!(
-                auth_code.authorization_url.as_deref(),
-                Some("https://myhost.com/api/v1/core/oauth/authorize")
-            );
-            assert_eq!(
-                auth_code.token_url.as_deref(),
-                Some("https://myhost.com/api/v1/core/oauth/token")
-            );
-            assert_eq!(
-                auth_code.refresh_url.as_deref(),
-                Some("https://myhost.com/api/v1/core/oauth/token")
-            );
-            let desc = description.as_ref().expect("expected description");
-            assert!(desc.contains("my-audience"));
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
+    let schemes = schemes.expect("schemes");
+    let scheme = schemes.get("oauth2").expect("oauth2");
+    let flow = auth_code(scheme);
+    assert_eq!(
+        flow.authorization_url,
+        "https://myhost.com/api/v1/core/oauth/authorize"
+    );
+    assert_eq!(flow.token_url, "https://myhost.com/api/v1/core/oauth/token");
+    assert_eq!(
+        flow.refresh_url.as_deref(),
+        Some("https://myhost.com/api/v1/core/oauth/token")
+    );
+    let SecurityScheme::OAuth2(oauth2) = scheme else {
+        panic!("expected OAuth2");
+    };
+    assert!(
+        oauth2
+            .description
+            .as_deref()
+            .expect("description")
+            .contains("my-audience")
+    );
 }
 
 #[test]
-fn test_oauth_to_security_config_scopes_mapped() {
+fn oauth_scopes_are_described() {
     let oauth = AgentOAuthConfig {
         required: true,
         scopes: vec![Permission::User, Permission::Admin],
@@ -86,164 +107,15 @@ fn test_oauth_to_security_config_scopes_mapped() {
     };
 
     let (schemes, _) = oauth_to_security_config(&oauth, "https://example.com");
-
-    let schemes = schemes.expect("expected Some");
-    match schemes.get("oauth2").expect("expected oauth2") {
-        SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows
-                .authorization_code
-                .as_ref()
-                .expect("expected auth code");
-            assert_eq!(auth_code.scopes.len(), 2);
-            assert!(auth_code.scopes.contains_key("user"));
-            assert!(auth_code.scopes.contains_key("admin"));
-            assert!(auth_code.scopes["user"].contains("access"));
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
+    let schemes = schemes.expect("schemes");
+    let flow = auth_code(schemes.get("oauth2").expect("oauth2"));
+    assert_eq!(flow.scopes.len(), 2);
+    assert!(flow.scopes["user"].contains("access"));
+    assert!(flow.scopes.contains_key("admin"));
 }
 
 #[test]
-fn test_override_oauth_urls_relative_paths_get_prepended() {
-    let mut schemes = HashMap::new();
-    schemes.insert(
-        "oauth2".to_string(),
-        SecurityScheme::OAuth2 {
-            flows: Box::new(systemprompt_agent::models::a2a::OAuth2Flows {
-                authorization_code: Some(systemprompt_agent::models::a2a::OAuth2Flow {
-                    authorization_url: Some("/oauth/authorize".to_string()),
-                    token_url: Some("/oauth/token".to_string()),
-                    refresh_url: Some("/oauth/refresh".to_string()),
-                    scopes: HashMap::new(),
-                }),
-                implicit: None,
-                password: None,
-                client_credentials: None,
-            }),
-            description: None,
-        },
-    );
-
-    override_oauth_urls(&mut schemes, "https://api.example.com");
-
-    match schemes.get("oauth2").expect("expected oauth2") {
-        SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows
-                .authorization_code
-                .as_ref()
-                .expect("expected auth code");
-            assert_eq!(
-                auth_code.authorization_url.as_deref(),
-                Some("https://api.example.com/oauth/authorize")
-            );
-            assert_eq!(
-                auth_code.token_url.as_deref(),
-                Some("https://api.example.com/oauth/token")
-            );
-            assert_eq!(
-                auth_code.refresh_url.as_deref(),
-                Some("https://api.example.com/oauth/refresh")
-            );
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
-}
-
-#[test]
-fn test_override_oauth_urls_absolute_urls_unchanged() {
-    let mut schemes = HashMap::new();
-    schemes.insert(
-        "oauth2".to_string(),
-        SecurityScheme::OAuth2 {
-            flows: Box::new(systemprompt_agent::models::a2a::OAuth2Flows {
-                authorization_code: Some(systemprompt_agent::models::a2a::OAuth2Flow {
-                    authorization_url: Some("https://external.auth.com/authorize".to_string()),
-                    token_url: Some("https://external.auth.com/token".to_string()),
-                    refresh_url: Some("https://external.auth.com/refresh".to_string()),
-                    scopes: HashMap::new(),
-                }),
-                implicit: None,
-                password: None,
-                client_credentials: None,
-            }),
-            description: None,
-        },
-    );
-
-    override_oauth_urls(&mut schemes, "https://api.example.com");
-
-    match schemes.get("oauth2").expect("expected oauth2") {
-        SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows
-                .authorization_code
-                .as_ref()
-                .expect("expected auth code");
-            assert_eq!(
-                auth_code.authorization_url.as_deref(),
-                Some("https://external.auth.com/authorize")
-            );
-            assert_eq!(
-                auth_code.token_url.as_deref(),
-                Some("https://external.auth.com/token")
-            );
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
-}
-
-#[test]
-fn test_override_oauth_urls_no_oauth2_key_is_noop() {
-    let mut schemes = HashMap::new();
-    schemes.insert(
-        "apiKey".to_string(),
-        SecurityScheme::ApiKey {
-            name: "X-API-Key".to_string(),
-            location: systemprompt_agent::models::a2a::ApiKeyLocation::Header,
-            description: None,
-        },
-    );
-
-    override_oauth_urls(&mut schemes, "https://api.example.com");
-
-    assert!(schemes.contains_key("apiKey"));
-    assert!(!schemes.contains_key("oauth2"));
-}
-
-#[test]
-fn test_override_oauth_urls_no_authorization_code_flow() {
-    let mut schemes = HashMap::new();
-    schemes.insert(
-        "oauth2".to_string(),
-        SecurityScheme::OAuth2 {
-            flows: Box::new(systemprompt_agent::models::a2a::OAuth2Flows {
-                authorization_code: None,
-                implicit: None,
-                password: None,
-                client_credentials: None,
-            }),
-            description: None,
-        },
-    );
-
-    override_oauth_urls(&mut schemes, "https://api.example.com");
-
-    match schemes.get("oauth2").expect("expected oauth2") {
-        SecurityScheme::OAuth2 { flows, .. } => {
-            assert!(flows.authorization_code.is_none());
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
-}
-
-#[test]
-fn test_override_oauth_urls_empty_schemes_map() {
-    let mut schemes: HashMap<String, SecurityScheme> = HashMap::new();
-    override_oauth_urls(&mut schemes, "https://api.example.com");
-    assert!(schemes.is_empty());
-}
-
-#[test]
-fn test_oauth_to_security_config_empty_scopes() {
+fn oauth_empty_scopes_yield_empty_requirement_list() {
     let oauth = AgentOAuthConfig {
         required: true,
         scopes: vec![],
@@ -251,19 +123,114 @@ fn test_oauth_to_security_config_empty_scopes() {
     };
 
     let (schemes, reqs) = oauth_to_security_config(&oauth, "https://api.example.com");
+    let schemes = schemes.expect("schemes");
+    assert!(
+        auth_code(schemes.get("oauth2").expect("oauth2"))
+            .scopes
+            .is_empty()
+    );
+    assert!(
+        reqs.expect("requirements")[0].schemes["oauth2"]
+            .list
+            .is_empty()
+    );
+}
 
-    let schemes = schemes.expect("expected Some");
-    match schemes.get("oauth2").expect("expected oauth2") {
-        SecurityScheme::OAuth2 { flows, .. } => {
-            let auth_code = flows
-                .authorization_code
-                .as_ref()
-                .expect("expected auth code");
-            assert!(auth_code.scopes.is_empty());
-        },
-        _ => panic!("Expected OAuth2 variant"),
-    }
+#[test]
+fn override_prepends_external_url_to_relative_paths() {
+    let mut schemes = HashMap::from([(
+        "oauth2".to_owned(),
+        auth_code_scheme("/oauth/authorize", "/oauth/token", "/oauth/refresh"),
+    )]);
 
-    let reqs = reqs.expect("expected Some");
-    assert!(reqs[0]["oauth2"].is_empty());
+    override_oauth_urls(&mut schemes, "https://api.example.com");
+
+    let flow = auth_code(&schemes["oauth2"]);
+    assert_eq!(
+        flow.authorization_url,
+        "https://api.example.com/oauth/authorize"
+    );
+    assert_eq!(flow.token_url, "https://api.example.com/oauth/token");
+    assert_eq!(
+        flow.refresh_url.as_deref(),
+        Some("https://api.example.com/oauth/refresh")
+    );
+}
+
+#[test]
+fn override_leaves_absolute_urls_unchanged() {
+    let mut schemes = HashMap::from([(
+        "oauth2".to_owned(),
+        auth_code_scheme(
+            "https://external.auth.com/authorize",
+            "https://external.auth.com/token",
+            "https://external.auth.com/refresh",
+        ),
+    )]);
+
+    override_oauth_urls(&mut schemes, "https://api.example.com");
+
+    let flow = auth_code(&schemes["oauth2"]);
+    assert_eq!(
+        flow.authorization_url,
+        "https://external.auth.com/authorize"
+    );
+    assert_eq!(flow.token_url, "https://external.auth.com/token");
+}
+
+#[test]
+fn override_resolves_client_credentials_token_url() {
+    let mut schemes = HashMap::from([(
+        "oauth2".to_owned(),
+        SecurityScheme::OAuth2(OAuth2SecurityScheme {
+            description: None,
+            flows: OAuthFlows::ClientCredentials(ClientCredentialsOAuthFlow {
+                token_url: "/oauth/token".to_owned(),
+                refresh_url: None,
+                scopes: HashMap::new(),
+            }),
+            oauth2_metadata_url: None,
+        }),
+    )]);
+
+    override_oauth_urls(&mut schemes, "https://api.example.com");
+
+    let SecurityScheme::OAuth2(OAuth2SecurityScheme {
+        flows: OAuthFlows::ClientCredentials(flow),
+        ..
+    }) = &schemes["oauth2"]
+    else {
+        panic!("expected client-credentials flow");
+    };
+    assert_eq!(flow.token_url, "https://api.example.com/oauth/token");
+}
+
+#[test]
+fn override_without_oauth2_key_is_noop() {
+    let api_key = SecurityScheme::ApiKey(ApiKeySecurityScheme {
+        description: None,
+        location: ApiKeyLocation::Header,
+        name: "X-API-Key".to_owned(),
+    });
+    let mut schemes = HashMap::from([("apiKey".to_owned(), api_key.clone())]);
+
+    override_oauth_urls(&mut schemes, "https://api.example.com");
+
+    assert_eq!(schemes.len(), 1);
+    assert_eq!(schemes["apiKey"], api_key);
+}
+
+#[test]
+fn requirements_from_config_maps_each_entry_to_one_requirement() {
+    let config = vec![
+        HashMap::from([("oauth2".to_owned(), vec!["admin".to_owned()])]),
+        HashMap::from([("apiKey".to_owned(), vec![]), ("mtls".to_owned(), vec![])]),
+    ];
+
+    let reqs = requirements_from_config(&config);
+
+    assert_eq!(reqs.len(), 2);
+    assert_eq!(reqs[0].schemes["oauth2"].list, vec!["admin".to_owned()]);
+    assert_eq!(reqs[1].schemes.len(), 2);
+    assert!(reqs[1].schemes["apiKey"].list.is_empty());
 }

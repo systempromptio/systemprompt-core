@@ -1,5 +1,8 @@
 //! JWT and client-secret generation primitives.
 //!
+//! The `purpose` claim carries the caller purpose. Only in-process issuers set
+//! it; no endpoint copies it from a request.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -36,6 +39,8 @@ pub struct JwtConfig {
     pub plugin_id: Option<PluginId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub client_id: Option<ClientId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purpose: Option<String>,
 }
 
 const MAX_TOKEN_LIFETIME: Duration = Duration::days(365);
@@ -81,6 +86,7 @@ impl Default for JwtConfig {
             resource: None,
             plugin_id: None,
             client_id: None,
+            purpose: None,
         }
     }
 }
@@ -150,6 +156,7 @@ fn build_claims(
         rate_limit_tier: Some(user_type.rate_tier()),
         plugin_id: config.plugin_id,
         act: None,
+        purpose: config.purpose,
     })
 }
 
@@ -237,6 +244,7 @@ pub fn generate_anonymous_jwt_with_expiry(
         rate_limit_tier: Some(RateLimitTier::Anon),
         plugin_id: None,
         act: None,
+        purpose: None,
     };
 
     encode_with_authority(&claims)

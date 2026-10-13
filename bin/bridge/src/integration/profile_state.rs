@@ -8,13 +8,14 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use crate::drift::{DesiredProfile, EntryRole, diff};
 use crate::verdict::{Tone, Verdict};
 
-/// Why a complete profile still cannot work.
+/// Why a complete profile is out of date with the bridge or the gateway.
 ///
-/// Both reasons produce an identical symptom — every request 403s with "bad
-/// loopback secret" — and an identical fix, so they share a state. They are
-/// distinguished only so the message can name the cause.
+/// Every reason has the same fix, re-applying the profile, so they share a
+/// state. They are distinguished only so the message can name the cause; the
+/// keys themselves travel with [`ProfileState::Stale`].
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
@@ -23,55 +24,61 @@ pub enum StaleReason {
     LoopbackSecret,
     ProxyPort,
     ManagedServers,
+    ModelList,
+    Settings,
 }
 
-/// Whether one fact a fresh profile depends on could be checked, and what it
-/// said.
-///
-/// `Unchecked` is a host that does not carry the fact at all (a CLI host
-/// keeps the secret in a file the probe does not read); `Unverifiable` is a
-/// fact the host carries but the probe could not evaluate — a guard that
-/// cannot evaluate never reports green.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Freshness {
-    Fresh,
-    Stale,
-    Unchecked,
-    Unverifiable { reason: String },
-}
+impl StaleReason {
+    // Why: a credential or endpoint that moved breaks routing outright and is
+    // named first; a behind model list or policy value still routes.
+    fn of(desired: &DesiredProfile, keys: &[String]) -> Self {
+        let roles: Vec<EntryRole> = keys.iter().map(|k| desired.role_of(k)).collect();
+        [
+            (EntryRole::Secret, Self::LoopbackSecret),
+            (EntryRole::Endpoint, Self::ProxyPort),
+            (EntryRole::ManagedServers, Self::ManagedServers),
+            (EntryRole::Models, Self::ModelList),
+        ]
+        .into_iter()
+        .find(|(role, _)| roles.contains(role))
+        .map_or(Self::Settings, |(_, reason)| reason)
+    }
 
-impl Freshness {
     #[must_use]
-    pub fn compare(installed: Option<&str>, live: Option<&str>, what: &str) -> Self {
-        match (installed, live) {
-            (Some(installed), Some(live)) if installed == live => Self::Fresh,
-            (Some(_), Some(_)) => Self::Stale,
-            (None, _) => Self::Unchecked,
-            (Some(_), None) => Self::Unverifiable {
-                reason: format!("the live {what} could not be read"),
-            },
-        }
+    pub const fn breaks_routing(self) -> bool {
+        matches!(self, Self::LoopbackSecret | Self::ProxyPort)
     }
 }
 
+/// What a probe hands the classifier: the keys it shows, the same keys
+/// unredacted for comparison, and the settings a writer would put there.
+///
+/// `desired` is an `Err` when the expected settings could not be built (no
+/// readable loopback secret, a cache that cannot be read); a profile that
+/// cannot be compared is never reported current.
 #[derive(Debug)]
 pub struct ProfileProbe<'a> {
-    pub required: &'a [&'a str],
     pub present: &'a BTreeMap<String, String>,
+    pub observed: &'a BTreeMap<String, String>,
     pub read_error: Option<&'a str>,
-    pub secret: Freshness,
-    pub endpoint: Freshness,
-    pub managed_servers: Freshness,
+    pub desired: &'a Result<DesiredProfile, crate::integration::host_app::DesiredError>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProfileState {
     Absent,
-    Partial { missing_required: Vec<String> },
+    Partial {
+        missing_required: Vec<String>,
+    },
     Installed,
-    Stale { reason: StaleReason },
-    Unverifiable { reason: String },
+    Stale {
+        reason: StaleReason,
+        keys: Vec<String>,
+    },
+    Unverifiable {
+        reason: String,
+    },
 }
 
 /// [`ProfileState`] without its payload — the code the GUI looks up.
@@ -135,108 +142,34 @@ impl ProfileState {
                 reason: reason.to_owned(),
             };
         }
-        match Self::from_keys(probe.required, probe.present) {
-            Self::Installed => match (&probe.secret, &probe.endpoint, &probe.managed_servers) {
-                (Freshness::Stale, _, _) => Self::Stale {
-                    reason: StaleReason::LoopbackSecret,
-                },
-                (_, Freshness::Stale, _) => Self::Stale {
-                    reason: StaleReason::ProxyPort,
-                },
-                (_, _, Freshness::Stale) => Self::Stale {
-                    reason: StaleReason::ManagedServers,
-                },
-                (Freshness::Unverifiable { reason }, _, _)
-                | (_, Freshness::Unverifiable { reason }, _)
-                | (_, _, Freshness::Unverifiable { reason }) => Self::Unverifiable {
-                    reason: reason.clone(),
-                },
-                _ => Self::Installed,
-            },
-            state => state,
+        if probe.present.is_empty() {
+            return Self::Absent;
         }
-    }
-
-    #[must_use]
-    pub fn endpoint_freshness(configured_url: Option<&str>, proxy_port: u16) -> Freshness {
-        use crate::proxy_probe::{PortMatch, classify_configured_port};
-        let Some(url) = configured_url.filter(|u| !u.is_empty()) else {
-            return Freshness::Unchecked;
-        };
-        match classify_configured_port(url, proxy_port) {
-            PortMatch::Match => Freshness::Fresh,
-            PortMatch::Mismatch { .. } => Freshness::Stale,
-            PortMatch::NotLoopback => Freshness::Unverifiable {
-                reason: format!(
-                    "configured gateway url {url} does not point at the loopback proxy"
-                ),
-            },
-            PortMatch::Unparseable => Freshness::Unverifiable {
-                reason: format!("configured gateway url {url} cannot be parsed"),
-            },
-        }
-    }
-
-    // Why: the policy names the servers Claude Desktop may reach, and a
-    // registry the bridge has never loaded says nothing about them — an
-    // unknown expectation is Unchecked, never Stale, so a launch before the
-    // first sync cannot re-apply an empty list over a good one.
-    #[must_use]
-    pub fn managed_servers_freshness(
-        installed: Option<&str>,
-        expected: Option<&[String]>,
-    ) -> Freshness {
-        let Some(expected) = expected else {
-            return Freshness::Unchecked;
-        };
-        let mut want: Vec<&str> = expected.iter().map(String::as_str).collect();
-        want.sort_unstable();
-        want.dedup();
-        let Some(installed) = installed.map(str::trim).filter(|s| !s.is_empty()) else {
-            return if want.is_empty() {
-                Freshness::Fresh
-            } else {
-                Freshness::Stale
-            };
-        };
-        let parsed: Vec<serde_json::Value> = match serde_json::from_str(installed) {
-            Ok(list) => list,
-            Err(e) => {
-                return Freshness::Unverifiable {
-                    reason: format!(
-                        "the installed managed MCP server list is not a JSON array: {e}"
-                    ),
+        let desired = match probe.desired {
+            Ok(desired) => desired,
+            Err(reason) => {
+                return Self::Unverifiable {
+                    reason: format!("the expected settings could not be built: {reason}"),
                 };
             },
         };
-        let mut have: Vec<&str> = parsed
+        let drift = diff(desired, probe.observed);
+        let unroutable = drift
+            .missing
             .iter()
-            .filter_map(|entry| entry.get("name").and_then(serde_json::Value::as_str))
-            .collect();
-        have.sort_unstable();
-        have.dedup();
-        if have == want {
-            Freshness::Fresh
-        } else {
-            Freshness::Stale
+            .any(|k| matches!(desired.role_of(k), EntryRole::Secret | EntryRole::Endpoint));
+        if unroutable {
+            return Self::Partial {
+                missing_required: drift.missing,
+            };
         }
-    }
-
-    fn from_keys(required: &[&str], present: &BTreeMap<String, String>) -> Self {
-        if present.is_empty() {
-            return Self::Absent;
+        if drift.is_clean() {
+            return Self::Installed;
         }
-        let missing: Vec<String> = required
-            .iter()
-            .filter(|k| !present.contains_key(**k))
-            .map(|k| (*k).to_owned())
-            .collect();
-        if missing.is_empty() {
-            Self::Installed
-        } else {
-            Self::Partial {
-                missing_required: missing,
-            }
+        let keys = drift.keys();
+        Self::Stale {
+            reason: StaleReason::of(desired, &keys),
+            keys,
         }
     }
 }
@@ -268,7 +201,7 @@ impl AppInstallState {
     pub const fn tone(self) -> Tone {
         match self {
             Self::Installed => Tone::Ok,
-            Self::NotInstalled => Tone::Err,
+            Self::NotInstalled => Tone::Unknown,
             Self::Unknown => Tone::Warn,
         }
     }

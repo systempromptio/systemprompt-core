@@ -1,5 +1,8 @@
 //! API-key minting: prefixed secrets with stored hashes.
 //!
+//! A key's `purpose` is bound by its issuer (for example `workflow:<id>`) and
+//! is `None` for a person's own key.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -27,6 +30,7 @@ pub struct IssueApiKeyParams<'a> {
     pub expires_at: Option<DateTime<Utc>>,
     pub limits: &'a ApiKeyLimits,
     pub scopes: &'a [ScopeBinding],
+    pub purpose: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -64,6 +68,7 @@ impl ApiKeyService {
                 expires_at: params.expires_at,
                 limits: params.limits,
                 scopes: params.scopes,
+                purpose: params.purpose,
             })
             .await?;
 

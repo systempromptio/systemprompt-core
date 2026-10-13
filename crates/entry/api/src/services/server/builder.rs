@@ -104,6 +104,10 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     router = router.layer(axum::middleware::from_fn(inject_served_by));
 
+    router = router.layer(axum::middleware::from_fn(
+        crate::services::middleware::strip_caller_purpose,
+    ));
+
     if ctx.config().content_negotiation.enabled {
         router = router.layer(axum::middleware::from_fn(
             crate::services::middleware::content_negotiation_middleware,

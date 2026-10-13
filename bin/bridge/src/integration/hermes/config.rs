@@ -6,8 +6,6 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::integration::host_app::HostConfigSchema;
-
 // Why: Hermes resolves model.provider before its base_url; custom endpoints
 // require a named provider.
 pub const PROVIDER_ENTRY: &str = "systemprompt-gateway";
@@ -27,6 +25,8 @@ pub const API_MODE_VALUE: &str = "chat_completions";
 // loopback requires key_env.
 pub(super) const KEY_ENV_VALUE: &str = ENV_API_KEY;
 
+pub(super) const ENV_KEY_ENTRY: &str = ".env:OPENAI_API_KEY";
+
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     MODEL_PROVIDER,
     MODEL_NAME,
@@ -35,17 +35,16 @@ pub(super) const KEYS_OF_INTEREST: &[&str] = &[
     PROVIDER_KEY_ENV,
 ];
 
-pub(super) const REQUIRED_KEYS: &[&str] = &[
-    MODEL_PROVIDER,
-    PROVIDER_BASE_URL,
-    PROVIDER_API_MODE,
-    PROVIDER_KEY_ENV,
-];
-
-pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: REQUIRED_KEYS,
-    display_keys: KEYS_OF_INTEREST,
-};
+#[must_use]
+pub(super) fn role_of(key: &str) -> crate::drift::EntryRole {
+    use crate::drift::EntryRole;
+    match key {
+        PROVIDER_BASE_URL => EntryRole::Endpoint,
+        MODEL_NAME => EntryRole::Models,
+        ENV_KEY_ENTRY => EntryRole::Secret,
+        _ => EntryRole::Setting,
+    }
+}
 
 // Why: Hermes defaults to %LOCALAPPDATA%\hermes on Windows and ~/.hermes
 // elsewhere.

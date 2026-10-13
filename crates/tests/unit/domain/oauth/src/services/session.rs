@@ -112,6 +112,7 @@ impl UserProvider for MockUserProvider {
             email: "new@example.com".to_string(),
             roles: vec![],
             is_active: true,
+            is_service_account: false,
         })
     }
 
@@ -122,6 +123,7 @@ impl UserProvider for MockUserProvider {
             email: "anon@example.com".to_string(),
             roles: vec![],
             is_active: true,
+            is_service_account: false,
         })
     }
 

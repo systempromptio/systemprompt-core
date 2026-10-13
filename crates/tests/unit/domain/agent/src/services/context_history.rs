@@ -1,4 +1,4 @@
-use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::services::ContextService;
 use systemprompt_identifiers::ArtifactId;
 
@@ -15,9 +15,9 @@ async fn conversation_history_includes_durable_artifact_identity_and_bounded_des
         id: ArtifactId::generate(),
         title: Some("Quarterly report".to_owned()),
         description: Some("x".repeat(350)),
-        parts: vec![Part::Text(TextPart {
-            text: "the complete report body must not be injected as history".to_owned(),
-        })],
+        parts: vec![Part::text(
+            "the complete report body must not be injected as history".to_owned(),
+        )],
         extensions: Vec::new(),
         metadata: ArtifactMetadata::new("report".to_owned(), context.clone(), task.clone()),
     };

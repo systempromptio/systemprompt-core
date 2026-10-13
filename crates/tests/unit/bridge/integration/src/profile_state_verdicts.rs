@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::drift::{DesiredProfile, EntryRole};
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, Freshness, ProfileProbe, ProfileState, StaleReason,
+    AppInstallState, ProfileProbe, ProfileState, StaleReason,
 };
 use systemprompt_bridge::integration::profile_state::ProfileCode;
 use systemprompt_bridge::verdict::Tone;
@@ -19,7 +20,8 @@ fn only_a_complete_fresh_profile_reports_installed() {
     assert!(!ProfileState::Absent.is_installed());
     assert!(
         !ProfileState::Stale {
-            reason: StaleReason::ProxyPort
+            reason: StaleReason::ProxyPort,
+            keys: Vec::new(),
         }
         .is_installed(),
         "a stale profile is complete but unusable, so it is not installed"
@@ -45,7 +47,8 @@ fn every_profile_state_maps_to_its_own_gui_code() {
     );
     assert_eq!(
         ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret
+            reason: StaleReason::LoopbackSecret,
+            keys: Vec::new(),
         }
         .code(),
         ProfileCode::Stale
@@ -57,7 +60,8 @@ fn a_repairable_profile_is_amber_and_a_missing_one_is_red() {
     assert_eq!(ProfileState::Installed.tone(), Tone::Ok);
     assert_eq!(
         ProfileState::Stale {
-            reason: StaleReason::ProxyPort
+            reason: StaleReason::ProxyPort,
+            keys: Vec::new(),
         }
         .tone(),
         Tone::Warn,
@@ -77,6 +81,7 @@ fn a_repairable_profile_is_amber_and_a_missing_one_is_red() {
 fn the_verdict_pairs_the_tone_with_the_same_code_the_wire_carries() {
     let verdict = ProfileState::Stale {
         reason: StaleReason::LoopbackSecret,
+        keys: Vec::new(),
     }
     .verdict();
     assert_eq!(verdict.tone, Tone::Warn);
@@ -89,20 +94,23 @@ fn the_verdict_pairs_the_tone_with_the_same_code_the_wire_carries() {
 
 #[test]
 fn missing_required_keys_are_listed_only_for_a_partial_profile() {
+    let mut desired = DesiredProfile::new();
+    desired.push("a", "1", EntryRole::Endpoint);
+    desired.push("b", "2", EntryRole::Secret);
+    let present = keys(&[("a", "1")]);
     let partial = ProfileState::classify(&ProfileProbe {
-        required: &["a", "b"],
-        present: &keys(&[("a", "1")]),
+        present: &present,
+        observed: &present,
         read_error: None,
-        secret: Freshness::Unchecked,
-        endpoint: Freshness::Unchecked,
-        managed_servers: Freshness::Unchecked,
+        desired: &Ok(desired),
     });
     assert_eq!(partial.missing_required(), ["b".to_owned()]);
     assert!(ProfileState::Installed.missing_required().is_empty());
     assert!(ProfileState::Absent.missing_required().is_empty());
     assert!(
         ProfileState::Stale {
-            reason: StaleReason::ProxyPort
+            reason: StaleReason::ProxyPort,
+            keys: Vec::new(),
         }
         .missing_required()
         .is_empty(),
@@ -111,20 +119,7 @@ fn missing_required_keys_are_listed_only_for_a_partial_profile() {
 }
 
 #[test]
-fn a_loopback_url_on_the_live_port_is_fresh_and_one_on_another_port_is_not() {
-    assert_eq!(
-        ProfileState::endpoint_freshness(Some("http://127.0.0.1:48217/v1"), 48217),
-        Freshness::Fresh
-    );
-    assert_eq!(
-        ProfileState::endpoint_freshness(Some("http://127.0.0.1:48217/v1"), 51999),
-        Freshness::Stale,
-        "a profile baked for the old port is not fresh"
-    );
-}
-
-#[test]
-fn an_inconclusive_app_probe_is_amber_and_never_reads_as_not_installed() {
+fn an_inconclusive_app_probe_is_amber_and_a_missing_app_is_neutral() {
     assert!(AppInstallState::Installed.is_installed());
     assert!(!AppInstallState::Unknown.is_installed());
     assert!(!AppInstallState::NotInstalled.is_installed());
@@ -135,7 +130,11 @@ fn an_inconclusive_app_probe_is_amber_and_never_reads_as_not_installed() {
         Tone::Warn,
         "an inconclusive probe must not be rendered as a red 'not installed'"
     );
-    assert_eq!(AppInstallState::NotInstalled.tone(), Tone::Err);
+    assert_eq!(
+        AppInstallState::NotInstalled.tone(),
+        Tone::Unknown,
+        "an app that is not on this computer is a fact, not a fault"
+    );
 
     let verdict = AppInstallState::Unknown.verdict();
     assert_eq!(verdict.tone, Tone::Warn);

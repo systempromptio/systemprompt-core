@@ -22,7 +22,7 @@ use systemprompt_models::bridge::gateway::DevicePatResponse;
 use systemprompt_oauth::services::{
     BridgeAccessRequest, BridgeAuthResult, BridgeExchangeRequest, BridgeOAuthClient,
     exchange_bridge_session_code, hash_exchange_code, issue_bridge_access,
-    provision_bridge_oauth_client,
+    provision_bridge_oauth_client, refuse_service_account,
 };
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AnalyticsProvider, AppContext as _, UserProvider};
@@ -93,7 +93,8 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
             .ok_or_else(|| ApiHttpError::internal_error("Session provider unavailable"))?
             .as_ref(),
         users.as_ref(),
-        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id),
+        BridgeAccessRequest::bridge(request.headers(), caller_ip, &record.user_id)
+            .with_purpose(record.purpose.clone()),
     )
     .await?;
 
@@ -165,6 +166,16 @@ async fn mint_device_pat(
         .ok_or_else(|| {
             ApiHttpError::unauthorized("exchange code invalid, expired, or already consumed")
         })?;
+    let users = require_user_provider(ctx)?;
+    let user = users
+        .find_by_id(&user_id)
+        .await
+        .map_err(|error| {
+            tracing::warn!(%error, "user lookup for the session PAT failed");
+            ApiHttpError::internal_error("user lookup failed")
+        })?
+        .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
+    refuse_service_account(user.is_service_account, &user_id)?;
 
     let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
     let issued = service
@@ -174,6 +185,7 @@ async fn mint_device_pat(
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await?;
 

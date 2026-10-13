@@ -30,6 +30,17 @@ impl Extension for DatabaseExtension {
             ),
             SchemaDefinition::new("services", include_str!("../schema/services.sql"))
                 .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
+            SchemaDefinition::new(
+                "projection_backlog",
+                include_str!("../schema/projection_backlog.sql"),
+            )
+            .with_required_columns(vec![
+                "projection".into(),
+                "key".into(),
+                "attempts".into(),
+            ]),
+            SchemaDefinition::new("trace_facts", include_str!("../schema/trace_facts.sql"))
+                .with_required_columns(vec!["trace_id".into(), "first_at".into(), "status".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
         ]
     }

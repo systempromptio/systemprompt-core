@@ -6,7 +6,6 @@
 //! service). Lifecycle / process-spawn paths are exercised by the existing
 //! integration suite.
 
-use crate::harness::unique_instance;
 use std::sync::Arc;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::{ServiceModule, ServiceRepository, ServiceStatus};
@@ -14,7 +13,9 @@ use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_mcp::services::orchestrator::McpOrchestrator;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, fixture_user_id, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_user_id, test_db_pool, unique_instance,
+};
 
 async fn make_orchestrator() -> McpOrchestrator {
     make_orchestrator_and_repo().await.0

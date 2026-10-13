@@ -39,8 +39,7 @@ fn create_test_agent(name: &str) -> AgentConfig {
             default_input_modes: vec!["text/plain".to_string()],
             default_output_modes: vec!["text/plain".to_string()],
             security_schemes: None,
-            security: None,
-            supports_authenticated_extended_card: false,
+            security_requirements: None,
         },
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
@@ -64,13 +63,11 @@ fn create_agent_yaml_content(name: &str) -> String {
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes:
         - text/plain
       defaultOutputModes:
         - text/plain
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {{}}
 "#,
         name, name, name, name, name
@@ -200,13 +197,11 @@ fn test_find_agent_file_in_different_filename() {
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes:
         - text/plain
       defaultOutputModes:
         - text/plain
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {}
 "#;
     let agent_file = agents_dir.join("other-file.yaml");

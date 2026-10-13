@@ -92,6 +92,36 @@ pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
     crate::proxy::scoped_token::host_token(secret, HostKind::ClaudeDesktop)
 }
 
+pub const DESKTOP_SURFACES: &[systemprompt_models::providers::ApiSurface] =
+    &[systemprompt_models::providers::ApiSurface::Anthropic];
+
+// Why: Claude Desktop budgets a gateway model at 200k unless its id carries
+// `[1m]`, and Cowork's picker folds `<id>` and `<id>[1m]` into one row, so a
+// model served at 1M is listed only as `<id>[1m]` (the gateway strips it).
+// No advertised model is an empty list, never an invented default.
+pub fn desktop_policy(
+    inputs: &crate::install::profile_inputs::ProfileGenInputs,
+    egress_allowed_hosts: Option<&[String]>,
+) -> Result<Vec<PolicyEntry>, MdmError> {
+    let models = serde_json::to_string(&crate::gateway::model_view::with_context_variants(
+        &inputs.models,
+        &inputs.model_limits,
+    ))
+    .map_err(|source| MdmError::ConfigJson {
+        key: "inferenceModels",
+        source,
+    })?;
+    claude_desktop_policy(&PolicyInputs {
+        base_url: &inputs.gateway_base_url,
+        host_token: &inputs.host_token,
+        models: Some(models),
+        headers: &inputs.headers,
+        egress_allowed_hosts,
+        org_uuid: inputs.organization_uuid.as_deref(),
+        mcp_servers: inputs.mcp_servers.as_deref(),
+    })
+}
+
 pub fn claude_desktop_policy(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
     let policy = super::desktop_policy::verified_operator_policy()?;
     claude_desktop_policy_with(inputs, &policy)

@@ -6,7 +6,8 @@
 use anyhow::{Context, Result};
 use rmcp::ServiceExt;
 use rmcp::model::{
-    CallToolRequestParams, ClientCapabilities, ClientInfo, ContentBlock, Implementation,
+    CallToolRequestParams, ClientCapabilities, ClientConfig, ContentBlock, Implementation,
+    ProtocolVersion,
 };
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -49,10 +50,11 @@ pub async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolRes
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
     let client = timeout(
         Duration::from_secs(timeout_secs),
@@ -92,10 +94,11 @@ pub async fn list_available_tools(
         .auth_header(session_ctx.session_token().as_str().to_owned());
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
     let client = timeout(
         Duration::from_secs(timeout_secs),

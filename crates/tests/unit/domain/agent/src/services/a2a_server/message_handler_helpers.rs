@@ -5,9 +5,7 @@
 //! the conversation or starts a new one, and whether the client can match the
 //! reply it receives to the request it sent.
 
-use systemprompt_agent::models::a2a::{
-    Message, MessageRole, Part, TaskState, TaskStatus, TextPart,
-};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TaskStatus};
 use systemprompt_agent::services::a2a_server::processing::message::message_handler::{
     new_submitted_task, resolve_agent_message, resolve_task_id,
 };
@@ -16,13 +14,11 @@ use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 fn message_with(task_id: Option<TaskId>, metadata: Option<serde_json::Value>) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "ask".to_owned(),
-        })],
+        parts: vec![Part::text("ask".to_owned())],
         message_id: MessageId::generate(),
         task_id,
         context_id: ContextId::generate(),
-        metadata,
+        metadata: metadata.and_then(|m| m.as_object().cloned()),
         extensions: None,
         reference_task_ids: None,
     }
@@ -92,9 +88,7 @@ fn an_agent_message_already_on_the_task_is_used_verbatim() {
     let mut task = new_submitted_task(&task_id, &context_id, &AgentName::new("writer"));
     let produced = Message {
         role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart {
-            text: "pipeline answer".to_owned(),
-        })],
+        parts: vec![Part::text("pipeline answer".to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),
@@ -132,9 +126,7 @@ fn a_synthesised_reply_is_bound_to_its_task_and_context() {
     assert_eq!(resolved.context_id, context_id);
     assert_eq!(
         resolved.parts,
-        vec![Part::Text(TextPart {
-            text: "the answer".to_owned()
-        })],
+        vec![Part::text("the answer".to_owned())],
         "the response text must be carried into the reply"
     );
 }

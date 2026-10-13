@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- **Installation coverage is a drained projection.** `refresh_managed_installation_coverage(keys)` (schema `managed_installation_coverage_queue.sql`) rebuilds the queued owners; statement triggers on `managed_installation_receipts`, `managed_consumer_grants`, `managed_publication_selections` and `user_device_certs` queue the owners each change touched on the `managed_installation_coverage` projection. `ManagedRepository::refresh_installation_coverage(owner)` keeps its signature and calls the projector for one owner. Migration 017 queues every owner once.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

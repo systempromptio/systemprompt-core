@@ -7,7 +7,7 @@ use super::elicitation::SharedElicitationDelegate;
 use super::http_client_with_context::HttpClientWithContext;
 use super::{McpClientHandler, capabilities, tasks};
 use crate::error::McpDomainResult;
-use rmcp::model::{ClientInfo, Implementation, ProtocolVersion};
+use rmcp::model::{ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
 use rmcp::{RoleClient, ServiceExt};
 use systemprompt_models::net::{HTTP_STREAM_CONNECT_TIMEOUT, MCP_TOOL_EXECUTION_TIMEOUT};
@@ -24,7 +24,7 @@ pub async fn execute_tool_call(
     elicitation: Option<SharedElicitationDelegate>,
 ) -> McpDomainResult<systemprompt_models::CallToolResult> {
     // Why: rmcp 3.1.3 defaults to 2025-11-25; MRTR requires MCP 2026-07-28.
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         capabilities::client_capabilities(elicitation.is_some()),
         Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
     )

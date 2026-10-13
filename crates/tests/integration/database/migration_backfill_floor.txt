@@ -1,0 +1,21 @@
+# The last migration per extension that may populate data. Every later one
+# is DDL plus a keys-only `INSERT INTO projection_backlog … SELECT`: the
+# projector, trigger and drainer live in the base schema, so a fresh install
+# (which stamps migrations) and an upgrade reach one state by one path.
+# A floor may only rise to a migration that exists; it never moves past one
+# that backfills.
+# agent 016 rewrites the two retired A2A 0.3 task states (PENDING → SUBMITTED, UNKNOWN → FAILED) before tightening the CHECK constraint.
+agent=016
+ai=038
+analytics=017
+content=005
+database=001
+events=009
+files=002
+logging=009
+marketplace=016
+mcp=017
+oauth=019
+scheduler=003
+security=021
+users=022

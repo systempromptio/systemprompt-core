@@ -26,9 +26,9 @@ serde_roundtrip!(
     ProtocolBinding
 );
 serde_roundtrip!(message_role_roundtrip, arb_message_role(), MessageRole);
-serde_roundtrip!(text_part_roundtrip, arb_text_part(), TextPart);
-serde_roundtrip!(file_part_roundtrip, arb_file_part(), FilePart);
-serde_roundtrip!(data_part_roundtrip, arb_data_part(), DataPart);
+serde_roundtrip!(text_part_roundtrip, arb_text_part(), Part);
+serde_roundtrip!(file_part_roundtrip, arb_file_part(), Part);
+serde_roundtrip!(data_part_roundtrip, arb_data_part(), Part);
 serde_roundtrip!(part_roundtrip, arb_part(), Part);
 serde_roundtrip!(message_roundtrip, arb_message(), Message);
 serde_roundtrip!(task_status_roundtrip, arb_task_status(), TaskStatus);
@@ -40,6 +40,11 @@ serde_roundtrip!(
     ArtifactMetadata
 );
 serde_roundtrip!(artifact_roundtrip, arb_artifact(), Artifact);
+serde_roundtrip!(
+    security_scheme_roundtrip,
+    arb_security_scheme(),
+    SecurityScheme
+);
 serde_roundtrip!(task_roundtrip, arb_task(), Task);
 serde_roundtrip!(agent_skill_roundtrip, arb_agent_skill(), AgentSkill);
 serde_roundtrip!(
@@ -51,11 +56,6 @@ serde_roundtrip!(
     api_key_location_roundtrip,
     arb_api_key_location(),
     ApiKeyLocation
-);
-serde_roundtrip!(
-    security_scheme_roundtrip,
-    arb_security_scheme(),
-    SecurityScheme
 );
 serde_roundtrip!(
     agent_interface_roundtrip,

@@ -45,10 +45,8 @@ fn services_yaml() -> String {
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: true
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: You are a fixture agent.
       mcpServers:

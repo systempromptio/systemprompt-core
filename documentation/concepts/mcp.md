@@ -2,7 +2,7 @@
 
 How systemprompt-core integrates the Model Context Protocol (MCP): server lifecycle, the central registry, the streamable-HTTP transport, and Ed25519-signed bridge manifests.
 
-MCP (Model Context Protocol) is how the platform exposes tools and resources to agents. The implementation lives in `crates/domain/mcp` and is built on `rmcp` 1.6. The platform treats governance as the MCP transport layer: tool calls cross the MCP boundary, where they are recorded and governed, rather than executing as opaque in-process calls.
+MCP (Model Context Protocol) is how the platform exposes tools and resources to agents. The implementation lives in `crates/domain/mcp` and is built on `rmcp` 3.5.1. The platform treats governance as the MCP transport layer: tool calls cross the MCP boundary, where they are recorded and governed, rather than executing as opaque in-process calls.
 
 ## MCP servers and their lifecycle
 

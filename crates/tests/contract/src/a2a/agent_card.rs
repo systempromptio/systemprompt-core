@@ -8,7 +8,8 @@ fn agent_card_serializes_required_fields() {
         supported_interfaces: vec![AgentInterface {
             url: "https://example.com/a2a".to_string(),
             protocol_binding: ProtocolBinding::JsonRpc,
-            protocol_version: "1.0.0".to_string(),
+            tenant: None,
+            protocol_version: "1.0".to_string(),
         }],
         version: "1.0.0".to_string(),
         capabilities: AgentCapabilities::default(),
@@ -29,6 +30,7 @@ fn agent_card_serializes_required_fields() {
         json["supportedInterfaces"].is_array(),
         "supportedInterfaces is required"
     );
+    super::schema::assert_valid("AgentCard", &json);
 }
 
 #[test]
@@ -36,7 +38,7 @@ fn capabilities_default_values() {
     let caps = AgentCapabilities::default();
     assert_eq!(caps.streaming, Some(true));
     assert_eq!(caps.push_notifications, Some(false));
-    assert_eq!(caps.state_transition_history, Some(true));
+    assert_eq!(caps.extended_agent_card, Some(false));
 }
 
 #[test]
@@ -61,54 +63,55 @@ fn protocol_binding_http_json_serializes_correctly() {
 }
 
 #[test]
-fn security_scheme_api_key_has_type_field() {
-    let scheme = SecurityScheme::ApiKey {
+fn security_scheme_api_key_is_a_oneof_member() {
+    let scheme = SecurityScheme::ApiKey(ApiKeySecurityScheme {
         name: "X-API-Key".to_string(),
         location: ApiKeyLocation::Header,
         description: None,
-    };
+    });
     let json = serde_json::to_value(&scheme).unwrap();
-    assert_eq!(json["type"], "apiKey");
-    assert_eq!(json["name"], "X-API-Key");
-    assert_eq!(json["in"], "header");
+    assert_eq!(json["apiKeySecurityScheme"]["name"], "X-API-Key");
+    assert_eq!(json["apiKeySecurityScheme"]["location"], "header");
+    super::schema::assert_valid("SecurityScheme", &json);
 }
 
 #[test]
-fn security_scheme_http_has_type_field() {
-    let scheme = SecurityScheme::Http {
+fn security_scheme_http_is_a_oneof_member() {
+    let scheme = SecurityScheme::HttpAuth(HttpAuthSecurityScheme {
         scheme: "bearer".to_string(),
         bearer_format: Some("JWT".to_string()),
         description: None,
-    };
+    });
     let json = serde_json::to_value(&scheme).unwrap();
-    assert_eq!(json["type"], "http");
-    assert_eq!(json["scheme"], "bearer");
+    assert_eq!(json["httpAuthSecurityScheme"]["scheme"], "bearer");
+    super::schema::assert_valid("SecurityScheme", &json);
 }
 
 #[test]
-fn security_scheme_oauth2_has_type_field() {
-    let scheme = SecurityScheme::OAuth2 {
-        flows: Box::new(OAuth2Flows {
-            implicit: None,
-            password: None,
-            client_credentials: None,
-            authorization_code: None,
+fn security_scheme_oauth2_is_a_oneof_member() {
+    let scheme = SecurityScheme::OAuth2(OAuth2SecurityScheme {
+        flows: OAuthFlows::ClientCredentials(ClientCredentialsOAuthFlow {
+            token_url: "https://example.com/token".to_string(),
+            refresh_url: None,
+            scopes: std::collections::HashMap::new(),
         }),
         description: None,
-    };
+        oauth2_metadata_url: None,
+    });
     let json = serde_json::to_value(&scheme).unwrap();
-    assert_eq!(json["type"], "oauth2");
-    assert!(json["flows"].is_object());
+    assert!(json["oauth2SecurityScheme"]["flows"].is_object());
+    super::schema::assert_valid("SecurityScheme", &json);
 }
 
 #[test]
-fn security_scheme_openid_connect_has_type_field() {
-    let scheme = SecurityScheme::OpenIdConnect {
+fn security_scheme_openid_connect_is_a_oneof_member() {
+    let scheme = SecurityScheme::OpenIdConnect(OpenIdConnectSecurityScheme {
         open_id_connect_url: "https://example.com/.well-known/openid-configuration".to_string(),
         description: None,
-    };
+    });
     let json = serde_json::to_value(&scheme).unwrap();
-    assert_eq!(json["type"], "openIdConnect");
+    assert!(json["openIdConnectSecurityScheme"]["openIdConnectUrl"].is_string());
+    super::schema::assert_valid("SecurityScheme", &json);
 }
 
 #[test]
@@ -137,13 +140,14 @@ fn agent_skill_has_required_fields() {
         examples: None,
         input_modes: None,
         output_modes: None,
-        security: None,
+        security_requirements: None,
     };
     let json = serde_json::to_value(&skill).unwrap();
     assert!(json["id"].is_string());
     assert!(json["name"].is_string());
     assert!(json["description"].is_string());
     assert!(json["tags"].is_array());
+    super::schema::assert_valid("AgentSkill", &json);
 }
 
 #[test]
@@ -154,6 +158,6 @@ fn agent_card_optional_fields_omitted_when_none() {
     assert!(json.get("provider").is_none());
     assert!(json.get("documentationUrl").is_none());
     assert!(json.get("securitySchemes").is_none());
-    assert!(json.get("security").is_none());
+    assert!(json.get("securityRequirements").is_none());
     assert!(json.get("signatures").is_none());
 }

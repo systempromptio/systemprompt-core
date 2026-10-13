@@ -1,9 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
-use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Message, MessageRole, Part,
-    TextPart,
-};
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Message, MessageRole, Part};
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_agent::repository::context::message::{
@@ -204,23 +201,16 @@ async fn message_repository_persists_all_part_kinds_and_reads_back() -> Result<(
     let message = Message {
         role: MessageRole::User,
         parts: vec![
-            Part::Text(TextPart {
-                text: "hello".into(),
-            }),
-            Part::Data(DataPart { data: data_obj }),
-            Part::File(FilePart {
-                file: FileContent {
-                    name: Some("note.txt".into()),
-                    mime_type: Some("text/plain".into()),
-                    bytes: Some("aGVsbG8=".into()),
-                    url: None,
-                },
-            }),
+            Part::text("hello"),
+            Part::data(serde_json::Value::Object(data_obj)),
+            Part::raw("aGVsbG8=", "text/plain").with_filename("note.txt"),
         ],
         message_id: message_id.clone(),
         task_id: Some(task_id.clone()),
         context_id: fx.context_id.clone(),
-        metadata: Some(serde_json::json!({"clientMessageId": "cm-1"})),
+        metadata: serde_json::json!({"clientMessageId": "cm-1"})
+            .as_object()
+            .cloned(),
         extensions: None,
         reference_task_ids: None,
     };
@@ -271,9 +261,7 @@ async fn artifact_repository_create_and_query_paths() -> Result<()> {
         id: artifact_id.clone(),
         title: Some("E2E Artifact".into()),
         description: Some("desc".into()),
-        parts: vec![Part::Text(TextPart {
-            text: "artifact body".into(),
-        })],
+        parts: vec![Part::text("artifact body")],
         extensions: vec![],
         metadata,
     };
@@ -465,10 +453,8 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
     let message = Message {
         role: MessageRole::Agent,
         parts: vec![
-            Part::Text(TextPart {
-                text: "agent reply".into(),
-            }),
-            Part::Data(DataPart { data: data_obj }),
+            Part::text("agent reply"),
+            Part::data(serde_json::Value::Object(data_obj)),
         ],
         message_id,
         task_id: Some(task_id.clone()),
@@ -501,17 +487,8 @@ async fn task_constructor_assembles_task_with_messages_and_artifacts() -> Result
         title: Some("ctor artifact".into()),
         description: None,
         parts: vec![
-            Part::Text(TextPart {
-                text: "result text".into(),
-            }),
-            Part::File(FilePart {
-                file: FileContent {
-                    name: Some("a.bin".into()),
-                    mime_type: Some("application/octet-stream".into()),
-                    bytes: Some("aGVsbG8=".into()),
-                    url: None,
-                },
-            }),
+            Part::text("result text"),
+            Part::raw("aGVsbG8=", "application/octet-stream").with_filename("a.bin"),
         ],
         extensions: vec![],
         metadata,
@@ -547,9 +524,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
 
     let user_msg = Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "user input".into(),
-        })],
+        parts: vec![Part::text("user input")],
         message_id: MessageId::new(format!("um_{}", Uuid::new_v4().simple())),
         task_id: Some(task_id.clone()),
         context_id: fx.context_id.clone(),
@@ -559,9 +534,7 @@ async fn task_repository_update_task_and_save_messages_and_delete() -> Result<()
     };
     let agent_msg = Message {
         role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart {
-            text: "agent output".into(),
-        })],
+        parts: vec![Part::text("agent output")],
         message_id: MessageId::new(format!("am_{}", Uuid::new_v4().simple())),
         task_id: Some(task_id.clone()),
         context_id: fx.context_id.clone(),
@@ -619,7 +592,7 @@ async fn task_and_message_writes_increment_session_counters() -> Result<()> {
 
     let make_message = |role: MessageRole, text: &str| Message {
         role,
-        parts: vec![Part::Text(TextPart { text: text.into() })],
+        parts: vec![Part::text(text)],
         message_id: MessageId::new(format!("cnt_msg_{}", Uuid::new_v4().simple())),
         task_id: Some(task_id.clone()),
         context_id: fx.context_id.clone(),

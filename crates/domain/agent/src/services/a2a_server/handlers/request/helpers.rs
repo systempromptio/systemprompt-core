@@ -7,65 +7,42 @@ use axum::extract::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::sse::{KeepAlive, Sse};
-use serde_json::json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 
 use super::super::state::AgentHandlerState;
 use super::streaming::handle_streaming_request;
-use crate::models::a2a::A2aRequestParams;
+use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::{A2aJsonRpcRequest, A2aParseError, A2aRequestParams};
 use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub async fn parse_a2a_request(
-    jsonrpc_request: &crate::models::a2a::A2aJsonRpcRequest,
-    request_id: &crate::models::a2a::jsonrpc::NumberOrString,
+    jsonrpc_request: &A2aJsonRpcRequest,
+    request_id: &NumberOrString,
 ) -> Result<A2aRequestParams, axum::response::Response> {
-    match jsonrpc_request.parse_request() {
-        Ok(request) => Ok(request),
-        Err(e) => {
-            let error_str = e.to_string();
-
-            if error_str.contains("missing field `contextId`") {
-                let helpful_message = json!({
-                    "error": "contextId is required",
-                    "message": "JWT token and contextId are required to use this API.",
-                    "instructions": {
-                        "step1": {
-                            "description": "Obtain a JWT token (no registration required)",
-                            "endpoint": "POST /api/v1/core/oauth/session"
-                        },
-                        "step2": {
-                            "description": "Create a context using your JWT token",
-                            "endpoint": "POST /api/v1/core/contexts"
-                        },
-                        "step3": {
-                            "description": "Include contextId in your SendStreamingMessage request"
-                        }
-                    }
-                });
-
-                let error_response = JsonRpcErrorBuilder::invalid_params()
-                    .with_data(helpful_message)
-                    .log_error(
-                        "Missing required contextId in SendStreamingMessage request".to_owned(),
+    jsonrpc_request.parse_request().map_err(|e| {
+        let builder = match &e {
+            A2aParseError::UnsupportedMethod { method } => JsonRpcErrorBuilder::method_not_found()
+                .with_metadata("method", method)
+                .log_warn(format!("Unsupported A2A method '{method}'")),
+            A2aParseError::InvalidParams { method, source } => {
+                let builder = JsonRpcErrorBuilder::invalid_params()
+                    .with_metadata("method", method)
+                    .with_metadata("detail", source.to_string());
+                let builder = if source.to_string().contains("contextId") {
+                    builder.with_metadata(
+                        "hint",
+                        "message.contextId is required: create a context with POST \
+                         /api/v1/core/contexts using your JWT",
                     )
-                    .build(request_id);
-                Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
-            } else {
-                let error_response = JsonRpcErrorBuilder::method_not_found()
-                    .with_data(json!(format!(
-                        "Unsupported method: {}",
-                        jsonrpc_request.method
-                    )))
-                    .log_error(format!(
-                        "Invalid A2A request method '{}': {}",
-                        jsonrpc_request.method, e
-                    ))
-                    .build(request_id);
-                Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
-            }
-        },
-    }
+                } else {
+                    builder
+                };
+                builder.log_warn(format!("Invalid params for A2A method '{method}': {e}"))
+            },
+        };
+        (StatusCode::BAD_REQUEST, Json(builder.build(request_id))).into_response()
+    })
 }
 
 const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
@@ -73,7 +50,7 @@ const STREAM_RETRY_AFTER_SECONDS: u32 = 5;
 pub async fn handle_streaming_path(
     a2a_request: A2aRequestParams,
     state: Arc<AgentHandlerState>,
-    request_id: crate::models::a2a::jsonrpc::NumberOrString,
+    request_id: NumberOrString,
     context: RequestContext,
     start_time: std::time::Instant,
 ) -> axum::response::Response {
@@ -85,9 +62,10 @@ pub async fn handle_streaming_path(
         tracing::warn!("Streaming request rejected: global stream-concurrency cap reached");
 
         let error_response = JsonRpcErrorBuilder::internal_error()
-            .with_data(json!(
-                "Server stream-concurrency limit reached; retry shortly"
-            ))
+            .with_metadata(
+                "detail",
+                "Server stream-concurrency limit reached; retry shortly",
+            )
             .build(&request_id);
 
         return (

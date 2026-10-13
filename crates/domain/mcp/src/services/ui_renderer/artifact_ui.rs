@@ -15,7 +15,7 @@ use crate::error::{McpDomainError, McpDomainResult};
 use serde_json::Value as JsonValue;
 use std::sync::{Arc, OnceLock};
 use systemprompt_identifiers::{ArtifactId, ContextId, McpServerId, TaskId};
-use systemprompt_models::a2a::{Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::a2a::{Artifact, ArtifactMetadata, Part};
 
 #[derive(Debug)]
 pub struct RenderTarget<'a> {
@@ -59,7 +59,7 @@ fn to_a2a_artifact(target: &RenderTarget<'_>) -> McpDomainResult<Artifact> {
         id: target.artifact_id.clone(),
         title: target.title.clone(),
         description: None,
-        parts: vec![Part::Data(DataPart { data })],
+        parts: vec![Part::data(serde_json::Value::Object(data))],
         extensions: Vec::new(),
         metadata: ArtifactMetadata::new(
             target.artifact_type.to_owned(),

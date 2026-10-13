@@ -19,8 +19,9 @@ use wiremock::MockServer;
 use crate::harness::{
     ExternalServerSpec, bootstrap_with_services, config_with_servers, default_tools_json,
     external_server_block, external_server_block_with_accessor, internal_server_block,
-    mount_mcp_endpoint, register_internal_extension, unique_instance,
+    mount_mcp_endpoint, register_internal_extension,
 };
+use systemprompt_test_fixtures::unique_instance;
 
 fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
     PathsConfig {

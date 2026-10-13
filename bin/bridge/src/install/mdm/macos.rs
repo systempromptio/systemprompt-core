@@ -85,7 +85,7 @@ pub(crate) fn apply(
 ) -> Result<super::MdmApplication, MdmError> {
     validate_gateway(gateway)?;
 
-    let plist = build_prefs_plist(mcp, gateway)?;
+    let plist = build_prefs_plist(mcp)?;
     let staging = tempfile::tempdir().map_err(|source| MdmError::Io {
         action: "create staging directory",
         path: std::env::temp_dir(),
@@ -226,7 +226,7 @@ pub(crate) fn apply_mobileconfig(
 
     validate_gateway(gateway)?;
 
-    let mobileconfig = build_mobileconfig(mcp, gateway, pubkey)?;
+    let mobileconfig = build_mobileconfig(mcp, pubkey)?;
     let out_path = std::env::temp_dir().join(format!(
         "{}.mobileconfig",
         crate::brand::brand().binary_name

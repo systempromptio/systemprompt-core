@@ -117,21 +117,8 @@ fn render_profile(
     payload_uuid: &str,
     profile_uuid: &str,
 ) -> std::io::Result<String> {
-    let models = super::reg_profile::with_context_variants(&inputs.models, &inputs.model_limits);
-    let models_json = serde_json::to_string(&models)
+    let policy = crate::install::mdm::policy::desktop_policy(inputs, None)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let policy = crate::install::mdm::policy::claude_desktop_policy(
-        &crate::install::mdm::policy::PolicyInputs {
-            base_url: &inputs.gateway_base_url,
-            host_token: &inputs.host_token,
-            models: Some(models_json),
-            headers: &inputs.headers,
-            egress_allowed_hosts: None,
-            org_uuid: inputs.organization_uuid.as_deref(),
-            mcp_servers: inputs.mcp_servers.as_deref(),
-        },
-    )
-    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
     Ok(PROFILE_TMPL
         .replace("{profile_uuid}", &escape(profile_uuid))

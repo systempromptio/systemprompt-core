@@ -87,16 +87,15 @@ impl TrafficAnalyticsRepository {
                 TrafficNavigationRow,
                 r#"
                 SELECT
-                    endpoint as "from_path",
-                    event_data->>'target_url' as "to_path",
-                    COUNT(*)::bigint as "count!"
-                FROM report_analytics_events
-                WHERE event_type = 'link_click'
-                  AND timestamp >= $1 AND timestamp < $2
-                  AND ($3::text IS NULL OR event_data->>'target_url' LIKE $3 || '%')
-                  AND COALESCE(event_data->>'is_external', 'false') <> 'true'
-                GROUP BY endpoint, event_data->>'target_url'
-                ORDER BY COUNT(*) DESC
+                    NULLIF(endpoint, '') as "from_path",
+                    NULLIF(target_url, '') as "to_path",
+                    SUM(clicks)::bigint as "count!"
+                FROM report_link_click_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND ($3::text IS NULL OR target_url LIKE $3 || '%')
+                  AND NOT is_external
+                GROUP BY endpoint, target_url
+                ORDER BY SUM(clicks) DESC
                 LIMIT $4
                 "#,
                 start,
@@ -112,15 +111,14 @@ impl TrafficAnalyticsRepository {
                 TrafficNavigationRow,
                 r#"
                 SELECT
-                    endpoint as "from_path",
-                    event_data->>'target_url' as "to_path",
-                    COUNT(*)::bigint as "count!"
-                FROM report_analytics_events
-                WHERE event_type = 'link_click'
-                  AND timestamp >= $1 AND timestamp < $2
-                  AND ($3::text IS NULL OR event_data->>'target_url' LIKE $3 || '%')
-                GROUP BY endpoint, event_data->>'target_url'
-                ORDER BY COUNT(*) DESC
+                    NULLIF(endpoint, '') as "from_path",
+                    NULLIF(target_url, '') as "to_path",
+                    SUM(clicks)::bigint as "count!"
+                FROM report_link_click_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND ($3::text IS NULL OR target_url LIKE $3 || '%')
+                GROUP BY endpoint, target_url
+                ORDER BY SUM(clicks) DESC
                 LIMIT $4
                 "#,
                 start,

@@ -13,7 +13,7 @@ use serde_json::json;
 
 use std::sync::Arc;
 
-use crate::models::a2a::{Artifact, Message, MessageRole, Part, TextPart};
+use crate::models::a2a::{Artifact, Message, MessageRole, Part};
 use crate::repository::A2ARepositories;
 use crate::repository::content::ArtifactRepository;
 use crate::services::{MessageService, SkillService};
@@ -213,18 +213,19 @@ impl ArtifactPublishingService {
             message_id: MessageId::generate(),
             task_id: Some(params.task_id.clone()),
             context_id: params.context_id.clone(),
-            parts: vec![Part::Text(TextPart {
-                text: format!(
-                    "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
-                    artifact.id, artifact.metadata.artifact_type
+            parts: vec![Part::text(format!(
+                "Tool execution completed successfully.\n\nCreated artifact: {} (type: {})",
+                artifact.id, artifact.metadata.artifact_type
+            ))],
+            metadata: Some(serde_json::Map::from_iter([
+                ("source".to_owned(), json!("mcp_direct_call_response")),
+                ("tool_name".to_owned(), json!(params.tool_name)),
+                ("artifact_id".to_owned(), json!(artifact.id)),
+                (
+                    "artifact_type".to_owned(),
+                    json!(artifact.metadata.artifact_type),
                 ),
-            })],
-            metadata: Some(json!({
-                "source": "mcp_direct_call_response",
-                "tool_name": params.tool_name,
-                "artifact_id": artifact.id,
-                "artifact_type": artifact.metadata.artifact_type,
-            })),
+            ])),
             extensions: None,
             reference_task_ids: None,
         };

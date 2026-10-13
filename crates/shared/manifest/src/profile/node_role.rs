@@ -7,10 +7,15 @@ use serde::{Deserialize, Serialize};
 
 /// The part of the platform a node serves.
 ///
-/// `all` is a single-node deployment. `gateway` serves only the AI gateway,
+/// `all` is a single-node deployment: every surface, every worker, and the
+/// extensions' runner services, so one node runs the whole product.
+/// `gateway` serves only the AI gateway,
 /// the bridge consumer surface and the OAuth/discovery routes they depend on,
 /// and runs no scheduler, MCP or agent processes, so it scales horizontally.
 /// `admin` serves everything except the gateway and runs the workers.
+/// `runner` serves only the health, readiness and metrics probes, runs no
+/// scheduler, MCP or agent processes, and starts the extensions' runner
+/// services, so long-running work scales on its own Deployment.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema,
 )]
@@ -20,6 +25,7 @@ pub enum NodeRole {
     All,
     Gateway,
     Admin,
+    Runner,
 }
 
 impl NodeRole {
@@ -35,11 +41,16 @@ impl NodeRole {
         self.serves_admin()
     }
 
+    pub const fn runs_runner_services(self) -> bool {
+        matches!(self, Self::All | Self::Runner)
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::All => "all",
             Self::Gateway => "gateway",
             Self::Admin => "admin",
+            Self::Runner => "runner",
         }
     }
 }

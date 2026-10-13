@@ -1,11 +1,11 @@
 use serde_json::json;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::{
-    A2aJsonRpcRequest, A2aParseError, A2aRequestParams, A2aResponse, MessageSendConfiguration,
-    MessageSendParams, TaskIdParams, TaskNotCancelableError, TaskNotFoundError, TaskQueryParams,
-    UnsupportedOperationError,
+    A2aJsonRpcRequest, A2aParseError, A2aRequestParams, A2aResponse, CancelTaskParams,
+    GetTaskParams, ListTasksParams, ListTasksResult, SendMessageConfiguration, SendMessageParams,
+    SendMessageResult, TaskNotCancelableError, TaskNotFoundError, UnsupportedOperationError,
 };
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::methods;
 
@@ -16,9 +16,7 @@ fn string_id(s: &str) -> RequestId {
 fn minimal_message() -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "hello".to_string(),
-        })],
+        parts: vec![Part::text("hello")],
         message_id: MessageId::new("msg-test"),
         context_id: ContextId::try_new("00000000-0000-4000-8000-000000000001")
             .expect("valid ContextId"),
@@ -30,7 +28,8 @@ fn minimal_message() -> Message {
 }
 
 fn send_message_request(id: RequestId) -> A2aJsonRpcRequest {
-    let params = MessageSendParams {
+    let params = SendMessageParams {
+        tenant: None,
         message: minimal_message(),
         configuration: None,
         metadata: None,
@@ -52,7 +51,8 @@ fn parse_request_send_message_success() {
 
 #[test]
 fn parse_request_get_task_success() {
-    let params = TaskQueryParams {
+    let params = GetTaskParams {
+        tenant: None,
         id: TaskId::new("task-1"),
         history_length: None,
     };
@@ -68,8 +68,10 @@ fn parse_request_get_task_success() {
 
 #[test]
 fn parse_request_cancel_task_success() {
-    let params = TaskIdParams {
+    let params = CancelTaskParams {
+        tenant: None,
         id: TaskId::new("task-2"),
+        metadata: None,
     };
     let req = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
@@ -90,15 +92,13 @@ fn parse_request_get_extended_card_success() {
         id: string_id("req-4"),
     };
     let parsed = req.parse_request().expect("should parse");
-    assert!(matches!(
-        parsed,
-        A2aRequestParams::GetAuthenticatedExtendedCard(_)
-    ));
+    assert!(matches!(parsed, A2aRequestParams::GetExtendedAgentCard(_)));
 }
 
 #[test]
 fn parse_request_send_streaming_message_success() {
-    let params = MessageSendParams {
+    let params = SendMessageParams {
+        tenant: None,
         message: minimal_message(),
         configuration: None,
         metadata: None,
@@ -149,13 +149,13 @@ fn a2a_parse_error_unsupported_method_display() {
 
 #[test]
 fn a2a_parse_error_invalid_params_display() {
-    let source = serde_json::from_value::<TaskQueryParams>(json!({})).expect_err("id is required");
+    let source = serde_json::from_value::<GetTaskParams>(json!({})).expect_err("id is required");
     let err = A2aParseError::InvalidParams {
-        method: "tasks/get".to_string(),
+        method: "GetTask".to_string(),
         source: std::sync::Arc::new(source),
     };
     assert!(err.to_string().contains("Invalid parameters"));
-    assert!(err.to_string().contains("tasks/get"));
+    assert!(err.to_string().contains("GetTask"));
     assert!(err.to_string().contains("missing field"));
     assert!(std::error::Error::source(&err).is_some());
 }
@@ -164,7 +164,8 @@ fn a2a_parse_error_invalid_params_display() {
 #[test]
 fn a2a_response_send_message_constructor() {
     let task = systemprompt_agent::Task::default();
-    let resp = A2aResponse::send_message(task, string_id("id-1"));
+    let resp =
+        A2aResponse::send_message(SendMessageResult::Task(Box::new(task)), string_id("id-1"));
     assert!(matches!(resp, A2aResponse::SendMessage(_)));
 }
 
@@ -184,28 +185,28 @@ fn a2a_response_cancel_task_constructor() {
 
 #[test]
 fn message_send_configuration_serde_roundtrip() {
-    let config = MessageSendConfiguration {
+    let config = SendMessageConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string()]),
         history_length: Some(10),
-        blocking: Some(true),
+        return_immediately: true,
     };
     let json = serde_json::to_string(&config).unwrap();
-    let de: MessageSendConfiguration = serde_json::from_str(&json).unwrap();
+    let de: SendMessageConfiguration = serde_json::from_str(&json).unwrap();
     assert_eq!(de.history_length, Some(10));
-    assert_eq!(de.blocking, Some(true));
+    assert!(de.return_immediately);
 }
 
 #[test]
 fn message_send_configuration_all_none_serde() {
-    let config = MessageSendConfiguration {
+    let config = SendMessageConfiguration {
         accepted_output_modes: None,
         history_length: None,
-        blocking: None,
+        return_immediately: false,
     };
     let json = serde_json::to_string(&config).unwrap();
-    let de: MessageSendConfiguration = serde_json::from_str(&json).unwrap();
+    let de: SendMessageConfiguration = serde_json::from_str(&json).unwrap();
     assert!(de.accepted_output_modes.is_none());
-    assert!(de.blocking.is_none());
+    assert!(!de.return_immediately);
 }
 
 #[test]
@@ -255,57 +256,160 @@ fn unsupported_operation_error_serde_roundtrip() {
 
 #[test]
 fn message_send_params_with_configuration() {
-    let config = MessageSendConfiguration {
+    let config = SendMessageConfiguration {
         accepted_output_modes: Some(vec!["text/plain".to_string(), "text/markdown".to_string()]),
         history_length: Some(5),
-        blocking: Some(false),
+        return_immediately: false,
     };
-    let params = MessageSendParams {
+    let params = SendMessageParams {
+        tenant: None,
         message: minimal_message(),
         configuration: Some(config),
         metadata: None,
     };
     let json = serde_json::to_string(&params).unwrap();
-    let de: MessageSendParams = serde_json::from_str(&json).unwrap();
+    let de: SendMessageParams = serde_json::from_str(&json).unwrap();
     let cfg = de.configuration.unwrap();
     assert_eq!(cfg.history_length, Some(5));
-    assert_eq!(cfg.blocking, Some(false));
+    assert!(!cfg.return_immediately);
 }
 
 #[test]
-fn task_id_params_serde_roundtrip() {
-    let params = TaskIdParams {
+fn cancel_task_params_serde_roundtrip() {
+    let params = CancelTaskParams {
+        tenant: Some("acme".to_string()),
         id: TaskId::new("task-cancel"),
+        metadata: None,
     };
-    let json = serde_json::to_string(&params).unwrap();
-    let de: TaskIdParams = serde_json::from_str(&json).unwrap();
+    let value = serde_json::to_value(&params).unwrap();
+    assert_eq!(value, json!({"tenant": "acme", "id": "task-cancel"}));
+    let de: CancelTaskParams = serde_json::from_value(value).unwrap();
     assert_eq!(de.id.as_str(), "task-cancel");
 }
 
 #[test]
-fn task_query_params_with_history_length() {
-    let params = TaskQueryParams {
+fn get_task_params_with_history_length() {
+    let params = GetTaskParams {
+        tenant: None,
         id: TaskId::new("task-query"),
         history_length: Some(20),
     };
-    let json = serde_json::to_string(&params).unwrap();
-    let de: TaskQueryParams = serde_json::from_str(&json).unwrap();
-    assert_eq!(de.id.as_str(), "task-query");
+    let value = serde_json::to_value(&params).unwrap();
+    assert_eq!(value, json!({"id": "task-query", "historyLength": 20}));
+    let de: GetTaskParams = serde_json::from_value(value).unwrap();
     assert_eq!(de.history_length, Some(20));
 }
 
+#[test]
+fn send_message_configuration_wire_names() {
+    let value = serde_json::to_value(SendMessageConfiguration {
+        accepted_output_modes: Some(vec!["text/plain".to_string()]),
+        history_length: Some(3),
+        return_immediately: true,
+    })
+    .unwrap();
+    assert_eq!(
+        value,
+        json!({"acceptedOutputModes": ["text/plain"], "historyLength": 3, "returnImmediately": true})
+    );
+    let de: SendMessageConfiguration = serde_json::from_value(json!({})).unwrap();
+    assert!(!de.return_immediately);
+}
 
 #[test]
 fn parse_subscribe_to_task_method() {
-    let params = json!({
-        "task_id": "task-sub"
-    });
     let req = A2aJsonRpcRequest {
         jsonrpc: "2.0".to_string(),
         method: methods::SUBSCRIBE_TO_TASK.to_string(),
-        params,
+        params: json!({"id": "task-sub", "tenant": "acme"}),
         id: string_id("req-sub"),
     };
     let parsed = req.parse_request().expect("should parse subscribe");
-    assert!(matches!(parsed, A2aRequestParams::TaskResubscription(_)));
+    assert_eq!(parsed.tenant(), Some("acme"));
+    let A2aRequestParams::SubscribeToTask(params) = parsed else {
+        panic!("expected SubscribeToTask");
+    };
+    assert_eq!(params.id.as_str(), "task-sub");
+}
+
+#[test]
+fn parse_subscribe_to_task_rejects_legacy_task_id_field() {
+    let req = A2aJsonRpcRequest {
+        jsonrpc: "2.0".to_string(),
+        method: methods::SUBSCRIBE_TO_TASK.to_string(),
+        params: json!({"task_id": "task-sub"}),
+        id: string_id("req-sub"),
+    };
+    assert!(matches!(
+        req.parse_request().unwrap_err(),
+        A2aParseError::InvalidParams { .. }
+    ));
+}
+
+#[test]
+fn parse_list_tasks_method() {
+    let req = A2aJsonRpcRequest {
+        jsonrpc: "2.0".to_string(),
+        method: methods::LIST_TASKS.to_string(),
+        params: json!({
+            "contextId": "00000000-0000-4000-8000-000000000001",
+            "status": "TASK_STATE_WORKING",
+            "pageSize": 10,
+            "pageToken": "abc",
+            "includeArtifacts": true
+        }),
+        id: string_id("req-list"),
+    };
+    let A2aRequestParams::ListTasks(params) = req.parse_request().expect("should parse list")
+    else {
+        panic!("expected ListTasks");
+    };
+    assert_eq!(params.status, Some(TaskState::Working));
+    assert_eq!(params.page_size, Some(10));
+    assert_eq!(params.page_token.as_deref(), Some("abc"));
+    assert_eq!(params.include_artifacts, Some(true));
+}
+
+#[test]
+fn parse_list_tasks_accepts_absent_params() {
+    let req = A2aJsonRpcRequest {
+        jsonrpc: "2.0".to_string(),
+        method: methods::LIST_TASKS.to_string(),
+        params: serde_json::Value::Null,
+        id: string_id("req-list"),
+    };
+    assert_eq!(
+        req.parse_request().expect("should parse"),
+        A2aRequestParams::ListTasks(ListTasksParams::default())
+    );
+}
+
+#[test]
+fn list_tasks_response_constructor_serialises_spec_fields() {
+    let resp = A2aResponse::list_tasks(
+        ListTasksResult {
+            tasks: vec![],
+            next_page_token: String::new(),
+            page_size: 50,
+            total_size: None,
+        },
+        string_id("id-list"),
+    );
+    let value = serde_json::to_value(resp).unwrap();
+    assert_eq!(value["jsonrpc"], "2.0");
+    assert_eq!(
+        value["result"],
+        json!({"tasks": [], "nextPageToken": "", "pageSize": 50})
+    );
+}
+
+#[test]
+fn send_message_response_wraps_result_oneof() {
+    let task = systemprompt_agent::Task::default();
+    let value = serde_json::to_value(A2aResponse::send_message(
+        SendMessageResult::Task(Box::new(task)),
+        string_id("id-sm"),
+    ))
+    .unwrap();
+    assert!(value["result"]["task"].is_object());
 }

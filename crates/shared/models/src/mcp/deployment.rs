@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub use super::connector::{ConnectorConfig, ConnectorIdentity};
+pub use super::connector::{ConnectorConfig, ConnectorGrant, ConnectorIdentity};
 use crate::ai::ToolModelConfig;
 use crate::auth::{JwtAudience, Permission};
 use crate::errors::ServicesValidationError;

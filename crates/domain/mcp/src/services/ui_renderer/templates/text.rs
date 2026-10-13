@@ -171,7 +171,7 @@ fn extract_text(artifact: &Artifact) -> String {
             text_parts.push(text.to_owned());
         } else if let Some(content) = part
             .as_data()
-            .and_then(|data| string_field(&data, "content"))
+            .and_then(|data| string_field(data, "content"))
         {
             text_parts.push(content);
         }
@@ -184,10 +184,10 @@ fn payload_title(artifact: &Artifact) -> Option<String> {
     artifact
         .parts
         .iter()
-        .find_map(|part| part.as_data().and_then(|data| string_field(&data, "title")))
+        .find_map(|part| part.as_data().and_then(|data| string_field(data, "title")))
 }
 
-// JSON: A2A DataPart — an open JSON object.
+// JSON: A2A `Part.data` — an arbitrary JSON value.
 fn string_field(data: &serde_json::Value, field: &str) -> Option<String> {
     data.get(field)
         .and_then(serde_json::Value::as_str)

@@ -1,4 +1,4 @@
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::processing::task_builder::{
     TaskBuilder, build_canceled_task, build_completed_task,
 };
@@ -8,9 +8,7 @@ use systemprompt_models::a2a::TaskMetadata;
 fn make_user_message(context_id: &ContextId, task_id: &TaskId) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: "Hello agent".to_string(),
-        })],
+        parts: vec![Part::text("Hello agent".to_string())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: context_id.clone(),
@@ -254,10 +252,7 @@ fn build_canceled_task_has_no_history() {
 fn extract_text_from_message(msg: &Message) -> String {
     msg.parts
         .iter()
-        .filter_map(|p| match p {
-            Part::Text(tp) => Some(tp.text.as_str()),
-            _ => None,
-        })
+        .filter_map(Part::as_text)
         .collect::<Vec<_>>()
         .join("")
 }

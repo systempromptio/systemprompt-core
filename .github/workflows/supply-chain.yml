@@ -50,9 +50,10 @@ jobs:
           tool: cargo-audit
       - run: just audit
 
-  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  # The `main` ruleset's required context, PR runs only; push runs post
+  # `Supply Chain passed (push)` (see ci.yml `ci-passed`).
   supply-chain-passed:
-    name: Supply Chain passed
+    name: ${{ github.event_name == 'pull_request' && 'Supply Chain passed' || 'Supply Chain passed (push)' }}
     runs-on: ubuntu-latest
     needs: [deny, audit]
     if: always()

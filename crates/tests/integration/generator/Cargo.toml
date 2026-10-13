@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
@@ -29,4 +30,4 @@ serde_json = { workspace = true }
 
 [package.metadata.cargo-machete]
 # Used by test modules included via #[path="../*.rs"] outside src/, which cargo-machete's scan doesn't follow.
-ignored = ["async-trait", "chrono", "systemprompt-config", "systemprompt-generator", "systemprompt-identifiers", "systemprompt-manifest", "systemprompt-models", "systemprompt-provider-contracts"]
+ignored = ["async-trait", "chrono", "systemprompt-config", "systemprompt-generator", "systemprompt-identifiers", "systemprompt-manifest", "systemprompt-models", "systemprompt-provider-contracts", "reqwest"]

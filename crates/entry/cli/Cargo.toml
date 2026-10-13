@@ -38,6 +38,7 @@ thiserror = { workspace = true }
 # systemprompt.io crates
 systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-agent = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-logging = { workspace = true }
@@ -76,8 +77,10 @@ tabled = { workspace = true }
 inventory = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
-reqwest-eventsource = { workspace = true }
+rustls = { workspace = true }
 futures-util = { workspace = true }
+sse-stream = { workspace = true }
+bytes = { workspace = true }
 # The CLI drives MCP servers over the streamable-HTTP client *trait*, supplying
 # our own reqwest-0.12 `HttpClientWithContext` via `with_client`. The `-reqwest`
 # impl feature (a second reqwest 0.13) is deliberately NOT enabled. The workspace

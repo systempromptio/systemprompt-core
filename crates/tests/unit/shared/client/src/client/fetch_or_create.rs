@@ -264,8 +264,8 @@ async fn test_list_artifacts_returns_typed_artifacts() {
         ))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
             {
-                "id": "art-1",
-                "title": "Summary",
+                "artifactId": "art-1",
+                "name": "Summary",
                 "parts": [{"text": "hello"}],
                 "extensions": [],
                 "metadata": {
@@ -276,7 +276,7 @@ async fn test_list_artifacts_returns_typed_artifacts() {
                 }
             },
             {
-                "id": "art-2",
+                "artifactId": "art-2",
                 "parts": [],
                 "extensions": [],
                 "metadata": {

@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::{Duration, DurationRound, Utc};
 use systemprompt_analytics::CostAnalyticsRepository;
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_test_fixtures::{DisposableDb, seed_user_row};
@@ -22,8 +22,10 @@ async fn per_user_cost_context_queries_exclude_other_users_and_synthetic_request
     let recent_context = ContextId::generate();
     let other_context = ContextId::generate();
     let boundary_context = ContextId::generate();
-    let base = Utc::now() - Duration::minutes(5);
-    let window_end = base + Duration::minutes(10);
+    let window_end = Utc::now()
+        .duration_trunc(Duration::hours(1))
+        .expect("truncate to the hour");
+    let base = window_end - Duration::minutes(10);
 
     for (context, user, name) in [
         (&first_context, &owner, "owner first"),

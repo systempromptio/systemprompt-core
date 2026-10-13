@@ -67,7 +67,10 @@ impl From<AuthProviderError> for OAuthHttpError {
             },
             e @ AuthProviderError::UserNotFound => Self::not_found(e.to_string()),
             e @ AuthProviderError::TokenExpired => Self::invalid_grant(e.to_string()),
-            e @ AuthProviderError::InsufficientPermissions => Self::access_denied(e.to_string()),
+            e @ (AuthProviderError::InsufficientPermissions
+            | AuthProviderError::ServiceAccountInteractiveLogin) => {
+                Self::access_denied(e.to_string())
+            },
             other => Self::server_error("Authentication provider failed").with_source(other),
         }
     }

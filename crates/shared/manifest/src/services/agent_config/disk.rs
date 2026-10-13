@@ -53,6 +53,9 @@ pub struct DiskAgentConfig {
     pub card: AgentCardConfig,
     #[serde(default)]
     pub oauth: OAuthConfig,
+    // JSON: an agent-runs `RunRequest` template; see `AgentMetadataConfig`.
+    #[serde(default)]
+    pub agent_run: Option<serde_json::Value>,
 }
 
 impl DiskAgentConfig {
@@ -99,6 +102,7 @@ impl DiskAgentConfig {
                 skills: self.skills.clone(),
                 provider: self.provider.clone(),
                 model: self.model.clone(),
+                agent_run: self.agent_run.clone(),
                 ..Default::default()
             },
             oauth: self.oauth.clone(),

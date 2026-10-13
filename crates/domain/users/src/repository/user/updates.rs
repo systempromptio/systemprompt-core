@@ -21,7 +21,7 @@ impl UserRepository {
             SET email = $1, email_verified = false, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             email,
             Utc::now(),
@@ -44,7 +44,7 @@ impl UserRepository {
             SET full_name = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             full_name,
             Utc::now(),
@@ -67,7 +67,7 @@ impl UserRepository {
             SET status = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             status.as_str(),
             Utc::now(),
@@ -89,7 +89,7 @@ impl UserRepository {
             SET email_verified = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             verified,
             Utc::now(),
@@ -112,7 +112,7 @@ impl UserRepository {
             SET display_name = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             display_name,
             Utc::now(),
@@ -139,7 +139,7 @@ impl UserRepository {
             SET email = $1, full_name = $2, display_name = $3, status = $4, updated_at = $5
             WHERE id = $6
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             params.email,
             params.full_name,
@@ -164,7 +164,7 @@ impl UserRepository {
             SET roles = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, name, email, full_name, display_name, status, email_verified,
-                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
             "#,
             roles,
             Utc::now(),

@@ -5,6 +5,11 @@
 //! `dyn`-compatible. `RoleProvider` is only used through concrete types and
 //! declares native `async` methods.
 //!
+//! `is_service_account` marks a non-human service account: it never receives an
+//! interactive credential (session login, passkey, bridge code, authorization
+//! code), and `ensure_interactive` refuses it on every interactive sign-in
+//! path.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -34,6 +39,9 @@ pub enum AuthProviderError {
     #[error("Insufficient permissions")]
     InsufficientPermissions,
 
+    #[error("Service accounts cannot sign in interactively")]
+    ServiceAccountInteractiveLogin,
+
     #[error("Internal error: {0}")]
     Internal(#[source] BoxedSource),
 }
@@ -45,6 +53,16 @@ pub struct AuthUser {
     pub email: String,
     pub roles: Vec<String>,
     pub is_active: bool,
+    pub is_service_account: bool,
+}
+
+impl AuthUser {
+    pub const fn ensure_interactive(&self) -> AuthResult<()> {
+        if self.is_service_account {
+            return Err(AuthProviderError::ServiceAccountInteractiveLogin);
+        }
+        Ok(())
+    }
 }
 
 /// Federated-identity claim payload passed to

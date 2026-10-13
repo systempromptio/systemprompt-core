@@ -29,6 +29,7 @@ fn make_claims(issuer: &str, aud: Vec<JwtAudience>) -> JwtClaims {
         rate_limit_tier: None,
         plugin_id: None,
         act: None,
+        purpose: None,
     }
 }
 

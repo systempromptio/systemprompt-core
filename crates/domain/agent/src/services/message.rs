@@ -7,7 +7,7 @@
 use crate::services::shared::Result;
 use serde_json::json;
 
-use crate::models::a2a::{Message, MessageRole, Part, TextPart};
+use crate::models::a2a::{Message, MessageRole, Part};
 use crate::repository::task::{PersistMessagesTxParams, TaskRepository};
 use systemprompt_identifiers::{
     ContextId, McpToolName, MessageId, SessionId, TaskId, TraceId, UserId,
@@ -108,22 +108,20 @@ impl MessageService {
             message_id: message_id.clone(),
             task_id: Some(task_id.clone()),
             context_id: context_id.clone(),
-            parts: vec![Part::Text(TextPart {
-                text: format!(
-                    "Executed MCP tool: {} with arguments:\n{}\n\nExecution ID: {} at {}",
-                    tool_name,
-                    tool_args_display,
-                    task_id.as_str(),
-                    timestamp
-                ),
-            })],
-            metadata: Some(json!({
-                "source": "mcp_direct_call",
-                "tool_name": tool_name,
-                "is_synthetic": true,
-                "tool_args": tool_args,
-                "execution_timestamp": timestamp,
-            })),
+            parts: vec![Part::text(format!(
+                "Executed MCP tool: {} with arguments:\n{}\n\nExecution ID: {} at {}",
+                tool_name,
+                tool_args_display,
+                task_id.as_str(),
+                timestamp
+            ))],
+            metadata: Some(serde_json::Map::from_iter([
+                ("source".to_owned(), json!("mcp_direct_call")),
+                ("tool_name".to_owned(), json!(tool_name)),
+                ("is_synthetic".to_owned(), json!(true)),
+                ("tool_args".to_owned(), json!(tool_args)),
+                ("execution_timestamp".to_owned(), json!(timestamp)),
+            ])),
             extensions: None,
             reference_task_ids: None,
         };

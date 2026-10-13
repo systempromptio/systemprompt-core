@@ -1,5 +1,5 @@
-//! Success fan-out for a completed task: the final A2A status frame, the A2A
-//! and AG-UI webhook events, and the task-completed broadcast.
+//! Success fan-out for a completed task: the terminal A2A status frame, the
+//! A2A and AG-UI webhook events, and the task-completed broadcast.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,12 +10,14 @@ use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder};
 use tokio::sync::mpsc::Sender;
 
 use super::send_a2a_status_event;
-use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
 pub(super) struct BroadcastTaskSuccessParams<'a> {
     pub tx: &'a Sender<Event>,
+    pub request_id: &'a NumberOrString,
     pub webhook_context: &'a WebhookContext,
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
@@ -30,9 +32,7 @@ pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_
         state: TaskState::Completed,
         message: Some(Message {
             role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: params.full_text.to_owned(),
-            })],
+            parts: vec![Part::text(params.full_text)],
             message_id: params.message_id.clone(),
             task_id: Some(params.task_id.clone()),
             context_id: params.context_id.clone(),
@@ -44,10 +44,10 @@ pub(super) async fn broadcast_task_success(params: BroadcastTaskSuccessParams<'_
     };
     send_a2a_status_event(
         params.tx,
+        params.request_id,
         params.task_id,
         params.context_id,
         completed_status,
-        true,
     )
     .await;
 

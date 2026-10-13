@@ -87,10 +87,13 @@ fn instance_id_warns_when_unset_and_passes_when_explicit() {
 }
 
 #[test]
-fn trusted_proxies_fail_when_empty() {
+fn trusted_proxies_fail_when_empty_on_cloud_and_warn_on_local() {
     let mut profile = fixture_profile();
     profile.server.trusted_proxies = Vec::new();
+    profile.target = ProfileType::Cloud;
     assert_eq!(check_trusted_proxies(&profile).status, CheckStatus::Fail);
+    profile.target = ProfileType::Local;
+    assert_eq!(check_trusted_proxies(&profile).status, CheckStatus::Warn);
     profile.server.trusted_proxies = vec!["fc00::/7".parse().unwrap()];
     assert_eq!(check_trusted_proxies(&profile).status, CheckStatus::Pass);
 }

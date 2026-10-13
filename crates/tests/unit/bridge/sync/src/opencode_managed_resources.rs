@@ -438,14 +438,15 @@ fn the_governance_owner_gets_an_opencode_hook_plugin_with_a_scoped_token() {
         );
         assert!(body.contains("\"code-review\":\"astound-dev:code-review\""));
         assert!(body.contains("\"who-am-i\":\"opencode:who-am-i\""));
-        assert!(body.contains("\"tool.execute.after\""));
+        assert!(body.contains("export default {") && body.contains("setup: async (ctx)"));
+        assert!(body.contains("ctx.tool.hook(\"execute.after\""));
         assert!(
             body.contains("\"session.idle\": \"Stop\"")
                 && body.contains("\"session.deleted\": \"SessionEnd\""),
             "the plugin translates OpenCode's session lifecycle to the canonical hook events: {body}"
         );
         assert!(
-            body.contains("\"chat.headers\"") && body.contains("\"chat.params\""),
+            body.contains("ctx.session.hook(\"http.request\""),
             "the plugin stamps chat requests with the session header: {body}"
         );
         assert!(body.contains("\"x-opencode-session\""));

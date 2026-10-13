@@ -34,6 +34,7 @@ impl UserProvider for NoopUsers {
             email: email.to_owned(),
             roles: vec![],
             is_active: true,
+            is_service_account: false,
         })
     }
     async fn create_anonymous(&self, _fingerprint: &str) -> AuthResult<AuthUser> {
@@ -43,6 +44,7 @@ impl UserProvider for NoopUsers {
             email: String::new(),
             roles: vec![],
             is_active: true,
+            is_service_account: false,
         })
     }
     async fn assign_roles(&self, _user_id: &UserId, _roles: &[String]) -> AuthResult<()> {

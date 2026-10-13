@@ -1,6 +1,7 @@
 //! Stream-setup orchestration: detect the agent kind, validate the context,
 //! persist the initial task, register a push-notification config, and assemble
-//! a [`StreamSetupResult`] for the streaming event loop.
+//! a [`StreamSetupResult`] for the streaming event loop. A setup failure sends
+//! one JSON-RPC error frame carrying the request `id`, then the stream closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +9,6 @@
 use std::sync::Arc;
 
 use axum::response::sse::Event;
-use serde_json::json;
 use systemprompt_identifiers::{AgentName, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use tokio::sync::mpsc::Sender;
@@ -18,24 +18,14 @@ use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
 
+use super::frames::jsonrpc_error_event;
+use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
+
 use super::agent_loader::{LoadAgentRuntimeParams, load_agent_runtime};
 use super::broadcast::{BroadcastTaskCreatedParams, broadcast_task_created};
 use super::initialization_steps::{persist_initial_task, validate_context};
 use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 use super::webhook_client::WebhookContext;
-
-pub(super) fn create_jsonrpc_error_event(
-    code: i32,
-    message: &str,
-    request_id: &NumberOrString,
-) -> Event {
-    let error_event = json!({
-        "jsonrpc": "2.0",
-        "error": { "code": code, "message": message },
-        "id": request_id
-    });
-    Event::default().data(error_event.to_string())
-}
 
 pub(super) fn align_context_agent_name(agent_name: &AgentName, context: &mut RequestContext) {
     if context.agent_name() == agent_name {
@@ -66,9 +56,9 @@ fn create_processor(
     .map_err(|e| {
         tracing::error!(error = %e, "Failed to create MessageProcessor");
         if tx
-            .try_send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Failed to initialize message processor: {e}"),
+            .try_send(jsonrpc_error_event(
+                JsonRpcErrorBuilder::internal_error()
+                    .with_metadata("detail", "Failed to initialize message processor"),
                 request_id,
             ))
             .is_err()

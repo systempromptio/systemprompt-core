@@ -124,6 +124,15 @@ impl UpstreamDialect {
                 "anthropic_version".to_owned(),
                 Value::String(VERTEX_ANTHROPIC_VERSION.to_owned()),
             );
+            if let Some(Value::Array(tools)) = body.get_mut("tools") {
+                tools.retain(|tool| !is_tool_absent_on_vertex(tool));
+                for tool in tools.iter_mut() {
+                    downgrade_vertex_web_search(tool);
+                }
+                if tools.is_empty() {
+                    body.remove("tools");
+                }
+            }
         }
     }
 
@@ -133,4 +142,52 @@ impl UpstreamDialect {
             self.finish_body(obj);
         }
     }
+}
+
+// Why: Vertex AI serves Claude's web search only as the basic
+// `web_search_20250305` tool; the dated successors and the fields only they
+// accept are refused with a 400, so a newer definition is rewritten to the
+// one Vertex runs.
+// JSON: provider request body — upstream wire format finished per dialect.
+pub fn downgrade_vertex_web_search(tool: &mut Value) {
+    const BASIC_WEB_SEARCH: &str = "web_search_20250305";
+    const NEWER_ONLY_FIELDS: [&str; 2] = ["allowed_callers", "response_inclusion"];
+    let is_newer_web_search = server_tool_type(tool)
+        .is_some_and(|kind| kind.starts_with("web_search_") && kind != BASIC_WEB_SEARCH);
+    if !is_newer_web_search {
+        return;
+    }
+    let Some(obj) = tool.as_object_mut() else {
+        return;
+    };
+    obj.insert(
+        "type".to_owned(),
+        Value::String(BASIC_WEB_SEARCH.to_owned()),
+    );
+    for field in NEWER_ONLY_FIELDS {
+        obj.remove(field);
+    }
+}
+
+// Why: Google Cloud does not run web fetch, code execution or the advisor
+// tool for Claude, and Vertex refuses the whole request when one is declared,
+// so the definition is removed; an installation that wants them routes those
+// requests to a provider that serves them. Client tools carry no server
+// `type` and are never touched.
+#[must_use]
+// JSON: provider request body — a tool entry in the upstream wire format.
+pub fn is_tool_absent_on_vertex(tool: &Value) -> bool {
+    const ABSENT_ON_VERTEX: [&str; 3] = ["web_fetch_", "code_execution_", "advisor_"];
+    server_tool_type(tool).is_some_and(|kind| {
+        ABSENT_ON_VERTEX
+            .iter()
+            .any(|prefix| kind.starts_with(prefix))
+    })
+}
+
+// JSON: provider request body — a tool entry in the upstream wire format.
+fn server_tool_type(tool: &Value) -> Option<&str> {
+    tool.get("type")
+        .and_then(Value::as_str)
+        .filter(|kind| *kind != "custom")
 }

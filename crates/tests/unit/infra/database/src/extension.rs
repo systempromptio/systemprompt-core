@@ -39,7 +39,7 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 3);
+    assert_eq!(schemas.len(), 5);
     assert!(
         schemas
             .iter()
@@ -48,7 +48,17 @@ fn test_database_extension_schemas() {
     assert!(
         schemas
             .iter()
+            .any(|s| s.table.as_deref() == Some("projection_backlog"))
+    );
+    assert!(
+        schemas
+            .iter()
             .any(|s| s.table.as_deref() == Some("extension_migrations"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("trace_facts"))
     );
 }
 

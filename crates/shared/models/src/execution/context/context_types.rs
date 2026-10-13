@@ -58,6 +58,8 @@ pub struct ExecutionContext {
     pub agent_name: AgentName,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_model_config: Option<ToolModelConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub caller_purpose: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

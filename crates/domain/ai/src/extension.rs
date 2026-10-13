@@ -50,6 +50,7 @@ fn request_schemas() -> Vec<SchemaDefinition> {
                 "finish_reason",
                 "served_provider",
                 "api_key_id",
+                "has_offered_tools",
             ])),
         SchemaDefinition::new(
             "ai_request_attributions",
@@ -81,6 +82,7 @@ fn request_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/ai_request_payloads.sql"),
         )
         .with_required_columns(columns(&["ai_request_id", "offered_tools_sha256"])),
+        SchemaDefinition::sql_only(include_str!("../schema/ai_request_tool_flag.sql")),
     ]
 }
 
@@ -117,6 +119,12 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             "expires_at",
         ])),
         SchemaDefinition::sql_only(include_str!("../schema/tool_call_ledger.sql")),
+        SchemaDefinition::sql_only(include_str!("../schema/trace_facts_ai.sql")),
+        SchemaDefinition::new(
+            "ai_usage_rollup_hourly",
+            include_str!("../schema/ai_usage_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "user_id", "request_count"])),
     ]
 }
 

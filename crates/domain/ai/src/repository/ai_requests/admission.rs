@@ -61,7 +61,8 @@ pub struct AdmissionWrite<'a> {
 impl AiRequestRepository {
     pub async fn admit(&self, write: AdmissionWrite<'_>) -> Result<(), RepositoryError> {
         let mut tx = self.write_pool().begin().await?;
-        if !insert_request_row(&mut tx, write.id, write.record).await? {
+        let has_offered_tools = write.offered_tools.is_some();
+        if !insert_request_row(&mut tx, write.id, write.record, has_offered_tools).await? {
             return Err(RepositoryError::conflict(
                 "AI request",
                 write.id,

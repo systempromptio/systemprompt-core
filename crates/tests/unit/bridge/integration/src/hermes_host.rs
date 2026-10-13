@@ -1,24 +1,25 @@
 use systemprompt_bridge::integration::hermes::HERMES_HOST;
 use systemprompt_bridge::integration::host_app::{
-    ConfigFormat, HostApp, HostAppKind, ProbeEnv, ProfileState,
+    ConfigFormat, HostApp, HostAppKind, ProfileState,
 };
 use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 
-fn probe_env() -> ProbeEnv {
-    ProbeEnv {
-        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret: None,
-        start_menu: std::sync::Arc::default(),
-        expected_managed_servers: None,
-        policy_writer_ready: false,
-    }
+use crate::support::{host_token, probe_env};
+
+fn write_env_key(home: &std::path::Path) {
+    std::fs::write(
+        home.join(".env"),
+        format!("OPENAI_API_KEY={}\n", host_token(HostKind::Hermes)),
+    )
+    .expect("seed hermes .env");
 }
 
 fn hermes_sandbox<R>(config_yaml: Option<&str>, f: impl FnOnce() -> R) -> R {
     let home = TempDir::new().expect("hermes home");
     if let Some(body) = config_yaml {
         std::fs::write(home.path().join("config.yaml"), body).expect("seed hermes config");
+        write_env_key(home.path());
     }
     let vars: Vec<(&str, Option<String>)> =
         vec![("HERMES_HOME", Some(home.path().display().to_string()))];
@@ -66,7 +67,7 @@ fn a_complete_hermes_config_probes_as_installed_with_the_model_keys() {
     let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe(&probe_env()));
     assert!(
         matches!(snapshot.profile_state, ProfileState::Installed),
-        "every required key is present, got {:?}",
+        "every key the writer sets matches and the .env token is current, got {:?}",
         snapshot.profile_state
     );
     assert_eq!(
@@ -112,7 +113,7 @@ fn a_complete_hermes_config_probes_as_installed_with_the_model_keys() {
 }
 
 #[test]
-fn a_partial_hermes_config_lists_the_missing_required_keys() {
+fn a_hermes_config_missing_settings_is_stale_with_those_keys() {
     let body = format!(
         "model:\n  provider: systemprompt-gateway\nproviders:\n  systemprompt-gateway:\n    \
          base_url: {}\n",
@@ -120,17 +121,17 @@ fn a_partial_hermes_config_lists_the_missing_required_keys() {
     );
     let snapshot = hermes_sandbox(Some(&body), || HERMES_HOST.probe(&probe_env()));
     match snapshot.profile_state {
-        ProfileState::Partial { missing_required } => {
+        ProfileState::Stale { keys, .. } => {
             assert_eq!(
-                missing_required,
+                keys,
                 vec![
                     "providers.systemprompt-gateway.api_mode".to_owned(),
                     "providers.systemprompt-gateway.key_env".to_owned()
                 ],
-                "the wire format and the key source are missing: {missing_required:?}"
+                "the wire format and the key source are missing: {keys:?}"
             );
         },
-        other => panic!("expected Partial, got {other:?}"),
+        other => panic!("expected Stale, got {other:?}"),
     }
 }
 
@@ -168,6 +169,7 @@ fn structured_owned_values_are_reported_without_panicking_and_repair_becomes_ins
         "model:\n  provider: [foreign, shape]\nproviders:\n  systemprompt-gateway:\n    base_url: {nested: value}\n    api_mode: true\n    key_env: null\n",
     )
     .expect("seed structured values");
+    write_env_key(home.path());
     let root = home.path().display().to_string();
     temp_env::with_var("HERMES_HOME", Some(root.as_str()), || {
         let snapshot = HERMES_HOST.probe(&probe_env());
@@ -235,28 +237,28 @@ fn the_hermes_host_describes_itself_as_a_yaml_desktop_app() {
 }
 
 #[test]
-fn the_hermes_schema_requires_the_provider_selection_endpoint_wire_and_key_source() {
-    let schema = HERMES_HOST.config_schema();
-    assert_eq!(
-        schema.required_keys,
-        &[
-            "model.provider",
-            "providers.systemprompt-gateway.base_url",
-            "providers.systemprompt-gateway.api_mode",
-            "providers.systemprompt-gateway.key_env"
-        ],
-        "{:?}",
-        schema.required_keys
+fn a_hermes_env_token_from_another_secret_is_stale_on_the_credential() {
+    let body = format!(
+        "model:\n  provider: systemprompt-gateway\nproviders:\n  systemprompt-gateway:\n    \
+         base_url: {}\n    api_mode: chat_completions\n    key_env: OPENAI_API_KEY\n",
+        loopback_v1()
     );
-    for key in schema.required_keys {
-        assert!(
-            schema.display_keys.contains(key),
-            "{key} is required but never displayed"
-        );
-    }
+    let snapshot = hermes_sandbox(Some(&body), || {
+        let home = std::env::var("HERMES_HOME").expect("sandbox home");
+        std::fs::write(
+            std::path::Path::new(&home).join(".env"),
+            "OPENAI_API_KEY=from-another-bridge\n",
+        )
+        .expect("rotate .env");
+        HERMES_HOST.probe(&probe_env())
+    });
     assert!(
-        schema.display_keys.contains(&"model.default"),
-        "the optional model name is displayed: {:?}",
-        schema.display_keys
+        matches!(
+            &snapshot.profile_state,
+            ProfileState::Stale { reason: systemprompt_bridge::integration::host_app::StaleReason::LoopbackSecret, keys }
+                if keys == &vec![".env:OPENAI_API_KEY".to_owned()]
+        ),
+        "{:?}",
+        snapshot.profile_state
     );
 }

@@ -176,6 +176,14 @@ impl Seed {
         .unwrap();
     }
 
+    async fn project_trace_facts(&self) {
+        sqlx::query("SELECT refresh_trace_facts($1)")
+            .bind(vec![self.trace_id.clone()])
+            .execute(&self.pool)
+            .await
+            .unwrap();
+    }
+
     async fn cleanup(&self) {
         let _ = sqlx::query("DELETE FROM logs WHERE trace_id = $1")
             .bind(&self.trace_id)
@@ -336,6 +344,7 @@ async fn filtered_lists_surface_seeded_rows() {
 
     seed.insert_mcp("success", None, 21).await;
     seed.insert_tool_log().await;
+    seed.project_trace_facts().await;
 
     let svc = TraceQueryService::new(TraceRepository::new(std::sync::Arc::new(seed.pool.clone())));
 

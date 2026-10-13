@@ -54,6 +54,7 @@ fn mint_with(
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,
         act,
+        purpose: None,
     };
 
     let kid = authority::active_kid().expect("kid");

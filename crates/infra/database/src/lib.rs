@@ -41,8 +41,19 @@
 //! - `src/services/postgres/` — the dyn-safe `DatabaseProvider` implementation,
 //!   transaction wrapper, type-erased helpers and `PostgreSQL` schema
 //!   introspection.
+//! - `src/projection/` — `drain_with_sql` calls the projector function the
+//!   caller names (validated as a bare identifier); the name is the only
+//!   dynamic part and no value is interpolated.
 //!
 //! Every other call site uses verified macros.
+//!
+//! ## Data paradigm
+//!
+//! [`projection`] documents the rule every analytics-shaped read follows:
+//! store the answer when the row is written, read the stored answer. Raw
+//! ledger tables are read by projectors and single-entity detail queries
+//! only; the queue, drainer and backfill detector that make that hold live
+//! there and in [`backfill_statements`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -52,6 +63,7 @@ pub mod error;
 pub mod extension;
 pub mod lifecycle;
 pub mod models;
+pub mod projection;
 #[macro_use]
 pub mod repository;
 pub mod resilience;
@@ -71,13 +83,14 @@ pub use services::{
 
 pub use error::DatabaseResult;
 pub use lifecycle::{
-    AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BaselineStamp, BootstrapLockGuard,
-    ChecksumDrift, DeferredForeignKey, ExpensiveStatement, ExtensionMigrationStatus,
-    FkDeferralError, ForeignKeyDrift, FreshnessCheck, HOT_TABLES, MarkAppliedOutcome,
-    MigrationConfig, MigrationCost, MigrationResult, MigrationService, MigrationStatus,
-    OrphanMigrationLedger, OrphanedMigration, PendingMigration, RepairResult, ReplicaStatus,
-    SchemaCurrency, SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable,
-    TombstonedSlot, UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue,
+    AppliedMigration, BOOTSTRAP_ADVISORY_LOCK_KEY, BackfillStatement, BaselineStamp,
+    BootstrapLockGuard, ChecksumDrift, DeferredForeignKey, ExpensiveStatement,
+    ExtensionMigrationStatus, FkDeferralError, ForeignKeyDrift, FreshnessCheck, HOT_TABLES,
+    MarkAppliedOutcome, MigrationConfig, MigrationCost, MigrationResult, MigrationService,
+    MigrationStatus, OrphanMigrationLedger, OrphanedMigration, PROJECTION_BACKLOG,
+    PendingMigration, RepairResult, ReplicaStatus, SchemaCurrency, SchemaInstallReport,
+    SchemaResidue, SlotCollision, SplitCreateTable, TombstonedSlot, UndeclaredTable,
+    audit_migration_cost, audit_one, audit_schema_residue, backfill_statements,
     check_migration_references, check_trigger_routines, install_extension_schemas_full,
     is_retirement, replica_status, schema_currency, split_create_table_foreign_keys,
     validate_column_exists, validate_database_connection, validate_table_exists,

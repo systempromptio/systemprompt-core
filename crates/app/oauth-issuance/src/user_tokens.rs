@@ -21,7 +21,7 @@ use systemprompt_models::errors::{GlobalConfigError, ParseEnumError};
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{
     JwtConfig, JwtSigningParams, SessionCreationError, SessionCreationService, generate_jwt,
-    generate_secure_token, load_authenticated_user,
+    generate_secure_token, load_interactive_user,
 };
 use systemprompt_oauth::{OAuthState, OauthError};
 use systemprompt_traits::ExtractSignals;
@@ -71,7 +71,7 @@ pub async fn generate_tokens_by_user_id(
 
     let scope_str = params.scope.ok_or(UserTokenError::MissingScope)?;
 
-    let user = load_authenticated_user(state.user_provider().as_ref(), params.user_id).await?;
+    let user = load_interactive_user(state.user_provider().as_ref(), params.user_id).await?;
 
     let requested_permissions = parse_permissions(scope_str)?;
     let final_permissions = resolve_user_permissions(&requested_permissions, user.permissions())?;
@@ -138,6 +138,7 @@ async fn create_jwt_and_refresh_token(
         expires_in: chrono::Duration::seconds(global_config.jwt_access_token_expiration),
         plugin_id: None,
         client_id: Some(params.client_id.clone()),
+        purpose: None,
     };
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,

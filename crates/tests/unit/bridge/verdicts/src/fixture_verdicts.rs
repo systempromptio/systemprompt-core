@@ -40,8 +40,18 @@ fn stale_reason_of(host: &Value) -> StaleReason {
     {
         Some("managed_servers") => StaleReason::ManagedServers,
         Some("proxy_port") => StaleReason::ProxyPort,
+        Some("model_list") => StaleReason::ModelList,
+        Some("settings") => StaleReason::Settings,
         _ => StaleReason::LoopbackSecret,
     }
+}
+
+fn stale_keys_of(host: &Value) -> Vec<String> {
+    host.pointer("/verdict/reason/keys")
+        .and_then(Value::as_str)
+        .filter(|k| !k.is_empty())
+        .map(|k| k.split(", ").map(str::to_owned).collect())
+        .unwrap_or_default()
 }
 
 fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
@@ -57,6 +67,7 @@ fn profile_state_of(host: &Value, health: &Value) -> ProfileState {
         },
         "stale" => ProfileState::Stale {
             reason: stale_reason_of(host),
+            keys: stale_keys_of(host),
         },
         _ => ProfileState::Absent,
     }
@@ -141,6 +152,7 @@ fn recompute(doc: &Value) -> Option<Value> {
         let unconfigured = strings(host.get("unconfigured_providers"));
         let v = verdict(&HostHealthInputs {
             snapshot: snap.as_ref(),
+            apply_failures: &[],
             proxy: &proxy,
             models: HostModelViewRef {
                 checked: host
@@ -152,6 +164,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
                 unconfigured_providers: &unconfigured,
+                compatible_models: &[],
             },
             has_download_url: host
                 .get("download_url")
@@ -191,11 +204,13 @@ fn recompute(doc: &Value) -> Option<Value> {
     for agent in SYNC_ONLY_AGENTS {
         let v = verdict(&HostHealthInputs {
             snapshot: None,
+            apply_failures: &[],
             proxy: &proxy,
             models: HostModelViewRef {
                 checked: false,
                 available: false,
                 unconfigured_providers: &[],
+                compatible_models: &[],
             },
             has_download_url: false,
             surface: AgentSurface::SyncOnly,

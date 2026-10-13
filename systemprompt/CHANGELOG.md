@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - Unreleased
+
+### Added
+
+- `agent-runs` feature: the `systemprompt::agent_runs` module re-exports `systemprompt-agent-runs`; part of `full`.
+
 ## [0.53.0] - 2026-09-15
 
 ### Breaking

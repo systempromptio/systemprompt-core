@@ -31,6 +31,7 @@ mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;
 mod gateway_otel_convert;
 mod gateway_otel_ingest;
+mod gateway_scope_header_only;
 mod gateway_upstream_status_mapping;
 mod marketplace_yaml;
 mod oauth;

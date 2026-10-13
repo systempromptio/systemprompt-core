@@ -1,7 +1,7 @@
 //! Streaming event loop — fans `StreamEvent`s from the AI model out to A2A
 //! status frames, AG-UI webhooks, the SSE channel, and the task repository.
-//! Exactly one terminal status frame (`final: true`) is emitted per task,
-//! whichever way the pipeline ends.
+//! Every frame carries the request `id`; the stream closes after exactly one
+//! terminal status, whichever way the pipeline ends.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +14,7 @@ use systemprompt_models::{AgUiEventBuilder, CallToolResult, RequestContext, Tool
 use tokio::sync::mpsc::Sender;
 
 use crate::models::ExecutionStep;
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Artifact, Message, TaskState};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
@@ -29,6 +30,7 @@ use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {
     pub tx: Sender<Event>,
+    pub request_id: NumberOrString,
     pub stream: MessageStream,
     pub task_id: TaskId,
     pub context_id: ContextId,
@@ -43,6 +45,7 @@ pub struct ProcessEventsParams {
 impl std::fmt::Debug for ProcessEventsParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ProcessEventsParams")
+            .field("request_id", &self.request_id)
             .field("task_id", &self.task_id)
             .field("context_id", &self.context_id)
             .field("message_id", &self.message_id)
@@ -54,6 +57,7 @@ impl std::fmt::Debug for ProcessEventsParams {
 pub async fn process_events(params: ProcessEventsParams) {
     let ProcessEventsParams {
         tx,
+        request_id,
         mut stream,
         task_id,
         context_id,
@@ -69,6 +73,7 @@ pub async fn process_events(params: ProcessEventsParams) {
 
     emit_run_started(EmitRunStartedParams {
         tx: &tx,
+        request_id: &request_id,
         webhook_context: &webhook_context,
         context_id: &context_id,
         task_id: &task_id,
@@ -82,6 +87,7 @@ pub async fn process_events(params: ProcessEventsParams) {
 
     let ctx = EventLoopCtx {
         tx: &tx,
+        request_id: &request_id,
         webhook_context: &webhook_context,
         task_id: &task_id,
         context_id: &context_id,
@@ -93,40 +99,7 @@ pub async fn process_events(params: ProcessEventsParams) {
         processor: &processor,
     };
 
-    while let Some(event) = stream.events.recv().await {
-        match event {
-            StreamEvent::Text(text) => text_state.handle_text(text, &message_id).await,
-            StreamEvent::ToolCallStarted(tool_call) => {
-                broadcast_tool_call_started(&webhook_context, &tool_call, &message_id).await;
-            },
-            StreamEvent::ToolResult {
-                ai_tool_call_id,
-                result,
-            } => broadcast_tool_result(&webhook_context, &ai_tool_call_id, &result).await,
-            StreamEvent::ExecutionStepUpdate { step } => {
-                broadcast_execution_step(&webhook_context, step, &context_id).await;
-            },
-            StreamEvent::Complete {
-                full_text,
-                artifacts,
-            } => {
-                text_state.finalize(&message_id).await;
-                finish_completed(&ctx, full_text, artifacts).await;
-                break;
-            },
-            StreamEvent::Error(error) => {
-                text_state.finalize(&message_id).await;
-                record_failure(&task_repo, &task_id, &error).await;
-                finish_failed(&ctx, error, "STREAM_ERROR").await;
-                break;
-            },
-            StreamEvent::Cancelled => {
-                text_state.finalize(&message_id).await;
-                finish_cancelled(&ctx).await;
-                break;
-            },
-        }
-    }
+    drain_events(&ctx, &mut stream, &mut text_state).await;
 
     drop(tx);
 
@@ -135,6 +108,7 @@ pub async fn process_events(params: ProcessEventsParams) {
 
 struct EventLoopCtx<'a> {
     tx: &'a Sender<Event>,
+    request_id: &'a NumberOrString,
     webhook_context: &'a WebhookContext,
     task_id: &'a TaskId,
     context_id: &'a ContextId,
@@ -144,6 +118,47 @@ struct EventLoopCtx<'a> {
     context: &'a RequestContext,
     task_repo: &'a TaskRepository,
     processor: &'a Arc<MessageProcessor>,
+}
+
+async fn drain_events(
+    ctx: &EventLoopCtx<'_>,
+    stream: &mut MessageStream,
+    text_state: &mut TextStreamState,
+) {
+    while let Some(event) = stream.events.recv().await {
+        match event {
+            StreamEvent::Text(text) => text_state.handle_text(text, ctx.message_id).await,
+            StreamEvent::ToolCallStarted(tool_call) => {
+                broadcast_tool_call_started(ctx.webhook_context, &tool_call, ctx.message_id).await;
+            },
+            StreamEvent::ToolResult {
+                ai_tool_call_id,
+                result,
+            } => broadcast_tool_result(ctx.webhook_context, &ai_tool_call_id, &result).await,
+            StreamEvent::ExecutionStepUpdate { step } => {
+                broadcast_execution_step(ctx.webhook_context, step, ctx.context_id).await;
+            },
+            StreamEvent::Complete {
+                full_text,
+                artifacts,
+            } => {
+                text_state.finalize(ctx.message_id).await;
+                finish_completed(ctx, full_text, artifacts).await;
+                break;
+            },
+            StreamEvent::Error(error) => {
+                text_state.finalize(ctx.message_id).await;
+                record_failure(ctx.task_repo, ctx.task_id, &error).await;
+                finish_failed(ctx, error, "STREAM_ERROR").await;
+                break;
+            },
+            StreamEvent::Cancelled => {
+                text_state.finalize(ctx.message_id).await;
+                finish_cancelled(ctx).await;
+                break;
+            },
+        }
+    }
 }
 
 async fn broadcast_tool_call_started(
@@ -203,6 +218,7 @@ async fn broadcast_execution_step(
 async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: Vec<Artifact>) {
     let complete_params = HandleCompleteParams {
         tx: ctx.tx,
+        request_id: ctx.request_id,
         webhook_context: ctx.webhook_context,
         full_text,
         artifacts,
@@ -234,6 +250,7 @@ async fn finish_completed(ctx: &EventLoopCtx<'_>, full_text: String, artifacts: 
 async fn finish_failed(ctx: &EventLoopCtx<'_>, error: String, code: &str) {
     announce_failure(AnnounceFailureParams {
         tx: ctx.tx,
+        request_id: ctx.request_id,
         webhook_context: ctx.webhook_context,
         error,
         code,
@@ -251,5 +268,12 @@ async fn finish_cancelled(ctx: &EventLoopCtx<'_>) {
     {
         tracing::error!(task_id = %ctx.task_id, error = %e, "Failed to mark task cancelled");
     }
-    announce_cancelled(ctx.tx, ctx.webhook_context, ctx.task_id, ctx.context_id).await;
+    announce_cancelled(
+        ctx.tx,
+        ctx.request_id,
+        ctx.webhook_context,
+        ctx.task_id,
+        ctx.context_id,
+    )
+    .await;
 }

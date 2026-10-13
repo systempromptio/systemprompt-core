@@ -12,6 +12,11 @@ pattern='sqlx::query[a-z_]*(::<[^>]*>)?\('
 allowlist=(
     'crates/infra/database/src/admin/'
     'crates/infra/database/src/services/postgres/'
+    # The projection drainer calls the `refresh_*(keys TEXT[])` function the
+    # caller names (validated as a bare identifier) and binds the keys; the
+    # queue helpers beside it stay runtime so the crate carries no offline
+    # cache for them.
+    'crates/infra/database/src/projection/'
     # Test crates keep no `.sqlx` offline cache (they run live against a
     # freshly-migrated DB), so the compile-time macros are unavailable in test
     # seed/cleanup helpers. The gate's job is verifying production SQL; both test

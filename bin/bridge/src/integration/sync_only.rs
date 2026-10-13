@@ -10,7 +10,9 @@
 
 use systemprompt_models::bridge::host::HostKind;
 
-use super::agent_health::{AgentReason, AgentState, AgentVerdict};
+use super::agent_health::{
+    AgentAction, AgentReason, AgentState, AgentVerdict, ApplyFailure, apply_failed,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SyncOnlyAgent {
@@ -40,7 +42,12 @@ pub fn gateway_routed(agent: &SyncOnlyAgent) -> bool {
     agent.id != HostKind::ClaudeCode || super::claude_code_routing::is_routed()
 }
 
-pub const fn sync_only_verdict(manifest_synced: bool, gateway_routed: bool) -> AgentVerdict {
+#[must_use]
+pub fn sync_only_verdict(
+    manifest_synced: bool,
+    gateway_routed: bool,
+    apply_failures: &[ApplyFailure],
+) -> AgentVerdict {
     if !manifest_synced {
         return AgentVerdict {
             state: AgentState::Checking,
@@ -57,9 +64,20 @@ pub const fn sync_only_verdict(manifest_synced: bool, gateway_routed: bool) -> A
             state: AgentState::Attention,
             tone: AgentState::Attention.tone(),
             reason: AgentReason::NotRouted,
-            action: None,
+            action: Some(AgentAction::Enrol),
             is_set_up: true,
             is_installed: false,
+            is_running: false,
+        };
+    }
+    if let Some((reason, action)) = apply_failed(apply_failures) {
+        return AgentVerdict {
+            state: AgentState::Attention,
+            tone: AgentState::Attention.tone(),
+            reason,
+            action,
+            is_set_up: true,
+            is_installed: true,
             is_running: false,
         };
     }

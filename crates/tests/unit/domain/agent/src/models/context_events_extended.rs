@@ -1,5 +1,5 @@
 use chrono::Utc;
-use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part, TextPart};
+use systemprompt_agent::models::a2a::{Artifact, ArtifactMetadata, Part};
 use systemprompt_agent::models::context::{ContextKind, ContextStateEvent};
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, McpExecutionId, McpServerId, McpToolName, SessionId,
@@ -17,9 +17,7 @@ fn minimal_artifact() -> Artifact {
         id: ArtifactId::new("art-1"),
         title: Some("result".to_string()),
         description: None,
-        parts: vec![Part::Text(TextPart {
-            text: "content".to_string(),
-        })],
+        parts: vec![Part::text("content".to_string())],
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "text".to_string(),

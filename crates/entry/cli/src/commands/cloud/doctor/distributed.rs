@@ -79,8 +79,14 @@ pub fn check_instance_id(profile: &Profile) -> CheckResult {
 }
 
 pub fn check_trusted_proxies(profile: &Profile) -> CheckResult {
-    if profile.server.trusted_proxies.is_empty() {
+    if profile.server.trusted_proxies.is_empty() && profile.target.is_cloud() {
         CheckResult::fail(
+            "trusted-proxies",
+            "server.trusted_proxies is empty on a cloud profile; every caller behind the \
+             balancer would share one rate-limit bucket and one ban target",
+        )
+    } else if profile.server.trusted_proxies.is_empty() {
+        CheckResult::warn(
             "trusted-proxies",
             "server.trusted_proxies is empty; every caller behind the balancer would share one \
              rate-limit bucket and one ban target",
@@ -199,8 +205,6 @@ pub async fn run<S: BuildHasher + Sync>(
 ) -> Vec<CheckResult> {
     vec![
         check_identity_fingerprints(secrets),
-        check_instance_id(profile),
-        check_trusted_proxies(profile),
         check_write_primary(secrets).await,
         check_replica_lag(secrets).await,
         check_readyz(profile).await,

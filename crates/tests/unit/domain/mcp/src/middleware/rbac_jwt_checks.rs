@@ -37,6 +37,7 @@ fn claims_for(audiences: Vec<JwtAudience>) -> JwtClaims {
         rate_limit_tier: Some(RateLimitTier::User),
         plugin_id: None,
         act: None,
+        purpose: None,
     }
 }
 

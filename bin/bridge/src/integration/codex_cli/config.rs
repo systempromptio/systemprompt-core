@@ -6,11 +6,13 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::integration::host_app::HostConfigSchema;
-
+pub(super) const PROVIDER_NAME: &str = "model_providers.systemprompt.name";
 pub(super) const PROVIDER_BASE_URL: &str = "model_providers.systemprompt.base_url";
 pub(super) const PROVIDER_WIRE_API: &str = "model_providers.systemprompt.wire_api";
 pub(super) const PROVIDER_AUTH_COMMAND: &str = "model_providers.systemprompt.auth.command";
+pub(super) const PROVIDER_AUTH_ARGS: &str = "model_providers.systemprompt.auth.args";
+pub(super) const PROVIDER_AUTH_TIMEOUT: &str = "model_providers.systemprompt.auth.timeout_ms";
+pub(super) const PROVIDER_MODELS: &str = "model_providers.systemprompt.models";
 pub(super) const PROVIDER_AUTH_REFRESH: &str =
     "model_providers.systemprompt.auth.refresh_interval_ms";
 pub(super) const PROVIDER_HEADER_TENANT: &str =
@@ -28,34 +30,34 @@ pub(super) const APPROVAL_POLICY_VALUE: &str = "never";
 pub(super) const SANDBOX_MODE_VALUE: &str = "workspace-write";
 
 pub(super) const KEYS_OF_INTEREST: &[&str] = &[
+    TOP_MODEL_PROVIDER,
+    PROVIDER_NAME,
     PROVIDER_BASE_URL,
     PROVIDER_WIRE_API,
     PROVIDER_AUTH_COMMAND,
+    PROVIDER_AUTH_ARGS,
+    PROVIDER_AUTH_TIMEOUT,
     PROVIDER_AUTH_REFRESH,
     PROVIDER_HEADER_TENANT,
+    PROVIDER_MODELS,
     OTEL_LOG_USER_PROMPT,
     OTEL_ENDPOINT,
     OTEL_PROTOCOL,
     ANALYTICS_ENABLED,
-    TOP_MODEL_PROVIDER,
     APPROVAL_POLICY,
     SANDBOX_MODE,
     SANDBOX_NETWORK_ACCESS,
 ];
 
-pub(super) const REQUIRED_KEYS: &[&str] = &[
-    PROVIDER_BASE_URL,
-    PROVIDER_WIRE_API,
-    PROVIDER_AUTH_COMMAND,
-    TOP_MODEL_PROVIDER,
-    APPROVAL_POLICY,
-    SANDBOX_MODE,
-];
-
-pub(super) const SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: REQUIRED_KEYS,
-    display_keys: KEYS_OF_INTEREST,
-};
+#[must_use]
+pub(super) fn role_of(key: &str) -> crate::drift::EntryRole {
+    use crate::drift::EntryRole;
+    match key {
+        PROVIDER_BASE_URL => EntryRole::Endpoint,
+        PROVIDER_MODELS => EntryRole::Models,
+        _ => EntryRole::Setting,
+    }
+}
 
 pub(super) fn codex_home() -> PathBuf {
     if let Some(custom) = std::env::var_os("CODEX_HOME") {

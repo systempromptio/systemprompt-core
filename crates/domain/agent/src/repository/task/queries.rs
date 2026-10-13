@@ -124,3 +124,47 @@ pub async fn find_task_context_info(
         user_id: r.user_id,
     }))
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct ListTasksFilter<'a> {
+    pub user_id: &'a UserId,
+    pub context_id: Option<&'a ContextId>,
+    pub status: Option<crate::models::a2a::TaskState>,
+    pub status_timestamp_after: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+pub async fn list_tasks(
+    pool: &Arc<PgPool>,
+    constructor: &TaskConstructor,
+    filter: ListTasksFilter<'_>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Task>, RepositoryError> {
+    let task_ids = sqlx::query_scalar!(
+        r#"SELECT task_id as "task_id!: TaskId"
+        FROM agent_tasks
+        WHERE user_id = $1
+          AND ($2::text IS NULL OR context_id = $2)
+          AND ($3::text IS NULL OR status = $3)
+          AND ($4::timestamptz IS NULL OR COALESCE(status_timestamp, updated_at) >= $4)
+        ORDER BY created_at DESC, task_id DESC
+        LIMIT $5 OFFSET $6"#,
+        filter.user_id.as_str(),
+        filter.context_id.map(ContextId::as_str),
+        filter.status.map(crate::models::a2a::TaskState::as_str),
+        filter.status_timestamp_after,
+        limit,
+        offset
+    )
+    .fetch_all(pool.as_ref())
+    .await?;
+
+    let mut tasks = constructor.construct_tasks_batch(&task_ids).await?;
+    tasks.sort_by_key(|task| {
+        task_ids
+            .iter()
+            .position(|id| *id == task.id)
+            .unwrap_or(usize::MAX)
+    });
+    Ok(tasks)
+}

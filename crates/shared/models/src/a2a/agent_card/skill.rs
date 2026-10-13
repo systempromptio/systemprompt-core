@@ -3,16 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-
+use crate::a2a::PROTOCOL_VERSION;
+use crate::a2a::security::SecurityRequirement;
 use crate::a2a::transport::ProtocolBinding;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentInterface {
     pub url: String,
     pub protocol_binding: ProtocolBinding,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant: Option<String>,
     #[serde(default = "default_protocol_version")]
     pub protocol_version: String,
 }
@@ -37,7 +39,7 @@ pub struct AgentSkill {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output_modes: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub security: Option<Vec<HashMap<String, Vec<String>>>>,
+    pub security_requirements: Option<Vec<SecurityRequirement>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -50,5 +52,5 @@ pub struct AgentCardSignature {
 }
 
 fn default_protocol_version() -> String {
-    "1.0.0".to_owned()
+    PROTOCOL_VERSION.to_owned()
 }

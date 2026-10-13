@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Added
+
+- `auth::AccountKind` and service-account fields on `User`, `AuthenticatedUser` and `AuthUser`.
+- A2A 1.0.1 wire models: `a2a::{Part, PartContent, StreamResponse, SendMessageResult, PROTOCOL_VERSION, VERSION_HEADER}`, security schemes, artifact extensions and message metadata.
+- `headers::CALLER_PURPOSE` and `headers::MCP_SERVER`; `RequestContext::with_caller_purpose` / `caller_purpose()`.
+
+### Breaking
+
+- The A2A models follow the 1.0.1 wire: one `Part` object, `SendMessageResult`, `StreamResponse` frames, and `TaskState` without `PENDING`/`UNKNOWN`.
+- `ConnectorConfig`, `ExecutionContext`, `AuthenticatedUser`, `AuthUser`, `UserApiKey`, `IssueApiKeyParams`, `CreateApiKeyParams` and `BridgeAccessRequest` gain fields; struct literals must name them.
+
 ## [0.63.1] - 2026-10-08
 
 ### Fixed

@@ -29,7 +29,7 @@ pub use role_directory::UsersRoleDirectory;
 pub use session::SessionRepository;
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, MERGE_EXCLUDED_SECURITY_TABLES, MergeResult,
-    PurgeCount, UpdateUserParams,
+    NewServiceAccount, PurgeCount, UpdateUserParams,
 };
 
 use sqlx::PgPool;

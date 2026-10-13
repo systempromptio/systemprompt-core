@@ -41,6 +41,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent_run_launcher;
+pub use agent_run_launcher::{
+    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, DynAgentRunLauncher,
+};
 pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;
@@ -59,6 +63,8 @@ pub mod managed_resources;
 pub mod ownership;
 pub mod registry;
 pub mod repository;
+pub mod runner_service;
+pub use runner_service::RunnerService;
 pub mod storage;
 pub mod tool_executions;
 pub mod validation;

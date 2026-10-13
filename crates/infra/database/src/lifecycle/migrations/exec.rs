@@ -49,6 +49,15 @@ pub(super) async fn execute_statements_transactional(
         return Ok(());
     }
 
+    let timeout = budget::statement_timeout(migration, budget::live_rows(db, migration).await);
+    tracing::debug!(
+        extension = %ext_id,
+        version = migration.version,
+        name = migration.name,
+        statement_timeout_ms = timeout.map_or(0, |d| d.as_millis()),
+        "Migration statement bound",
+    );
+
     let mut tx = db
         .begin_transaction()
         .await
@@ -63,7 +72,18 @@ pub(super) async fn execute_statements_transactional(
 
     let started = Instant::now();
     let total = statements.len();
-    match apply_in_transaction(tx.as_mut(), statements, ext_id, migration, tracking).await {
+    match apply_in_transaction(
+        tx.as_mut(),
+        StatementPlan {
+            statements,
+            timeout,
+        },
+        ext_id,
+        migration,
+        tracking,
+    )
+    .await
+    {
         Ok(()) => {},
         Err(step) => {
             let rollback_note = match tx.rollback().await {
@@ -100,16 +120,25 @@ pub(super) async fn execute_statements_transactional(
     Ok(())
 }
 
+struct StatementPlan<'a> {
+    statements: &'a [String],
+    timeout: Option<std::time::Duration>,
+}
+
 async fn apply_in_transaction(
     tx: &mut dyn DatabaseTransaction,
-    statements: &[String],
+    plan: StatementPlan<'_>,
     ext_id: &ExtensionId,
     migration: &Migration,
     tracking: Option<TrackingWrite<'_>>,
 ) -> Result<(), MigrationStepError> {
+    let StatementPlan {
+        statements,
+        timeout,
+    } = plan;
     // Why: LOCAL, so the bound dies with this transaction and never leaks
     // onto a pooled connection the application later reuses.
-    for setting in budget::timeout_statements(budget::statement_timeout(migration), true) {
+    for setting in budget::timeout_statements(timeout, true) {
         if let Err(source) = tx.execute(&setting.as_str(), &[]).await {
             return Err(MigrationStepError::Bound {
                 version: migration.version,

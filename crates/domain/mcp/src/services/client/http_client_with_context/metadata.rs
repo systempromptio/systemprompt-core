@@ -22,15 +22,15 @@ pub fn stamp_request_metadata<S: BuildHasher>(
     else {
         return;
     };
-    if negotiated < ProtocolVersion::V_2026_07_28.as_str() {
-        return;
-    }
     let Some(version) = ProtocolVersion::KNOWN_VERSIONS
         .iter()
         .find(|known| known.as_str() == negotiated)
     else {
         return;
     };
+    if version.has_initialize() {
+        return;
+    }
 
     let meta = request.request.get_meta_mut();
     if meta.protocol_version().is_none() {

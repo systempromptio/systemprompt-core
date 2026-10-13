@@ -7,8 +7,9 @@ use systemprompt_events::services::durable::{
 use systemprompt_events::{
     ANALYTICS_BROADCASTER, Broadcaster, EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, ToSse,
 };
-use systemprompt_identifiers::{Actor, ConnectionId, InstanceId, UserId};
+use systemprompt_identifiers::{Actor, ConnectionId, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
+use systemprompt_test_fixtures::unique_instance;
 
 #[tokio::test]
 async fn transactional_delivery_preserves_sse_and_recovers_processing() {
@@ -64,7 +65,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         .await
         .unwrap();
 
-    let instance = InstanceId::new("durable-test");
+    let instance = unique_instance();
     let outbox = DurableOutbox::new(pool.clone(), instance.clone());
     let consumer = OutboxConsumer::new(pool.clone());
     let user = UserId::new(format!("user_{suffix}"));

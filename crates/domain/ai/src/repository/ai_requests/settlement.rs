@@ -5,63 +5,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::repository::ai_request_payloads::UpsertPayloadParams;
 use sqlx::{Postgres, Transaction};
-use systemprompt_identifiers::{AiRequestId, AiToolCallId, UserId};
+use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SettlementUsage {
-    pub input_tokens: u32,
-    pub output_tokens: u32,
-    pub cache_read_tokens: u32,
-    pub cache_creation_tokens: u32,
-    pub reasoning_tokens: u32,
-    pub tokens_used: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct SettledToolCall {
-    pub id: AiToolCallId,
-    pub name: String,
-    pub input: String,
-}
-
-#[derive(Debug)]
-pub struct SettleCompletion<'a> {
-    pub usage: SettlementUsage,
-    pub cost_microdollars: i64,
-    pub latency_ms: i32,
-    pub upstream_latency_ms: Option<i32>,
-    pub finish_reason: Option<&'a str>,
-    pub payload: UpsertPayloadParams<'a>,
-    pub assistant_text: Option<&'a str>,
-    pub tool_calls: &'a [SettledToolCall],
-}
-
-/// What a failed request still consumed.
-///
-/// A provider bills the tokens it streamed before the stream broke, so a
-/// failure that carries usage is settled with it: recording only the error
-/// leaves that spend invisible to every cost view, quota bucket and rollup.
-/// `usage` is `None` when nothing was observed, and then the stored columns
-/// are left untouched.
-#[derive(Debug, Default)]
-pub struct SettledFailure<'a> {
-    pub error: &'a str,
-    pub usage: Option<SettlementUsage>,
-    pub cost_microdollars: i64,
-    pub latency_ms: Option<i32>,
-    pub upstream_latency_ms: Option<i32>,
-}
-
-#[derive(Debug)]
-pub enum SettlementOutcome<'a> {
-    Completed(SettleCompletion<'a>),
-    Failed(SettledFailure<'a>),
-}
+use super::settlement_outcome::{SettleCompletion, SettlementOutcome};
 
 impl AiRequestRepository {
     pub async fn mark_accounting_failed(
@@ -261,18 +210,25 @@ async fn insert_turn(
         .execute(&mut **tx)
         .await?;
     }
-    if let Some(text) = completion.assistant_text {
-        sqlx::query!(
-            r#"
-            INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
-            SELECT $1::varchar, 'assistant', $2, COALESCE(MAX(sequence_number), -1) + 1
-            FROM ai_request_messages WHERE request_id = $1::varchar
-            "#,
-            request_id.as_str(),
-            text
-        )
-        .execute(&mut **tx)
-        .await?;
+    match (completion.assistant_text, completion.next_message_sequence) {
+        (Some(text), Some(sequence)) => {
+            sqlx::query!(
+                r#"
+                INSERT INTO ai_request_messages (request_id, role, content, sequence_number)
+                VALUES ($1, 'assistant', $2, $3)
+                "#,
+                request_id.as_str(),
+                text,
+                sequence
+            )
+            .execute(&mut **tx)
+            .await?;
+        },
+        (Some(_), None) => tracing::warn!(
+            request_id = %request_id,
+            "assistant text not recorded: the receipt predates the carried message count"
+        ),
+        (None, _) => {},
     }
     Ok(())
 }

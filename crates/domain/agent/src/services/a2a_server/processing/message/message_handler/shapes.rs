@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus, TextPart};
+use crate::models::a2a::{Message, MessageRole, Part, Task, TaskState, TaskStatus};
 use systemprompt_identifiers::{AgentName, ContextId, MessageId, TaskId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 
@@ -72,13 +72,12 @@ pub fn resolve_agent_message(task: &Task, user_message: &Message, response_text:
             .and_then(|m| m.get("clientMessageId"))
             .cloned();
 
-        let metadata = client_message_id.map(|id| serde_json::json!({"clientMessageId": id}));
+        let metadata = client_message_id
+            .map(|id| serde_json::Map::from_iter([("clientMessageId".to_owned(), id)]));
 
         Message {
             role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: response_text.to_owned(),
-            })],
+            parts: vec![Part::text(response_text.to_owned())],
             message_id: MessageId::generate(),
             task_id: Some(task.id.clone()),
             context_id: task.context_id.clone(),

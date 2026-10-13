@@ -80,6 +80,7 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await?;
 

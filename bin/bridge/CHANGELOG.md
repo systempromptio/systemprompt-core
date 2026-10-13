@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.66.0] - 2026-10-12
+
+### Changed
+
+- **Dependencies:** reqwest 0.13 (rustls, platform certificate verifier), rmcp 3.5.1, opener 0.9, zip 9, tray-icon 0.26, muda 0.21.
+
+### Fixed
+
+- **Bridge:** the connector probe speaks MCP `2026-07-28` (`server/discover`) and falls back to `initialize` at `2025-11-25`. It was hard-coded to `2025-06-18`.
+- **Bridge:** every agent is judged by one comparison against exactly what its writer would put in place. Before, each probe checked a few facts (Claude Desktop: the secret, the endpoint port and the connector names; Codex: key presence only) while sync enforced the whole profile, so the Agents row read "Working" while the header, built from the last sync's failures, read "Claude Desktop needs approval". On a machine whose `HKLM\SOFTWARE\Policies\Claude` was ~20 values behind, both were on screen at once. Now `drift::diff` compares a host's rendered profile to the keys it holds; the probe, the sync's own hive-conflict check and `doctor` all use it, and the row names the keys that differ.
+- **Bridge:** the Desktop policy is rendered from one set of inputs on every path. Sync wrote it with no protocol header and the organization from the local config, Repair with the header and the organization from the gateway, so each rewrote the other's values. `ProfileFacts` now assembles the inputs once, from a cached copy of the gateway's bridge profile (`bridge-profile.json`, replacing `desktop-models.json`), for Repair, sync, install, the elevated policy writer and the probe; the operator's `deployment_organization_uuid` outranks the gateway's.
+- **Bridge:** the header pill, the Marketplace badge, the health verdict and the Agents rows read one set of per-agent verdicts. A failed sync step the probe observes (the Desktop machine-policy write) is superseded by the probe, so a later repair clears the header; a failed step it cannot observe (Cowork plugins, skills, connectors, Claude Code's sync) shows on that agent's row as "The last sync could not apply everything". "needs approval" means some agent's fix needs an administrator, and clicking the pill opens Agents.
+- **Bridge:** an agent whose app is not on this computer reads "Not installed" in a neutral tone. It no longer counts as needing attention in the fleet summary or the sidebar, and sync no longer writes settings for it (which on Windows could ask for an administrator to govern an app that is not there).
+- **Bridge:** Codex no longer reads the user's own `config.toml` as its managed profile, so a provider block someone typed there no longer shows Codex as governed. OpenCode's model list, `enabled_providers` value and default model, Codex's approval, sandbox and telemetry settings, and Hermes' `api_mode` and default model are now compared by value, not only checked for presence.
+- **Bridge:** sync routes Claude Code through the gateway when its settings do not. Enrolment ran only from the first-run wizard or the Enrol action, so an install made before first-run enrolment kept the user's own Anthropic login. Its row read "Not routed through the gateway" indefinitely, and its traffic was ungoverned. When the manifest enables `claude-code` and the CLI is installed, sync now merges `ANTHROPIC_BASE_URL` and `apiKeyHelper` into the settings file Claude Code reads, and leaves settings that already route untouched. That file honours `CLAUDE_CONFIG_DIR`, as the routing check already did.
+- **Bridge:** OpenCode offers the gateway's models again. OpenCode 2.x (desktop and CLI) loads only `~/.config/opencode/opencode.json` and ignores the admin tier (`/Library/Application Support/opencode`, `%ProgramData%\opencode`, `/etc/opencode`) that held the bridge's provider block, so the picker showed OpenCode's free Zen models while the bridge reported OpenCode as provisioned. The provider block, `enabled_providers` and the default model are now merged into the user config beside the MCP connectors, with no administrator prompt, and the probe reads that file. The host token moves from `auth.json` into the provider's `apiKey`, because 2.x imports `auth.json` once and never reads it again; install removes the stale entry. `doctor` warns when the retired admin tier still carries the block, and uninstall clears it.
+- **Bridge:** the OpenCode hooks plugin is rewritten for the 2.x plugin contract (`export default { id, setup }`). 2.x refused the old module (`Plugin must export a default definition with an id and an effect or setup function`), so no session linking, prompt or tool reporting, or lifecycle events reached the gateway. Chat requests are stamped through `session.hook("http.request")`, prompts through `session.hook("context")`, tool results through `tool.hook("execute.after")`, and `SessionStart`/`Stop`/`SessionEnd` come from the event stream.
+
+## [0.65.1] - 2026-10-09
+
+### Fixed
+
+- **Bridge:** a generated host profile is named with a random UUID instead of process id plus wall-clock nanoseconds. Windows' clock ticks in 100 ns, so two profiles generated together for the same host could get one path; the second writer's rename, read-back or removal then hit the first's open handle and failed with `Access is denied (os error 5)`.
+
 ## [0.64.0] - 2026-10-08
 
 ### Changed

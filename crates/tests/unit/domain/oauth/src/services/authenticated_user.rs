@@ -111,6 +111,7 @@ fn user_with_roles(id: &UserId, roles: &[&str]) -> AuthUser {
         email: format!("{}@ou.invalid", id.as_str()),
         roles: roles.iter().map(|r| (*r).to_owned()).collect(),
         is_active: true,
+        is_service_account: false,
     }
 }
 

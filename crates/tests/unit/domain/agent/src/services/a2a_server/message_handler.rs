@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::ActiveTasks;
 use systemprompt_agent::services::a2a_server::processing::message::{
     HandleMessageParams, MessageProcessor,
@@ -22,13 +22,13 @@ use systemprompt_test_fixtures::test_db_pool;
 fn user_message(ctx: &ContextId, task_id: Option<TaskId>, text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text.to_owned())],
         message_id: MessageId::generate(),
         task_id,
         context_id: ctx.clone(),
-        metadata: Some(serde_json::json!({"clientMessageId": "cm-1"})),
+        metadata: serde_json::json!({"clientMessageId": "cm-1"})
+            .as_object()
+            .cloned(),
         extensions: None,
         reference_task_ids: None,
     }
@@ -65,10 +65,8 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     assert_eq!(task.context_id, ctx);
     assert_eq!(task.status.state, TaskState::Completed);
     let agent_msg = task.status.message.as_ref().expect("agent message");
-    let Part::Text(text) = &agent_msg.parts[0] else {
-        panic!("expected text part");
-    };
-    assert!(text.text.contains("42"));
+    let text = agent_msg.parts[0].as_text().expect("expected text part");
+    assert!(text.contains("42"));
 
     let stored = repos
         .tasks
@@ -82,9 +80,9 @@ async fn handle_message_with_runtime_completes_task_end_to_end() {
     assert_eq!(history[0].role, MessageRole::User);
     assert_eq!(history[1].role, MessageRole::Agent);
     assert!(
-        matches!(history[0].parts.as_slice(), [Part::Text(text)] if text.text == "what is the answer?")
+        matches!(history[0].parts.as_slice(), [part] if part.as_text() == Some("what is the answer?"))
     );
-    assert!(matches!(history[1].parts.as_slice(), [Part::Text(text)] if text.text == "It is 42."));
+    assert!(matches!(history[1].parts.as_slice(), [part] if part.as_text() == Some("It is 42.")));
     assert_eq!(history[0].task_id.as_ref(), Some(&task.id));
     assert_eq!(history[1].task_id.as_ref(), Some(&task.id));
 }

@@ -1,8 +1,5 @@
-//! Render the bridge-owned provider block into `OpenCode` JSON.
-//!
-//! The generated artifact also carries the host token under a private
-//! top-level marker so the installer can lift it into `auth.json` without the
-//! `generate` step touching the user's data directory.
+//! Render the bridge-owned provider block into `OpenCode` JSON, host token
+//! included as the provider's `apiKey`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,21 +9,22 @@ use serde_json::{Map, Value, json};
 use super::super::config::{DEFAULT_MODEL, ENABLED_PROVIDERS, NPM_PACKAGE, PROVIDER_ID};
 use crate::integration::host_app::ProfileGenInputs;
 
-pub(super) const API_KEY_MARKER: &str = "_systemprompt_api_key";
-
-pub(super) fn managed_json_text(inputs: &ProfileGenInputs) -> std::io::Result<String> {
-    let value = managed_json(inputs);
+pub(in crate::integration::opencode) fn provider_json_text(
+    inputs: &ProfileGenInputs,
+) -> std::io::Result<String> {
+    let value = provider_json(inputs);
     serde_json::to_string_pretty(&Value::Object(value))
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 // JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
 // preserved.
-pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
+pub(super) fn provider_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
     let gateway = inputs.gateway_base_url.trim_end_matches('/');
 
     let mut options = Map::new();
     options.insert("baseURL".to_owned(), json!(format!("{gateway}/v1")));
+    options.insert("apiKey".to_owned(), json!(inputs.host_token.as_str()));
     if !inputs.headers.is_empty() {
         let headers: Map<String, Value> = inputs
             .headers
@@ -85,6 +83,5 @@ pub(super) fn managed_json(inputs: &ProfileGenInputs) -> Map<String, Value> {
             json!(format!("{PROVIDER_ID}/{model}")),
         );
     }
-    root.insert(API_KEY_MARKER.to_owned(), json!(inputs.host_token));
     root
 }

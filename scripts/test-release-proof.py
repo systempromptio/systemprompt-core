@@ -48,7 +48,8 @@ class ProofTests(unittest.TestCase):
         if path.startswith("actions/workflows/"):
             return {"workflow_runs": [RUN]}
         if path.startswith("actions/runs/"):
-            return {"jobs": [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS.values()]}
+            return {"jobs": [{"name": name, "conclusion": "success"}
+                             for name in proof.WORKFLOWS["pull_request"].values()]}
         if path == "pulls/42":
             return PR
         self.fail(path)
@@ -100,7 +101,7 @@ class ProofTests(unittest.TestCase):
                 return {"workflow_runs": runs}
             if path.startswith("actions/runs/"):
                 return {"jobs": jobs if jobs is not None
-                        else [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS.values()]}
+                        else [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["push"].values()]}
             self.fail(path)
         return response
 
@@ -120,6 +121,26 @@ class ProofTests(unittest.TestCase):
 
     def test_push_run_without_its_aggregate_refuses(self):
         with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=[])), self.assertRaises(RuntimeError):
+            proof.verify_push(REPO, SHA)
+
+    def test_aggregate_names_differ_per_event(self):
+        self.assertEqual(proof.WORKFLOWS["pull_request"]["ci.yml"], "CI passed")
+        self.assertEqual(proof.WORKFLOWS["push"]["ci.yml"], "CI passed (push)")
+        for workflow in proof.AGGREGATES:
+            self.assertNotEqual(proof.WORKFLOWS["push"][workflow], proof.WORKFLOWS["pull_request"][workflow])
+
+    def test_push_aggregate_is_not_promotion_proof(self):
+        def response(repo, path):
+            if path.startswith("actions/runs/"):
+                return {"jobs": [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["push"].values()]}
+            return self.response(path)
+        with patch.object(proof, "api", side_effect=response), self.assertRaises(RuntimeError):
+            proof.verify_pr(REPO, PR, SHA)
+
+    def test_promotion_aggregate_is_not_push_proof(self):
+        jobs = [{"name": name, "conclusion": "success"} for name in proof.WORKFLOWS["pull_request"].values()]
+        with patch.object(proof, "api", side_effect=self.push_response([PUSH], jobs=jobs)), \
+                self.assertRaises(RuntimeError):
             proof.verify_push(REPO, SHA)
 
 

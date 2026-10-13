@@ -26,7 +26,7 @@ use systemprompt_events::{
     A2A_BROADCASTER, Broadcaster, EventBridgeHandle, EventRouter, EventSender, PostgresEventBridge,
     RelayOutcome,
 };
-use systemprompt_identifiers::{ConnectionId, ContextId, InstanceId, TaskId, UserId};
+use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::A2AEvent;
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::events::payloads::a2a::TaskStatusUpdatePayload;
@@ -34,6 +34,7 @@ use tokio::sync::mpsc::Receiver;
 use tokio::sync::mpsc::error::TryRecvError;
 
 use crate::{setup_test_pool, unique_user_id};
+use systemprompt_test_fixtures::unique_instance;
 
 const BOUND: Duration = Duration::from_secs(10);
 
@@ -58,8 +59,8 @@ fn sample_event() -> A2AEvent {
 }
 
 async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
-    let router = EventRouter::with_outbox(pool.clone(), InstanceId::new("replica-a"));
-    let bridge = PostgresEventBridge::new(pool.clone(), InstanceId::new("replica-b")).start();
+    let router = EventRouter::with_outbox(pool.clone(), unique_instance());
+    let bridge = PostgresEventBridge::new(pool.clone(), unique_instance()).start();
     assert!(
         bounded("the replica-b relay LISTEN", bridge.listening()).await,
         "the replica-b relay stopped before it was listening"

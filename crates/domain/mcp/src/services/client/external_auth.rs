@@ -8,6 +8,19 @@
 //! injected onto the outbound MCP request while the systemprompt credential is
 //! withheld.
 //!
+//! A connector on a machine grant (`client_credentials`, `app_installation`) is
+//! served by core itself: no user, no broker, one identity per deployment.
+//!
+//! `fetch_external_bearer` asks the credential broker for a server's bearer on
+//! behalf of the JWT's user. The request names the MCP server
+//! (`x-systemprompt-mcp-server`) and, when the request context carries one, the
+//! caller purpose (`x-systemprompt-caller`). The broker may refuse by purpose:
+//! a service account's credential can be scoped to the workflows allowed to use
+//! it. Trust rule: the purpose is set by the issuer of a credential (an API
+//! key's `purpose`, a JWT's `purpose` claim minted in-process), never by its
+//! bearer. It comes only from `RequestContext::caller_purpose()`; an inbound
+//! `x-systemprompt-caller` header is stripped at the API edge and never read.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +35,8 @@ use super::validation::rewrite_url_for_internal_use;
 use crate::error::{McpDomainError, McpDomainResult};
 
 pub const BROKER_SECRET_KEY: &str = "mcp_credential_broker_secret";
+pub const MCP_SERVER_HEADER: &str = systemprompt_identifiers::headers::MCP_SERVER;
+pub const CALLER_HEADER: &str = systemprompt_identifiers::headers::CALLER_PURPOSE;
 
 #[derive(serde::Deserialize)]
 struct AccessorResponse {
@@ -40,6 +55,9 @@ pub(super) async fn resolve_external_bearer(
     context: &RequestContext,
     server: &str,
 ) -> McpDomainResult<String> {
+    if let Some(token) = machine_grant_bearer(ext, server).await? {
+        return Ok(token);
+    }
     let Some(jwt) = context.auth_token() else {
         return Err(McpDomainError::AuthRequired(format!(
             "external MCP server '{server}' requires an authenticated user to resolve its bearer"
@@ -66,7 +84,41 @@ pub(super) async fn resolve_external_bearer(
                  cannot resolve its bearer"
             ))
         })?;
-    fetch_external_bearer(&accessor, jwt.as_str(), broker_secret, server).await
+    fetch_external_bearer(
+        &accessor,
+        jwt.as_str(),
+        broker_secret,
+        server,
+        context.caller_purpose(),
+    )
+    .await
+}
+
+async fn machine_grant_bearer(ext: &ExternalAuth, server: &str) -> McpDomainResult<Option<String>> {
+    let Ok(deployment) = crate::services::deployment::DeploymentService::get_deployment(server)
+    else {
+        return Ok(None);
+    };
+    let Some(connector) = deployment.connector.filter(|c| c.grant.is_machine()) else {
+        return Ok(None);
+    };
+    let token = systemprompt_security::connector_grant::machine_token(server, &connector)
+        .await
+        .map_err(|error| {
+            tracing::warn!(server, %error, "connector machine grant failed");
+            McpDomainError::ExternalAuthUnavailable {
+                server: server.to_owned(),
+                message: error.to_string(),
+            }
+        })?;
+    // Why: a connector's resolved ExternalAuth carries an empty scheme because
+    // the broker answers with a complete header value; a minted machine token
+    // is bare, so the scheme is added here.
+    Ok(Some(if ext.scheme.trim().is_empty() {
+        format!("Bearer {token}")
+    } else {
+        token
+    }))
 }
 
 pub fn accessor_url(api_external_url: &str, token_endpoint: &str) -> String {
@@ -83,6 +135,7 @@ pub async fn fetch_external_bearer(
     jwt: &str,
     broker_secret: &str,
     server: &str,
+    caller_purpose: Option<&str>,
 ) -> McpDomainResult<String> {
     let client = systemprompt_client::guarded_client(
         &systemprompt_client::GuardedClientConfig::default().with_max_redirects(0),
@@ -90,15 +143,17 @@ pub async fn fetch_external_bearer(
     .map_err(|e| {
         McpDomainError::transport(format!("token accessor client failed for '{server}'"), e)
     })?;
-    let response = client
+    let mut request = client
         .get(accessor)
         .header("Authorization", format!("Bearer {jwt}"))
         .header("X-Systemprompt-Credential-Broker", broker_secret)
-        .send()
-        .await
-        .map_err(|e| {
-            McpDomainError::transport(format!("token accessor request failed for '{server}'"), e)
-        })?;
+        .header(MCP_SERVER_HEADER, server);
+    if let Some(purpose) = caller_purpose {
+        request = request.header(CALLER_HEADER, purpose);
+    }
+    let response = request.send().await.map_err(|e| {
+        McpDomainError::transport(format!("token accessor request failed for '{server}'"), e)
+    })?;
 
     match response.status() {
         reqwest::StatusCode::OK => {

@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a130c4-47d1-7c02-8e70-20ab9d91b57c"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"**Listing files** I will run ls."}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc ls","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/bin/bash -lc ls","aggregated_output":"a\nb\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_2","type":"mcp_tool_call","server":"fs","tool":"stat","arguments":{"path":"a"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"mcp_tool_call","server":"fs","tool":"stat","arguments":{"path":"a"},"result":{"content":[{"type":"text","text":"2 bytes"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"file_change","changes":[{"path":"count.txt","kind":"add"}],"status":"completed"}}
+{"type":"item.updated","item":{"id":"item_4","type":"todo_list","items":[{"text":"count","completed":true}]}}
+{"type":"item.completed","item":{"id":"item_5","type":"agent_message","text":"{\"count\":2}"}}
+{"type":"turn.completed","usage":{"input_tokens":2140,"cached_input_tokens":1024,"output_tokens":38,"reasoning_output_tokens":12}}

@@ -9,7 +9,7 @@ use systemprompt_database::DbPool;
 
 use super::{
     ArtifactFindingRepository, ArtifactPayloadRepository, McpArtifactRepository,
-    ToolUsageRepository,
+    ToolResultIngestMarkRepository, ToolUsageRepository,
 };
 
 #[derive(Debug)]
@@ -18,6 +18,7 @@ pub struct ArtifactIngestRepositories {
     pub payloads: Arc<ArtifactPayloadRepository>,
     pub findings: Arc<ArtifactFindingRepository>,
     pub executions: Arc<ToolUsageRepository>,
+    pub ingest_marks: Arc<ToolResultIngestMarkRepository>,
 }
 
 impl ArtifactIngestRepositories {
@@ -27,6 +28,7 @@ impl ArtifactIngestRepositories {
             payloads: Arc::new(ArtifactPayloadRepository::new(db)),
             findings: Arc::new(ArtifactFindingRepository::new(db)),
             executions: Arc::new(ToolUsageRepository::new(db)),
+            ingest_marks: Arc::new(ToolResultIngestMarkRepository::new(db)),
         }
     }
 }

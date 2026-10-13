@@ -15,17 +15,19 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentFleetSummary, AgentReason, AgentState, AgentSurface, AgentVerdict,
-    FleetHeadline, FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef,
+    ApplyFailure, FleetHeadline, FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef,
     SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
+use systemprompt_bridge::verdict::Tone;
+use systemprompt_models::bridge::host::HostKind;
 
-const fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppSnapshot {
+fn snapshot(profile_state: ProfileState, app: AppInstallState) -> HostAppSnapshot {
     HostAppSnapshot {
-        host_id: systemprompt_models::bridge::host::HostKind::Hermes,
+        host_id: HostKind::Hermes,
         display_name: "Test Host",
         profile_state,
         profile_source: None,
@@ -52,11 +54,13 @@ const fn inputs<'a>(
 ) -> HostHealthInputs<'a> {
     HostHealthInputs {
         snapshot: snap,
+        apply_failures: &[],
         proxy: px,
         models: HostModelViewRef {
             checked: true,
             available: true,
             unconfigured_providers: &[],
+            compatible_models: &[],
         },
         has_download_url: true,
         surface: AgentSurface::LocalProfile,
@@ -91,12 +95,54 @@ fn unknown_app_install_is_not_treated_as_missing() {
 }
 
 #[test]
-fn app_missing_outranks_every_other_fault() {
+fn app_missing_outranks_every_other_fault_and_reads_neutral() {
     let px = proxy(ProxyProbeState::Refused);
     let snap = snapshot(ProfileState::Absent, AppInstallState::NotInstalled);
     let v = verdict(&inputs(Some(&snap), &px));
-    assert_eq!(v.state, AgentState::Attention);
+    assert_eq!(v.state, AgentState::NotInstalled);
+    assert_eq!(v.tone, Tone::Unknown);
+    assert!(
+        matches!(v.reason, AgentReason::AppMissing),
+        "{:?}",
+        v.reason
+    );
     assert_eq!(v.action, Some(AgentAction::Download));
+
+    let no_url = verdict(&HostHealthInputs {
+        has_download_url: false,
+        ..inputs(Some(&snap), &px)
+    });
+    assert_eq!(no_url.state, AgentState::NotInstalled);
+    assert!(no_url.action.is_none());
+}
+
+#[test]
+fn a_missing_app_is_never_counted_as_attention() {
+    let px = proxy(ProxyProbeState::Listening);
+    let working = verdict(&inputs(
+        Some(&snapshot(
+            ProfileState::Installed,
+            AppInstallState::Installed,
+        )),
+        &px,
+    ));
+    let missing = verdict(&inputs(
+        Some(&snapshot(
+            ProfileState::Installed,
+            AppInstallState::NotInstalled,
+        )),
+        &px,
+    ));
+
+    let fleet = AgentFleetSummary::fold([&working, &missing].into_iter());
+    assert_eq!(fleet.attention, 0);
+    assert_eq!(fleet.not_installed, 1);
+    assert_eq!(fleet.state, FleetState::Ok);
+    assert_eq!(fleet.headline, FleetHeadline::AllWorking);
+
+    let only_missing = AgentFleetSummary::fold(std::iter::once(&missing));
+    assert_eq!(only_missing.state, FleetState::Unknown);
+    assert_eq!(only_missing.headline, FleetHeadline::NoneInstalled);
 }
 
 #[test]
@@ -104,9 +150,7 @@ fn profile_faults_outrank_proxy_state() {
     let px = proxy(ProxyProbeState::Refused);
 
     let stale = snapshot(
-        ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret,
-        },
+        stale(StaleReason::LoopbackSecret, &["inferenceGatewayApiKey"]),
         AppInstallState::Installed,
     );
     let v = verdict(&inputs(Some(&stale), &px));
@@ -181,6 +225,7 @@ fn no_usable_model_is_reported_before_proxy_health() {
             checked: true,
             available: false,
             unconfigured_providers: &providers,
+            compatible_models: &[],
         },
         ..inputs(Some(&snap), &px)
     });
@@ -247,7 +292,11 @@ fn an_unrouted_sync_only_agent_is_reported_not_routed() {
     assert!(matches!(v.reason, AgentReason::NotRouted), "{:?}", v.reason);
     assert!(v.is_set_up, "it stays on the Agents list");
     assert!(!v.is_installed);
-    assert!(v.action.is_none(), "a sync-only row has no repair button");
+    assert_eq!(
+        v.action,
+        Some(AgentAction::Enrol),
+        "the card offers the enrolment that routes it, not a CLI command to type"
+    );
 
     let unsynced = verdict(&HostHealthInputs {
         surface: AgentSurface::SyncOnly,
@@ -374,9 +423,7 @@ fn every_declared_sync_only_agent_is_covered() {
 fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
     let px = proxy(ProxyProbeState::Listening);
     let behind = snapshot(
-        ProfileState::Stale {
-            reason: StaleReason::ManagedServers,
-        },
+        stale(StaleReason::ManagedServers, &["managedMcpServers"]),
         AppInstallState::Installed,
     );
 
@@ -387,7 +434,8 @@ fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
         matches!(
             plain.reason,
             AgentReason::Stale {
-                cause: StaleReason::ManagedServers
+                cause: StaleReason::ManagedServers,
+                ..
             }
         ),
         "the reason carries the cause the label selects on: {:?}",
@@ -403,15 +451,140 @@ fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
     );
 
     let mut secret = snapshot(
-        ProfileState::Stale {
-            reason: StaleReason::LoopbackSecret,
-        },
+        stale(StaleReason::LoopbackSecret, &["inferenceGatewayApiKey"]),
         AppInstallState::Installed,
     );
     secret.update_needs_approval = true;
     assert_eq!(
         verdict(&inputs(Some(&secret), &px)).action,
         Some(AgentAction::Repair),
-        "only a server-list drift is an update; a stale credential is still a repair"
+        "a drift is an update; a stale credential is still a repair"
+    );
+}
+
+fn stale(reason: StaleReason, keys: &[&str]) -> ProfileState {
+    ProfileState::Stale {
+        reason,
+        keys: keys.iter().map(|k| (*k).to_owned()).collect(),
+    }
+}
+
+fn failure(emitter: &str, needs_elevation: bool) -> ApplyFailure {
+    ApplyFailure {
+        emitter: emitter.to_owned(),
+        error: "write refused".to_owned(),
+        needs_elevation,
+    }
+}
+
+// v0.65.0 shipped an OpenCode card reading Working while its root-owned
+// `opencode.json` still declared models the gateway had since dropped. The
+// model list is now one more key of the desired profile, and its drift
+// arrives as a stale profile like any other.
+#[test]
+fn a_model_list_behind_the_gateway_offers_update_and_names_the_approval() {
+    let px = proxy(ProxyProbeState::Listening);
+    let mut snap = snapshot(
+        stale(StaleReason::ModelList, &["provider.systemprompt.models"]),
+        AppInstallState::Installed,
+    );
+
+    let drifted = verdict(&inputs(Some(&snap), &px));
+    assert_eq!(drifted.state, AgentState::Attention);
+    assert!(
+        matches!(
+            &drifted.reason,
+            AgentReason::Stale { cause: StaleReason::ModelList, keys }
+                if keys == "provider.systemprompt.models"
+        ),
+        "{:?}",
+        drifted.reason
+    );
+    assert_eq!(drifted.action, Some(AgentAction::Update));
+
+    snap.update_needs_approval = true;
+    assert_eq!(
+        verdict(&inputs(Some(&snap), &px)).action,
+        Some(AgentAction::UpdateAdmin)
+    );
+}
+
+// The v0.65.0 screenshot: the header said Claude Desktop needed approval while
+// its row said Working, because the probe compared four keys and the machine
+// policy was behind on twenty. The row now reports the drift itself.
+#[test]
+fn a_desktop_policy_behind_on_settings_needs_an_administrator_update() {
+    let px = proxy(ProxyProbeState::Listening);
+    let mut snap = snapshot(
+        stale(
+            StaleReason::Settings,
+            &[
+                "otlpEndpoint",
+                "configRecheckIntervalMinutes",
+                "deploymentDisplayName",
+            ],
+        ),
+        AppInstallState::Installed,
+    );
+    snap.host_id = HostKind::ClaudeDesktop;
+    snap.update_needs_approval = true;
+
+    let v = verdict(&inputs(Some(&snap), &px));
+    assert_eq!(v.state, AgentState::Attention);
+    assert_eq!(v.action, Some(AgentAction::UpdateAdmin));
+    assert!(
+        matches!(
+            &v.reason,
+            AgentReason::Stale { cause: StaleReason::Settings, keys }
+                if keys == "otlpEndpoint, configRecheckIntervalMinutes, deploymentDisplayName"
+        ),
+        "{:?}",
+        v.reason
+    );
+}
+
+#[test]
+fn a_failed_sync_step_the_probe_cannot_see_needs_attention() {
+    let px = proxy(ProxyProbeState::Listening);
+    let snap = snapshot(ProfileState::Installed, AppInstallState::Installed);
+
+    let mixed = [
+        failure("cowork-plugins", false),
+        failure("claude-desktop", true),
+    ];
+    let v = verdict(&HostHealthInputs {
+        apply_failures: &mixed,
+        ..inputs(Some(&snap), &px)
+    });
+    assert_eq!(v.state, AgentState::Attention);
+    assert!(
+        matches!(&v.reason, AgentReason::SyncFailed { detail } if detail.contains("cowork-plugins")),
+        "{:?}",
+        v.reason
+    );
+    assert!(v.action.is_none(), "not every failure is an approval");
+
+    let elevation = [failure("cowork-plugins", true)];
+    let admin = verdict(&HostHealthInputs {
+        apply_failures: &elevation,
+        ..inputs(Some(&snap), &px)
+    });
+    assert_eq!(admin.action, Some(AgentAction::UpdateAdmin));
+}
+
+#[test]
+fn a_sync_only_agent_with_a_failed_sync_needs_attention() {
+    let px = proxy(ProxyProbeState::Listening);
+    let failures = [failure("claude-code", false)];
+    let v = verdict(&HostHealthInputs {
+        surface: AgentSurface::SyncOnly,
+        apply_failures: &failures,
+        ..inputs(None, &px)
+    });
+    assert_eq!(v.state, AgentState::Attention);
+    assert!(
+        matches!(v.reason, AgentReason::SyncFailed { .. }),
+        "{:?}",
+        v.reason
     );
 }

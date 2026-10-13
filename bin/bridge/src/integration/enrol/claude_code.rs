@@ -46,16 +46,18 @@ fn report(outcome: Outcome) -> Report {
 }
 
 fn enrol(bridge: &BridgeContext) -> Outcome {
-    let gateway = bridge.proxy.loopback().origin();
-    match crate::install::mdm::claude_code_settings::apply_managed_settings(&gateway) {
-        Ok(report) => {
-            for line in report.lines {
-                tracing::info!(target: "bridge::install", detail = %line, "claude code settings");
-            }
-            Outcome::Installed
-        },
+    match route(&bridge.proxy.loopback().origin()) {
+        Ok(()) => Outcome::Installed,
         Err(e) => Outcome::Failed(e.into()),
     }
+}
+
+pub(crate) fn route(gateway: &str) -> Result<(), crate::install::mdm::MdmError> {
+    let report = crate::install::mdm::claude_code_settings::apply_managed_settings(gateway)?;
+    for line in report.lines {
+        tracing::info!(target: "bridge::install", detail = %line, "claude code settings");
+    }
+    Ok(())
 }
 
 fn remove() -> Outcome {

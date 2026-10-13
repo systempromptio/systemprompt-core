@@ -11,14 +11,14 @@ use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::error::AgentResult;
-use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::{Message, TaskState, TaskStatus};
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
 use crate::services::registry::AgentRegistry;
 
 use super::event_loop::{ProcessEventsParams, process_events};
-use super::event_loop_lifecycle::handle_stream_creation_error;
+use super::event_loop_lifecycle::{handle_stream_creation_error, send_a2a_status_event};
 use super::initialization::setup_stream;
 use super::types::StreamInput;
 use super::webhook_client::WebhookContext;
@@ -120,6 +120,7 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
         Ok(stream) => {
             let params = ProcessEventsParams {
                 tx,
+                request_id: setup.request_id,
                 stream,
                 task_id: setup.task_id,
                 context_id: setup.context_id,
@@ -140,6 +141,19 @@ async fn run_stream(input: StreamInput, tx: tokio::sync::mpsc::Sender<Event>) {
                 &setup.task_id,
                 &setup.context_id,
                 &setup.task_repo,
+            )
+            .await;
+            let failed = TaskStatus {
+                state: TaskState::Failed,
+                message: None,
+                timestamp: Some(chrono::Utc::now()),
+            };
+            send_a2a_status_event(
+                &tx,
+                &setup.request_id,
+                &setup.task_id,
+                &setup.context_id,
+                failed,
             )
             .await;
         },

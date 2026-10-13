@@ -15,9 +15,7 @@ use systemprompt_models::artifacts::dashboard::{
     TextSectionData, TimelineEvent, TimelineSectionData,
 };
 use systemprompt_models::artifacts::types::ChartType;
-use systemprompt_models::{
-    A2aArtifact as Artifact, ArtifactMetadata, DataPart, FileContent, FilePart, Part, TextPart,
-};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part, PartContent};
 
 fn chart_artifact(chart: &ChartArtifact) -> Artifact {
     make_artifact(
@@ -71,39 +69,21 @@ fn data_part(data: serde_json::Value) -> Part {
             m
         },
     };
-    Part::Data(DataPart { data: map })
+    Part::data(serde_json::Value::Object(map))
 }
 
 fn data_array_part(items: serde_json::Value) -> Part {
     // A data part whose JSON Object wraps an array under "data" so renderers
     // that branch on `as_data().as_array()` are exercised. Some renderers read
-    // the raw array via DataPart; here we put the array directly under a key
+    // the raw array via a data part; here we put the array directly under a key
     // many renderers also accept.
     let mut m = serde_json::Map::new();
     m.insert("items".to_string(), items);
-    Part::Data(DataPart { data: m })
+    Part::data(serde_json::Value::Object(m))
 }
 
 fn text_part(text: &str) -> Part {
-    Part::Text(TextPart {
-        text: text.to_string(),
-    })
-}
-
-fn file_part(
-    name: Option<&str>,
-    mime: Option<&str>,
-    bytes: Option<&str>,
-    url: Option<&str>,
-) -> Part {
-    Part::File(FilePart {
-        file: FileContent {
-            name: name.map(String::from),
-            mime_type: mime.map(String::from),
-            bytes: bytes.map(String::from),
-            url: url.map(String::from),
-        },
-    })
+    Part::text(text.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -438,7 +418,7 @@ async fn list_item_subtitle_and_url_aliases() {
 #[tokio::test]
 async fn list_items_top_level_array() {
     let renderer = ListRenderer::new();
-    // DataPart wrapping an array directly under "items" already tested; here
+    // A data part wrapping an array directly under "items" already tested; here
     // exercise the `as_data().as_array()` path by placing the array at the
     // root via the items helper alias.
     let artifact = make_artifact(
@@ -725,12 +705,7 @@ async fn image_from_file_bytes() {
         "image",
         None,
         None,
-        vec![file_part(
-            Some("p.png"),
-            Some("image/jpeg"),
-            Some("QUJD"),
-            None,
-        )],
+        vec![Part::raw("QUJD", "image/jpeg").with_filename("p.png")],
         None,
     );
     let result = renderer.render(&artifact).unwrap();
@@ -740,13 +715,17 @@ async fn image_from_file_bytes() {
 #[tokio::test]
 async fn image_file_bytes_default_mime() {
     let renderer = ImageRenderer::new();
-    // FileContent serializes mime_type as mimeType; with None it is absent, so
-    // the renderer falls back to image/png.
+    // A raw part with no mediaType makes the renderer fall back to image/png.
     let artifact = make_artifact(
         "image",
         None,
         None,
-        vec![file_part(None, None, Some("REVG"), None)],
+        vec![Part {
+            content: PartContent::Raw("REVG".to_owned()),
+            filename: None,
+            media_type: None,
+            metadata: None,
+        }],
         None,
     );
     let result = renderer.render(&artifact).unwrap();
@@ -760,12 +739,7 @@ async fn image_from_file_part_url() {
         "image",
         None,
         None,
-        vec![file_part(
-            Some("remote.png"),
-            Some("image/png"),
-            None,
-            Some("https://e.test/remote.png"),
-        )],
+        vec![Part::url("https://e.test/remote.png", "image/png").with_filename("remote.png")],
         None,
     );
     let result = renderer.render(&artifact).unwrap();

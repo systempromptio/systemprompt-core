@@ -2,10 +2,11 @@
 //! landed on the route it did.
 //!
 //! The descriptor is what an operator reads back when a request went somewhere
-//! unexpected, so an empty descriptor has to mean "nothing selected this route
-//! but its model pattern" rather than "we forgot to record it". Each of the
-//! three reasons is recorded under its own tag, and a route chosen by more
-//! than one reason keeps all of them.
+//! unexpected, so it always opens with the route's id: for nine days in
+//! 2026-10 every Claude Code turn on one installation was served by a route
+//! nobody expected, and the audit rows could not say which. Each further
+//! reason is recorded under its own tag, and a route chosen by more than one
+//! reason keeps all of them.
 
 use systemprompt_gateway::service::resolve::describe_route_match;
 use systemprompt_identifiers::{ProviderId, RouteId};
@@ -32,11 +33,11 @@ fn route(requires: Option<RouteRequirements>) -> GatewayRoute {
 }
 
 #[test]
-fn a_plain_pattern_match_records_no_reason_at_all() {
+fn a_plain_pattern_match_still_records_the_route() {
     assert_eq!(
         describe_route_match(&route(None), None, None, None),
-        None,
-        "a route matched only by its model pattern has nothing to explain"
+        "route:eu-route".to_owned(),
+        "which route served a request is never left blank"
     );
 }
 
@@ -44,7 +45,7 @@ fn a_plain_pattern_match_records_no_reason_at_all() {
 fn a_declarative_predicate_is_recorded_on_its_own() {
     assert_eq!(
         describe_route_match(&route(None), Some("when:tools".to_owned()), None, None),
-        Some("when:tools".to_owned())
+        "route:eu-route;when:tools".to_owned()
     );
 }
 
@@ -52,7 +53,7 @@ fn a_declarative_predicate_is_recorded_on_its_own() {
 fn a_selector_is_recorded_on_its_own() {
     assert_eq!(
         describe_route_match(&route(None), None, Some("selector:cheap".to_owned()), None),
-        Some("selector:cheap".to_owned())
+        "route:eu-route;selector:cheap".to_owned()
     );
 }
 
@@ -65,7 +66,7 @@ fn route_governance_alone_is_enough_to_produce_a_descriptor() {
 
     assert_eq!(
         describe_route_match(&route(Some(requires)), None, None, None),
-        Some("requires:european,no_retain".to_owned()),
+        "route:eu-route;requires:european,no_retain".to_owned(),
         "a route's compliance promises belong in the audit trail even when \
          nothing else steered the request to it"
     );
@@ -80,7 +81,7 @@ fn a_requirements_block_that_declares_nothing_is_not_a_reason() {
 
     assert_eq!(
         describe_route_match(&route(Some(requires)), None, None, None),
-        None,
+        "route:eu-route".to_owned(),
         "an empty `requires:` block must not be reported as a governance match"
     );
 }
@@ -99,7 +100,7 @@ fn every_reason_is_kept_and_ordered_predicate_selector_governance() {
             Some("selector:cheap".to_owned()),
             None,
         ),
-        Some("when:tools;selector:cheap;requires:european".to_owned()),
+        "route:eu-route;when:tools;selector:cheap;requires:european".to_owned(),
         "a selector refinement must not erase the declarative predicate that \
          chose the candidate route, nor the governance it carries"
     );
@@ -114,6 +115,6 @@ fn a_scope_chain_is_recorded_after_governance() {
             None,
             Some("scope:project=acme".to_owned())
         ),
-        Some("scope:project=acme".to_owned())
+        "route:eu-route;scope:project=acme".to_owned()
     );
 }

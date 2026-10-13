@@ -5,13 +5,12 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
-use serde_json::Value as JsonValue;
 use systemprompt_agent::models::a2a::Artifact;
 use systemprompt_agent::repository::content::artifact::ArtifactRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_logging::CliService;
-use systemprompt_models::a2a::Part;
+use systemprompt_models::a2a::PartContent;
 
 use super::types::{ArtifactPartOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
@@ -54,23 +53,31 @@ pub async fn execute_with_pool(
     let parts: Vec<ArtifactPartOutput> = artifact
         .parts
         .iter()
-        .map(|p| match p {
-            Part::Text(text_part) => ArtifactPartOutput {
+        .map(|p| match &p.content {
+            PartContent::Text(text) => ArtifactPartOutput {
                 kind: "text".to_owned(),
-                text: Some(text_part.text.clone()),
+                text: Some(text.clone()),
                 data: None,
             },
-            Part::Data(data_part) => ArtifactPartOutput {
+            PartContent::Data(data) => ArtifactPartOutput {
                 kind: "data".to_owned(),
                 text: None,
-                data: Some(JsonValue::Object(data_part.data.clone())),
+                data: Some(data.clone()),
             },
-            Part::File(file_part) => ArtifactPartOutput {
+            PartContent::Raw(raw) => ArtifactPartOutput {
                 kind: "file".to_owned(),
-                text: file_part.file.name.clone(),
+                text: p.filename.clone(),
                 data: Some(serde_json::json!({
-                    "mimeType": file_part.file.mime_type,
-                    "bytes": format!("[{} bytes]", file_part.file.bytes.as_deref().unwrap_or("").len()),
+                    "mediaType": p.media_type,
+                    "raw": format!("[{} bytes]", raw.len()),
+                })),
+            },
+            PartContent::Url(url) => ArtifactPartOutput {
+                kind: "file".to_owned(),
+                text: p.filename.clone(),
+                data: Some(serde_json::json!({
+                    "mediaType": p.media_type,
+                    "url": url,
                 })),
             },
         })

@@ -12,6 +12,7 @@ use systemprompt_provider_contracts::{
     PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender, TemplateProvider,
     ToolProvider,
 };
+use systemprompt_traits::RunnerService;
 
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::context::ExtensionContext;
@@ -41,6 +42,10 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn jobs(&self) -> Vec<Arc<dyn Job>> {
+        vec![]
+    }
+
+    fn runner_services(&self) -> Vec<Arc<dyn RunnerService>> {
         vec![]
     }
 

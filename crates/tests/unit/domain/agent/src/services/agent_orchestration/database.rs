@@ -10,8 +10,8 @@
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
 use systemprompt_agent::services::agent_orchestration::{AgentStatus, OrchestrationError};
-use systemprompt_identifiers::AgentName;
-use systemprompt_test_fixtures::ensure_test_bootstrap;
+use systemprompt_identifiers::{AgentName, InstanceId};
+use systemprompt_test_fixtures::{ensure_test_bootstrap, unique_instance};
 use systemprompt_traits::RepositoryError;
 use uuid::Uuid;
 
@@ -26,20 +26,21 @@ fn unique_name(prefix: &str) -> AgentName {
     AgentName::new(format!("{prefix}-{}", Uuid::new_v4()))
 }
 
-async fn service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
+async fn service(
+    pool: &systemprompt_database::DbPool,
+    instance: &InstanceId,
+) -> AgentDatabaseService {
     ensure_test_bootstrap();
     let _skills = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::new(repo).expect("db service")
 }
 
 #[tokio::test]
 async fn register_then_status_reconciles_dead_pid_to_failed() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let name = unique_name("orch-dead");
 
     svc.register_agent(&name, DEAD_PID, 9300)
@@ -62,7 +63,8 @@ async fn register_then_status_reconciles_dead_pid_to_failed() {
 #[tokio::test]
 async fn status_no_record_is_failed() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let status = svc
         .get_status(&unique_name("orch-missing"))
         .await
@@ -76,7 +78,8 @@ async fn status_no_record_is_failed() {
 #[tokio::test]
 async fn status_starting_is_failed_with_starting_reason() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let name = unique_name("orch-starting");
     svc.register_agent_starting(&name, DEAD_PID, 9301)
         .await
@@ -94,7 +97,8 @@ async fn status_starting_is_failed_with_starting_reason() {
 #[tokio::test]
 async fn status_stopped_is_failed() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let name = unique_name("orch-stopped");
     svc.register_agent(&name, DEAD_PID, 9302)
         .await
@@ -110,7 +114,8 @@ async fn status_stopped_is_failed() {
 #[tokio::test]
 async fn list_running_agents_includes_registered() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let name = unique_name("orch-listrun");
     svc.register_agent(&name, DEAD_PID, 9304)
         .await
@@ -125,7 +130,8 @@ async fn list_running_agents_includes_registered() {
 #[tokio::test]
 async fn lifecycle_register_starting_mark_running_then_stopped() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let name = unique_name("orch-lifecycle");
 
     svc.register_agent_starting(&name, DEAD_PID, 9306)
@@ -144,11 +150,15 @@ async fn lifecycle_register_starting_mark_running_then_stopped() {
     svc.remove_agent_service(&name).await.ok();
 }
 
-async fn status_and_stamp(raw: &sqlx::PgPool, name: &AgentName) -> (String, String) {
+async fn status_and_stamp(
+    raw: &sqlx::PgPool,
+    instance: &InstanceId,
+    name: &AgentName,
+) -> (String, String) {
     sqlx::query_as::<_, (String, String)>(
         "SELECT status, updated_at::text FROM services WHERE instance_id = $1 AND name = $2",
     )
-    .bind("test-instance")
+    .bind(instance.as_str())
     .bind(name.as_str())
     .fetch_one(raw)
     .await
@@ -158,7 +168,8 @@ async fn status_and_stamp(raw: &sqlx::PgPool, name: &AgentName) -> (String, Stri
 #[tokio::test]
 async fn error_row_reads_as_failed_without_rewriting_it() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let raw = pool.pool();
     let name = unique_name("orch-crash");
     svc.register_agent(&name, DEAD_PID, 9308)
@@ -166,7 +177,7 @@ async fn error_row_reads_as_failed_without_rewriting_it() {
         .expect("register");
     svc.mark_failed(&name).await.expect("mark failed");
 
-    let before = status_and_stamp(raw.as_ref(), &name).await;
+    let before = status_and_stamp(raw.as_ref(), &instance, &name).await;
     assert_eq!(before.0, "error");
 
     for _ in 0..2 {
@@ -176,7 +187,7 @@ async fn error_row_reads_as_failed_without_rewriting_it() {
         }
     }
     assert_eq!(
-        status_and_stamp(raw.as_ref(), &name).await,
+        status_and_stamp(raw.as_ref(), &instance, &name).await,
         before,
         "reading an error row must not write it"
     );
@@ -187,11 +198,9 @@ async fn error_row_reads_as_failed_without_rewriting_it() {
 #[tokio::test]
 async fn mcp_rows_are_invisible_to_agent_supervision() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
-    let services = systemprompt_database::ServiceRepository::new(
-        &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
+    let services = systemprompt_database::ServiceRepository::new(&pool, instance.clone());
     let name = unique_name("orch-mcp-row");
     let name_id = systemprompt_identifiers::ServiceName::new(name.as_str());
     services
@@ -229,7 +238,8 @@ async fn mcp_rows_are_invisible_to_agent_supervision() {
 #[tokio::test]
 async fn agent_exists_false_for_unconfigured() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let exists = svc
         .agent_exists(&AgentName::new("__no_such_configured_agent"))
         .await
@@ -240,7 +250,8 @@ async fn agent_exists_false_for_unconfigured() {
 #[tokio::test]
 async fn get_agent_config_unknown_errors() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let err = svc
         .get_agent_config(&AgentName::new("__no_such_agent_cfg"))
         .await
@@ -251,7 +262,8 @@ async fn get_agent_config_unknown_errors() {
 #[tokio::test]
 async fn list_all_agents_empty_default_config() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     // Default test config has no agents configured.
     let all = svc.list_all_agents().await.expect("list all");
     assert!(all.is_empty());
@@ -260,7 +272,8 @@ async fn list_all_agents_empty_default_config() {
 #[tokio::test]
 async fn remove_unknown_service_is_ok() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     svc.remove_agent_service(&unique_name("orch-ghost"))
         .await
         .expect("remove ok");
@@ -269,7 +282,8 @@ async fn remove_unknown_service_is_ok() {
 #[tokio::test]
 async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_the_row() {
     let pool = test_db_pool().await;
-    let svc = service(&pool).await;
+    let instance = unique_instance();
+    let svc = service(&pool, &instance).await;
     let raw = pool.pool();
     let name = unique_name("orch-corrupt-process");
     svc.register_agent(&name, std::process::id(), 9309)
@@ -277,7 +291,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
         .expect("register owned process identity");
 
     sqlx::query("UPDATE services SET pid = -1 WHERE instance_id = $1 AND name = $2")
-        .bind("test-instance")
+        .bind(instance.as_str())
         .bind(name.as_str())
         .execute(raw.as_ref())
         .await
@@ -297,7 +311,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
     let state: (Option<i32>, i32, String) = sqlx::query_as(
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
     )
-    .bind("test-instance")
+    .bind(instance.as_str())
     .bind(name.as_str())
     .fetch_one(raw.as_ref())
     .await
@@ -306,7 +320,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
 
     sqlx::query("UPDATE services SET pid = $1, port = 70000 WHERE instance_id = $2 AND name = $3")
         .bind(i32::try_from(std::process::id()).expect("current pid fits database"))
-        .bind("test-instance")
+        .bind(instance.as_str())
         .bind(name.as_str())
         .execute(raw.as_ref())
         .await
@@ -326,7 +340,7 @@ async fn status_rejects_corrupt_persisted_process_identifiers_without_rewriting_
     let state: (Option<i32>, i32, String) = sqlx::query_as(
         "SELECT pid, port, status FROM services WHERE instance_id = $1 AND name = $2",
     )
-    .bind("test-instance")
+    .bind(instance.as_str())
     .bind(name.as_str())
     .fetch_one(raw.as_ref())
     .await

@@ -7,15 +7,16 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::config;
 use crate::context::BridgeContext;
-use crate::integration::host_app::{HostApp, HostAppError, ProbeEnv, ProfileGenInputs};
+pub use crate::integration::host_app::ModelProtocolOverrides;
+use crate::integration::host_app::{
+    HostApp, HostAppError, ProbeEnv, ProfileFacts, ProfileFactsError, ProfileGenInputs,
+};
 use crate::integration::profile_state::ProfileState;
 
-pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
 
 #[derive(Debug, Clone)]
 pub enum Outcome {
@@ -58,12 +59,10 @@ pub enum ProfileInputsError {
         app: &'static str,
         config_dir: String,
     },
-    #[error("loopback secret: {0}")]
-    LoopbackSecret(#[source] std::io::Error),
     #[error("fetch bridge profile: {0}")]
     BridgeProfile(#[source] crate::gateway::GatewayError),
-    #[error("resolve managed MCP servers: {0}")]
-    ManagedServers(#[source] std::io::Error),
+    #[error(transparent)]
+    Facts(#[from] ProfileFactsError),
 }
 
 pub async fn build_profile_inputs(
@@ -73,7 +72,6 @@ pub async fn build_profile_inputs(
 ) -> Result<ProfileGenInputs, ProfileInputsError> {
     let cfg = config::load()?;
     let loopback = bridge.proxy.loopback();
-    let gateway_base_url = loopback.origin();
 
     let port = loopback.port();
     if let crate::proxy::peer::PeerIdentity::Foreign(who) =
@@ -86,54 +84,15 @@ pub async fn build_profile_inputs(
         });
     }
 
-    let secret = loopback
-        .secret()
-        .map_err(ProfileInputsError::LoopbackSecret)?;
-    let host_token = crate::proxy::scoped_token::host_token(&secret, host.id());
-
     let server_profile = bridge
         .gateway_client(config::gateway_url_or_default(&cfg))
         .fetch_bridge_profile()
         .await
         .map_err(ProfileInputsError::BridgeProfile)?;
 
-    let surfaces = crate::gateway::model_view::effective_surfaces(
-        host.id(),
-        host.accepted_surfaces(),
-        overrides,
-    );
-    let view = crate::gateway::model_view::host_model_view(&server_profile.providers, &surfaces);
-
-    let mut headers = BTreeMap::new();
-    if !surfaces.is_empty() {
-        headers.insert(
-            systemprompt_identifiers::headers::INFERENCE_PROTOCOL.to_owned(),
-            surfaces
-                .iter()
-                .map(|s| s.as_tag())
-                .collect::<Vec<_>>()
-                .join(","),
-        );
-    }
-
-    let mcp_servers =
-        crate::install::mdm::policy::mcp_entries(loopback, &bridge.mcp_registry.load())
-            .map_err(ProfileInputsError::ManagedServers)?;
-
-    Ok(ProfileGenInputs {
-        gateway_base_url,
-        host_token,
-        models: if host.id() == systemprompt_models::bridge::host::HostKind::ClaudeDesktop {
-            server_profile.models.clone()
-        } else {
-            view.compatible_models
-        },
-        model_limits: server_profile.model_limits,
-        default_model: server_profile.default_model,
-        organization_uuid: server_profile.organization_uuid,
-        headers,
-        mcp_servers,
-    })
+    let mut facts = ProfileFacts::load(loopback, &bridge.mcp_registry.load(), overrides.clone())?;
+    facts.profile = Some(server_profile);
+    Ok(facts.inputs_for(host.id(), host.accepted_surfaces()))
 }
 
 /// Whether the user asked for this repair.

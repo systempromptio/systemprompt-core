@@ -5,7 +5,6 @@ use crate::strategies::a2a::arb_task_state;
 
 fn all_states() -> Vec<TaskState> {
     vec![
-        TaskState::Pending,
         TaskState::Submitted,
         TaskState::Working,
         TaskState::Completed,
@@ -14,7 +13,6 @@ fn all_states() -> Vec<TaskState> {
         TaskState::Rejected,
         TaskState::InputRequired,
         TaskState::AuthRequired,
-        TaskState::Unknown,
     ]
 }
 
@@ -70,21 +68,6 @@ proptest! {
                 }
             }
         }
-    }
-}
-
-#[test]
-fn pending_can_only_transition_to_submitted() {
-    let pending = TaskState::Pending;
-    for state in all_states() {
-        let expected = matches!(state, TaskState::Submitted);
-        assert_eq!(
-            pending.can_transition_to(&state),
-            expected,
-            "Pending -> {:?} should be {}",
-            state,
-            expected
-        );
     }
 }
 
@@ -173,25 +156,11 @@ fn auth_required_valid_transitions() {
     }
 }
 
-#[test]
-fn unknown_cannot_transition() {
-    let unknown = TaskState::Unknown;
-    for state in all_states() {
-        assert!(
-            !unknown.can_transition_to(&state),
-            "Unknown should not transition to {:?}",
-            state
-        );
-    }
-}
-
 fn expected_transition(from: TaskState, to: TaskState) -> bool {
     use TaskState::{
-        AuthRequired, Canceled, Completed, Failed, InputRequired, Pending, Rejected, Submitted,
-        Unknown, Working,
+        AuthRequired, Canceled, Completed, Failed, InputRequired, Rejected, Submitted, Working,
     };
     match from {
-        Pending => matches!(to, Submitted),
         Submitted => matches!(
             to,
             Working | Completed | Failed | Canceled | Rejected | AuthRequired
@@ -199,7 +168,7 @@ fn expected_transition(from: TaskState, to: TaskState) -> bool {
         Working => matches!(to, Completed | Failed | Canceled | InputRequired),
         InputRequired => matches!(to, Working | Completed | Failed | Canceled),
         AuthRequired => matches!(to, Working | Failed | Canceled),
-        Completed | Failed | Canceled | Rejected | Unknown => false,
+        Completed | Failed | Canceled | Rejected => false,
     }
 }
 

@@ -4,9 +4,9 @@
 
 use chrono::Utc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{InstanceId, JobName};
+use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{JobRunRecord, JobStatus, SchedulerRepository};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 fn unique_job_name() -> JobName {
     JobName::new(format!("test_job_{}", uuid::Uuid::new_v4().simple()))
@@ -58,6 +58,7 @@ async fn find_job_returns_none_for_unknown_name() {
 
 #[tokio::test]
 async fn update_job_execution_records_status_and_error() {
+    let test_node_instance = unique_instance();
     let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool);
     let name = unique_job_name();
@@ -73,7 +74,7 @@ async fn update_job_execution_records_status_and_error() {
             error: Some("boom"),
             message: None,
             next_run: Some(next_run),
-            instance_id: &InstanceId::new("test-node"),
+            instance_id: &test_node_instance,
         },
     )
     .await
@@ -90,6 +91,7 @@ async fn update_job_execution_records_status_and_error() {
 
 #[tokio::test]
 async fn recorded_runs_advance_run_count() {
+    let test_node_instance = unique_instance();
     let pool = test_db_pool().await;
     let repo = SchedulerRepository::new(&pool);
     let name = unique_job_name();
@@ -110,7 +112,7 @@ async fn recorded_runs_advance_run_count() {
                 error: None,
                 message: None,
                 next_run: None,
-                instance_id: &InstanceId::new("test-node"),
+                instance_id: &test_node_instance,
             },
         )
         .await

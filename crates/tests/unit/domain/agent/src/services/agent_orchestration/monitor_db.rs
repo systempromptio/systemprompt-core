@@ -2,7 +2,7 @@
 // TcpListener as a live healthy port and a closed port as an unhealthy one.
 
 use std::collections::HashMap;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::database::AgentDatabaseService;
@@ -12,7 +12,7 @@ use systemprompt_manifest::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 fn unique_name(prefix: &str) -> AgentName {
     AgentName::new(format!("{prefix}_{}", Uuid::new_v4().simple()))
@@ -20,6 +20,7 @@ fn unique_name(prefix: &str) -> AgentName {
 
 fn db_service_with(
     pool: &systemprompt_database::DbPool,
+    instance: &InstanceId,
     names_and_ports: &[(&AgentName, u16)],
 ) -> AgentDatabaseService {
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -33,10 +34,7 @@ fn db_service_with(
         agents,
         ..ServicesConfig::default()
     });
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::with_registry(repo, registry)
 }
 
@@ -51,8 +49,10 @@ async fn free_port_listener() -> (tokio::net::TcpListener, u16) {
 #[tokio::test]
 async fn health_check_reports_not_running_for_unknown_agent() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let name = unique_name("mon_missing");
-    let monitor = AgentMonitor::with_db_service(db_service_with(&pool, &[(&name, 9420)]));
+    let monitor =
+        AgentMonitor::with_db_service(db_service_with(&pool, &instance, &[(&name, 9420)]));
 
     let result = monitor
         .comprehensive_health_check(&name)
@@ -66,6 +66,7 @@ async fn health_check_reports_not_running_for_unknown_agent() {
 #[tokio::test]
 async fn health_check_passes_for_live_process_with_open_port() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let (listener, port) = free_port_listener().await;
     let accept_loop = tokio::spawn(async move {
         loop {
@@ -74,12 +75,13 @@ async fn health_check_passes_for_live_process_with_open_port() {
     });
 
     let name = unique_name("mon_live");
-    let svc = db_service_with(&pool, &[(&name, port)]);
+    let svc = db_service_with(&pool, &instance, &[(&name, port)]);
     svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await
         .expect("register");
 
-    let monitor = AgentMonitor::with_db_service(db_service_with(&pool, &[(&name, port)]));
+    let monitor =
+        AgentMonitor::with_db_service(db_service_with(&pool, &instance, &[(&name, port)]));
     let result = monitor
         .comprehensive_health_check(&name)
         .await
@@ -94,16 +96,18 @@ async fn health_check_passes_for_live_process_with_open_port() {
 #[tokio::test]
 async fn health_check_fails_for_live_process_with_closed_port() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let (listener, port) = free_port_listener().await;
     drop(listener);
 
     let name = unique_name("mon_closed");
-    let svc = db_service_with(&pool, &[(&name, port)]);
+    let svc = db_service_with(&pool, &instance, &[(&name, port)]);
     svc.register_agent(&name, std::os::unix::process::parent_id(), port)
         .await
         .expect("register");
 
-    let monitor = AgentMonitor::with_db_service(db_service_with(&pool, &[(&name, port)]));
+    let monitor =
+        AgentMonitor::with_db_service(db_service_with(&pool, &instance, &[(&name, port)]));
     let result = monitor
         .comprehensive_health_check(&name)
         .await

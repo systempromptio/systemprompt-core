@@ -50,3 +50,6 @@ mod content_filter;
 
 #[cfg(test)]
 mod ai_providers;
+
+#[cfg(test)]
+mod agent_run_launcher;

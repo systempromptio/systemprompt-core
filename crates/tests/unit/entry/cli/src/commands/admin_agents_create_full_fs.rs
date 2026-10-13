@@ -76,7 +76,7 @@ async fn every_optional_field_reaches_the_generated_definition() {
         "true",
         "--push-notifications",
         "false",
-        "--state-transition-history",
+        "--extended-agent-card",
         "true",
         "--enabled",
     ])
@@ -90,6 +90,7 @@ async fn every_optional_field_reaches_the_generated_definition() {
     assert!(yaml.contains("3.1.4"), "{yaml}");
     assert!(yaml.contains("https://example.com/icon.png"), "{yaml}");
     assert!(yaml.contains("You are fully specified."), "{yaml}");
+    assert!(yaml.contains("extendedAgentCard: true"), "{yaml}");
 }
 
 #[tokio::test]

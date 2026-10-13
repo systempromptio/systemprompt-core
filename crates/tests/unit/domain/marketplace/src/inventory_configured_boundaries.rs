@@ -27,11 +27,10 @@ agents:
       description: active fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}
+      capabilities: {streaming: true, pushNotifications: false}
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {}
   stopped:
     name: stopped
@@ -44,11 +43,10 @@ agents:
       description: stopped fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}
+      capabilities: {streaming: true, pushNotifications: false}
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {}
 mcp_servers:
   active:

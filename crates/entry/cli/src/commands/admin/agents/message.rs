@@ -6,10 +6,10 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
-use systemprompt_agent::models::a2a::protocol::{MessageSendConfiguration, MessageSendParams};
+use systemprompt_agent::models::a2a::protocol::{SendMessageConfiguration, SendMessageParams};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_logging::CliService;
-use systemprompt_models::a2a::{Message, MessageRole, Part, TextPart, methods};
+use systemprompt_models::a2a::{Message, MessageRole, Part, methods};
 
 use super::client::ensure_agent_exists;
 use super::message_request::{NonStreamingRequest, execute_non_streaming};
@@ -65,10 +65,7 @@ pub struct MessageArgs {
 pub(super) fn extract_text_from_parts(parts: &[Part]) -> String {
     parts
         .iter()
-        .filter_map(|part| match part {
-            Part::Text(text_part) => Some(text_part.text.as_str()),
-            _ => None,
-        })
+        .filter_map(Part::as_text)
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -79,7 +76,7 @@ fn build_send_request(
     task_id: Option<TaskId>,
     stream: bool,
     blocking: bool,
-) -> Request<MessageSendParams> {
+) -> Request<SendMessageParams> {
     let method = if stream {
         methods::SEND_STREAMING_MESSAGE
     } else {
@@ -89,12 +86,11 @@ fn build_send_request(
     Request {
         jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
         method: method.to_owned(),
-        params: MessageSendParams {
+        params: SendMessageParams {
+            tenant: None,
             message: Message {
                 role: MessageRole::User,
-                parts: vec![Part::Text(TextPart {
-                    text: message_text.to_owned(),
-                })],
+                parts: vec![Part::text(message_text)],
                 message_id: MessageId::generate(),
                 task_id,
                 context_id: context_id.clone(),
@@ -102,10 +98,10 @@ fn build_send_request(
                 extensions: None,
                 reference_task_ids: None,
             },
-            configuration: blocking.then_some(MessageSendConfiguration {
-                blocking: Some(true),
+            configuration: (!stream).then_some(SendMessageConfiguration {
                 accepted_output_modes: None,
                 history_length: None,
+                return_immediately: !blocking,
             }),
             metadata: None,
         },

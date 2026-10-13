@@ -174,15 +174,16 @@ check-lockfile-registry:
 lint-field-copy-from:
     python3 ./scripts/lint-field-copy-from.py
 
-# Every source gate, in one list. quality.yml's `source-gates` job runs each
-# recipe listed here as its own step (so one red gate cannot hide the rest)
-# and asserts that its step list equals this line — a gate added here without
-# a CI step fails the job, and a CI step for a gate not listed here fails it
-# too. `check-release-tag`, `check-crate-changelogs`, `machete` and
+# Every source gate, listed in scripts/check-gates.txt and run to completion by
+# scripts/check-gates.sh (one red gate cannot hide the rest; a summary names
+# every failure). quality.yml's `source-gates` job runs each listed recipe as
+# its own step and asserts that its step list equals that file — a gate added
+# there without a CI step fails the job, and a CI step for a gate not listed
+# there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete` and
 # `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
 # bridge build) and stay CI-only by design.
-check-gates: check-version-strings check-lockfile-registry lint-field-copy-from lint-env-vars lint-native-test-deps sqlx-audit-caches lint-discarded-results lint-fail-open lint-swallowed-errors lint-stringly-errors lint-tracing-messages lint-async-trait lint-owned-tasks lint-json-value lint-table-ownership lint-silent-skips lint-schema lint-extensions lint-comments lint-inline-tests lint-test-seams lint-test-value lint-raw-ids lint-sqlx lint-http-errors lint-no-untyped-admin check-headers lint-layers lint-repo-construction lint-authoritative-reads lint-bridge-lints-sync lint-bridge-css-tokens lint-bridge-i18n lint-bridge-js-imports lint-bridge-no-window lint-bridge-verdicts lint-bridge-typed-warnings lint-bridge-layers lint-bridge-globals lint-bridge-file-size lint-repo-hygiene
-    cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
+check-gates:
+    bash scripts/check-gates.sh
 
 # A public, code-only repository: a tracked prose file outside the sanctioned set
 # (README/CHANGELOG, root AGENTS/CLAUDE/SECURITY, documentation/, the scripts/
@@ -866,9 +867,10 @@ clean:
 # =============================================================================
 
 # Run the library unit tests of the test workspace (crates/tests) against a
-# fresh database: drop+recreate the target DB, apply every extension schema with
-# the migrate tool built OFFLINE (the schema does not exist yet, so live query
-# verification of its core-crate deps would fail), then `cargo test --lib` LIVE
+# fresh database: build the migrate tool OFFLINE first (the schema does not
+# exist yet, so live query verification of its core-crate deps would fail; a
+# build failure leaves the database intact), drop+recreate the target DB, apply
+# every extension schema, then `cargo test --lib` LIVE
 # against the migrated schema. Integration-test targets do not run here; CI's
 # sharded nextest run is `just test-shard` / `just test-all-shards`. Override
 # the target with TEST_DATABASE_URL; the default is a disposable
@@ -880,12 +882,16 @@ test-rust *args:
     db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
+    echo "▶ building migration tool (offline)"
+    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
+        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
+    test -x "${migrate_bin}"
     echo "▶ resetting test database: ${name}"
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas (offline build)"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+    echo "▶ applying extension schemas"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
     echo "▶ running Rust test workspace (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
         cargo test --manifest-path crates/tests/Cargo.toml --workspace --lib {{args}}
@@ -903,10 +909,12 @@ install-nextest:
 # Run one CI shard locally against a fresh, freshly-migrated database.
 # Mirrors the CI `test` job exactly: the shard group→crate mapping and the
 # nextest invocation come from scripts/test-shard.sh (shared with CI). Each run
-# drops+recreates the target DB so cross-run pollution can't occur. Override the
+# builds the migrate tool first, so a build failure leaves the database intact,
+# then drops+recreates the target DB so cross-run pollution can't occur. Override the
 # DB with TEST_DATABASE_URL; the default is a disposable `systemprompt_test`,
 # whose URL carries no password (PGPASSWORD or ~/.pgpass supplies it).
 # Groups: shared infra domain app-runtime app-scheduler app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge
+[positional-arguments]
 test-shard GROUP *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -917,15 +925,19 @@ test-shard GROUP *args:
     db="${TEST_DATABASE_URL:-postgres://systemprompt_admin@localhost:5432/systemprompt_test}"
     base="${db%/*}"
     name="${db##*/}"
+    echo "▶ building migration tool (offline)"
+    migrate_bin=$(SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
+        -p systemprompt-test-migrate --message-format=json-render-diagnostics \
+        | jq -r 'select(.reason == "compiler-artifact" and .executable != null) | .executable' | tail -n1)
+    test -x "${migrate_bin}"
     echo "▶ resetting test database: ${name}"
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${name}\" WITH (FORCE);" >/dev/null
     psql "${base}/postgres" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${name}\";" >/dev/null
-    echo "▶ applying extension schemas (offline build)"
-    SQLX_OFFLINE=true DATABASE_URL="${db}" \
-        cargo run --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+    echo "▶ applying extension schemas"
+    SQLX_OFFLINE=true DATABASE_URL="${db}" "${migrate_bin}"
     echo "▶ running shard {{GROUP}} (live against migrated schema)"
     SQLX_OFFLINE=false DATABASE_URL="${db}" \
-        bash scripts/test-shard.sh {{GROUP}} {{args}}
+        bash scripts/test-shard.sh "$@"
 
 # Run every CI shard sequentially, each against its own fresh database.
 # Bounded compile + run memory per shard (no OOM); same definitions as CI.
@@ -961,6 +973,46 @@ webauthn-admin EMAIL="admin@localhost":
 
     $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"
 
+# Release worktrees and hooks: `just worktree NAME` makes a detached
+# ../core-NAME at origin/next with its own cargo target dirs, which is where
+# `scripts/release.sh` runs; `just worktree-rm NAME` removes it once clean.
+# `just install-hooks` opts in to an advisory pre-push hook that warns (never
+# blocks) on a push to next that fails `format-check` or lands on a red tip.
+worktree NAME REF="origin/next":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git fetch -q origin
+    WT="$(cd .. && pwd)/core-{{NAME}}"
+    git worktree add --detach "$WT" "{{REF}}"
+    mkdir -p "$WT/.cargo"
+    if [ -f .cargo/config.toml ]; then
+        awk '/^\[build\]/{skip=1;next} /^\[/{skip=0} !skip' .cargo/config.toml > "$WT/.cargo/config.toml"
+    fi
+    printf '\n[build]\ntarget-dir = "%s/target"\n' "$WT" >> "$WT/.cargo/config.toml"
+    printf '\n[build]\ntarget-dir = "%s/crates/tests/target"\n' "$WT" >> "$WT/crates/tests/.cargo/config.toml"
+    git -C "$WT" update-index --skip-worktree crates/tests/.cargo/config.toml
+    echo "$WT"
+
+# Remove a worktree made by `just worktree`; refuses while it has changes.
+worktree-rm NAME:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    WT="$(cd .. && pwd)/core-{{NAME}}"
+    if [ -n "$(git -C "$WT" status --porcelain)" ]; then
+        git -C "$WT" status --short
+        echo "error: $WT has modifications; commit or discard them first" >&2; exit 1
+    fi
+    git worktree remove "$WT"
+
+# Install the advisory pre-push hook (opt-in; no gate runs it).
+install-hooks:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    HOOKS="$(git rev-parse --git-common-dir)/hooks"
+    cp scripts/pre-push.sh "$HOOKS/pre-push"
+    chmod +x "$HOOKS/pre-push"
+    echo "installed $HOOKS/pre-push"
+
 # Read the candidate's green push run on next, then the promotion PR proof if one
 # is open. Read-only; never dispatches.
 gate REF="origin/next":
@@ -995,7 +1047,33 @@ promote SHA="":
     fi
     echo
     echo "Opened https://github.com/$REPO/pull/$NUM"
-    echo "Review it, then merge when you are ready:  gh pr merge $NUM --merge"
+    echo "Review it, then merge when you are ready:  just merge-release $SHA"
+
+# Merge the promotion PR for SHA once its own runs prove it. This is the only
+# sanctioned way to merge the promotion PR: the proof's exit status gates the
+# merge directly, the merge is pinned to SHA, and the merge commit is re-proven.
+merge-release SHA:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    REPO=systempromptio/systemprompt-core
+    SHA=$(git rev-parse "{{SHA}}")
+    if ! python3 scripts/release-proof.py pr "$SHA"; then
+        echo "Promotion proof for ${SHA:0:9} failed; not merging." >&2; exit 1
+    fi
+    NUM=$(gh pr list -R "$REPO" --base main --head promote --state open --json number,headRefOid \
+            --jq "map(select(.headRefOid == \"$SHA\")) | .[0].number // empty")
+    [ -n "$NUM" ] || { echo "No open promotion PR at ${SHA:0:9}." >&2; exit 1; }
+    gh pr merge "$NUM" --merge --match-head-commit "$SHA" -R "$REPO"
+    MERGED=$(gh pr view "$NUM" -R "$REPO" --json mergeCommit --jq .mergeCommit.oid)
+    git fetch -q origin main
+    [ "$(git rev-parse origin/main)" = "$MERGED" ] || echo "origin/main has moved past the merge $MERGED" >&2
+    python3 scripts/release-proof.py merged "$MERGED"
+    echo "Merged PR #$NUM as $MERGED. Tag it: git tag vX.Y.Z $MERGED && git push origin vX.Y.Z"
+
+# Publish the tagged release to crates.io, retrying on rate limits, then verify
+# every crate on the sparse index. HEAD must be a v* tag on origin/main.
+publish-crates:
+    scripts/publish-crates.sh
 
 lint-discarded-results:
     ./scripts/check-discarded-results.sh
@@ -1008,6 +1086,11 @@ lint-tracing-messages:
 lint-async-trait:
     ./scripts/lint-async-trait.sh
 
+# A literal InstanceId in a test that writes instance-scoped rows is shared by
+# every nextest process on the shard database. Part of check-gates.
+lint-shared-test-ids:
+    ./scripts/lint-shared-test-ids.sh
+
 # Every task and thread has an owner (BackgroundTasks / OwnedTask); no detached spawns.
 lint-owned-tasks:
     ./scripts/lint-owned-tasks.sh
@@ -1019,6 +1102,11 @@ lint-json-value:
 # A crate queries only the tables its own schema/*.sql declares (infra may read infra).
 lint-table-ownership:
     ./scripts/lint-table-ownership.sh
+
+# Repository SQL reads stored facts, never aggregates the ledger; the baseline
+# only shrinks (systemprompt_database::projection).
+lint-ledger-reads:
+    ./scripts/lint-ledger-reads.sh
 
 # Profiles are the source of truth; an env read outside the sanctioned boot
 # readers (scripts/env-var-allowlist.txt) is an undocumented kill switch.

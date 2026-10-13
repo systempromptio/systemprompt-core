@@ -104,20 +104,7 @@ fn build_routes(
     if serves(RouteGroup::Extensions) {
         router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
     }
-    if serves(RouteGroup::Discovery) {
-        router =
-            router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
-    }
-    if serves(RouteGroup::AuthenticatedDiscovery) {
-        router = router.merge(
-            authenticated_discovery_router(ctx)
-                .with_auth(user_middleware, AuthzPolicy::authenticated()),
-        );
-    }
-    if serves(RouteGroup::WellKnown) {
-        router = router
-            .merge(wellknown_router(ctx)?.with_auth(public_middleware, AuthzPolicy::public()));
-    }
+    router = mount_discovery(router, ctx, &serves, public_middleware, user_middleware)?;
     if serves(RouteGroup::Oauth) {
         router = router.merge(link_passkey_router(ctx, &limits, public_middleware)?);
     }
@@ -140,6 +127,34 @@ fn build_routes(
     }
 
     Ok(router.layer(axum::middleware::from_fn(super::metrics::track_metrics)))
+}
+
+fn mount_discovery(
+    mut router: Router,
+    ctx: &AppContext,
+    serves: &impl Fn(RouteGroup) -> bool,
+    public_middleware: PublicContextMiddleware,
+    user_middleware: UserOnlyContextMiddleware,
+) -> Result<Router, RouteMountError> {
+    if serves(RouteGroup::Discovery) {
+        router =
+            router.merge(discovery_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
+    }
+    if serves(RouteGroup::Probes) {
+        router =
+            router.merge(probes_router(ctx).with_auth(public_middleware, AuthzPolicy::public()));
+    }
+    if serves(RouteGroup::AuthenticatedDiscovery) {
+        router = router.merge(
+            authenticated_discovery_router(ctx)
+                .with_auth(user_middleware, AuthzPolicy::authenticated()),
+        );
+    }
+    if serves(RouteGroup::WellKnown) {
+        router = router
+            .merge(wellknown_router(ctx)?.with_auth(public_middleware, AuthzPolicy::public()));
+    }
+    Ok(router)
 }
 
 fn link_passkey_router(
@@ -185,6 +200,10 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
 
 fn discovery_router(ctx: &AppContext) -> Router {
     super::builder::discovery_router(ctx)
+}
+
+fn probes_router(ctx: &AppContext) -> Router {
+    super::builder::probes_router(ctx)
 }
 
 fn authenticated_discovery_router(ctx: &AppContext) -> Router {

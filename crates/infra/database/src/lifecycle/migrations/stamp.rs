@@ -29,7 +29,7 @@ use crate::services::SqlExecutor;
 use pg_query::NodeEnum;
 use systemprompt_extension::{Extension, LoaderError, Migration};
 use systemprompt_identifiers::ExtensionId;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 /// One `extension_migrations` row recording a migration as applied without
 /// having executed it.
@@ -40,6 +40,12 @@ pub struct BaselineStamp {
     pub name: String,
     pub checksum: String,
 }
+
+// Why: the ledger is owned by the `database` extension and is created by
+// `ensure_migrations_table_exists` before any extension's freshness is read,
+// so counting it would make `database` an established extension on every
+// empty database and run its migrations instead of stamping them.
+const LEDGER_TABLE: &str = "extension_migrations";
 
 #[derive(Debug, Clone, Copy)]
 pub struct FreshnessCheck {
@@ -66,8 +72,13 @@ impl MigrationService<'_> {
         let no_history = self.get_applied_migrations(extension_id).await?.is_empty();
 
         let mut tables_present = 0usize;
+        let mut tables_total = 0usize;
         for table in owned_tables {
             let (schema, name) = table.split_once('.').unwrap_or(("public", table.as_str()));
+            if schema == "public" && name == LEDGER_TABLE {
+                continue;
+            }
+            tables_total += 1;
             let result = self
                 .db
                 .query_raw_with(
@@ -89,7 +100,7 @@ impl MigrationService<'_> {
         let check = FreshnessCheck {
             no_history,
             tables_present,
-            tables_total: owned_tables.len(),
+            tables_total,
         };
 
         if check.no_history && check.tables_present > 0 && check.tables_present < check.tables_total
@@ -127,7 +138,7 @@ impl MigrationService<'_> {
                     source: Box::new(e),
                 }
             })?;
-            info!(
+            debug!(
                 extension = %ext_id,
                 version = migration.version,
                 name = %migration.name,

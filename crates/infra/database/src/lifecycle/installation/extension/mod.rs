@@ -161,9 +161,16 @@ async fn run_install(
 
     for ext in schema_extensions {
         if fresh_extensions.contains(ext.id()) {
-            migration_service
+            let retirements_run = migration_service
                 .run_stamped_retirements(ext.as_ref())
                 .await?;
+            if retirements_run > 0 {
+                info!(
+                    extension = %ext.id(),
+                    retirements_run,
+                    "Fresh install: executed the stamped retirement migrations"
+                );
+            }
         }
     }
 

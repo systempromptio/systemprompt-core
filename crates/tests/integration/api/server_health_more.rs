@@ -41,10 +41,7 @@ async fn seed_mcp_service(
     status: ServiceStatus,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
         name: &name,
@@ -66,10 +63,7 @@ async fn seed_agent_service(
     status: ServiceStatus,
     pid: Option<i32>,
 ) -> anyhow::Result<()> {
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
         name: &name,
@@ -108,10 +102,7 @@ async fn cleanup_removes_stale_mcp_rows() -> anyhow::Result<()> {
     let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the error-status row must be swept");
 
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     assert!(
         repo.find_service_by_name(&ServiceName::new(name.as_str()))
             .await?
@@ -142,10 +133,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     foreign.wait()?;
     assert!(foreign_survived, "an unmarked live pid is never signalled");
 
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     let recycled_row = repo
         .find_service_by_name(&ServiceName::new(recycled.as_str()))
         .await?
@@ -227,10 +215,7 @@ async fn cleanup_sweeps_stale_agent_row_and_keeps_non_stale_mcp() -> anyhow::Res
     let deleted = cleanup_stale_service_entries(&ctx, None).await?;
     assert!(deleted >= 1, "the stale agent row must be swept");
 
-    let repo = ServiceRepository::new(
-        ctx.db_pool(),
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
     assert!(
         repo.find_service_by_name(&ServiceName::new(stale_agent.as_str()))
             .await?

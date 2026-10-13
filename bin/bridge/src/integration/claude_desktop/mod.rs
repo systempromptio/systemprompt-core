@@ -23,7 +23,7 @@ pub use shared::{ProfileGenInputs, default_models};
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]
 pub(crate) fn policy_summary() -> Vec<String> {
-    let read = os::read_domain(shared::DESKTOP_DOMAIN);
+    let read = os::read_domain(shared::DESKTOP_DOMAIN, &shared::keys_to_read(None));
     let mut lines = vec![format!(
         "source: {}",
         read.source_path.as_deref().unwrap_or("<no managed policy>")
@@ -48,11 +48,14 @@ pub(crate) fn policy_summary() -> Vec<String> {
 use systemprompt_models::bridge::host::HostKind;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::drift::DesiredProfile;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
-    HostConfigSchema, HostProcesses, ProbeEnv, ProfileInstalled, ProfileProbe, ProfileRemoval,
-    ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
 };
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use crate::integration::profile_state::ProfileProbe;
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[derive(Debug, Clone, Copy)]
@@ -71,28 +74,17 @@ impl HostApp for ClaudeDesktopHost {
         "Claude Desktop"
     }
 
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &shared::SCHEMA
-    }
-
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
-        let read = os::read_domain(shared::DESKTOP_DOMAIN);
-        let endpoint = ProfileState::endpoint_freshness(
-            read.keys.get("inferenceGatewayBaseUrl").map(String::as_str),
-            env.proxy_port,
-        );
-        let secret = shared::secret_freshness(read.api_key_fp.as_deref(), env);
-        let managed_servers = ProfileState::managed_servers_freshness(
-            read.keys.get("managedMcpServers").map(String::as_str),
-            env.expected_managed_servers.as_deref(),
+        let desired = env.desired_for(self);
+        let read = os::read_domain(
+            shared::DESKTOP_DOMAIN,
+            &shared::keys_to_read(desired.as_ref().ok()),
         );
         let profile_state = ProfileState::classify(&ProfileProbe {
-            required: shared::REQUIRED_KEYS,
             present: &read.keys,
+            observed: &read.observed,
             read_error: read.probe_error.as_deref(),
-            secret,
-            endpoint,
-            managed_servers,
+            desired: &desired,
         });
         let found = HostProcesses::from_enumeration(os::list_claude_processes());
         let update_needs_approval = os::update_needs_approval(read.source_path.as_deref(), env);
@@ -105,13 +97,18 @@ impl HostApp for ClaudeDesktopHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed: crate::integration::app_launch::is_installed(
-                &locator(&claude_app_candidates()),
-                &env.start_menu,
-            ),
+            app_installed: self.app_installed(&env.start_menu),
             probed_at_unix: shared::now_unix(),
             update_needs_approval,
         }
+    }
+
+    fn desired(&self, inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        Ok(reg_profile::desired(inputs)?)
+    }
+
+    fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState {
+        crate::integration::app_launch::is_installed(&locator(&claude_app_candidates()), start_menu)
     }
 
     fn generate_profile(
@@ -160,6 +157,12 @@ impl HostApp for ClaudeDesktopHost {
         true
     }
 
+    // Why: the machine policy write is the one Desktop sync step that needs
+    // an administrator, and its values are exactly what the probe compares.
+    fn probe_observes(&self, emitter: &str, needs_elevation: bool) -> bool {
+        needs_elevation && emitter == self.id().as_str()
+    }
+
     fn config_format(&self) -> ConfigFormat {
         if cfg!(target_os = "windows") {
             ConfigFormat::Reg
@@ -178,7 +181,7 @@ impl HostApp for ClaudeDesktopHost {
     // Claude Desktop is the exception: it rejects non-Claude ids in
     // `inferenceModels` outright, so advertising them breaks the app.
     fn accepted_surfaces(&self) -> &'static [systemprompt_models::providers::ApiSurface] {
-        &[systemprompt_models::providers::ApiSurface::Anthropic]
+        crate::install::mdm::policy::DESKTOP_SURFACES
     }
 }
 
@@ -221,13 +224,7 @@ fn claude_app_candidates() -> Vec<std::path::PathBuf> {
 #[must_use]
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub fn is_app_installed(start_menu: &crate::probe_cache::StartMenuCache) -> bool {
-    matches!(
-        crate::integration::app_launch::is_installed(
-            &locator(&claude_app_candidates()),
-            start_menu
-        ),
-        crate::integration::host_app::AppInstallState::Installed
-    )
+    CLAUDE_DESKTOP_HOST.app_installed(start_menu).is_installed()
 }
 
 #[must_use]

@@ -1,14 +1,13 @@
-//! `OpenCode` managed-profile installer: renders the bridge-owned provider
-//! block, merges it into the managed `opencode.json` preserving every
-//! admin-authored key, and writes the host token into the user's
-//! `auth.json`.
+//! `OpenCode` profile installer: renders the bridge-owned provider block and
+//! merges it into the user's `opencode.json`, preserving every key the bridge
+//! does not own.
 //!
-//! The managed file is admin-owned, so the merge goes through
-//! [`crate::install::managed_file`], which writes directly when it can and
-//! escalates only when refused. The host token is derived deterministically
-//! from the loopback secret, so it is written once as a static key rather
-//! than through a helper subprocess, and rotates with the secret via the
-//! stale-profile re-apply.
+//! `OpenCode` 2.x loads only the user tier, so that is where the provider, its
+//! `apiKey` and the `enabled_providers` allowlist go — the same file the MCP
+//! connectors are written to, rewritable by unattended sync without a prompt.
+//! The admin tier 1.x read, and the `auth.json` it took the key from, are now
+//! only cleaned: install drops a stale `auth.json` entry, uninstall strips the
+//! admin tier (elevating if it must).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,21 +15,21 @@
 mod merge;
 mod render;
 
-use std::path::{Path, PathBuf};
+pub(super) use render::provider_json_text;
+
+use std::path::Path;
 
 use serde_json::{Map, Value};
 
 use super::config;
-use crate::install::approval::{ApprovalRefusal, GatedChangeError};
 use crate::integration::generated_profile;
 use crate::integration::host_app::{
     GeneratedProfile, HostAppError, ProfileGenInputs, ProfileInstalled, ProfileRemoval,
 };
-use crate::integration::reapply::Attendance;
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<GeneratedProfile> {
     let uuids = generated_profile::profile_uuids();
-    let json_text = render::managed_json_text(inputs)?;
+    let json_text = provider_json_text(inputs)?;
     let path = generated_profile::write("opencode-bridge-opencode", ".json", json_text.as_bytes())?;
     Ok(GeneratedProfile {
         path: path.display().to_string(),
@@ -40,118 +39,33 @@ pub(super) fn write_profile(inputs: &ProfileGenInputs) -> std::io::Result<Genera
     })
 }
 
-pub(super) fn install_profile(
-    generated_path: &str,
-    attendance: Attendance,
-) -> Result<ProfileInstalled, HostAppError> {
+pub(super) fn install_profile(generated_path: &str) -> Result<ProfileInstalled, HostAppError> {
     let source_text = std::fs::read_to_string(generated_path)?;
-    let mut source = parse_object(&source_text, generated_path)?;
-
-    if let Some(Value::String(key)) = source.remove(render::API_KEY_MARKER) {
-        upsert_auth_key(&config::auth_json_path(), &key)?;
-    }
-
-    let managed = config::managed_config_path().map_err(std::io::Error::other)?;
+    let source = parse_object(&source_text, generated_path)?;
     generated_profile::consume(generated_path)?;
-    // Why: an admin-tier file written by an elevated install is read-only to
-    // the tray, and an unattended sync may not raise the prompt that would
-    // refresh it — without this the file keeps the catalogue it was written
-    // with forever.
-    if attendance == Attendance::Unattended && is_read_only(&managed) {
-        return install_user_tier(&source, &managed);
-    }
-    match merge::install(&source, &managed) {
-        Ok(_) => Ok(ProfileInstalled::ok()),
-        Err(e) if managed_tier_refused(&e) => {
-            if managed.is_file() {
-                return install_user_tier(&source, &managed);
-            }
-            let Some(fallback) = config::fallback_config_path(&managed) else {
-                return Err(e.into());
-            };
-            tracing::warn!(
-                managed = %managed.display(),
-                fallback = %fallback.display(),
-                error = %e,
-                "opencode install: managed tier not writable; writing the provider block to the \
-                 user tier instead (weaker: the user can edit it)"
-            );
-            Ok(merge::install(&source, &fallback).map(|_| ProfileInstalled::ok())?)
-        },
-        Err(e) => Err(e.into()),
-    }
+    merge::install(&source, &config::user_config_path())?;
+    remove_auth_key(&config::auth_json_path())?;
+    Ok(ProfileInstalled::ok())
 }
 
-// Why: a managed tier this process cannot write — denied outright, or the
-// administrator prompt declined — still leaves the user tier, which OpenCode
-// reads below it.
-fn managed_tier_refused(error: &GatedChangeError) -> bool {
-    match error {
-        GatedChangeError::Io(e) => e.kind() == std::io::ErrorKind::PermissionDenied,
-        GatedChangeError::Refused(refusal) => *refusal == ApprovalRefusal::Declined,
-        GatedChangeError::Elevation(_) => false,
-    }
-}
-
-fn is_read_only(path: &Path) -> bool {
-    path.is_file() && std::fs::OpenOptions::new().write(true).open(path).is_err()
-}
-
-// JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
-// preserved.
-fn install_user_tier(
-    source: &Map<String, Value>,
-    managed: &Path,
-) -> Result<ProfileInstalled, HostAppError> {
-    let user = config::user_tier_path(managed).ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            format!("{} is not writable by this process", managed.display()),
-        )
-    })?;
-    merge::install(source, &user)?;
-    let warning = format!(
-        "{} is read-only to this process, so the live model list was written to {} instead; \
-         OpenCode ranks the admin file higher, so models it lists that the gateway no longer \
-         serves, and its default model, remain until `install --host opencode` is re-run as \
-         administrator",
-        managed.display(),
-        user.display()
-    );
-    tracing::warn!(
-        managed = %managed.display(),
-        user = %user.display(),
-        "opencode install: admin config read-only, live model list written to the user config"
-    );
-    Ok(ProfileInstalled::with_warning(warning))
-}
-
-pub(super) fn admin_tier_models() -> Option<(PathBuf, Vec<String>)> {
+#[must_use]
+pub(super) fn stale_admin_tier() -> Option<std::path::PathBuf> {
     let managed = config::managed_config_path().ok()?;
-    let root = read_object(&managed).ok()?;
-    let models = root
-        .get("provider")?
-        .get(config::PROVIDER_ID)?
-        .get("models")?
-        .as_object()?
-        .keys()
-        .cloned()
-        .collect();
-    Some((managed, models))
+    merge::carries_owned(&managed).then_some(managed)
 }
 
 pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
-    let target = config::managed_config_path().map_err(std::io::Error::other)?;
-    let removed_config = merge::uninstall(&target)?;
-    let removed_fallback = match config::user_tier_path(&target) {
-        Some(path) => merge::uninstall(&path)?,
-        None => false,
+    let user = config::user_config_path();
+    let removed_user = merge::uninstall_user(&user)?;
+    let removed_managed = match config::managed_config_path() {
+        Ok(managed) => merge::uninstall_managed(&managed)?,
+        Err(_) => false,
     };
     let removed_auth = remove_auth_key(&config::auth_json_path())?;
     super::managed_resources::remove_hook_plugin().map_err(std::io::Error::other)?;
-    Ok(if removed_config || removed_fallback || removed_auth {
+    Ok(if removed_user || removed_managed || removed_auth {
         ProfileRemoval::Removed {
-            path: Some(target.display().to_string()),
+            path: Some(user.display().to_string()),
         }
     } else {
         ProfileRemoval::NothingToRemove
@@ -160,7 +74,7 @@ pub(super) fn remove_profile() -> Result<ProfileRemoval, HostAppError> {
 
 pub(super) fn elevation_prompt() -> String {
     format!(
-        "{} needs administrator privileges to install the OpenCode managed configuration.",
+        "{} needs administrator privileges to remove the retired OpenCode managed configuration.",
         crate::brand::brand().app_name
     )
 }
@@ -201,22 +115,6 @@ pub(super) fn pretty(map: &Map<String, Value>) -> std::io::Result<Vec<u8>> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     bytes.push(b'\n');
     Ok(bytes)
-}
-
-pub(super) fn installed_key_fingerprint(path: &Path) -> Option<String> {
-    let auth = read_object(path).ok()?;
-    let key = auth.get(config::PROVIDER_ID)?.get("key")?.as_str()?;
-    Some(crate::proxy::secret::fingerprint(key))
-}
-
-fn upsert_auth_key(path: &Path, key: &str) -> std::io::Result<()> {
-    let mut auth = read_object(path)?;
-    let entry = serde_json::json!({ "type": "api", "key": key });
-    if auth.get(config::PROVIDER_ID) == Some(&entry) {
-        return Ok(());
-    }
-    auth.insert(config::PROVIDER_ID.to_owned(), entry);
-    crate::fsutil::atomic_write_0600(path, &pretty(&auth)?)
 }
 
 fn remove_auth_key(path: &Path) -> std::io::Result<bool> {

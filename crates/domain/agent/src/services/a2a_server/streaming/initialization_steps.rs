@@ -17,8 +17,9 @@ use crate::models::a2a::{Task, TaskState, TaskStatus};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
-use super::initialization::create_jsonrpc_error_event;
+use super::frames::jsonrpc_error_event;
 use super::types::PersistTaskInput;
+use crate::services::a2a_server::errors::JsonRpcErrorBuilder;
 
 pub(super) async fn validate_context(
     context_id: &ContextId,
@@ -41,9 +42,9 @@ pub(super) async fn validate_context(
                 "Context validation failed"
             );
             if tx
-                .try_send(create_jsonrpc_error_event(
-                    -32603,
-                    &format!("Context validation failed: {e}"),
+                .try_send(jsonrpc_error_event(
+                    JsonRpcErrorBuilder::invalid_params()
+                        .with_metadata("detail", format!("Context validation failed: {e}")),
                     request_id,
                 ))
                 .is_err()
@@ -104,9 +105,9 @@ pub(super) async fn persist_initial_task(
         .map_err(|e| {
             tracing::error!(task_id = %task_id, error = %e, "Failed to persist task at start");
             if tx
-                .try_send(create_jsonrpc_error_event(
-                    -32603,
-                    &format!("Failed to create task: {e}"),
+                .try_send(jsonrpc_error_event(
+                    JsonRpcErrorBuilder::internal_error()
+                        .with_metadata("detail", "Failed to create task"),
                     request_id,
                 ))
                 .is_err()

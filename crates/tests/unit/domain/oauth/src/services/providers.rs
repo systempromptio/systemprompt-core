@@ -122,6 +122,7 @@ mod config_backed {
             rate_limit_tier: None,
             plugin_id: None,
             act: None,
+            purpose: None,
         };
         let kid = systemprompt_security::keys::authority::active_kid().expect("kid");
         let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);

@@ -86,8 +86,24 @@ body.is-platform-macos .sp-topbar { padding-left: 92px; }
 }
 .sp-sync-pill[data-state="ok"] { color: var(--sp-ok); border-color: color-mix(in srgb, var(--sp-ok) 50%, transparent); }
 .sp-sync-pill[data-state="ok"] .sp-sync-pill__dot { background: var(--sp-ok); }
+.sp-sync-pill[data-state="warn"] { color: var(--sp-warn); border-color: color-mix(in srgb, var(--sp-warn) 50%, transparent); }
+.sp-sync-pill[data-state="warn"] .sp-sync-pill__dot { background: var(--sp-warn); }
 .sp-sync-pill[data-state="err"] { color: var(--sp-err); border-color: color-mix(in srgb, var(--sp-err) 50%, transparent); }
 .sp-sync-pill[data-state="err"] .sp-sync-pill__dot { background: var(--sp-err); }
+/* A code with a pane to open renders its word as a button; it keeps the
+   pill's look and only signals that it goes somewhere. */
+.sp-sync-pill__link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sp-sync-pill__link:focus-visible { outline: 2px solid var(--sp-accent-ring); outline-offset: 2px; }
 /* The current sync step, beside "syncing". Secondary to the status word and
    bounded, because a plugin id is arbitrary length and this pill sits in the
    middle of the topbar — it must not push Cancel off the end. */

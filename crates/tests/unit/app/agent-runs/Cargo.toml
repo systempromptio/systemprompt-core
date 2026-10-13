@@ -1,0 +1,34 @@
+[package]
+name = "systemprompt-agent-runs-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-agent-runs crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+serde_json = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-test-fixtures = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+async-trait = { workspace = true }
+tempfile = { workspace = true }
+chrono = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

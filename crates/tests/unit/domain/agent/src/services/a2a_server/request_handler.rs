@@ -22,14 +22,33 @@ async fn call(
     context: Option<RequestContext>,
     body: &str,
 ) -> axum::response::Response {
+    call_with(state, context, versioned_headers(), body).await
+}
+
+async fn call_with(
+    state: Arc<AgentHandlerState>,
+    context: Option<RequestContext>,
+    headers: HeaderMap,
+    body: &str,
+) -> axum::response::Response {
     handle_agent_request(
         State(state),
         context.map(Extension),
-        HeaderMap::new(),
+        headers,
+        axum::http::Uri::from_static("/api/v1/agents/test_agent"),
         Bytes::from(body.to_owned()),
     )
     .await
     .into_response()
+}
+
+fn versioned_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        systemprompt_models::a2a::VERSION_HEADER,
+        axum::http::HeaderValue::from_static(systemprompt_models::a2a::PROTOCOL_VERSION),
+    );
+    headers
 }
 
 async fn body_json(response: axum::response::Response) -> (StatusCode, Value) {
@@ -107,7 +126,7 @@ async fn oauth_required_without_bearer_token_is_unauthorized() {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert_eq!(body["error"]["message"], json!("Unauthorized"));
     assert!(
-        body["error"]["data"]["reason"]
+        body["error"]["data"][0]["metadata"]["detail"]
             .as_str()
             .is_some_and(|m| m.contains("Bearer token required"))
     );
@@ -192,4 +211,118 @@ async fn get_task_owned_by_another_user_reads_as_not_found() {
     assert!(body.get("result").is_none());
 
     r.tasks.delete_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn a_request_without_a_version_is_refused_before_oauth_with_its_id() {
+    let pool = test_db_pool().await;
+    let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    state.config.write().await.oauth.required = true;
+    let ctx = request_context(&context_id, &session_id, &user_id, "test_agent");
+
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "GetTask",
+        "params": {"id": task_id.as_str()},
+        "id": "v-1"
+    });
+    let response = call_with(state, Some(ctx), HeaderMap::new(), &payload.to_string()).await;
+    let (status, body) = body_json(response).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["id"], json!("v-1"));
+    assert_eq!(body["error"]["code"], json!(-32009));
+    assert_eq!(
+        body["error"]["data"][0]["reason"],
+        json!("VERSION_NOT_SUPPORTED")
+    );
+    assert_eq!(
+        body["error"]["data"][0]["metadata"]["supported"],
+        json!("1.0")
+    );
+
+    r.tasks.delete_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn an_older_protocol_version_is_refused() {
+    let pool = test_db_pool().await;
+    let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    let ctx = request_context(&context_id, &session_id, &user_id, "test_agent");
+
+    let mut headers = HeaderMap::new();
+    headers.insert("A2A-Version", axum::http::HeaderValue::from_static("0.3"));
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "GetTask",
+        "params": {"id": task_id.as_str()},
+        "id": 31
+    });
+    let response = call_with(state, Some(ctx), headers, &payload.to_string()).await;
+    let (status, body) = body_json(response).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body["error"]["data"][0]["metadata"]["requested"],
+        json!("0.3")
+    );
+
+    r.tasks.delete_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn an_unknown_method_is_method_not_found_with_error_info() {
+    let pool = test_db_pool().await;
+    let r = repos(&pool);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let (context_id, task_id) = seed_context_and_task(&r, &user_id, &session_id).await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    let ctx = request_context(&context_id, &session_id, &user_id, "test_agent");
+
+    let payload = json!({
+        "jsonrpc": "2.0",
+        "method": "CreateTaskPushNotificationConfig",
+        "params": {},
+        "id": 32
+    });
+    let response = call(state, Some(ctx), &payload.to_string()).await;
+    let (_, body) = body_json(response).await;
+    assert_eq!(body["id"], json!(32));
+    assert_eq!(body["error"]["code"], json!(-32601));
+    assert_eq!(
+        body["error"]["data"][0]["reason"],
+        json!("METHOD_NOT_FOUND")
+    );
+    assert_eq!(
+        body["error"]["data"][0]["metadata"]["method"],
+        json!("CreateTaskPushNotificationConfig")
+    );
+
+    r.tasks.delete_task(&task_id).await.ok();
+}
+
+#[tokio::test]
+async fn an_unparseable_body_is_answered_with_a_null_id() {
+    let pool = test_db_pool().await;
+    let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let ctx = request_context(
+        &systemprompt_identifiers::ContextId::generate(),
+        &session_id,
+        &user_id,
+        "test_agent",
+    );
+
+    let response = call(state, Some(ctx), "{not json").await;
+    let (_, body) = body_json(response).await;
+    assert!(body["id"].is_null());
+    assert!(body.as_object().expect("object").contains_key("id"));
+    assert_eq!(
+        body["error"]["data"][0]["@type"],
+        json!("type.googleapis.com/google.rpc.ErrorInfo")
+    );
 }

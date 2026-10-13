@@ -4,7 +4,7 @@
 // already dead, and crash cleanup when no service record exists.
 
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -13,7 +13,7 @@ use systemprompt_agent::services::agent_orchestration::lifecycle::AgentLifecycle
 use systemprompt_config::paths::AppPaths;
 use uuid::Uuid;
 
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -28,30 +28,25 @@ fn app_paths() -> Arc<AppPaths> {
     Arc::new(bootstrap.app_paths.clone())
 }
 
-fn lifecycle(pool: &systemprompt_database::DbPool) -> AgentLifecycle {
+fn lifecycle(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentLifecycle {
     AgentLifecycle::new(
-        AgentServiceRepository::new(
-            pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        AgentServiceRepository::new(pool, instance.clone()),
         app_paths(),
     )
     .expect("lifecycle")
 }
 
-fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::new(repo).expect("db service")
 }
 
 #[tokio::test]
 async fn start_agent_unknown_agent_fails_before_spawn() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
 
     let name = unique_name("lc_missing");
     let result = lifecycle.start_agent(&name, None).await;
@@ -61,9 +56,10 @@ async fn start_agent_unknown_agent_fails_before_spawn() {
 #[tokio::test]
 async fn start_agent_unknown_agent_creates_no_service_state() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
     let name = unique_name("lc_unknown_event");
 
     let err = lifecycle
@@ -85,8 +81,9 @@ async fn start_agent_unknown_agent_creates_no_service_state() {
 #[tokio::test]
 async fn enable_agent_delegates_to_start() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
 
     let name = unique_name("lc_enable");
     let result = lifecycle.enable_agent(&name, None).await;
@@ -96,9 +93,10 @@ async fn enable_agent_delegates_to_start() {
 #[tokio::test]
 async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
 
     let name = unique_name("lc_restart");
     db.register_agent(&name, DEAD_PID, 9410)
@@ -117,9 +115,10 @@ async fn restart_agent_with_dead_pid_row_fails_on_missing_config() {
 #[tokio::test]
 async fn disable_agent_with_dead_pid_removes_service_row() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
 
     let name = unique_name("lc_disable");
     db.register_agent(&name, DEAD_PID, 9411)
@@ -135,8 +134,9 @@ async fn disable_agent_with_dead_pid_removes_service_row() {
 #[tokio::test]
 async fn cleanup_crashed_agent_without_record_is_noop() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
 
     let name = unique_name("lc_cleanup");
     lifecycle
@@ -148,9 +148,10 @@ async fn cleanup_crashed_agent_without_record_is_noop() {
 #[tokio::test]
 async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
     let name = unique_name("lc_crashed");
 
     db.register_agent(&name, DEAD_PID, 9413)
@@ -159,7 +160,7 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
     let row = sqlx::query_as::<_, (String, Option<i32>, Option<i32>)>(
         "SELECT status, pid, port FROM services WHERE instance_id = $1 AND name = $2",
     )
-    .bind("test-instance")
+    .bind(instance.as_str())
     .bind(name.as_str())
     .fetch_one(pool.pool().as_ref())
     .await
@@ -184,9 +185,10 @@ async fn cleanup_crashed_agent_transitions_dead_running_record_to_failed() {
 #[tokio::test]
 async fn disable_removes_the_service_row() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
-    let db = db_service(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
+    let db = db_service(&pool, &instance);
 
     let name = unique_name("lc_bus_dis");
     db.register_agent(&name, DEAD_PID, 9412)
@@ -207,8 +209,9 @@ async fn disable_removes_the_service_row() {
 #[tokio::test]
 async fn restart_unconfigured_agent_fails() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let lifecycle = lifecycle(&pool);
+    let lifecycle = lifecycle(&pool, &instance);
 
     let name = unique_name("lc_restart_missing");
     let result = lifecycle.restart_agent(&name, None).await;
@@ -224,7 +227,7 @@ async fn free_function_verbs_cover_missing_agent_paths() {
     let name = unique_name("lc_free");
     let repo = systemprompt_agent::repository::agent_service::AgentServiceRepository::new(
         &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
+        unique_instance(),
     );
     assert!(
         verbs::start_agent(repo.clone(), app_paths(), &name, None)

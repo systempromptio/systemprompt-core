@@ -25,10 +25,11 @@
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
 //! | `slack` | the `systemprompt::slack` module | Slack Events API, slash commands, interactivity. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
 //! | `teams` | the `systemprompt::teams` module | Microsoft Teams Bot Framework activities. Not part of `full`; the flag adds only the module re-export, since `api` compiles the crate regardless. |
+//! | `agent-runs` | `systemprompt-agent-runs` | Durable, leased, governed coding-agent runs (Claude Code, Codex CLI) with a common event contract. In `full`. |
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.65.0", features = ["full"] }
+//! systemprompt = { version = "0.66.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -242,6 +243,12 @@ pub mod slack {
     pub use systemprompt_slack::*;
 }
 
+#[cfg(feature = "agent-runs")]
+#[cfg_attr(docsrs, doc(cfg(feature = "agent-runs")))]
+pub mod agent_runs {
+    pub use systemprompt_agent_runs::*;
+}
+
 #[cfg(feature = "teams")]
 #[cfg_attr(docsrs, doc(cfg(feature = "teams")))]
 pub mod teams {
@@ -273,23 +280,9 @@ pub mod cloud {
 }
 
 /// Profile types — the on-disk profile schema.
-///
-/// `Profile`, `CloudConfig`, `ProfileStyle` and `CloudValidationMode`, plus the
-/// `ProfileBootstrap` loader when the `config` feature is enabled and the
-/// `ServicesBootstrap` cell (provider catalog, gateway routes) when `loader`
-/// is.
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
-pub mod profile {
-    #[cfg(feature = "config")]
-    pub use systemprompt_config::{ProfileBootstrap, ProfileBootstrapError};
-    #[cfg(feature = "loader")]
-    pub use systemprompt_loader::ServicesBootstrap;
-
-    pub use systemprompt_manifest::profile::{
-        CloudConfig, CloudValidationMode, Profile, ProfileStyle,
-    };
-}
+pub mod profile;
 
 #[cfg(feature = "cloud")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cloud")))]

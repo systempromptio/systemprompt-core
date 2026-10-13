@@ -12,10 +12,10 @@
 use systemprompt_database::{
     CreateServiceInput, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
 };
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{InstanceId, ServiceName};
 use systemprompt_loader::subprocess::{self, ChildKind, StopOutcome, Termination};
 use systemprompt_scheduler::{ApiListenerStop, OrphanDisposition, ServiceManagementService};
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // A PID that is never a live process: kill(2) on i32::MAX fails with ESRCH.
 const DEAD_PID: i32 = i32::MAX;
@@ -28,13 +28,14 @@ fn unique_name(prefix: &str) -> ServiceName {
 }
 
 fn config_with_pid(
+    instance: &InstanceId,
     name: &ServiceName,
     module: ServiceModule,
     port: i32,
     pid: Option<i32>,
 ) -> ServiceConfig {
     ServiceConfig {
-        instance_id: systemprompt_identifiers::InstanceId::new("test-instance"),
+        instance_id: instance.clone(),
         name: name.clone(),
         module_name: module,
         status: ServiceStatus::Running,
@@ -75,20 +76,18 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_service_without_pid_marks_row_stopped() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("stop-no-pid");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, None).await;
 
-        let config = config_with_pid(&name, ServiceModule::Mcp, 0, None);
+        let config = config_with_pid(&test_instance, &name, ServiceModule::Mcp, 0, None);
         let outcome = svc
             .stop_service(&config, false)
             .await
@@ -111,20 +110,18 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn stop_service_with_dead_pid_marks_row_stopped() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("stop-dead-pid");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Mcp, 0, Some(DEAD_PID));
+        let config = config_with_pid(&test_instance, &name, ServiceModule::Mcp, 0, Some(DEAD_PID));
         let outcome = svc
             .stop_service(&config, true)
             .await
@@ -150,10 +147,11 @@ mod service_management_behaviour_db {
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let config = config_with_pid(
+            &unique_instance(),
             &ServiceName::new("orphan-no-pid-never-seeded"),
             ServiceModule::Mcp,
             0,
@@ -172,20 +170,24 @@ mod service_management_behaviour_db {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_with_dead_pid_marks_stopped_and_returns_true() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("orphan-dead-pid");
         seed_running_row(&repo, &name, ServiceModule::Agent, 0, Some(DEAD_PID)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Agent, 0, Some(DEAD_PID));
+        let config = config_with_pid(
+            &test_instance,
+            &name,
+            ServiceModule::Agent,
+            0,
+            Some(DEAD_PID),
+        );
         let outcome = svc
             .cleanup_orphaned_service(&config)
             .await
@@ -209,17 +211,15 @@ mod service_management_behaviour_db {
     #[cfg(unix)]
     #[tokio::test]
     async fn cleanup_all_orphans_reports_stale_entry_for_dead_pid_row() {
+        let test_instance = unique_instance();
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_stale").await;
         let pool = database.test_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("orphans-stale");
         seed_running_row(&repo, &name, ServiceModule::Mcp, 0, Some(DEAD_PID)).await;
@@ -332,22 +332,26 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_gracefully_terminates_a_marked_live_child() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("smb-live-graceful");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27201, Some(pid)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Agent, 27201, Some(pid));
+        let config = config_with_pid(
+            &test_instance,
+            &name,
+            ServiceModule::Agent,
+            27201,
+            Some(pid),
+        );
         let outcome = svc
             .stop_service(&config, false)
             .await
@@ -369,22 +373,26 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_force_kills_a_marked_live_child() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("smb-live-force");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27202, Some(pid)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Agent, 27202, Some(pid));
+        let config = config_with_pid(
+            &test_instance,
+            &name,
+            ServiceModule::Agent,
+            27202,
+            Some(pid),
+        );
         let outcome = svc
             .stop_service(&config, true)
             .await
@@ -406,22 +414,26 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn stop_service_refuses_to_signal_a_live_pid_without_spawn_markers() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("smb-live-unmarked");
         let mut child = spawn_unmarked_sleep();
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27203, Some(pid)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Agent, 27203, Some(pid));
+        let config = config_with_pid(
+            &test_instance,
+            &name,
+            ServiceModule::Agent,
+            27203,
+            Some(pid),
+        );
         let outcome = svc
             .stop_service(&config, false)
             .await
@@ -450,22 +462,26 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn cleanup_orphaned_service_terminates_a_marked_live_child() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("smb-live-orphan");
         let child = spawn_marked_sleep(&name);
         let pid = child.id() as i32;
         seed_running_row(&repo, &name, ServiceModule::Agent, 27204, Some(pid)).await;
 
-        let config = config_with_pid(&name, ServiceModule::Agent, 27204, Some(pid));
+        let config = config_with_pid(
+            &test_instance,
+            &name,
+            ServiceModule::Agent,
+            27204,
+            Some(pid),
+        );
         let outcome = svc
             .cleanup_orphaned_service(&config)
             .await
@@ -489,17 +505,15 @@ mod live_child_stop_paths {
 
     #[tokio::test]
     async fn cleanup_all_orphans_stops_a_row_with_a_live_marked_pid() {
+        let test_instance = unique_instance();
         let database =
             systemprompt_test_fixtures::DisposableDb::with_schema("scheduler_orphans_live").await;
         let pool = database.test_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            test_instance.clone(),
         ));
-        let repo = ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let repo = ServiceRepository::new(&pool, test_instance.clone());
 
         let name = unique_name("smb-live-sweep");
         let child = spawn_marked_sleep(&name);
@@ -636,11 +650,12 @@ mod dead_pool_degradation {
         let closed = closed_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &closed,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         svc.stop_service(
             &config_with_pid(
+                &unique_instance(),
                 &ServiceName::new("smb-dead-pool-stop"),
                 ServiceModule::Agent,
                 27301,
@@ -657,11 +672,12 @@ mod dead_pool_degradation {
         let closed = closed_db_pool().await;
         let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
             &closed,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
+            unique_instance(),
         ));
 
         let outcome = svc
             .cleanup_orphaned_service(&config_with_pid(
+                &unique_instance(),
                 &ServiceName::new("smb-dead-pool-orphan"),
                 ServiceModule::Agent,
                 27302,

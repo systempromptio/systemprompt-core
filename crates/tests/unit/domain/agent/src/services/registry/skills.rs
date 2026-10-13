@@ -245,7 +245,7 @@ fn test_load_skill_from_disk_security_is_none() {
     let result = load_skill_from_disk(dir.path(), &SkillId::new("sec-test"));
     let skill = result.expect("expected success");
 
-    assert!(skill.security.is_none());
+    assert!(skill.security_requirements.is_none());
 }
 
 #[test]
@@ -277,8 +277,7 @@ fn agent_card_config_empty() -> AgentCardConfig {
         default_input_modes: vec!["text/plain".to_owned()],
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
-        security: None,
-        supports_authenticated_extended_card: false,
+        security_requirements: None,
     }
 }
 

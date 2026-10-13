@@ -6,8 +6,8 @@
 use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, JsonRpcResponse, Request};
-use systemprompt_agent::models::a2a::protocol::MessageSendParams;
-use systemprompt_models::a2a::Task;
+use systemprompt_agent::models::a2a::protocol::SendMessageParams;
+use systemprompt_models::a2a::{PROTOCOL_VERSION, SendMessageResult, VERSION_HEADER};
 
 use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
@@ -16,7 +16,7 @@ pub(super) struct NonStreamingRequest<'a> {
     pub agent: &'a str,
     pub agent_url: &'a str,
     pub auth_token: &'a str,
-    pub request: &'a Request<MessageSendParams>,
+    pub request: &'a Request<SendMessageParams>,
     pub message_text: &'a str,
     pub timeout: u64,
 }
@@ -41,6 +41,7 @@ pub(super) async fn execute_non_streaming(
         .post(agent_url)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", auth_token))
+        .header(VERSION_HEADER, PROTOCOL_VERSION)
         .json(request)
         .send()
         .await
@@ -52,7 +53,7 @@ pub(super) async fn execute_non_streaming(
         anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 
-    let json_response: JsonRpcResponse<Task> = response
+    let json_response: JsonRpcResponse<SendMessageResult> = response
         .json()
         .await
         .context("Failed to parse agent response")?;
@@ -77,15 +78,23 @@ pub(super) async fn execute_non_streaming(
         );
     }
 
-    let task = json_response
+    let result = json_response
         .result
         .ok_or_else(|| anyhow!("No result in agent response"))?;
 
-    let response = task
-        .status
-        .message
-        .as_ref()
-        .map(|msg| extract_text_from_parts(&msg.parts));
+    let (task, response) = match result {
+        SendMessageResult::Task(task) => {
+            let response = task
+                .status
+                .message
+                .as_ref()
+                .map(|msg| extract_text_from_parts(&msg.parts));
+            (Some(*task), response)
+        },
+        SendMessageResult::Message(message) => {
+            (None, Some(extract_text_from_parts(&message.parts)))
+        },
+    };
 
     let output = MessageOutput {
         agent: agent.to_owned(),

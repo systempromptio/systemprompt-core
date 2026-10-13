@@ -11,8 +11,12 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 temp-env = { workspace = true }
 tempfile = { workspace = true }
 
 [dev-dependencies]
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

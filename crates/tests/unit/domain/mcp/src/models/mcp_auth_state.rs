@@ -12,6 +12,7 @@ fn create_test_user() -> AuthenticatedUser {
         permissions: vec![Permission::Admin],
         roles: vec![],
         attributes: std::collections::BTreeMap::new(),
+        account_kind: Default::default(),
     }
 }
 

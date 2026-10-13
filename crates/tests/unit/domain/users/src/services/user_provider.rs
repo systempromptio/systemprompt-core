@@ -12,6 +12,7 @@ use systemprompt_users::{User, UserStatus};
 
 fn create_test_user() -> User {
     User {
+        account_kind: Default::default(),
         id: fixture_user_id(),
         name: "testuser".to_string(),
         email: "test@example.com".to_string(),
@@ -194,6 +195,7 @@ mod edge_case_tests {
     #[test]
     fn conversion_with_empty_strings() {
         let user = User {
+            account_kind: Default::default(),
             id: fixture_user_id(),
             name: "".to_string(),
             email: "".to_string(),

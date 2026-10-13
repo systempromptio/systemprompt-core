@@ -50,6 +50,7 @@ fn every_agent_state_has_copy() {
         AgentState::Ready,
         AgentState::Attention,
         AgentState::NotSetUp,
+        AgentState::NotInstalled,
         AgentState::Down,
         AgentState::Checking,
     ] {
@@ -65,6 +66,10 @@ fn every_agent_reason_has_copy() {
         AgentReason::AppMissing,
         AgentReason::Stale {
             cause: StaleReason::LoopbackSecret,
+            keys: String::new(),
+        },
+        AgentReason::SyncFailed {
+            detail: String::new(),
         },
         AgentReason::Partial {
             missing: String::new(),
@@ -90,6 +95,8 @@ fn every_agent_action_has_copy() {
     for a in [
         AgentAction::Download,
         AgentAction::Repair,
+        AgentAction::Update,
+        AgentAction::UpdateAdmin,
         AgentAction::Verify,
         AgentAction::Open,
         AgentAction::Add,
@@ -105,8 +112,39 @@ fn every_fleet_headline_has_copy() {
         FleetHeadline::NeedsAttention,
         FleetHeadline::NotWorking,
         FleetHeadline::Checking,
+        FleetHeadline::NoneInstalled,
         FleetHeadline::NoneEnabled,
     ] {
         assert_key("agents-fleet", &code_of(&h));
     }
+}
+
+// The stale message names the drifted keys; a selector arm that drops
+// `$keys` would hide which settings are behind.
+#[test]
+fn every_stale_cause_names_its_keys() {
+    let block: Vec<&str> = FTL
+        .lines()
+        .skip_while(|l| !l.starts_with("agent-reason-stale ="))
+        .take_while(|l| !l.trim().starts_with('}'))
+        .collect();
+    for cause in [
+        StaleReason::LoopbackSecret,
+        StaleReason::ProxyPort,
+        StaleReason::ManagedServers,
+        StaleReason::ModelList,
+    ] {
+        let tag = format!("[{}]", code_of(&cause));
+        let arm = block
+            .iter()
+            .find(|l| l.contains(&tag))
+            .unwrap_or_else(|| panic!("no `{tag}` arm in agent-reason-stale"));
+        assert!(arm.contains("{ $keys }"), "{tag} arm omits the keys");
+    }
+    assert!(
+        block
+            .iter()
+            .any(|l| l.contains("*[other]") && l.contains("{ $keys }")),
+        "the default arm (settings) omits the keys"
+    );
 }

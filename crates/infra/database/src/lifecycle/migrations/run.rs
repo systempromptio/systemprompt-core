@@ -128,7 +128,8 @@ impl MigrationService<'_> {
         ext_id: &ExtensionId,
         migration: &Migration,
     ) -> Result<(), LoaderError> {
-        let timeout = budget::statement_timeout(migration);
+        let timeout =
+            budget::statement_timeout(migration, budget::live_rows(self.db, migration).await);
         self.set_timeouts(ext_id, &budget::timeout_statements(timeout, false))
             .await
     }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- The authorization-code and refresh grants refuse a service account (`OauthError::ServiceAccountInteractive`, `access_denied`).
+
 ## [0.63.0] - 2026-10-07
 
 ### Added

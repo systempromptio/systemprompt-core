@@ -233,10 +233,13 @@ impl SystempromptClient {
         let request = serde_json::json!({
             "jsonrpc": "2.0",
             "method": methods::SEND_MESSAGE,
-            "params": { "message": message },
+            "params": {
+                "message": message,
+                "configuration": { "returnImmediately": false }
+            },
             "id": context_id.as_ref()
         });
-        http::post(&self.client, &url, &request, self.token.as_ref()).await
+        http::post_a2a(&self.client, &url, &request, self.token.as_ref()).await
     }
 
     fn limited_url(&self, path: &str, limit: Option<u32>) -> String {

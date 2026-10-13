@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -19,8 +19,8 @@ use systemprompt_manifest::ServicesConfig;
 use systemprompt_traits::{Phase, StartupEvent, startup_channel};
 use uuid::Uuid;
 
-use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state};
-use systemprompt_test_fixtures::test_db_pool;
+use super::super::a2a_server::a2a_helpers::{agent_config, make_agent_state_for};
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 // Why: `services.pid` is an `INTEGER` column, so a dead pid must fit i32 while
 // still lying far above any pid_max a kernel will hand out.
@@ -35,11 +35,8 @@ fn app_paths() -> Arc<AppPaths> {
     Arc::new(bootstrap.app_paths.clone())
 }
 
-fn db_service(pool: &systemprompt_database::DbPool) -> AgentDatabaseService {
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+fn db_service(pool: &systemprompt_database::DbPool, instance: &InstanceId) -> AgentDatabaseService {
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::new(repo).expect("db service")
 }
 
@@ -58,9 +55,10 @@ fn registry_from(entries: &[(&AgentName, &AgentName, u16)]) -> AgentRegistry {
 
 async fn make_orchestrator(
     pool: &systemprompt_database::DbPool,
+    instance: &InstanceId,
     entries: &[(&AgentName, &AgentName, u16)],
 ) -> AgentOrchestrator {
-    let agent_state = make_agent_state(pool);
+    let agent_state = make_agent_state_for(pool, instance);
     let mut orchestrator = AgentOrchestrator::new(agent_state, app_paths(), None)
         .await
         .expect("orchestrator");
@@ -71,12 +69,14 @@ async fn make_orchestrator(
 #[tokio::test]
 async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_a");
     let b = unique_name("recon_b");
-    let orchestrator = make_orchestrator(&pool, &[(&a, &a, 39470), (&b, &b, 39471)]).await;
+    let orchestrator =
+        make_orchestrator(&pool, &instance, &[(&a, &a, 39470), (&b, &b, 39471)]).await;
 
-    let db = db_service(&pool);
+    let db = db_service(&pool, &instance);
     db.register_agent(&a, DEAD_PID, 39470).await.expect("reg a");
     db.register_agent(&b, DEAD_PID, 39471).await.expect("reg b");
 
@@ -118,10 +118,11 @@ async fn reconcile_reports_the_agent_phase_and_the_registry_totals() {
 #[tokio::test]
 async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let key = unique_name("recon_key");
     let declared = unique_name("recon_declared");
-    let orchestrator = make_orchestrator(&pool, &[(&key, &declared, 39472)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&key, &declared, 39472)]).await;
 
     let info = orchestrator.get_detailed_status().await.expect("status");
     let entry = info
@@ -136,12 +137,14 @@ async fn detailed_status_falls_back_when_the_registry_key_differs_from_the_name(
 #[tokio::test]
 async fn disable_all_leaves_every_registry_agent_failed() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let a = unique_name("recon_dis_a");
     let b = unique_name("recon_dis_b");
-    let orchestrator = make_orchestrator(&pool, &[(&a, &a, 39473), (&b, &b, 39474)]).await;
+    let orchestrator =
+        make_orchestrator(&pool, &instance, &[(&a, &a, 39473), (&b, &b, 39474)]).await;
 
-    let db = db_service(&pool);
+    let db = db_service(&pool, &instance);
     db.register_agent(&a, DEAD_PID, 39473).await.expect("reg a");
     db.register_agent(&b, DEAD_PID, 39474).await.expect("reg b");
 
@@ -163,11 +166,12 @@ async fn disable_all_leaves_every_registry_agent_failed() {
 #[tokio::test]
 async fn health_check_reports_a_dead_pid_as_not_running() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let name = unique_name("recon_health");
-    let orchestrator = make_orchestrator(&pool, &[(&name, &name, 39475)]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[(&name, &name, 39475)]).await;
 
-    let db = db_service(&pool);
+    let db = db_service(&pool, &instance);
     db.register_agent(&name, DEAD_PID, 39475)
         .await
         .expect("register");
@@ -193,8 +197,9 @@ async fn health_check_reports_a_dead_pid_as_not_running() {
 #[tokio::test]
 async fn enable_agent_for_an_unregistered_name_is_rejected() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
-    let orchestrator = make_orchestrator(&pool, &[]).await;
+    let orchestrator = make_orchestrator(&pool, &instance, &[]).await;
 
     let err = orchestrator
         .enable_agent(&AgentName::new("__no_such_agent"), None)

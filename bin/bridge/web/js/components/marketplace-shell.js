@@ -3,6 +3,7 @@ import { t } from "/assets/js/i18n.js";
 import { shortcut } from "/assets/js/utils/rail-tabs.js";
 import { MKT_KINDS } from "/assets/js/services/marketplace-service.js";
 import { MKT_KIND, MKT_KIND_L10N } from "/assets/js/utils/marketplace-kinds.js";
+import { overallTarget } from "/assets/js/utils/verdict.js";
 
 function diffSummary(diff) {
   if (!diff) { return ""; }
@@ -31,7 +32,7 @@ function listingSummary(listing) {
 // its own words; every other code falls through to the summary check.
 const OVERALL_BADGE = {
   "degraded": { key: "marketplace-badge-degraded", fallback: "synced with failures", cls: "sp-badge--warn" },
-  "needs-approval": { key: "marketplace-badge-needs-approval", fallback: "Claude Desktop needs approval", cls: "sp-badge--warn" },
+  "needs-approval": { key: "marketplace-badge-needs-approval", fallback: "an agent needs administrator approval", cls: "sp-badge--warn" },
 };
 
 function badgeView(snap) {
@@ -39,7 +40,7 @@ function badgeView(snap) {
   if (snap.sync_in_flight) { return { text: t("marketplace-badge-syncing") || "syncing", cls: "sp-badge--warn" }; }
   const outcome = snap.overall && OVERALL_BADGE[snap.overall.code];
   if (outcome) {
-    return { text: t(outcome.key) || outcome.fallback, cls: outcome.cls };
+    return { text: t(outcome.key) || outcome.fallback, cls: outcome.cls, target: overallTarget(snap.overall.code) };
   }
   if (snap.last_sync_summary) { return { text: t("marketplace-badge-synced") || "synced", cls: "sp-badge--ok" }; }
   return { text: t("marketplace-badge-never") || "never synced", cls: "sp-badge--muted" };
@@ -47,10 +48,13 @@ function badgeView(snap) {
 
 export function renderMarketplaceHeader(snap) {
   const badge = badgeView(snap);
+  const badgeEl = badge.target
+    ? `<button type="button" class="sp-badge ${badge.cls} sp-mkt-badge__link" data-action="open-overall" data-target="${escapeHtml(badge.target)}">${escapeHtml(badge.text)}</button>`
+    : `<span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>`;
   return `
     <header class="sp-tab__header">
       <h1 data-l10n-id="marketplace-heading">Marketplace</h1>
-      <span class="sp-badge ${badge.cls}">${escapeHtml(badge.text)}</span>
+      ${badgeEl}
     </header>`;
 }
 

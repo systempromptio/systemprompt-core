@@ -58,11 +58,9 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {}
     oauth: {required: false, scopes: [], audience: a2a}
 mcp_servers: {}
@@ -88,11 +86,9 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata: {{}}
     oauth: {{required: false, scopes: [], audience: a2a}}
 mcp_servers: {{}}
@@ -221,11 +217,9 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: "!include prompt.txt"
     oauth: {required: false, scopes: [], audience: a2a}
@@ -270,11 +264,9 @@ agents:
       capabilities:
         streaming: true
         pushNotifications: false
-        stateTransitionHistory: false
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
       skills: []
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: "!include nonexistent_prompt.txt"
     oauth: {required: false, scopes: [], audience: a2a}

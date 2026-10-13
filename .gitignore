@@ -114,6 +114,9 @@ scripts/*
 # ...except the committed shard runner, the single source of truth shared by CI
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
+!scripts/check-gates.sh
+!scripts/check-gates.txt
+!scripts/publish-crates.sh
 !scripts/schema-ladder.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
@@ -192,6 +195,7 @@ rustc-ice-*.txt
 !scripts/check-fail-open.sh
 !scripts/lint-silent-skips.sh
 !scripts/lint-async-trait.sh
+!scripts/lint-shared-test-ids.sh
 !scripts/lint-json-value.sh
 !scripts/lint-tracing-messages.sh
 !scripts/lint-table-ownership.sh
@@ -201,5 +205,11 @@ rustc-ice-*.txt
 scripts/rust-contracts/target/
 
 !scripts/release-proof.py
+# ...and the release bump script, its pin sync, and the opt-in pre-push hook.
+!scripts/release.sh
+!scripts/sync-workspace-deps.sh
+!scripts/pre-push.sh
 !scripts/test-release-proof.py
 !scripts/check-offline.sh
+!scripts/lint-ledger-reads.sh
+!scripts/ledger-reads-baseline.txt

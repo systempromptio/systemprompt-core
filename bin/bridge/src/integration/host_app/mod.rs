@@ -13,12 +13,14 @@ use systemprompt_models::providers::ApiSurface;
 mod error;
 mod probe;
 
+pub use crate::install::profile_inputs::{
+    ModelProtocolOverrides, ProfileFacts, ProfileFactsError, ProfileGenInputs,
+};
 pub use error::HostAppError;
-pub use probe::ProbeEnv;
+pub use probe::{DesiredError, ProbeEnv};
 
-use crate::ids::HostToken;
 pub use crate::integration::profile_state::{
-    AppInstallState, Freshness, ProfileCode, ProfileProbe, ProfileState, StaleReason,
+    AppInstallState, ProfileCode, ProfileProbe, ProfileState, StaleReason,
 };
 use crate::sysproc::SysprocError;
 
@@ -49,31 +51,6 @@ impl HostProcesses {
     }
 }
 
-
-/// Inputs a host renders its profile from.
-///
-/// `default_model` is the gateway's configured default only when it is one
-/// of `models`. `host_token` is the [`crate::ids::HostToken`] derived for
-/// this host from the loopback secret; no renderer ever sees the secret
-/// itself, so every provisioned host presents a credential the proxy can
-/// attribute to it.
-#[derive(Debug, Clone)]
-pub struct ProfileGenInputs {
-    pub gateway_base_url: String,
-    pub host_token: HostToken,
-    pub models: Vec<String>,
-    pub model_limits: BTreeMap<String, systemprompt_models::bridge::profile::AdvertisedLimits>,
-    pub default_model: Option<String>,
-    pub organization_uuid: Option<String>,
-    pub headers: BTreeMap<String, String>,
-    pub mcp_servers: Option<Vec<crate::install::mdm::policy::McpServerEntry>>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct HostConfigSchema {
-    pub required_keys: &'static [&'static str],
-    pub display_keys: &'static [&'static str],
-}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HostAppSnapshot {
@@ -162,8 +139,14 @@ impl ProfileInstalled {
 pub trait HostApp: Send + Sync + 'static {
     fn id(&self) -> HostKind;
     fn display_name(&self) -> &'static str;
-    fn config_schema(&self) -> &'static HostConfigSchema;
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot;
+
+    fn desired(
+        &self,
+        inputs: &ProfileGenInputs,
+    ) -> Result<crate::drift::DesiredProfile, HostAppError>;
+
+    fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState;
     fn generate_profile(&self, inputs: &ProfileGenInputs)
     -> Result<GeneratedProfile, HostAppError>;
     fn install_profile(&self, path: &str) -> Result<ProfileInstalled, HostAppError>;
@@ -222,6 +205,13 @@ pub trait HostApp: Send + Sync + 'static {
     // (Claude Desktop's policy) needs the registry refreshed before a
     // generate; every other host reaches them through the synced org-plugins.
     fn profile_carries_managed_servers(&self) -> bool {
+        false
+    }
+
+    // Why: a failed sync step whose effect the probe compares is superseded
+    // by the probe — a later repair that wrote it shows as current, and one
+    // still missing shows as drift — so it is not reported a second time.
+    fn probe_observes(&self, _emitter: &str, _needs_elevation: bool) -> bool {
         false
     }
 }

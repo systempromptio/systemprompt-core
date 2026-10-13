@@ -215,6 +215,7 @@ mod all_jobs_inventory {
         // missing here is a job the scheduler and `admin config validate`
         // would reject as unknown the moment a config names it.
         let expected = [
+            "ai_request_tool_flag_rollup",
             "backfill_session_geo",
             "behavioral_analysis",
             "cleanup_empty_contexts",

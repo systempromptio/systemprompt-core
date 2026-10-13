@@ -35,6 +35,7 @@ members = [
     # Application layer
     "crates/app/runtime",
     "crates/app/scheduler",
+    "crates/app/agent-runs",
     "crates/app/generator",
     "crates/app/oauth-issuance",
     "crates/app/gateway",
@@ -60,7 +61,7 @@ edition = "2024"
 rust-version = "1.96"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
-version = "0.65.0"
+version = "0.66.0"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
 documentation = "https://systemprompt.io/documentation"
@@ -187,7 +188,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.26", features = ["v4", "v5", "serde"] }
+uuid = { version = "1.28", features = ["v4", "v5", "serde"] }
 validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
 globset = { version = "0.4", default-features = false }
@@ -195,7 +196,8 @@ indexmap = { version = "2.14", features = ["serde"] }
 
 # HTTP/API (for API crate)
 axum = "0.8"
-reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "stream", "rustls-no-provider", "query", "form"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 http = "1.5"
 tower-http = { version = "0.7", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
@@ -204,10 +206,10 @@ tower_governor = { version = "0.8", default-features = false, features = ["axum"
 # Metrics / observability
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
-# OTLP export wire types (entry/api). Pinned to the opentelemetry 0.32 / tonic
-# 0.14 stack in use; bump these together when the wider otel stack moves.
+# OTLP export wire types (entry/api). opentelemetry-proto 0.33 needs prost 0.14
+# and pulls tonic 0.14 only via gen-tonic-messages; bump these together.
 prost = "0.14"
-opentelemetry-proto = { version = "0.32", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
+opentelemetry-proto = { version = "0.33", default-features = false, features = ["gen-tonic-messages", "trace", "logs", "metrics"] }
 
 # CLI (for system crate)
 clap = { version = "4.6", features = ["derive", "env"] }
@@ -246,27 +248,27 @@ schemars = { version = "1.2", features = ["derive", "chrono04"] }
 url = "2.5"
 urlencoding = "2.1"
 async-stream = "0.3"
-reqwest-eventsource = "0.6"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = { version = "0.55", default-features = false }
+comrak = { version = "0.56", default-features = false }
 handlebars = "6"
 # Static-site generation (app/generator)
 quick-xml = { version = "0.42", features = ["serialize"] }
 
 # MCP additional dependencies
+# Why: held at 0.2 because rmcp 3.5.1 requires sse-stream ^0.2.4; 0.3 would duplicate.
 sse-stream = "0.2.6"
 # Lean by default = rmcp's own default features (`base64`, `macros`, `server`),
 # which give the `rmcp::model` types + their `schemars`/JsonSchema impls but pull
-# NO HTTP stack. In rmcp >=1.7 a *second* reqwest (0.13, alongside the workspace's
-# 0.12) is dragged in only by the `auth` and `transport-streamable-http-client-reqwest`
-# features. We do NOT enable either: the crates that call MCP over HTTP (domain/mcp,
-# entry/cli) take only the `transport-streamable-http-client` *trait* and implement
-# it with their own reqwest-0.12 `HttpClientWithContext`, so the whole tree resolves
-# to a single reqwest. Every other dependent (notably the desktop bridge) only uses
-# `rmcp::model` via systemprompt-models.
-rmcp = { version = "=3.3.0" }
+# NO HTTP stack. We do NOT enable `auth` or `transport-streamable-http-client-reqwest`:
+# the crates that call MCP over HTTP (domain/mcp, entry/cli) take only the
+# `transport-streamable-http-client` *trait* and implement it with our own
+# `HttpClientWithContext`, so every MCP request carries the context headers, passes
+# the SSRF guard (`validate_outbound_url`) and is held to our body limits. Every
+# other dependent (notably the desktop bridge) only uses `rmcp::model` via
+# systemprompt-models.
+rmcp = { version = "=3.5.1" }
 
 # Security
 rand = "0.10"
@@ -296,42 +298,43 @@ serde_jcs = "0.2"
 
 
 # Internal workspace crates (use workspace = true in dependencies)
-systemprompt-identifiers = { path = "crates/shared/identifiers", version = "0.65.0" }
-systemprompt-provider-contracts = { path = "crates/shared/provider-contracts", version = "0.65.0" }
-systemprompt-traits = { path = "crates/shared/traits", version = "0.65.0" }
-systemprompt-extension = { path = "crates/shared/extension", version = "0.65.0" }
-systemprompt-models = { path = "crates/shared/models", version = "0.65.0" }
-systemprompt-wire = { path = "crates/shared/wire", version = "0.65.0" }
-systemprompt-manifest = { path = "crates/shared/manifest", version = "0.65.0" }
-systemprompt-client = { path = "crates/shared/client", version = "0.65.0" }
-systemprompt-template-provider = { path = "crates/shared/template-provider", version = "0.65.0" }
-systemprompt-database = { path = "crates/infra/database", version = "0.65.0" }
-systemprompt-logging = { path = "crates/infra/logging", version = "0.65.0" }
-systemprompt-config = { path = "crates/infra/config", version = "0.65.0" }
-systemprompt-events = { path = "crates/infra/events", version = "0.65.0" }
-systemprompt-storage = { path = "crates/infra/storage", version = "0.65.0" }
-systemprompt-security = { path = "crates/infra/security", version = "0.65.0" }
-systemprompt-cloud = { path = "crates/infra/cloud", version = "0.65.0" }
-systemprompt-loader = { path = "crates/infra/loader", version = "0.65.0" }
-systemprompt-users = { path = "crates/domain/users", version = "0.65.0" }
-systemprompt-oauth = { path = "crates/domain/oauth", version = "0.65.0" }
-systemprompt-files = { path = "crates/domain/files", version = "0.65.0" }
-systemprompt-analytics = { path = "crates/domain/analytics", version = "0.65.0" }
-systemprompt-content = { path = "crates/domain/content", version = "0.65.0" }
-systemprompt-mcp = { path = "crates/domain/mcp", version = "0.65.0" }
-systemprompt-ai = { path = "crates/domain/ai", version = "0.65.0" }
-systemprompt-agent = { path = "crates/domain/agent", version = "0.65.0" }
-systemprompt-templates = { path = "crates/domain/templates", version = "0.65.0" }
-systemprompt-marketplace = { path = "crates/domain/marketplace", version = "0.65.0" }
-systemprompt-slack = { path = "crates/domain/slack", version = "0.65.0" }
-systemprompt-teams = { path = "crates/domain/teams", version = "0.65.0" }
-systemprompt-runtime = { path = "crates/app/runtime", version = "0.65.0" }
-systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.65.0" }
-systemprompt-generator = { path = "crates/app/generator", version = "0.65.0" }
-systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0.65.0" }
-systemprompt-gateway = { path = "crates/app/gateway", version = "0.65.0" }
-systemprompt-api = { path = "crates/entry/api", version = "0.65.0" }
-systemprompt-cli = { path = "crates/entry/cli", version = "0.65.0" }
+systemprompt-identifiers = { path = "crates/shared/identifiers", version = "0.66.0" }
+systemprompt-provider-contracts = { path = "crates/shared/provider-contracts", version = "0.66.0" }
+systemprompt-traits = { path = "crates/shared/traits", version = "0.66.0" }
+systemprompt-extension = { path = "crates/shared/extension", version = "0.66.0" }
+systemprompt-models = { path = "crates/shared/models", version = "0.66.0" }
+systemprompt-wire = { path = "crates/shared/wire", version = "0.66.0" }
+systemprompt-manifest = { path = "crates/shared/manifest", version = "0.66.0" }
+systemprompt-client = { path = "crates/shared/client", version = "0.66.0" }
+systemprompt-template-provider = { path = "crates/shared/template-provider", version = "0.66.0" }
+systemprompt-database = { path = "crates/infra/database", version = "0.66.0" }
+systemprompt-logging = { path = "crates/infra/logging", version = "0.66.0" }
+systemprompt-config = { path = "crates/infra/config", version = "0.66.0" }
+systemprompt-events = { path = "crates/infra/events", version = "0.66.0" }
+systemprompt-storage = { path = "crates/infra/storage", version = "0.66.0" }
+systemprompt-security = { path = "crates/infra/security", version = "0.66.0" }
+systemprompt-cloud = { path = "crates/infra/cloud", version = "0.66.0" }
+systemprompt-loader = { path = "crates/infra/loader", version = "0.66.0" }
+systemprompt-users = { path = "crates/domain/users", version = "0.66.0" }
+systemprompt-oauth = { path = "crates/domain/oauth", version = "0.66.0" }
+systemprompt-files = { path = "crates/domain/files", version = "0.66.0" }
+systemprompt-analytics = { path = "crates/domain/analytics", version = "0.66.0" }
+systemprompt-content = { path = "crates/domain/content", version = "0.66.0" }
+systemprompt-mcp = { path = "crates/domain/mcp", version = "0.66.0" }
+systemprompt-ai = { path = "crates/domain/ai", version = "0.66.0" }
+systemprompt-agent = { path = "crates/domain/agent", version = "0.66.0" }
+systemprompt-templates = { path = "crates/domain/templates", version = "0.66.0" }
+systemprompt-marketplace = { path = "crates/domain/marketplace", version = "0.66.0" }
+systemprompt-slack = { path = "crates/domain/slack", version = "0.66.0" }
+systemprompt-teams = { path = "crates/domain/teams", version = "0.66.0" }
+systemprompt-runtime = { path = "crates/app/runtime", version = "0.66.0" }
+systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.66.0" }
+systemprompt-agent-runs = { path = "crates/app/agent-runs", version = "0.66.0" }
+systemprompt-generator = { path = "crates/app/generator", version = "0.66.0" }
+systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0.66.0" }
+systemprompt-gateway = { path = "crates/app/gateway", version = "0.66.0" }
+systemprompt-api = { path = "crates/entry/api", version = "0.66.0" }
+systemprompt-cli = { path = "crates/entry/cli", version = "0.66.0" }
 
 [profile.release]
 # Use thin LTO instead of full LTO to preserve inventory crate registrations.

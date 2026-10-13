@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_agent::models::a2a::jsonrpc::{JSON_RPC_VERSION_2_0, Request, RequestId};
-use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
+use systemprompt_agent::models::a2a::protocol::GetTaskParams;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::a2a::{Task, methods};
 
@@ -65,7 +65,8 @@ pub(super) async fn execute(args: TaskArgs, ctx: &CommandContext) -> Result<Comm
     let request = Request {
         jsonrpc: JSON_RPC_VERSION_2_0.to_owned(),
         method: methods::GET_TASK.to_owned(),
-        params: TaskQueryParams {
+        params: GetTaskParams {
+            tenant: None,
             id: TaskId::new(task_id.clone()),
             history_length: args.history_length,
         },

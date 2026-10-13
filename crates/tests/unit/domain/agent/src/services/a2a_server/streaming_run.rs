@@ -11,7 +11,7 @@ use std::time::Duration;
 use futures::StreamExt;
 use systemprompt_agent::AgentError;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
-use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState, TextPart};
+use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::streaming::{
     CreateSseStreamParams, create_sse_stream_with_registry,
 };
@@ -46,9 +46,7 @@ fn registry_with(agent_name: &str) -> AgentRegistry {
 fn message(ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
         role: MessageRole::User,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text.to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: ctx.clone(),
@@ -144,11 +142,11 @@ async fn run_stream_with_injected_registry_streams_text_and_completes_task() {
     assert_eq!(history[1].context_id, ctx);
     assert!(matches!(
         history[0].parts.as_slice(),
-        [Part::Text(TextPart { text })] if text == "run"
+        [part] if part.as_text() == Some("run")
     ));
     assert!(matches!(
         history[1].parts.as_slice(),
-        [Part::Text(TextPart { text })] if text == "stream done"
+        [part] if part.as_text() == Some("stream done")
     ));
     assert!(stored.status.message.is_none());
 }

@@ -4,6 +4,9 @@ import { bridge } from "/assets/js/bridge.js";
 import { t } from "/assets/js/i18n.js";
 import { announce } from "/assets/js/utils/announce.js";
 import { runAction } from "/assets/js/utils/action.js";
+import { activateRailTab } from "/assets/js/utils/rail-tabs.js";
+import { overallTarget } from "/assets/js/utils/verdict.js";
+
 
 // `overall` is the bridge's one-dot summary; the footer draws the same one.
 function classify(snap) {
@@ -32,6 +35,7 @@ export class SpSyncPill extends SpElement {
     this.snapshot = null;
     this.progress = null;
     this.registerAction("cancel-sync", (_, e) => this._onCancel(e));
+    this.registerAction("open-overall", (el) => activateRailTab(el.dataset.target));
   }
 
   onConnect() {
@@ -73,9 +77,13 @@ export class SpSyncPill extends SpElement {
     const step = detail
       ? `<span class="sp-sync-pill__step">${escapeHtml(detail)}</span>`
       : "";
+    const target = overallTarget((snap.overall || {}).code);
+    const label = target
+      ? `<button type="button" class="sp-sync-pill__label sp-sync-pill__link" data-action="open-overall" data-target="${escapeHtml(target)}">${escapeHtml(v.text)}</button>`
+      : `<span class="sp-sync-pill__label">${escapeHtml(v.text)}</span>`;
     return `
       <span class="sp-sync-pill__dot" aria-hidden="true"></span>
-      <span class="sp-sync-pill__label">${escapeHtml(v.text)}</span>
+      ${label}
       ${step}
       ${cancel}
     `;

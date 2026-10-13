@@ -1,21 +1,18 @@
 use std::collections::BTreeMap;
 
+use systemprompt_bridge::drift::{DesiredProfile, EntryRole};
 use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostConfigSchema, ProbeEnv, ProfileGenInputs, ProfileInstalled,
+    AppInstallState, ConfigFormat, DesiredError, GeneratedProfile, HostApp, HostAppError,
+    HostAppKind, HostAppSnapshot, ProbeEnv, ProfileFactsError, ProfileGenInputs, ProfileInstalled,
     ProfileRemoval, ProfileState,
 };
-use systemprompt_bridge::proxy::LoopbackEndpoint;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::providers::ApiSurface;
 
-struct BareHost;
+use crate::support::{env_with, facts, unreadable_env};
 
-static BARE_SCHEMA: HostConfigSchema = HostConfigSchema {
-    required_keys: &["alpha"],
-    display_keys: &["alpha", "beta"],
-};
+struct BareHost;
 
 impl HostApp for BareHost {
     fn id(&self) -> HostKind {
@@ -24,10 +21,6 @@ impl HostApp for BareHost {
 
     fn display_name(&self) -> &'static str {
         "Bare Host"
-    }
-
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &BARE_SCHEMA
     }
 
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
@@ -44,6 +37,23 @@ impl HostApp for BareHost {
             probed_at_unix: u64::from(env.proxy_port),
             update_needs_approval: false,
         }
+    }
+
+    fn desired(&self, inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        let mut desired = DesiredProfile::new();
+        desired.push(
+            "endpoint",
+            inputs.gateway_base_url.clone(),
+            EntryRole::Endpoint,
+        );
+        Ok(desired)
+    }
+
+    fn app_installed(
+        &self,
+        _start_menu: &systemprompt_bridge::probe_cache::StartMenuCache,
+    ) -> AppInstallState {
+        AppInstallState::Unknown
     }
 
     fn generate_profile(
@@ -125,21 +135,38 @@ fn the_default_removal_asks_the_user_rather_than_claiming_a_removal() {
 }
 
 #[test]
-fn probe_env_carries_the_port_and_secret_fingerprint_of_the_endpoint_it_was_built_from() {
-    let endpoint = LoopbackEndpoint::new(51999, None);
-    let env = ProbeEnv::new(&endpoint, std::sync::Arc::default());
-    assert_eq!(env.proxy_port, 51999);
-    assert_eq!(
-        env.loopback_secret_fingerprint(),
-        endpoint.secret_fingerprint(),
-        "the probe env fingerprint is the endpoint's, not a fresh read"
-    );
+fn the_probe_is_handed_the_injected_port_not_process_state() {
+    let mut env: ProbeEnv = env_with(facts());
+    env.proxy_port = 51999;
     let snapshot = BareHost.probe(&env);
-    assert_eq!(
-        snapshot.probed_at_unix, 51999,
-        "the probe was handed the injected port, not process state"
-    );
+    assert_eq!(snapshot.probed_at_unix, 51999);
     assert_eq!(snapshot.app_installed, AppInstallState::Unknown);
+}
+
+#[test]
+fn a_hosts_desired_settings_are_rendered_from_the_shared_facts() {
+    let desired = env_with(facts())
+        .desired_for(&BareHost)
+        .expect("facts are readable");
+    assert_eq!(desired.entries().len(), 1);
+    assert_eq!(desired.entries()[0].value, facts().gateway_base_url);
+}
+
+#[test]
+fn unreadable_facts_make_every_hosts_desired_settings_an_error() {
+    let env = unreadable_env(ProfileFactsError::LoopbackSecret(std::io::Error::other(
+        "no secret",
+    )));
+    assert!(matches!(
+        env.desired_for(&BareHost),
+        Err(DesiredError::Facts(_))
+    ));
+}
+
+#[test]
+fn by_default_no_sync_failure_is_observed_by_the_probe() {
+    assert!(!BareHost.probe_observes("hermes", true));
+    assert!(!BareHost.probe_observes("hermes", false));
 }
 
 #[test]

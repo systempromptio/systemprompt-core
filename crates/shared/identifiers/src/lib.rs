@@ -62,6 +62,7 @@ pub use db_value::{DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_date
 
 mod actor;
 mod agent;
+mod agent_run;
 mod ai;
 mod auth;
 mod bridge;
@@ -113,6 +114,7 @@ pub mod macros;
 
 pub use actor::{Actor, ActorKind, ActorKindTag};
 pub use agent::{AgentId, AgentName, ExternalAgentId};
+pub use agent_run::{AgentRunId, HostSessionId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,
 };

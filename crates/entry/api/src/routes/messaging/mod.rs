@@ -3,7 +3,7 @@
 //! Slack and Teams differ only at their edges — request verification, payload
 //! shape, and reply rendering. Everything between (identity, authorization,
 //! deterministic conversation context, per-user A2A token minting, the blocking
-//! `message/send` through the proxy, and reply extraction) is identical and
+//! `SendMessage` through the proxy, and reply extraction) is identical and
 //! lives here once. A per-platform route normalizes its wire payload into a
 //! [`MessagingInbound`] and calls [`dispatch_messaging`]; the returned
 //! [`DispatchOutcome`] is rendered back into the platform's UI by the route.

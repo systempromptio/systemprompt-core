@@ -1,6 +1,11 @@
 //! Canonical HTTP header name constants used throughout the platform for
 //! propagating trace, session, and authorization context across services.
 //!
+//! `CALLER_PURPOSE` is the caller purpose sent to the credential broker, set
+//! only from a credential the issuer bound it to; an inbound copy is stripped
+//! at the API edge. `MCP_SERVER` names the MCP server a credential-broker
+//! request is for.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -25,3 +30,5 @@ pub const USER_ROLES: &str = "x-user-roles";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
+pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
+pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";

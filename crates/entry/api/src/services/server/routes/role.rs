@@ -24,6 +24,7 @@ pub enum RouteGroup {
     Managed,
     Gateway,
     Static,
+    Probes,
 }
 
 const ALL_GROUPS: &[RouteGroup] = &[
@@ -63,11 +64,14 @@ const ADMIN_GROUPS: &[RouteGroup] = &[
     RouteGroup::Static,
 ];
 
+const RUNNER_GROUPS: &[RouteGroup] = &[RouteGroup::Probes];
+
 pub const fn route_groups(role: NodeRole) -> &'static [RouteGroup] {
     match role {
         NodeRole::All => ALL_GROUPS,
         NodeRole::Gateway => GATEWAY_GROUPS,
         NodeRole::Admin => ADMIN_GROUPS,
+        NodeRole::Runner => RUNNER_GROUPS,
     }
 }
 
@@ -77,6 +81,7 @@ pub struct LifecyclePlan {
     pub reconcile_mcp: bool,
     pub reconcile_agents: bool,
     pub scheduler: bool,
+    pub runner_services: bool,
 }
 
 pub const fn lifecycle_plan(role: NodeRole) -> LifecyclePlan {
@@ -85,5 +90,6 @@ pub const fn lifecycle_plan(role: NodeRole) -> LifecyclePlan {
         reconcile_mcp: workers,
         reconcile_agents: workers,
         scheduler: workers,
+        runner_services: role.runs_runner_services(),
     }
 }

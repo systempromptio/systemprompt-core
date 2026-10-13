@@ -15,7 +15,9 @@ function successLine(kind, host, result) {
       || `${name} re-configured — wrote ${result || ""}. Restart ${name} to pick it up.`;
     case "update":
     case "update-admin": return t("toast-agent-updated", { name, path: result || "" })
-      || `${name} updated — wrote ${result || ""}. Quit and relaunch ${name} to load the new connectors.`;
+      || `${name} updated — wrote ${result || ""}. Quit and relaunch ${name} to load the new settings.`;
+    case "enrol":  return t("toast-agent-enrolled", { name })
+      || `${name} now routes through the gateway. Restart ${name} to pick it up.`;
     case "verify": return t("toast-agent-verified", { name }) || `${name} re-checked.`;
     default:       return "";
   }

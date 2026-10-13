@@ -33,8 +33,7 @@ fn test_agent(name: &str) -> AgentConfig {
             default_input_modes: vec!["text/plain".to_string()],
             default_output_modes: vec!["text/plain".to_string()],
             security_schemes: None,
-            security: None,
-            supports_authenticated_extended_card: false,
+            security_requirements: None,
         },
         metadata: AgentMetadataConfig::default(),
         oauth: OAuthConfig::default(),
@@ -75,7 +74,7 @@ fn delete_agent_strips_quoted_include_line() {
     let agent = test_agent("quoted");
     let agent_file = agents_dir.join("quoted.yaml");
     let yaml = format!(
-        "agents:\n  quoted:\n    name: quoted\n    port: 4000\n    endpoint: http://localhost:4000/quoted\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: {}\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {{streaming: true, pushNotifications: false, stateTransitionHistory: false}}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {{}}\n",
+        "agents:\n  quoted:\n    name: quoted\n    port: 4000\n    endpoint: http://localhost:4000/quoted\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: {}\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {{streaming: true, pushNotifications: false}}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n    metadata: {{}}\n",
         agent.card.display_name
     );
     std::fs::write(&agent_file, yaml).expect("write agent");
@@ -111,14 +110,14 @@ fn find_agent_file_falls_back_to_scan_when_expected_file_wrong_agent() {
     std::fs::write(
         agents_dir.join("target.yaml"),
         {
-            "agents:\n  target:\n    name: target\n    port: 4000\n    endpoint: http://localhost:4000/target\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: T\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n"
+            "agents:\n  target:\n    name: target\n    port: 4000\n    endpoint: http://localhost:4000/target\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: T\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n    metadata: {}\n"
         },
     )
     .expect("write target");
 
     std::fs::write(
         agents_dir.join("aaa-decoy.yaml"),
-        "agents:\n  decoy:\n    name: decoy\n    port: 4001\n    endpoint: http://localhost:4001/decoy\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: D\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n",
+        "agents:\n  decoy:\n    name: decoy\n    port: 4001\n    endpoint: http://localhost:4001/decoy\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: D\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n    metadata: {}\n",
     )
     .expect("write decoy");
 
@@ -157,7 +156,7 @@ fn delete_agent_without_config_file_errors() {
     let agents_dir = temp.path().join("agents");
     std::fs::create_dir_all(&agents_dir).expect("agents dir");
 
-    let yaml = "agents:\n  orphan:\n    name: orphan\n    port: 4000\n    endpoint: http://localhost:4000/orphan\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: O\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n";
+    let yaml = "agents:\n  orphan:\n    name: orphan\n    port: 4000\n    endpoint: http://localhost:4000/orphan\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: O\n      description: d\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n    metadata: {}\n";
     std::fs::write(agents_dir.join("orphan.yaml"), yaml).expect("write agent");
 
     let err = ConfigWriter::delete_agent(&AgentName::new("orphan"), temp.path())
@@ -186,7 +185,7 @@ fn update_agent_writes_through_content_scan_when_filename_differs() {
     let agents_dir = temp.path().join("agents");
     std::fs::create_dir_all(&agents_dir).expect("agents dir");
 
-    let yaml = "agents:\n  scanned:\n    name: scanned\n    port: 4000\n    endpoint: http://localhost:4000/scanned\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: S\n      description: original description\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false, stateTransitionHistory: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n      supportsAuthenticatedExtendedCard: false\n    metadata: {}\n";
+    let yaml = "agents:\n  scanned:\n    name: scanned\n    port: 4000\n    endpoint: http://localhost:4000/scanned\n    enabled: true\n    card:\n      protocolVersion: \"0.2.3\"\n      displayName: S\n      description: original description\n      version: 1.0.0\n      preferredTransport: JSONRPC\n      capabilities: {streaming: true, pushNotifications: false}\n      defaultInputModes: [text/plain]\n      defaultOutputModes: [text/plain]\n      skills: []\n    metadata: {}\n";
     let mismatched_file = agents_dir.join("zz-not-the-agent-name.yaml");
     std::fs::write(&mismatched_file, yaml).expect("write mismatched-name agent file");
 

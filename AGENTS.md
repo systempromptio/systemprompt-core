@@ -33,11 +33,11 @@ Facade (1)     systemprompt (re-exports with feature gates)
 ```toml
 # Full installation
 [dependencies]
-systemprompt = { version = "0.65", features = ["full"] }
+systemprompt = { version = "0.66", features = ["full"] }
 
 # Selective (pick what you need; `mcp` adds `rmcp` only, the
 # `systemprompt::mcp` domain module comes with `full`)
-systemprompt = { version = "0.65", features = ["core", "database", "mcp"] }
+systemprompt = { version = "0.66", features = ["core", "database", "mcp"] }
 ```
 
 Requires PostgreSQL 18+ at runtime.
@@ -143,7 +143,9 @@ If you are an agent working in this repository:
   refuses unless those push runs are green, then freezes the candidate on
   `promote` and opens the release PR onto `main`. The PR re-runs the matrix on
   the frozen commit and requires `CI passed`, `Quality passed` and
-  `Supply Chain passed`.
+  `Supply Chain passed`, which only pull_request runs post (push runs post the
+  same names with a ` (push)` suffix). `just merge-release` is the only way
+  to merge it.
   After merge, `main` is tagged (`vX.Y.Z`) and the workspace is published to
   crates.io.
 - Downstream repos (`systemprompt-template`, `systemprompt-demo`, and private

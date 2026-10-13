@@ -15,11 +15,15 @@ CREATE TABLE IF NOT EXISTS users (
     archived_at TIMESTAMPTZ,
     archived_by TEXT,
     archive_reason TEXT,
-    legal_hold BOOLEAN NOT NULL DEFAULT false
+    legal_hold BOOLEAN NOT NULL DEFAULT false,
+    account_kind TEXT NOT NULL DEFAULT 'person'
+        CONSTRAINT users_account_kind_check CHECK (account_kind IN ('person', 'service'))
 );
 CREATE INDEX IF NOT EXISTS idx_users_archived_at ON users(archived_at) WHERE archived_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 CREATE INDEX IF NOT EXISTS idx_users_bot_status ON users(is_bot, is_scanner);
+CREATE INDEX IF NOT EXISTS idx_users_service_accounts ON users(created_at)
+    WHERE account_kind = 'service';
 
 -- Session retention for installations that expire idle sessions from their
 -- own retention job: only sessions that can no longer be resumed go.

@@ -6,6 +6,7 @@ publish = false
 license.workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
@@ -19,3 +20,6 @@ systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-agent = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

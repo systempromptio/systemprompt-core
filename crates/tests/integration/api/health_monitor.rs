@@ -16,12 +16,13 @@ use systemprompt_api::services::health::{
     HealthChecker, HealthSummary, ModuleHealth, ProcessMonitor,
 };
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{InstanceId, ServiceName};
 use uuid::Uuid;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use systemprompt_test_fixtures::unique_instance;
 
 fn unique_name(prefix: &str) -> String {
     format!("{prefix}-{}", Uuid::new_v4().simple())
@@ -32,11 +33,9 @@ async fn register_running(
     name: &str,
     module: ServiceModule,
     pid: Option<i32>,
+    instance: &InstanceId,
 ) -> anyhow::Result<()> {
-    let repo = ServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(pool, instance.clone());
     let name = ServiceName::new(name);
     repo.create_service(CreateServiceInput {
         name: &name,
@@ -66,10 +65,7 @@ fn dead_pid() -> i32 {
 #[tokio::test]
 async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
-    let mut monitor = ProcessMonitor::new(ServiceRepository::new(
-        &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+    let mut monitor = ProcessMonitor::new(ServiceRepository::new(&pool, unique_instance()));
     assert!(!monitor.is_running());
 
     monitor.start();
@@ -90,10 +86,7 @@ async fn monitor_lifecycle_start_stop_and_double_start() -> anyhow::Result<()> {
 async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let mut monitor = ProcessMonitor::with_interval(
-        ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        ServiceRepository::new(&pool, unique_instance()),
         Duration::from_secs(60),
     );
     monitor.start();
@@ -104,16 +97,21 @@ async fn monitor_drop_aborts_running_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
+    let test_instance = unique_instance();
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("hc-live");
     let mut live = std::process::Command::new("sleep").arg("30").spawn()?;
     let live_pid = i32::try_from(live.id())?;
-    register_running(&pool, &name, ServiceModule::Agent, Some(live_pid)).await?;
-
-    let monitor = ProcessMonitor::new(ServiceRepository::new(
+    register_running(
         &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+        &name,
+        ServiceModule::Agent,
+        Some(live_pid),
+        &test_instance,
+    )
+    .await?;
+
+    let monitor = ProcessMonitor::new(ServiceRepository::new(&pool, test_instance.clone()));
     let summary = monitor.health_check_all().await;
     live.kill()?;
     live.wait()?;
@@ -129,14 +127,19 @@ async fn health_check_all_counts_live_pid_as_healthy() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
+    let test_instance = unique_instance();
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("hc-dead");
-    register_running(&pool, &name, ServiceModule::Mcp, Some(dead_pid())).await?;
-
-    let monitor = ProcessMonitor::new(ServiceRepository::new(
+    register_running(
         &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    ));
+        &name,
+        ServiceModule::Mcp,
+        Some(dead_pid()),
+        &test_instance,
+    )
+    .await?;
+
+    let monitor = ProcessMonitor::new(ServiceRepository::new(&pool, test_instance.clone()));
     let summary = monitor.health_check_all().await?;
 
     let health = summary.modules.get("mcp").copied().unwrap_or_default();
@@ -149,15 +152,20 @@ async fn health_check_all_counts_dead_pid_as_crashed() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
+    let test_instance = unique_instance();
     let (pool, _ctx) = setup_ctx().await?;
     let name = unique_name("loop-dead");
-    register_running(&pool, &name, ServiceModule::Agent, Some(dead_pid())).await?;
+    register_running(
+        &pool,
+        &name,
+        ServiceModule::Agent,
+        Some(dead_pid()),
+        &test_instance,
+    )
+    .await?;
 
     let mut monitor = ProcessMonitor::with_interval(
-        ServiceRepository::new(
-            &pool,
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        ),
+        ServiceRepository::new(&pool, test_instance.clone()),
         Duration::from_millis(50),
     );
     let mut cycles = monitor.completed_cycles();
@@ -166,10 +174,7 @@ async fn monitor_loop_marks_vanished_service_as_error() -> anyhow::Result<()> {
         .await
         .expect("monitor completes a cycle")?;
 
-    let repo = ServiceRepository::new(
-        &pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = ServiceRepository::new(&pool, test_instance.clone());
     let status = repo
         .find_service_by_name(&ServiceName::new(name))
         .await?

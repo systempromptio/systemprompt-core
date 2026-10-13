@@ -10,6 +10,7 @@ mod summary;
 
 pub use card::{
     AgentCardConfig, AgentMetadataConfig, AgentProviderInfo, CapabilitiesConfig, OAuthConfig,
+    RetiredCardKeyError,
 };
 pub use disk::DiskAgentConfig;
 pub use summary::AgentSummary;
@@ -79,7 +80,7 @@ impl AgentConfig {
     }
 
     pub fn extract_oauth_scopes_from_card(&mut self) {
-        let Some(security_vec) = &self.card.security else {
+        let Some(security_vec) = &self.card.security_requirements else {
             return;
         };
         for security_obj in security_vec {

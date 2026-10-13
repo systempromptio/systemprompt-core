@@ -111,7 +111,8 @@
         "tone": "warn",
         "reason": {
           "code": "stale",
-          "cause": "loopback_secret"
+          "cause": "loopback_secret",
+          "keys": "inferenceGatewayApiKey"
         },
         "action": {
           "code": "repair"
@@ -477,6 +478,7 @@
       "ready": 0,
       "attention": 1,
       "not_set_up": 0,
+      "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 4,
@@ -489,6 +491,7 @@
       "ready": 0,
       "attention": 1,
       "not_set_up": 0,
+      "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 4,

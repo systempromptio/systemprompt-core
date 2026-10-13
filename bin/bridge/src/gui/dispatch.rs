@@ -57,6 +57,7 @@ const fn event_kind(event: &UiEvent) -> &'static str {
         UiEvent::AgentUninstall { .. } => "AgentUninstall",
         UiEvent::AgentOpenConfig { .. } => "AgentOpenConfig",
         UiEvent::AgentOpen { .. } => "AgentOpen",
+        UiEvent::AgentEnrol { .. } => "AgentEnrol",
         UiEvent::SetupComplete => "SetupComplete",
         UiEvent::FirstRunStart => "FirstRunStart",
         UiEvent::FocusWindow => "FocusWindow",
@@ -269,6 +270,9 @@ fn dispatch_lifecycle(
         },
         UiEvent::AgentOpen { host_id, reply_to } => {
             handlers::agents::on_open(app, host_id, reply_to);
+        },
+        UiEvent::AgentEnrol { host_id, reply_to } => {
+            handlers::agents::on_enrol(app, host_id, reply_to);
         },
         UiEvent::SetupComplete => handlers::agents::on_setup_complete(app),
         UiEvent::FirstRunStart => crate::gui::first_run::handlers::on_start(app),

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use rmcp::model::{
-    ClientInfo, ElicitRequestParams, ElicitResult, ElicitationAction, ElicitationSchema,
-    Implementation, ProgressToken, ServerInfo,
+    ClientConfig, ElicitRequestParams, ElicitResult, ElicitationAction, ElicitationSchema,
+    Implementation, ProgressToken, ServerConfig,
 };
 use rmcp::service::{RoleClient, RoleServer, RunningService};
 use rmcp::{ServerHandler, ServiceExt};
@@ -21,8 +21,8 @@ use systemprompt_mcp::services::client::{
 struct QuietServer;
 
 impl ServerHandler for QuietServer {
-    fn get_info(&self) -> ServerInfo {
-        let mut info = ServerInfo::default();
+    fn get_info(&self) -> ServerConfig {
+        let mut info = ServerConfig::default();
         info.server_info = Implementation::new("in-memory-probe", "1.0.0");
         info
     }
@@ -40,8 +40,8 @@ impl ElicitationDelegate for FixedDelegate {
     }
 }
 
-fn client_info() -> ClientInfo {
-    ClientInfo::new(
+fn client_info() -> ClientConfig {
+    ClientConfig::new(
         rmcp::model::ClientCapabilities::builder()
             .enable_elicitation()
             .build(),

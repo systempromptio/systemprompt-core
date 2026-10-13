@@ -1,18 +1,24 @@
 //! Bridge session exchange code generation and consumption.
 //!
+//! A bridge exchange's `purpose` is the caller purpose bound to the credential
+//! that authenticated it (an API key's `purpose`), stamped into the bridge JWT.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod exchange;
 mod provisioning;
 
+pub use exchange::{
+    BridgeExchangeCode, BridgeExchangeRequest, exchange_bridge_session_code, hash_exchange_code,
+    issue_bridge_exchange_code,
+};
 pub use provisioning::{BridgeOAuthClient, provision_bridge_oauth_client};
 
 use crate::error::OauthResult as Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use http::HeaderMap;
-use rand::Rng;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use systemprompt_identifiers::{
@@ -24,13 +30,11 @@ use systemprompt_traits::{
     AnalyticsProvider, CreateSessionInput, ExtractSignals, SessionProvider, UserProvider,
 };
 
-use crate::repository::{CreateExchangeCodeParams, OAuthRepository};
+
 use crate::services::authenticated_user::load_authenticated_user;
 use crate::services::generation::{JwtConfig, JwtSigningParams, generate_jwt};
 
 const DEFAULT_ACCESS_TTL_SECONDS: u64 = 3600;
-const EXCHANGE_CODE_BYTES: usize = 32;
-const EXCHANGE_CODE_TTL_SECONDS: i64 = 600;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BridgeAuthResult {
@@ -47,6 +51,7 @@ pub struct BridgeAccessRequest<'a> {
     pub client_id: ClientId,
     pub session_source: SessionSource,
     pub ttl_seconds: u64,
+    pub purpose: Option<String>,
 }
 
 impl<'a> BridgeAccessRequest<'a> {
@@ -62,7 +67,13 @@ impl<'a> BridgeAccessRequest<'a> {
             client_id: ClientId::bridge(),
             session_source: SessionSource::Bridge,
             ttl_seconds: DEFAULT_ACCESS_TTL_SECONDS,
+            purpose: None,
         }
+    }
+
+    pub fn with_purpose(mut self, purpose: Option<String>) -> Self {
+        self.purpose = purpose;
+        self
     }
 }
 
@@ -111,6 +122,7 @@ pub async fn issue_bridge_access(
         client_id,
         session_source,
         ttl_seconds,
+        purpose,
     } = request;
 
     let auth_user = load_authenticated_user(users, user_id).await?;
@@ -122,7 +134,7 @@ pub async fn issue_bridge_access(
     let policy_version = PolicyVersion::unversioned();
 
     let ttl = ChronoDuration::seconds(i64::try_from(ttl_seconds).unwrap_or(i64::MAX));
-    let config = build_bridge_jwt_config(&auth_user, ttl);
+    let config = build_bridge_jwt_config(&auth_user, ttl, purpose);
     let signing = JwtSigningParams {
         issuer: &global_config.jwt_issuer,
     };
@@ -170,7 +182,11 @@ pub async fn issue_bridge_access(
     })
 }
 
-fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl: ChronoDuration) -> JwtConfig {
+fn build_bridge_jwt_config(
+    auth_user: &AuthenticatedUser,
+    ttl: ChronoDuration,
+    purpose: Option<String>,
+) -> JwtConfig {
     JwtConfig {
         permissions: auth_user.permissions().to_vec(),
         audience: vec![JwtAudience::Bridge, JwtAudience::Mcp],
@@ -178,6 +194,7 @@ fn build_bridge_jwt_config(auth_user: &AuthenticatedUser, ttl: ChronoDuration) -
         resource: None,
         plugin_id: None,
         client_id: Some(ClientId::bridge()),
+        purpose,
     }
 }
 
@@ -208,81 +225,4 @@ fn build_bridge_headers(params: &BridgeHeaderParams<'_>) -> HashMap<String, Stri
         params.session_source.as_str().to_owned(),
     );
     hdrs
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct BridgeExchangeCode {
-    pub code: String,
-    pub expires_at: chrono::DateTime<Utc>,
-}
-
-pub async fn issue_bridge_exchange_code(
-    repo: &OAuthRepository,
-    user_id: &UserId,
-) -> Result<BridgeExchangeCode> {
-    let code = generate_exchange_code();
-    let code_hash = hash_exchange_code(&code);
-    let expires_at = Utc::now() + ChronoDuration::seconds(EXCHANGE_CODE_TTL_SECONDS);
-
-    repo.create_bridge_exchange_code(CreateExchangeCodeParams {
-        code_hash: &code_hash,
-        user_id,
-        expires_at,
-    })
-    .await?;
-
-    Ok(BridgeExchangeCode { code, expires_at })
-}
-
-/// One-shot exchange of a bridge session code presented by a caller.
-#[derive(Debug, Clone, Copy)]
-pub struct BridgeExchangeRequest<'a> {
-    pub request_headers: &'a HeaderMap,
-    pub caller_ip: Option<IpAddr>,
-    pub code: &'a str,
-}
-
-pub async fn exchange_bridge_session_code(
-    repo: &OAuthRepository,
-    analytics: &dyn AnalyticsProvider,
-    sessions: &dyn SessionProvider,
-    users: &dyn UserProvider,
-    exchange: BridgeExchangeRequest<'_>,
-) -> Result<Option<BridgeAuthResult>> {
-    let BridgeExchangeRequest {
-        request_headers,
-        caller_ip,
-        code,
-    } = exchange;
-    let code_hash = hash_exchange_code(code);
-    let Some(user_id) = repo.consume_bridge_exchange_code(&code_hash).await? else {
-        return Ok(None);
-    };
-    let result = issue_bridge_access(
-        analytics,
-        sessions,
-        users,
-        BridgeAccessRequest::bridge(request_headers, caller_ip, &user_id),
-    )
-    .await?;
-    Ok(Some(result))
-}
-
-pub fn hash_exchange_code(code: &str) -> String {
-    let digest = Sha256::digest(code.as_bytes());
-    let mut out = String::with_capacity(64);
-    for byte in digest {
-        out.push_str(&format!("{byte:02x}"));
-    }
-    out
-}
-
-fn generate_exchange_code() -> String {
-    let mut raw = [0u8; EXCHANGE_CODE_BYTES];
-    rand::rng().fill_bytes(&mut raw);
-    let mut out = String::with_capacity(EXCHANGE_CODE_BYTES * 2);
-    for byte in raw {
-        out.push_str(&format!("{byte:02x}"));
-    }
-    out
 }

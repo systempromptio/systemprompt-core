@@ -7,7 +7,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_agent::repository::{A2ARepositories, A2aDependencies};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{InstanceId, McpExecutionId, UserId};
+use systemprompt_identifiers::{McpExecutionId, UserId};
 use systemprompt_traits::{
     DynManagedSkillResolver, DynToolExecutionLookup, ManagedSkillResolver,
     ManagedSkillResolverError, RepositoryError, ResolvedManagedSkill, SkillResolution,
@@ -93,7 +93,7 @@ pub fn a2a_dependencies(pool: &DbPool) -> A2aDependencies {
         session_usage: crate::fixture_analytics_repositories(pool)
             .expect("analytics repositories")
             .session_store,
-        instance_id: InstanceId::new("test-instance"),
+        instance_id: crate::unique_instance(),
         managed_skills: not_managed_skills(),
         tool_executions: tool_execution_ledger(ToolExecutionLedger::Exists),
     }

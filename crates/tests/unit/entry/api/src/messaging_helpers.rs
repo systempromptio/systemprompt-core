@@ -9,7 +9,7 @@ use systemprompt_api::routes::messaging::a2a::{permissions_for, reply_text};
 use systemprompt_api::routes::messaging::{DispatchOutcome, MessagingError};
 use systemprompt_api::routes::slack::{parse_form, slash_command_from_form};
 use systemprompt_identifiers::{ContextId, MessageId};
-use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TextPart};
+use systemprompt_models::a2a::{Message, MessageRole, Part, SendMessageResult, Task};
 use systemprompt_models::auth::Permission;
 
 #[test]
@@ -37,9 +37,8 @@ fn slash_command_missing_a_required_field_is_none() {
     assert!(slash_command_from_form(&form).is_none());
 }
 
-fn task_with_parts(parts: Vec<Part>) -> Task {
-    let mut task = Task::default();
-    task.status.message = Some(Message {
+fn agent_message(parts: Vec<Part>) -> Message {
+    Message {
         role: MessageRole::Agent,
         parts,
         message_id: MessageId::generate(),
@@ -48,14 +47,13 @@ fn task_with_parts(parts: Vec<Part>) -> Task {
         metadata: None,
         extensions: None,
         reference_task_ids: None,
-    });
-    task
+    }
 }
 
-fn text_part(text: &str) -> Part {
-    Part::Text(TextPart {
-        text: text.to_owned(),
-    })
+fn task_with_parts(parts: Vec<Part>) -> SendMessageResult {
+    let mut task = Task::default();
+    task.status.message = Some(agent_message(parts));
+    SendMessageResult::Task(Box::new(task))
 }
 
 #[test]
@@ -65,14 +63,23 @@ fn reply_text_is_empty_without_a_task() {
 
 #[test]
 fn reply_text_is_empty_when_the_status_has_no_message() {
-    let task = Task::default();
+    let task = SendMessageResult::Task(Box::default());
     assert_eq!(reply_text(Some(&task)), "");
 }
 
 #[test]
 fn reply_text_joins_multiple_text_parts_with_newlines() {
-    let task = task_with_parts(vec![text_part("line one"), text_part("line two")]);
+    let task = task_with_parts(vec![Part::text("line one"), Part::text("line two")]);
     assert_eq!(reply_text(Some(&task)), "line one\nline two");
+}
+
+#[test]
+fn reply_text_reads_a_direct_message_result() {
+    let result = SendMessageResult::Message(Box::new(agent_message(vec![
+        Part::text("hello"),
+        Part::data(serde_json::json!({"ignored": true})),
+    ])));
+    assert_eq!(reply_text(Some(&result)), "hello");
 }
 
 

@@ -28,11 +28,21 @@ async fn call(
     handle_agent_request(
         State(state),
         Some(Extension(context)),
-        HeaderMap::new(),
+        versioned_headers(),
+        axum::http::Uri::from_static("/api/v1/agents/test_agent"),
         Bytes::from(body.to_string()),
     )
     .await
     .into_response()
+}
+
+fn versioned_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        systemprompt_models::a2a::VERSION_HEADER,
+        axum::http::HeaderValue::from_static(systemprompt_models::a2a::PROTOCOL_VERSION),
+    );
+    headers
 }
 
 async fn body_json(response: axum::response::Response) -> (StatusCode, Value) {
@@ -99,7 +109,7 @@ async fn send_message_dispatch_returns_a_task_for_the_seeded_context() {
     );
     if let Some(result) = body.get("result") {
         assert_eq!(
-            result["contextId"],
+            result["task"]["contextId"],
             json!(f.context_id.as_str()),
             "the task is bound to the request's context"
         );
@@ -258,7 +268,7 @@ async fn cancel_task_for_an_unknown_id_is_a_jsonrpc_error() {
 }
 
 #[tokio::test]
-async fn an_extended_card_request_is_refused_as_an_unsupported_operation() {
+async fn an_extended_card_request_reports_no_extended_card_is_configured() {
     let pool = test_db_pool().await;
     let f = fixture(&pool).await;
     let state = make_handler_state(&pool, Arc::new(StubAiProvider::new()), 1);
@@ -274,10 +284,10 @@ async fn an_extended_card_request_is_refused_as_an_unsupported_operation() {
     let (status, body) = body_json(response).await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["error"]["code"], json!(-32004), "{body}");
+    assert_eq!(body["error"]["code"], json!(-32007), "{body}");
     assert_eq!(
-        body["error"]["data"],
-        json!("GetExtendedAgentCard"),
+        body["error"]["data"][0]["reason"],
+        json!("EXTENDED_AGENT_CARD_NOT_CONFIGURED"),
         "{body}"
     );
 }
@@ -292,7 +302,7 @@ async fn a_task_subscription_is_refused_as_an_unsupported_operation() {
     let payload = json!({
         "jsonrpc": "2.0",
         "method": "SubscribeToTask",
-        "params": {"task_id": "task-subscribe-unsupported"},
+        "params": {"id": "task-subscribe-unsupported"},
         "id": 17
     });
     let response = call(state, ctx, &payload).await;
@@ -300,7 +310,16 @@ async fn a_task_subscription_is_refused_as_an_unsupported_operation() {
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["error"]["code"], json!(-32004), "{body}");
-    assert_eq!(body["error"]["data"], json!("SubscribeToTask"), "{body}");
+    assert_eq!(
+        body["error"]["data"][0]["reason"],
+        json!("UNSUPPORTED_OPERATION"),
+        "{body}"
+    );
+    assert_eq!(
+        body["error"]["data"][0]["metadata"]["method"],
+        json!("SubscribeToTask"),
+        "{body}"
+    );
     assert!(
         body["result"].is_null(),
         "an unsupported call is never accepted, got {body}"

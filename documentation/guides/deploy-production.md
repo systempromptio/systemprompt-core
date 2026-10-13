@@ -98,7 +98,7 @@ readinessProbe:
 
 Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
 
-**Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `admin` serves everything except the gateway and the bridge consumer surface, and runs the scheduler and the MCP and agent processes. A gateway node renders no `web/dist` and does not serve the static site.
+**Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `admin` serves everything except the gateway and the bridge consumer surface, and runs the scheduler and the MCP and agent processes. A gateway node renders no `web/dist` and does not serve the static site. `runner` serves only the health, liveness and readiness probes (and the metrics port), runs no scheduler, MCP servers or agents, and starts the long-running services extensions declare with `Extension::runner_services`, for work such as executing workflow steps.
 
 ```yaml
 # Two Deployments from one image; the mounted profile differs only in server.role.

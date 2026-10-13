@@ -9,6 +9,7 @@ mod user_tests {
 
     fn create_test_user() -> User {
         User {
+            account_kind: Default::default(),
             id: fixture_user_id(),
             name: "testuser".to_string(),
             email: "test@example.com".to_string(),
@@ -141,6 +142,7 @@ mod user_tests {
     #[test]
     fn user_optional_fields_can_be_none() {
         let user = User {
+            account_kind: Default::default(),
             id: fixture_user_id(),
             name: "minimal".to_string(),
             email: "minimal@example.com".to_string(),

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use systemprompt_identifiers::{ClientId, UserId};
 
-use super::enums::UserType;
+use super::enums::{AccountKind, UserType};
 use super::permission::Permission;
 
 pub const BEARER_PREFIX: &str = "Bearer ";
@@ -28,6 +28,8 @@ pub struct AuthenticatedUser {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     // JSON: ABAC attribute values are declared per deployment in the authz policy YAML.
     pub attributes: BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    pub account_kind: AccountKind,
 }
 
 impl AuthenticatedUser {
@@ -44,6 +46,7 @@ impl AuthenticatedUser {
             permissions,
             roles: Vec::new(),
             attributes: BTreeMap::new(),
+            account_kind: AccountKind::Person,
         }
     }
 
@@ -61,11 +64,18 @@ impl AuthenticatedUser {
             permissions,
             roles,
             attributes: BTreeMap::new(),
+            account_kind: AccountKind::Person,
         }
     }
 
     #[must_use]
     // JSON: ABAC attribute values declared per deployment in authz policy YAML.
+    pub const fn with_account_kind(mut self, account_kind: AccountKind) -> Self {
+        self.account_kind = account_kind;
+        self
+    }
+
+    // JSON: subject attributes are operator-defined values with no fixed schema.
     pub fn with_attributes(mut self, attributes: BTreeMap<String, serde_json::Value>) -> Self {
         self.attributes = attributes;
         self

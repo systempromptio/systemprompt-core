@@ -4,7 +4,7 @@ use systemprompt_models::artifacts::{
     ListArtifact, MessageArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
     VideoArtifact,
 };
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 // A variant added to the union without a renderer silently degrades to a raw
 // JSON dump in the host, so the registry must cover this list exactly.
@@ -32,7 +32,7 @@ fn enveloped(payload: serde_json::Value) -> Artifact {
         id: systemprompt_identifiers::ArtifactId::generate(),
         title: None,
         description: None,
-        parts: vec![Part::Data(DataPart { data })],
+        parts: vec![Part::data(serde_json::Value::Object(data))],
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             "cli".to_string(),

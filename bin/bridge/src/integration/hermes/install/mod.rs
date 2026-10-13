@@ -12,6 +12,8 @@
 mod merge;
 mod render;
 
+pub(super) use render::managed_yaml;
+
 use serde_yaml::Value;
 
 use super::config;
@@ -22,7 +24,7 @@ use crate::integration::host_app::{
 
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = generated_profile::profile_uuids();
-    let yaml_text = render::managed_yaml(inputs)?;
+    let yaml_text = managed_yaml(inputs)?;
     let path = generated_profile::write("hermes-bridge-config", ".yaml", yaml_text.as_bytes())?;
     Ok(GeneratedProfile {
         path: path.display().to_string(),

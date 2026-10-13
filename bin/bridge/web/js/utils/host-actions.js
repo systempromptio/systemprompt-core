@@ -94,6 +94,7 @@ export async function runHostAction(kind, host) {
     case "verify":   return verifyHost(id);
     case "open":     return openHost(id);
     case "download": return downloadHost(host);
+    case "enrol":    return bridge.agentEnrol(id);
     default:         return undefined;
   }
 }

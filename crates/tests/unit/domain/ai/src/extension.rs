@@ -44,6 +44,7 @@ mod ai_extension_tests {
                 "ai_quota_buckets",
                 "ai_gateway_policies",
                 "ai_gateway_thought_signatures",
+                "ai_usage_rollup_hourly",
             ]
         );
     }

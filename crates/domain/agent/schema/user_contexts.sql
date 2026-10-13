@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS user_contexts (
 
     kind TEXT NOT NULL DEFAULT 'user',
 
+    task_count BIGINT DEFAULT 0,
+    message_count BIGINT DEFAULT 0,
+    last_message_at TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -28,4 +32,6 @@ CREATE INDEX IF NOT EXISTS idx_user_contexts_session ON user_contexts(session_id
 CREATE OR REPLACE TRIGGER update_user_contexts_updated_at
     BEFORE UPDATE ON user_contexts
     FOR EACH ROW
+    WHEN ((OLD.task_count, OLD.message_count, OLD.last_message_at)
+          IS NOT DISTINCT FROM (NEW.task_count, NEW.message_count, NEW.last_message_at))
     EXECUTE FUNCTION update_timestamp_trigger();

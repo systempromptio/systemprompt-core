@@ -5,7 +5,7 @@
 // `failed`, while fix_inconsistencies is driven with an explicit report.
 
 use std::collections::HashMap;
-use systemprompt_identifiers::AgentName;
+use systemprompt_identifiers::{AgentName, InstanceId};
 
 use systemprompt_agent::repository::agent_service::AgentServiceRepository;
 use systemprompt_agent::services::agent_orchestration::AgentStatus;
@@ -18,7 +18,7 @@ use systemprompt_manifest::ServicesConfig;
 use uuid::Uuid;
 
 use super::super::a2a_server::a2a_helpers::agent_config;
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 const DEAD_PID: u32 = 2_000_000_001;
 
@@ -28,6 +28,7 @@ fn unique_name(prefix: &str) -> AgentName {
 
 fn db_service_with(
     pool: &systemprompt_database::DbPool,
+    instance: &InstanceId,
     names_and_ports: &[(&AgentName, u16)],
 ) -> AgentDatabaseService {
     systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -41,23 +42,22 @@ fn db_service_with(
         agents,
         ..ServicesConfig::default()
     });
-    let repo = AgentServiceRepository::new(
-        pool,
-        systemprompt_identifiers::InstanceId::new("test-instance"),
-    );
+    let repo = AgentServiceRepository::new(pool, instance.clone());
     AgentDatabaseService::with_registry(repo, registry)
 }
 
 #[tokio::test]
 async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let name = unique_name("rec_dead");
-    let svc = db_service_with(&pool, &[(&name, 9410)]);
+    let svc = db_service_with(&pool, &instance, &[(&name, 9410)]);
     svc.register_agent(&name, DEAD_PID, 9410)
         .await
         .expect("register");
 
-    let reconciler = AgentReconciler::with_db_service(db_service_with(&pool, &[(&name, 9410)]));
+    let reconciler =
+        AgentReconciler::with_db_service(db_service_with(&pool, &instance, &[(&name, 9410)]));
     let reconciled = reconciler
         .reconcile_running_services()
         .await
@@ -73,9 +73,10 @@ async fn reconcile_repairs_dead_pid_row_via_status_lookup() {
 #[tokio::test]
 async fn consistency_check_buckets_live_and_dead_agents() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let dead = unique_name("rec_bucket_d");
     let live = unique_name("rec_bucket_l");
-    let svc = db_service_with(&pool, &[(&dead, 9413), (&live, 9414)]);
+    let svc = db_service_with(&pool, &instance, &[(&dead, 9413), (&live, 9414)]);
     svc.register_agent(&dead, DEAD_PID, 9413)
         .await
         .expect("register dead");
@@ -83,8 +84,11 @@ async fn consistency_check_buckets_live_and_dead_agents() {
         .await
         .expect("register live");
 
-    let reconciler =
-        AgentReconciler::with_db_service(db_service_with(&pool, &[(&dead, 9413), (&live, 9414)]));
+    let reconciler = AgentReconciler::with_db_service(db_service_with(
+        &pool,
+        &instance,
+        &[(&dead, 9413), (&live, 9414)],
+    ));
     let report = reconciler
         .perform_consistency_check()
         .await
@@ -102,8 +106,9 @@ async fn consistency_check_buckets_live_and_dead_agents() {
 #[tokio::test]
 async fn fix_inconsistencies_marks_reported_agents_failed() {
     let pool = test_db_pool().await;
+    let instance = unique_instance();
     let stale = unique_name("rec_fix_a");
-    let svc = db_service_with(&pool, &[(&stale, 9415)]);
+    let svc = db_service_with(&pool, &instance, &[(&stale, 9415)]);
     svc.register_agent(&stale, std::os::unix::process::parent_id(), 9415)
         .await
         .expect("register stale");
@@ -112,7 +117,8 @@ async fn fix_inconsistencies_marks_reported_agents_failed() {
     report.inconsistent_running.push((stale.clone(), DEAD_PID));
     assert!(report.has_inconsistencies());
 
-    let reconciler = AgentReconciler::with_db_service(db_service_with(&pool, &[(&stale, 9415)]));
+    let reconciler =
+        AgentReconciler::with_db_service(db_service_with(&pool, &instance, &[(&stale, 9415)]));
     let fixed = reconciler.fix_inconsistencies(&report).await.expect("fix");
     assert_eq!(fixed, 1);
 

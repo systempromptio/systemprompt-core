@@ -1,12 +1,11 @@
 //! DB-backed tests for `services::database::state` helpers.
 
-use crate::harness::unique_instance;
 use std::path::PathBuf;
 use systemprompt_database::ServiceRepository;
 use systemprompt_mcp::services::database::state::{
     get_binary_mtime, get_service_by_name, unregister_service,
 };
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 #[test]
 fn get_binary_mtime_missing_file_returns_none() {

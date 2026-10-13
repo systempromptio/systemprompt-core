@@ -15,6 +15,7 @@ mod message_processor;
 mod planned_tool_execution;
 mod request_dispatch;
 mod request_handler;
+mod request_list_tasks;
 mod request_non_streaming;
 mod request_validation;
 mod server;

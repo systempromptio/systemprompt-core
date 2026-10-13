@@ -19,8 +19,7 @@ fn empty_card() -> AgentCardConfig {
         default_input_modes: vec!["text/plain".to_owned()],
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
-        security: None,
-        supports_authenticated_extended_card: false,
+        security_requirements: None,
     }
 }
 
@@ -91,7 +90,7 @@ fn agent_config_construct_url_trims_trailing_slash() {
 #[test]
 fn agent_config_extract_oauth_scopes_populates_oauth() {
     let mut a = valid_agent("my_agent");
-    a.card.security = Some(vec![std::collections::HashMap::from([(
+    a.card.security_requirements = Some(vec![std::collections::HashMap::from([(
         "oauth2".to_owned(),
         ["admin", "user", "service", "a2a", "mcp", "unknown_scope"]
             .map(str::to_owned)
@@ -123,19 +122,65 @@ description: d
 version: "1.0.0"
 securitySchemes:
   apiKey:
-    type: apiKey
-    name: X-API-Key
-    in: header
-security:
+    apiKeySecurityScheme:
+      name: X-API-Key
+      location: header
+securityRequirements:
   - apiKey: []
 "#;
     let card: AgentCardConfig = serde_yaml::from_str(yaml).expect("typed card");
+    let written = serde_yaml::to_string(&card).expect("write card");
+    assert!(written.contains("apiKeySecurityScheme:"), "{written}");
+    let reread: AgentCardConfig = serde_yaml::from_str(&written).expect("reread card");
+    assert_eq!(reread.security_schemes, card.security_schemes);
     assert!(
         card.security_schemes
             .expect("schemes")
             .contains_key("apiKey")
     );
-    assert_eq!(card.security.expect("requirements").len(), 1);
+    assert_eq!(card.security_requirements.expect("requirements").len(), 1);
+}
+
+const CARD_HEAD: &str =
+    "protocolVersion: \"1.0\"\ndisplayName: Display\ndescription: d\nversion: \"1.0.0\"\n";
+
+#[test]
+fn card_config_rejects_retired_security_key_naming_replacement() {
+    let yaml = format!("{CARD_HEAD}security:\n  - apiKey: []\n");
+    let err = serde_yaml::from_str::<AgentCardConfig>(&yaml).expect_err("retired key");
+    let message = err.to_string();
+    assert!(message.contains("card.security"), "{message}");
+    assert!(message.contains("card.securityRequirements"), "{message}");
+}
+
+#[test]
+fn card_config_rejects_retired_extended_card_flag_naming_replacement() {
+    let yaml = format!("{CARD_HEAD}supportsAuthenticatedExtendedCard: true\n");
+    let err = serde_yaml::from_str::<AgentCardConfig>(&yaml).expect_err("retired key");
+    assert!(
+        err.to_string()
+            .contains("card.capabilities.extendedAgentCard"),
+        "{err}"
+    );
+}
+
+#[test]
+fn card_config_rejects_retired_state_transition_history() {
+    let yaml = format!("{CARD_HEAD}capabilities:\n  stateTransitionHistory: true\n");
+    let err = serde_yaml::from_str::<AgentCardConfig>(&yaml).expect_err("retired key");
+    assert!(
+        err.to_string()
+            .contains("card.capabilities.stateTransitionHistory"),
+        "{err}"
+    );
+}
+
+#[test]
+fn card_config_reads_extended_agent_card_capability() {
+    let yaml = format!("{CARD_HEAD}capabilities:\n  extendedAgentCard: true\n");
+    let card: AgentCardConfig = serde_yaml::from_str(&yaml).expect("typed card");
+    assert!(card.capabilities.extended_agent_card);
+    assert!(card.capabilities.streaming);
 }
 
 #[test]
@@ -170,10 +215,10 @@ fn agent_summary_via_from_ref_uses_config_name() {
 }
 
 #[test]
-fn capabilities_config_default_enables_streaming_and_history() {
+fn capabilities_config_default_enables_streaming_only() {
     let c = CapabilitiesConfig::default();
     assert!(c.streaming);
-    assert!(c.state_transition_history);
+    assert!(!c.extended_agent_card);
     assert!(!c.push_notifications);
 }
 

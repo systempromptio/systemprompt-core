@@ -277,6 +277,13 @@ async fn seed(pool: &sqlx::PgPool) -> SeededTrace {
         .expect("seed logs");
     }
 
+    sqlx::query("SELECT refresh_trace_facts(ARRAY[$1, $2])")
+        .bind(&task_trace_id)
+        .bind(&log_trace_id)
+        .execute(pool)
+        .await
+        .expect("refresh trace facts for the seeded traces");
+
     SeededTrace {
         task_id,
         task_trace_id,

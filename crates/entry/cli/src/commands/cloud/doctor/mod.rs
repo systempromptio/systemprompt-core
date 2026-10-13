@@ -6,7 +6,9 @@
 //! `trusted_proxies` set that covers the Fly peer range — and probes
 //! database/hook reachability. The preflight runs automatically before
 //! `cloud deploy` builds an image, and is exposed standalone (`cloud doctor`)
-//! so an operator can check a profile without deploying.
+//! so an operator can check a profile without deploying. The profile-only
+//! checks (`profile_checks`) never fail a profile that `Profile::validate`
+//! accepts, so the two cannot disagree about what is deployable.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -126,12 +128,22 @@ async fn resolve_secrets(
     values
 }
 
+pub fn profile_checks(profile: &Profile) -> Vec<CheckResult> {
+    vec![
+        check_profile_valid(profile),
+        check_proxy_topology(profile),
+        checks::check_governance_hook_url(profile),
+        distributed::check_instance_id(profile),
+        distributed::check_trusted_proxies(profile),
+    ]
+}
+
 pub(in crate::commands::cloud) async fn run(
     profile: &Profile,
     profile_dir: &Path,
     distributed: bool,
 ) -> DoctorReport {
-    let mut checks = vec![check_profile_valid(profile)];
+    let mut checks = profile_checks(profile);
     let secrets = resolve_secrets(profile, profile_dir, &mut checks).await;
 
     checks.push(check_required_secrets(&secrets));
@@ -149,8 +161,6 @@ pub(in crate::commands::cloud) async fn run(
         )),
     }
     checks.push(check_extension_configs(profile));
-    checks.push(check_proxy_topology(profile));
-    checks.push(checks::check_governance_hook_url(profile));
     checks.push(checks::check_database_reachable(&secrets).await);
     if distributed {
         checks.extend(distributed::run(profile, &secrets).await);

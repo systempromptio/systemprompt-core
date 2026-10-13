@@ -16,7 +16,9 @@ use crate::integration::host_app::{HostAppError, ProfileGenInputs};
 
 pub(super) const API_KEY_MARKER: &str = "_systemprompt_openai_api_key";
 
-pub(super) fn managed_yaml(inputs: &ProfileGenInputs) -> Result<String, HostAppError> {
+pub(in crate::integration::hermes) fn managed_yaml(
+    inputs: &ProfileGenInputs,
+) -> Result<String, HostAppError> {
     let gateway = inputs.gateway_base_url.trim_end_matches('/');
 
     let mut value = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());

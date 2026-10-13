@@ -378,6 +378,7 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await?;
 
@@ -407,6 +408,7 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
             expires_at: None,
             limits: &systemprompt_users::ApiKeyLimits::default(),
             scopes: &[],
+            purpose: None,
         })
         .await?;
 

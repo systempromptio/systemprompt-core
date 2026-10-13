@@ -125,6 +125,7 @@ fn a_stale_profile_reports_only_its_code_not_its_cause() {
     let snap = snapshot(
         ProfileState::Stale {
             reason: StaleReason::LoopbackSecret,
+            keys: vec!["inferenceGatewayApiKey".to_owned()],
         },
         BTreeMap::new(),
     );

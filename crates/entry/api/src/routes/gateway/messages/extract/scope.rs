@@ -8,7 +8,9 @@
 //!    and a value the caller does not hold answer the same, so the header
 //!    cannot probe for existence);
 //! 2. the API key's bound value for that dimension, verified the same way;
-//! 3. the provider's first value (a tenant orders the primary first).
+//! 3. the provider's first value (a tenant orders the primary first), unless
+//!    the provider's `default_attribution` is `false`, in which case the
+//!    dimension is header-only and the request carries no value for it.
 //!
 //! A header naming a dimension no provider registers is `400`, and a dimension
 //! listed in `gateway.require_scopes` that resolves to nothing is `400
@@ -98,6 +100,9 @@ pub async fn resolve_scope_attribution(
     for provider in input.providers.iter() {
         let dimension = provider_dimension(provider)?;
         let claimed = claimed_value(&input, &dimension);
+        if claimed.is_none() && !provider.default_attribution() {
+            continue;
+        }
         let held = provider.values_for(input.user_id).await.map_err(|error| {
             RejectionError::server(
                 StatusCode::INTERNAL_SERVER_ERROR,

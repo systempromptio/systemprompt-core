@@ -1,5 +1,8 @@
 //! Context read queries.
 //!
+//! Stats counters still NULL belong to a context queued for its first count
+//! (migration 015); they read as zero until the drainer fills them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,6 +15,34 @@ use systemprompt_traits::RepositoryError;
 
 fn stored_context_id(raw: String) -> Result<ContextId, RepositoryError> {
     ContextId::try_new(raw).map_err(|e| RepositoryError::decode("context_id", e))
+}
+
+struct ContextStatsRow {
+    context_id: ContextId,
+    user_id: UserId,
+    name: String,
+    kind: ContextKind,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    task_count: i64,
+    message_count: i64,
+    last_message_at: Option<DateTime<Utc>>,
+}
+
+impl ContextStatsRow {
+    fn into_stats(self) -> UserContextWithStats {
+        UserContextWithStats {
+            context_id: self.context_id,
+            user_id: self.user_id,
+            name: self.name,
+            kind: self.kind,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            task_count: self.task_count,
+            message_count: self.message_count,
+            last_message_at: self.last_message_at,
+        }
+    }
 }
 
 impl ContextRepository {
@@ -100,43 +131,46 @@ impl ContextRepository {
         &self,
         user_id: &UserId,
     ) -> Result<Vec<UserContextWithStats>, RepositoryError> {
-        let rows = sqlx::query!(
-            r#"SELECT
-                c.context_id as "context_id!",
-                c.user_id as "user_id!",
-                c.name as "name!",
-                c.kind as "kind!: ContextKind",
-                c.created_at as "created_at!",
-                c.updated_at as "updated_at!",
-                COALESCE(COUNT(DISTINCT t.task_id), 0)::bigint as "task_count!",
-                COALESCE(COUNT(DISTINCT m.id), 0)::bigint as "message_count!",
-                MAX(m.created_at) as last_message_at
-            FROM user_contexts c
-            LEFT JOIN agent_tasks t ON t.context_id = c.context_id
-            LEFT JOIN task_messages m ON m.task_id = t.task_id
-            WHERE c.user_id = $1
-            GROUP BY c.context_id
-            ORDER BY c.updated_at DESC"#,
+        let rows = sqlx::query_as!(
+            ContextStatsRow,
+            r#"SELECT context_id as "context_id: ContextId", user_id as "user_id: UserId", name,
+                kind as "kind: ContextKind", created_at,
+                updated_at, COALESCE(task_count, 0) as "task_count!",
+                COALESCE(message_count, 0) as "message_count!", last_message_at
+            FROM user_contexts
+            WHERE user_id = $1
+            ORDER BY updated_at DESC"#,
             user_id.as_str()
         )
         .fetch_all(&*self.pool)
         .await?;
 
-        rows.into_iter()
-            .map(|r| {
-                Ok(UserContextWithStats {
-                    context_id: stored_context_id(r.context_id)?,
-                    user_id: UserId::new(r.user_id),
-                    name: r.name,
-                    kind: r.kind,
-                    created_at: r.created_at,
-                    updated_at: r.updated_at,
-                    task_count: r.task_count,
-                    message_count: r.message_count,
-                    last_message_at: r.last_message_at,
-                })
-            })
-            .collect()
+        Ok(rows.into_iter().map(ContextStatsRow::into_stats).collect())
+    }
+
+    pub async fn get_context_with_stats(
+        &self,
+        context_id: &ContextId,
+        user_id: &UserId,
+    ) -> Result<UserContextWithStats, RepositoryError> {
+        let row = sqlx::query_as!(
+            ContextStatsRow,
+            r#"SELECT context_id as "context_id: ContextId", user_id as "user_id: UserId", name,
+                kind as "kind: ContextKind", created_at,
+                updated_at, COALESCE(task_count, 0) as "task_count!",
+                COALESCE(message_count, 0) as "message_count!", last_message_at
+            FROM user_contexts
+            WHERE context_id = $1 AND user_id = $2"#,
+            context_id.as_str(),
+            user_id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await?
+        .ok_or_else(|| {
+            RepositoryError::not_found("context", format!("{context_id} for user {user_id}"))
+        })?;
+
+        Ok(row.into_stats())
     }
 
     pub async fn find_by_session_id(

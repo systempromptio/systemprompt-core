@@ -51,6 +51,9 @@ CREATE TABLE IF NOT EXISTS ai_requests (
         CONSTRAINT ai_requests_client_attestation_check CHECK (client_attestation IN (
             'host-token', 'bridge-secret', 'declared', 'native-marker', 'user-agent', 'none', 'internal', 'unknown')),
     message_count INTEGER NOT NULL DEFAULT 0,
+    -- Stamped at admission: the request offered the model client tools.
+    -- NULL = not yet projected (ai_request_tool_flag.sql).
+    has_offered_tools BOOLEAN,
     instance_id VARCHAR(255),
     api_key_id TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

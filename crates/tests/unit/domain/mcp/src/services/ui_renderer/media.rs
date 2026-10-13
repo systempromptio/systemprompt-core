@@ -2,7 +2,7 @@ use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};
 use systemprompt_mcp::services::ui_renderer::UiRenderer;
 use systemprompt_mcp::services::ui_renderer::templates::{AudioRenderer, VideoRenderer};
 use systemprompt_models::artifacts::ArtifactType;
-use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, DataPart, Part};
+use systemprompt_models::{A2aArtifact as Artifact, ArtifactMetadata, Part};
 
 fn media_artifact(kind: &str, title: Option<&str>, payload: serde_json::Value) -> Artifact {
     let serde_json::Value::Object(data) = payload else {
@@ -12,7 +12,7 @@ fn media_artifact(kind: &str, title: Option<&str>, payload: serde_json::Value) -
         id: ArtifactId::generate(),
         title: title.map(String::from),
         description: None,
-        parts: vec![Part::Data(DataPart { data })],
+        parts: vec![Part::data(serde_json::Value::Object(data))],
         extensions: vec![],
         metadata: ArtifactMetadata::new(
             kind.to_string(),

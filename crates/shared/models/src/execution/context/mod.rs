@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod call_source;
+mod caller_purpose;
 mod context_error;
 mod context_types;
 mod propagation;
@@ -70,6 +71,7 @@ impl RequestContext {
                 call_source: None,
                 agent_name,
                 tool_model_config: None,
+                caller_purpose: None,
             },
             settings: ExecutionSettings::default(),
             user: None,

@@ -7,6 +7,7 @@ use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
 use tempfile::TempDir;
 
 struct Paths {
+    user: PathBuf,
     managed: PathBuf,
     auth: PathBuf,
 }
@@ -26,7 +27,10 @@ fn sandbox<R>(f: impl FnOnce(&Paths) -> R) -> R {
     let managed_dir = root.path().join("managed");
     std::fs::create_dir_all(&managed_dir).expect("managed dir");
     let data = root.path().join("data");
+    let user_dir = root.path().join("config").join("opencode");
+    std::fs::create_dir_all(&user_dir).expect("user dir");
     let paths = Paths {
+        user: user_dir.join("opencode.json"),
         managed: managed_dir.join("opencode.json"),
         auth: data.join("opencode").join("auth.json"),
     };
@@ -75,29 +79,29 @@ fn read(path: &Path) -> serde_json::Value {
 }
 
 #[test]
-fn installing_merges_the_provider_block_and_preserves_foreign_keys() {
+fn installing_merges_the_provider_block_into_the_user_config_and_preserves_foreign_keys() {
     sandbox(|p| {
         std::fs::write(
-            &p.managed,
-            r#"{ "theme": "dark", "provider": { "ollama": { "npm": "@ai-sdk/openai-compatible" } }, "mcp": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } }"#,
+            &p.user,
+            r#"{ "$schema": "https://opencode.ai/config.json", "theme": "dark", "provider": { "ollama": { "npm": "@ai-sdk/openai-compatible" } }, "mcp": { "mine": { "type": "remote", "url": "https://example.com/mcp" } } }"#,
         )
         .expect("seed");
         install(&["claude-sonnet-5", "gpt-4.1"]);
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert_eq!(doc["theme"], "dark", "{doc}");
+        assert_eq!(doc["$schema"], "https://opencode.ai/config.json");
         assert_eq!(
             doc["provider"]["ollama"]["npm"],
             "@ai-sdk/openai-compatible"
         );
         assert_eq!(doc["mcp"]["mine"]["url"], "https://example.com/mcp");
+        let ours = &doc["provider"]["systemprompt"];
+        assert_eq!(ours["options"]["baseURL"], "http://127.0.0.1:48217/v1");
         assert_eq!(
-            doc["provider"]["systemprompt"]["options"]["baseURL"],
-            "http://127.0.0.1:48217/v1"
+            ours["options"]["apiKey"], "loopback-secret-value",
+            "OpenCode 2.x reads the key from the provider block: {doc}"
         );
-        assert_eq!(
-            doc["provider"]["systemprompt"]["models"]["gpt-4.1"]["name"],
-            "gpt-4.1"
-        );
+        assert_eq!(ours["models"]["gpt-4.1"]["name"], "gpt-4.1");
         assert_eq!(doc["model"], "systemprompt/claude-sonnet-5");
         assert_eq!(
             doc["enabled_providers"],
@@ -105,79 +109,80 @@ fn installing_merges_the_provider_block_and_preserves_foreign_keys() {
             "only the gateway provider may load: {doc}"
         );
         assert!(
-            doc.get("_systemprompt_api_key").is_none(),
-            "the key marker never reaches the managed file: {doc}"
+            !p.managed.exists(),
+            "the admin tier OpenCode 2.x ignores is never written"
         );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&p.user)
+                .expect("meta")
+                .permissions()
+                .mode()
+                & 0o777;
+            assert_eq!(mode, 0o600, "the user config now holds the key");
+        }
     });
 }
 
 #[test]
-fn an_admin_allowlist_is_replaced_by_ours_and_only_ours_is_removed() {
+fn an_existing_allowlist_is_replaced_by_ours_and_only_ours_is_removed() {
     sandbox(|p| {
-        std::fs::write(&p.managed, r#"{ "enabled_providers": ["anthropic"] }"#).expect("seed");
+        std::fs::write(&p.user, r#"{ "enabled_providers": ["anthropic"] }"#).expect("seed");
         install(&["claude-sonnet-5"]);
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert_eq!(
             doc["enabled_providers"],
             serde_json::json!(["systemprompt"])
         );
 
         OPENCODE_HOST.remove_profile().expect("remove");
-        assert!(!p.managed.exists(), "nothing but our keys was left");
+        assert!(!p.user.exists(), "nothing but our keys was left");
 
         std::fs::write(
-            &p.managed,
+            &p.user,
             r#"{ "enabled_providers": ["systemprompt", "anthropic"] }"#,
         )
         .expect("seed widened list");
         let removal = OPENCODE_HOST.remove_profile().expect("remove");
         assert!(
             matches!(removal, ProfileRemoval::NothingToRemove),
-            "a list an admin widened is not ours to delete: {removal:?}"
+            "a list a user widened is not ours to delete: {removal:?}"
         );
     });
 }
 
 #[test]
-fn the_api_key_lands_in_auth_json_with_other_providers_kept() {
+fn install_drops_the_auth_json_key_opencode_no_longer_reads() {
     sandbox(|p| {
         std::fs::create_dir_all(p.auth.parent().expect("parent")).expect("data dir");
         std::fs::write(
             &p.auth,
-            r#"{ "anthropic": { "type": "oauth", "refresh": "r", "access": "a", "expires": 1 } }"#,
+            r#"{ "systemprompt": { "type": "api", "key": "stale" }, "anthropic": { "type": "oauth", "refresh": "r", "access": "a", "expires": 1 } }"#,
         )
         .expect("seed auth");
         install(&["claude-sonnet-5"]);
         let auth = read(&p.auth);
-        assert_eq!(auth["systemprompt"]["type"], "api");
-        assert_eq!(auth["systemprompt"]["key"], "loopback-secret-value");
+        assert!(auth.get("systemprompt").is_none(), "{auth}");
         assert_eq!(auth["anthropic"]["type"], "oauth", "{auth}");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&p.auth)
-                .expect("meta")
-                .permissions()
-                .mode()
-                & 0o777;
-            assert_eq!(mode, 0o600, "auth.json holds a secret");
-        }
     });
 }
 
 #[test]
-fn a_non_object_auth_json_is_never_overwritten() {
+fn a_non_object_user_config_is_never_overwritten() {
     sandbox(|p| {
-        std::fs::create_dir_all(p.auth.parent().expect("parent")).expect("data dir");
-        std::fs::write(&p.auth, "[1, 2, 3]").expect("seed auth");
+        std::fs::write(&p.user, "[1, 2, 3]").expect("seed");
         let generated = OPENCODE_HOST
             .generate_profile(&inputs(&["claude-sonnet-5"]))
             .expect("generate");
         let err = OPENCODE_HOST
             .install_profile(&generated.path)
-            .expect_err("a foreign auth.json aborts the install");
+            .expect_err("a foreign config aborts the install");
         assert!(err.to_string().contains("refusing"), "{err}");
-        assert_eq!(std::fs::read_to_string(&p.auth).expect("auth"), "[1, 2, 3]");
+        assert_eq!(
+            std::fs::read_to_string(&p.user).expect("config"),
+            "[1, 2, 3]"
+        );
         _ = std::fs::remove_file(&generated.path);
     });
 }
@@ -187,7 +192,7 @@ fn a_shrunk_model_list_leaves_no_stale_entries() {
     sandbox(|p| {
         install(&["claude-sonnet-5", "gpt-4.1"]);
         install(&["gpt-4.1"]);
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert!(
             doc["provider"]["systemprompt"]["models"]
                 .get("claude-sonnet-5")
@@ -203,13 +208,13 @@ fn an_empty_model_list_drops_our_default_but_keeps_a_foreign_one() {
     sandbox(|p| {
         install(&["claude-sonnet-5"]);
         install(&[]);
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert!(doc.get("model").is_none(), "{doc}");
 
-        std::fs::write(&p.managed, r#"{ "model": "anthropic/claude-opus-5" }"#)
+        std::fs::write(&p.user, r#"{ "model": "anthropic/claude-opus-5" }"#)
             .expect("seed foreign default");
         install(&[]);
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert_eq!(
             doc["model"], "anthropic/claude-opus-5",
             "a default naming another provider is not ours to remove"
@@ -221,34 +226,16 @@ fn an_empty_model_list_drops_our_default_but_keeps_a_foreign_one() {
 fn a_second_install_is_byte_stable() {
     sandbox(|p| {
         install(&["claude-sonnet-5"]);
-        let first = std::fs::read(&p.managed).expect("first");
-        let first_auth = std::fs::read(&p.auth).expect("first auth");
+        let first = std::fs::read(&p.user).expect("first");
         install(&["claude-sonnet-5"]);
-        assert_eq!(std::fs::read(&p.managed).expect("second"), first);
-        assert_eq!(std::fs::read(&p.auth).expect("second auth"), first_auth);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(&p.managed)
-                .expect("meta")
-                .permissions()
-                .mode()
-                & 0o777;
-            assert_eq!(
-                mode, 0o644,
-                "the managed file must stay readable by the host"
-            );
-        }
+        assert_eq!(std::fs::read(&p.user).expect("second"), first);
     });
 }
 
 #[test]
 fn removing_strips_only_our_keys_and_reports_what_happened() {
     sandbox(|p| {
-        std::fs::write(&p.managed, r#"{ "theme": "dark" }"#).expect("seed");
-        std::fs::create_dir_all(p.auth.parent().expect("parent")).expect("data dir");
-        std::fs::write(&p.auth, r#"{ "openai": { "type": "api", "key": "sk" } }"#)
-            .expect("seed auth");
+        std::fs::write(&p.user, r#"{ "theme": "dark" }"#).expect("seed");
         install(&["claude-sonnet-5"]);
 
         let removal = OPENCODE_HOST.remove_profile().expect("remove");
@@ -256,13 +243,8 @@ fn removing_strips_only_our_keys_and_reports_what_happened() {
             matches!(removal, ProfileRemoval::Removed { .. }),
             "{removal:?}"
         );
-        let doc = read(&p.managed);
+        let doc = read(&p.user);
         assert_eq!(doc, serde_json::json!({ "theme": "dark" }), "{doc}");
-        let auth = read(&p.auth);
-        assert_eq!(
-            auth,
-            serde_json::json!({ "openai": { "type": "api", "key": "sk" } })
-        );
 
         let again = OPENCODE_HOST.remove_profile().expect("second remove");
         assert!(
@@ -273,12 +255,22 @@ fn removing_strips_only_our_keys_and_reports_what_happened() {
 }
 
 #[test]
-fn removing_the_only_content_deletes_both_files() {
+fn removing_also_clears_a_retired_admin_tier_block() {
     sandbox(|p| {
+        std::fs::write(
+            &p.managed,
+            r#"{ "theme": "dark", "provider": { "systemprompt": { "npm": "@ai-sdk/openai-compatible" } }, "model": "systemprompt/claude-sonnet-5" }"#,
+        )
+        .expect("seed retired block");
         install(&["claude-sonnet-5"]);
+        assert!(
+            systemprompt_bridge::integration::opencode::retired_admin_tier().is_some(),
+            "doctor sees the retired block"
+        );
         OPENCODE_HOST.remove_profile().expect("remove");
-        assert!(!p.managed.exists(), "an empty managed file must not linger");
-        assert!(!p.auth.exists(), "an empty auth.json must not linger");
+        assert_eq!(read(&p.managed), serde_json::json!({ "theme": "dark" }));
+        assert!(!p.user.exists());
+        assert!(systemprompt_bridge::integration::opencode::retired_admin_tier().is_none());
     });
 }
 

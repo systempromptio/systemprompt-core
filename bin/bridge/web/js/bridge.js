@@ -86,6 +86,7 @@ export const bridge = {
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
   agentOpen:            (hostId)            => invoke("agent.open", { hostId }),
+  agentEnrol:           (hostId)            => invoke("agent.enrol", { hostId }),
   setupComplete:        ()                  => invoke("setup.complete", {}, READ_TIMEOUT),
   openConfigFolder:     ()                  => invoke("openConfigFolder"),
   openLogFolder:        ()                  => invoke("openLogFolder"),

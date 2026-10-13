@@ -3,21 +3,20 @@ use std::path::Path;
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{
-    AppInstallState, ConfigFormat, HostApp, HostAppKind, ProbeEnv, ProfileGenInputs, ProfileState,
+    AppInstallState, ConfigFormat, HostApp, HostAppKind, ProfileGenInputs, ProfileState,
     StaleReason,
 };
 use systemprompt_bridge::integration::opencode::{OPENCODE_HOST, install_state};
 use systemprompt_models::bridge::host::HostKind;
 use tempfile::TempDir;
 
-fn probe_env() -> ProbeEnv {
-    ProbeEnv {
-        proxy_port: systemprompt_bridge::proxy::DEFAULT_PROXY_PORT,
-        loopback_secret: None,
-        start_menu: std::sync::Arc::default(),
-        expected_managed_servers: None,
-        policy_writer_ready: false,
-    }
+use crate::support::{host_token, probe_env};
+
+fn with_key(body: &str) -> String {
+    let mut doc: serde_json::Value = serde_json::from_str(body).expect("seed is JSON");
+    doc["provider"]["systemprompt"]["options"]["apiKey"] =
+        serde_json::Value::String(host_token(HostKind::OpenCode));
+    doc.to_string()
 }
 
 fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
@@ -30,12 +29,14 @@ fn write_bridge_config(config_home: &Path, managed_dir: &Path) {
     .expect("bridge config");
 }
 
-fn sandbox<R>(managed_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
+fn sandbox<R>(user_json: Option<&str>, f: impl FnOnce(&Path) -> R) -> R {
     let root = TempDir::new().expect("sandbox");
     let managed = root.path().join("managed");
     std::fs::create_dir_all(&managed).expect("managed dir");
-    if let Some(body) = managed_json {
-        std::fs::write(managed.join("opencode.json"), body).expect("seed managed config");
+    let user = root.path().join("config").join("opencode");
+    std::fs::create_dir_all(&user).expect("user dir");
+    if let Some(body) = user_json {
+        std::fs::write(user.join("opencode.json"), body).expect("seed user config");
     }
     write_bridge_config(&root.path().join("config"), &managed);
     let vars: Vec<(&str, Option<String>)> = vec![
@@ -73,12 +74,12 @@ const COMPLETE: &str = r#"{
 }"#;
 
 #[test]
-fn an_absent_managed_config_probes_as_absent() {
+fn an_absent_config_probes_as_absent() {
     let snapshot = sandbox(None, |_| OPENCODE_HOST.probe(&probe_env()));
     assert_eq!(snapshot.host_id, HostKind::OpenCode);
     assert!(
         matches!(snapshot.profile_state, ProfileState::Absent),
-        "no managed file means an absent profile, got {:?}",
+        "no user config means an absent profile, got {:?}",
         snapshot.profile_state
     );
     assert!(snapshot.profile_source.is_none());
@@ -91,11 +92,14 @@ fn an_absent_managed_config_probes_as_absent() {
 }
 
 #[test]
-fn a_complete_managed_config_probes_as_installed_with_models_listed_by_name() {
+fn a_config_without_its_api_key_is_partial_with_models_listed_by_name() {
     let snapshot = sandbox(Some(COMPLETE), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
-        matches!(snapshot.profile_state, ProfileState::Installed),
-        "{:?}",
+        matches!(
+            &snapshot.profile_state,
+            ProfileState::Partial { missing_required } if missing_required.contains(&"provider.systemprompt.options.apiKey".to_owned())
+        ),
+        "no host token in the provider block means OpenCode cannot authenticate: {:?}",
         snapshot.profile_state
     );
     let keys = &snapshot.profile_keys;
@@ -138,18 +142,16 @@ fn a_complete_managed_config_probes_as_installed_with_models_listed_by_name() {
 }
 
 #[test]
-fn a_partial_managed_config_lists_the_missing_required_keys() {
+fn a_config_without_the_endpoint_is_partial() {
     let snapshot = sandbox(
         Some(r#"{ "provider": { "systemprompt": { "npm": "@ai-sdk/openai-compatible" } } }"#),
         |_| OPENCODE_HOST.probe(&probe_env()),
     );
     match snapshot.profile_state {
-        ProfileState::Partial { missing_required } => assert_eq!(
-            missing_required,
-            vec![
-                "provider.systemprompt.options.baseURL".to_owned(),
-                "enabled_providers".to_owned()
-            ]
+        ProfileState::Partial { missing_required } => assert!(
+            missing_required.contains(&"provider.systemprompt.options.baseURL".to_owned())
+                && missing_required.contains(&"enabled_providers".to_owned()),
+            "{missing_required:?}"
         ),
         other => panic!("expected Partial, got {other:?}"),
     }
@@ -157,14 +159,15 @@ fn a_partial_managed_config_lists_the_missing_required_keys() {
 
 #[test]
 fn a_stale_loopback_port_is_reported_as_stale() {
-    let body = COMPLETE.replace("48217", "1");
+    let body = with_key(&COMPLETE.replace("48217", "1"));
     let snapshot = sandbox(Some(&body), |_| OPENCODE_HOST.probe(&probe_env()));
     assert!(
         matches!(
-            snapshot.profile_state,
+            &snapshot.profile_state,
             ProfileState::Stale {
-                reason: StaleReason::ProxyPort
-            }
+                reason: StaleReason::ProxyPort,
+                keys,
+            } if keys.contains(&"provider.systemprompt.options.baseURL".to_owned())
         ),
         "a baseURL on another loopback port is stale, got {:?}",
         snapshot.profile_state
@@ -172,7 +175,7 @@ fn a_stale_loopback_port_is_reported_as_stale() {
 }
 
 #[test]
-fn a_malformed_managed_config_is_unverifiable_not_absent() {
+fn a_malformed_config_is_unverifiable_not_absent() {
     let snapshot = sandbox(Some("{ this is [not json"), |_| {
         OPENCODE_HOST.probe(&probe_env())
     });
@@ -186,11 +189,10 @@ fn a_malformed_managed_config_is_unverifiable_not_absent() {
 }
 
 #[test]
-fn a_jsonc_only_managed_dir_is_reported_as_the_source_but_never_read() {
+fn a_jsonc_only_user_dir_is_reported_as_the_source_but_never_read() {
     let snapshot = sandbox(None, |root| {
-        let managed = root.join("managed");
         std::fs::write(
-            managed.join("opencode.jsonc"),
+            root.join("config").join("opencode").join("opencode.jsonc"),
             "// comment\n{ \"provider\": { \"systemprompt\": {} } }",
         )
         .expect("seed jsonc");
@@ -211,48 +213,6 @@ fn a_jsonc_only_managed_dir_is_reported_as_the_source_but_never_read() {
     );
 }
 
-fn probe_with_user_scope_block() -> ProfileState {
-    sandbox(None, |root| {
-        let user = root.join("config").join("opencode");
-        std::fs::create_dir_all(&user).expect("user dir");
-        std::fs::write(user.join("opencode.json"), COMPLETE).expect("seed user config");
-        OPENCODE_HOST.probe(&probe_env())
-    })
-    .profile_state
-}
-
-// Why: where a managed tier exists there is no reason for the bridge to write
-// user scope, so a `provider.systemprompt` block there was put by a user or a
-// project. Trusting it would let a hand-edited file answer "governed" for a
-// host the managed tier never reached.
-#[cfg(any(target_os = "macos", target_os = "windows"))]
-#[test]
-fn a_user_scope_provider_block_is_not_governance() {
-    let state = probe_with_user_scope_block();
-    assert!(
-        matches!(state, ProfileState::Absent),
-        "a provider block the user can edit must not read as installed: {state:?}"
-    );
-}
-
-// Why: Linux has no managed tier the bridge can always write, so `install`
-// falls back to the user config (`config::fallback_config_path`) and the probe
-// reads it last. That makes scope alone useless as a provenance signal here —
-// the block the bridge wrote and one a user wrote sit in the same file — so
-// the platform where the invariant above cannot hold is pinned explicitly
-// rather than left untested. Content is still checked: the companion
-// stale-port test covers a block that does not match the running proxy.
-#[cfg(target_os = "linux")]
-#[test]
-fn the_linux_user_scope_fallback_is_read_as_installed() {
-    let state = probe_with_user_scope_block();
-    assert!(
-        matches!(state, ProfileState::Installed),
-        "the Linux fallback tier is the bridge's own write and must not read as \
-         unconfigured: {state:?}"
-    );
-}
-
 #[test]
 fn the_binary_is_found_in_a_known_install_prefix_outside_path() {
     let snapshot = sandbox(None, |root| {
@@ -265,16 +225,16 @@ fn the_binary_is_found_in_a_known_install_prefix_outside_path() {
 }
 
 #[test]
-fn a_managed_config_without_the_provider_allowlist_is_partial_not_installed() {
-    let unrestricted = COMPLETE.replace(
+fn a_config_without_the_provider_allowlist_is_not_installed() {
+    let unrestricted = with_key(&COMPLETE.replace(
         r#",
   "enabled_providers": ["systemprompt"]"#,
         "",
-    );
+    ));
     let snapshot = sandbox(Some(&unrestricted), |_| OPENCODE_HOST.probe(&probe_env()));
     match snapshot.profile_state {
-        ProfileState::Partial { missing_required } => {
-            assert_eq!(missing_required, vec!["enabled_providers".to_owned()]);
+        ProfileState::Stale { keys, .. } => {
+            assert!(keys.contains(&"enabled_providers".to_owned()), "{keys:?}");
         },
         other => {
             panic!("a file that lets OpenCode's own providers through is not governed: {other:?}")
@@ -326,21 +286,7 @@ fn the_opencode_host_describes_itself_as_a_json_cli_tool_openable_only_with_the_
 }
 
 #[test]
-fn the_opencode_schema_requires_the_wire_and_the_loopback_endpoint() {
-    let schema = OPENCODE_HOST.config_schema();
-    assert_eq!(
-        schema.required_keys,
-        &[
-            "provider.systemprompt.npm",
-            "provider.systemprompt.options.baseURL",
-            "enabled_providers"
-        ]
-    );
-    assert!(schema.display_keys.contains(&"model"));
-}
-
-#[test]
-fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
+fn generating_a_profile_carries_the_provider_block_and_its_api_key() {
     let mut headers = BTreeMap::new();
     headers.insert("x-inference-protocol".to_owned(), "openai".to_owned());
     let generated = sandbox(None, |_| {
@@ -376,7 +322,10 @@ fn generating_a_profile_carries_the_provider_block_and_the_key_marker() {
         doc["enabled_providers"],
         serde_json::json!(["systemprompt"])
     );
-    assert_eq!(doc["_systemprompt_api_key"], "loopback-secret-value");
+    assert_eq!(
+        doc["provider"]["systemprompt"]["options"]["apiKey"],
+        "loopback-secret-value"
+    );
     assert_eq!(generated.bytes, body.len());
     assert_ne!(generated.payload_uuid, generated.profile_uuid);
     _ = std::fs::remove_file(&generated.path);

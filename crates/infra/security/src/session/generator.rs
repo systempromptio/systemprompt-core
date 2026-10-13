@@ -65,6 +65,7 @@ impl SessionGenerator {
             rate_limit_tier: Some(params.rate_limit_tier),
             plugin_id: None,
             act: None,
+            purpose: None,
         };
 
         let kid = authority::active_kid().map_err(JwtError::Signing)?;

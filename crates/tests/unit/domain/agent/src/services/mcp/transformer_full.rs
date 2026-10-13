@@ -4,7 +4,6 @@
 
 use rmcp::model::{CallToolResult, MetaObject};
 use serde_json::json;
-use systemprompt_agent::models::a2a::Part;
 use systemprompt_agent::services::mcp::artifact_transformer::{
     McpToA2aTransformer, TransformParams,
 };
@@ -70,11 +69,11 @@ fn transform_builds_artifact() {
         Some("skill-7")
     );
     assert_eq!(artifact.parts.len(), 1);
-    assert!(matches!(artifact.parts[0], Part::Data(_)));
+    assert!(artifact.parts[0].as_data().is_some());
     assert_eq!(artifact.extensions.len(), 1);
     assert_eq!(
         artifact.extensions[0],
-        json!(systemprompt_models::a2a::ARTIFACT_RENDERING_URI)
+        systemprompt_models::a2a::ARTIFACT_RENDERING_URI
     );
 }
 

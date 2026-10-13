@@ -62,8 +62,8 @@ async fn the_registry_lists_a_card_for_the_configured_agent() -> anyhow::Result<
 #[tokio::test]
 async fn a_card_reports_the_status_of_the_agents_service_row() -> anyhow::Result<()> {
     let agent = test_messaging_agent();
-    let (pool, ctx) = setup().await?;
-    seed_running_service(&pool, agent, "agent", 9250).await?;
+    let (_pool, ctx) = setup().await?;
+    seed_running_service(&ctx, agent, "agent", 9250).await?;
 
     let app = registry_router(&ctx).layer(Extension(request_context("registry_reader")));
     let resp = app.oneshot(empty_get("/")).await?;
@@ -136,10 +136,9 @@ const TWO_AGENTS: &str = r#"agents:
       description: Secondary registry fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      capabilities: { streaming: true, pushNotifications: false }
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: Secondary.
       mcpServers: { source: explicit }
@@ -162,10 +161,9 @@ const TWO_AGENTS: &str = r#"agents:
       description: Default registry fixture
       version: 1.0.0
       preferredTransport: JSONRPC
-      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false }
+      capabilities: { streaming: true, pushNotifications: false }
       defaultInputModes: [text/plain]
       defaultOutputModes: [text/plain]
-      supportsAuthenticatedExtendedCard: false
     metadata:
       systemPrompt: Default.
       mcpServers: { source: explicit, include: [fixture_tools] }
@@ -196,7 +194,7 @@ async fn multi_agent_registry_sorts_default_first_and_retains_runtime_and_mcp_me
     );
     let pool = test_db_pool().await;
     let ctx = test_app_context(&pool, &boot.database_url);
-    seed_running_service(&pool, "a_secondary", "agent", 9322).await?;
+    seed_running_service(&ctx, "a_secondary", "agent", 9322).await?;
     let app = registry_router(&ctx).layer(Extension(request_context("registry_order")));
     let response = app.oneshot(empty_get("/")).await?;
     let (status, body) = body_to_string(response).await?;

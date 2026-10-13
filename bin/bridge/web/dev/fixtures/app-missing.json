@@ -145,7 +145,7 @@
         },
         "missing_required": [],
         "app": {
-          "tone": "err",
+          "tone": "unknown",
           "code": "not-installed"
         },
         "host_running": false,
@@ -170,8 +170,8 @@
       "model_protocols_overridden": false,
       "surface": "local-profile",
       "verdict": {
-        "state": "attention",
-        "tone": "warn",
+        "state": "not-installed",
+        "tone": "unknown",
         "reason": {
           "code": "app-missing"
         },
@@ -207,7 +207,7 @@
         },
         "missing_required": [],
         "app": {
-          "tone": "err",
+          "tone": "unknown",
           "code": "not-installed"
         },
         "host_running": false,
@@ -232,8 +232,8 @@
       "model_protocols_overridden": false,
       "surface": "local-profile",
       "verdict": {
-        "state": "attention",
-        "tone": "warn",
+        "state": "not-installed",
+        "tone": "unknown",
         "reason": {
           "code": "app-missing"
         },
@@ -269,7 +269,7 @@
         },
         "missing_required": [],
         "app": {
-          "tone": "err",
+          "tone": "unknown",
           "code": "not-installed"
         },
         "host_running": false,
@@ -294,8 +294,8 @@
       "model_protocols_overridden": false,
       "surface": "local-profile",
       "verdict": {
-        "state": "attention",
-        "tone": "warn",
+        "state": "not-installed",
+        "tone": "unknown",
         "reason": {
           "code": "app-missing"
         },
@@ -446,13 +446,14 @@
       "total": 5,
       "working": 2,
       "ready": 0,
-      "attention": 3,
+      "attention": 0,
       "not_set_up": 0,
+      "not_installed": 3,
       "down": 0,
       "checking": 0,
       "running": 1,
-      "state": "warn",
-      "headline": "needs-attention"
+      "state": "ok",
+      "headline": "all-working"
     },
     "set_up": {
       "total": 2,
@@ -460,6 +461,7 @@
       "ready": 0,
       "attention": 0,
       "not_set_up": 0,
+      "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 1,

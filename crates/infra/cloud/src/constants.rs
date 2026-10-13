@@ -99,8 +99,6 @@ pub mod profile {
     pub const LOCAL_HOST: &str = "127.0.0.1";
     pub const CLOUD_HOST: &str = "0.0.0.0";
     pub const DEFAULT_CLOUD_URL: &str = "https://cloud.systemprompt.io";
-    pub const LOCAL_ISSUER: &str = "systemprompt-local";
-    pub const CLOUD_ISSUER: &str = "systemprompt";
     pub const ACCESS_TOKEN_EXPIRATION: i64 = 2_592_000;
     pub const REFRESH_TOKEN_EXPIRATION: i64 = 15_552_000;
     pub const CLOUD_APP_PATH: &str = container::APP_ROOT;

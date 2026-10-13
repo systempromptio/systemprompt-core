@@ -1,8 +1,8 @@
 //! `.reg` serialisation for the Claude Desktop managed-policy profile.
 //!
-//! The profile *is* the policy: the same
-//! [`claude_desktop_policy`] the machine sync enforces, so a repair that
-//! a key the sync will then report as different. [`render_reg`] and
+//! The profile *is* the policy: [`desktop_policy`] is the one rendering the
+//! repair, the machine sync and the probe all use, so none of them can hold a
+//! key the others judge differently. [`render_reg`] and
 //! [`crate::install::reg_values::parse_reg_entries`] are inverses, kept
 //! platform-independent so the round-trip is testable on every target.
 //!
@@ -10,39 +10,36 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::shared::ProfileGenInputs;
+use crate::drift::{DesiredProfile, EntryRole};
 use crate::install::mdm::MdmError;
-use crate::install::mdm::policy::{PolicyInputs, claude_desktop_policy, reg_values};
+use crate::install::mdm::policy::{desktop_policy, reg_values};
 use crate::install::reg_values::render_reg_values;
 
-// Why: Claude Desktop sizes a gateway model's context from its id, not from
-// the gateway's advertised limits: it budgets 200k unless the id carries the
-// `[1m]` suffix. Cowork's first turn alone is ~198k tokens, and its picker
-// folds `<id>` and `<id>[1m]` into one row that may resolve to either, so a
-// Claude model the gateway serves at 1M is listed only as `<id>[1m]`. The
-// gateway strips the suffix before routing.
 pub use crate::gateway::model_view::with_context_variants;
 
 pub fn profile_entries(inputs: &ProfileGenInputs) -> Result<Vec<(&'static str, String)>, MdmError> {
-    let models = Some(
-        serde_json::to_string(&with_context_variants(&inputs.models, &inputs.model_limits))
-            .map_err(|source| MdmError::ConfigJson {
-                key: "inferenceModels",
-                source,
-            })?,
-    );
-    let policy = claude_desktop_policy(&PolicyInputs {
-        base_url: &inputs.gateway_base_url,
-        host_token: &inputs.host_token,
-        models,
-        headers: &inputs.headers,
-        egress_allowed_hosts: None,
-        org_uuid: inputs.organization_uuid.as_deref(),
-        mcp_servers: inputs.mcp_servers.as_deref(),
-    })?;
-    Ok(reg_values(&policy)
+    Ok(reg_values(&desktop_policy(inputs, None)?)
         .into_iter()
         .map(|(name, _, value)| (name, value))
         .collect())
+}
+
+pub fn desired(inputs: &ProfileGenInputs) -> Result<DesiredProfile, MdmError> {
+    let mut desired = DesiredProfile::new();
+    for (name, value) in profile_entries(inputs)? {
+        let (value, role) = match name {
+            crate::cowork_compat::POLICY_API_KEY => (
+                crate::proxy::secret::fingerprint(value.trim()),
+                EntryRole::Secret,
+            ),
+            "inferenceGatewayBaseUrl" => (value, EntryRole::Endpoint),
+            "inferenceModels" => (value, EntryRole::Models),
+            "managedMcpServers" => (value, EntryRole::ManagedServers),
+            _ => (value, EntryRole::Setting),
+        };
+        desired.push(name, value, role);
+    }
+    Ok(desired)
 }
 
 pub fn render_reg(elevated: bool, inputs: &ProfileGenInputs) -> Result<String, MdmError> {

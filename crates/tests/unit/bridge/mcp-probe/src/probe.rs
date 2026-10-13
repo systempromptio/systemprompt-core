@@ -29,11 +29,48 @@ fn initialize_wire() -> serde_json::Value {
         "id": 1,
         "method": "initialize",
         "params": {
-            "protocolVersion": "2025-06-18",
+            "protocolVersion": "2025-11-25",
             "capabilities": {},
             "clientInfo": { "name": "systemprompt-bridge-probe" }
         }
     })
+}
+
+fn discover_wire() -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "server/discover",
+        "params": { "_meta": {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientCapabilities": {},
+            "io.modelcontextprotocol/clientInfo": { "name": "systemprompt-bridge-probe" }
+        } }
+    })
+}
+
+fn stateless_tools_list_wire() -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": { "_meta": {
+            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+            "io.modelcontextprotocol/clientCapabilities": {}
+        } }
+    })
+}
+
+async fn mount_legacy_discover_rejection(server: &MockServer) {
+    Mock::given(method("POST"))
+        .and(body_partial_json(discover_wire()))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": "server-error",
+            "error": { "code": -32601, "message": "Method not found" }
+        })))
+        .mount(server)
+        .await;
 }
 
 fn initialized_wire() -> serde_json::Value {
@@ -56,6 +93,7 @@ async fn probe(server: &MockServer) -> systemprompt_bridge::proxy::mcp_probe::Mc
 #[tokio::test]
 async fn authenticated_json() {
     let server = MockServer::start().await;
+    mount_legacy_discover_rejection(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
@@ -106,6 +144,7 @@ async fn authenticated_json() {
 #[tokio::test]
 async fn authenticated_sse() {
     let server = MockServer::start().await;
+    mount_legacy_discover_rejection(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
@@ -207,6 +246,7 @@ async fn proxy_unreachable_on_closed_port() {
 #[tokio::test]
 async fn tools_list_failure_reports_protocol_error() {
     let server = MockServer::start().await;
+    mount_legacy_discover_rejection(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
@@ -242,6 +282,7 @@ async fn tools_list_failure_reports_protocol_error() {
 #[tokio::test]
 async fn tools_list_params_is_an_object_not_null() {
     let server = MockServer::start().await;
+    mount_legacy_discover_rejection(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
@@ -288,6 +329,7 @@ async fn tools_list_params_is_an_object_not_null() {
 #[tokio::test]
 async fn tools_list_json_rpc_error_is_named() {
     let server = MockServer::start().await;
+    mount_legacy_discover_rejection(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!("/mcp/{SLUG}")))
@@ -566,7 +608,11 @@ async fn mount_successful_probe(server: &MockServer, session: &str, tool: &str) 
 
 async fn assert_successful_probe_wire(server: &MockServer, session: &str) {
     let requests = server.received_requests().await.expect("probe requests");
-    assert_eq!(requests.len(), 3, "initialize, initialized, tools/list");
+    assert_eq!(
+        requests.len(),
+        4,
+        "rejected discover, initialize, initialized, tools/list"
+    );
     assert!(requests.iter().all(|request| {
         request
             .headers
@@ -580,7 +626,7 @@ async fn assert_successful_probe_wire(server: &MockServer, session: &str) {
             .headers
             .get("mcp-session-id")
             .and_then(|value| value.to_str().ok());
-        if body["method"] == "initialize" {
+        if body["method"] == "initialize" || body["method"] == "server/discover" {
             assert_eq!(
                 carried, None,
                 "initialize cannot claim a session before it exists"
@@ -599,6 +645,7 @@ async fn assert_successful_probe_wire(server: &MockServer, session: &str) {
 async fn initialized_notification_failure_stops_before_tools_then_a_retry_recovers() {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         let server = MockServer::start().await;
+        mount_legacy_discover_rejection(&server).await;
         Mock::given(method("POST"))
             .and(body_partial_json(initialize_wire()))
             .respond_with(
@@ -627,6 +674,7 @@ async fn initialized_notification_failure_stops_before_tools_then_a_retry_recove
         assert!(failed.tools.is_empty());
 
         server.reset().await;
+        mount_legacy_discover_rejection(&server).await;
         mount_successful_probe(&server, "retry-session", "recovered-tool").await;
         let recovered = probe(&server).await;
         assert_eq!(recovered.state, McpAuthState::Authenticated);
@@ -645,6 +693,7 @@ async fn initialized_notification_failure_stops_before_tools_then_a_retry_recove
 async fn malformed_tools_response_does_not_reuse_partial_tools_and_retry_recovers() {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         let server = MockServer::start().await;
+        mount_legacy_discover_rejection(&server).await;
         Mock::given(method("POST"))
             .and(body_partial_json(initialize_wire()))
             .respond_with(
@@ -677,6 +726,7 @@ async fn malformed_tools_response_does_not_reuse_partial_tools_and_retry_recover
         assert!(failed.tools.is_empty());
 
         server.reset().await;
+        mount_legacy_discover_rejection(&server).await;
         mount_successful_probe(&server, "clean-session", "clean-tool").await;
         let recovered = probe(&server).await;
         assert_eq!(
@@ -691,4 +741,136 @@ async fn malformed_tools_response_does_not_reuse_partial_tools_and_retry_recover
     })
     .await
     .expect("malformed response recovery completes within ten seconds");
+}
+
+fn discover_result(versions: &[&str]) -> ResponseTemplate {
+    ResponseTemplate::new(200).set_body_json(serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": { "resultType": "complete", "supportedVersions": versions, "capabilities": {} }
+    }))
+}
+
+async fn mount_discover(server: &MockServer, response: ResponseTemplate) {
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(body_partial_json(discover_wire()))
+        .respond_with(response)
+        .with_priority(1)
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+#[tokio::test]
+async fn current_server_is_probed_statelessly_without_initialize() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(wiremock::matchers::header("authorization", BEARER))
+        .and(wiremock::matchers::header("mcp-method", "server/discover"))
+        .and(wiremock::matchers::header(
+            "mcp-protocol-version",
+            "2026-07-28",
+        ))
+        .and(body_partial_json(discover_wire()))
+        .respond_with(discover_result(&["2025-11-25", "2026-07-28"]))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path(format!("/mcp/{SLUG}")))
+        .and(wiremock::matchers::header("mcp-method", "tools/list"))
+        .and(wiremock::matchers::header(
+            "mcp-protocol-version",
+            "2026-07-28",
+        ))
+        .and(body_partial_json(stateless_tools_list_wire()))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 2, "result": { "tools": [{ "name": "modern-tool" }] }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let r = probe(&server).await;
+
+    assert_eq!(r.state, McpAuthState::Authenticated, "{:?}", r.error);
+    assert_eq!(r.tools[0].name, "modern-tool");
+    assert_eq!(r.session_id, None, "2026-07-28 has no session");
+    let requests = server.received_requests().await.expect("probe requests");
+    assert_eq!(requests.len(), 2, "discover then tools/list, nothing else");
+    assert!(
+        requests
+            .iter()
+            .all(|request| !request.headers.contains_key("mcp-session-id"))
+    );
+}
+
+#[tokio::test]
+async fn discover_without_the_current_version_falls_back_to_initialize() {
+    let server = MockServer::start().await;
+    mount_discover(&server, discover_result(&["2025-11-25"])).await;
+    mount_successful_probe(&server, "legacy-session", "legacy-tool").await;
+
+    let r = probe(&server).await;
+
+    assert_eq!(r.state, McpAuthState::Authenticated, "{:?}", r.error);
+    assert_eq!(r.tools[0].name, "legacy-tool");
+    assert_eq!(
+        r.session_id.as_ref().map(McpSessionId::as_str),
+        Some("legacy-session")
+    );
+}
+
+#[tokio::test]
+async fn discover_json_rpc_error_on_200_falls_back_to_initialize() {
+    let server = MockServer::start().await;
+    mount_discover(
+        &server,
+        ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1,
+            "error": { "code": -32601, "message": "Method not found" }
+        })),
+    )
+    .await;
+    mount_successful_probe(&server, "s-200", "t-200").await;
+
+    let r = probe(&server).await;
+
+    assert_eq!(r.state, McpAuthState::Authenticated, "{:?}", r.error);
+    assert_eq!(r.tools[0].name, "t-200");
+}
+
+#[tokio::test]
+async fn discover_plain_text_4xx_falls_back_to_initialize() {
+    let server = MockServer::start().await;
+    mount_discover(
+        &server,
+        ResponseTemplate::new(400).set_body_string("Bad Request: unknown method"),
+    )
+    .await;
+    mount_successful_probe(&server, "s-400", "t-400").await;
+
+    let r = probe(&server).await;
+
+    assert_eq!(r.state, McpAuthState::Authenticated, "{:?}", r.error);
+    assert_eq!(r.tools[0].name, "t-400");
+}
+
+#[tokio::test]
+async fn discover_auth_rejection_does_not_fall_back() {
+    let server = MockServer::start().await;
+    mount_discover(&server, ResponseTemplate::new(401).set_body_string("no")).await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(initialize_wire()))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(0)
+        .mount(&server)
+        .await;
+
+    let r = probe(&server).await;
+
+    assert_eq!(r.state, McpAuthState::GatewayUnauthorized);
+    assert_eq!(r.http_status, Some(401));
 }

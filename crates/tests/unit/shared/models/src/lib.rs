@@ -228,6 +228,8 @@ mod bridge_manifest_version;
 mod mcp_deployment;
 
 #[cfg(test)]
+mod mcp_connector_grant;
+#[cfg(test)]
 mod mcp_deployment_connector;
 
 #[cfg(test)]

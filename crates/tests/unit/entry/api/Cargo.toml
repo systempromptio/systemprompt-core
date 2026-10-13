@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+jsonschema = { workspace = true }
 systemprompt-api = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -61,4 +62,4 @@ systemprompt-content = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["inventory"]
+ignored = ["inventory", "jsonschema"]

@@ -10,7 +10,7 @@
 
 use crate::error::McpDomainResult;
 use rmcp::ServiceExt;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
+use rmcp::model::{ClientCapabilities, ClientConfig, Implementation, ProtocolVersion};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -155,13 +155,14 @@ async fn connect_and_validate(
     })?;
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new(
             format!("systemprompt.io MCP Validator for {service_name}"),
             "1.0.0",
         ),
-    );
+    )
+    .with_protocol_version(ProtocolVersion::LATEST_WITH_INITIALIZE);
 
     let client = client_info.serve(transport).await?;
 
@@ -169,9 +170,26 @@ async fn connect_and_validate(
         .peer_info()
         .ok_or(crate::error::McpDomainError::PeerInfoUnavailable)?;
 
-    let implementation = peer_info.server_info.as_ref();
+    let server_info = protocol_info(&peer_info, service_name);
 
-    let server_info = McpProtocolInfo {
+    // Why: rmcp serialises a `None` params as `"params": null`, which a
+    // strict server (Google's MCP) refuses with -32602; send `{}`.
+    let validation_result = tools_validation(
+        client
+            .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
+            .await,
+    );
+
+    client.cancel().await?;
+    Ok((server_info, validation_result))
+}
+
+fn protocol_info(
+    peer_info: &rmcp::model::ServerPeerInfo,
+    service_name: &ServiceName,
+) -> McpProtocolInfo {
+    let implementation = peer_info.server_info.as_ref();
+    McpProtocolInfo {
         implementation_name: implementation
             .map(|info| info.name.as_str())
             .filter(|name| !name.is_empty())
@@ -183,14 +201,13 @@ async fn connect_and_validate(
             .unwrap_or("1.0.0")
             .to_owned(),
         protocol_version: peer_info.protocol_version.to_string(),
-    };
+    }
+}
 
-    // Why: rmcp serialises a `None` params as `"params": null`, which a
-    // strict server (Google's MCP) refuses with -32602; send `{}`.
-    let validation_result = match client
-        .list_tools(Some(rmcp::model::PaginatedRequestParams::default()))
-        .await
-    {
+fn tools_validation(
+    listed: Result<rmcp::model::ListToolsResult, rmcp::ServiceError>,
+) -> ValidationResult {
+    match listed {
         Ok(tools_response) => {
             let tools_count = tools_response.tools.len();
 
@@ -218,10 +235,7 @@ async fn connect_and_validate(
             tools_count: None,
             validation_type: "tools_request_failed".to_owned(),
         },
-    };
-
-    client.cancel().await?;
-    Ok((server_info, validation_result))
+    }
 }
 
 pub fn rewrite_url_for_internal_use(url: &str) -> String {

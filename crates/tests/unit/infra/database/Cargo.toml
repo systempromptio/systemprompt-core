@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+reqwest = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-extension = { workspace = true }
@@ -30,3 +31,6 @@ tempfile = { workspace = true }
 uuid = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-logging = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

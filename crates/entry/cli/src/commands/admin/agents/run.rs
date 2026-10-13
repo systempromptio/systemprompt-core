@@ -10,6 +10,7 @@ use std::sync::Arc;
 use systemprompt_agent::AgentState;
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::services::a2a_server::streaming::webhook_client::HttpWebhookBroadcaster;
+use systemprompt_agent_runs::AgentRunsExtension;
 use systemprompt_ai::{AiService, AiServiceProviders};
 use systemprompt_identifiers::AgentName;
 use systemprompt_loader::ConfigLoader;
@@ -40,13 +41,16 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
 
-    let agent_state = Arc::new(AgentState::new(
-        Arc::clone(&db_pool),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-        Arc::clone(ctx.a2a_repositories()),
-        Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
-    ));
+    let agent_state = Arc::new(
+        AgentState::new(
+            Arc::clone(&db_pool),
+            Arc::new(ctx.config().clone()),
+            jwt_provider,
+            Arc::clone(ctx.a2a_repositories()),
+            Arc::new(HttpWebhookBroadcaster::from_config(ctx.config())?),
+        )
+        .with_agent_run_launcher(AgentRunsExtension::launcher(&db_pool)),
+    );
 
     let tool_provider = Arc::new(McpToolProvider::new(
         Arc::clone(&db_pool),

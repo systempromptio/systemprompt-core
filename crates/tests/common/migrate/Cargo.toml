@@ -14,6 +14,7 @@ name = "systemprompt-test-migrate"
 path = "src/main.rs"
 
 [dependencies]
+reqwest = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 systemprompt-database = { workspace = true }
@@ -22,6 +23,7 @@ systemprompt-extension = { workspace = true }
 # Force every schema-bearing extension to link into this binary so
 # ExtensionRegistry::discover() picks up their inventory entries.
 systemprompt-agent = { workspace = true }
+systemprompt-agent-runs = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-content = { workspace = true }
@@ -33,3 +35,6 @@ systemprompt-oauth = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-users = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]

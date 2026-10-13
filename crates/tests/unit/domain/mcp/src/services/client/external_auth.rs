@@ -48,6 +48,7 @@ async fn fetch_bearer_returns_access_token() {
         "my-jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect("bearer resolves");
@@ -70,6 +71,7 @@ async fn fetch_bearer_rejects_empty_access_token() {
         "jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect_err("empty token rejected");
@@ -90,6 +92,7 @@ async fn fetch_bearer_maps_not_found_to_unconnected_account() {
         "jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect_err("404 surfaces");
@@ -113,6 +116,7 @@ async fn fetch_bearer_surfaces_other_statuses() {
         "jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect_err("503 surfaces");
@@ -137,6 +141,7 @@ async fn fetch_bearer_carries_the_accessor_error_reason() {
         "jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect_err("401 surfaces");
@@ -160,6 +165,7 @@ async fn fetch_bearer_rejects_unreadable_body() {
         "jwt",
         "broker-secret",
         "srv",
+        None,
     )
     .await
     .expect_err("bad body surfaces");
@@ -168,9 +174,15 @@ async fn fetch_bearer_rejects_unreadable_body() {
 
 #[tokio::test]
 async fn fetch_bearer_maps_transport_failure() {
-    let err = fetch_external_bearer("http://127.0.0.1:1/token", "jwt", "broker-secret", "srv")
-        .await
-        .expect_err("connection refused surfaces");
+    let err = fetch_external_bearer(
+        "http://127.0.0.1:1/token",
+        "jwt",
+        "broker-secret",
+        "srv",
+        None,
+    )
+    .await
+    .expect_err("connection refused surfaces");
     assert!(err.to_string().contains("token accessor request failed"));
 }
 
@@ -230,6 +242,7 @@ async fn fetch_bearer_authenticates_the_broker() {
         "employee-token",
         SECRET,
         "provider",
+        None,
     )
     .await
     .expect("broker authenticated");
@@ -256,8 +269,33 @@ async fn fetch_bearer_does_not_forward_credentials_to_redirects() {
         "employee-token",
         "broker-secret",
         "provider",
+        None,
     )
     .await
     .expect_err("redirect refused");
     assert!(error.to_string().contains("302"));
+}
+
+#[tokio::test]
+async fn fetch_bearer_names_server_and_caller_purpose() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(header("x-systemprompt-mcp-server", "jira"))
+        .and(header("x-systemprompt-caller", "workflow:triage"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token":"svc"})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let bearer = fetch_external_bearer(
+        &format!("{}/token", server.uri()),
+        "service-token",
+        "broker-secret",
+        "jira",
+        Some("workflow:triage"),
+    )
+    .await
+    .expect("purpose forwarded");
+    assert_eq!(bearer, "svc");
 }

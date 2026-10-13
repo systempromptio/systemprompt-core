@@ -7,13 +7,13 @@
 //! up its rows afterwards so shards do not interfere.
 
 use std::sync::Arc;
-use systemprompt_identifiers::ServiceName;
+use systemprompt_identifiers::{InstanceId, ServiceName};
 
 use systemprompt_manifest::ServiceType;
 use systemprompt_scheduler::{
     DesiredStatus, ServiceAction, ServiceConfig, ServiceReconciler, ServiceStateVerifier,
 };
-use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 fn unique_name(prefix: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,6 +30,7 @@ fn unique_name(prefix: &str) -> String {
 
 async fn insert_service(
     pg: &sqlx::PgPool,
+    instance: &InstanceId,
     name: &str,
     module_name: &str,
     status: &str,
@@ -39,13 +40,14 @@ async fn insert_service(
     sqlx::query!(
         r#"
         INSERT INTO services (instance_id, name, module_name, status, pid, port)
-        VALUES ('test-instance', $1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (instance_id, name) DO UPDATE SET
             module_name = EXCLUDED.module_name,
             status = EXCLUDED.status,
             pid = EXCLUDED.pid,
             port = EXCLUDED.port
         "#,
+        instance.as_str(),
         name,
         module_name,
         status,
@@ -69,16 +71,23 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn running_status_nonexistent_pid_becomes_crashed() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_running_crashed");
 
-        insert_service(&pg, &name, "mcp", "running", Some(999_999_998), 29100).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "running",
+            Some(999_999_998),
+            29100,
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -113,16 +122,14 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn running_status_null_pid_becomes_crashed() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_running_nopid");
 
-        insert_service(&pg, &name, "agent", "running", None, 29101).await;
+        insert_service(&pg, &test_instance, &name, "agent", "running", None, 29101).await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
@@ -152,16 +159,23 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn starting_status_nonexistent_pid_becomes_stopped() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_starting_stopped");
 
-        insert_service(&pg, &name, "mcp", "starting", Some(999_999_997), 29102).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "starting",
+            Some(999_999_997),
+            29102,
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -196,16 +210,14 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn starting_status_null_pid_becomes_stopped() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_starting_nopid");
 
-        insert_service(&pg, &name, "mcp", "starting", None, 29103).await;
+        insert_service(&pg, &test_instance, &name, "mcp", "starting", None, 29103).await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -235,16 +247,14 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn disabled_config_with_stopped_db_row_maps_to_cleanup_db() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_disabled_stopped");
 
-        insert_service(&pg, &name, "mcp", "stopped", None, 29104).await;
+        insert_service(&pg, &test_instance, &name, "mcp", "stopped", None, 29104).await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -274,16 +284,23 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn disabled_config_with_crashed_db_row_maps_to_cleanup_db() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_disabled_crashed");
 
-        insert_service(&pg, &name, "agent", "running", Some(999_999_996), 29105).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "agent",
+            "running",
+            Some(999_999_996),
+            29105,
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
@@ -318,16 +335,14 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn orphan_db_row_not_in_config_is_included() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_seed_orphan");
 
-        insert_service(&pg, &name, "mcp", "stopped", None, 29106).await;
+        insert_service(&pg, &test_instance, &name, "mcp", "stopped", None, 29106).await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
 
         let states = verifier
             .get_verified_states(&[])
@@ -353,6 +368,7 @@ mod state_verifier_seeded {
 
     #[tokio::test]
     async fn multiple_db_rows_mixed_states() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
@@ -360,14 +376,29 @@ mod state_verifier_seeded {
         let name_b = unique_name("sv_multi_b");
         let name_c = unique_name("sv_multi_c");
 
-        insert_service(&pg, &name_a, "mcp", "running", Some(999_999_995), 29110).await;
-        insert_service(&pg, &name_b, "agent", "starting", None, 29111).await;
-        insert_service(&pg, &name_c, "mcp", "stopped", None, 29112).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name_a,
+            "mcp",
+            "running",
+            Some(999_999_995),
+            29110,
+        )
+        .await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name_b,
+            "agent",
+            "starting",
+            None,
+            29111,
+        )
+        .await;
+        insert_service(&pg, &test_instance, &name_c, "mcp", "stopped", None, 29112).await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = vec![
             ServiceConfig {
                 name: ServiceName::new(name_a.as_str()),
@@ -422,18 +453,16 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_cleanup_db_for_disabled_stopped_row() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("rec_seed_cleanup");
 
-        insert_service(&pg, &name, "mcp", "stopped", None, 29120).await;
+        insert_service(&pg, &test_instance, &name, "mcp", "stopped", None, 29120).await;
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -456,18 +485,25 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_start_for_enabled_crashed_row() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("rec_seed_restart");
 
-        insert_service(&pg, &name, "agent", "running", Some(999_999_994), 29121).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "agent",
+            "running",
+            Some(999_999_994),
+            29121,
+        )
+        .await;
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -497,18 +533,16 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_cleanup_db_removes_row_from_db() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("rec_seed_deleted");
 
-        insert_service(&pg, &name, "mcp", "stopped", None, 29122).await;
+        insert_service(&pg, &test_instance, &name, "mcp", "stopped", None, 29122).await;
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -539,20 +573,27 @@ mod reconciler_seeded {
 
     #[tokio::test]
     async fn reconcile_mixed_configs_seeded_runs_multiple_branches() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
 
         let name_start = unique_name("rec_mix_start");
         let name_cleanup = unique_name("rec_mix_cleanup");
 
-        insert_service(&pg, &name_cleanup, "mcp", "stopped", None, 29130).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name_cleanup,
+            "mcp",
+            "stopped",
+            None,
+            29130,
+        )
+        .await;
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, test_instance.clone()),
         );
         let configs = vec![
             ServiceConfig {
@@ -590,10 +631,7 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -621,10 +659,7 @@ mod reconciler_seeded {
 
         let reconciler = ServiceReconciler::new(
             Arc::clone(&pool),
-            systemprompt_database::ServiceRepository::new(
-                &pool,
-                systemprompt_identifiers::InstanceId::new("test-instance"),
-            ),
+            systemprompt_database::ServiceRepository::new(&pool, unique_instance()),
         );
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
@@ -654,16 +689,23 @@ mod verifier_query_methods_seeded {
 
     #[tokio::test]
     async fn get_crashed_services_returns_seeded_crashed_state() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_crashed_filter");
 
-        insert_service(&pg, &name, "mcp", "running", Some(999_999_993), 29140).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "running",
+            Some(999_999_993),
+            29140,
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -686,16 +728,23 @@ mod verifier_query_methods_seeded {
 
     #[tokio::test]
     async fn get_services_needing_action_includes_crashed_enabled_service() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_action_filter");
 
-        insert_service(&pg, &name, "agent", "running", Some(999_999_992), 29141).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "agent",
+            "running",
+            Some(999_999_992),
+            29141,
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
@@ -746,6 +795,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn running_row_with_live_pid_and_responsive_port_is_running() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_live_running");
@@ -755,12 +805,18 @@ mod state_verifier_live {
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
-        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "running",
+            Some(pid),
+            i32::from(port),
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -791,6 +847,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn disabled_running_row_with_live_pid_needs_stop() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_live_disabled_running");
@@ -800,12 +857,18 @@ mod state_verifier_live {
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
-        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "running",
+            Some(pid),
+            i32::from(port),
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -835,6 +898,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn running_row_with_live_pid_and_unresponsive_port_is_starting() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_live_starting");
@@ -843,12 +907,18 @@ mod state_verifier_live {
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
-        insert_service(&pg, &name, "mcp", "running", Some(pid), i32::from(port)).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "mcp",
+            "running",
+            Some(pid),
+            i32::from(port),
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,
@@ -882,6 +952,7 @@ mod state_verifier_live {
 
     #[tokio::test]
     async fn starting_row_with_live_pid_stays_starting() {
+        let test_instance = unique_instance();
         let pool = test_db_pool().await;
         let pg = pool.write_pool();
         let name = unique_name("sv_live_starting_row");
@@ -890,12 +961,18 @@ mod state_verifier_live {
         let mut child = spawn_sleep();
         let pid = child.id() as i32;
 
-        insert_service(&pg, &name, "agent", "starting", Some(pid), i32::from(port)).await;
+        insert_service(
+            &pg,
+            &test_instance,
+            &name,
+            "agent",
+            "starting",
+            Some(pid),
+            i32::from(port),
+        )
+        .await;
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), test_instance.clone());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Agent,
@@ -927,10 +1004,7 @@ mod state_verifier_live {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind listener");
         let port = listener.local_addr().expect("local addr").port();
 
-        let verifier = ServiceStateVerifier::new(
-            Arc::clone(&pool),
-            systemprompt_identifiers::InstanceId::new("test-instance"),
-        );
+        let verifier = ServiceStateVerifier::new(Arc::clone(&pool), unique_instance());
         let configs = [ServiceConfig {
             name: ServiceName::new(name.as_str()),
             service_type: ServiceType::Mcp,

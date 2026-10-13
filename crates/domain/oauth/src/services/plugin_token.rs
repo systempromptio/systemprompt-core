@@ -60,6 +60,7 @@ impl PluginTokenService {
             resource: Some("plugin".to_owned()),
             plugin_id: Some(plugin_id),
             client_id: None,
+            purpose: None,
         };
 
         let token = generate_jwt(&authenticated, config, jti.clone(), session_id, &signing)?;

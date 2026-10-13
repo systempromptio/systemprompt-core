@@ -96,8 +96,8 @@ impl GatewayClient {
             .json::<BridgeProfile>()
             .await
             .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))?;
-        if let Err(error) = super::desktop_catalog::remember(self.base_url().as_str(), &profile) {
-            tracing::warn!(%error, "could not cache the desktop model catalog");
+        if let Err(error) = super::profile_cache::remember(self.base_url().as_str(), &profile) {
+            tracing::warn!(%error, "could not cache the bridge profile");
         }
         Ok(profile)
     }

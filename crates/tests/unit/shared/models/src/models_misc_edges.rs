@@ -4,7 +4,9 @@
 use std::str::FromStr;
 use systemprompt_manifest::PathNotConfiguredError;
 use systemprompt_models::ApiError;
-use systemprompt_models::a2a::{ApiKeyLocation, ProtocolBinding, SecurityScheme};
+use systemprompt_models::a2a::{
+    ApiKeyLocation, ApiKeySecurityScheme, ProtocolBinding, SecurityScheme,
+};
 use systemprompt_models::auth::CloudAuthClaims;
 use systemprompt_traits::{ConstraintKind, RepositoryError};
 
@@ -38,16 +40,16 @@ fn api_key_location_parse_display_round_trip() {
 }
 
 #[test]
-fn security_scheme_api_key_serializes_with_in_field() {
-    let scheme = SecurityScheme::ApiKey {
+fn security_scheme_api_key_serializes_as_proto_oneof() {
+    let scheme = SecurityScheme::ApiKey(ApiKeySecurityScheme {
         name: "X-Api-Key".to_owned(),
         location: ApiKeyLocation::Header,
         description: None,
-    };
+    });
     let json = serde_json::to_value(&scheme).unwrap();
-    assert_eq!(json["type"], "apiKey");
-    assert_eq!(json["in"], "header");
-    assert_eq!(json["name"], "X-Api-Key");
+    assert_eq!(json["apiKeySecurityScheme"]["location"], "header");
+    assert_eq!(json["apiKeySecurityScheme"]["name"], "X-Api-Key");
+    assert!(json.get("type").is_none());
 }
 
 #[test]

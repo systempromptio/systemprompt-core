@@ -2,4 +2,4 @@
 import type { FleetHeadline } from "./FleetHeadline";
 import type { FleetState } from "./FleetState";
 
-export type AgentFleetSummary = { total: number, working: number, ready: number, attention: number, not_set_up: number, down: number, checking: number, running: number, state: FleetState, headline: FleetHeadline, };
+export type AgentFleetSummary = { total: number, working: number, ready: number, attention: number, not_set_up: number, not_installed: number, down: number, checking: number, running: number, state: FleetState, headline: FleetHeadline, };

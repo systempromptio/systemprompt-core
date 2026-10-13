@@ -241,6 +241,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-async-trait
         if: ${{ !cancelled() }}
+      - run: just lint-shared-test-ids
+        if: ${{ !cancelled() }}
       - run: just lint-owned-tasks
         if: ${{ !cancelled() }}
       - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
@@ -264,6 +266,8 @@ jobs:
       - run: just lint-json-value
         if: ${{ !cancelled() }}
       - run: just lint-table-ownership
+        if: ${{ !cancelled() }}
+      - run: just lint-ledger-reads
         if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
@@ -289,22 +293,21 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
-      # Why: `just check-gates` is the local gate list; this job is the CI one.
-      # Neither can be the other's source of truth (a single `just check-gates`
-      # step would stop at the first red gate, which is what the per-step
-      # `!cancelled()` guards exist to prevent), so the two lists are asserted
-      # equal instead. A gate listed in the recipe must appear here as a step,
-      # and a step here must be in the recipe.
+      # Why: scripts/check-gates.txt is the local gate list (`just check-gates`);
+      # this job is the CI one. Per-step `!cancelled()` guards give each gate its
+      # own red/green line, so the two lists are asserted equal instead. A gate
+      # listed in the file must appear here as a step, and a step here must be
+      # in the file.
       - name: Local and CI gate lists match
         if: ${{ !cancelled() }}
         run: |
-          want=$(sed -n 's/^check-gates: //p' justfile | tr ' ' '\n' | sort -u)
+          want=$(grep -v '^$' scripts/check-gates.txt | sort -u)
           have=$(awk '/^  source-gates:/ { on = 1; next } on && /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
                  | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
           release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
           have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
           if ! diff <(echo "$want") <(echo "$have"); then
-              echo "::error::justfile check-gates and quality.yml source-gates list different gates (< recipe only, > CI only)"
+              echo "::error::scripts/check-gates.txt and quality.yml source-gates list different gates (< file only, > CI only)"
               exit 1
           fi
           echo "gate lists match ($(echo "$want" | wc -l) gates)"
@@ -358,9 +361,10 @@ jobs:
       - uses: extractions/setup-just@v4
       - run: just file-size
 
-  # One stable context for the `main` ruleset (see ci.yml `ci-passed`).
+  # The `main` ruleset's required context, PR runs only; push runs post
+  # `Quality passed (push)` (see ci.yml `ci-passed`).
   quality-passed:
-    name: Quality passed
+    name: ${{ github.event_name == 'pull_request' && 'Quality passed' || 'Quality passed (push)' }}
     runs-on: ubuntu-latest
     needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
     if: always()

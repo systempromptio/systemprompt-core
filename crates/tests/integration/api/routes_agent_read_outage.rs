@@ -98,15 +98,15 @@ async fn assert_live(ctx: &systemprompt_runtime::AppContext, s: &Seeded) -> Resu
     assert_eq!(status, StatusCode::OK);
     let rows = body.as_array().expect("task artifact list");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["id"].as_str(), Some(s.artifact.as_str()));
+    assert_eq!(rows[0]["artifactId"].as_str(), Some(s.artifact.as_str()));
     let (status, body) = json(artifacts.clone(), "/").await?;
     assert_eq!(status, StatusCode::OK);
     let rows = body.as_array().expect("user artifact list");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0]["id"].as_str(), Some(s.artifact.as_str()));
+    assert_eq!(rows[0]["artifactId"].as_str(), Some(s.artifact.as_str()));
     let (status, body) = json(artifacts, &format!("/{}", s.artifact)).await?;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["id"].as_str(), Some(s.artifact.as_str()));
+    assert_eq!(body["artifactId"].as_str(), Some(s.artifact.as_str()));
     Ok(())
 }
 

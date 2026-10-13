@@ -25,7 +25,7 @@ use systemprompt_models::mcp::deployment::{McpServerType, OAuthRequirement};
 use systemprompt_models::mcp::server::McpServerConfig;
 use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
-use crate::harness::unique_instance;
+use systemprompt_test_fixtures::unique_instance;
 
 async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
     let db = test_db_pool().await;

@@ -54,8 +54,7 @@ fn empty_card() -> AgentCardConfig {
         default_input_modes: vec!["text/plain".to_owned()],
         default_output_modes: vec!["text/plain".to_owned()],
         security_schemes: None,
-        security: None,
-        supports_authenticated_extended_card: false,
+        security_requirements: None,
     }
 }
 

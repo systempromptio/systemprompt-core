@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use systemprompt_agent::models::a2a::{
-    Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState, TextPart,
+    Artifact, ArtifactMetadata, Message, MessageRole, Part, TaskState,
 };
 use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_agent::repository::execution::ExecutionStepRepository;
@@ -44,9 +44,7 @@ use systemprompt_test_fixtures::test_db_pool;
 fn message(role: MessageRole, ctx: &ContextId, task_id: &TaskId, text: &str) -> Message {
     Message {
         role,
-        parts: vec![Part::Text(TextPart {
-            text: text.to_owned(),
-        })],
+        parts: vec![Part::text(text.to_owned())],
         message_id: MessageId::generate(),
         task_id: Some(task_id.clone()),
         context_id: ctx.clone(),
@@ -73,9 +71,7 @@ fn artifact(ctx: &ContextId, task_id: &TaskId) -> Artifact {
         id: ArtifactId::generate(),
         title: Some("turn-artifact".to_owned()),
         description: None,
-        parts: vec![Part::Text(TextPart {
-            text: "body".to_owned(),
-        })],
+        parts: vec![Part::text("body".to_owned())],
         extensions: vec![],
         metadata: ArtifactMetadata::new("text".to_owned(), ctx.clone(), task_id.clone()),
     }

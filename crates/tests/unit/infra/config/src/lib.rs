@@ -47,6 +47,9 @@ mod vault_kv;
 mod vault_client_transport;
 
 #[cfg(test)]
+mod vault_client_tls;
+
+#[cfg(test)]
 mod vault_provider_document;
 
 #[cfg(test)]

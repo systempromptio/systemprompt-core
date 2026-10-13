@@ -15,8 +15,7 @@ use super::typed::lenient;
 use crate::error::McpDomainResult;
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use serde::Deserialize;
-use serde_json::Value as JsonValue;
-use systemprompt_models::a2a::{Artifact, Part};
+use systemprompt_models::a2a::{Artifact, PartContent};
 use systemprompt_models::artifacts::ArtifactType;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -31,20 +30,14 @@ impl ImageRenderer {
         let mut data = ImageData::default();
 
         for part in &artifact.parts {
-            match part {
-                Part::File(file_part) => {
-                    let file = &file_part.file;
-                    if let Some(bytes) = &file.bytes {
-                        let mime = file.mime_type.as_deref().unwrap_or("image/png");
-                        data.src = format!("data:{mime};base64,{bytes}");
-                    } else if let Some(url) = &file.url {
-                        url.clone_into(&mut data.src);
-                    }
+            match &part.content {
+                PartContent::Raw(bytes) => {
+                    let mime = part.media_type.as_deref().unwrap_or("image/png");
+                    data.src = format!("data:{mime};base64,{bytes}");
                 },
-                Part::Data(data_part) => {
-                    let Ok(fields) =
-                        ImageDataFields::deserialize(JsonValue::Object(data_part.data.clone()))
-                    else {
+                PartContent::Url(url) => url.clone_into(&mut data.src),
+                PartContent::Data(value) => {
+                    let Ok(fields) = ImageDataFields::deserialize(value.clone()) else {
                         continue;
                     };
                     if let Some(src) = fields.src.or(fields.url) {
@@ -55,7 +48,7 @@ impl ImageRenderer {
                     data.width = fields.width.or(data.width);
                     data.height = fields.height.or(data.height);
                 },
-                Part::Text(_) => {},
+                PartContent::Text(_) => {},
             }
         }
 

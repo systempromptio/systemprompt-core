@@ -40,6 +40,7 @@ pub mod gui;
 pub mod hash;
 pub mod host_sync;
 
+pub mod drift;
 pub mod i18n;
 pub mod ids;
 pub mod install;
@@ -197,9 +198,25 @@ pub fn run() -> ExitCode {
     run_with_brand(&brand::Brand::SYSTEMPROMPT)
 }
 
+// Why: reqwest 0.13 is built with `rustls-no-provider` so the tree carries ring
+// only; rustls then needs a process-wide provider before the first client is
+// built, or reqwest panics.
+fn install_tls_crypto_provider() {
+    if rustls::crypto::CryptoProvider::get_default().is_some() {
+        return;
+    }
+    if rustls::crypto::ring::default_provider()
+        .install_default()
+        .is_err()
+    {
+        tracing::debug!("rustls crypto provider was installed concurrently");
+    }
+}
+
 #[must_use]
 pub fn run_with_brand(brand: &'static brand::Brand) -> ExitCode {
     brand::set_brand(brand);
+    install_tls_crypto_provider();
     let launch = cli::Launch::detect();
     obs::install_panic_hook();
     if let Err(e) = obs::tracing_init::init() {

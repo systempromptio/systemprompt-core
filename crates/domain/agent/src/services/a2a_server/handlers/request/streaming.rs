@@ -1,19 +1,24 @@
-//! Streaming A2A message handling over SSE.
+//! Streaming A2A message handling over SSE. A message queued as an agent
+//! run answers with one `StreamResponse::Task` frame carrying the `Submitted`
+//! task; a request that cannot stream is answered with one JSON-RPC error
+//! frame. Either way the stream closes after that frame.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::response::sse::Event;
-use serde_json::json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
+use crate::models::a2a::StreamResponse;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::streaming::{
-    CreateSseStreamParams, StreamRejected, create_sse_stream,
+    CreateSseStreamParams, StreamRejected, create_sse_stream, jsonrpc_error_event,
+    stream_response_event,
 };
 
 pub(super) async fn handle_streaming_request(
@@ -52,7 +57,24 @@ pub(super) async fn handle_streaming_request(
         .await
         {
             tracing::error!(error = %err, "Context validation failed for streaming request");
-            return Ok(invalid_params_stream(&request_id, &err.to_string()).map(Ok));
+            let error =
+                JsonRpcErrorBuilder::invalid_params().with_metadata("detail", err.to_string());
+            return Ok(error_stream(error, &request_id).map(Ok));
+        }
+
+        let launched =
+            super::agent_run::launch_if_configured(&params.message, &agent_name, &state, &context)
+                .await;
+        match launched {
+            Ok(Some(task)) => {
+                let frame = stream_response_event(StreamResponse::Task(task), &request_id);
+                return Ok(single_event_stream(frame).map(Ok));
+            },
+            Ok(None) => {},
+            Err(failure) => {
+                let frame = jsonrpc_failure_event(&failure.into_jsonrpc(&request_id));
+                return Ok(single_event_stream(frame).map(Ok));
+            },
         }
 
         Ok(create_sse_stream(CreateSseStreamParams {
@@ -66,37 +88,31 @@ pub(super) async fn handle_streaming_request(
         .map(Ok))
     } else {
         tracing::warn!("Request type not SendStreamingMessage, returning error stream");
-        let error_event = json!({
-            "jsonrpc": "2.0",
-            "error": {
-                "code": -32601,
-                "message": "Method not found",
-                "data": "Only SendStreamingMessage requests are supported for streaming"
-            },
-            "id": &request_id
-        });
-
-        let (tx, rx) = tokio::sync::mpsc::channel(1024);
-        if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
-            tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
-        }
-        Ok(ReceiverStream::new(rx).map(Ok))
+        let error = JsonRpcErrorBuilder::method_not_found().with_metadata(
+            "detail",
+            "Only SendStreamingMessage requests are supported for streaming",
+        );
+        Ok(error_stream(error, &request_id).map(Ok))
     }
 }
 
-fn invalid_params_stream(request_id: &NumberOrString, data: &str) -> ReceiverStream<Event> {
-    let error_event = json!({
-        "jsonrpc": "2.0",
-        "error": {
-            "code": -32602,
-            "message": "Invalid params",
-            "data": data
-        },
-        "id": request_id
-    });
+fn error_stream(error: JsonRpcErrorBuilder, request_id: &NumberOrString) -> ReceiverStream<Event> {
+    single_event_stream(jsonrpc_error_event(error, request_id))
+}
 
-    let (tx, rx) = tokio::sync::mpsc::channel(1024);
-    if let Err(e) = tx.try_send(Event::default().data(error_event.to_string())) {
+fn jsonrpc_failure_event(response: &JsonRpcErrorResponse) -> Event {
+    match serde_json::to_string(response) {
+        Ok(data) => Event::default().data(data),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to serialise A2A error frame");
+            jsonrpc_error_event(JsonRpcErrorBuilder::internal_error(), &response.id)
+        },
+    }
+}
+
+fn single_event_stream(event: Event) -> ReceiverStream<Event> {
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+    if let Err(e) = tx.try_send(event) {
         tracing::warn!(error = %e, "Failed to send error event to SSE client - client may have disconnected");
     }
     ReceiverStream::new(rx)

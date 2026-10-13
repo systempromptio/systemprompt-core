@@ -12,7 +12,10 @@
 -- `mcp_artifacts.mcp_execution_id` is unique, so one execution is exactly
 -- one ledger row. `is_builtin` marks a host-native tool (Bash, Read, …) a
 -- hook reported with no MCP server behind it, recorded under the vantage
--- point's own name; consumers that mean "MCP tools" exclude it.
+-- point's own name; consumers that mean "MCP tools" exclude it. It,
+-- `input_summary` and `artifact_kind` are the execution's stored facts (mcp
+-- schema `tool_row_facts.sql`); NULL on an executed row means not yet
+-- projected.
 CREATE OR REPLACE VIEW tool_call_ledger AS
 SELECT
     COALESCE(i.ai_tool_call_id, e.ai_tool_call_id) AS ai_tool_call_id,
@@ -48,7 +51,9 @@ SELECT
         ELSE 'executed'
     END AS state,
     COALESCE(e.started_at, i.created_at) AS occurred_at,
-    (e.mcp_execution_id IS NOT NULL AND e.server_name = e.source) AS is_builtin
+    CASE WHEN e.mcp_execution_id IS NULL THEN FALSE ELSE e.is_builtin END AS is_builtin,
+    e.input_summary,
+    e.artifact_kind
 FROM ai_request_tool_calls i
 FULL OUTER JOIN mcp_tool_executions e
     ON e.ai_tool_call_id = i.ai_tool_call_id

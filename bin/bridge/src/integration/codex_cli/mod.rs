@@ -12,9 +12,10 @@ pub use managed_resources::CodexCliSync;
 
 use systemprompt_models::bridge::host::HostKind;
 
+use crate::drift::DesiredProfile;
 use crate::integration::host_app::{
-    ConfigFormat, Freshness, GeneratedProfile, HostApp, HostAppError, HostAppKind, HostAppSnapshot,
-    HostConfigSchema, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
+    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
     ProfileRemoval, ProfileState,
 };
 
@@ -32,24 +33,16 @@ impl HostApp for CodexCliHost {
         "Codex CLI"
     }
 
-    fn config_schema(&self) -> &'static HostConfigSchema {
-        &config::SCHEMA
-    }
-
+    // Why: only the managed config is governance; a provider block the user
+    // wrote in their own config.toml is theirs to change and is not read.
     fn probe(&self, env: &ProbeEnv) -> HostAppSnapshot {
         let read = probe::read_config();
-        let endpoint = ProfileState::endpoint_freshness(
-            read.keys.get(config::PROVIDER_BASE_URL).map(String::as_str),
-            env.proxy_port,
-        );
-        let secret = Freshness::Unchecked;
+        let desired = env.desired_for(self);
         let profile_state = ProfileState::classify(&ProfileProbe {
-            required: config::REQUIRED_KEYS,
             present: &read.keys,
+            observed: &read.observed,
             read_error: read.probe_error.as_deref(),
-            secret,
-            endpoint,
-            managed_servers: Freshness::Unchecked,
+            desired: &desired,
         });
         let found = HostProcesses::from_enumeration(probe::list_codex_processes());
         HostAppSnapshot {
@@ -61,13 +54,20 @@ impl HostApp for CodexCliHost {
             probe_error: read.probe_error.or(found.error),
             host_running: found.running,
             host_processes: found.processes,
-            app_installed: crate::integration::app_launch::is_installed(
-                &locator(),
-                &env.start_menu,
-            ),
+            app_installed: self.app_installed(&env.start_menu),
             probed_at_unix: config::now_unix(),
             update_needs_approval: false,
         }
+    }
+
+    fn desired(&self, inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        let rendered: toml::Value = toml::from_str(&install::managed_toml(inputs)?)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        Ok(probe::keys_of(&rendered, "rendered profile").desired(config::role_of))
+    }
+
+    fn app_installed(&self, start_menu: &crate::probe_cache::StartMenuCache) -> AppInstallState {
+        crate::integration::app_launch::is_installed(&locator(), start_menu)
     }
 
     fn generate_profile(

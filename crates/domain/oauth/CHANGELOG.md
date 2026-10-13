@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- Service accounts can never obtain an interactive credential: the OAuth callback exchange, passkey registration and authentication, and bridge exchange-code issuance refuse them.
+
+### Breaking
+
+- `issue_bridge_exchange_code(repo, users: &dyn UserProvider, user_id)` takes the user provider so it can refuse a service account.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

@@ -65,7 +65,8 @@ pub use progress::{ProgressCallback, create_progress_callback};
 pub use repository::{
     ArtifactCorrelation, ArtifactFinding, ArtifactFindingRecord, ArtifactFindingRepository,
     ArtifactIngestRepositories, ArtifactPayloadRecord, ArtifactPayloadRepository, ArtifactShape,
-    CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository, PHASE_TOOL_RESULT,
+    CreateMcpArtifact, IngestMark, IngestMarkKey, McpArtifactRecord, McpArtifactRepository,
+    PHASE_TOOL_RESULT, ToolResultIngestMarkRepository,
 };
 pub use resources::{
     ArtifactViewerConfig, build_artifact_viewer_resource, build_resource_template_list_result,

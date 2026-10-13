@@ -139,11 +139,14 @@ fn run_mdm_step(
 ) -> Result<MdmDisplay, InstallError> {
     let pubkey_str = opts.pubkey.as_ref().map(PinnedPubKey::as_str);
     let inference_base_url = loopback.origin();
+    let overrides = super::profile_inputs::ProfileFacts::persisted_overrides()
+        .map_err(|e| InstallError::MdmApply(mdm::MdmError::from(e)))?;
     let mcp = mdm::MdmPayloadInputs {
         policy_store,
         loopback,
         registry,
         egress_allowed_hosts: opts.egress_allowed_hosts.as_deref(),
+        overrides: &overrides,
     };
     if opts.apply_mobileconfig {
         return run_apply_mobileconfig(&mcp, &inference_base_url, pubkey_str);

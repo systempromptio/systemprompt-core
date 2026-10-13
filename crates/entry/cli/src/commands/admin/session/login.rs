@@ -65,6 +65,16 @@ pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandOutp
     login_for_profile(profile, profile_path, secrets, &args).await
 }
 
+fn ensure_interactive_admin(admin_user: &User) -> Result<()> {
+    if admin_user.is_service_account() {
+        anyhow::bail!(
+            "User '{}' is a service account; service accounts cannot open an interactive session",
+            admin_user.name
+        );
+    }
+    Ok(())
+}
+
 pub async fn login_for_profile(
     profile: &Profile,
     profile_path: &str,
@@ -103,6 +113,7 @@ pub async fn login_for_profile(
         args.email.as_deref(),
     )
     .await?;
+    ensure_interactive_admin(&admin_user)?;
 
     progress(args, "Creating session...");
     let session_id = create_local_session_row(

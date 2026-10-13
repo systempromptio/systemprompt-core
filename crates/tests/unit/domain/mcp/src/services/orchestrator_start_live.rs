@@ -16,8 +16,9 @@ use systemprompt_test_fixtures::{TestBootstrap, fixture_user_id, test_db_pool};
 
 use crate::harness::{
     bootstrap_with_services, config_with_servers, install_stub_binary, internal_server_block,
-    register_internal_extension, unique_instance,
+    register_internal_extension,
 };
+use systemprompt_test_fixtures::unique_instance;
 
 // Internal MCP servers are validated against the 5000-5999 range, so an
 // ephemeral port would be rejected by config validation before any spawn.

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- reqwest 0.13 on ring, with no aws-lc.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

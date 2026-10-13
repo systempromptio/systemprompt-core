@@ -6,7 +6,7 @@
 //! - ContextStateEvent variants and methods
 
 use chrono::Utc;
-use systemprompt_agent::models::a2a::{Part, TextPart};
+use systemprompt_agent::models::a2a::Part;
 use systemprompt_agent::models::context::{
     ContextDetail, ContextKind, ContextMessage, ContextStateEvent,
 };
@@ -31,9 +31,7 @@ fn test_context_message_serialize() {
         role: "user".to_string(),
         created_at: Utc::now(),
         sequence_number: 1,
-        parts: vec![Part::Text(TextPart {
-            text: "Hello".to_string(),
-        })],
+        parts: vec![Part::text("Hello".to_string())],
     };
 
     let json = serde_json::to_string(&message).unwrap();
@@ -111,18 +109,14 @@ fn test_context_detail_with_messages() {
                 role: "user".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 1,
-                parts: vec![Part::Text(TextPart {
-                    text: "Hello".to_string(),
-                })],
+                parts: vec![Part::text("Hello".to_string())],
             },
             ContextMessage {
                 message_id: MessageId::new("msg-2"),
                 role: "assistant".to_string(),
                 created_at: Utc::now(),
                 sequence_number: 2,
-                parts: vec![Part::Text(TextPart {
-                    text: "Hi there".to_string(),
-                })],
+                parts: vec![Part::text("Hi there".to_string())],
             },
         ],
     };

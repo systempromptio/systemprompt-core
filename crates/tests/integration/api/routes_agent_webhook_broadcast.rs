@@ -15,9 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     Actor, AgentName, ArtifactId, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
 };
-use systemprompt_models::a2a::{
-    Message, MessageRole, Part, Task, TaskState as ModelsTaskState, TextPart,
-};
+use systemprompt_models::a2a::{Message, MessageRole, Part, Task, TaskState as ModelsTaskState};
 use systemprompt_models::{
     A2AEventBuilder, AgUiEventBuilder, ExecutionStep, RequestContext, StepContent,
 };
@@ -309,9 +307,7 @@ async fn broadcast_task_created_with_history_succeeds() -> anyhow::Result<()> {
     task.context_id = s.context_id.clone();
     task.history = Some(vec![Message {
         role: MessageRole::Agent,
-        parts: vec![Part::Text(TextPart {
-            text: "hi".to_owned(),
-        })],
+        parts: vec![Part::text("hi".to_owned())],
         message_id: MessageId::generate(),
         task_id: None,
         context_id: s.context_id.clone(),

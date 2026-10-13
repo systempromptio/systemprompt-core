@@ -1,4 +1,4 @@
-//! Merge the bridge-owned keys into the managed `opencode.json`, stripping the
+//! Merge the bridge-owned keys into the user's `opencode.json`, stripping the
 //! prior bridge-owned values first so a shrunk model list leaves no stale
 //! entries, and preserving every other key. Bridge-owned surface: the whole
 //! `provider.systemprompt` object (and `provider` itself once empty) plus the
@@ -15,35 +15,54 @@ use serde_json::{Map, Value};
 use super::super::config::{DEFAULT_MODEL, ENABLED_PROVIDERS, PROVIDER_ID};
 use super::{elevation_prompt, pretty, read_object};
 use crate::install::approval::GatedChangeError;
-use crate::install::managed_file::{ManagedWrite, remove_managed_file, write_managed_file};
+use crate::install::managed_file::{remove_managed_file, write_managed_file};
 
 // JSON: OpenCode `opencode.json` — foreign config, unknown keys must be
 // preserved.
-pub(super) fn install(
-    source: &Map<String, Value>,
-    target: &Path,
-) -> Result<ManagedWrite, GatedChangeError> {
+pub(super) fn install(source: &Map<String, Value>, target: &Path) -> std::io::Result<()> {
     let mut merged = read_object(target)?;
     strip_owned(&mut merged);
     deep_merge(&mut merged, source);
-    write_managed_file(target, &pretty(&merged)?, &elevation_prompt())
+    crate::fsutil::atomic_write_0600(target, &pretty(&merged)?)
 }
 
-pub(super) fn uninstall(target: &Path) -> Result<bool, GatedChangeError> {
-    if !target.exists() {
+pub(super) fn uninstall_user(target: &Path) -> std::io::Result<bool> {
+    let Some(value) = stripped(target)? else {
         return Ok(false);
+    };
+    if value.is_empty() {
+        crate::fsutil::remove_verified(target)?;
+    } else {
+        crate::fsutil::atomic_write_0600(target, &pretty(&value)?)?;
     }
-    let original = read_object(target)?;
-    let mut value = original.clone();
-    strip_owned(&mut value);
-    if value == original {
+    Ok(true)
+}
+
+pub(super) fn uninstall_managed(target: &Path) -> Result<bool, GatedChangeError> {
+    let Some(value) = stripped(target)? else {
         return Ok(false);
-    }
+    };
     if value.is_empty() {
         return remove_managed_file(target, &elevation_prompt());
     }
     write_managed_file(target, &pretty(&value)?, &elevation_prompt())?;
     Ok(true)
+}
+
+pub(super) fn carries_owned(target: &Path) -> bool {
+    stripped(target).is_ok_and(|v| v.is_some())
+}
+
+// JSON: OpenCode's config file is host-owned JSON with an open schema; only its
+// known keys are edited.
+fn stripped(target: &Path) -> std::io::Result<Option<Map<String, Value>>> {
+    if !target.exists() {
+        return Ok(None);
+    }
+    let original = read_object(target)?;
+    let mut value = original.clone();
+    strip_owned(&mut value);
+    Ok((value != original).then_some(value))
 }
 
 // JSON: OpenCode `opencode.json` — foreign config, unknown keys must be

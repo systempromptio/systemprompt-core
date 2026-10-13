@@ -109,7 +109,15 @@ pub fn connect_options(database_url: &str) -> DatabaseResult<PgConnectOptions> {
         // closes on eviction; stale plans after in-process DDL are handled by
         // `mark_schema_changed` in `build_pool_options`.
         .statement_cache_capacity(DEFAULT_STATEMENT_CACHE_CAPACITY)
-        .options([("client_min_messages", "warning")]);
+        // Why: a transaction left open by a crashed or stuck task holds its row
+        // locks and stops autovacuum reclaiming the hot tables until the
+        // connection is recycled (30 min). Postgres ends a session idle inside
+        // a transaction past this bound; no request or job legitimately sits
+        // idle mid-transaction that long.
+        .options([
+            ("client_min_messages", "warning"),
+            ("idle_in_transaction_session_timeout", "600000"),
+        ]);
     Ok(options)
 }
 

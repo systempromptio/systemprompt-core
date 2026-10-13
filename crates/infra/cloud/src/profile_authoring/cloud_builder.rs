@@ -101,6 +101,7 @@ impl CloudProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
+            security: security_config(&external, self.trusted_issuers),
             server: ServerConfig {
                 host: consts::CLOUD_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,
@@ -127,7 +128,6 @@ impl CloudProfileBuilder {
                 geoip_database: self.geoip_database,
                 web_path: Some(container::WEB.to_owned()),
             },
-            security: security_config(consts::CLOUD_ISSUER, self.trusted_issuers),
             rate_limits: RateLimitsConfig::default(),
             runtime: cloud_runtime_config(),
             cloud: Some(CloudConfig {

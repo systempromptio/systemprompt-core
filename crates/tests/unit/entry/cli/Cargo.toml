@@ -55,9 +55,12 @@ tokio = { workspace = true }
 async-trait = { workspace = true }
 wiremock = { workspace = true }
 uuid = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+reqwest = { workspace = true }
 
 [package.metadata.cargo-machete]
-ignored = ["inventory", "thiserror"]
+ignored = ["inventory", "reqwest", "thiserror"]
 
 [[test]]
 name = "plugin_validation_inventory"

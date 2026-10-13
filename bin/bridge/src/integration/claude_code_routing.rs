@@ -10,8 +10,6 @@
 
 use std::path::{Path, PathBuf};
 
-pub const CONFIG_DIR_VAR: &str = "CLAUDE_CONFIG_DIR";
-
 #[must_use]
 pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
     let policy = crate::config::paths::claude_code_policy_dir().join("managed-settings.json");
@@ -22,13 +20,8 @@ pub fn read_paths(config_dir: Option<&Path>) -> Vec<PathBuf> {
 }
 
 #[must_use]
-pub fn config_dir_override() -> Option<PathBuf> {
-    std::env::var_os(CONFIG_DIR_VAR).map(PathBuf::from)
-}
-
-#[must_use]
 pub fn effective_read_paths() -> Vec<PathBuf> {
-    read_paths(config_dir_override().as_deref())
+    read_paths(crate::config::paths::claude_config_dir_override().as_deref())
 }
 
 #[must_use]

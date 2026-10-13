@@ -10,12 +10,10 @@ fn terminal_states_are_completed_failed_canceled_rejected() {
 
 #[test]
 fn non_terminal_states() {
-    assert!(!TaskState::Pending.is_terminal());
     assert!(!TaskState::Submitted.is_terminal());
     assert!(!TaskState::Working.is_terminal());
     assert!(!TaskState::InputRequired.is_terminal());
     assert!(!TaskState::AuthRequired.is_terminal());
-    assert!(!TaskState::Unknown.is_terminal());
 }
 
 #[test]
@@ -107,16 +105,8 @@ fn auth_required_can_resume_working() {
 }
 
 #[test]
-fn pending_can_only_become_submitted() {
-    assert!(TaskState::Pending.can_transition_to(&TaskState::Submitted));
-    assert!(!TaskState::Pending.can_transition_to(&TaskState::Working));
-    assert!(!TaskState::Pending.can_transition_to(&TaskState::Completed));
-}
-
-#[test]
 fn task_state_serializes_with_prefix() {
     let states = [
-        (TaskState::Pending, "TASK_STATE_PENDING"),
         (TaskState::Submitted, "TASK_STATE_SUBMITTED"),
         (TaskState::Working, "TASK_STATE_WORKING"),
         (TaskState::Completed, "TASK_STATE_COMPLETED"),
@@ -125,7 +115,6 @@ fn task_state_serializes_with_prefix() {
         (TaskState::Rejected, "TASK_STATE_REJECTED"),
         (TaskState::InputRequired, "TASK_STATE_INPUT_REQUIRED"),
         (TaskState::AuthRequired, "TASK_STATE_AUTH_REQUIRED"),
-        (TaskState::Unknown, "TASK_STATE_UNKNOWN"),
     ];
 
     for (state, expected) in &states {
@@ -136,7 +125,6 @@ fn task_state_serializes_with_prefix() {
 
 fn all_states() -> Vec<TaskState> {
     vec![
-        TaskState::Pending,
         TaskState::Submitted,
         TaskState::Working,
         TaskState::Completed,
@@ -145,6 +133,19 @@ fn all_states() -> Vec<TaskState> {
         TaskState::Rejected,
         TaskState::InputRequired,
         TaskState::AuthRequired,
-        TaskState::Unknown,
     ]
+}
+
+#[test]
+fn removed_v0_3_states_do_not_deserialize() {
+    for wire in [
+        "TASK_STATE_PENDING",
+        "TASK_STATE_UNKNOWN",
+        "TASK_STATE_UNSPECIFIED",
+    ] {
+        assert!(
+            serde_json::from_value::<TaskState>(serde_json::json!(wire)).is_err(),
+            "{wire} must not deserialize"
+        );
+    }
 }

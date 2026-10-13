@@ -17,12 +17,15 @@ pub struct Task {
     pub id: TaskId,
     pub context_id: ContextId,
     pub status: TaskStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history: Option<Vec<Message>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifacts: Option<Vec<Artifact>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<TaskMetadata>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub last_modified: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -45,7 +48,9 @@ impl Default for Task {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TaskStatus {
     pub state: TaskState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<Message>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -61,8 +66,6 @@ impl Default for TaskStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
-    #[serde(rename = "TASK_STATE_PENDING")]
-    Pending,
     #[serde(rename = "TASK_STATE_SUBMITTED")]
     Submitted,
     #[serde(rename = "TASK_STATE_WORKING")]
@@ -79,14 +82,11 @@ pub enum TaskState {
     InputRequired,
     #[serde(rename = "TASK_STATE_AUTH_REQUIRED")]
     AuthRequired,
-    #[serde(rename = "TASK_STATE_UNKNOWN")]
-    Unknown,
 }
 
 impl TaskState {
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Pending => "TASK_STATE_PENDING",
             Self::Submitted => "TASK_STATE_SUBMITTED",
             Self::Working => "TASK_STATE_WORKING",
             Self::Completed => "TASK_STATE_COMPLETED",
@@ -95,7 +95,6 @@ impl TaskState {
             Self::Rejected => "TASK_STATE_REJECTED",
             Self::InputRequired => "TASK_STATE_INPUT_REQUIRED",
             Self::AuthRequired => "TASK_STATE_AUTH_REQUIRED",
-            Self::Unknown => "TASK_STATE_UNKNOWN",
         }
     }
 
@@ -111,7 +110,6 @@ impl TaskState {
             return false;
         }
         match self {
-            Self::Pending => matches!(target, Self::Submitted),
             Self::Submitted => matches!(
                 target,
                 Self::Working
@@ -130,7 +128,7 @@ impl TaskState {
                 Self::Working | Self::Completed | Self::Failed | Self::Canceled
             ),
             Self::AuthRequired => matches!(target, Self::Working | Self::Failed | Self::Canceled),
-            _ => false,
+            Self::Completed | Self::Failed | Self::Canceled | Self::Rejected => false,
         }
     }
 }
@@ -140,16 +138,14 @@ impl std::str::FromStr for TaskState {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "TASK_STATE_PENDING" | "pending" => Ok(Self::Pending),
-            "TASK_STATE_SUBMITTED" | "submitted" => Ok(Self::Submitted),
-            "TASK_STATE_WORKING" | "working" => Ok(Self::Working),
-            "TASK_STATE_COMPLETED" | "completed" => Ok(Self::Completed),
-            "TASK_STATE_FAILED" | "failed" => Ok(Self::Failed),
-            "TASK_STATE_CANCELED" | "canceled" => Ok(Self::Canceled),
-            "TASK_STATE_REJECTED" | "rejected" => Ok(Self::Rejected),
-            "TASK_STATE_INPUT_REQUIRED" | "input-required" => Ok(Self::InputRequired),
-            "TASK_STATE_AUTH_REQUIRED" | "auth-required" => Ok(Self::AuthRequired),
-            "TASK_STATE_UNKNOWN" | "unknown" => Ok(Self::Unknown),
+            "TASK_STATE_SUBMITTED" => Ok(Self::Submitted),
+            "TASK_STATE_WORKING" => Ok(Self::Working),
+            "TASK_STATE_COMPLETED" => Ok(Self::Completed),
+            "TASK_STATE_FAILED" => Ok(Self::Failed),
+            "TASK_STATE_CANCELED" => Ok(Self::Canceled),
+            "TASK_STATE_REJECTED" => Ok(Self::Rejected),
+            "TASK_STATE_INPUT_REQUIRED" => Ok(Self::InputRequired),
+            "TASK_STATE_AUTH_REQUIRED" => Ok(Self::AuthRequired),
             _ => Err(ParseEnumError::new("task state", s)),
         }
     }

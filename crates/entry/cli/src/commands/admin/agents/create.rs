@@ -149,7 +149,7 @@ fn build_create_request(
         documentation_url: agent.documentation_url,
         streaming: agent.streaming,
         push_notifications: agent.push_notifications,
-        state_transition_history: agent.state_transition_history,
+        extended_agent_card: agent.extended_agent_card,
         provider: agent.provider,
         model: agent.model,
         mcp_servers: agent.mcp_servers,

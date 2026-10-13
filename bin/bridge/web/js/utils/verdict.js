@@ -14,6 +14,15 @@
 import { t } from "/assets/js/i18n.js";
 import { fmtRelative } from "/assets/js/utils/format.js";
 
+// The pane that holds the fix for an overall code; a code with no entry has
+// nothing to open. Every per-agent problem is on its row in Agents.
+const OVERALL_TARGET = { "needs-approval": "agents", "degraded": "agents", "needs-sign-in": "account" };
+
+/** The rail tab that fixes an overall code, or undefined. */
+export function overallTarget(code) {
+  return OVERALL_TARGET[code];
+}
+
 const TONE_RANK = { ok: 0, unknown: 1, probing: 2, warn: 3, err: 4 };
 
 /** `sp-dot--*` modifier for a tone. */

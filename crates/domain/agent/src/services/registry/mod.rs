@@ -19,7 +19,7 @@ use crate::error::{AgentError, AgentResult};
 use crate::models::a2a::{
     AgentCapabilities, AgentCard, AgentExtension, AgentInterface, AgentProvider, ProtocolBinding,
 };
-use security::{oauth_to_security_config, override_oauth_urls};
+use security::{oauth_to_security_config, override_oauth_urls, requirements_from_config};
 use skills::load_skill_from_disk;
 use std::path::Path;
 
@@ -110,16 +110,24 @@ impl AgentRegistry {
 
         let extensions = build_extensions(&agent, runtime_status.as_ref(), mcp_extensions);
 
-        let (security_schemes, security) =
-            if agent.card.security_schemes.is_some() || agent.card.security.is_some() {
-                let mut schemes = agent.card.security_schemes.clone();
-                if let Some(ref mut s) = schemes {
-                    override_oauth_urls(s, api_external_url);
-                }
-                (schemes, agent.card.security.clone())
-            } else {
-                oauth_to_security_config(&agent.oauth, api_external_url)
-            };
+        let (security_schemes, security_requirements) = if agent.card.security_schemes.is_some()
+            || agent.card.security_requirements.is_some()
+        {
+            let mut schemes = agent.card.security_schemes.clone();
+            if let Some(ref mut s) = schemes {
+                override_oauth_urls(s, api_external_url);
+            }
+            (
+                schemes,
+                agent
+                    .card
+                    .security_requirements
+                    .as_deref()
+                    .map(requirements_from_config),
+            )
+        } else {
+            oauth_to_security_config(&agent.oauth, api_external_url)
+        };
 
         let all_skills = load_agent_skills(&agent)?;
 
@@ -135,7 +143,8 @@ impl AgentRegistry {
             supported_interfaces: vec![AgentInterface {
                 url,
                 protocol_binding,
-                protocol_version: agent.card.protocol_version.clone(),
+                protocol_version: systemprompt_models::a2a::PROTOCOL_VERSION.to_owned(),
+                tenant: None,
             }],
             version: agent.card.version.clone(),
             icon_url: agent.card.icon_url.clone(),
@@ -147,17 +156,14 @@ impl AgentRegistry {
             capabilities: AgentCapabilities {
                 streaming: Some(agent.card.capabilities.streaming),
                 push_notifications: Some(agent.card.capabilities.push_notifications),
-                state_transition_history: Some(agent.card.capabilities.state_transition_history),
                 extensions: Some(extensions),
+                extended_agent_card: Some(agent.card.capabilities.extended_agent_card),
             },
             default_input_modes: agent.card.default_input_modes.clone(),
-            default_output_modes: agent.card.default_output_modes.clone(),
-            supports_authenticated_extended_card: Some(
-                agent.card.supports_authenticated_extended_card,
-            ),
+            default_output_modes: agent.card.default_output_modes,
             skills: all_skills,
             security_schemes,
-            security,
+            security_requirements,
             signatures: None,
         })
     }
