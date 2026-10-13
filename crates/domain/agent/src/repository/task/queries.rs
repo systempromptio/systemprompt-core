@@ -168,24 +168,3 @@ pub async fn list_tasks(
     });
     Ok(tasks)
 }
-
-pub async fn count_tasks(
-    pool: &Arc<PgPool>,
-    filter: ListTasksFilter<'_>,
-) -> Result<i64, RepositoryError> {
-    let total = sqlx::query_scalar!(
-        r#"SELECT COUNT(*) as "total!"
-        FROM agent_tasks
-        WHERE user_id = $1
-          AND ($2::text IS NULL OR context_id = $2)
-          AND ($3::text IS NULL OR status = $3)
-          AND ($4::timestamptz IS NULL OR COALESCE(status_timestamp, updated_at) >= $4)"#,
-        filter.user_id.as_str(),
-        filter.context_id.map(ContextId::as_str),
-        filter.status.map(crate::models::a2a::TaskState::as_str),
-        filter.status_timestamp_after
-    )
-    .fetch_one(pool.as_ref())
-    .await?;
-    Ok(total)
-}

@@ -124,7 +124,7 @@ fn list_tasks_result_validates_against_the_schema() {
         tasks: vec![task_with_history(1)],
         next_page_token: PageToken::from_offset(1).encode(),
         page_size: 1,
-        total_size: 3,
+        total_size: None,
     };
     let response = A2aResponse::list_tasks(result, RequestId::Number(3));
     let json = serde_json::to_value(&response).unwrap();
@@ -138,7 +138,7 @@ fn last_page_has_an_empty_next_token() {
         tasks: vec![],
         next_page_token: String::new(),
         page_size: 50,
-        total_size: 0,
+        total_size: None,
     };
     let json = serde_json::to_value(&result).unwrap();
     assert_eq!(json["nextPageToken"], "");

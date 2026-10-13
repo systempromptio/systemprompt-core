@@ -98,14 +98,13 @@ pub async fn list_caller_tasks(
         status_timestamp_after: params.status_timestamp_after,
     };
 
-    let total = task_repo
-        .count_tasks(filter)
-        .await
-        .map_err(ListTasksError::Repository)?;
+    let lookahead = i64::from(page_size).saturating_add(1);
     let mut tasks = task_repo
-        .list_tasks(filter, i64::from(page_size), i64::from(page.offset()))
+        .list_tasks(filter, lookahead, i64::from(page.offset()))
         .await
         .map_err(ListTasksError::Repository)?;
+    let has_next = tasks.len() > page_size as usize;
+    tasks.truncate(page_size as usize);
 
     let include_artifacts = params.include_artifacts.unwrap_or(false);
     for task in &mut tasks {
@@ -116,10 +115,8 @@ pub async fn list_caller_tasks(
     }
 
     let returned = u32::try_from(tasks.len()).unwrap_or(u32::MAX);
-    let next_offset = page.offset().saturating_add(returned);
-    let total_size = u32::try_from(total).unwrap_or(u32::MAX);
-    let next_page_token = if returned > 0 && next_offset < total_size {
-        PageToken::from_offset(next_offset).encode()
+    let next_page_token = if has_next {
+        PageToken::from_offset(page.offset().saturating_add(returned)).encode()
     } else {
         String::new()
     };
@@ -128,6 +125,6 @@ pub async fn list_caller_tasks(
         tasks,
         next_page_token,
         page_size,
-        total_size,
+        total_size: None,
     })
 }

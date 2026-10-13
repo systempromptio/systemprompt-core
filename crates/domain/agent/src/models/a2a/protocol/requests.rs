@@ -102,7 +102,8 @@ pub struct ListTasksResult {
     pub tasks: Vec<Task>,
     pub next_page_token: String,
     pub page_size: u32,
-    pub total_size: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_size: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]

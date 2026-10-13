@@ -90,7 +90,7 @@ Every JSON-RPC request to an agent endpoint must carry the `A2A-Version: 1.0` he
 
 `SendMessageConfiguration.returnImmediately` asks for the task to be returned before it finishes. Requests accept an optional `tenant`. Push-notification methods are not supported and return `-32601`.
 
-`ListTasks` only returns tasks the caller owns. It filters by `contextId` and `status`, pages with `pageSize` (1 to 100, default 50) and `pageToken`, and accepts `historyLength` and `includeArtifacts`. The result carries `tasks`, `nextPageToken`, `pageSize` and `totalSize`.
+`ListTasks` only returns tasks the caller owns. It filters by `contextId` and `status`, pages with `pageSize` (1 to 100, default 50) and `pageToken`, and accepts `historyLength` and `includeArtifacts`. The result carries `tasks`, `nextPageToken` (empty on the last page) and `pageSize`; no `totalSize` is reported.
 
 Error `data` is an array of `google.rpc.ErrorInfo` objects:
 

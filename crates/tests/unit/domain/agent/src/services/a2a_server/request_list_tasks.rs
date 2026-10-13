@@ -64,7 +64,7 @@ async fn list_tasks_returns_only_the_callers_tasks_paged() {
 
     let first = list(Arc::clone(&state), ctx.clone(), json!({"pageSize": 2})).await;
     assert_eq!(first["id"], 21);
-    assert_eq!(first["result"]["totalSize"], 3, "{first}");
+    assert!(first["result"].get("totalSize").is_none(), "{first}");
     assert_eq!(first["result"]["pageSize"], 2);
     let token = first["result"]["nextPageToken"].as_str().expect("token");
     assert!(!token.is_empty(), "a further page exists: {first}");
@@ -113,7 +113,7 @@ async fn list_tasks_filters_by_context_and_status() {
     )
     .await;
     assert_eq!(task_ids(&by_context), [task_a.as_str()]);
-    assert_eq!(by_context["result"]["totalSize"], 1);
+    assert_eq!(by_context["result"]["nextPageToken"], "");
 
     let by_status = list(
         Arc::clone(&state),
@@ -129,7 +129,7 @@ async fn list_tasks_filters_by_context_and_status() {
         json!({"statusTimestampAfter": "2999-01-01T00:00:00Z"}),
     )
     .await;
-    assert_eq!(future["result"]["totalSize"], 0);
+    assert!(task_ids(&future).is_empty(), "{future}");
     assert_eq!(future["result"]["nextPageToken"], "");
 
     r.tasks.delete_task(&task_a).await.ok();

@@ -208,7 +208,7 @@ Agents speak the A2A 1.0.1 JSON-RPC binding. Every JSON-RPC request must carry `
 | `GetTask` | `id`, optional `historyLength` | `Task` |
 | `CancelTask` | `id` | `Task` |
 | `SubscribeToTask` | `id` | SSE stream of `StreamResponse` frames |
-| `ListTasks` | optional `contextId`, `status`, `pageSize` (1 to 100, default 50), `pageToken`, `historyLength`, `includeArtifacts` | `tasks`, `nextPageToken`, `pageSize`, `totalSize` |
+| `ListTasks` | optional `contextId`, `status`, `pageSize` (1 to 100, default 50), `pageToken`, `historyLength`, `includeArtifacts` | `tasks`, `nextPageToken` (empty on the last page), `pageSize` |
 
 `ListTasks` returns only the caller's own tasks. Push-notification methods return `-32601`. Each stream frame carries the request `id` and exactly one of `task`, `message`, `statusUpdate` or `artifactUpdate`; the stream closing is the terminal signal. Error `data` is an array of `google.rpc.ErrorInfo` objects with `@type`, `reason` (for example `TASK_NOT_FOUND`), `domain: a2a-protocol.org` and `metadata`.
 

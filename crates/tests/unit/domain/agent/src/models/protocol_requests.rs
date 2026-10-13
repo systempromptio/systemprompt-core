@@ -391,7 +391,7 @@ fn list_tasks_response_constructor_serialises_spec_fields() {
             tasks: vec![],
             next_page_token: String::new(),
             page_size: 50,
-            total_size: 0,
+            total_size: None,
         },
         string_id("id-list"),
     );
@@ -399,7 +399,7 @@ fn list_tasks_response_constructor_serialises_spec_fields() {
     assert_eq!(value["jsonrpc"], "2.0");
     assert_eq!(
         value["result"],
-        json!({"tasks": [], "nextPageToken": "", "pageSize": 50, "totalSize": 0})
+        json!({"tasks": [], "nextPageToken": "", "pageSize": 50})
     );
 }
 
