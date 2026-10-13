@@ -54,4 +54,8 @@ pub struct IssueRunCredentials {
     pub scopes: Vec<ScopeBinding>,
     pub plugin_id: Option<PluginId>,
     pub limits: RunCredentialLimits,
+    /// Caller purpose bound to the PAT by its issuer (`farm:<run_id>`,
+    /// `workflow:<id>`); the broker reads it from the credential, never from
+    /// a client header. `None` issues an unpurposed key.
+    pub purpose: Option<String>,
 }

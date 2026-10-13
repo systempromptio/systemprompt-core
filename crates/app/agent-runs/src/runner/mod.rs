@@ -93,6 +93,7 @@ pub fn credential_request(
             max_budget_usd: request.max_budget_usd,
             max_requests: None,
         },
+        purpose: None,
     }
 }
 
@@ -127,10 +128,9 @@ impl RunnerService for A2aRunnerService {
             paths.storage().data(),
         );
         let handler = A2aRunHandler::new(RunCredentialService::new(&db, &runner.issuer), runner);
-        let hostname = systemprompt_manifest::config::stable_instance_id(|name| {
-            std::env::var(name).ok()
-        })
-        .unwrap_or_else(|| FALLBACK_HOSTNAME.to_owned());
+        let hostname =
+            systemprompt_manifest::config::stable_instance_id(|name| std::env::var(name).ok())
+                .unwrap_or_else(|| FALLBACK_HOSTNAME.to_owned());
         let mut claim = ClaimLoop::new(
             AgentRunRepository::new(&db),
             AGENT_RUN_ORIGIN_KIND,
