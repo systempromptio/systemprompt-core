@@ -120,7 +120,7 @@ fn outcome_artifacts_carry_data_then_text() {
     let mut scalar = outcome();
     scalar.structured_output = Some(serde_json::json!(7));
     let parts = &scalar.artifacts(&run, &task, &ctx)[0].parts;
-    assert_eq!(parts[0].as_data(), Some(serde_json::json!({"value": 7})));
+    assert_eq!(parts[0].as_data(), Some(&serde_json::json!({"value": 7})));
 }
 
 #[test]
