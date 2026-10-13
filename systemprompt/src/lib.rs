@@ -263,6 +263,10 @@ pub mod generator {
 
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+pub mod sso;
+
+#[cfg(feature = "api")]
+#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod oauth_issuance {
     pub use systemprompt_oauth_issuance::*;
 }

@@ -53,3 +53,9 @@ mod ai_providers;
 
 #[cfg(test)]
 mod agent_run_launcher;
+
+#[cfg(test)]
+mod sso_policy;
+
+#[cfg(test)]
+mod sso_reason_codes;

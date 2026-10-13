@@ -293,6 +293,8 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
             id_jag_replays: 1,
             bridge_exchange_codes: 1,
             webauthn_challenges: 0,
+            sso_states: 0,
+            sso_replays: 0,
         }
     );
     assert_eq!(counts.total(), 6);

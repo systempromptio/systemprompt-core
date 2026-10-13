@@ -15,3 +15,7 @@ mod token_exchange;
 mod user_tokens;
 #[cfg(test)]
 mod validation;
+#[cfg(test)]
+mod sso_cookie;
+#[cfg(test)]
+mod sso_permissions;

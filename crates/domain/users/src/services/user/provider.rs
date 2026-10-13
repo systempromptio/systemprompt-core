@@ -90,6 +90,13 @@ impl UserProvider for UserService {
             .map_err(|e| AuthProviderError::Internal(e.into()))
     }
 
+    async fn find_federated(&self, issuer: &str, external_sub: &str) -> AuthResult<Option<UserId>> {
+        self.repository
+            .find_federated(issuer, external_sub)
+            .await
+            .map_err(|e| AuthProviderError::Internal(e.into()))
+    }
+
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64> {
         Self::promote_anonymous(self, source, target)
             .await

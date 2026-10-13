@@ -49,6 +49,7 @@ user_purge_tables!(
         ("logs", "user_id"),
         ("user_rate_limit_buckets", "user_id"),
         ("oauth_jti_revocations", "user_id"),
+        ("sso_login_events", "user_id"),
     ]
 );
 

@@ -70,6 +70,10 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
     );
     let rate_config = &ctx.config().rate_limits;
     let oauth_state = create_oauth_state(ctx)?;
+    let sso_state = crate::routes::sso::SsoRouteState::build(ctx, &oauth_state);
+    let sso = crate::routes::sso::router(sso_state)
+        .with_rate_limit(limits, rate_config.oauth_public_per_second, "sso")?
+        .with_auth(*public_middleware, AuthzPolicy::public());
     let oauth = crate::routes::oauth::public_router()
         .with_state(oauth_state.clone())
         .with_rate_limit(limits, rate_config.oauth_public_per_second, "oauth_public")?
@@ -81,6 +85,7 @@ pub(super) fn mount_oauth(mut router: Router, mount: &MountCtx<'_>) -> Result<Ro
                 .with_auth(user_middleware.clone(), AuthzPolicy::user()),
         );
     router = router.nest(ApiPaths::OAUTH_BASE, oauth);
+    router = router.nest(crate::routes::sso::SSO_BASE, sso);
     Ok(router)
 }
 

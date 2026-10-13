@@ -160,6 +160,20 @@ fn bridge_schemas() -> Vec<SchemaDefinition> {
         ]),
         SchemaDefinition::new("id_jag_replay", include_str!("../schema/id_jag_replay.sql"))
             .with_required_columns(vec!["jti".into(), "expires_at".into()]),
+        SchemaDefinition::new(
+            "sso_state_bindings",
+            include_str!("../schema/sso_state_bindings.sql"),
+        )
+        .with_required_columns(vec![
+            "state_hash".into(),
+            "binder_hash".into(),
+            "expires_at".into(),
+        ]),
+        SchemaDefinition::new(
+            "sso_replay_guard",
+            include_str!("../schema/sso_replay_guard.sql"),
+        )
+        .with_required_columns(vec!["scope".into(), "id".into(), "expires_at".into()]),
     ]
 }
 

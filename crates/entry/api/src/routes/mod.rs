@@ -22,6 +22,7 @@ pub mod messaging;
 pub mod oauth;
 pub mod proxy;
 pub mod slack;
+pub mod sso;
 pub mod stream;
 pub mod sync;
 pub mod teams;

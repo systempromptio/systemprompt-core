@@ -90,6 +90,15 @@ impl Extension for UsersExtension {
                 "external_sub".into(),
                 "user_id".into(),
             ]),
+            SchemaDefinition::new(
+                "sso_login_events",
+                include_str!("../schema/sso_login_events.sql"),
+            )
+            .with_required_columns(vec![
+                "provider_id".into(),
+                "outcome".into(),
+                "occurred_at".into(),
+            ]),
         ]
     }
 

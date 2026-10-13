@@ -1,6 +1,7 @@
 //! Expiry sweeps over the OAuth-owned tables: refresh tokens, authorization
 //! codes, state bindings, JTI revocations, ID-JAG replay markers, bridge
-//! exchange codes and `WebAuthn` ceremony challenges.
+//! exchange codes, `WebAuthn` ceremony challenges, and SSO state and replay
+//! markers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -27,6 +28,8 @@ pub struct OauthCleanupCounts {
     pub id_jag_replays: u64,
     pub bridge_exchange_codes: u64,
     pub webauthn_challenges: u64,
+    pub sso_states: u64,
+    pub sso_replays: u64,
 }
 
 impl OauthCleanupCounts {
@@ -39,6 +42,8 @@ impl OauthCleanupCounts {
             + self.id_jag_replays
             + self.bridge_exchange_codes
             + self.webauthn_challenges
+            + self.sso_states
+            + self.sso_replays
     }
 }
 
@@ -58,6 +63,8 @@ impl OauthCleanupRepository {
             id_jag_replays: self.delete_expired_id_jag_replays().await?,
             bridge_exchange_codes: self.delete_spent_bridge_exchange_codes().await?,
             webauthn_challenges: self.delete_expired_webauthn_challenges().await?,
+            sso_states: self.delete_expired_sso_states().await?,
+            sso_replays: self.delete_expired_sso_replays().await?,
         })
     }
 
@@ -112,6 +119,22 @@ impl OauthCleanupRepository {
             sqlx::query!("DELETE FROM webauthn_challenges WHERE expires_at <= CURRENT_TIMESTAMP")
                 .execute(&*self.write_pool)
                 .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_expired_sso_states(&self) -> OauthResult<u64> {
+        let result = sqlx::query(
+            "DELETE FROM sso_state_bindings WHERE expires_at < NOW() OR consumed_at IS NOT NULL",
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn delete_expired_sso_replays(&self) -> OauthResult<u64> {
+        let result = sqlx::query("DELETE FROM sso_replay_guard WHERE expires_at < NOW()")
+            .execute(&*self.write_pool)
+            .await?;
         Ok(result.rows_affected())
     }
 }

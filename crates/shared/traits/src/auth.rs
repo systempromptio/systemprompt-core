@@ -126,6 +126,16 @@ pub trait UserProvider: Send + Sync {
         claims: &FederatedIdentityClaims,
     ) -> AuthResult<UserId>;
 
+    /// The user already linked to `{issuer, external_sub}`, without creating
+    /// one. Providers that cannot answer report `None`.
+    async fn find_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+    ) -> AuthResult<Option<UserId>> {
+        Ok(None)
+    }
+
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
 }
 
