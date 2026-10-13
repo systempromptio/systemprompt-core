@@ -267,6 +267,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-table-ownership
         if: ${{ !cancelled() }}
+      - run: just lint-ledger-reads
+        if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
       - run: just lint-repo-construction
