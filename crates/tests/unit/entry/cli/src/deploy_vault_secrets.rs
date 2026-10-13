@@ -36,6 +36,7 @@ fn config(source: SecretsSource, vault: Option<VaultSecretsConfig>) -> SecretsCo
         validation: SecretsValidationMode::Strict,
         secrets_path: Some("secrets.json".to_owned()),
         vault,
+        external: None,
     }
 }
 

@@ -10,6 +10,7 @@
 
 pub mod client;
 pub mod clients;
+pub mod cookie;
 pub mod core;
 pub mod discovery;
 pub mod endpoints;

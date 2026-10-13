@@ -5,10 +5,17 @@
 //! untyped document one step longer is what lets per-key overrides be merged
 //! in before a single validation pass decides whether the result is usable.
 //!
+//! [`SecretsProvider`] uses an `async fn`-style signature and so is not
+//! object-safe; [`DynSecretsProvider`] is its boxed-future twin, implemented
+//! for every `SecretsProvider`, so registered external sources can be held as
+//! trait objects.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::future::Future;
+use std::pin::Pin;
+use std::time::Duration;
 
 use systemprompt_manifest::secrets::Secrets;
 
@@ -18,6 +25,29 @@ pub trait SecretsProvider {
     fn fetch(&self) -> impl Future<Output = Result<SecretsDocument, SecretsBootstrapError>> + Send;
 
     fn describe(&self) -> String;
+}
+
+pub type SecretsFetch<'a> =
+    Pin<Box<dyn Future<Output = Result<SecretsDocument, SecretsBootstrapError>> + Send + 'a>>;
+
+pub trait DynSecretsProvider: Send + Sync {
+    fn fetch_boxed(&self) -> SecretsFetch<'_>;
+
+    fn describe(&self) -> String;
+
+    fn refresh_hint(&self) -> Option<Duration> {
+        None
+    }
+}
+
+impl<T: SecretsProvider + Send + Sync> DynSecretsProvider for T {
+    fn fetch_boxed(&self) -> SecretsFetch<'_> {
+        Box::pin(self.fetch())
+    }
+
+    fn describe(&self) -> String {
+        SecretsProvider::describe(self)
+    }
 }
 
 #[derive(Debug, Clone, Default)]

@@ -26,6 +26,25 @@ impl UserRepository {
         Ok(row.map(|r| UserId::new(r.user_id)))
     }
 
+    pub async fn link_federated(
+        &self,
+        issuer: &str,
+        external_sub: &str,
+        user_id: &UserId,
+    ) -> Result<()> {
+        sqlx::query!(
+            "INSERT INTO federated_identities (issuer, external_sub, user_id) VALUES ($1, $2, $3) \
+             ON CONFLICT (issuer, external_sub) DO UPDATE SET user_id = EXCLUDED.user_id, \
+             last_seen_at = CURRENT_TIMESTAMP",
+            issuer,
+            external_sub,
+            user_id.as_str()
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn find_or_create_federated(
         &self,
         issuer: &str,

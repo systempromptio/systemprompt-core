@@ -1,6 +1,7 @@
 use systemprompt_config::{ResolvedSource, SecretsBootstrapError, resolve_source};
 use systemprompt_manifest::profile::{
-    SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth, VaultSecretsConfig,
+    ExternalSecretsConfig, SecretsConfig, SecretsSource, SecretsValidationMode, VaultAuth,
+    VaultSecretsConfig,
 };
 
 fn vault_block() -> VaultSecretsConfig {
@@ -26,6 +27,7 @@ fn config(source: SecretsSource, path: Option<&str>, vault: bool) -> SecretsConf
         validation: SecretsValidationMode::Strict,
         secrets_path: path.map(str::to_owned),
         vault: vault.then(vault_block),
+        external: None,
     }
 }
 
@@ -124,6 +126,44 @@ fn no_secrets_section_errors_unless_an_env_boot_can_serve_it() {
     );
     assert_eq!(
         resolve_source(None, true, false, true).unwrap(),
+        ResolvedSource::SubprocessEnv
+    );
+}
+
+fn external_config() -> SecretsConfig {
+    let mut cfg = config(SecretsSource::External, None, false);
+    cfg.external = Some(ExternalSecretsConfig {
+        kind: "stub".to_owned(),
+        refresh_secs: Some(300),
+        config: serde_json::Map::new(),
+    });
+    cfg
+}
+
+#[test]
+fn external_source_wins_on_deployment_hosts_too() {
+    let cfg = external_config();
+    for (is_deployment_host, has_pepper) in [(false, false), (true, false), (true, true)] {
+        let resolved = resolve_source(Some(&cfg), false, is_deployment_host, has_pepper).unwrap();
+        assert!(
+            matches!(resolved, ResolvedSource::External(external) if external.kind == "stub"),
+            "deployment_host={is_deployment_host} pepper={has_pepper}: {resolved:?}"
+        );
+    }
+}
+
+#[test]
+fn external_source_without_its_block_fails_closed() {
+    let cfg = config(SecretsSource::External, None, false);
+    let err = resolve_source(Some(&cfg), false, true, true).unwrap_err();
+    assert!(matches!(err, SecretsBootstrapError::ExternalBlockMissing));
+}
+
+#[test]
+fn subprocess_with_pepper_still_wins_over_an_external_source() {
+    let cfg = external_config();
+    assert_eq!(
+        resolve_source(Some(&cfg), true, false, true).unwrap(),
         ResolvedSource::SubprocessEnv
     );
 }

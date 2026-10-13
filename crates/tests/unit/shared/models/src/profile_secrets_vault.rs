@@ -27,6 +27,7 @@ fn vault_secrets() -> SecretsConfig {
         validation: SecretsValidationMode::Strict,
         secrets_path: None,
         vault: Some(vault_config()),
+        external: None,
     }
 }
 
@@ -37,6 +38,7 @@ fn file_source_requires_a_secrets_path() {
         validation: SecretsValidationMode::Warn,
         secrets_path: None,
         vault: None,
+        external: None,
     };
     let err = cfg.validate().expect_err("file source without a path");
     assert!(err.to_string().contains("requires secrets.secrets_path"));
@@ -50,6 +52,7 @@ fn file_source_with_a_path_validates_and_exposes_it() {
         validation: SecretsValidationMode::Warn,
         secrets_path: Some("./secrets.json".to_owned()),
         vault: None,
+        external: None,
     };
     cfg.validate().expect("valid");
     assert_eq!(cfg.secrets_path().expect("path"), "./secrets.json");
@@ -62,6 +65,7 @@ fn an_empty_secrets_path_is_treated_as_absent() {
         validation: SecretsValidationMode::Warn,
         secrets_path: Some(String::new()),
         vault: None,
+        external: None,
     };
     assert!(cfg.validate().is_err());
     assert!(cfg.secrets_path().is_err());
@@ -74,6 +78,7 @@ fn env_source_needs_no_secrets_path() {
         validation: SecretsValidationMode::Strict,
         secrets_path: None,
         vault: None,
+        external: None,
     };
     cfg.validate().expect("valid");
     assert!(cfg.secrets_path().is_err());
@@ -86,6 +91,7 @@ fn vault_source_requires_a_vault_block() {
         validation: SecretsValidationMode::Strict,
         secrets_path: None,
         vault: None,
+        external: None,
     };
     let err = cfg.validate().expect_err("vault without a block");
     assert!(err.to_string().contains("requires a secrets.vault block"));
@@ -98,6 +104,7 @@ fn a_vault_block_on_a_file_source_is_rejected() {
         validation: SecretsValidationMode::Warn,
         secrets_path: Some("./secrets.json".to_owned()),
         vault: Some(vault_config()),
+        external: None,
     };
     let err = cfg.validate().expect_err("vault block with file source");
     assert!(

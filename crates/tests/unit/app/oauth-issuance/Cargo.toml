@@ -27,6 +27,7 @@ rsa = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
+systemprompt-traits = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 wiremock = { workspace = true }

@@ -12,6 +12,7 @@
 mod admin_service;
 mod api_key_service;
 mod device_cert_service;
+mod sso_events;
 mod user;
 
 pub use crate::repository::UpdateUserParams;
@@ -21,4 +22,5 @@ pub use device_cert_service::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService,
     EnrollParams as EnrollDeviceCertServiceParams,
 };
+pub use sso_events::{OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink};
 pub use user::UserService;

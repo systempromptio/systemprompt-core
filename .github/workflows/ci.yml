@@ -179,6 +179,13 @@ jobs:
           # advisory_lock suites still assert exactly what they assert.
           psql "$DATABASE_URL" -c 'ALTER DATABASE test SET synchronous_commit = off;'
 
+      # Why: Linux hands out ephemeral ports from 32768-60999, which covers the
+      # bridge's proxy candidate range (48217-48226). Any test binding port 0 can
+      # land there and break the bridge tests that must hold the default port.
+      # Reserved ports are skipped by automatic assignment; explicit binds work.
+      - name: Reserve the bridge proxy candidate ports
+        run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=48217-48226
+
       - name: Run shard
         timeout-minutes: 30
         env:

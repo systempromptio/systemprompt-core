@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Changed
+
+- Generated local and cloud profiles set the new optional `secrets.external` section to `None`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Fixed

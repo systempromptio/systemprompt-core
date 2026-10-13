@@ -5,6 +5,9 @@
 //! rejected: they are provisioned out-of-band, so a partial edit here cannot
 //! corrupt the values the runtime depends on.
 //!
+//! A profile whose secrets come from Vault or an external source is refused:
+//! the file would be ignored at boot, so the edit would silently do nothing.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -13,6 +16,7 @@ use std::path::Path;
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use systemprompt_config::{ProfileBootstrap, write_private_atomic};
+use systemprompt_manifest::profile::SecretsSource;
 
 use super::profile_io::{load_profile, profile_dir};
 use super::types::ConfigMutationOutput;
@@ -54,12 +58,20 @@ pub async fn execute(command: &SecretCommands, config: &CliConfig) -> Result<()>
 
     let profile_path = ProfileBootstrap::get_path()?;
     let profile = load_profile(profile_path)?;
-    let secrets_rel = profile
+    let secrets_config = profile
         .secrets
         .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("profile has no secrets section"))?
-        .secrets_path()?
-        .to_owned();
+        .ok_or_else(|| anyhow::anyhow!("profile has no secrets section"))?;
+    if matches!(
+        secrets_config.source,
+        SecretsSource::Vault | SecretsSource::External
+    ) {
+        bail!(
+            "secrets are managed by {}; rotate them there and run `admin config secret check`",
+            secrets_config.source_name()
+        );
+    }
+    let secrets_rel = secrets_config.secrets_path()?.to_owned();
     let secrets_file = profile_dir(profile_path).join(&secrets_rel);
 
     set_secret(&secrets_file, &args.name, &args.value)?;

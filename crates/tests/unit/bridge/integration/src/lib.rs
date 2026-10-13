@@ -49,6 +49,8 @@ mod opencode_merge;
 #[cfg(test)]
 mod opencode_user_tier;
 #[cfg(test)]
+mod plist_drift;
+#[cfg(test)]
 mod plugin_oauth;
 #[cfg(test)]
 mod plugin_oauth_gateway_identity;

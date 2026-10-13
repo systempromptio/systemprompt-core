@@ -10,6 +10,12 @@ mod error;
 #[cfg(test)]
 mod request;
 #[cfg(test)]
+mod sso_cookie;
+#[cfg(test)]
+mod sso_permissions;
+#[cfg(test)]
+mod sso_resolution;
+#[cfg(test)]
 mod token_exchange;
 #[cfg(test)]
 mod user_tokens;

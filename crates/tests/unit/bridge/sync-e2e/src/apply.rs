@@ -2099,7 +2099,7 @@ fn an_absolute_manifest_file_path_is_refused_without_touching_external_state() {
 }
 
 #[test]
-fn sync_routes_an_unenrolled_claude_code_once_and_preserves_foreign_keys() {
+fn sync_routes_claude_code_rewrites_stale_values_and_preserves_foreign_keys() {
     let rt = setup_runtime();
     let manifest = manifest_with(vec![], vec!["claude-code".into()]);
     let (server, dirs, pat_dir) = rt.block_on(async {
@@ -2137,8 +2137,17 @@ fn sync_routes_an_unenrolled_claude_code_once_and_preserves_foreign_keys() {
     run_sync(&dirs).expect("the second sync applies");
     let after: serde_json::Value = serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
     assert_eq!(
-        after["env"]["ANTHROPIC_BASE_URL"], "http://127.0.0.1:1",
-        "settings that already route are not re-enrolled"
+        after["env"]["ANTHROPIC_BASE_URL"], routed["env"]["ANTHROPIC_BASE_URL"],
+        "a base URL naming another port is stale and is rewritten to this bridge's"
+    );
+    assert_eq!(after["theme"], "dark", "a foreign key survives the rewrite");
+
+    let before = fs::read(&settings).unwrap();
+    run_sync(&dirs).expect("the third sync applies");
+    assert_eq!(
+        fs::read(&settings).unwrap(),
+        before,
+        "settings that already route are not rewritten"
     );
     let _ = (&pat_dir, &server);
 }

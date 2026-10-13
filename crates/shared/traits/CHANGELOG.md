@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `sso` module: `SsoProvider`, `SsoProtocol`, `SsoStart`, `SsoStateSeed`, `SsoStateContext`, `SsoRedirect`, `SsoReturn`, `SsoReturnBinding`, `CookieSameSite`, `SsoPaths`, `SsoMetadataDoc`, `ExternalIdentity`, `GatedIdentity`, `SsoIdentityPolicy` (domain allow-list, group-to-role mapping, provisioning rules, `link_by_email`), `SsoRefusal`, `SsoError`, `SsoLoginSuccess`, `SsoLoginRefused`, `AuthEventSink` and `ReplayGuard`.
+- `UserProvider::find_federated(issuer, external_sub)` and `UserProvider::link_federated(issuer, external_sub, user_id)`, with default implementations that find nothing and link nothing.
+
+### Changed
+
+- `SsoLoginSuccess::session_id` is a `SessionId`.
+
 ## [0.66.0] - Unreleased
 
 ### Added

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.67.0] - 2026-10-13
+
+### Added
+
+- `sso` module: `SsoDriver` (`StartOutcome`, `FinishOutcome`) owns state correlation, replay protection, identity policy, federated resolution, session minting and the login audit for every registered `SsoProvider`. `plan_resolution` (`ResolutionPlan`, `ResolvedUser`) orders the outcomes: federated link, verified-email link, provision, refuse. `RoleResolver` (`DirectoryOnlyRoleResolver` by default) lets a downstream merge out-of-band grants before roles are assigned; `SsoHookContext` carries what a hook sees. Registrations through `register_sso_provider!`, `register_auth_event_sink!` and `register_role_resolver!` (`SsoProviderRegistration`, `AuthEventSinkRegistration`, `RoleResolverRegistration`). Cookie binding (`BINDER_COOKIE_NAME`, `CookieSpec`, `binder_from_cookie_header`), `mint_browser_session`, `BrowserSessionSubject`, `permissions_for_roles`, `sanitize_return_to` and `SSO_STATE_TTL_SECS`.
+- A crate-private repository bundle composes the SSO state, replay and login-event repositories for the driver.
+
+### Changed
+
+- `MintedSession::session_id` is a `SessionId`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

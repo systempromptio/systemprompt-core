@@ -11,11 +11,15 @@ mod jti_revocation;
 mod last_used;
 mod refresh_token;
 mod scopes;
+mod sso_replay;
+mod sso_state;
 mod state_binding;
 
 pub use auth_code::{AuthCodeParams, AuthCodeValidationResult, MintAuthCodeParams};
 pub use jti_revocation::JtiRevocationCache;
 pub use refresh_token::RefreshTokenParams;
+pub use sso_replay::PostgresReplayGuard;
+pub use sso_state::{SsoStateParams, SsoStateRow};
 pub use state_binding::{StateBindingParams, StateBindingRow};
 
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};

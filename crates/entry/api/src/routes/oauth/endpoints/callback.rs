@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Query, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
-use axum::response::{IntoResponse, Redirect, Response};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::Response;
 use serde::Deserialize;
 use std::sync::Arc;
 use systemprompt_identifiers::{
@@ -18,6 +18,7 @@ use systemprompt_identifiers::{
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::parse_permissions;
 
+use crate::routes::oauth::cookie::session_cookie_redirect;
 use crate::routes::oauth::extractors::OAuthRepo;
 use crate::routes::oauth::{OAuthHttpError, internal};
 use crate::services::middleware::client_addr::ClientIp;
@@ -75,6 +76,7 @@ pub async fn handle_callback(
     Ok(session_cookie_redirect(
         &token_response.access_token,
         &redirect_destination,
+        systemprompt_oauth::constants::token::COOKIE_MAX_AGE_SECONDS,
     ))
 }
 
@@ -93,22 +95,6 @@ async fn resolve_redirect_destination(
         },
         Err(e) => Err(internal::server_error("Failed to validate state", e)),
     }
-}
-
-fn session_cookie_redirect(access_token: &str, destination: &str) -> Response {
-    let cookie = format!(
-        "access_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age={}",
-        systemprompt_oauth::constants::token::COOKIE_MAX_AGE_SECONDS
-    );
-
-    let mut response = Redirect::to(destination).into_response();
-    if let Ok(cookie_value) = HeaderValue::from_str(&cookie) {
-        response
-            .headers_mut()
-            .insert(header::SET_COOKIE, cookie_value);
-    }
-
-    response
 }
 
 async fn find_browser_client(

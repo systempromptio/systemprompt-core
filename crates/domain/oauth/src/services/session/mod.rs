@@ -87,6 +87,10 @@ impl SessionCreationService {
         }
     }
 
+    pub const fn user_provider(&self) -> &Arc<dyn UserProvider> {
+        &self.user_provider
+    }
+
     pub fn with_fingerprint_provider(mut self, provider: Arc<dyn FingerprintProvider>) -> Self {
         self.fingerprint_provider = Some(provider);
         self

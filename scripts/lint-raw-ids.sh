@@ -82,6 +82,10 @@ BOUNDARY=(
     "crates/app/generator/src/error/mod.rs|provider_id|page-data provider registry key, not the gateway ProviderId"
     "crates/app/oauth-issuance/src/request.rs|client_id plugin_id|RFC 6749 token-request form fields deserialised verbatim"
     "crates/infra/security/src/connector_grant/mod.rs|client_id|a third-party OAuth client id resolved from a secret and posted verbatim to an external token endpoint; not a systemprompt ClientId"
+    "crates/shared/traits/src/sso/events.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
+    "crates/domain/oauth/src/repository/oauth/sso_state.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
+    "crates/domain/users/src/repository/sso_login_events.rs|provider_id|SSO provider registry key (/sso/{id}/...), not the gateway ProviderId"
+    "crates/shared/traits/src/sso/mod.rs|tenant_id|the IdP's own tenant claim (e.g. Entra tid) carried verbatim, not a systemprompt TenantId"
 )
 
 # Derived names whose call sites still carry the raw type: `name|reason`. The

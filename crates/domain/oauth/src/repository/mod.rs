@@ -21,7 +21,8 @@ pub use client::{ClientRepository, CreateClientParams, UpdateClientParams};
 pub use exchange_code::CreateExchangeCodeParams;
 pub use oauth::{
     AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, MintAuthCodeParams,
-    OAuthRepository, RefreshTokenParams, StateBindingParams, StateBindingRow,
+    OAuthRepository, PostgresReplayGuard, RefreshTokenParams, SsoStateParams, SsoStateRow,
+    StateBindingParams, StateBindingRow,
 };
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,

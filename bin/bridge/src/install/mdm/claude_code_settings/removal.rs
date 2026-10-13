@@ -36,7 +36,11 @@ pub(crate) fn remove_managed_settings() -> Result<Vec<String>, MdmError> {
                 path: path.clone(),
                 source,
             })?;
-        if root.get("apiKeyHelper").and_then(serde_json::Value::as_str) != Some(helper) {
+        let Some(found) = root.get("apiKeyHelper").and_then(serde_json::Value::as_str) else {
+            continue;
+        };
+        let stale_ours = found != helper && super::is_bridge_windows_helper(found);
+        if found != helper && !stale_ours {
             continue;
         }
         root.remove("apiKeyHelper");
@@ -49,7 +53,9 @@ pub(crate) fn remove_managed_settings() -> Result<Vec<String>, MdmError> {
                 "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY",
                 "CLAUDE_CODE_ATTRIBUTION_HEADER",
             ] {
-                if reference.get("env").and_then(|value| value.get(key)) == env.get(key) {
+                if stale_ours
+                    || reference.get("env").and_then(|value| value.get(key)) == env.get(key)
+                {
                     env.remove(key);
                 }
             }

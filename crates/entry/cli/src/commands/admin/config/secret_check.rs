@@ -11,8 +11,12 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
-use systemprompt_config::{ProfileBootstrap, ResolvedSource, SecretsProvider, VaultKvProvider};
+use systemprompt_config::{
+    ProfileBootstrap, ResolvedSource, SecretsBootstrap, SecretsProvider, VaultKvProvider,
+    build_external_provider, process_env_lookup,
+};
 use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 
@@ -28,6 +32,12 @@ pub struct SecretCheckReport {
     pub detail: String,
     pub keys: Vec<String>,
     pub missing_required: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_reload_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<String>,
 }
 
 pub async fn execute(config: &CliConfig) -> Result<()> {
@@ -61,11 +71,15 @@ pub async fn run() -> Result<SecretCheckReport> {
     .context("The profile's secrets configuration is not usable")?;
 
     let (source, detail, keys) = describe(&resolved, profile_dir).await?;
+    let status = SecretsBootstrap::status();
     Ok(SecretCheckReport {
         missing_required: missing_required(&keys),
         source,
         detail,
         keys,
+        generation: status.as_ref().map(|s| s.generation),
+        last_reload_at: status.as_ref().and_then(|s| s.last_reload_at),
+        last_error: status.and_then(|s| s.last_error),
     })
 }
 
@@ -83,6 +97,18 @@ async fn describe(
                 .await
                 .context("Vault document could not be read")?;
             Ok(("vault".to_owned(), detail, document.key_names()))
+        },
+        ResolvedSource::External(cfg) => {
+            let provider =
+                build_external_provider(cfg, process_env_lookup()).with_context(|| {
+                    format!("External secrets source '{}' could not be built", cfg.kind)
+                })?;
+            let detail = provider.describe();
+            let document = provider
+                .fetch_boxed()
+                .await
+                .context("External secrets document could not be read")?;
+            Ok(("external".to_owned(), detail, document.key_names()))
         },
         ResolvedSource::SubprocessEnv => Ok((
             "subprocess-env".to_owned(),

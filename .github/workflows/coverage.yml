@@ -230,6 +230,8 @@ jobs:
           echo "quarantined pre-run fallback profraw count: $QUARANTINED_PROFILE_COUNT ($FALLBACK_PROFILE_ARCHIVE)"
           FALLBACK_PROFILE_MARKER="$GITHUB_WORKSPACE/coverage-profile-run-start"
           touch "$FALLBACK_PROFILE_MARKER"
+          # Why: see ci.yml — keep port-0 binds out of the bridge proxy candidates.
+          sudo sysctl -w net.ipv4.ip_local_reserved_ports=48217-48226
           failed=()
           for group in $(bash scripts/test-shard.sh --list); do
             db="cov_${group//-/_}"

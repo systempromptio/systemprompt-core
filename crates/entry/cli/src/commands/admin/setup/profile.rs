@@ -92,6 +92,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
             validation: SecretsValidationMode::Warn,
             source: SecretsSource::File,
             vault: None,
+            external: None,
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),

@@ -12,6 +12,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::ProfileError;
+use super::external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 use super::vault::VaultSecretsConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
@@ -20,6 +21,7 @@ pub enum SecretsSource {
     File,
     Env,
     Vault,
+    External,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
@@ -35,6 +37,9 @@ pub struct SecretsConfig {
 
     #[serde(default)]
     pub vault: Option<VaultSecretsConfig>,
+
+    #[serde(default)]
+    pub external: Option<ExternalSecretsConfig>,
 }
 
 impl SecretsConfig {
@@ -53,12 +58,38 @@ impl SecretsConfig {
                         secrets_source: self.source_name(),
                     });
                 }
+                self.forbid_external()?;
             },
             SecretsSource::Vault => {
                 if self.vault.is_none() {
                     return Err(ProfileError::VaultBlockRequired);
                 }
+                self.forbid_external()?;
             },
+            SecretsSource::External => {
+                let Some(external) = self.external.as_ref() else {
+                    return Err(ProfileError::ExternalBlockRequired);
+                };
+                if self.vault.is_some() {
+                    return Err(ProfileError::VaultBlockUnexpected {
+                        secrets_source: self.source_name(),
+                    });
+                }
+                if let Some(secs) = external.refresh_secs
+                    && secs < MIN_EXTERNAL_REFRESH_SECS
+                {
+                    return Err(ProfileError::RefreshIntervalOutOfRange { secs });
+                }
+            },
+        }
+        Ok(())
+    }
+
+    const fn forbid_external(&self) -> Result<(), ProfileError> {
+        if self.external.is_some() {
+            return Err(ProfileError::ExternalBlockUnexpected {
+                secrets_source: self.source_name(),
+            });
         }
         Ok(())
     }
@@ -78,6 +109,7 @@ impl SecretsConfig {
             SecretsSource::File => "file",
             SecretsSource::Env => "env",
             SecretsSource::Vault => "vault",
+            SecretsSource::External => "external",
         }
     }
 }
