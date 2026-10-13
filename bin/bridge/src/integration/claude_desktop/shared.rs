@@ -47,17 +47,58 @@ pub(super) struct DomainRead {
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 impl DomainRead {
-    pub(super) fn record(&mut self, name: &str, raw: String) {
+    pub(super) fn record(&mut self, name: &str, text: PlistValueTexts) {
         let observed = if name == API_KEY_KEY {
-            let fp = crate::proxy::secret::fingerprint(raw.trim());
+            let fp = crate::proxy::secret::fingerprint(text.compare.trim());
             self.api_key_fp = Some(fp.clone());
             fp
         } else {
-            raw.clone()
+            text.compare
         };
         self.observed.insert(name.to_owned(), observed);
         self.keys
-            .insert(name.to_owned(), redact_if_sensitive(name, raw));
+            .insert(name.to_owned(), redact_if_sensitive(name, text.display));
+    }
+}
+
+/// A managed-policy value read back from the host: the text a person reads
+/// and the text [`crate::drift::diff`] compares against the desired profile.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlistValueTexts {
+    pub display: String,
+    pub compare: String,
+}
+
+impl PlistValueTexts {
+    #[must_use]
+    pub fn same(text: String) -> Self {
+        Self {
+            display: text.clone(),
+            compare: text,
+        }
+    }
+}
+
+// Why: Claude Desktop's desired profile renders a list as JSON text, so a
+// plist array compared as its comma-joined display text never matched and
+// every string-list key (`inferenceModels`, `coworkEgressAllowedHosts`, …)
+// read as drift that no re-apply could clear. Only the display is joined.
+// JSON: Claude Desktop plist — native preferences read back as JSON.
+#[must_use]
+pub fn plist_value_texts(value: &serde_json::Value) -> PlistValueTexts {
+    match value {
+        serde_json::Value::String(s) => PlistValueTexts::same(s.clone()),
+        serde_json::Value::Array(items) if items.iter().all(serde_json::Value::is_string) => {
+            PlistValueTexts {
+                display: items
+                    .iter()
+                    .filter_map(serde_json::Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                compare: value.to_string(),
+            }
+        },
+        other => PlistValueTexts::same(other.to_string()),
     }
 }
 

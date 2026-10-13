@@ -18,7 +18,7 @@ use macos as os;
 #[cfg(target_os = "windows")]
 use windows as os;
 
-pub use shared::{ProfileGenInputs, default_models};
+pub use shared::{PlistValueTexts, ProfileGenInputs, default_models, plist_value_texts};
 
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 #[must_use]

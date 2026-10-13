@@ -47,7 +47,7 @@ pub(super) fn read_domain(domain: &str, keys: &[&str]) -> DomainRead {
     }
     out.source_path = read.source;
     for (name, value) in read.values {
-        out.record(&name, value);
+        out.record(&name, super::shared::PlistValueTexts::same(value));
     }
     out
 }
