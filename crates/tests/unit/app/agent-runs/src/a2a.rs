@@ -8,9 +8,7 @@ use systemprompt_agent_runs::{
     RunStatus, RunnerLevel, TaskUpdate, task_events,
 };
 use systemprompt_identifiers::{AgentRunId, ContextId, HostSessionId, MessageId, TaskId};
-use systemprompt_models::a2a::{
-    DataPart, FileContent, FilePart, Message, MessageRole, Part, TaskState, TextPart,
-};
+use systemprompt_models::a2a::{Message, MessageRole, Part, TaskState};
 
 const ALL: [RunStatus; 7] = [
     RunStatus::Queued,
@@ -52,11 +50,9 @@ fn task_state_round_trips_through_run_status() {
         assert_eq!(TaskState::from(status), state);
     }
     for state in [
-        TaskState::Pending,
         TaskState::Rejected,
         TaskState::InputRequired,
         TaskState::AuthRequired,
-        TaskState::Unknown,
     ] {
         assert_eq!(RunStatus::from_task_state(&state), None);
     }
@@ -117,7 +113,7 @@ fn outcome_artifacts_carry_data_then_text() {
     assert_eq!(artifact.parts.len(), 2);
     assert_eq!(
         artifact.parts[0].as_data(),
-        Some(serde_json::json!({"count": 2}))
+        Some(&serde_json::json!({"count": 2}))
     );
     assert_eq!(artifact.parts[1].as_text(), Some("done"));
 
@@ -149,23 +145,12 @@ fn claude_outcome_final_text_is_last_assistant_text() {
 
 #[test]
 fn prompt_flattens_parts_in_order() {
-    let mut data = serde_json::Map::new();
-    data.insert("k".into(), serde_json::json!(1));
     let message = Message {
         role: MessageRole::User,
         parts: vec![
-            Part::Text(TextPart {
-                text: "fix it".into(),
-            }),
-            Part::Data(DataPart { data }),
-            Part::File(FilePart {
-                file: FileContent {
-                    name: Some("a.txt".into()),
-                    mime_type: None,
-                    bytes: None,
-                    url: Some("https://x/a.txt".into()),
-                },
-            }),
+            Part::text("fix it"),
+            Part::data(serde_json::json!({"k": 1})),
+            Part::url("https://x/a.txt", "text/plain").with_filename("a.txt"),
         ],
         message_id: MessageId::generate(),
         task_id: None,
@@ -214,9 +199,9 @@ fn result(is_error: bool, structured: Option<serde_json::Value>) -> RunEventPayl
     }
 }
 
-fn status_of(update: &TaskUpdate) -> (TaskState, bool) {
+fn status_of(update: &TaskUpdate) -> TaskState {
     match update {
-        TaskUpdate::Status(s) => (s.status.state, s.is_final),
+        TaskUpdate::Status(s) => s.status.state,
         TaskUpdate::Artifact(_) => panic!("expected a status update"),
     }
 }
@@ -231,7 +216,7 @@ fn task_events_per_kind() {
     });
     assert_eq!(
         init.iter().map(status_of).collect::<Vec<_>>(),
-        vec![(TaskState::Working, false)]
+        vec![TaskState::Working]
     );
 
     let runner = updates(RunEventPayload::Runner {
@@ -251,20 +236,20 @@ fn task_events_per_kind() {
         panic!("artifact")
     };
     assert_eq!(
-        (a.artifact.parts[0].as_text(), a.is_final),
-        (Some("hi"), false)
+        (a.artifact.parts[0].as_text(), a.append, a.last_chunk),
+        (Some("hi"), false, true)
     );
     assert!(a.artifact.id.as_str().ends_with("-text-3"));
 
     let ok = updates(result(false, Some(serde_json::json!({"a": 1}))));
     assert_eq!(ok.len(), 2);
-    assert!(matches!(&ok[0], TaskUpdate::Artifact(a) if a.is_final));
-    assert_eq!(status_of(&ok[1]), (TaskState::Completed, true));
+    assert!(matches!(&ok[0], TaskUpdate::Artifact(a) if a.last_chunk && !a.append));
+    assert_eq!(status_of(&ok[1]), TaskState::Completed);
 
     let failed = updates(result(true, None));
     assert_eq!(
         failed.iter().map(status_of).collect::<Vec<_>>(),
-        vec![(TaskState::Failed, true)]
+        vec![TaskState::Failed]
     );
 
     assert!(updates(RunEventPayload::Stderr { line: "x".into() }).is_empty());

@@ -13,7 +13,7 @@
 
 use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
 use systemprompt_identifiers::{AgentRunId, ArtifactId, ContextId, MessageId, TaskId};
-use systemprompt_models::a2a::{Message, MessageRole, Part, TaskState, TaskStatus, TextPart};
+use systemprompt_models::a2a::{Message, MessageRole, Part, TaskState, TaskStatus};
 
 use super::content::{data_part, outcome_artifact_id, run_artifact};
 use crate::event::{RunEvent, RunEventPayload};
@@ -32,7 +32,7 @@ struct Target<'a> {
 }
 
 impl Target<'_> {
-    fn status(&self, state: TaskState, message: Option<Message>, is_final: bool) -> TaskUpdate {
+    fn status(&self, state: TaskState, message: Option<Message>) -> TaskUpdate {
         let status = TaskStatus {
             state,
             message,
@@ -42,26 +42,22 @@ impl Target<'_> {
             self.task_id.clone(),
             self.context_id.clone(),
             status,
-            is_final,
         )))
     }
 
-    fn artifact(&self, id: ArtifactId, part: Part, is_final: bool) -> TaskUpdate {
+    fn artifact(&self, id: ArtifactId, part: Part) -> TaskUpdate {
         let artifact = run_artifact(id, vec![part], self.task_id, self.context_id);
         TaskUpdate::Artifact(Box::new(TaskArtifactUpdateEvent::new(
             self.task_id.clone(),
             self.context_id.clone(),
             artifact,
-            is_final,
         )))
     }
 
     fn agent_message(&self, text: &str) -> Message {
         Message {
             role: MessageRole::Agent,
-            parts: vec![Part::Text(TextPart {
-                text: text.to_owned(),
-            })],
+            parts: vec![Part::text(text)],
             message_id: MessageId::generate(),
             task_id: Some(self.task_id.clone()),
             context_id: self.context_id.clone(),
@@ -86,15 +82,15 @@ pub fn task_events(
         event,
     };
     match &event.payload {
-        RunEventPayload::Init { .. } => vec![target.status(TaskState::Working, None, false)],
+        RunEventPayload::Init { .. } => vec![target.status(TaskState::Working, None)],
         RunEventPayload::Runner { message, .. } => {
             let message = target.agent_message(message);
-            vec![target.status(TaskState::Working, Some(message), false)]
+            vec![target.status(TaskState::Working, Some(message))]
         },
         RunEventPayload::AssistantText { text } => {
             let id = ArtifactId::new(format!("{}-text-{}", target.run_id, event.seq));
-            let part = Part::Text(TextPart { text: text.clone() });
-            vec![target.artifact(id, part, false)]
+            let part = Part::text(text.clone());
+            vec![target.artifact(id, part)]
         },
         RunEventPayload::Result {
             is_error,
@@ -105,7 +101,7 @@ pub fn task_events(
             let mut updates = Vec::with_capacity(2);
             if let Some(value) = structured_output {
                 let id = outcome_artifact_id(target.run_id);
-                updates.push(target.artifact(id, data_part(value), true));
+                updates.push(target.artifact(id, data_part(value)));
             }
             let (state, message) = if *is_error {
                 let text = error.as_deref().unwrap_or("run failed");
@@ -113,7 +109,7 @@ pub fn task_events(
             } else {
                 (TaskState::Completed, None)
             };
-            updates.push(target.status(state, message, true));
+            updates.push(target.status(state, message));
             updates
         },
         RunEventPayload::ToolUse { .. }

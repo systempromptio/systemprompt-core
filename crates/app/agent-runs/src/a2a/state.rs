@@ -1,8 +1,7 @@
 //! [`RunStatus`] ⇄ [`TaskState`].
 //!
 //! Every run status has a task state; the reverse is partial, since
-//! `Pending`, `Rejected`, `InputRequired`, `AuthRequired` and `Unknown` have
-//! no run equivalent.
+//! `Rejected`, `InputRequired` and `AuthRequired` have no run equivalent.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,11 +31,7 @@ impl RunStatus {
             TaskState::Completed => Some(Self::Succeeded),
             TaskState::Failed => Some(Self::Failed),
             TaskState::Canceled => Some(Self::Cancelled),
-            TaskState::Pending
-            | TaskState::Rejected
-            | TaskState::InputRequired
-            | TaskState::AuthRequired
-            | TaskState::Unknown => None,
+            TaskState::Rejected | TaskState::InputRequired | TaskState::AuthRequired => None,
         }
     }
 }

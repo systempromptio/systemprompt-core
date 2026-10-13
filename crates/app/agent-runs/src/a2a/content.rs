@@ -5,7 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{AgentRunId, ArtifactId, ContextId, TaskId};
-use systemprompt_models::a2a::{Artifact, ArtifactMetadata, DataPart, Message, Part, TextPart};
+use systemprompt_models::a2a::{Artifact, ArtifactMetadata, Message, Part, PartContent};
 
 use crate::outcome::RunOutcome;
 use crate::request::RunRequest;
@@ -40,14 +40,14 @@ pub(crate) fn run_artifact(
     }
 }
 
-// JSON: A2A `DataPart.data` is an object; a non-object answer is wrapped
-// under `value` so it still travels as data.
+// JSON: run output is published as an object; a non-object answer is wrapped
+// under `value` so artifact renderers always read an object payload.
 pub(crate) fn data_part(value: &serde_json::Value) -> Part {
     let data = match value {
-        serde_json::Value::Object(map) => map.clone(),
-        other => serde_json::Map::from_iter([("value".to_owned(), other.clone())]),
+        serde_json::Value::Object(_) => value.clone(),
+        other => serde_json::json!({ "value": other }),
     };
-    Part::Data(DataPart { data })
+    Part::data(data)
 }
 
 impl RunOutcome {
@@ -63,7 +63,7 @@ impl RunOutcome {
             parts.push(data_part(value));
         }
         if let Some(text) = &self.final_text {
-            parts.push(Part::Text(TextPart { text: text.clone() }));
+            parts.push(Part::text(text.clone()));
         }
         if parts.is_empty() {
             return Vec::new();
@@ -90,21 +90,15 @@ impl RunRequest {
 }
 
 fn flatten_part(part: &Part) -> String {
-    match part {
-        Part::Text(text) => text.text.clone(),
-        Part::Data(data) => {
-            let value = serde_json::Value::Object(data.data.clone());
-            let pretty = serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string());
+    match &part.content {
+        PartContent::Text(text) => text.clone(),
+        PartContent::Data(value) => {
+            let pretty = serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string());
             format!("```json\n{pretty}\n```")
         },
-        Part::File(file) => {
-            let named = file
-                .file
-                .url
-                .as_deref()
-                .or(file.file.name.as_deref())
-                .unwrap_or("unnamed");
-            format!("[file: {named}]")
+        PartContent::Url(url) => format!("[file: {url}]"),
+        PartContent::Raw(_) => {
+            format!("[file: {}]", part.filename.as_deref().unwrap_or("unnamed"))
         },
     }
 }
