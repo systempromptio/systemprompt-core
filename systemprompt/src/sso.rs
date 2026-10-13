@@ -15,11 +15,14 @@ pub use systemprompt_api::routes::sso::{
 };
 pub use systemprompt_oauth_issuance::sso::{
     AuthEventSinkRegistration, BINDER_COOKIE_NAME, BrowserSessionSubject, CookieSpec,
-    FinishOutcome, MintedSession, ResolvedUser, SSO_STATE_TTL_SECS, SsoDriver, SsoHookContext,
+    DirectoryOnlyRoleResolver, FinishOutcome, MintedSession, ResolutionPlan, ResolvedUser,
+    RoleResolver, RoleResolverRegistration, SSO_STATE_TTL_SECS, SsoDriver, SsoHookContext,
     SsoProviderRegistration, StartOutcome, binder_from_cookie_header, mint_browser_session,
-    permissions_for_roles, sanitize_return_to,
+    permissions_for_roles, plan_resolution, sanitize_return_to,
 };
-pub use systemprompt_oauth_issuance::{register_auth_event_sink, register_sso_provider};
+pub use systemprompt_oauth_issuance::{
+    register_auth_event_sink, register_role_resolver, register_sso_provider,
+};
 pub use systemprompt_traits::sso::{
     AuthEventSink, CookieSameSite, ExternalIdentity, GatedIdentity, ReplayGuard, SsoError,
     SsoIdentityPolicy, SsoLoginRefused, SsoLoginSuccess, SsoMetadataDoc, SsoPaths, SsoProtocol,

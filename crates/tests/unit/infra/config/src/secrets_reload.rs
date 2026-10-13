@@ -54,12 +54,25 @@ fn a_changed_pinned_key_rejects_the_reload() {
 }
 
 #[test]
+fn a_rotated_signing_key_rejects_the_reload() {
+    let old = secrets(r#","signing_key_pem":"old-pem""#);
+    let new = secrets(r#","signing_key_pem":"new-pem""#);
+    let err = diff_secrets(&old, &new).expect_err("signing key rotation accepted");
+    assert!(
+        matches!(&err, SecretsBootstrapError::ReloadRejected { key } if key == "signing_key_pem"),
+        "{err}"
+    );
+}
+
+#[test]
 fn the_pinned_set_covers_identity_and_storage_keys() {
     for key in [
         "encryption_master_key",
         "oauth_at_rest_pepper",
         "manifest_signing_secret_seed",
         "database_url",
+        "signing_key_pem",
+        "jwt_secret",
     ] {
         assert!(PINNED_SECRET_KEYS.contains(&key), "{key} is not pinned");
     }

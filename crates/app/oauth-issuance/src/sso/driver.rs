@@ -24,6 +24,7 @@ use crate::repository::SsoRepositories;
 
 use super::cookie::CookieSpec;
 use super::registry::{SsoHookContext, discover_providers, discover_sinks};
+use super::roles::{RoleResolver, discover_role_resolver};
 
 /// Where `start` sends the browser, and the binder cookie to set first.
 #[derive(Debug, Clone)]
@@ -58,6 +59,7 @@ pub(super) struct DriverInner {
     pub(super) repo: OAuthRepository,
     pub(super) replay: Arc<dyn ReplayGuard>,
     pub(super) sinks: Vec<Arc<dyn AuthEventSink>>,
+    pub(super) roles: Arc<dyn RoleResolver>,
     pub(super) session_service: Arc<SessionCreationService>,
     pub(super) config: Arc<Config>,
 }
@@ -89,6 +91,7 @@ impl SsoDriver {
             vec![Arc::new(PostgresAuthEventSink::new(login_events))];
         sinks.extend(discover_sinks(&ctx));
         let providers = discover_providers(&ctx);
+        let roles = discover_role_resolver(&ctx);
         if !providers.is_empty() {
             tracing::info!(
                 providers = ?providers.iter().map(|p| p.id()).collect::<Vec<_>>(),
@@ -101,6 +104,7 @@ impl SsoDriver {
                 replay: Arc::new(PostgresReplayGuard::new(repo.clone())),
                 repo,
                 sinks,
+                roles,
                 session_service,
                 config,
             }),

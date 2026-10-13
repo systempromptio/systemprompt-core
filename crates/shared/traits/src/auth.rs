@@ -134,6 +134,15 @@ pub trait UserProvider: Send + Sync {
         Ok(None)
     }
 
+    async fn link_federated(
+        &self,
+        _issuer: &str,
+        _external_sub: &str,
+        _user_id: &UserId,
+    ) -> AuthResult<()> {
+        Ok(())
+    }
+
     async fn promote_anonymous(&self, source: &UserId, target: &UserId) -> AuthResult<u64>;
 }
 

@@ -20,6 +20,10 @@ fn default_roles() -> Vec<String> {
 }
 
 /// Who may sign in through a provider, and with which roles.
+///
+/// `link_by_email` (default `false`) lets an identity with no federated link
+/// claim the active, interactive account that already owns its verified
+/// email, linking the two instead of provisioning a duplicate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SsoIdentityPolicy {
@@ -27,6 +31,8 @@ pub struct SsoIdentityPolicy {
     pub allowed_email_domains: Vec<String>,
     #[serde(default)]
     pub auto_provision: bool,
+    #[serde(default)]
+    pub link_by_email: bool,
     #[serde(default)]
     pub deny_without_group: bool,
     #[serde(default)]
@@ -42,6 +48,7 @@ impl Default for SsoIdentityPolicy {
         Self {
             allowed_email_domains: Vec::new(),
             auto_provision: false,
+            link_by_email: false,
             deny_without_group: false,
             group_roles: BTreeMap::new(),
             group_role_patterns: BTreeMap::new(),
@@ -59,7 +66,10 @@ pub enum SsoRefusal {
     NotProvisioned,
 }
 
-/// An identity the policy admitted, with the roles it resolved to.
+/// An identity the policy admitted, with the roles it resolved to. Once the
+/// driver has resolved the local user, `roles` is replaced by the set the
+/// registered role resolver settled on, so the session and the success sink
+/// both see the roles actually granted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GatedIdentity {
     pub external_sub: String,

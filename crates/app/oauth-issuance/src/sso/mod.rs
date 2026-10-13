@@ -15,13 +15,15 @@ mod driver;
 mod finish;
 mod registry;
 mod resolve;
+mod roles;
 mod session;
 mod start;
 
 pub use cookie::{BINDER_COOKIE_NAME, CookieSpec, binder_from_cookie_header};
 pub use driver::{FinishOutcome, SsoDriver, StartOutcome};
 pub use registry::{AuthEventSinkRegistration, SsoHookContext, SsoProviderRegistration};
-pub use resolve::ResolvedUser;
+pub use resolve::{ResolutionPlan, ResolvedUser, plan_resolution};
+pub use roles::{DirectoryOnlyRoleResolver, RoleResolver, RoleResolverRegistration};
 pub use session::{
     BrowserSessionSubject, MintedSession, mint_browser_session, permissions_for_roles,
 };

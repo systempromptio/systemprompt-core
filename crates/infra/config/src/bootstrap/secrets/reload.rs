@@ -33,6 +33,8 @@ pub const PINNED_SECRET_KEYS: &[&str] = &[
     "oauth_at_rest_pepper",
     "manifest_signing_secret_seed",
     "database_url",
+    "signing_key_pem",
+    "jwt_secret",
 ];
 
 static SECRETS: RwLock<Option<&'static Secrets>> = RwLock::new(None);

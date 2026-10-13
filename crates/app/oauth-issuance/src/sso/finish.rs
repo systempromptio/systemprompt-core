@@ -124,9 +124,17 @@ impl SsoDriver {
             .ok_or(SsoError::NoEmail)?;
         attempt.email = Some(email.clone());
 
-        let gated = provider.policy().gate(&identity, &email)?;
+        let mut gated = provider.policy().gate(&identity, &email)?;
         let users = Arc::clone(self.inner.session_service.user_provider());
-        let resolved = resolve_user(users.as_ref(), provider.as_ref(), &identity, &gated).await?;
+        let resolved = resolve_user(
+            users.as_ref(),
+            provider.as_ref(),
+            self.inner.roles.as_ref(),
+            &identity,
+            &gated,
+        )
+        .await?;
+        gated.roles = resolved.roles;
 
         let minted = mint_browser_session(
             &self.inner.session_service,

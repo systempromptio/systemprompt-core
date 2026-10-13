@@ -9044,6 +9044,7 @@ dependencies = [
 name = "systemprompt-oauth-issuance"
 version = "0.66.0"
 dependencies = [
+ "async-trait",
  "base64 0.23.1",
  "chrono",
  "http",
@@ -9083,6 +9084,7 @@ dependencies = [
  "systemprompt-oauth",
  "systemprompt-oauth-issuance",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tokio",
  "uuid",
  "wiremock",

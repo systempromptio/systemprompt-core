@@ -5279,6 +5279,7 @@ dependencies = [
 name = "systemprompt-oauth-issuance"
 version = "0.66.0"
 dependencies = [
+ "async-trait",
  "base64 0.23.1",
  "chrono",
  "http",
