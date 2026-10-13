@@ -66,8 +66,9 @@ pub enum SsoRefusal {
     NotProvisioned,
 }
 
-/// An identity the policy admitted, with the roles it resolved to. Once the
-/// driver has resolved the local user, `roles` is replaced by the set the
+/// An identity the policy admitted, with the roles it resolved to.
+///
+/// Once the driver has resolved the local user, `roles` is replaced by the set the
 /// registered role resolver settled on, so the session and the success sink
 /// both see the roles actually granted.
 #[derive(Debug, Clone, PartialEq, Eq)]
