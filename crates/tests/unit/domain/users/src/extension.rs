@@ -76,6 +76,7 @@ mod extension_schema_tests {
                 "user_device_certs",
                 "user_rate_limit_buckets",
                 "federated_identities",
+                "sso_login_events",
             ]
         );
     }

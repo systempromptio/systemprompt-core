@@ -73,7 +73,7 @@ fn a_plist_with_a_different_model_list_still_drifts() {
     let mut plist = written_plist();
     plist.insert(
         "inferenceModels".to_owned(),
-        serde_json::json!(["claude-opus-4-7[1m]"]),
+        serde_json::json!(["claude-haiku-4-5"]),
     );
     let drift = diff(&desired, &observed_from_plist(&plist));
     assert_eq!(drift.differing, vec!["inferenceModels".to_owned()]);
