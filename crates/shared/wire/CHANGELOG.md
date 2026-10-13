@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- Routes match server tools by type; Vertex bodies reconcile the tools Vertex lacks; audit rows name their route.
+
+### Fixed
+
+- Clippy findings in the wire codecs.
+
 ## [0.63.0] - 2026-10-07
 
 ### Added

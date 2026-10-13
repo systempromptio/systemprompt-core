@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Added
+
+- `connector_grant`: `client_credentials` and `app_installation` machine grants for MCP connectors, cached until shortly before expiry.
+- The JWT `purpose` claim, read into `JwtUserContext::purpose` and copied into the request context.
+- Header-only scope dimensions (`SubjectAttributeProvider::default_attribution`).
+
+### Breaking
+
+- `JwtClaims`, `JwtConfig` and `JwtUserContext` gain `purpose`; struct literals must name it.
+
 ## [0.65.0] - 2026-10-09
 
 ### Changed

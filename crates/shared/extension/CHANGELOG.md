@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Added
+
+- `Extension::runner_services()` (default empty), started once per runner replica.
+
+### Fixed
+
+- A migration's `@cost` is projected onto the live table size.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

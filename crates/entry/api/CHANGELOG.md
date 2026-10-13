@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Added
+
+- `server.role: runner` lifecycle: probes-only routes (`RouteGroup::Probes`) and extension runner services.
+- `strip_caller_purpose` layer: an inbound `x-systemprompt-caller` header is stripped on every route.
+
+### Changed
+
+- The agent endpoints speak the A2A 1.0.1 JSON-RPC binding (`A2A-Version: 1.0` required).
+
+### Breaking
+
+- `LifecyclePlan` gains `runner_services`; `RouteGroup` gains `Probes`.
+
 ## [0.65.0] - 2026-10-09
 
 ### Added

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Changed
+
+- The API client and the MCP artifact renderers use A2A 1.0.1 parts.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

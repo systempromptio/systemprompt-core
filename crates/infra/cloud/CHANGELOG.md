@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.66.0] - 2026-10-13
+
+### Fixed
+
+- Generated profiles carry a URL issuer that validation accepts, and profile validation and `cloud doctor` agree on the cloud rules.
+
 ## [0.65.1] - 2026-10-09
 
 ### Fixed

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.66.0] - 2026-10-13
 
 ### Added
 
@@ -17,7 +17,6 @@
 
 - `take_projection_backlog` picks its batch once (a materialized `FOR UPDATE SKIP LOCKED` CTE) and deletes it by key. The `key IN (<locking subquery>)` form planned as a nested loop that re-ran the locking subquery per queued row whenever the queue's statistics were older than a bulk enqueue (a table last analyzed empty, then a migration queueing 64k keys): a single 2,000-key batch ran past ten minutes on CPU. The same batch now takes about 50 ms under those statistics.
 
-## [Unreleased]
 
 ### Changed
 
