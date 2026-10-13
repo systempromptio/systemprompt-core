@@ -9,7 +9,7 @@
 //! | # | Condition | Source |
 //! |---|-----------|--------|
 //! | 1 | `SYSTEMPROMPT_SUBPROCESS` set and a valid pepper is in the environment | environment |
-//! | 2 | `secrets.source: vault` | Vault KV v2, on deployment hosts too |
+//! | 2 | `secrets.source: vault` or `external` | Vault KV v2 or a registered provider, on deployment hosts too |
 //! | 3 | deployment host, with a valid pepper or `secrets.source: env` | environment |
 //! | 4 | `secrets.source: env` running locally | file, then environment |
 //! | 5 | `secrets.source: file` | file |
@@ -20,6 +20,12 @@
 //! host happens to carry. The profile's `secrets.validation` field is not
 //! consulted.
 //!
+//! `secrets.source: external` hands the fetch to the provider an extension
+//! registered for the profile's `external.kind` with
+//! [`register_secrets_source!`](crate::register_secrets_source). It sits at
+//! the same precedence as Vault and is equally fail-closed. The store is
+//! reloadable: see [`SecretsBootstrap::reload`].
+//!
 //! A Vault token is never written into profile YAML — `${VAULT_TOKEN}`
 //! interpolation in `profile.yaml` is forbidden. The token comes from the
 //! process environment, a file, or an `AppRole` / Kubernetes login.
@@ -27,128 +33,46 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error;
 mod io;
 mod loader;
 mod logging;
 mod provider;
+mod registry;
+mod reload;
 mod resolve;
 mod sources;
 mod vault;
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use base64::Engine;
-use systemprompt_manifest::profile::{ProfileError, resolve_with_home};
+use systemprompt_manifest::profile::resolve_with_home;
 use systemprompt_manifest::secrets::Secrets;
-use systemprompt_models::errors::SecretsError;
 
-use super::key_material::KeyMaterialError;
 use super::manifest::{MANIFEST_SIGNING_SEED_BYTES, decode_seed, generate_seed, persist_seed};
 use super::master_key::decode_master_key;
 use super::profile::ProfileBootstrap;
 use crate::error::{ConfigError, ConfigResult};
 
+pub use error::SecretsBootstrapError;
 pub use io::load_secrets_from_path;
 pub use logging::build_loaded_secrets_message;
-pub use provider::{SecretsDocument, SecretsProvider};
+pub use provider::{DynSecretsProvider, SecretsDocument, SecretsFetch, SecretsProvider};
+pub use registry::{
+    EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SharedSecretsProvider,
+    build_external_provider, process_env_lookup, registered_external_kinds,
+};
+pub use reload::{PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets};
 pub use resolve::{ResolvedSource, resolve_source};
 pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
-
-static SECRETS: OnceLock<Secrets> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsBootstrap;
 
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum SecretsBootstrapError {
-    #[error(
-        "Secrets not initialized. Call SecretsBootstrap::init() after ProfileBootstrap::init()"
-    )]
-    NotInitialized,
-
-    #[error("Secrets already initialized")]
-    AlreadyInitialized,
-
-    #[error("Profile not initialized. Call ProfileBootstrap::init() first")]
-    ProfileNotInitialized,
-
-    #[error("Secrets file not found: {path}")]
-    FileNotFound { path: String },
-
-    #[error("Invalid secrets file: {0}")]
-    InvalidSecretsFile(#[source] SecretsError),
-
-    #[error("Secrets document could not be encoded: {0}")]
-    DocumentEncode(#[source] serde_json::Error),
-
-    #[error("No secrets configured. Create a secrets.json file.")]
-    NoSecretsConfigured,
-
-    #[error("Invalid secrets configuration in profile: {0}")]
-    SecretsConfigInvalid(#[source] ProfileError),
-
-    #[error(
-        "secrets.source is 'vault' but the profile has no secrets.vault block. Add one or switch \
-         secrets.source to 'file' or 'env'."
-    )]
-    VaultBlockMissing,
-
-    #[error(transparent)]
-    Vault(#[from] VaultError),
-
-    #[error(
-        "OAuth at-rest pepper is required. Add 'oauth_at_rest_pepper' (>= 32 chars) to your \
-         secrets file or set OAUTH_AT_REST_PEPPER environment variable."
-    )]
-    OauthAtRestPepperRequired,
-
-    #[error(
-        "Database URL is required. Add 'database_url' to your secrets.json or set DATABASE_URL \
-         environment variable."
-    )]
-    DatabaseUrlRequired,
-
-    #[error(
-        "manifest_signing_secret_seed is required: every replica must share one seed, so it is \
-         never generated at boot. Run `systemprompt admin identity generate --json` once and \
-         distribute the value (secrets file or MANIFEST_SIGNING_SECRET_SEED)."
-    )]
-    ManifestSeedRequired,
-
-    #[error(
-        "signing_key_pem is required on cloud and deployment-host boots: every replica must \
-         sign with one key, so it is never read from a file beside the binary there. Run \
-         `systemprompt admin identity generate --json` once and distribute the value (secrets \
-         file or SIGNING_KEY_PEM)."
-    )]
-    SigningKeyPemRequired,
-
-    #[error("manifest_signing_secret_seed is invalid: {0}")]
-    ManifestSeedInvalid(#[source] KeyMaterialError),
-
-    #[error(
-        "encryption_master_key is required: it seals at-rest secrets and the gateway accounting \
-         journal. Add 64 hex characters (`openssl rand -hex 32`) as 'encryption_master_key' in \
-         secrets.json, or take the value from `systemprompt admin identity generate`. With \
-         `secrets.source: env`, also list it in SYSTEMPROMPT_CUSTOM_SECRETS."
-    )]
-    EncryptionMasterKeyRequired,
-
-    #[error(
-        "encryption_master_key is invalid ({0}): it must be 32 bytes as 64 hex characters \
-         (`openssl rand -hex 32`)"
-    )]
-    EncryptionMasterKeyInvalid(#[source] KeyMaterialError),
-
-    #[error("signing_key_pem secret is invalid: {0}")]
-    SigningKeyPemInvalid(#[source] KeyMaterialError),
-}
-
 impl SecretsBootstrap {
     pub async fn init() -> ConfigResult<&'static Secrets> {
-        if SECRETS.get().is_some() {
+        if reload::current().is_some() {
             return Err(SecretsBootstrapError::AlreadyInitialized.into());
         }
 
@@ -157,13 +81,7 @@ impl SecretsBootstrap {
 
         Self::log_loaded_secrets(&secrets);
 
-        SECRETS
-            .set(secrets)
-            .map_err(|_e| SecretsBootstrapError::AlreadyInitialized)?;
-
-        SECRETS
-            .get()
-            .ok_or_else(|| SecretsBootstrapError::NotInitialized.into())
+        reload::install(secrets).map_err(Into::into)
     }
 
     pub fn oauth_at_rest_pepper() -> Result<&'static str, SecretsBootstrapError> {
@@ -248,16 +166,16 @@ impl SecretsBootstrap {
     }
 
     pub fn get() -> Result<&'static Secrets, SecretsBootstrapError> {
-        SECRETS.get().ok_or(SecretsBootstrapError::NotInitialized)
+        reload::current().ok_or(SecretsBootstrapError::NotInitialized)
     }
 
     #[must_use]
     pub fn is_initialized() -> bool {
-        SECRETS.get().is_some()
+        reload::current().is_some()
     }
 
     pub async fn try_init() -> ConfigResult<&'static Secrets> {
-        if SECRETS.get().is_some() {
+        if reload::current().is_some() {
             return Self::get().map_err(Into::into);
         }
         Self::init().await

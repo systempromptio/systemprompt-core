@@ -139,6 +139,7 @@ impl CloudProfileBuilder {
                 validation: SecretsValidationMode::Strict,
                 source: SecretsSource::Env,
                 vault: None,
+                external: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),

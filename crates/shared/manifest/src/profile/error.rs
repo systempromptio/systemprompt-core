@@ -58,4 +58,15 @@ pub enum ProfileError {
 
     #[error("secrets.vault is only valid with secrets.source 'vault', got '{secrets_source}'")]
     VaultBlockUnexpected { secrets_source: &'static str },
+
+    #[error("secrets.source 'external' requires a secrets.external block")]
+    ExternalBlockRequired,
+
+    #[error(
+        "secrets.external is only valid with secrets.source 'external', got '{secrets_source}'"
+    )]
+    ExternalBlockUnexpected { secrets_source: &'static str },
+
+    #[error("secrets.external.refresh_secs must be at least 60, got {secs}")]
+    RefreshIntervalOutOfRange { secs: u64 },
 }

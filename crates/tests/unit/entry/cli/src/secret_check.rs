@@ -43,6 +43,9 @@ fn a_rendered_report_never_carries_a_value() {
         detail: path.display().to_string(),
         missing_required: missing_required(&keys),
         keys,
+        generation: None,
+        last_reload_at: None,
+        last_error: None,
     };
 
     let rendered = serde_json::to_string(&report).expect("report serialises");

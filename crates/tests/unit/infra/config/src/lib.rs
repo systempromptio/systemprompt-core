@@ -83,3 +83,9 @@ mod paths;
 mod paths_build;
 #[cfg(test)]
 mod skill_validator;
+
+#[cfg(test)]
+mod secrets_registry;
+
+#[cfg(test)]
+mod secrets_reload;

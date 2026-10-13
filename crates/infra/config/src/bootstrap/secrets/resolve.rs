@@ -6,8 +6,8 @@
 //!
 //! Precedence, highest first:
 //! 1. subprocess marker — the parent handed the child its secrets as env
-//! 2. `source: vault` — wins even on deployment hosts, so a container is not
-//!    silently downgraded to whatever env happens to be set
+//! 2. `source: vault` / `source: external` — win even on deployment hosts, so a
+//!    container is not silently downgraded to whatever env happens to be set
 //! 3. deployment host — env, with or without a pepper already present
 //! 4. `source: env` locally — file first, env as fallback
 //! 5. `source: file`
@@ -15,7 +15,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_manifest::profile::{SecretsConfig, SecretsSource, VaultSecretsConfig};
+use systemprompt_manifest::profile::{
+    ExternalSecretsConfig, SecretsConfig, SecretsSource, VaultSecretsConfig,
+};
 
 use super::SecretsBootstrapError;
 
@@ -23,6 +25,7 @@ use super::SecretsBootstrapError;
 pub enum ResolvedSource<'a> {
     SubprocessEnv,
     Vault(&'a VaultSecretsConfig),
+    External(&'a ExternalSecretsConfig),
     DeploymentHostEnv,
     LocalEnvWithFileFallback(&'a str),
     File(&'a str),
@@ -52,6 +55,11 @@ pub fn resolve_source(
             .as_ref()
             .map(ResolvedSource::Vault)
             .ok_or(SecretsBootstrapError::VaultBlockMissing),
+        SecretsSource::External => config
+            .external
+            .as_ref()
+            .map(ResolvedSource::External)
+            .ok_or(SecretsBootstrapError::ExternalBlockMissing),
         SecretsSource::Env if is_deployment_host => Ok(ResolvedSource::DeploymentHostEnv),
         SecretsSource::File if is_deployment_host && has_valid_pepper_in_env => {
             Ok(ResolvedSource::DeploymentHostEnv)

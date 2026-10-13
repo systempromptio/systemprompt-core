@@ -23,6 +23,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core runtime
 tracing = { workspace = true }
+inventory = { workspace = true }
+chrono = { workspace = true }
 thiserror = { workspace = true }
 
 # Serialization

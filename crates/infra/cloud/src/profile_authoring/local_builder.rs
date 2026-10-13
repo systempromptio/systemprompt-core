@@ -98,6 +98,7 @@ impl LocalProfileBuilder {
                 validation: SecretsValidationMode::Warn,
                 source: SecretsSource::File,
                 vault: None,
+                external: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),

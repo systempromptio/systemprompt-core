@@ -8,7 +8,8 @@ use systemprompt_manifest::secrets::{OAUTH_AT_REST_PEPPER_MIN_LENGTH, Secrets};
 
 use super::SecretsBootstrapError;
 use super::logging::log_secrets_failure;
-use super::provider::SecretsProvider;
+use super::provider::DynSecretsProvider;
+use super::registry::{build_external_provider, process_env_lookup};
 use super::resolve::{ResolvedSource, resolve_source};
 use super::vault::VaultKvProvider;
 use crate::bootstrap::profile::ProfileBootstrap;
@@ -57,20 +58,33 @@ pub(super) async fn load_from_profile_config() -> ConfigResult<Secrets> {
             file::resolve_and_load_file(path).inspect_err(log_secrets_failure)
         },
         ResolvedSource::Vault(cfg) => load_from_vault(cfg).await,
+        ResolvedSource::External(cfg) => {
+            let provider = match build_external_provider(cfg, process_env_lookup()) {
+                Ok(provider) => provider,
+                Err(e) => return Err(fail_closed(e)),
+            };
+            load_from_provider(provider.as_ref(), "external").await
+        },
     }
 }
 
 async fn load_from_vault(cfg: &VaultSecretsConfig) -> ConfigResult<Secrets> {
-    // Why: a Vault failure is never rescued by the environment — a downgraded
-    // boot would run on whatever stale credentials the host happens to carry.
     let provider = match VaultKvProvider::from_config(cfg, |name| std::env::var(name).ok()) {
         Ok(provider) => provider,
         Err(e) => return Err(fail_closed(SecretsBootstrapError::from(e))),
     };
+    load_from_provider(&provider, "vault").await
+}
 
-    tracing::debug!(source = %provider.describe(), "loading secrets from vault");
+async fn load_from_provider(
+    provider: &dyn DynSecretsProvider,
+    source_name: &str,
+) -> ConfigResult<Secrets> {
+    // Why: a remote-source failure is never rescued by the environment — a
+    // downgraded boot would run on whatever stale credentials the host carries.
+    tracing::debug!(source = %provider.describe(), source_name, "loading secrets from provider");
 
-    let document = match provider.fetch().await {
+    let document = match provider.fetch_boxed().await {
         Ok(document) => document,
         Err(e) => return Err(fail_closed(e)),
     };
@@ -78,7 +92,7 @@ async fn load_from_vault(cfg: &VaultSecretsConfig) -> ConfigResult<Secrets> {
 
     match document.into_secrets() {
         Ok(secrets) => {
-            tracing::debug!(keys = ?key_names, "vault secrets document parsed");
+            tracing::debug!(keys = ?key_names, source_name, "secrets document parsed");
             Ok(secrets)
         },
         Err(e) => Err(fail_closed(e)),

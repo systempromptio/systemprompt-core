@@ -26,7 +26,7 @@ use super::provider::{SecretsDocument, SecretsProvider};
 use client::VaultHttp;
 pub use error::{VaultAttemptFailure, VaultError};
 
-pub(super) type EnvLookup = Box<dyn Fn(&str) -> Option<String> + Send + Sync>;
+pub(super) use super::registry::EnvLookup;
 
 pub struct VaultKvProvider {
     http: VaultHttp,

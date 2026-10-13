@@ -47,16 +47,23 @@ pub(crate) mod skill_validator;
 pub mod state_dir;
 
 pub use bootstrap::{
-    ENCRYPTION_MASTER_KEY_BYTES, KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, ProfileBootstrap,
-    ProfileBootstrapError, ResolvedSource, SecretsBootstrap, SecretsBootstrapError,
-    SecretsDocument, SecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
-    build_loaded_secrets_message, decode_master_key, decode_seed, generate_master_key,
-    generate_seed, load_secrets_from_path, persist_seed, resolve_source,
+    DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup, KeyMaterialError,
+    MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, ProfileBootstrap, ProfileBootstrapError,
+    ReloadOutcome, ResolvedSource, SecretsBootstrap, SecretsBootstrapError, SecretsDocument,
+    SecretsFetch, SecretsProvider, SecretsSourceFactory, SecretsSourceRegistration, SecretsStatus,
+    SharedSecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
+    build_external_provider, build_loaded_secrets_message, decode_master_key, decode_seed,
+    diff_secrets, generate_master_key, generate_seed, load_secrets_from_path, persist_seed,
+    process_env_lookup, registered_external_kinds, resolve_source,
 };
+pub use systemprompt_manifest::profile::ExternalSecretsConfig;
+
 pub use config_loader::{
     build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
+#[doc(hidden)]
+pub use inventory as __inventory;
 pub use paths::{
     AppPaths, BuildPaths, PathError, StoragePaths, SystemPaths, WebPaths, WritableRoot,
 };

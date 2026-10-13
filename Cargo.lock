@@ -4817,7 +4817,9 @@ name = "systemprompt-config"
 version = "0.66.0"
 dependencies = [
  "base64 0.23.1",
+ "chrono",
  "hex",
+ "inventory",
  "nix",
  "rand 0.10.3",
  "reqwest",
