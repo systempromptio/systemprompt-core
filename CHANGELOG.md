@@ -49,8 +49,6 @@
 - **Database:** `assess_freshness` no longer counts the `extension_migrations` ledger among an extension's owned tables. The ledger is created before any freshness is read, so the `database` extension that owns it was established on every empty database and ran its one migration instead of stamping it.
 - **Docs:** `internal/guides/migrations.md` describes the install order as it runs: the retire phase, freshness with the ledger excluded, baseline stamping and the stamped retirements that execute on a fresh extension.
 
-## [0.65.1] - 2026-10-09
-
 ### Fixed
 
 - **Profile / Cloud:** profile validation and `cloud doctor` no longer disagree about what a cloud profile needs. 0.63.0 shipped with validation refusing `server.instance_id` while the doctor failed its absence, and two disagreements survived the fix. The doctor's `proxy-topology` check failed a cloud profile whose `server.trusted_proxies` leaves out Fly's peer range `fc00::/7`, which validation accepts; it now warns. `cloud doctor --distributed` failed a local profile with an empty `trusted_proxies`, which validation accepts; it now warns. The profile-only doctor checks run through one function, `systemprompt_cli::cloud::doctor::profile_checks`, and a test holds that it fails exactly the profiles validation refuses.

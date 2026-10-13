@@ -121,7 +121,9 @@ pub(crate) struct PartRowValues<'a> {
     pub(crate) file_mime_type: Option<&'a str>,
     pub(crate) file_uri: Option<&'a str>,
     pub(crate) file_bytes: Option<&'a str>,
+    // JSON: an A2A data part's payload is arbitrary JSON by protocol.
     pub(crate) data_content: Option<serde_json::Value>,
+    // JSON: A2A part metadata is an open JSON object by protocol.
     pub(crate) metadata: Option<serde_json::Value>,
 }
 

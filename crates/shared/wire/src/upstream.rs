@@ -175,6 +175,7 @@ pub fn downgrade_vertex_web_search(tool: &mut Value) {
 // requests to a provider that serves them. Client tools carry no server
 // `type` and are never touched.
 #[must_use]
+// JSON: provider request body — a tool entry in the upstream wire format.
 pub fn is_tool_absent_on_vertex(tool: &Value) -> bool {
     const ABSENT_ON_VERTEX: [&str; 3] = ["web_fetch_", "code_execution_", "advisor_"];
     server_tool_type(tool).is_some_and(|kind| {
@@ -184,6 +185,7 @@ pub fn is_tool_absent_on_vertex(tool: &Value) -> bool {
     })
 }
 
+// JSON: provider request body — a tool entry in the upstream wire format.
 fn server_tool_type(tool: &Value) -> Option<&str> {
     tool.get("type")
         .and_then(Value::as_str)

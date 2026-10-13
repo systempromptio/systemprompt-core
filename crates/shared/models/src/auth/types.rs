@@ -75,6 +75,7 @@ impl AuthenticatedUser {
         self
     }
 
+    // JSON: subject attributes are operator-defined values with no fixed schema.
     pub fn with_attributes(mut self, attributes: BTreeMap<String, serde_json::Value>) -> Self {
         self.attributes = attributes;
         self

@@ -46,6 +46,7 @@ pub(super) fn parse_into_keys(text: &str, source: &str) -> DomainRead {
 
 // Why: the host token sits in the config as the provider `apiKey`; neither the
 // GUI nor the drift record may hold it, so both carry its fingerprint.
+// JSON: OpenCode's config file is host-owned JSON with an open schema.
 pub(super) fn keys_of(value: &Value, source: &str) -> DomainRead {
     DomainRead::collect(
         source,

@@ -53,6 +53,8 @@ pub(super) fn carries_owned(target: &Path) -> bool {
     stripped(target).is_ok_and(|v| v.is_some())
 }
 
+// JSON: OpenCode's config file is host-owned JSON with an open schema; only its
+// known keys are edited.
 fn stripped(target: &Path) -> std::io::Result<Option<Map<String, Value>>> {
     if !target.exists() {
         return Ok(None);
