@@ -22,6 +22,7 @@ use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
 };
 use systemprompt_bridge::proxy_probe::{ProxyHealth, ProxyProbeState};
+use systemprompt_bridge::wire::catalog::CatalogFreshnessPayload;
 
 // Why: a fixed number of `..` segments resolves to a different directory the
 // moment a crate moves, and a fixtures directory that is not there reads as
@@ -123,6 +124,35 @@ fn strings(v: Option<&Value>) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn catalog_verdict_of(catalog: &Value) -> Value {
+    let freshness = catalog.get("freshness");
+    let state = freshness
+        .and_then(|f| f.get("state"))
+        .and_then(Value::as_str)
+        .unwrap_or("unknown");
+    let payload = match state {
+        "fresh" => CatalogFreshnessPayload::Fresh,
+        "stale" => CatalogFreshnessPayload::Stale {
+            since_unix: freshness
+                .and_then(|f| f.get("since_unix"))
+                .and_then(Value::as_u64)
+                .unwrap_or_default(),
+            error: freshness
+                .and_then(|f| f.get("error"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned(),
+        },
+        _ => CatalogFreshnessPayload::Unknown,
+    };
+    let total = catalog
+        .get("total")
+        .and_then(Value::as_u64)
+        .and_then(|t| usize::try_from(t).ok())
+        .unwrap_or_default();
+    serde_json::to_value(payload.verdict(total)).unwrap_or_default()
 }
 
 // Recompute one fixture's verdicts and fleet fold. Returns the updated doc.
@@ -254,6 +284,13 @@ fn recompute(doc: &Value) -> Option<Value> {
     }
 
     let obj = doc.as_object_mut()?;
+    if let Some(catalog) = obj
+        .get_mut("inference_catalog")
+        .and_then(Value::as_object_mut)
+    {
+        let v = catalog_verdict_of(&Value::Object(catalog.clone()));
+        catalog.insert("verdict".to_owned(), v);
+    }
     obj.insert("host_apps".to_owned(), Value::Array(updated));
     obj.insert(
         "agent_fleet".to_owned(),

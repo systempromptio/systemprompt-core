@@ -8,6 +8,7 @@
 use serde::Serialize;
 
 use crate::gateway::model_view::{CatalogGroup, desktop_models};
+use crate::verdict::{Tone, Verdict};
 
 /// One provider of the catalog. `configured` false means the gateway lists it
 /// but cannot serve it; `config_issue` says why.
@@ -46,6 +47,34 @@ pub enum CatalogFreshnessPayload {
     Stale { since_unix: u64, error: String },
 }
 
+/// What the catalog amounts to for the views.
+///
+/// `waiting` before any fetch, `ready` with served models, `empty` when a
+/// fresh catalog serves none, `stale` when the last good catalog is kept
+/// across a failed refresh.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub enum CatalogCode {
+    Waiting,
+    Ready,
+    Empty,
+    Stale,
+}
+
+impl CatalogFreshnessPayload {
+    #[must_use]
+    pub const fn verdict(&self, total: usize) -> Verdict<CatalogCode> {
+        match self {
+            Self::Unknown => Verdict::new(Tone::Unknown, CatalogCode::Waiting),
+            Self::Fresh if total > 0 => Verdict::new(Tone::Ok, CatalogCode::Ready),
+            Self::Fresh => Verdict::new(Tone::Warn, CatalogCode::Empty),
+            Self::Stale { .. } => Verdict::new(Tone::Warn, CatalogCode::Stale),
+        }
+    }
+}
+
 /// The one model catalog every view renders. `total` counts the distinct
 /// models of configured providers; `desktop_models` is the subset Claude
 /// Desktop is given.
@@ -57,6 +86,7 @@ pub struct InferenceCatalogPayload {
     pub total: usize,
     pub desktop_models: Vec<String>,
     pub freshness: CatalogFreshnessPayload,
+    pub verdict: Verdict<CatalogCode>,
     pub fetched_at_unix: Option<u64>,
 }
 
@@ -73,6 +103,7 @@ impl InferenceCatalogPayload {
             .flat_map(|g| g.models.iter().cloned())
             .collect();
         Self {
+            verdict: freshness.verdict(served.len()),
             total: served.len(),
             desktop_models: desktop_models(&served),
             providers: groups

@@ -538,6 +538,10 @@
       "since_unix": 1787905757,
       "error": "provider health: operation timed out after 3072 ms"
     },
+    "verdict": {
+      "tone": "warn",
+      "code": "stale"
+    },
     "fetched_at_unix": 1787905577
   },
   "last_sync_report": {

@@ -501,6 +501,10 @@
     "freshness": {
       "state": "unknown"
     },
+    "verdict": {
+      "tone": "unknown",
+      "code": "waiting"
+    },
     "fetched_at_unix": null
   },
   "last_sync_report": {

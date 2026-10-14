@@ -469,6 +469,10 @@
     "freshness": {
       "state": "fresh"
     },
+    "verdict": {
+      "tone": "ok",
+      "code": "ready"
+    },
     "fetched_at_unix": 1787905757
   },
   "last_sync_report": {
