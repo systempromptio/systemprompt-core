@@ -32,6 +32,15 @@ export function renderAgentDrawerHealth(hs) {
     agentDrawerRow(t("agent-row-app") || "Application", dotRow(toneDot(app.tone), t(`host-app-${app.code}`) || "")),
     agentDrawerRow(t("agent-row-process") || "Process", processRow(hs)),
   ];
+  // What the host's own config lists, beside the compatible models the
+  // gateway catalog gives it, so drift between the two is visible.
+  const written = Array.isArray(hs.inference_models) ? hs.inference_models : [];
+  if (written.length || hs.inference_models_error) {
+    rows.push(agentDrawerRow(t("host-written-models") || "Models in its config",
+      hs.inference_models_error
+        ? dotRow("sp-dot--warn", hs.inference_models_error)
+        : agentDrawerDetailText(written.join(", "), { mono: true })));
+  }
   if (missing.length) {
     rows.push(agentDrawerRow(t("host-missing-keys") || "Missing required keys",
       agentDrawerDetailText(missing.join(", "), { mono: true })));

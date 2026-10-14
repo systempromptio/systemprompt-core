@@ -122,7 +122,7 @@ fn applying_a_probe_carries_the_credential_error_into_the_snapshot() {
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: None,
         at_unix: 600,
-        provider_health: Vec::new(),
+        catalog: Ok(Vec::new()),
         credential_error: Some("authentication: token rejected".to_owned()),
     });
 
@@ -147,7 +147,7 @@ fn a_later_clean_probe_clears_the_credential_error() {
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: None,
         at_unix: 600,
-        provider_health: Vec::new(),
+        catalog: Ok(Vec::new()),
         credential_error: Some("authentication: token rejected".to_owned()),
     });
     state.apply_probe(GatewayProbeOutcome {
@@ -156,7 +156,7 @@ fn a_later_clean_probe_clears_the_credential_error() {
         status: GatewayStatus::Reachable { latency_ms: 4 },
         identity: Some(identity()),
         at_unix: 660,
-        provider_health: Vec::new(),
+        catalog: Ok(Vec::new()),
         credential_error: None,
     });
 

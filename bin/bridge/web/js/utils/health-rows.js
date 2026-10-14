@@ -44,7 +44,17 @@ export function healthRows(snapshot) {
     const tone = TONE_BY_LEVEL[line.level] || line.tone;
     rows.push({ tone, label: line.label, value: line.value, action: null });
   }
-  for (const p of (snapshot && snapshot.provider_health) || []) {
+  const catalog = (snapshot && snapshot.inference_catalog) || {};
+  const freshness = catalog.freshness || {};
+  if (catalog.verdict && catalog.verdict.code === "stale") {
+    rows.push({
+      tone: "warn",
+      label: t("setup-health-catalog-stale") || "model catalog",
+      value: freshness.error,
+      action: null,
+    });
+  }
+  for (const p of catalog.providers || []) {
     if (p.configured) { continue; }
     rows.push({
       tone: "warn",

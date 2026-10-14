@@ -47,11 +47,27 @@ pub struct HostHealthPayload<'a> {
     pub probe_error: Option<&'a str>,
     pub host_processes: &'a [String],
     pub inference_models: Vec<String>,
+    pub inference_models_error: Option<String>,
     pub probed_at_unix: u64,
+}
+
+fn written_inference_models(raw: Option<&String>) -> (Vec<String>, Option<String>) {
+    let Some(raw) = raw.map(|r| r.as_str().trim()).filter(|r| !r.is_empty()) else {
+        return (Vec::new(), None);
+    };
+    match serde_json::from_str::<Vec<String>>(raw) {
+        Ok(models) => (models, None),
+        Err(e) => (
+            Vec::new(),
+            Some(format!("inferenceModels is not a JSON array: {e}")),
+        ),
+    }
 }
 
 impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
     fn from(s: &'a HostAppSnapshot) -> Self {
+        let (inference_models, inference_models_error) =
+            written_inference_models(s.profile_keys.get("inferenceModels"));
         Self {
             profile: s.profile_state.verdict(),
             missing_required: s.profile_state.missing_required(),
@@ -59,17 +75,8 @@ impl<'a> From<&'a HostAppSnapshot> for HostHealthPayload<'a> {
             host_running: s.host_running,
             probe_error: s.probe_error.as_deref(),
             host_processes: &s.host_processes,
-            inference_models: s
-                .profile_keys
-                .get("inferenceModels")
-                .map(|raw| {
-                    raw.split(',')
-                        .map(str::trim)
-                        .filter(|m| !m.is_empty())
-                        .map(str::to_owned)
-                        .collect()
-                })
-                .unwrap_or_default(),
+            inference_models,
+            inference_models_error,
             probed_at_unix: s.probed_at_unix,
         }
     }

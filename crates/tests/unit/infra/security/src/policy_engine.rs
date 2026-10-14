@@ -71,6 +71,7 @@ fn ctx<'a>(
             user_id: user.clone(),
         },
         access_scope: AccessScope::User,
+        roles: &[],
         session_id: session,
         user_id: user,
         input,

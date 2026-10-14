@@ -12,6 +12,7 @@ use systemprompt_bridge::update::UpdateUiState;
 use systemprompt_bridge::validate::{CheckLevel, CheckLine, ValidationReport};
 use systemprompt_bridge::verdict::{Tone, Verdict};
 use systemprompt_bridge::wire::DeviceAction;
+use systemprompt_bridge::wire::catalog::{CatalogCode, CatalogFreshnessPayload};
 use systemprompt_bridge::wire::codes::GatewayCode;
 use systemprompt_bridge::wire::payloads::{
     CachedTokenPayload, CheckLinePayload, GatewayStatusPayload, McpServerAuthPayload,
@@ -347,4 +348,33 @@ fn device_actions_use_stable_kebab_case_wire_values() {
         json_of(&DeviceAction::RemoveApplication),
         json!("remove-application")
     );
+}
+
+#[test]
+fn catalog_verdict_reads_each_freshness_and_an_empty_fresh_catalog_warns() {
+    let stale = CatalogFreshnessPayload::Stale {
+        since_unix: 1,
+        error: "timeout".to_owned(),
+    };
+    let cases = [
+        (
+            CatalogFreshnessPayload::Unknown.verdict(3),
+            Tone::Unknown,
+            CatalogCode::Waiting,
+        ),
+        (
+            CatalogFreshnessPayload::Fresh.verdict(3),
+            Tone::Ok,
+            CatalogCode::Ready,
+        ),
+        (
+            CatalogFreshnessPayload::Fresh.verdict(0),
+            Tone::Warn,
+            CatalogCode::Empty,
+        ),
+        (stale.verdict(3), Tone::Warn, CatalogCode::Stale),
+    ];
+    for (verdict, tone, code) in cases {
+        assert_eq!((verdict.tone, verdict.code), (tone, code));
+    }
 }

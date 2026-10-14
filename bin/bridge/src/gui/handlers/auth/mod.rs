@@ -215,6 +215,7 @@ pub(crate) fn on_logout_finished(
             let msg = i18n::t("logout-success");
             app.append_log(&msg);
             crate::mcp_registry::clear(&app.ctx.mcp_registry);
+            app.state.clear_inference_catalog();
             Ok(())
         },
         Err(e) => {

@@ -5,7 +5,13 @@
 //! ```yaml
 //! - id: tool_blocklist
 //!   patterns: ["delete", "drop", "destroy"]
+//!   role_exemptions:
+//!     - prefix: "mcp__odoo__"
+//!       roles: ["odoo_destructive"]
 //! ```
+//!
+//! A blocked tool a `role_exemptions` rule covers is allowed to a caller
+//! holding one of its roles (`ctx.roles`), as it is to admin.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +24,7 @@ use systemprompt_identifiers::PolicyId;
 
 use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
+use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
 const ID: &str = "tool_blocklist";
@@ -26,12 +33,15 @@ const DEFAULT_PATTERNS: &[&str] = &["delete", "drop", "destroy"];
 #[derive(Debug)]
 struct ToolBlocklist {
     patterns: Vec<String>,
+    role_exemptions: Vec<RoleRule>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 struct ToolBlocklistYaml {
     #[serde(default)]
     patterns: Vec<String>,
+    #[serde(default)]
+    role_exemptions: Vec<RoleRule>,
 }
 
 impl ToolBlocklist {
@@ -47,7 +57,10 @@ impl ToolBlocklist {
         } else {
             cfg.patterns
         };
-        Ok(Self { patterns })
+        Ok(Self {
+            patterns,
+            role_exemptions: cfg.role_exemptions,
+        })
     }
 }
 
@@ -77,8 +90,16 @@ impl GovernancePolicy for ToolBlocklist {
             .iter()
             .find(|p| tool.as_str().contains(p.as_str()));
 
-        match matched {
-            Some(p) if ctx.access_scope != AccessScope::Admin => Decision::Deny {
+        let exempt_role = self
+            .role_exemptions
+            .iter()
+            .filter(|rule| rule.covers(tool.as_str()))
+            .find_map(|rule| rule.held_by(ctx.roles));
+        match (matched, exempt_role) {
+            (Some(_), Some(role)) if ctx.access_scope != AccessScope::Admin => allow(Cow::Owned(
+                format!("role {role} exempts tool: {}", tool.as_str()),
+            )),
+            (Some(p), None) if ctx.access_scope != AccessScope::Admin => Decision::Deny {
                 reason: DenyReason::ToolBlocked {
                     tool: tool.clone(),
                     list_id: p.clone(),

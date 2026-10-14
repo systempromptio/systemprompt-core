@@ -397,6 +397,7 @@ const COMMANDS = {
     host.health.profile = { tone: "err", code: "absent" };
     host.health.missing_required = [];
     host.health.inference_models = [];
+    host.health.inference_models_error = null;
     host.verdict = { state: "not-set-up", tone: "warn", reason: { code: "absent" }, action: { code: "add" }, is_set_up: false, is_installed: false, is_running: !!host.health.host_running };
     host.last_generated_profile = null;
     touch(host);

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Changed
+
+- Prompt governance builds `PolicyContext` with `roles: &[]`; role-gated rules apply to tool calls, not prompts.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

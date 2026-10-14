@@ -11,6 +11,59 @@ use systemprompt_models::providers::ApiSurface;
 
 use crate::gateway::types::ProviderHealth;
 
+// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
+// family, and Fable ids are not served to it; this predicate is the one
+// definition of "a model Desktop may list", shared by every Desktop writer
+// and the Status card's Desktop subset.
+#[must_use]
+pub fn is_desktop_model(id: &str) -> bool {
+    let lower = id.to_ascii_lowercase();
+    lower.starts_with("claude-") && !lower.starts_with("claude-fable-")
+}
+
+#[must_use]
+pub fn desktop_models(models: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in models.iter().filter(|id| is_desktop_model(id)) {
+        if !out.contains(id) {
+            out.push(id.clone());
+        }
+    }
+    out
+}
+
+/// One provider of the catalog as the Status card groups it: its distinct
+/// models, and why it serves none when it is not configured.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogGroup {
+    pub name: String,
+    pub surface: ApiSurface,
+    pub configured: bool,
+    pub models: Vec<String>,
+    pub config_issue: Option<String>,
+}
+
+#[must_use]
+pub fn catalog_models(providers: &[ProviderHealth]) -> Vec<CatalogGroup> {
+    let mut seen = std::collections::HashSet::new();
+    providers
+        .iter()
+        .filter(|p| p.surface.is_advertised())
+        .map(|p| CatalogGroup {
+            name: p.name.clone(),
+            surface: p.surface,
+            configured: p.configured,
+            models: p
+                .models
+                .iter()
+                .filter(|m| seen.insert(m.as_str()))
+                .cloned()
+                .collect(),
+            config_issue: p.config_issue.clone(),
+        })
+        .collect()
+}
+
 #[must_use]
 pub fn with_context_variants(
     models: &[String],
@@ -19,7 +72,7 @@ pub fn with_context_variants(
     let mut out = Vec::with_capacity(models.len());
     for id in models {
         let base = id.strip_suffix("[1m]").unwrap_or(id);
-        if !base.starts_with("claude-") || base.starts_with("claude-fable-") {
+        if !is_desktop_model(base) {
             continue;
         }
         let is_million = limits

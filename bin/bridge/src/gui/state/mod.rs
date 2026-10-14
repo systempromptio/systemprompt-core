@@ -13,6 +13,7 @@ mod reload;
 mod types;
 mod verdicts;
 
+pub use crate::gateway::catalog::{CatalogFreshness, InferenceCatalog};
 pub use builder::AppStateSnapshotBuilder;
 pub use cancel::CancelScope;
 pub use jwt::decode_jwt_identity_unverified;
@@ -124,8 +125,12 @@ impl AppState {
         inner.snapshot.last_probe_at_unix = Some(outcome.at_unix);
         if reachable {
             inner.snapshot.verified_identity = outcome.identity;
-            inner.snapshot.provider_health = outcome.provider_health;
         }
+        inner.snapshot.inference_catalog.apply(
+            outcome.gateway.as_str(),
+            outcome.at_unix,
+            outcome.catalog,
+        );
         inner.snapshot.credential_error = outcome.credential_error;
     }
 
@@ -135,6 +140,10 @@ impl AppState {
 
     pub fn clear_verified_identity(&self) {
         self.snap_mut().verified_identity = None;
+    }
+
+    pub fn clear_inference_catalog(&self) {
+        self.snap_mut().inference_catalog = InferenceCatalog::default();
     }
 
     pub fn set_agents_onboarded(&self, flag: bool) {

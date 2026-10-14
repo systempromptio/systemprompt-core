@@ -9,8 +9,8 @@ mod payloads;
 
 use payloads::{
     McpServerAuthPayload, ProxyStatsPayload, UpdatePayload, ValidationPayload,
-    VerifiedIdentityPayload, cached_token_payload, gateway_status_payload, mcp_servers_payload,
-    verified_identity_payload,
+    VerifiedIdentityPayload, cached_token_payload, gateway_status_payload,
+    inference_catalog_payload, mcp_servers_payload, verified_identity_payload,
 };
 
 use crate::gui::hosts::serde::ProxyPayload;
@@ -65,7 +65,7 @@ pub fn state_payload<'a>(
             last_validation: snap.last_validation.as_ref().map(ValidationPayload::from),
             last_validation_at_unix: snap.last_validation_at_unix,
             health: snap.health_verdict(),
-            provider_health: &snap.provider_health,
+            inference_catalog: inference_catalog_payload(&snap.inference_catalog),
             credential_error: snap.credential_error.as_deref(),
             elevated: snap.elevated,
             startup_faults: snap

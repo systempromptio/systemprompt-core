@@ -88,7 +88,9 @@ cloud-checkout-port = { max-threads = 1 }
 # from a fixed candidate list and refuses a port another install already holds
 # ("served by a different Systemprompt Bridge install"). nextest gives each test
 # its own process, so two of them race for the same candidate and one fails on a
-# collision that says nothing about the code under test.
+# collision that says nothing about the code under test. The headless `proxy`
+# black-box test serves from a spawned bridge binary on the same candidates, and
+# the proxy-harness stats test serves through `ProxyHandle::serve`.
 bridge-proxy-port = { max-threads = 1 }
 # Why: `McpProxyIdentityRepository::cleanup_expired` is an unscoped
 # `DELETE FROM mcp_proxy_identities WHERE expires_at <= NOW()`, so it reaps
@@ -156,11 +158,11 @@ filter = 'package(systemprompt-scheduler-tests) and test(orphaned_tool_execution
 test-group = 'logs-cleanup-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
 test-group = 'bridge-proxy-port'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/)'
+filter = 'package(systemprompt-bridge-integration-tests) and test(/reapply_decision::/) or package(systemprompt-bridge-proxy-module-tests) or package(systemprompt-bridge-cli-tests) and test(/proxy_command::/) or package(systemprompt-bridge-proxy-tests) and test(/comms::/) or package(systemprompt-bridge-cli-subprocess-tests) and test(proxy_headless_starts_and_stops_on_sigint) or package(systemprompt-bridge-proxy-harness-tests) and test(public_proxy_stats_follow_forwarding_failures_and_reset_with_a_restarted_owner)'
 test-group = 'bridge-proxy-port'
 
 [[profile.default.overrides]]

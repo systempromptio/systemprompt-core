@@ -36,6 +36,7 @@ impl Call {
                 user_id: self.user.clone(),
             },
             access_scope: scope,
+            roles: &[],
             session_id: &self.session,
             user_id: &self.user,
             input,

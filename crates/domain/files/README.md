@@ -19,7 +19,7 @@ This crate provides file storage, metadata management, and content-file linking 
 
 ```toml
 [dependencies]
-systemprompt-files = "0.67"
+systemprompt-files = "0.68"
 ```
 
 Configured via `files.yaml`:

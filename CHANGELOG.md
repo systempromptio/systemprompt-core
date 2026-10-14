@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Added
+
+- **Governance: role-gated tool rules.** `PolicyContext` carries the caller's `roles`. `scope_check` takes `role_gated: [{ prefix, contains?, roles }]`: a covered tool is refused unless the caller is admin or holds one of the rule's roles. `tool_blocklist` takes `role_exemptions` of the same shape: a blocked tool a rule covers is allowed to a caller holding one of its roles, as it is to admin. The external-MCP proxy passes the authenticated user's roles; the gateway's prompt stage passes none.
+- **Agent runs: the run's MCP token carries the caller purpose.** An instance MCP server authenticates a JWT, not a PAT, so a run whose credentials carry a purpose also gets an `aud=mcp` JWT for the run's user with that purpose as its signed `purpose` claim (`RunCredentials::mcp_token`, `mcp_token_jti`, `mcp_token_expires_at`), revoked with the run. The MCP RBAC middleware copies the claim into the request context as the caller purpose, so a service account's credential broker sees `farm:<run_id>`.
+
+### Breaking
+
+- `PolicyContext` gains `roles: &[String]` and `RunCredentials` gains `mcp_token`, `mcp_token_jti` and `mcp_token_expires_at`; struct literals must name them.
+
+### Fixed
+
+- **Bridge:** one inference catalog every view reads. The Status card read Claude Desktop's `inferenceModels` registry key (split on commas, so JSON artefacts leaked into the chips) rather than the gateway catalog, and a failed probe emptied the provider list so the card flickered. The catalog now keeps the last good list from the same gateway across a failed probe and marks it stale (`Unknown` / `Fresh` / `Stale`), resets on another gateway and clears on logout; the card groups models by provider, shows a stale line and the Desktop subset, and its verdict (`waiting` / `ready` / `empty` / `stale`) is computed in Rust beside the freshness. `StatePayload.inference_catalog` replaces `provider_health`.
+- **Bridge:** the Settings view no longer shows an empty Appearance card when the brand forces dark mode.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

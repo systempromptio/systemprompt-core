@@ -1,6 +1,16 @@
 # Changelog
 
-## [0.66.0] - Unreleased
+## [0.68.0] - 2026-10-14
+
+### Added
+
+- A run whose credentials carry a purpose also gets an `aud=mcp` JWT for the run's user with that purpose as its signed `purpose` claim (`credentials::mcp_token`), since an instance MCP server authenticates a JWT, not a PAT. Issue order is PAT, gateway session, MCP token, hook token; a failure revokes what was issued, and revoke revokes the MCP token's `jti` with the others.
+
+### Breaking
+
+- `RunCredentials` gains `mcp_token`, `mcp_token_jti` and `mcp_token_expires_at`; struct literals must name them.
+
+## [0.66.0] - 2026-10-13
 
 ### Added
 

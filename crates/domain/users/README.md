@@ -28,7 +28,7 @@ This crate provides user management functionality including:
 
 ```toml
 [dependencies]
-systemprompt-users = "0.67"
+systemprompt-users = "0.68"
 ```
 
 ```rust

@@ -6,6 +6,8 @@
 use systemprompt_identifiers::{TenantId, UserId};
 
 use super::AppStateSnapshotBuilder;
+use crate::gateway::catalog::InferenceCatalog;
+use crate::gateway::types::ProviderHealth;
 use crate::gui::hosts::state::HostsState;
 use crate::proxy::mcp_probe::McpServerAuth;
 use crate::validate::ValidationReport;
@@ -44,7 +46,7 @@ pub struct GatewayProbeOutcome {
     pub status: GatewayStatus,
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,
-    pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
+    pub catalog: Result<Vec<ProviderHealth>, crate::gateway::catalog::CatalogFetchError>,
     pub credential_error: Option<String>,
 }
 
@@ -85,7 +87,7 @@ pub struct AppStateSnapshot {
     pub first_run: crate::gui::first_run::state::FirstRunState,
     pub enabled_hosts: Vec<String>,
     pub host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
-    pub provider_health: Vec<crate::gateway::types::ProviderHealth>,
+    pub inference_catalog: InferenceCatalog,
     pub credential_error: Option<String>,
     pub startup_faults: Vec<crate::obs::StartupFault>,
     pub elevated: bool,

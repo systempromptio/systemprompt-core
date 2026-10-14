@@ -53,6 +53,8 @@ mod policy_governed;
 #[cfg(test)]
 mod policy_prompt_governance;
 #[cfg(test)]
+mod policy_role_gate;
+#[cfg(test)]
 mod policy_secret_signatures;
 #[cfg(test)]
 mod policy_types;

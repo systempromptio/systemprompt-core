@@ -5,6 +5,7 @@ import { publishSectionState } from "/assets/js/utils/format.js";
 import { t } from "/assets/js/i18n.js";
 import { toneDot, toneSection, worstTone } from "/assets/js/utils/verdict.js";
 import { runAction } from "/assets/js/utils/action.js";
+import { catalogView, desktopLine, endpointsBody, staleBadge } from "/assets/js/utils/catalog-view.js";
 
 function proxyView(proxy) {
   const verdict = proxy.verdict || { tone: "unknown", code: "unknown" };
@@ -16,17 +17,6 @@ function proxyView(proxy) {
     label: t(`proxy-state-${verdict.code}`) || "",
     reason: verdict.tone === "err" ? (proxy.error || "") : "",
   };
-}
-
-function collectInferenceModels(snap) {
-  const seen = new Set();
-  const out = [];
-  for (const host of (snap.host_apps || [])) {
-    for (const m of ((host.health && host.health.inference_models) || [])) {
-      if (!seen.has(m)) { seen.add(m); out.push(m); }
-    }
-  }
-  return out;
 }
 
 export class SpProxyStatus extends SpElement {
@@ -44,6 +34,10 @@ export class SpProxyStatus extends SpElement {
         context: t("status-proxy-reset-secret") || "Reset local proxy secret",
       });
     });
+    this.registerAction("open-desktop", (trigger) => {
+      const drawer = document.querySelector("sp-agent-drawer");
+      if (drawer) { drawer.open("detail", "claude-desktop", trigger); }
+    });
   }
 
   onConnect() {
@@ -55,9 +49,7 @@ export class SpProxyStatus extends SpElement {
     const proxy = snap.local_proxy || {};
     const view = proxyView(proxy);
     const url = proxy.url || "";
-    const models = collectInferenceModels(snap);
-    const epState = models.length === 0 ? "warn" : "ok";
-    const epDot = models.length === 0 ? "sp-dot--warn" : "sp-dot--ok";
+    const { catalog, freshness, verdict, tone: epState } = catalogView(snap);
 
     const healthDetails = [
       ["url", escapeHtml(url || "(none)")],
@@ -65,10 +57,6 @@ export class SpProxyStatus extends SpElement {
       proxy.latency_ms != null ? ["latency", `${proxy.latency_ms} ms`] : null,
       ["state", escapeHtml(view.label)],
     ].filter(Boolean);
-
-    const chips = models.length === 0
-      ? `<p class="sp-kpi-card__label" data-l10n-id="status-proxy-endpoints-empty">No models configured yet — start an agent to populate.</p>`
-      : `<div class="sp-chip-list sp-kpi-card__chips">${models.map((m) => `<span class="sp-chip">${escapeHtml(m)}</span>`).join("")}</div>`;
 
     return `
       <div class="sp-kpi-grid">
@@ -98,15 +86,17 @@ export class SpProxyStatus extends SpElement {
         <article class="sp-kpi-card" data-state="${epState}">
           <div class="sp-kpi-card__head">
             <span data-l10n-id="status-proxy-endpoints">Inference endpoints</span>
-            <span class="sp-dot ${epDot}" aria-hidden="true"></span>
+            <span class="sp-dot ${toneDot(epState)}" aria-hidden="true"></span>
           </div>
           <div class="sp-kpi-card__value">
-            <span>${models.length}</span>
-            <span class="sp-kpi-card__unit">${models.length === 1 ? "model" : "models"}</span>
+            <span>${catalog.total}</span>
+            <span class="sp-kpi-card__unit">${catalog.total === 1 ? "model" : "models"}</span>
           </div>
-          ${chips}
+          ${staleBadge(catalog, freshness, verdict)}
+          ${endpointsBody(catalog, verdict)}
           <div class="sp-kpi-card__foot">
-            <span class="sp-kpi-card__foot-meta" data-l10n-id="status-proxy-endpoints-detail">Models the proxy advertises to agents.</span>
+            <span class="sp-kpi-card__foot-meta" data-l10n-id="status-proxy-endpoints-detail">Models the proxy serves, by provider.</span>
+            ${catalog.providers.length ? desktopLine(catalog) : ""}
           </div>
         </article>
       </div>
@@ -117,8 +107,7 @@ export class SpProxyStatus extends SpElement {
     const snap = this.snapshot || {};
     const proxy = snap.local_proxy || {};
     const view = proxyView(proxy);
-    const models = collectInferenceModels(snap);
-    const epState = models.length === 0 ? "warn" : "ok";
+    const { tone: epState } = catalogView(snap);
     const overall = worstTone(view.tone, epState);
     publishSectionState(this, overall, toneSection(overall));
   }

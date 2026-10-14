@@ -3276,9 +3276,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "aws-lc-rs",
  "once_cell",
@@ -4023,7 +4023,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4060,7 +4060,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4091,7 +4091,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4129,7 +4129,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "chrono",
  "futures",
@@ -4146,7 +4146,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -4174,7 +4174,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -4202,7 +4202,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4231,7 +4231,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4256,7 +4256,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4277,7 +4277,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4295,7 +4295,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4324,7 +4324,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -4337,7 +4337,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4367,7 +4367,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4392,7 +4392,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-manifest"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -4419,7 +4419,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-marketplace"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4449,7 +4449,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4488,7 +4488,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4518,7 +4518,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4557,7 +4557,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4610,7 +4610,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -4651,7 +4651,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-storage"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4716,7 +4716,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4736,7 +4736,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4762,7 +4762,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-wire"
-version = "0.67.0"
+version = "0.68.0"
 dependencies = [
  "bytes",
  "futures-util",
@@ -4794,7 +4794,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.5",
  "windows-sys 0.61.2",

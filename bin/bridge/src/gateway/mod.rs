@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod auth;
+pub mod catalog;
 pub mod errors;
 mod fetch;
 mod identity;
