@@ -72,21 +72,20 @@ function selectOptions(options, selected) {
 }
 
 export function renderSettingsAppearance() {
+  if (forcedDark()) return "";
   const themeOptions = [
     ["system", t("settings-theme-system") || "Match my system"],
     ["light", t("settings-theme-light") || "Light"],
     ["dark", t("settings-theme-dark") || "Dark"],
   ];
-  const themeRow = forcedDark() ? "" : `
+  return `
+    <div class="sp-kv__grid">
       <div class="sp-kv">
         <label for="settings-theme" data-l10n-id="settings-theme-label">Appearance</label>
         <select id="settings-theme" class="sp-select" data-change="theme">
           ${selectOptions(themeOptions, themePreference())}
         </select>
-      </div>`;
-  return `
-    <div class="sp-kv__grid">
-      ${themeRow}
+      </div>
     </div>`;
 }
 
