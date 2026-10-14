@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Added
+
+- `PolicyContext::roles`: the caller's roles, read by the built-in policies.
+- `scope_check` `role_gated: [{ prefix, contains?, roles }]`: a covered tool is refused unless the caller is admin or holds one of the rule's roles.
+- `tool_blocklist` `role_exemptions` (same shape): a blocked tool a rule covers is allowed to a caller holding one of its roles.
+
+### Breaking
+
+- `PolicyContext` gains `roles: &[String]`; struct literals must name it.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

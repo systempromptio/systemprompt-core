@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Changed
+
+- External-MCP governance passes the authenticated user's roles into `PolicyContext`, so `scope_check` `role_gated` and `tool_blocklist` `role_exemptions` rules apply to proxied tool calls.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

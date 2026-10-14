@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Changed
+
+- The RBAC middleware takes the JWT `purpose` claim as the authenticated request context's caller purpose, so a service account's credential broker sees the run that issued the token.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

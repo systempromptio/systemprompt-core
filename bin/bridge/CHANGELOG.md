@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.68.0] - 2026-10-14
+
+### Fixed
+
+- **Inference catalog:** the Status card read Claude Desktop's `inferenceModels` registry key (split on commas, so JSON artefacts leaked into the chips) rather than the gateway catalog, and a failed probe emptied `provider_health` so the card flickered. `gateway::catalog::InferenceCatalog` holds the providers, source gateway, `fetched_at` and freshness (`Unknown` / `Fresh` / `Stale { since, error }`): a success replaces it, a failure marks the same gateway's last-good list stale, another gateway resets it, logout clears it. The probe outcome carries `Result<Vec<ProviderHealth>, CatalogFetchError>` and the reducer decides. `model_view` is the one derivation for the Status groups, the host model view, the MDM inference block and profile inputs. `StatePayload.inference_catalog` (providers, total, desktop models, freshness with its `waiting|ready|empty|stale` verdict, `fetched_at_unix`) replaces `provider_health`; `HostHealthPayload` parses `inferenceModels` as JSON and reports `inference_models_error`. The card groups models by provider with a stale line and the Desktop subset.
+- The Appearance card is no longer rendered empty when the brand forces dark mode.
+
 ## [0.67.0] - 2026-10-13
 
 ### Fixed
