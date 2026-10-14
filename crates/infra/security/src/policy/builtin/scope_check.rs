@@ -8,7 +8,14 @@
 //! - id: scope_check
 //!   admin_only_prefixes:
 //!     - "mcp__systemprompt__"
+//!   role_gated:
+//!     - prefix: "mcp__odoo__"
+//!       contains: ["delete", "erase"]
+//!       roles: ["odoo_destructive"]
 //! ```
+//!
+//! A `role_gated` tool is refused unless the caller is admin or holds one of
+//! the rule's roles (`ctx.roles`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,6 +28,7 @@ use systemprompt_identifiers::PolicyId;
 
 use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
+use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
 const ID: &str = "scope_check";
@@ -29,12 +37,15 @@ const DEFAULT_ADMIN_ONLY_PREFIXES: &[&str] = &["mcp__systemprompt__"];
 #[derive(Debug)]
 struct ScopeCheck {
     admin_only_prefixes: Vec<String>,
+    role_gated: Vec<RoleRule>,
 }
 
 #[derive(Debug, Default, Deserialize)]
 struct ScopeCheckYaml {
     #[serde(default)]
     admin_only_prefixes: Vec<String>,
+    #[serde(default)]
+    role_gated: Vec<RoleRule>,
 }
 
 impl ScopeCheck {
@@ -55,6 +66,7 @@ impl ScopeCheck {
         };
         Ok(Self {
             admin_only_prefixes,
+            role_gated: cfg.role_gated,
         })
     }
 }
@@ -89,6 +101,22 @@ impl GovernancePolicy for ScopeCheck {
             };
         };
         let tool_str = tool.as_str();
+        if let Some(rule) = self.role_gated.iter().find(|rule| rule.covers(tool_str)) {
+            return match rule.held_by(ctx.roles) {
+                Some(role) => Decision::Allow {
+                    matched_by: MatchedBy::PolicyAllow {
+                        policy_id: PolicyId::new(ID),
+                        detail: Cow::Owned(format!("role {role} grants tool: {tool_str}")),
+                    },
+                },
+                None => Decision::Deny {
+                    reason: DenyReason::ScopeViolation {
+                        tool: tool.clone(),
+                        required: AccessScope::Admin,
+                    },
+                },
+            };
+        }
         let requires_admin = self
             .admin_only_prefixes
             .iter()

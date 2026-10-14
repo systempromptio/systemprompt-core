@@ -20,6 +20,7 @@
 
 mod rate_limit;
 mod require_approval;
+mod role_gate;
 mod scope_check;
 pub(crate) mod secret_scan;
 mod tool_blocklist;

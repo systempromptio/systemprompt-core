@@ -64,6 +64,9 @@ pub(crate) fn credentials() -> RunCredentials {
         hook_token: None,
         hook_token_jti: None,
         hook_token_expires_at: None,
+        mcp_token: None,
+        mcp_token_jti: None,
+        mcp_token_expires_at: None,
     }
 }
 

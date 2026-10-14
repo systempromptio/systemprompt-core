@@ -1,10 +1,10 @@
 //! Ephemeral credentials issued to one run.
 //!
 //! Every run gets its own PAT, a gateway session and, when the host supports
-//! hooks, a hook token, so every gateway call the host makes is attributed to
-//! the run's user and revoked when the run ends. [`RunCredentialService`]
-//! issues and revokes them in-process, with no HTTP round trip to the
-//! gateway.
+//! hooks, a hook token, and when it carries a purpose an MCP token, so every
+//! gateway call the host makes is attributed to the run's user and revoked when
+//! the run ends. [`RunCredentialService`] issues and revokes them in-process,
+//! with no HTTP round trip to the gateway.
 //!
 //! `IssueRunCredentials::purpose` is the caller purpose bound to the PAT by its
 //! issuer (`farm:<run_id>`, `workflow:<id>`); the broker reads it from the
@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod hook_token;
+pub mod mcp_token;
 pub mod pat;
 pub mod session;
 
@@ -40,6 +41,9 @@ pub struct RunCredentials {
     pub hook_token: Option<String>,
     pub hook_token_jti: Option<AccessTokenId>,
     pub hook_token_expires_at: Option<DateTime<Utc>>,
+    pub mcp_token: Option<String>,
+    pub mcp_token_jti: Option<AccessTokenId>,
+    pub mcp_token_expires_at: Option<DateTime<Utc>>,
 }
 
 /// Spend and rate ceilings carried by a run's credentials.

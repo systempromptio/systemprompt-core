@@ -254,11 +254,16 @@ fn build_authenticated_context(
         claims.roles().to_vec(),
     );
 
-    let context = request_context
+    let mut context = request_context
         .with_user(authenticated_user)
         .with_actor(Actor::user(user_id))
         .with_act_chain(act_chain)
         .with_user_type(claims.user_type);
+    // Why: the caller purpose comes only from the signed `purpose` claim, so
+    // a service account's broker sees the run that issued the token.
+    if let Some(purpose) = claims.purpose.clone() {
+        context = context.with_caller_purpose(purpose);
+    }
 
     Ok(AuthenticatedRequestContext::new(context, token))
 }

@@ -109,6 +109,7 @@ pub(super) fn evaluate_prompt(
             user_id: ctx.user_id.clone(),
         },
         access_scope: ctx.access_scope,
+        roles: &[],
         session_id: &session_id,
         user_id: &ctx.user_id,
         input: &input,

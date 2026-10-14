@@ -147,6 +147,10 @@ pub struct PolicyContext<'a> {
     pub target: GovernedTarget,
     pub agent_scope: AgentScope,
     pub access_scope: AccessScope,
+    /// The caller's stored roles, for policies that gate by a role rather
+    /// than by the admin tier alone; empty when the enforcement point has
+    /// none.
+    pub roles: &'a [String],
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,
     pub input: &'a GovernedInput,
@@ -160,6 +164,7 @@ impl PolicyContext<'_> {
             target: self.target.clone(),
             agent_scope: self.agent_scope.clone(),
             access_scope: self.access_scope,
+            roles: self.roles,
             session_id: self.session_id,
             user_id: self.user_id,
             input,

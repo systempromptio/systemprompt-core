@@ -50,6 +50,11 @@ pub(super) async fn enforce(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
+    let roles = request
+        .user
+        .as_ref()
+        .map(|user| user.roles.clone())
+        .unwrap_or_default();
     let evaluation = ctx.governance().evaluate(&PolicyContext {
         target: GovernedTarget::Tool {
             tool: target.clone(),
@@ -58,6 +63,7 @@ pub(super) async fn enforce(
             user_id: request.user_id().clone(),
         },
         access_scope: scope,
+        roles: &roles,
         session_id: request.session_id(),
         user_id: request.user_id(),
         input: &input,
