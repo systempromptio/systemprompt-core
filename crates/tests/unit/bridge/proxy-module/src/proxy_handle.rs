@@ -92,8 +92,9 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
     let squatter = std::net::TcpListener::bind(("127.0.0.1", proxy::DEFAULT_PROXY_PORT))
         .unwrap_or_else(|error| {
             panic!(
-                "serialized proxy fixture requires port {}: {error}",
-                proxy::DEFAULT_PROXY_PORT
+                "serialized proxy fixture requires port {}: {error}; held by: {}",
+                proxy::DEFAULT_PROXY_PORT,
+                port_holder(proxy::DEFAULT_PROXY_PORT)
             )
         });
 
@@ -136,4 +137,14 @@ fn a_recorded_port_now_held_by_another_install_is_abandoned() {
 
     drop(foreign);
     drop(squatter);
+}
+
+fn port_holder(port: u16) -> String {
+    std::process::Command::new("ss")
+        .args(["-Htlnp", &format!("sport = :{port}")])
+        .output()
+        .map_or_else(
+            |error| format!("ss unavailable: {error}"),
+            |out| String::from_utf8_lossy(&out.stdout).trim().to_owned(),
+        )
 }
