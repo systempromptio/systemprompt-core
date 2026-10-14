@@ -147,9 +147,6 @@ pub struct PolicyContext<'a> {
     pub target: GovernedTarget,
     pub agent_scope: AgentScope,
     pub access_scope: AccessScope,
-    /// The caller's stored roles, for policies that gate by a role rather
-    /// than by the admin tier alone; empty when the enforcement point has
-    /// none.
     pub roles: &'a [String],
     pub session_id: &'a SessionId,
     pub user_id: &'a UserId,

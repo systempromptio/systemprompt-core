@@ -102,20 +102,20 @@ impl GovernancePolicy for ScopeCheck {
         };
         let tool_str = tool.as_str();
         if let Some(rule) = self.role_gated.iter().find(|rule| rule.covers(tool_str)) {
-            return match rule.held_by(ctx.roles) {
-                Some(role) => Decision::Allow {
-                    matched_by: MatchedBy::PolicyAllow {
-                        policy_id: PolicyId::new(ID),
-                        detail: Cow::Owned(format!("role {role} grants tool: {tool_str}")),
-                    },
-                },
-                None => Decision::Deny {
+            return rule.held_by(ctx.roles).map_or_else(
+                || Decision::Deny {
                     reason: DenyReason::ScopeViolation {
                         tool: tool.clone(),
                         required: AccessScope::Admin,
                     },
                 },
-            };
+                |role| Decision::Allow {
+                    matched_by: MatchedBy::PolicyAllow {
+                        policy_id: PolicyId::new(ID),
+                        detail: Cow::Owned(format!("role {role} grants tool: {tool_str}")),
+                    },
+                },
+            );
         }
         let requires_admin = self
             .admin_only_prefixes

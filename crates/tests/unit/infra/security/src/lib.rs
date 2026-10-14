@@ -43,8 +43,6 @@ mod policy_audit;
 #[cfg(test)]
 mod policy_builtin_config;
 #[cfg(test)]
-mod policy_role_gate;
-#[cfg(test)]
 mod policy_builtins;
 #[cfg(test)]
 mod policy_config;
@@ -54,6 +52,8 @@ mod policy_engine;
 mod policy_governed;
 #[cfg(test)]
 mod policy_prompt_governance;
+#[cfg(test)]
+mod policy_role_gate;
 #[cfg(test)]
 mod policy_secret_signatures;
 #[cfg(test)]
