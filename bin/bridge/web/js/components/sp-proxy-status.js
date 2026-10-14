@@ -33,8 +33,12 @@ function providerGroup(p) {
   const chips = p.models.map((m) => `<span class="sp-chip">${escapeHtml(m)}</span>`).join("");
   return `
     <div class="sp-kpi-card__group"${p.configured ? "" : ' data-state="muted"'}>
-      <div class="sp-kpi-card__label"><span>${escapeHtml(p.name)}</span> <span class="sp-u-mono sp-u-muted">${escapeHtml(p.surface)}</span></div>
-      ${issue ? `<p class="sp-kpi-card__label sp-u-muted">${escapeHtml(issue)}</p>` : ""}
+      <div class="sp-kpi-card__group-head">
+        <span class="sp-kpi-card__group-name">${escapeHtml(p.name)}</span>
+        <span class="sp-kpi-card__group-surface">${escapeHtml(p.surface)}</span>
+        <span class="sp-kpi-card__group-count">${p.models.length}</span>
+      </div>
+      ${issue ? `<p class="sp-kpi-card__group-issue">${escapeHtml(issue)}</p>` : ""}
       ${chips ? `<div class="sp-chip-list sp-kpi-card__chips">${chips}</div>` : ""}
     </div>`;
 }
@@ -43,7 +47,7 @@ function staleBadge(catalog, freshness) {
   if (freshness.state !== "stale") { return ""; }
   const ago = fmtRelative(Number(catalog.fetched_at_unix || 0));
   const text = t("status-proxy-endpoints-stale", { ago, error: freshness.error }) || `last updated ${ago} · ${freshness.error}`;
-  return `<p class="sp-kpi-card__error" data-state="warn" title="${escapeHtml(freshness.error)}">${escapeHtml(text)}</p>`;
+  return `<p class="sp-kpi-card__stale" title="${escapeHtml(freshness.error)}">${escapeHtml(text)}</p>`;
 }
 
 function endpointsBody(catalog, freshness) {
@@ -52,7 +56,7 @@ function endpointsBody(catalog, freshness) {
     const fallback = freshness.state === "unknown" ? "Waiting for the gateway's model catalog." : "The gateway serves no models.";
     return `<p class="sp-kpi-card__label">${escapeHtml(t(id) || fallback)}</p>`;
   }
-  return catalog.providers.map(providerGroup).join("");
+  return `<div class="sp-kpi-card__groups">${catalog.providers.map(providerGroup).join("")}</div>`;
 }
 
 function desktopLine(catalog) {
