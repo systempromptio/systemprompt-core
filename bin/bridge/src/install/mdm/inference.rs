@@ -19,29 +19,6 @@ pub fn default_inference_models() -> Vec<String> {
         .collect()
 }
 
-// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
-// family, so every list is filtered to Claude ids at the one place the key is
-// built. Desktop-only by construction (all callers go through
-// `claude_desktop_policy`); it is the single carve-out from the reachability
-// rule — every other host gets the whole advertised catalog, since the gateway
-// transcodes every inbound wire to every provider wire.
-fn anthropic_only(models: Vec<String>) -> Vec<String> {
-    let kept: Vec<String> = models
-        .into_iter()
-        .filter(|id| {
-            let lower = id.to_ascii_lowercase();
-            lower.starts_with("claude-") && !lower.starts_with("claude-fable-")
-        })
-        .collect();
-    let mut unique = Vec::new();
-    for id in kept {
-        if !unique.contains(&id) {
-            unique.push(id);
-        }
-    }
-    unique
-}
-
 fn configured_models(raw: Option<&str>) -> Result<Vec<String>, MdmError> {
     let Some(raw) = raw.map(str::trim).filter(|m| !m.is_empty()) else {
         return Ok(default_inference_models());
@@ -52,8 +29,13 @@ fn configured_models(raw: Option<&str>) -> Result<Vec<String>, MdmError> {
     })
 }
 
+// Why: Claude Desktop is the single carve-out from the reachability rule, so
+// its list is filtered here, where the key is built (every caller goes
+// through `claude_desktop_policy`); the gateway transcodes every inbound wire
+// to every provider wire for every other host.
 pub(super) fn inference_entries(inputs: &PolicyInputs<'_>) -> Result<Vec<PolicyEntry>, MdmError> {
-    let models = anthropic_only(configured_models(inputs.models.as_deref())?);
+    let configured = configured_models(inputs.models.as_deref())?;
+    let models = crate::gateway::model_view::desktop_models(&configured);
     Ok(vec![
         ("inferenceProvider", PolicyValue::Str("gateway".into())),
         (

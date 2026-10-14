@@ -136,7 +136,7 @@ impl ProfileFacts {
             || (Vec::new(), BTreeMap::new(), None, None),
             |profile| {
                 let models = if host == HostKind::ClaudeDesktop {
-                    profile.models.clone()
+                    crate::gateway::model_view::desktop_models(&profile.models)
                 } else {
                     crate::gateway::model_view::host_model_view(&profile.providers, &surfaces)
                         .compatible_models

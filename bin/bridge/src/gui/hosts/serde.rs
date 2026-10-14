@@ -86,7 +86,8 @@ fn model_view(
         host.accepted_surfaces(),
         &snap.host_model_protocols,
     );
-    let view = crate::gateway::model_view::host_model_view(&snap.provider_health, &effective);
+    let view =
+        crate::gateway::model_view::host_model_view(&snap.inference_catalog.providers, &effective);
     (effective, view)
 }
 

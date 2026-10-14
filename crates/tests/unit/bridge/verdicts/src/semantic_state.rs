@@ -5,6 +5,7 @@ use systemprompt_bridge::proxy_probe::ProxyHealth;
 use systemprompt_bridge::update::UpdateUiState;
 use systemprompt_bridge::verdict::{Tone, Verdict};
 use systemprompt_bridge::wire::StatePayload;
+use systemprompt_bridge::wire::catalog::{CatalogFreshnessPayload, InferenceCatalogPayload};
 use systemprompt_bridge::wire::codes::*;
 use systemprompt_bridge::wire::first_run::{FirstRunPayload, FirstRunPhase, StepStatus};
 use systemprompt_bridge::wire::hosts::HostsPayload;
@@ -31,7 +32,11 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         last_validation: None,
         last_validation_at_unix: None,
         health: Verdict::new(Tone::Unknown, HealthCode::NotChecked),
-        provider_health: &[],
+        inference_catalog: InferenceCatalogPayload::new(
+            Vec::new(),
+            CatalogFreshnessPayload::Unknown,
+            None,
+        ),
         credential_error: None,
         startup_faults: Vec::new(),
         sync_in_flight: false,

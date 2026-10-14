@@ -167,10 +167,12 @@ fn unreachable_outcome(
 ) -> GatewayProbeOutcome {
     GatewayProbeOutcome {
         gateway,
-        status: GatewayStatus::Unreachable { reason },
+        status: GatewayStatus::Unreachable {
+            reason: reason.clone(),
+        },
         identity: None,
         at_unix: now_unix(),
-        provider_health: Vec::new(),
+        catalog: Err(reason),
         credential_error: None,
     }
 }
@@ -199,9 +201,8 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
     };
 
     // Why: `status` answers "is the gateway there"; a credential that cannot
-    // be minted, a cache that cannot be cleared, or a profile that cannot be
-    // fetched are local faults reported beside it, not a reason to tell the
-    // user the gateway is down.
+    // be minted or a cache that cannot be cleared are local faults reported
+    // beside it, not a reason to tell the user the gateway is down.
     let mut credential_error = None;
     let identity = if matches!(status, GatewayStatus::Reachable { .. })
         && crate::auth::has_credential_source(&cfg)
@@ -222,18 +223,14 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
         None
     };
 
-    let provider_health = if matches!(status, GatewayStatus::Reachable { .. }) {
-        match client.fetch_bridge_profile().await {
-            Ok(profile) => profile.providers,
-            Err(e) => {
-                if credential_error.is_none() {
-                    credential_error = Some(format!("provider health: {e}"));
-                }
-                Vec::new()
-            },
-        }
-    } else {
-        Vec::new()
+    let catalog = match &status {
+        GatewayStatus::Reachable { .. } => client
+            .fetch_bridge_profile()
+            .await
+            .map(|profile| profile.providers)
+            .map_err(|e| e.to_string()),
+        GatewayStatus::Unreachable { reason } => Err(reason.clone()),
+        GatewayStatus::Probing | GatewayStatus::Unknown => Err("gateway not probed".to_owned()),
     };
 
     GatewayProbeOutcome {
@@ -241,7 +238,7 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
         status,
         identity,
         at_unix: now_unix(),
-        provider_health,
+        catalog,
         credential_error,
     }
 }

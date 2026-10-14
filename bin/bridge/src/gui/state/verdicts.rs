@@ -133,7 +133,8 @@ impl AppStateSnapshot {
         if let Some(report) = &self.last_validation {
             tones.push(report.verdict().tone);
         }
-        if self.provider_health.iter().any(|p| !p.configured) {
+        let catalog = &self.inference_catalog;
+        if catalog.is_stale() || catalog.providers.iter().any(|p| !p.configured) {
             tones.push(Tone::Warn);
         }
         if !self.startup_faults.is_empty() || self.credential_error.is_some() {

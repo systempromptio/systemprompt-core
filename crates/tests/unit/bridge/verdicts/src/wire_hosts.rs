@@ -140,16 +140,36 @@ fn a_stale_profile_reports_only_its_code_not_its_cause() {
 }
 
 #[test]
-fn inference_models_are_split_and_trimmed_from_the_profile_key() {
+fn inference_models_are_parsed_as_the_json_array_desktop_wrote() {
     let mut keys = BTreeMap::new();
     keys.insert(
         "inferenceModels".to_owned(),
-        " sonnet , opus ,, haiku ".to_owned(),
+        r#"["claude-opus-5-5[1m]","claude-sonnet-5"]"#.to_owned(),
     );
     let snap = snapshot(ProfileState::Installed, keys);
     let v = json_of(&HostHealthPayload::from(&snap));
 
-    assert_eq!(v["inference_models"], json!(["sonnet", "opus", "haiku"]));
+    assert_eq!(
+        v["inference_models"],
+        json!(["claude-opus-5-5[1m]", "claude-sonnet-5"])
+    );
+    assert_eq!(v["inference_models_error"], json!(null));
+}
+
+#[test]
+fn an_inference_models_value_that_is_not_json_is_reported_not_split() {
+    let mut keys = BTreeMap::new();
+    keys.insert("inferenceModels".to_owned(), "sonnet, opus".to_owned());
+    let snap = snapshot(ProfileState::Installed, keys);
+    let v = json_of(&HostHealthPayload::from(&snap));
+
+    assert_eq!(v["inference_models"], json!([]));
+    assert!(
+        v["inference_models_error"]
+            .as_str()
+            .is_some_and(|e| e.contains("inferenceModels")),
+        "{v}"
+    );
 }
 
 #[test]

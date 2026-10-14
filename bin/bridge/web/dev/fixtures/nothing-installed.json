@@ -81,6 +81,7 @@
         "host_running": false,
         "host_processes": [],
         "inference_models": [],
+        "inference_models_error": null,
         "probed_at_unix": 1787905697
       },
       "compatible_models": [
@@ -143,6 +144,7 @@
         "host_running": false,
         "host_processes": [],
         "inference_models": [],
+        "inference_models_error": null,
         "probed_at_unix": 1787905697
       },
       "compatible_models": [
@@ -205,6 +207,7 @@
         "host_running": false,
         "host_processes": [],
         "inference_models": [],
+        "inference_models_error": null,
         "probed_at_unix": 1787905697
       },
       "compatible_models": [
@@ -267,6 +270,7 @@
         "host_running": false,
         "host_processes": [],
         "inference_models": [],
+        "inference_models_error": null,
         "probed_at_unix": 1787905697
       },
       "compatible_models": [
@@ -396,24 +400,36 @@
   },
   "last_validation_at_unix": 1787905637,
   "malformed_plugin_count": 0,
-  "provider_health": [
-    {
-      "name": "anthropic",
-      "surface": "messages",
-      "configured": true,
-      "models": [
-        "claude-opus-5",
-        "claude-sonnet-5"
-      ]
+  "inference_catalog": {
+    "providers": [
+      {
+        "name": "anthropic",
+        "surface": "messages",
+        "configured": true,
+        "models": [
+          "claude-opus-5",
+          "claude-sonnet-5"
+        ],
+        "config_issue": null
+      },
+      {
+        "name": "openai",
+        "surface": "chat",
+        "configured": false,
+        "models": [],
+        "config_issue": "no API key configured for this provider"
+      }
+    ],
+    "total": 2,
+    "desktop_models": [
+      "claude-opus-5",
+      "claude-sonnet-5"
+    ],
+    "freshness": {
+      "state": "fresh"
     },
-    {
-      "name": "openai",
-      "surface": "chat",
-      "configured": false,
-      "models": [],
-      "config_issue": "no API key configured for this provider"
-    }
-  ],
+    "fetched_at_unix": 1787905757
+  },
   "last_sync_report": {
     "identity": "admin@localhost.dev",
     "manifest_version": "41",

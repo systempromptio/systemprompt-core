@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod catalog;
 pub mod codes;
 pub mod external_url;
 pub mod first_run;
@@ -60,14 +61,7 @@ pub struct StatePayload<'a> {
     pub last_validation: Option<ValidationPayload<'a>>,
     pub last_validation_at_unix: Option<u64>,
     pub health: Verdict<HealthCode>,
-    #[cfg_attr(
-        feature = "ts-export",
-        ts(
-            type = "Array<{ name: string; surface: string; configured: boolean; models: \
-                    string[]; config_issue?: string }>"
-        )
-    )]
-    pub provider_health: &'a [systemprompt_models::bridge::profile::ProviderHealth],
+    pub inference_catalog: catalog::InferenceCatalogPayload,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts-export", ts(optional))]
     pub credential_error: Option<&'a str>,
