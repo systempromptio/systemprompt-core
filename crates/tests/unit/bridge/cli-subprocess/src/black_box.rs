@@ -331,9 +331,9 @@ fn proxy_headless_starts_and_stops_on_sigint() {
     }
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
-    let mut child = cmd.spawn().unwrap();
+    let mut child = KillOnDrop(cmd.spawn().unwrap());
 
-    let mut stdout = child.stdout.take().unwrap();
+    let mut stdout = child.0.stdout.take().unwrap();
     let (tx, rx) = std::sync::mpsc::channel::<String>();
     std::thread::spawn(move || {
         use std::io::Read;
@@ -359,21 +359,31 @@ fn proxy_headless_starts_and_stops_on_sigint() {
     std::thread::sleep(std::time::Duration::from_millis(750));
 
     let _ = Command::new("kill")
-        .args(["-INT", &child.id().to_string()])
+        .args(["-INT", &child.0.id().to_string()])
         .status()
         .unwrap();
 
     let start = std::time::Instant::now();
     loop {
-        if let Some(status) = child.try_wait().unwrap() {
+        if let Some(status) = child.0.try_wait().unwrap() {
             let _ = status;
             break;
         }
         if start.elapsed() > std::time::Duration::from_secs(30) {
-            let _ = child.kill();
             panic!("proxy did not exit after SIGINT");
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+}
+
+struct KillOnDrop(std::process::Child);
+
+impl Drop for KillOnDrop {
+    fn drop(&mut self) {
+        if matches!(self.0.try_wait(), Ok(None)) {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
     }
 }
 
