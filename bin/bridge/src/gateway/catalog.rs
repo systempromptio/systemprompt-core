@@ -8,7 +8,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
+use crate::gateway::errors::GatewayError;
 use crate::gateway::types::ProviderHealth;
+
+/// Why a probe produced no provider list; its message is what a stale
+/// catalog shows.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum CatalogFetchError {
+    #[error(transparent)]
+    Fetch(Arc<GatewayError>),
+    #[error("{reason}")]
+    Unreachable { reason: String },
+    #[error("gateway not probed")]
+    NotProbed,
+}
 
 /// How far the held [`InferenceCatalog`] can be trusted.
 ///
@@ -39,13 +54,11 @@ pub struct InferenceCatalog {
 }
 
 impl InferenceCatalog {
-    /// The reducer rule: a good fetch replaces, a failed one keeps the last
-    /// good providers of the same gateway and marks them stale.
     pub fn apply(
         &mut self,
         gateway: &str,
         at_unix: u64,
-        fetched: Result<Vec<ProviderHealth>, String>,
+        fetched: Result<Vec<ProviderHealth>, CatalogFetchError>,
     ) {
         let same_gateway = self.gateway.as_deref() == Some(gateway);
         match fetched {
@@ -62,7 +75,10 @@ impl InferenceCatalog {
                     CatalogFreshness::Stale { since, .. } => *since,
                     _ => at_unix,
                 };
-                self.freshness = CatalogFreshness::Stale { since, error };
+                self.freshness = CatalogFreshness::Stale {
+                    since,
+                    error: error.to_string(),
+                };
             },
             Err(_) => {
                 *self = Self {
@@ -74,7 +90,7 @@ impl InferenceCatalog {
     }
 
     #[must_use]
-    pub fn is_stale(&self) -> bool {
+    pub const fn is_stale(&self) -> bool {
         matches!(self.freshness, CatalogFreshness::Stale { .. })
     }
 }

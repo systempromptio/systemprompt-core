@@ -46,7 +46,7 @@ pub struct GatewayProbeOutcome {
     pub status: GatewayStatus,
     pub identity: Option<VerifiedIdentity>,
     pub at_unix: u64,
-    pub catalog: Result<Vec<ProviderHealth>, String>,
+    pub catalog: Result<Vec<ProviderHealth>, crate::gateway::catalog::CatalogFetchError>,
     pub credential_error: Option<String>,
 }
 

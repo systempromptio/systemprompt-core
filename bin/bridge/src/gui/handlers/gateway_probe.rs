@@ -3,10 +3,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use serde_json::json;
 
 use crate::config;
 use crate::gateway::GatewayClient;
+use crate::gateway::catalog::CatalogFetchError;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::notify::Signal;
 use crate::gui::state::{
@@ -172,7 +175,7 @@ fn unreachable_outcome(
         },
         identity: None,
         at_unix: now_unix(),
-        catalog: Err(reason),
+        catalog: Err(CatalogFetchError::Unreachable { reason }),
         credential_error: None,
     }
 }
@@ -228,9 +231,11 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
             .fetch_bridge_profile()
             .await
             .map(|profile| profile.providers)
-            .map_err(|e| e.to_string()),
-        GatewayStatus::Unreachable { reason } => Err(reason.clone()),
-        GatewayStatus::Probing | GatewayStatus::Unknown => Err("gateway not probed".to_owned()),
+            .map_err(|e| CatalogFetchError::Fetch(Arc::new(e))),
+        GatewayStatus::Unreachable { reason } => Err(CatalogFetchError::Unreachable {
+            reason: reason.clone(),
+        }),
+        GatewayStatus::Probing | GatewayStatus::Unknown => Err(CatalogFetchError::NotProbed),
     };
 
     GatewayProbeOutcome {

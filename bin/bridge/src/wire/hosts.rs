@@ -51,8 +51,6 @@ pub struct HostHealthPayload<'a> {
     pub probed_at_unix: u64,
 }
 
-/// What Claude Desktop has written to its `inferenceModels` key: a JSON array
-/// of ids, or why the value is not one.
 fn written_inference_models(raw: Option<&String>) -> (Vec<String>, Option<String>) {
     let Some(raw) = raw.map(|r| r.as_str().trim()).filter(|r| !r.is_empty()) else {
         return (Vec::new(), None);

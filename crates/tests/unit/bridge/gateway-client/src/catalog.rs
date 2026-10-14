@@ -1,4 +1,6 @@
-use systemprompt_bridge::gateway::catalog::{CatalogFreshness, InferenceCatalog};
+use systemprompt_bridge::gateway::catalog::{
+    CatalogFetchError, CatalogFreshness, InferenceCatalog,
+};
 use systemprompt_bridge::gateway::model_view::{catalog_models, desktop_models};
 use systemprompt_bridge::gateway::types::ProviderHealth;
 
@@ -18,6 +20,12 @@ fn providers() -> Vec<ProviderHealth> {
     .expect("provider fixture parses")
 }
 
+fn unreachable(reason: &str) -> CatalogFetchError {
+    CatalogFetchError::Unreachable {
+        reason: reason.to_owned(),
+    }
+}
+
 fn fresh() -> InferenceCatalog {
     let mut catalog = InferenceCatalog::default();
     catalog.apply(GATEWAY, 100, Ok(providers()));
@@ -35,8 +43,8 @@ fn a_good_fetch_replaces_the_catalog_and_marks_it_fresh() {
 #[test]
 fn a_failed_fetch_keeps_the_last_good_providers_and_marks_them_stale() {
     let mut catalog = fresh();
-    catalog.apply(GATEWAY, 160, Err("timed out".to_owned()));
-    catalog.apply(GATEWAY, 220, Err("timed out again".to_owned()));
+    catalog.apply(GATEWAY, 160, Err(unreachable("timed out")));
+    catalog.apply(GATEWAY, 220, Err(unreachable("timed out again")));
 
     assert_eq!(
         catalog.providers.len(),
@@ -60,7 +68,7 @@ fn a_failed_fetch_keeps_the_last_good_providers_and_marks_them_stale() {
 #[test]
 fn a_failure_with_nothing_held_stays_unknown() {
     let mut catalog = InferenceCatalog::default();
-    catalog.apply(GATEWAY, 100, Err("unreachable".to_owned()));
+    catalog.apply(GATEWAY, 100, Err(unreachable("unreachable")));
     assert_eq!(catalog.freshness, CatalogFreshness::Unknown);
     assert!(catalog.providers.is_empty());
 }
@@ -71,7 +79,7 @@ fn another_gateway_never_inherits_the_held_providers() {
     catalog.apply(
         "https://other.example.com",
         160,
-        Err("unreachable".to_owned()),
+        Err(unreachable("unreachable")),
     );
     assert!(catalog.providers.is_empty());
     assert_eq!(catalog.freshness, CatalogFreshness::Unknown);

@@ -21,8 +21,6 @@ pub fn is_desktop_model(id: &str) -> bool {
     lower.starts_with("claude-") && !lower.starts_with("claude-fable-")
 }
 
-/// The Claude-only subset of `models` Claude Desktop is given, deduplicated
-/// in first-seen order.
 #[must_use]
 pub fn desktop_models(models: &[String]) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
@@ -45,8 +43,6 @@ pub struct CatalogGroup {
     pub config_issue: Option<String>,
 }
 
-/// Every advertised provider in `providers`, each with its distinct models.
-/// A model two providers serve is listed under the first.
 #[must_use]
 pub fn catalog_models(providers: &[ProviderHealth]) -> Vec<CatalogGroup> {
     let mut seen = std::collections::HashSet::new();
