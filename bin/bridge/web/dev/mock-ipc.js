@@ -435,6 +435,11 @@ const COMMANDS = {
     touch(host);
     return {};
   },
+  "host.enabled.set": ({ hostId, enabled }) => {
+    if (!hostById(hostId)) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
+    if (!enabled) { state.host_apps = state.host_apps.filter((h) => h.id !== hostId); }
+    return { host_id: hostId, enabled };
+  },
   "host.model-filter.set": ({ hostId, protocols }) => {
     const host = hostById(hostId);
     if (host) {

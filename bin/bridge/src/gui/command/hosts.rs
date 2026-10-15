@@ -9,7 +9,7 @@ use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 
-use super::args::{HostIdArgs, HostInstallArgs, HostModelFilterArgs};
+use super::args::{HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs};
 use super::{CommandOutcome, parse, send};
 
 // JSON: webview IPC args — decoded per command with `parse::<T>`.
@@ -30,6 +30,20 @@ pub(super) fn host_dispatch(
                     UiEvent::Host(HostUiEvent::ModelFilterSetRequested {
                         host_id: a.host_id,
                         protocols: a.protocols,
+                        reply_to: reply_id,
+                    }),
+                );
+                CommandOutcome::Async
+            },
+            Err(e) => CommandOutcome::Sync(Err(e)),
+        },
+        "host.enabled.set" => match parse::<HostEnabledArgs>(args) {
+            Ok(a) => {
+                send(
+                    app,
+                    UiEvent::Host(HostUiEvent::EnabledSetRequested {
+                        host_id: a.host_id,
+                        enabled: a.enabled,
                         reply_to: reply_id,
                     }),
                 );

@@ -83,6 +83,7 @@ export const bridge = {
   hostProxyProbe:       ()                  => invoke("host.proxy.probe", {}, READ_TIMEOUT),
   mcpAuthProbe:         (serverId)          => invoke("mcp.auth.probe", serverId ? { serverId } : {}),
   hostModelFilterSet:   (hostId, protocols) => invoke("host.model-filter.set", { hostId, protocols }),
+  hostEnabledSet:       (hostId, enabled)   => invoke("host.enabled.set", { hostId, enabled }),
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
   agentOpen:            (hostId)            => invoke("agent.open", { hostId }),

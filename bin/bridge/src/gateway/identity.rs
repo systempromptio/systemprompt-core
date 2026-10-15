@@ -23,6 +23,12 @@ struct HostModelFilterRequest<'a> {
     model_protocols: Option<&'a [String]>,
 }
 
+#[derive(serde::Serialize)]
+struct HostEnabledRequest {
+    host_id: HostKind,
+    enabled: bool,
+}
+
 impl GatewayClient {
     #[tracing::instrument(
         level = "debug",
@@ -73,6 +79,33 @@ impl GatewayClient {
             .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
         record_span(&resp, started);
         ensure_success(resp, "host-model-filter").await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(
+        level = "debug",
+        skip(self, bearer),
+        fields(endpoint = "enabled-hosts", status, latency_ms)
+    )]
+    pub async fn set_host_enabled(
+        &self,
+        bearer: &BearerToken,
+        host_id: HostKind,
+        enabled: bool,
+    ) -> Result<(), GatewayError> {
+        let url = self.url("/v1/bridge/profile/enabled_hosts");
+        let body = HostEnabledRequest { host_id, enabled };
+        let started = Instant::now();
+        let resp = self
+            .http()
+            .post(&url)
+            .bearer_auth(bearer.expose())
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| GatewayError::PostRequest(Box::new(e)))?;
+        record_span(&resp, started);
+        ensure_success(resp, "enabled-hosts").await?;
         Ok(())
     }
 

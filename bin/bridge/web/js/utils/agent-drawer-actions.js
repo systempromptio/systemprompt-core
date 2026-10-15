@@ -62,6 +62,24 @@ export async function runAgentDrawerAddHost(drawer, trigger) {
   }
 }
 
+// An agent the account enables but this computer lacks never receives its
+// skills, so it can only be turned off for the account, never repaired here.
+export async function runAgentDrawerTurnOffHost(drawer, trigger) {
+  const id = trigger.dataset.hostId;
+  if (!id || drawer.busyId) { return; }
+  drawer.busyId = id;
+  const name = agentHostName(drawer._hostById(id));
+  try {
+    await bridge.hostEnabledSet(id, false);
+    notifyOk(t("toast-agent-turned-off", { name })
+      || `${name} turned off for your account. Syncing now.`);
+  } catch (e) {
+    notifyErr(e, t("agent-action-turn-off") || "Turn off");
+  } finally {
+    drawer.busyId = null;
+  }
+}
+
 export function captureAgentDrawerFilter(drawer) {
   const allEl = drawer.querySelector("[data-model-all]");
   const host = drawer._host();

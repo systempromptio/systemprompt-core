@@ -73,6 +73,17 @@ pub enum HostUiEvent {
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },
+    EnabledSetRequested {
+        host_id: HostKind,
+        enabled: bool,
+        reply_to: ReplyId,
+    },
+    EnabledSetFinished {
+        host_id: HostKind,
+        enabled: bool,
+        result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
     UnattendedRepairFinished {
         host_id: HostKind,
         report: crate::integration::reapply::Report,

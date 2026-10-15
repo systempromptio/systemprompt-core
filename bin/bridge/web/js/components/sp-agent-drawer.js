@@ -5,7 +5,7 @@ import { trapTab, setBackgroundInert } from "/assets/js/utils/focus-trap.js";
 import { renderAgentDrawerAdd } from "/assets/js/components/agent-drawer-add.js";
 import { renderAgentDrawerDetail } from "/assets/js/components/agent-drawer-detail.js";
 import {
-  runAgentDrawerAct, runAgentDrawerOpenConfig, runAgentDrawerAddHost,
+  runAgentDrawerAct, runAgentDrawerOpenConfig, runAgentDrawerAddHost, runAgentDrawerTurnOffHost,
   runAgentDrawerSaveFilter, runAgentDrawerResetFilter, runAgentDrawerConfirmRemove,
   captureAgentDrawerFilter,
 } from "/assets/js/utils/agent-drawer-actions.js";
@@ -41,6 +41,7 @@ export class SpAgentDrawer extends SpElement {
     this.registerAction("act", (trigger) => runAgentDrawerAct(this, trigger));
     this.registerAction("open-config", () => runAgentDrawerOpenConfig(this));
     this.registerAction("add-host", (trigger) => runAgentDrawerAddHost(this, trigger));
+    this.registerAction("turn-off-host", (trigger) => runAgentDrawerTurnOffHost(this, trigger));
     this.registerAction("change:proto", () => captureAgentDrawerFilter(this));
     this.registerAction("change:model-all", () => captureAgentDrawerFilter(this));
     this.registerAction("saveModelFilter", (trigger) => runAgentDrawerSaveFilter(this, trigger));

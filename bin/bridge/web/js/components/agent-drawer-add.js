@@ -8,12 +8,19 @@ function addItemAction(drawer, host, added, appState) {
   if (added) {
     return `<span class="sp-badge sp-badge--ok">${escapeHtml(t("agents-add-added") || "Added")}</span>`;
   }
-  if (appState === APP_NOT_INSTALLED && host.download_url) {
-    return `<button class="sp-btn-ghost" type="button" data-action="act"
-                    data-kind="download" data-host-id="${escapeHtml(host.id)}"
-                    title="${escapeHtml(host.download_url)}">${escapeHtml(t("host-action-download") || "Download")} ↗</button>`;
-  }
   const busy = drawer.busyId === host.id;
+  if (appState === APP_NOT_INSTALLED) {
+    const download = host.download_url
+      ? `<button class="sp-btn-ghost" type="button" data-action="act"
+                 data-kind="download" data-host-id="${escapeHtml(host.id)}"
+                 title="${escapeHtml(host.download_url)}">${escapeHtml(t("host-action-download") || "Download")} ↗</button>`
+      : "";
+    const turnOff = `<button class="sp-btn-ghost" type="button" data-action="turn-off-host"
+                             data-host-id="${escapeHtml(host.id)}" ${busy ? "disabled" : ""}>${escapeHtml(
+                               busy ? agentDrawerWorkingLabel() : (t("agent-action-turn-off") || "Turn off")
+                             )}</button>`;
+    return `${download}${turnOff}`;
+  }
   return `<button class="sp-btn-primary" type="button" data-action="add-host"
                   data-host-id="${escapeHtml(host.id)}" ${busy ? "disabled" : ""}>${escapeHtml(
                     busy ? agentDrawerWorkingLabel() : (t("agent-action-add") || "Add")
