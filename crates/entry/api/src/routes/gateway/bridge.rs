@@ -29,21 +29,6 @@ use crate::services::middleware::JwtContextExtractor;
 
 use systemprompt_models::bridge::host::HostKind;
 
-pub fn instance_enabled_hosts(
-    services: &systemprompt_manifest::services::ServicesConfig,
-) -> Vec<HostKind> {
-    HostKind::ALL
-        .into_iter()
-        .filter(|host| {
-            services
-                .external_agents
-                .iter()
-                .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
-                .is_none_or(|(_, agent)| agent.enabled)
-        })
-        .collect()
-}
-
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub struct EnabledHostsRequest {
     pub host_id: HostKind,
@@ -67,7 +52,7 @@ pub async fn set_enabled_host(
 
     let services = bridge_data::load_services_config()
         .map_err(|e| BridgeError::internal("services config load failed", e))?;
-    let instance_hosts = instance_enabled_hosts(&services);
+    let instance_hosts = services.instance_enabled_hosts();
     if body.enabled && !instance_hosts.contains(&body.host_id) {
         return Err(BridgeError::HostDisabled(body.host_id).into());
     }

@@ -9,9 +9,23 @@
 use std::collections::BTreeSet;
 
 use super::{MarketplaceConfig, PluginConfig, ServicesConfig};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::plugin::ComponentSource;
 
 impl ServicesConfig {
+    #[must_use]
+    pub fn instance_enabled_hosts(&self) -> Vec<HostKind> {
+        HostKind::ALL
+            .into_iter()
+            .filter(|host| {
+                self.external_agents
+                    .iter()
+                    .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
+                    .is_none_or(|(_, agent)| agent.enabled)
+            })
+            .collect()
+    }
+
     #[must_use]
     pub fn enabled_marketplaces(&self) -> Vec<&MarketplaceConfig> {
         let mut out: Vec<&MarketplaceConfig> =

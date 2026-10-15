@@ -3,7 +3,6 @@
 //! instance-wide, an absent entry leaves the host enabled, and catalog ids
 //! (snake_case) map onto host ids (kebab-case).
 
-use systemprompt_api::routes::gateway::bridge::instance_enabled_hosts;
 use systemprompt_identifiers::ExternalAgentId;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
@@ -29,7 +28,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
 #[test]
 fn empty_catalog_enables_every_known_host() {
     let services = ServicesConfig::default();
-    assert_eq!(instance_enabled_hosts(&services), HostKind::ALL.to_vec());
+    assert_eq!(services.instance_enabled_hosts(), HostKind::ALL.to_vec());
 }
 
 #[test]
@@ -39,7 +38,7 @@ fn a_disabled_catalog_entry_removes_its_host() {
         .external_agents
         .extend([catalog_entry("codex_cli", false)]);
     assert_eq!(
-        instance_enabled_hosts(&services),
+        services.instance_enabled_hosts(),
         vec![
             HostKind::ClaudeCode,
             HostKind::ClaudeDesktop,
@@ -56,7 +55,7 @@ fn an_enabled_catalog_entry_keeps_its_host() {
         catalog_entry("codex_cli", true),
         catalog_entry("claude_desktop", true),
     ]);
-    assert_eq!(instance_enabled_hosts(&services), HostKind::ALL.to_vec());
+    assert_eq!(services.instance_enabled_hosts(), HostKind::ALL.to_vec());
 }
 
 #[test]
@@ -67,7 +66,7 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
         catalog_entry("claude_code", false),
     ]);
     assert_eq!(
-        instance_enabled_hosts(&services),
+        services.instance_enabled_hosts(),
         vec![HostKind::CodexCli, HostKind::Hermes, HostKind::OpenCode]
     );
 }

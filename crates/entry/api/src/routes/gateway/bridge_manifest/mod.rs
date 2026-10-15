@@ -24,7 +24,6 @@ use systemprompt_models::bridge::manifest::{
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
 
-use super::bridge::instance_enabled_hosts;
 use super::bridge_error::{BridgeError, authenticate_bridge};
 use super::{bridge_resolved, bridge_services_cache};
 use crate::error::ApiHttpError;
@@ -54,7 +53,7 @@ pub async fn manifest(
 
     let services = bridge_services_cache::load_services_config()
         .map_err(|e| BridgeError::internal("manifest: services config load failed", e))?;
-    let instance_hosts = instance_enabled_hosts(&services);
+    let instance_hosts = services.instance_enabled_hosts();
     let desktop_policy = desktop_policy(&services);
 
     let (candidate, bridge_policy) = assemble_candidate(
