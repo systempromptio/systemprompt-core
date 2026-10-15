@@ -65,7 +65,7 @@ pub(super) fn append_skill_files(
     {
         let kebab = skill.id.as_str().replace('_', "-");
         bundle.insert(
-            format!("skills/{kebab}/SKILL.md"),
+            skill_bundle_path(&skill.id),
             BundleFile {
                 bytes: skill_md(&kebab, skill)?.into_bytes(),
                 executable: false,
@@ -77,6 +77,12 @@ pub(super) fn append_skill_files(
         }
     }
     Ok(())
+}
+
+/// Where a plugin bundle carries a skill's `SKILL.md`.
+#[must_use]
+pub fn skill_bundle_path(id: &SkillId) -> String {
+    format!("skills/{}/SKILL.md", id.as_str().replace('_', "-"))
 }
 
 pub(crate) fn resolve_skill_ids(

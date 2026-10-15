@@ -34,6 +34,7 @@ pub mod bridge_device;
 pub mod bridge_error;
 pub mod bridge_heartbeat;
 pub mod bridge_manifest;
+pub mod bridge_plugin_archive;
 pub mod bridge_plugin_file;
 pub mod bridge_profile_usage;
 pub mod bridge_release;

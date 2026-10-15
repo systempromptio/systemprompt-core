@@ -26,9 +26,10 @@ use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::bridge::manifest::PluginEntry;
 
 use super::content::{CatalogContent, catalog_fingerprint};
-use super::plugins::{bundle_fingerprint, plugin_bundles};
+use super::plugins::{bundle_fingerprint, hash_entries, plugin_bundles};
 use crate::bundle::{BundleContent, PluginBundle};
 use crate::candidate::MarketplaceCandidate;
 use crate::error::MarketplaceError;
@@ -69,6 +70,7 @@ struct ResolvedEntry {
 pub struct MarketplaceCache {
     catalog: Slot<CatalogContent>,
     bundles: Slot<BundleMap>,
+    plugin_entries: Slot<Vec<PluginEntry>>,
     resolved: RwLock<VecDeque<ResolvedEntry>>,
     sighted: Mutex<BTreeSet<String>>,
 }
@@ -135,6 +137,23 @@ impl MarketplaceCache {
             .map(|entry| Arc::clone(&entry.value))
     }
 
+    // Why: a download that follows a manifest must serve the bytes that
+    // manifest hashed, so it takes the user's latest resolution as-is rather
+    // than re-fingerprinting the catalogue on every file request.
+    pub fn latest_resolved(&self, user: &UserId) -> Option<Arc<ResolvedCatalog>> {
+        let now = Instant::now();
+        let guard = self
+            .resolved
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .iter()
+            .rev()
+            .find(|entry| &entry.key.user == user)
+            .filter(|entry| now.saturating_duration_since(entry.built_at) < RESOLVED_TTL)
+            .map(|entry| Arc::clone(&entry.value))
+    }
+
     pub fn store_resolved(&self, key: ResolvedKey, value: Arc<ResolvedCatalog>) {
         self.store_resolved_at(key, value, Instant::now());
     }
@@ -171,6 +190,23 @@ impl MarketplaceCache {
         let fingerprint = bundle_fingerprint(services, content)?;
         memo(&self.bundles, fingerprint, || {
             plugin_bundles(services, content)
+        })
+    }
+
+    // Why: hashing every bundled file is the expensive half of a manifest
+    // rebuild, and the entries are a pure function of the bundles, so they
+    // share the bundles' fingerprint.
+    pub fn plugin_entries(
+        &self,
+        services: &ServicesConfig,
+        content: &BundleContent<'_>,
+    ) -> Result<Arc<Vec<PluginEntry>>, MarketplaceError> {
+        let fingerprint = bundle_fingerprint(services, content)?;
+        let bundles = memo(&self.bundles, fingerprint, || {
+            plugin_bundles(services, content)
+        })?;
+        memo(&self.plugin_entries, fingerprint, || {
+            hash_entries(services, &bundles)
         })
     }
 }

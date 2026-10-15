@@ -50,6 +50,8 @@ base64 = { workspace = true }
 wiremock = { workspace = true }
 reqwest = { workspace = true }
 futures-util = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
 tower = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }

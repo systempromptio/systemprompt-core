@@ -4,6 +4,8 @@
 //! hashes into the signed manifest, so every file the bridge fetches is
 //! byte-identical to its manifest hash. Serving a pre-generated static plugin
 //! tree here would drift from that hash and fail bridge-side verification.
+//! `archive/<sha256>` under a plugin is the whole plugin as one tar.gz
+//! ([`bridge_plugin_archive`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,11 +18,12 @@ use axum::extract::Path as AxumPath;
 use axum::http::{HeaderMap, header};
 use axum::response::Response;
 use systemprompt_config::ProfileBootstrap;
-use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::{PluginId, UserId};
+use systemprompt_marketplace::ResolvedCatalog;
 use systemprompt_runtime::AppContext;
 
 use super::bridge_error::{BridgeError, authenticate_bridge};
-use super::{bridge_resolved, bridge_services_cache};
+use super::{bridge_plugin_archive, bridge_resolved, bridge_services_cache};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
@@ -46,28 +49,11 @@ pub async fn handle(
         BridgeError::PluginNotFound
     })?;
 
-    let services = bridge_services_cache::load_services_config()
-        .map_err(|e| BridgeError::internal("plugin bundle: services config load failed", e))?;
-    let profile = ProfileBootstrap::get()
-        .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
-    let resolved = bridge_resolved::resolve_for_user(
-        &ctx,
-        &services,
-        profile,
-        &user.id,
-        bridge_resolved::Freshness::Memo,
-    )
-    .await
-    .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
-
-    if !resolved.candidate.plugins.iter().any(|p| p.id == id) {
-        tracing::warn!(
-            plugin_id = %plugin_id,
-            user_id = %user.id,
-            "bridge: refused a plugin bundle the caller was not granted"
-        );
-        return Err(BridgeError::PluginNotFound.into());
+    if let Some(sha256) = bridge_plugin_archive::archive_sha(&relative_path) {
+        return bridge_plugin_archive::serve(&ctx, &user.id, &id, sha256).await;
     }
+
+    let resolved = resolve_entitled(&ctx, &user.id, &id).await?;
 
     let bundle = resolved
         .bundles
@@ -83,6 +69,46 @@ pub async fn handle(
         header::HeaderValue::from_static(content_type(&relative_path)),
     );
     Ok(response)
+}
+
+// Why: the downloads of one sync follow its manifest, so the user's latest
+// resolution already holds the bytes that manifest hashed; only a cold or
+// expired memo pays for a fingerprinted resolution.
+pub(super) async fn resolve_entitled(
+    ctx: &AppContext,
+    user_id: &UserId,
+    id: &PluginId,
+) -> Result<Arc<ResolvedCatalog>, BridgeError> {
+    let grants = |resolved: &ResolvedCatalog| {
+        resolved.candidate.plugins.iter().any(|p| &p.id == id)
+    };
+    if let Some(latest) = ctx.marketplace_cache().latest_resolved(user_id)
+        && grants(&latest)
+    {
+        return Ok(latest);
+    }
+    let services = bridge_services_cache::load_services_config()
+        .map_err(|e| BridgeError::internal("plugin bundle: services config load failed", e))?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|e| BridgeError::internal("plugin bundle: profile not ready", e))?;
+    let resolved = bridge_resolved::resolve_for_user(
+        ctx,
+        &services,
+        profile,
+        user_id,
+        bridge_resolved::Freshness::Memo,
+    )
+    .await
+    .map_err(|e| BridgeError::internal("plugin bundle: catalogue resolution failed", e))?;
+    if !grants(&resolved) {
+        tracing::warn!(
+            plugin_id = %id,
+            user_id = %user_id,
+            "bridge: refused a plugin bundle the caller was not granted"
+        );
+        return Err(BridgeError::PluginNotFound);
+    }
+    Ok(resolved)
 }
 
 pub fn relative_path_is_safe(relative: &str) -> bool {

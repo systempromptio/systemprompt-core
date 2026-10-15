@@ -11,11 +11,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
-use super::CatalogContent;
+use super::{CatalogContent, revision_cache};
 use crate::error::MarketplaceError;
-use crate::managed::{ManagedError, ManagedRepository, ManagedResolution, SkillResolutionRow};
+use crate::managed::{
+    AssetDigest, ManagedError, ManagedRepository, ManagedResolution, RevisionBundle,
+    SkillResolutionRow,
+};
 use systemprompt_identifiers::{ResourceRevisionId, UserId};
 
 impl CatalogContent {
@@ -140,34 +144,14 @@ impl CatalogContent {
         if published.is_empty() {
             return Ok(());
         }
-        let roots: Vec<(UserId, ResourceRevisionId)> = published
-            .iter()
-            .filter_map(|(_, state)| match state {
-                ManagedResolution::Published { revision_id, .. } => {
-                    Some((principal.clone(), revision_id.clone()))
-                },
-                _ => None,
-            })
-            .collect();
-        let bundles = repository
-            .get_revision_bundles(&roots)
-            .await
-            .map_err(MarketplaceError::Managed)?;
+        let bundles = verified_bundles(repository, principal, &published).await?;
         for (key, state) in published {
-            let ManagedResolution::Published {
-                revision_id,
-                bundle_digest,
-                ..
-            } = &state
-            else {
+            let ManagedResolution::Published { revision_id, .. } = &state else {
                 return Err(MarketplaceError::Managed(ManagedError::Integrity));
             };
             let bundle = bundles
                 .get(revision_id)
                 .ok_or(MarketplaceError::Managed(ManagedError::Integrity))?;
-            if &bundle.digest().map_err(ManagedError::from)? != bundle_digest {
-                return Err(MarketplaceError::Managed(ManagedError::Integrity));
-            }
             let skill = crate::managed::managed_skill_from_bundle(&key, state, bundle)
                 .map_err(MarketplaceError::Managed)?;
             let (entry, files) = crate::catalog::skills::build_managed_skill_entry(skill)?;
@@ -181,4 +165,58 @@ impl CatalogContent {
         self.skills.retain(|entry| entry.id.as_str() != key);
         self.managed_files.retain(|id, _| id.as_str() != key);
     }
+}
+
+// Why: a published revision never changes, so only revisions this process has
+// not yet verified are pulled from Postgres; the rest come from the memo.
+async fn verified_bundles(
+    repository: &ManagedRepository,
+    principal: &UserId,
+    published: &[(String, ManagedResolution)],
+) -> Result<BTreeMap<ResourceRevisionId, Arc<RevisionBundle>>, MarketplaceError> {
+    let mut out = BTreeMap::new();
+    let mut missing: Vec<(ResourceRevisionId, AssetDigest)> = Vec::new();
+    for (_, state) in published {
+        let ManagedResolution::Published {
+            revision_id,
+            bundle_digest,
+            ..
+        } = state
+        else {
+            continue;
+        };
+        match revision_cache::get(revision_id, bundle_digest.as_str()) {
+            Some(bundle) => {
+                out.insert(revision_id.clone(), bundle);
+            },
+            None => missing.push((revision_id.clone(), bundle_digest.clone())),
+        }
+    }
+    if missing.is_empty() {
+        return Ok(out);
+    }
+    let roots: Vec<(UserId, ResourceRevisionId)> = missing
+        .iter()
+        .map(|(revision_id, _)| (principal.clone(), revision_id.clone()))
+        .collect();
+    let mut fetched = repository
+        .get_revision_bundles(&roots)
+        .await
+        .map_err(MarketplaceError::Managed)?;
+    for (revision_id, bundle_digest) in missing {
+        let bundle = fetched
+            .remove(&revision_id)
+            .ok_or(MarketplaceError::Managed(ManagedError::Integrity))?;
+        if bundle.digest().map_err(ManagedError::from)? != bundle_digest {
+            return Err(MarketplaceError::Managed(ManagedError::Integrity));
+        }
+        let bundle = Arc::new(bundle);
+        revision_cache::insert(
+            revision_id.clone(),
+            bundle_digest.as_str().to_owned(),
+            Arc::clone(&bundle),
+        );
+        out.insert(revision_id, bundle);
+    }
+    Ok(out)
 }

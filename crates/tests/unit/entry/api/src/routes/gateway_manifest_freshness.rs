@@ -115,10 +115,15 @@ async fn fetch(harness: &Harness, cache_control: Option<&str>) {
             value.parse().expect("cache-control header"),
         );
     }
-    let axum::Json(envelope) =
+    let response =
         bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
             .await
             .expect("a signed-in consumer receives a manifest");
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("manifest body");
+    let envelope: systemprompt_models::bridge::manifest::SignedManifestEnvelope =
+        serde_json::from_slice(&body).expect("the body is a signed envelope");
     assert!(!envelope.payload.is_empty());
     assert!(!envelope.signature.as_str().is_empty());
 }

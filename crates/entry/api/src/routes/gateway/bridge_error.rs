@@ -51,6 +51,8 @@ pub enum BridgeError {
     PluginNotFound,
     #[error("File not found")]
     FileNotFound,
+    #[error("Plugin archive is not the current revision")]
+    StaleArchive,
     #[error("{0}")]
     DeviceForeignUser(String),
     #[error("{0}")]
@@ -58,6 +60,12 @@ pub enum BridgeError {
     #[error("manifest: catalogue grant not recorded for {resource}")]
     CatalogGrant {
         resource: ManagedResourceId,
+        #[source]
+        source: ManagedError,
+    },
+    #[error("manifest: {count} catalogue grants not recorded")]
+    CatalogGrants {
+        count: usize,
         #[source]
         source: ManagedError,
     },
@@ -129,10 +137,13 @@ impl From<BridgeError> for ApiHttpError {
             BridgeError::InvalidPath | BridgeError::DeviceRejected(_) => {
                 ApiError::bad_request(message)
             },
+            BridgeError::StaleArchive => {
+                ApiError::conflict(message).with_error_key("stale_plugin_archive")
+            },
             BridgeError::DeviceForeignUser(_) => {
                 ApiError::conflict(message).with_error_key("device_fingerprint_foreign_user")
             },
-            err @ BridgeError::CatalogGrant { .. } => {
+            err @ (BridgeError::CatalogGrant { .. } | BridgeError::CatalogGrants { .. }) => {
                 ApiError::internal("manifest: catalogue grant not recorded", err)
             },
             BridgeError::Unavailable { context, source } => {

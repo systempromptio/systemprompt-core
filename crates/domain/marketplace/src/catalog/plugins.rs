@@ -88,13 +88,19 @@ pub fn load_plugins(
     content: &BundleContent<'_>,
     cache: &MarketplaceCache,
 ) -> Result<Vec<PluginEntry>, MarketplaceError> {
+    Ok(cache.plugin_entries(services, content)?.as_ref().clone())
+}
+
+pub(super) fn hash_entries(
+    services: &ServicesConfig,
+    bundles: &BTreeMap<PluginId, PluginBundle>,
+) -> Result<Vec<PluginEntry>, MarketplaceError> {
     let configs: HashMap<&str, &PluginConfig> = services
         .plugins
         .values()
         .map(|p| (p.id.as_str(), p))
         .collect();
 
-    let bundles = cache.bundles(services, content)?;
     let mut out = Vec::with_capacity(bundles.len());
     for (id, bundle) in bundles.iter() {
         let config = configs.get(id.as_str()).copied().ok_or_else(|| {
