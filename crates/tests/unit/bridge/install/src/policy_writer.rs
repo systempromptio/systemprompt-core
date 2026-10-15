@@ -260,6 +260,19 @@ fn a_wildcard_the_catalog_cannot_expand_skips_only_that_server() {
 }
 
 #[test]
+fn every_server_skipped_for_an_unexpandable_wildcard_omits_the_list() {
+    let key = signing_key(1);
+    let manifest = manifest(vec![server("agent-farm", wildcard(ToolPolicy::Allow))]);
+    let req = request(&key, &manifest, &[]);
+    let values = derive_policy(&req, &manifest, None).unwrap();
+    assert_eq!(
+        value_of(&values, "managedMcpServers"),
+        None,
+        "an empty list would lock Desktop out of every MCP server"
+    );
+}
+
+#[test]
 fn a_server_the_manifest_denies_outright_is_left_out() {
     let key = signing_key(1);
     let manifest = manifest(vec![

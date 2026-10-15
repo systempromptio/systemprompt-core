@@ -259,6 +259,7 @@ pub fn mcp_entries_with(
     let mut slugs: Vec<&String> = registry.keys().collect();
     slugs.sort();
     let mut out = Vec::with_capacity(slugs.len());
+    let mut unexpanded = false;
     for slug in slugs {
         let Some(upstream) = registry.get(slug) else {
             continue;
@@ -275,6 +276,7 @@ pub fn mcp_entries_with(
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
             tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
+            unexpanded = true;
             continue;
         };
         out.push(McpServerEntry {
@@ -282,6 +284,11 @@ pub fn mcp_entries_with(
             url: loopback.mcp_url(slug.as_str()),
             tool_policy,
         });
+    }
+    // Why: an empty managedMcpServers locks Claude Desktop out of every MCP
+    // server; omitting the key leaves Desktop on its own default.
+    if unexpanded && out.is_empty() {
+        return None;
     }
     Some(out)
 }
