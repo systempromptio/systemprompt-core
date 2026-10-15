@@ -64,23 +64,12 @@ pub fn body_from_plugin(skill: &SkillEntry, plugin_dir: &Path, path: &str) -> Re
     }
 }
 
-// Why: mirrors systemprompt-manifest's line-anchored `strip_frontmatter`,
-// which the gateway signs skill bodies with; the bridge does not link that crate.
+// Why: the gateway omits a body only when this exact rule reproduces it from
+// its SKILL.md layout (frontmatter, `---`, blank line, body, one newline).
 fn strip_frontmatter(raw: &str) -> String {
-    let content = raw.strip_prefix('\u{feff}').unwrap_or(raw);
-    let mut lines = content.split_inclusive('\n');
-    let Some(opening) = lines.next() else {
-        return raw.to_owned();
-    };
-    if opening.trim_end() != "---" {
-        return raw.to_owned();
-    }
-    let mut offset = opening.len();
-    for line in lines {
-        if line.trim_end() == "---" {
-            return content[offset + line.len()..].trim().to_owned();
-        }
-        offset += line.len();
-    }
-    raw.to_owned()
+    const SEPARATOR: &str = "\n---\n\n";
+    let body = raw
+        .find(SEPARATOR)
+        .map_or(raw, |at| &raw[at + SEPARATOR.len()..]);
+    body.strip_suffix('\n').unwrap_or(body).to_owned()
 }
