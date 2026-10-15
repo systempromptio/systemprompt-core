@@ -54,7 +54,9 @@ pub fn sync_only_verdict(
             tone: AgentState::Checking.tone(),
             reason: AgentReason::NeverProbed,
             action: None,
+            secondary_action: None,
             is_set_up: false,
+            is_listed: false,
             is_installed: false,
             is_running: false,
         };
@@ -65,7 +67,9 @@ pub fn sync_only_verdict(
             tone: AgentState::Attention.tone(),
             reason: AgentReason::NotRouted,
             action: Some(AgentAction::Enrol),
+            secondary_action: None,
             is_set_up: true,
+            is_listed: true,
             is_installed: false,
             is_running: false,
         };
@@ -76,7 +80,9 @@ pub fn sync_only_verdict(
             tone: AgentState::Attention.tone(),
             reason,
             action,
+            secondary_action: None,
             is_set_up: true,
+            is_listed: true,
             is_installed: true,
             is_running: false,
         };
@@ -86,7 +92,9 @@ pub fn sync_only_verdict(
         tone: AgentState::Working.tone(),
         reason: AgentReason::CloudManaged,
         action: None,
+        secondary_action: None,
         is_set_up: true,
+        is_listed: true,
         is_installed: true,
         is_running: false,
     }

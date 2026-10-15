@@ -119,7 +119,9 @@
         "action": {
           "code": "repair"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": false,
         "is_running": true
       }
@@ -190,7 +192,9 @@
         "action": {
           "code": "open"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -261,7 +265,9 @@
         "action": {
           "code": "open"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -330,7 +336,9 @@
           "when_unix": 1787905697
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -367,7 +375,9 @@
           "code": "cloud-managed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": false
       }

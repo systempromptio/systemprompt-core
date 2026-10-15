@@ -76,6 +76,61 @@ pub struct HostHealthInputs<'a> {
     pub manifest_synced: bool,
     pub gateway_routed: bool,
     pub can_open: bool,
+    pub pending: PendingStep,
+}
+
+/// A step the bridge started that only the user or the OS can finish.
+///
+/// `OsApproval` is a macOS configuration profile handed to System Settings at
+/// `offered_at_unix` that has not been approved yet, so the probe still reads
+/// no profile; macOS discards an offered profile after
+/// [`OS_APPROVAL_WINDOW_SECS`], so it must be offered again after that;
+/// `Restart` is a profile written while the app was open, which the app reads
+/// only on its next launch.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PendingStep {
+    #[default]
+    None,
+    OsApproval {
+        offered_at_unix: u64,
+    },
+    Restart,
+}
+
+/// How long macOS keeps a downloaded `.mobileconfig` waiting in Device
+/// Management before it silently drops it.
+pub const OS_APPROVAL_WINDOW_SECS: u64 = 8 * 60;
+
+impl PendingStep {
+    /// The offer has outlived the window macOS keeps it for, judged at `now`.
+    #[must_use]
+    pub const fn approval_expired(self, now_unix: u64) -> bool {
+        match self {
+            Self::OsApproval { offered_at_unix } => {
+                now_unix >= offered_at_unix.saturating_add(OS_APPROVAL_WINDOW_SECS)
+            },
+            Self::None | Self::Restart => false,
+        }
+    }
+
+    /// How a probe moves the step: an approved macOS profile leaves only the
+    /// restart (if the app is open), and a restart is done once the app has
+    /// been seen closed. A probe that could not read the process table keeps
+    /// the restart owed.
+    #[must_use]
+    pub fn after_probe(self, snap: &crate::integration::HostAppSnapshot) -> Self {
+        let running = snap.host_running == Some(true);
+        match self {
+            Self::OsApproval { .. }
+                if matches!(snap.profile_state, crate::integration::ProfileState::Absent) =>
+            {
+                self
+            },
+            Self::OsApproval { .. } | Self::Restart if running => Self::Restart,
+            Self::Restart if snap.host_running.is_none() => self,
+            _ => Self::None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

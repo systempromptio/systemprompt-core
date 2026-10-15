@@ -116,6 +116,7 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     let value = json!({
         "phase": phase,
         "summary": summary,
+        "failed": phase == "failed",
     });
     send_emit(app, "sync.progress", &value);
 }

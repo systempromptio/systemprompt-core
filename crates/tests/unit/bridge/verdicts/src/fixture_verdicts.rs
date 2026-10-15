@@ -16,7 +16,7 @@ use crate::repo_path;
 use serde_json::{Value, json};
 use systemprompt_bridge::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, HostCapabilities, HostHealthInputs, HostModelViewRef,
-    SYNC_ONLY_AGENTS, verdict,
+    PendingStep, SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
@@ -207,6 +207,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 .get("can_open")
                 .and_then(Value::as_bool)
                 .unwrap_or(true),
+            pending: PendingStep::None,
         });
 
         let mut host = host.clone();
@@ -247,6 +248,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             manifest_synced,
             gateway_routed: true,
             can_open: false,
+            pending: PendingStep::None,
         });
         // Why: read from the same `HostCapabilities` the real payload uses
         // rather than five more literals here. This block is already a mirror

@@ -48,11 +48,20 @@ export function worstTone(a, b) {
 
 /** @returns {object} the verdict, or a Checking placeholder if none arrived. */
 export function verdictOf(host) {
-  return (host && host.verdict) || { state: "checking", tone: "unknown", reason: { code: "never-probed" }, action: null, is_set_up: false, is_running: false };
+  return (host && host.verdict) || { state: "checking", tone: "unknown", reason: { code: "never-probed" }, action: null, secondary_action: null, is_set_up: false, is_listed: false, is_running: false };
 }
 
 export function isSetUp(host) {
   return verdictOf(host).is_set_up === true;
+}
+
+/**
+ * The agent has a row on the Agents list: its app is installed here, or our
+ * settings are left behind. Decided in Rust (`is_listed`), so an app that
+ * waits on OS approval is never hidden for lack of a profile.
+ */
+export function isListed(host) {
+  return verdictOf(host).is_listed === true;
 }
 
 export function stateLabel(state) {
@@ -80,7 +89,8 @@ export function actionLabel(action) {
 export function badgeSuffix(state) {
   switch (state) {
     case "working": case "ready": case "ok": return "ok";
-    case "attention": case "not-set-up": case "warn": return "warn";
+    case "attention": case "not-set-up": case "warn":
+    case "needs-approval": case "needs-admin-approval": case "needs-reapply": case "restart-needed": return "warn";
     case "down": case "err": return "err";
     default: return "muted";
   }
@@ -121,6 +131,7 @@ export function statusOf(host) {
     label: stateLabel(v.state),
     reason: reasonLabel(v.reason),
     action: v.action ? { code: v.action.code, label: actionLabel(v.action) } : null,
+    secondary: v.secondary_action ? { code: v.secondary_action.code, label: actionLabel(v.secondary_action) } : null,
   };
 }
 

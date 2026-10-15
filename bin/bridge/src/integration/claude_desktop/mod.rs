@@ -136,6 +136,16 @@ impl HostApp for ClaudeDesktopHost {
         ))?)
     }
 
+    fn quit(&self) -> Result<(), HostAppError> {
+        Ok(crate::integration::app_launch::quit_app(&locator(
+            &claude_app_candidates(),
+        ))?)
+    }
+
+    fn can_quit(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+
     fn install_action_label(&self) -> &'static str {
         if cfg!(target_os = "windows") {
             "imported into Windows Registry"

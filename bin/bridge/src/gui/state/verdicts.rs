@@ -7,7 +7,7 @@
 
 
 use super::types::{AppStateSnapshot, GatewayStatus};
-use crate::integration::agent_health::{AgentAction, AgentState};
+use crate::integration::agent_health::AgentAction;
 use crate::verdict::{Tone, Verdict};
 pub use crate::wire::codes::{GatewayCode, HealthCode, IdentityCode, OverallCode, TokenCode};
 
@@ -84,10 +84,16 @@ impl AppStateSnapshot {
         }
         if self.signed_in() {
             let verdicts = crate::gui::hosts::serde::host_verdicts(self);
-            if verdicts
-                .iter()
-                .any(|(_, v)| v.action == Some(AgentAction::UpdateAdmin))
-            {
+            if verdicts.iter().any(|(_, v)| {
+                matches!(
+                    v.action,
+                    Some(
+                        AgentAction::UpdateAdmin
+                            | AgentAction::OpenDeviceManagement
+                            | AgentAction::OfferAgain
+                    )
+                )
+            }) {
                 return Verdict::new(Tone::Warn, OverallCode::NeedsApproval);
             }
             if self.sync_left_failures() {
@@ -147,10 +153,7 @@ impl AppStateSnapshot {
         if self.sync_left_failures() {
             tones.push(Tone::Err);
         }
-        if verdicts
-            .iter()
-            .any(|(_, v)| v.state == AgentState::Attention)
-        {
+        if verdicts.iter().any(|(_, v)| v.state.needs_attention()) {
             tones.push(Tone::Warn);
         }
         if let Some(sync) = &self.last_sync_report

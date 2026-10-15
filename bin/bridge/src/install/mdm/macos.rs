@@ -227,29 +227,33 @@ pub(crate) fn apply_mobileconfig(
     validate_gateway(gateway)?;
 
     let mobileconfig = build_mobileconfig(mcp, pubkey)?;
-    let out_path = std::env::temp_dir().join(format!(
-        "{}.mobileconfig",
-        crate::brand::brand().binary_name
-    ));
-    crate::fsutil::atomic_write_0600(&out_path, mobileconfig.as_bytes()).map_err(|e| {
-        MdmError::Io {
-            action: "write",
-            path: out_path.clone(),
-            source: e,
-        }
-    })?;
+    let file_name = format!("{}.mobileconfig", crate::brand::brand().binary_name);
+    let out_path =
+        crate::integration::generated_profile::write_persistent(&file_name, mobileconfig.as_bytes())
+            .map_err(|e| MdmError::Io {
+                action: "write",
+                path: std::path::PathBuf::from(&file_name),
+                source: e,
+            })?;
 
-    let opened = Command::new("/usr/bin/open")
-        .arg("-g")
-        .arg(&out_path)
+    // Why: macOS drops an offered profile that is not approved within about
+    // eight minutes, so it is offered in the foreground with the Device
+    // Management pane open, never behind the user's back.
+    let opened = Command::new("/usr/bin/open").arg(&out_path).status();
+    let pane = Command::new("/usr/bin/open")
+        .arg(crate::integration::app_launch::DEVICE_MANAGEMENT_URL)
         .status();
+    if !pane.as_ref().is_ok_and(std::process::ExitStatus::success) {
+        tracing::warn!(?pane, "could not open the Device Management pane");
+    }
 
     let mut summary = Vec::with_capacity(5);
     summary.push(format!("wrote mobileconfig: {}", out_path.display()));
     summary.push(format!("payload identifier: {PAYLOAD_IDENTIFIER}"));
     match opened {
         Ok(s) if s.success() => summary.push(
-            "opened System Settings → Profiles — approve the profile there, then relaunch Bridge."
+            "opened System Settings › Device Management — approve the profile within 8 minutes, \
+             then relaunch Bridge."
                 .into(),
         ),
         _ => summary.push(format!(

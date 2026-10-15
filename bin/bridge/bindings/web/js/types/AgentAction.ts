@@ -3,4 +3,4 @@
 /**
  * The one button that fixes this state, if there is one.
  */
-export type AgentAction = { "code": "download" } | { "code": "repair" } | { "code": "update" } | { "code": "update-admin" } | { "code": "verify" } | { "code": "open" } | { "code": "add" } | { "code": "enrol" };
+export type AgentAction = { "code": "download" } | { "code": "repair" } | { "code": "update" } | { "code": "update-admin" } | { "code": "verify" } | { "code": "open" } | { "code": "add" } | { "code": "enrol" } | { "code": "connect" } | { "code": "open-device-management" } | { "code": "restart" } | { "code": "remove-leftover" } | { "code": "offer-again" } | { "code": "show-profile-file" };

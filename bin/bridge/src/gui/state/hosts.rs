@@ -7,6 +7,7 @@ use systemprompt_models::bridge::host::HostKind;
 
 use super::AppState;
 use crate::gui::hosts::state::ProbeSeq;
+use crate::integration::agent_health::PendingStep;
 use crate::integration::{HostAppSnapshot, ProxyHealth};
 
 impl AppState {
@@ -21,6 +22,7 @@ impl AppState {
         if !entry.is_newest(seq) {
             return false;
         }
+        entry.pending = entry.pending.after_probe(&snap);
         entry.snapshot = Some(snap);
         entry.probe_in_flight = false;
         drop(guard);
@@ -58,6 +60,10 @@ impl AppState {
     ) {
         let mut guard = self.snap_mut();
         guard.hosts.entry(host_id).last_generated_profile = Some(profile);
+    }
+
+    pub fn set_host_pending(&self, host_id: HostKind, step: PendingStep) {
+        self.snap_mut().hosts.entry(host_id).pending = step;
     }
 
     pub fn mark_proxy_probing(&self) -> bool {

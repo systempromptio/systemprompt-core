@@ -384,6 +384,9 @@ const COMMANDS = {
   },
   "agent.open": () => ({}),
   "agent.enrol": () => ({ enrolled: true }),
+  "agent.restart": () => ({ restarted: true }),
+  "agent.openDeviceManagement": () => ({}),
+  "agent.revealProfile": () => ({ path: "~/Library/Application Support/bridge/profiles/claude-desktop.mobileconfig" }),
   "agent.openConfig": () => ({}),
   "agent.uninstall": ({ hostId }) => {
     const host = hostById(hostId);

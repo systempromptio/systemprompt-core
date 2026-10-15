@@ -50,7 +50,9 @@ fn verdict() -> AgentVerdict {
         tone: Tone::Ok,
         reason: AgentReason::Awaiting,
         action: Some(AgentAction::Open),
+        secondary_action: None,
         is_set_up: true,
+        is_listed: true,
         is_installed: true,
         is_running: true,
     }

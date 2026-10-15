@@ -49,6 +49,11 @@ fn every_agent_state_has_copy() {
         AgentState::Working,
         AgentState::Ready,
         AgentState::Attention,
+        AgentState::NeedsApproval,
+        AgentState::ApprovalExpired,
+        AgentState::NeedsAdminApproval,
+        AgentState::NeedsReapply,
+        AgentState::RestartNeeded,
         AgentState::NotSetUp,
         AgentState::NotInstalled,
         AgentState::Down,
@@ -64,6 +69,10 @@ fn every_agent_reason_has_copy() {
         AgentReason::Governed { when_unix: None },
         AgentReason::Awaiting,
         AgentReason::AppMissing,
+        AgentReason::LeftoverConfig,
+        AgentReason::AwaitingOsApproval,
+        AgentReason::ApprovalExpired,
+        AgentReason::RestartPending,
         AgentReason::Stale {
             cause: StaleReason::LoopbackSecret,
             keys: String::new(),
@@ -100,6 +109,12 @@ fn every_agent_action_has_copy() {
         AgentAction::Verify,
         AgentAction::Open,
         AgentAction::Add,
+        AgentAction::Connect,
+        AgentAction::OpenDeviceManagement,
+        AgentAction::Restart,
+        AgentAction::RemoveLeftover,
+        AgentAction::OfferAgain,
+        AgentAction::ShowProfileFile,
     ] {
         assert_key("agent-action", &code_of(&a));
     }

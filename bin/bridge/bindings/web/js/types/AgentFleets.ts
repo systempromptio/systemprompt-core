@@ -2,6 +2,7 @@
 import type { AgentFleetSummary } from "./AgentFleetSummary";
 
 /**
- * Both scopes the GUI needs: every enabled agent, and only those set up here.
+ * Both scopes the GUI needs: every enabled agent, and only those the Agents
+ * list shows (`is_listed`).
  */
 export type AgentFleets = { all: AgentFleetSummary, set_up: AgentFleetSummary, };

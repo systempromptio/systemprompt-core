@@ -77,6 +77,7 @@ fn payload<'a>(proxy: &'a ProxyHealth, update: &'a UpdateUiState) -> StatePayloa
         contact_email: "",
         pitch_head: "",
         pitch_body: "",
+        demo_notice: None,
         hosts: HostsPayload {
             host_apps: Vec::new(),
             local_proxy: proxy.into(),

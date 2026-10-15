@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use systemprompt_bridge::integration::agent_health::{
     AgentAction, AgentFleetSummary, AgentReason, AgentState, AgentSurface, AgentVerdict,
     ApplyFailure, FleetHeadline, FleetState, HostCapabilities, HostHealthInputs, HostModelViewRef,
-    SYNC_ONLY_AGENTS, verdict,
+    PendingStep, SYNC_ONLY_AGENTS, verdict,
 };
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, HostAppSnapshot, ProfileState, StaleReason,
@@ -67,6 +67,7 @@ const fn inputs<'a>(
         manifest_synced: true,
         gateway_routed: true,
         can_open: true,
+        pending: PendingStep::None,
     }
 }
 
@@ -154,7 +155,7 @@ fn profile_faults_outrank_proxy_state() {
         AppInstallState::Installed,
     );
     let v = verdict(&inputs(Some(&stale), &px));
-    assert_eq!(v.state, AgentState::Attention);
+    assert_eq!(v.state, AgentState::NeedsReapply);
     assert_eq!(v.action, Some(AgentAction::Repair));
 
     let partial = snapshot(
@@ -171,8 +172,12 @@ fn profile_faults_outrank_proxy_state() {
     let absent = snapshot(ProfileState::Absent, AppInstallState::Installed);
     let v = verdict(&inputs(Some(&absent), &px));
     assert_eq!(v.state, AgentState::NotSetUp);
-    assert_eq!(v.action, Some(AgentAction::Add));
+    assert_eq!(v.action, Some(AgentAction::Connect));
     assert!(!v.is_set_up);
+    assert!(
+        v.is_listed,
+        "an installed app with no profile stays on the list"
+    );
 }
 
 #[test]
@@ -336,10 +341,8 @@ fn fleet_ok_implies_no_row_is_faulted() {
         let fleet = AgentFleetSummary::fold(verdicts.iter());
         if fleet.state == FleetState::Ok {
             assert!(
-                verdicts.iter().all(|v| !matches!(
-                    v.state,
-                    AgentState::Down | AgentState::Attention | AgentState::NotSetUp
-                )),
+                verdicts.iter().all(|v| !v.state.needs_attention()
+                    && !matches!(v.state, AgentState::Down | AgentState::NotSetUp)),
                 "fleet reported Ok while a row was faulted"
             );
             assert_eq!(fleet.headline, FleetHeadline::AllWorking);
@@ -428,7 +431,7 @@ fn a_server_list_behind_the_gateway_offers_update_and_names_the_approval() {
     );
 
     let plain = verdict(&inputs(Some(&behind), &px));
-    assert_eq!(plain.state, AgentState::Attention);
+    assert_eq!(plain.state, AgentState::NeedsReapply);
     assert_eq!(plain.action, Some(AgentAction::Update));
     assert!(
         matches!(
@@ -490,7 +493,7 @@ fn a_model_list_behind_the_gateway_offers_update_and_names_the_approval() {
     );
 
     let drifted = verdict(&inputs(Some(&snap), &px));
-    assert_eq!(drifted.state, AgentState::Attention);
+    assert_eq!(drifted.state, AgentState::NeedsReapply);
     assert!(
         matches!(
             &drifted.reason,
@@ -530,7 +533,7 @@ fn a_desktop_policy_behind_on_settings_needs_an_administrator_update() {
     snap.update_needs_approval = true;
 
     let v = verdict(&inputs(Some(&snap), &px));
-    assert_eq!(v.state, AgentState::Attention);
+    assert_eq!(v.state, AgentState::NeedsAdminApproval);
     assert_eq!(v.action, Some(AgentAction::UpdateAdmin));
     assert!(
         matches!(
@@ -570,6 +573,7 @@ fn a_failed_sync_step_the_probe_cannot_see_needs_attention() {
         ..inputs(Some(&snap), &px)
     });
     assert_eq!(admin.action, Some(AgentAction::UpdateAdmin));
+    assert_eq!(admin.state, AgentState::NeedsAdminApproval);
 }
 
 #[test]

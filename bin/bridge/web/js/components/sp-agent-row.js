@@ -4,6 +4,7 @@ import { t } from "/assets/js/i18n.js";
 import { notifyOk, notifyErr } from "/assets/js/utils/notify.js";
 import { statusOf, badgeSuffix } from "/assets/js/utils/verdict.js";
 import { runHostAction } from "/assets/js/utils/host-actions.js";
+import { hostActionSuccessLine } from "/assets/js/utils/host-action-messages.js";
 
 /**
  * The Agents list, one line per agent: who it is, whether it is working, and
@@ -36,19 +37,9 @@ export class SpAgentRow extends SpElement {
       this.busy = true;
       const name = (this.host && (this.host.display_name || this.host.id)) || "this agent";
       try {
-        const path = await runHostAction(kind, this.host);
-        if (kind === "repair" || kind === "add") {
-          notifyOk(t("toast-agent-repaired", { name, path: path || "" })
-            || `${name} re-configured — wrote ${path || ""}. Restart ${name} to pick it up.`);
-        } else if (kind === "update" || kind === "update-admin") {
-          notifyOk(t("toast-agent-updated", { name, path: path || "" })
-            || `${name} updated — wrote ${path || ""}. Quit and relaunch ${name} to load the new settings.`);
-        } else if (kind === "enrol") {
-          notifyOk(t("toast-agent-enrolled", { name })
-            || `${name} now routes through the gateway. Restart ${name} to pick it up.`);
-        } else if (kind === "verify") {
-          notifyOk(t("toast-agent-verified", { name }) || `${name} re-checked.`);
-        }
+        const result = await runHostAction(kind, this.host);
+        const line = hostActionSuccessLine(kind, name, result);
+        if (line) { notifyOk(line); }
       } catch (e) {
         notifyErr(e, t(`agent-action-${kind}`) || kind);
       } finally {
@@ -71,6 +62,11 @@ export class SpAgentRow extends SpElement {
                    this.busy ? (t("agent-action-working") || "Working…") : status.action.label
                  )}${status.action.code === "download" ? " ↗" : ""}</button>`
       : "";
+    const secondaryMarkup = status.secondary
+      ? `<button class="sp-btn-ghost sp-agent-row__action" type="button"
+                 data-action="primary" data-kind="${escapeHtml(status.secondary.code)}"
+                 ${this.busy ? "disabled" : ""}>${escapeHtml(status.secondary.label)}</button>`
+      : "";
 
     return `
       <div class="sp-agent-row" data-state="${escapeHtml(status.state)}">
@@ -85,7 +81,7 @@ export class SpAgentRow extends SpElement {
           ${probing ? `<span class="sp-dot sp-dot--probing" aria-hidden="true"></span>` : ""}
           <span class="sp-badge sp-badge--${escapeHtml(badgeSuffix(status.state))}">${escapeHtml(status.label)}</span>
         </span>
-        ${actionMarkup}
+        ${actionMarkup}${secondaryMarkup}
         <span class="sp-agent-row__chevron" aria-hidden="true">›</span>
       </div>
     `;

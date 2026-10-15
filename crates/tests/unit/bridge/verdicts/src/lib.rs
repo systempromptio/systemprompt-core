@@ -7,6 +7,8 @@ mod agent_health_i18n;
 #[cfg(test)]
 mod external_url;
 #[cfg(test)]
+mod fix_actions;
+#[cfg(test)]
 mod fixture_verdicts;
 #[cfg(test)]
 mod force_dark;

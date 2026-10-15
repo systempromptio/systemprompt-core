@@ -107,9 +107,11 @@
           "code": "absent"
         },
         "action": {
-          "code": "add"
+          "code": "connect"
         },
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": true,
         "is_installed": false,
         "is_running": false
       }
@@ -172,7 +174,9 @@
         "action": {
           "code": "download"
         },
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -235,7 +239,9 @@
         "action": {
           "code": "download"
         },
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -298,7 +304,9 @@
         "action": {
           "code": "download"
         },
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -335,7 +343,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -468,17 +478,17 @@
       "headline": "needs-attention"
     },
     "set_up": {
-      "total": 0,
+      "total": 1,
       "working": 0,
       "ready": 0,
       "attention": 0,
-      "not_set_up": 0,
+      "not_set_up": 1,
       "not_installed": 0,
       "down": 0,
       "checking": 0,
       "running": 0,
-      "state": "unknown",
-      "headline": "none-enabled"
+      "state": "warn",
+      "headline": "needs-attention"
     }
   },
   "identity": {

@@ -8,7 +8,7 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::gui::state::AppStateSnapshot;
 use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, ApplyFailure, HostCapabilities, HostHealthInputs,
-    HostModelViewRef, SYNC_ONLY_AGENTS, SyncOnlyAgent,
+    HostModelViewRef, PendingStep, SYNC_ONLY_AGENTS, SyncOnlyAgent,
 };
 use crate::integration::host_app::{ConfigFormat, HostAppKind};
 pub(crate) use crate::wire::hosts::{
@@ -41,6 +41,11 @@ fn host_verdict(
     view: &crate::gateway::model_view::HostModelView,
 ) -> AgentVerdict {
     let failures = apply_failures(snap, host.id(), Some(host));
+    let pending = match snap.hosts.get(host.id()).map(|s| s.pending) {
+        Some(PendingStep::Restart) if !host.can_quit() => PendingStep::None,
+        Some(step) => step,
+        None => PendingStep::None,
+    };
     crate::integration::agent_health::verdict(&HostHealthInputs {
         snapshot: snap.hosts.get(host.id()).and_then(|s| s.snapshot.as_ref()),
         apply_failures: &failures,
@@ -51,6 +56,7 @@ fn host_verdict(
         manifest_synced: snap.manifest_synced(),
         gateway_routed: true,
         can_open: host.can_open(),
+        pending,
     })
 }
 
@@ -71,6 +77,7 @@ fn sync_only_verdict(snap: &AppStateSnapshot, agent: &SyncOnlyAgent) -> AgentVer
         manifest_synced: snap.manifest_synced(),
         gateway_routed: crate::integration::sync_only::gateway_routed(agent),
         can_open: false,
+        pending: PendingStep::None,
     })
 }
 

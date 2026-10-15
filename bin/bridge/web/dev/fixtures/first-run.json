@@ -85,7 +85,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -124,7 +126,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -163,7 +167,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -202,7 +208,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }
@@ -239,7 +247,9 @@
           "code": "never-probed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": false,
+        "is_listed": false,
         "is_installed": false,
         "is_running": false
       }

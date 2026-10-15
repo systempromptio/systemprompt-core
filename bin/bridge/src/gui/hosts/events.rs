@@ -20,6 +20,10 @@ pub enum ProbeCause {
 
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
+    RestartRequested {
+        host_id: HostKind,
+        reply_to: ReplyId,
+    },
     ProbeFailed {
         host_id: Option<(HostKind, ProbeSeq)>,
         error: String,

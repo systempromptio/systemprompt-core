@@ -232,6 +232,7 @@ pub(crate) fn on_profile_install_finished(
     );
     let bridge_result = match result {
         Ok((path, warnings)) => {
+            super::note_install_pending(app, host_id);
             app.append_log(format!("[{host_id}] {action}: {path}"));
             for warning in &warnings {
                 app.append_log_warn(format!("[{host_id}] {warning}"));
