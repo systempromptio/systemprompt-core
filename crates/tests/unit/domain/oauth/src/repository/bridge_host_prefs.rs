@@ -1,13 +1,19 @@
-// DB-backed bridge per-host preference tests (upsert + list-enabled).
+// DB-backed bridge per-host preference tests (set_enabled + list-enabled).
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_oauth::repository::BridgeHostPrefsRepository;
+use systemprompt_oauth::repository::{BridgeHostPrefsRepository, HostPrefWrite};
+
+const INSTANCE: [HostKind; 3] = [
+    HostKind::ClaudeCode,
+    HostKind::ClaudeDesktop,
+    HostKind::OpenCode,
+];
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
 
 #[tokio::test]
-async fn upsert_then_list_enabled() {
+async fn set_enabled_then_list_enabled() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool);
@@ -23,8 +29,10 @@ async fn upsert_then_list_enabled() {
     let host_a = HostKind::ClaudeCode;
     let host_b = HostKind::CodexCli;
 
-    repo.upsert(&user_id, host_a, true).await.expect("enable a");
-    repo.upsert(&user_id, host_b, false)
+    repo.set_enabled(&user_id, host_a, true, &INSTANCE)
+        .await
+        .expect("enable a");
+    repo.set_enabled(&user_id, host_b, false, &INSTANCE)
         .await
         .expect("disable b");
 
@@ -34,7 +42,7 @@ async fn upsert_then_list_enabled() {
 }
 
 #[tokio::test]
-async fn upsert_toggles_enabled_flag() {
+async fn disabling_the_last_enabled_host_is_refused() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool);
@@ -48,7 +56,9 @@ async fn upsert_toggles_enabled_flag() {
     .expect("seed user");
 
     let host = HostKind::Hermes;
-    repo.upsert(&user_id, host, true).await.expect("enable");
+    repo.set_enabled(&user_id, host, true, &INSTANCE)
+        .await
+        .expect("enable");
     assert!(
         repo.get_enabled_prefs(&user_id)
             .await
@@ -57,14 +67,72 @@ async fn upsert_toggles_enabled_flag() {
             .contains(&host)
     );
 
-    repo.upsert(&user_id, host, false).await.expect("disable");
+    let outcome = repo
+        .set_enabled(&user_id, host, false, &INSTANCE)
+        .await
+        .expect("disable");
+    assert_eq!(outcome, HostPrefWrite::WouldDisableAll);
+    assert_eq!(
+        repo.get_enabled_prefs(&user_id).await.expect("list").hosts,
+        vec![host]
+    );
+}
+
+#[tokio::test]
+async fn disabling_one_host_with_no_rows_keeps_the_other_instance_hosts() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = BridgeHostPrefsRepository::new(&pool);
+    let user_id = unique_user_id("bhp-norows");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
+
+    let outcome = repo
+        .set_enabled(&user_id, HostKind::OpenCode, false, &INSTANCE)
+        .await
+        .expect("disable opencode");
+    assert_eq!(outcome, HostPrefWrite::Written);
+    let prefs = repo.get_enabled_prefs(&user_id).await.expect("list");
+    assert!(prefs.admits(HostKind::ClaudeCode));
+    assert!(prefs.admits(HostKind::ClaudeDesktop));
+    assert!(!prefs.admits(HostKind::OpenCode));
+}
+
+#[tokio::test]
+async fn disabling_the_only_instance_host_with_no_rows_is_refused() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = BridgeHostPrefsRepository::new(&pool);
+    let user_id = unique_user_id("bhp-only");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
+
+    let outcome = repo
+        .set_enabled(
+            &user_id,
+            HostKind::ClaudeCode,
+            false,
+            &[HostKind::ClaudeCode],
+        )
+        .await
+        .expect("disable");
+    assert_eq!(outcome, HostPrefWrite::WouldDisableAll);
     assert!(
         !repo
             .get_enabled_prefs(&user_id)
             .await
             .expect("list")
-            .hosts
-            .contains(&host)
+            .any_enabled_row
     );
 }
 

@@ -1,10 +1,10 @@
 //! Direct exercises of the public helpers in `routes::gateway::bridge_data`
 //! — these don't go through HTTP and therefore aren't reached by the
 //! gateway_router integration tests. Hits `load_user`, `load_revocations`,
-//! `load_enabled_hosts`, `upsert_host_pref`, and `load_services_config`.
+//! `load_enabled_hosts`, `set_host_enabled`, and `load_services_config`.
 
 use systemprompt_api::routes::gateway::bridge_data::{
-    load_enabled_hosts, load_revocations, load_services_config, load_user, upsert_host_pref,
+    load_enabled_hosts, load_revocations, load_services_config, load_user, set_host_enabled,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::host::HostKind;
@@ -44,7 +44,7 @@ async fn load_enabled_hosts_empty_for_unknown_user() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
+async fn set_host_enabled_round_trip() -> anyhow::Result<()> {
     let _ = ensure_test_bootstrap();
     let (pool, ctx) = setup_ctx().await?;
     let user = UserId::new(format!("pref-{}", uuid::Uuid::new_v4()));
@@ -54,13 +54,15 @@ async fn upsert_host_pref_round_trip() -> anyhow::Result<()> {
         .bind(format!("{}@test.invalid", user.as_str()))
         .execute(exec_pool.as_ref())
         .await?;
-    upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, true).await?;
+    let instance = [HostKind::ClaudeCode, HostKind::OpenCode];
+    set_host_enabled(&ctx, &user, HostKind::ClaudeCode, true, &instance).await?;
     let prefs = load_enabled_hosts(&ctx, &user).await?;
     assert!(prefs.hosts.contains(&HostKind::ClaudeCode), "got {prefs:?}");
-    // Toggle off.
-    upsert_host_pref(&ctx, &user, HostKind::ClaudeCode, false).await?;
+    set_host_enabled(&ctx, &user, HostKind::OpenCode, true, &instance).await?;
+    set_host_enabled(&ctx, &user, HostKind::ClaudeCode, false, &instance).await?;
     let prefs2 = load_enabled_hosts(&ctx, &user).await?;
     assert!(!prefs2.hosts.contains(&HostKind::ClaudeCode));
+    assert!(prefs2.hosts.contains(&HostKind::OpenCode));
     Ok(())
 }
 

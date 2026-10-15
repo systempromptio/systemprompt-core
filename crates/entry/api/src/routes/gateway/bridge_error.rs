@@ -39,6 +39,8 @@ pub enum BridgeError {
     UnknownSurface(String),
     #[error("host '{0}' is disabled on this installation")]
     HostDisabled(HostKind),
+    #[error("host '{0}' is the last enabled host; at least one must stay enabled")]
+    LastHostDisabled(HostKind),
     #[error("Gateway not enabled")]
     GatewayDisabled,
     #[error("User not found: {0}")]
@@ -114,6 +116,9 @@ impl From<BridgeError> for ApiHttpError {
             },
             BridgeError::HostDisabled(_) => {
                 ApiError::validation_error(message, Vec::new()).with_error_key("host_disabled")
+            },
+            BridgeError::LastHostDisabled(_) => {
+                ApiError::conflict(message).with_error_key("last_host_disabled")
             },
             BridgeError::GatewayDisabled => {
                 ApiError::not_found(message).with_error_key("gateway_disabled")

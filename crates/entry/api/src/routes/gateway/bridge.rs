@@ -14,6 +14,7 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::bridge_profile;
 use systemprompt_models::providers::ApiSurface;
+use systemprompt_oauth::repository::HostPrefWrite;
 
 use systemprompt_security::manifest_signing;
 use uuid::Uuid;
@@ -64,17 +65,25 @@ pub async fn set_enabled_host(
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
-    if body.enabled {
-        let services = bridge_data::load_services_config()
-            .map_err(|e| BridgeError::internal("services config load failed", e))?;
-        if !instance_enabled_hosts(&services).contains(&body.host_id) {
-            return Err(BridgeError::HostDisabled(body.host_id).into());
-        }
+    let services = bridge_data::load_services_config()
+        .map_err(|e| BridgeError::internal("services config load failed", e))?;
+    let instance_hosts = instance_enabled_hosts(&services);
+    if body.enabled && !instance_hosts.contains(&body.host_id) {
+        return Err(BridgeError::HostDisabled(body.host_id).into());
     }
 
-    bridge_data::upsert_host_pref(&ctx, &claims.user_id, body.host_id, body.enabled)
-        .await
-        .map_err(BridgeError::from)?;
+    let written = bridge_data::set_host_enabled(
+        &ctx,
+        &claims.user_id,
+        body.host_id,
+        body.enabled,
+        &instance_hosts,
+    )
+    .await
+    .map_err(BridgeError::from)?;
+    if written == HostPrefWrite::WouldDisableAll {
+        return Err(BridgeError::LastHostDisabled(body.host_id).into());
+    }
 
     Ok(Json(SetHostPrefResponse {
         host_id: body.host_id,
