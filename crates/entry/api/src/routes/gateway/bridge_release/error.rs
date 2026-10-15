@@ -73,6 +73,23 @@ impl ReleaseError {
     }
 
     #[must_use]
+    pub const fn stage(&self) -> Option<&'static str> {
+        match self {
+            Self::Request { stage, .. } | Self::UpstreamStatus { stage, .. } => Some(*stage),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn upstream_status(&self) -> Option<StatusCode> {
+        match self {
+            Self::UpstreamStatus { status, .. } => Some(*status),
+            Self::Request { source, .. } => source.status(),
+            _ => None,
+        }
+    }
+
+    #[must_use]
     pub const fn error_key(&self) -> &'static str {
         match self {
             Self::Auth(_) => "invalid_credential",
@@ -106,9 +123,19 @@ impl IntoResponse for ReleaseError {
             err if status == StatusCode::NOT_FOUND => {
                 ApiError::not_found(err.to_string()).with_error_key(key)
             },
-            err => ApiError::service_unavailable("Bridge release feed unavailable")
-                .with_error_key(key)
-                .with_source(err),
+            err => {
+                tracing::error!(
+                    status = status.as_u16(),
+                    error_key = key,
+                    stage = err.stage().unwrap_or("-"),
+                    upstream_status = err.upstream_status().map(|s| s.as_u16()),
+                    error = %err,
+                    "bridge release feed failed"
+                );
+                ApiError::service_unavailable("Bridge release feed unavailable")
+                    .with_error_key(key)
+                    .with_source(err)
+            },
         };
         let mut response = api.into_response();
         // Why: `ErrorCode` has no 502, yet an upstream GitHub failure must still
