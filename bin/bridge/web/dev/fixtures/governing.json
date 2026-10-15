@@ -65,7 +65,8 @@
       },
       "needs_sign_in": false,
       "conclusive": true,
-      "shows_tools": true
+      "shows_tools": true,
+      "desktop_tools_unlisted": false
     }
   ],
   "mcp_auth_probe_in_flight": false,

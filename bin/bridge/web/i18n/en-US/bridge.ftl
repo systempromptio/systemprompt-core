@@ -654,4 +654,6 @@ update-phase-installing = Installing…
 update-phase-failed = { $message }
 mcp-rechecked = MCP servers re-checked.
 mcp-tools-unavailable = Tools are listed once the server authenticates.
+mcp-desktop-unlisted = { $slug }: sign in to list its tools
+mcp-desktop-unlisted-fix = Sign in and list tools
 marketplace-detail-auth = Authentication

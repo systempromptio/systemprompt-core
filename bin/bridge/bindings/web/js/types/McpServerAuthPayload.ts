@@ -3,4 +3,4 @@ import type { McpAuthState } from "./McpAuthState";
 import type { McpTool } from "./McpTool";
 import type { Verdict } from "./Verdict";
 
-export type McpServerAuthPayload = { verdict: Verdict<McpAuthState>, needs_sign_in: boolean, conclusive: boolean, shows_tools: boolean, id: string, url: string, state: McpAuthState, tools: Array<McpTool>, http_status: number | null, latency_ms: bigint | null, error: string | null, session_id: string | null, probed_at_unix: bigint, };
+export type McpServerAuthPayload = { verdict: Verdict<McpAuthState>, needs_sign_in: boolean, conclusive: boolean, shows_tools: boolean, desktop_tools_unlisted: boolean, id: string, url: string, state: McpAuthState, tools: Array<McpTool>, http_status: number | null, latency_ms: bigint | null, error: string | null, session_id: string | null, probed_at_unix: bigint, };

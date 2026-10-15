@@ -180,6 +180,10 @@ impl AppState {
         guard.mcp_auth_probe_in_flight = false;
     }
 
+    pub fn set_mcp_desktop_unlisted(&self, slugs: Vec<String>) {
+        self.snap_mut().mcp_desktop_unlisted = slugs;
+    }
+
     pub fn finish_mcp_auth_probe(&self) {
         self.snap_mut().mcp_auth_probe_in_flight = false;
     }

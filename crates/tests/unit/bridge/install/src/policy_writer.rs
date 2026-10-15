@@ -17,13 +17,14 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
     HostToken, ManifestSignature, McpServerId, McpToolName, ToolPolicy,
 };
+use systemprompt_bridge::install::mdm::desktop_tool_policy::unlisted_servers;
+use systemprompt_bridge::install::mdm::policy_apply::withheld_keys;
 use systemprompt_bridge::install::policy_writer::{
     BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
     expected_steps, facts_from_entries, render_task_xml, task_name, verify_against_anchor,
 };
-use systemprompt_bridge::install::mdm::policy_apply::withheld_keys;
-use systemprompt_bridge::mcp_registry::EnvelopeFragment;
+use systemprompt_bridge::mcp_registry::{EnvelopeFragment, from_servers};
 use systemprompt_identifiers::ValidatedUrl;
 
 const GATEWAY: &str = "https://gateway.example.test";
@@ -291,6 +292,23 @@ fn one_server_skipped_keeps_the_list_in_the_written_values() {
     assert!(
         withheld_keys(&values).is_empty(),
         "a written list replaces the stale one and is not removed"
+    );
+}
+
+#[test]
+fn the_gui_names_each_server_the_desktop_policy_skips() {
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+        server("blocked", wildcard(ToolPolicy::Deny)),
+    ]);
+    let registry = from_servers(&manifest.managed_mcp_servers);
+    let mut catalog = BTreeMap::new();
+    catalog.insert("atlassian".to_owned(), vec!["x".to_owned()]);
+    assert_eq!(
+        unlisted_servers(&registry, &catalog),
+        vec!["agent-farm".to_owned()],
+        "only the wildcard with no tool names is unlisted; a deny is withheld by design"
     );
 }
 

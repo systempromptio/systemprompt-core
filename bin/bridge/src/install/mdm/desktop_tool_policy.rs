@@ -61,3 +61,30 @@ pub fn desktop_tool_policy_map(
     }
     Some(out)
 }
+
+/// The managed servers the desktop policy skips because their wildcard has no
+/// tool names to expand over: the catalog drops a server whose last probe did
+/// not authenticate, so each one is fixed by signing in and probing it again.
+#[must_use]
+pub fn unlisted_servers(
+    registry: &crate::mcp_registry::McpRegistry,
+    catalog: &super::tool_catalog::ToolCatalog,
+) -> Vec<String> {
+    let mut out: Vec<String> = registry
+        .keys()
+        .filter(|slug| {
+            registry.get(*slug).is_some_and(|upstream| {
+                !upstream.tool_policy.is_empty()
+                    && !denied_outright(upstream)
+                    && desktop_tool_policy_map(
+                        upstream,
+                        catalog.get(*slug).map_or(&[][..], Vec::as_slice),
+                    )
+                    .is_none()
+            })
+        })
+        .cloned()
+        .collect();
+    out.sort();
+    out
+}
