@@ -179,8 +179,9 @@ pub async fn apply(
     on_progress: &(dyn Fn(DownloadProgress) + Send + Sync),
 ) -> Result<std::path::PathBuf, UpdateError> {
     let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
+    let target = install::preflight()?;
     let staged = download_verified(client, bearer, platform, manifest, on_progress).await?;
-    let installed = install::apply(&staged)?;
+    let installed = install::apply(&staged, target)?;
     if let Err(e) = std::fs::remove_file(&staged) {
         tracing::debug!(error = %e, path = %staged.display(), "update: staging cleanup failed");
     }
@@ -189,6 +190,11 @@ pub async fn apply(
 
 pub fn sweep_leftovers() {
     install::sweep_leftovers();
+}
+
+#[must_use]
+pub fn read_only_launch() -> Option<String> {
+    install::read_only_launch()
 }
 
 pub fn installed_path() -> Result<std::path::PathBuf, UpdateError> {
