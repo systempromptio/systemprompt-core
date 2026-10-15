@@ -1,15 +1,19 @@
-//! Plugin archive extraction: only the manifest's files, verified, land in staging.
+//! Plugin archive extraction: only the manifest's files, verified, land in
+//! staging.
 
 use std::io::Write;
 
 use sha2::{Digest, Sha256};
 use systemprompt_bridge::gateway::manifest::{PluginEntry, PluginFile};
-use systemprompt_bridge::ids::{PluginId, Sha256Digest};
 use systemprompt_bridge::host_sync::ApplyError;
+use systemprompt_bridge::ids::{PluginId, Sha256Digest};
 use systemprompt_bridge::sync::apply::archive::extract_verified;
 
 fn digest(bytes: &[u8]) -> Sha256Digest {
-    Sha256Digest::try_new(systemprompt_bridge::hash::hex_encode(&Sha256::digest(bytes))).unwrap()
+    Sha256Digest::try_new(systemprompt_bridge::hash::hex_encode(&Sha256::digest(
+        bytes,
+    )))
+    .unwrap()
 }
 
 fn plugin(files: &[(&str, &[u8])]) -> PluginEntry {
@@ -74,7 +78,10 @@ fn a_complete_archive_is_staged_byte_for_byte() {
     ]);
     let stage = tempfile::tempdir().unwrap();
     extract_verified(&bytes, &plugin(files), stage.path()).unwrap();
-    assert_eq!(std::fs::read(stage.path().join("skills/a/SKILL.md")).unwrap(), b"body");
+    assert_eq!(
+        std::fs::read(stage.path().join("skills/a/SKILL.md")).unwrap(),
+        b"body"
+    );
     assert_eq!(
         std::fs::read(stage.path().join(".claude-plugin/plugin.json")).unwrap(),
         b"{}"
@@ -112,10 +119,7 @@ fn a_symlink_entry_is_refused_even_under_a_manifest_name() {
 #[test]
 fn an_entry_the_manifest_does_not_name_is_refused() {
     let stage = tempfile::tempdir().unwrap();
-    let bytes = archive(&[
-        Entry::File("a.txt", b"a"),
-        Entry::File("extra.txt", b"e"),
-    ]);
+    let bytes = archive(&[Entry::File("a.txt", b"a"), Entry::File("extra.txt", b"e")]);
     let err = extract_verified(&bytes, &plugin(&[("a.txt", b"a")]), stage.path()).unwrap_err();
     assert!(matches!(err, ApplyError::UnsafePath(_)), "{err}");
 }
@@ -124,7 +128,8 @@ fn an_entry_the_manifest_does_not_name_is_refused() {
 fn a_body_that_does_not_match_its_digest_fails() {
     let stage = tempfile::tempdir().unwrap();
     let bytes = archive(&[Entry::File("a.txt", b"tampered")]);
-    let err = extract_verified(&bytes, &plugin(&[("a.txt", b"original")]), stage.path()).unwrap_err();
+    let err =
+        extract_verified(&bytes, &plugin(&[("a.txt", b"original")]), stage.path()).unwrap_err();
     assert!(matches!(err, ApplyError::HashMismatch { .. }), "{err}");
 }
 

@@ -97,12 +97,12 @@ pub enum PendingStep {
     Restart,
 }
 
-/// How long macOS keeps a downloaded `.mobileconfig` waiting in Device
-/// Management before it silently drops it.
+// Why: How long macOS keeps a downloaded `.mobileconfig` waiting in Device
+// Management before it silently drops it.
 pub const OS_APPROVAL_WINDOW_SECS: u64 = 8 * 60;
 
 impl PendingStep {
-    /// The offer has outlived the window macOS keeps it for, judged at `now`.
+    // Why: The offer has outlived the window macOS keeps it for, judged at `now`.
     #[must_use]
     pub const fn approval_expired(self, now_unix: u64) -> bool {
         match self {
@@ -113,10 +113,10 @@ impl PendingStep {
         }
     }
 
-    /// How a probe moves the step: an approved macOS profile leaves only the
-    /// restart (if the app is open), and a restart is done once the app has
-    /// been seen closed. A probe that could not read the process table keeps
-    /// the restart owed.
+    // Why: How a probe moves the step: an approved macOS profile leaves only the
+    // restart (if the app is open), and a restart is done once the app has
+    // been seen closed. A probe that could not read the process table keeps
+    // the restart owed.
     #[must_use]
     pub fn after_probe(self, snap: &crate::integration::HostAppSnapshot) -> Self {
         let running = snap.host_running == Some(true);

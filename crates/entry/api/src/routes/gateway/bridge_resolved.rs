@@ -55,9 +55,9 @@ impl Freshness {
     }
 }
 
-/// How old a memo may be and still answer a `no-cache` request. A bridge
-/// probes on a 10–30 s tick with `no-cache`, and rebuilding on each one starved
-/// the pool; a connector the user just linked shows up at most this late.
+// Why: How old a memo may be and still answer a `no-cache` request. A bridge
+// probes on a 10–30 s tick with `no-cache`, and rebuilding on each one starved
+// the pool; a connector the user just linked shows up at most this late.
 pub const FRESH_REVALIDATE_AFTER: std::time::Duration = std::time::Duration::from_secs(30);
 
 pub async fn resolve_for_user(

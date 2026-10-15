@@ -19,7 +19,7 @@ pub(crate) fn write_managed_claude_policy(
     elevated: bool,
     entries: &[(String, String)],
 ) -> Result<PolicyReceipt, ConfigStoreError> {
-    crate::install::mdm::policy_apply::apply_claude_entries(
+    super::policy_apply::apply_claude_entries(
         &windows_registry::WindowsRegistryStore,
         hive_for(elevated),
         entries,

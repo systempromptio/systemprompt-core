@@ -140,8 +140,8 @@ pub(super) struct ManifestFetch {
     pub envelope: SignedManifestEnvelope,
     pub config: config::Config,
     pub etag: Option<String>,
-    /// The gateway answered 304 in this run for the stored envelope's ETag, so
-    /// `envelope` is the stored one, revalidated rather than freshly issued.
+    // Why: The gateway answered 304 in this run for the stored envelope's ETag, so
+    // `envelope` is the stored one, revalidated rather than freshly issued.
     pub revalidated: bool,
 }
 

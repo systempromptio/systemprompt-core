@@ -86,53 +86,8 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         );
     }
 
-    match &snap.profile_state {
-        ProfileState::Stale { reason, keys } => {
-            let action = if reason.breaks_routing() {
-                AgentAction::Repair
-            } else {
-                update_action(snap)
-            };
-            let state = if action == AgentAction::UpdateAdmin {
-                AgentState::NeedsAdminApproval
-            } else {
-                AgentState::NeedsReapply
-            };
-            return finish(
-                state,
-                AgentReason::Stale {
-                    cause: *reason,
-                    keys: keys.join(", "),
-                },
-                Some(action),
-            );
-        },
-        ProfileState::Partial { missing_required } => {
-            return finish(
-                AgentState::Attention,
-                AgentReason::Partial {
-                    missing: missing_required.join(", "),
-                },
-                Some(AgentAction::Repair),
-            );
-        },
-        ProfileState::Unverifiable { reason } => {
-            return finish(
-                AgentState::Attention,
-                AgentReason::Unverifiable {
-                    detail: reason.clone(),
-                },
-                Some(AgentAction::Verify),
-            );
-        },
-        ProfileState::Absent => {
-            return finish(
-                AgentState::NotSetUp,
-                AgentReason::Absent,
-                Some(AgentAction::Connect),
-            );
-        },
-        ProfileState::Installed => {},
+    if let Some((state, reason, action)) = profile_finding(snap) {
+        return finish(state, reason, Some(action));
     }
 
     if let Some(failed) = apply_failed(input.apply_failures) {
@@ -199,6 +154,53 @@ pub fn apply_failed(failures: &[ApplyFailure]) -> Option<(AgentReason, Option<Ag
     Some((AgentReason::SyncFailed { detail }, action))
 }
 
+fn profile_finding(
+    snap: &crate::integration::HostAppSnapshot,
+) -> Option<(AgentState, AgentReason, AgentAction)> {
+    match &snap.profile_state {
+        ProfileState::Stale { reason, keys } => {
+            let action = if reason.breaks_routing() {
+                AgentAction::Repair
+            } else {
+                update_action(snap)
+            };
+            let state = if action == AgentAction::UpdateAdmin {
+                AgentState::NeedsAdminApproval
+            } else {
+                AgentState::NeedsReapply
+            };
+            Some((
+                state,
+                AgentReason::Stale {
+                    cause: *reason,
+                    keys: keys.join(", "),
+                },
+                action,
+            ))
+        },
+        ProfileState::Partial { missing_required } => Some((
+            AgentState::Attention,
+            AgentReason::Partial {
+                missing: missing_required.join(", "),
+            },
+            AgentAction::Repair,
+        )),
+        ProfileState::Unverifiable { reason } => Some((
+            AgentState::Attention,
+            AgentReason::Unverifiable {
+                detail: reason.clone(),
+            },
+            AgentAction::Verify,
+        )),
+        ProfileState::Absent => Some((
+            AgentState::NotSetUp,
+            AgentReason::Absent,
+            AgentAction::Connect,
+        )),
+        ProfileState::Installed => None,
+    }
+}
+
 const fn update_action(snap: &crate::integration::HostAppSnapshot) -> AgentAction {
     if snap.update_needs_approval {
         AgentAction::UpdateAdmin
@@ -209,8 +211,8 @@ const fn update_action(snap: &crate::integration::HostAppSnapshot) -> AgentActio
 
 pub use super::agent_fleet::{AgentFleetSummary, AgentFleets, FleetHeadline, FleetState};
 pub use super::agent_inputs::{
-    AgentSurface, ApplyFailure, HostCapabilities, HostHealthInputs, HostModelViewRef, PendingStep,
-    OS_APPROVAL_WINDOW_SECS,
+    AgentSurface, ApplyFailure, HostCapabilities, HostHealthInputs, HostModelViewRef,
+    OS_APPROVAL_WINDOW_SECS, PendingStep,
 };
 pub use super::agent_verdict::{AgentAction, AgentReason, AgentState, AgentVerdict};
 pub use super::sync_only::{SYNC_ONLY_AGENTS, SyncOnlyAgent, sync_only_agent};

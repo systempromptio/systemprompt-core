@@ -155,9 +155,9 @@ pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
     try_finish(app);
 }
 
-/// Finalises the run once both the sync result and every host are in,
-/// whichever arrives last. A host that installed while the first sync ran
-/// is owed one follow-up sync so its settings are applied.
+// Why: Finalises the run once both the sync result and every host are in,
+// whichever arrives last. A host that installed while the first sync ran
+// is owed one follow-up sync so its settings are applied.
 fn try_finish(app: &mut GuiApp) {
     let state = app.state.snapshot().first_run;
     if state.sync_result.is_none() || !state.all_hosts_terminal() || state.followup_sync {

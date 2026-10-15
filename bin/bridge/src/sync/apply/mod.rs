@@ -12,17 +12,17 @@
 pub mod archive;
 mod evidence;
 mod fetch;
+mod fragments;
 mod hooks;
 pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
 mod plugin_files;
 pub mod safe_path;
+pub mod skill_bodies;
 mod stage;
 pub mod stamp;
 pub mod swap;
-mod fragments;
-pub mod skill_bodies;
 
 pub(crate) use crate::host_sync::ApplyError;
 pub use crate::host_sync::{HostWarning, HostWarningKind};

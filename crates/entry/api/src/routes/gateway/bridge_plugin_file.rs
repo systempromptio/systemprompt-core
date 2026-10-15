@@ -79,9 +79,8 @@ pub(super) async fn resolve_entitled(
     user_id: &UserId,
     id: &PluginId,
 ) -> Result<Arc<ResolvedCatalog>, BridgeError> {
-    let grants = |resolved: &ResolvedCatalog| {
-        resolved.candidate.plugins.iter().any(|p| &p.id == id)
-    };
+    let grants =
+        |resolved: &ResolvedCatalog| resolved.candidate.plugins.iter().any(|p| &p.id == id);
     if let Some(latest) = ctx.marketplace_cache().latest_resolved(user_id)
         && grants(&latest)
     {

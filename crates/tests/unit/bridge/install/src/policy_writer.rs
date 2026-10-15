@@ -9,6 +9,7 @@ use std::path::Path;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signer, SigningKey};
+use systemprompt_bridge::config::store::policy_apply::withheld_keys;
 use systemprompt_bridge::config::{PinSource, TrustRecord};
 use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SignedManifestEnvelope,
@@ -18,7 +19,6 @@ use systemprompt_bridge::ids::{
     HostToken, ManifestSignature, McpServerId, McpToolName, ToolPolicy,
 };
 use systemprompt_bridge::install::mdm::desktop_tool_policy::unlisted_servers;
-use systemprompt_bridge::install::mdm::policy_apply::withheld_keys;
 use systemprompt_bridge::install::policy_writer::{
     BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,

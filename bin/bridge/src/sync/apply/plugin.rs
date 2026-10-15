@@ -98,7 +98,10 @@ pub(super) async fn apply_plugins(
         changed = changed.len(),
         "plugins compared against their installed stamps"
     );
-    if let Staged::Cancelled = stage_changed(ctx, &changed, unchanged.len(), total).await? {
+    if matches!(
+        stage_changed(ctx, &changed, unchanged.len(), total).await?,
+        Staged::Cancelled
+    ) {
         return Ok(PluginPhase::Cancelled { applied: 0 });
     }
     for (index, plugin) in manifest.plugins.iter().enumerate() {
@@ -154,9 +157,9 @@ pub(super) async fn apply_plugins(
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
     let removed = remove_stale(ctx.root, &expected)?;
     for id in &removed {
-        stamp::clear(ctx.meta_dir, id)?;
-        ctx.plugin_tokens
-            .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
+        let id = systemprompt_identifiers::PluginId::new(id);
+        stamp::clear(ctx.meta_dir, &id)?;
+        ctx.plugin_tokens.invalidate_plugin(&id);
     }
 
     Ok(PluginPhase::Complete(PluginApplyOutcome {
@@ -229,7 +232,7 @@ async fn promote_plugin(
     let stage = ctx.staging_root.join(plugin.id.as_str());
     super::check_not_superseded(ctx.client.base_url())?;
 
-    stamp::clear(ctx.meta_dir, plugin.id.as_str())?;
+    stamp::clear(ctx.meta_dir, &plugin.id)?;
     let was_present = promote_staged(&stage, &target, &plugin.id)?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
@@ -238,7 +241,7 @@ async fn promote_plugin(
     let mcp_servers = extract_mcp_servers(&target)?;
     stamp::write(
         ctx.meta_dir,
-        plugin.id.as_str(),
+        &plugin.id,
         &PluginStamp {
             sha256: plugin.sha256.as_str().to_owned(),
             root: ctx.root.to_path_buf(),

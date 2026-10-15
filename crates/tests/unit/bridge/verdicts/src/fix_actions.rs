@@ -205,19 +205,13 @@ fn a_probe_moves_the_pending_step_forward() {
     let installed_open = snapshot(ProfileState::Installed, AppInstallState::Installed, true);
     let installed_closed = snapshot(ProfileState::Installed, AppInstallState::Installed, false);
 
-    assert_eq!(
-        OFFERED.after_probe(&absent),
-        OFFERED
-    );
+    assert_eq!(OFFERED.after_probe(&absent), OFFERED);
     assert_eq!(
         OFFERED.after_probe(&installed_open),
         PendingStep::Restart,
         "an approved profile still needs the open app restarted"
     );
-    assert_eq!(
-        OFFERED.after_probe(&installed_closed),
-        PendingStep::None
-    );
+    assert_eq!(OFFERED.after_probe(&installed_closed), PendingStep::None);
     assert_eq!(
         PendingStep::Restart.after_probe(&installed_closed),
         PendingStep::None

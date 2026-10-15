@@ -57,9 +57,9 @@ impl<'a> ValidationPolicy<'a> {
     }
 }
 
-/// RFC 7515 §4.1.11: a `crit` header names extensions the recipient must
-/// understand, and no verifier here understands any, so its presence alone
-/// rejects the token (an empty list is itself malformed).
+// Why: RFC 7515 §4.1.11: a `crit` header names extensions the recipient must
+// understand, and no verifier here understands any, so its presence alone
+// rejects the token (an empty list is itself malformed).
 pub fn reject_critical_header(header: &Header) -> Result<(), JwtError> {
     if header.crit.is_some() {
         return Err(ErrorKind::InvalidToken.into());

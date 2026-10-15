@@ -79,7 +79,7 @@ pub(super) fn append_skill_files(
     Ok(())
 }
 
-/// Where a plugin bundle carries a skill's `SKILL.md`.
+// Why: Where a plugin bundle carries a skill's `SKILL.md`.
 #[must_use]
 pub fn skill_bundle_path(id: &SkillId) -> String {
     format!("skills/{}/SKILL.md", id.as_str().replace('_', "-"))
@@ -131,7 +131,7 @@ fn insert_skill_id(ids: &mut BTreeSet<SkillId>, raw: &str) {
     }
 }
 
-/// The exact `SKILL.md` text a bundle carries for `skill`.
+// Why: The exact `SKILL.md` text a bundle carries for `skill`.
 pub fn skill_bundle_markdown(skill: &SkillEntry) -> Result<String, MarketplaceError> {
     skill_md(&skill.id.as_str().replace('_', "-"), skill)
 }

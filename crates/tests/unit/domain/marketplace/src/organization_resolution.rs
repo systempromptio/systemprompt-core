@@ -49,18 +49,12 @@ async fn organization_grants_preserve_exact_publication_and_revocation() {
         .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
-    assert!(
-        granted
-            .as_content()
-            .skills
-            .iter()
-            .any(|skill| {
-                skill
-                    .instructions
-                    .as_deref()
-                    .is_some_and(|body| body.contains("managed instructions"))
-            })
-    );
+    assert!(granted.as_content().skills.iter().any(|skill| {
+        skill
+            .instructions
+            .as_deref()
+            .is_some_and(|body| body.contains("managed instructions"))
+    }));
     f.repository
         .set_consumer_grant(&f.owner, &f.resource, &consumer.owner, false)
         .await
@@ -230,18 +224,12 @@ async fn catalog_includes_published_skill_without_grant() {
         .with_organization_skills(f.repository.clone(), &f.owner, &consumer.owner)
         .await
         .expect("catalog");
-    assert!(
-        catalog
-            .as_content()
-            .skills
-            .iter()
-            .any(|skill| {
-                skill
-                    .instructions
-                    .as_deref()
-                    .is_some_and(|body| body.contains("managed instructions"))
-            })
-    );
+    assert!(catalog.as_content().skills.iter().any(|skill| {
+        skill
+            .instructions
+            .as_deref()
+            .is_some_and(|body| body.contains("managed instructions"))
+    }));
     assert_eq!(catalog.as_content().managed_files.len(), 1);
     assert!(
         matches!(resolver.resolve_skill(&consumer.owner, &f.key).await.expect("runtime"), ManagedSkillResolution::Withheld(reason) if *reason == WithheldReason::NotGranted)

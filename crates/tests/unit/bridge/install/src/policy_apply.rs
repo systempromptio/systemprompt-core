@@ -4,11 +4,11 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+use systemprompt_bridge::config::store::policy_apply::apply_claude_policy;
 use systemprompt_bridge::config::store::{
     ConfigStore, ConfigStoreError, ManagedPolicyRead, PolicyDocument, PolicyDocumentValue,
     PolicyHive, PolicyTarget,
 };
-use systemprompt_bridge::install::mdm::policy_apply::apply_claude_policy;
 
 const STALE: &str = r#"[{"name":"atlassian","url":"http://127.0.0.1:48218/mcp/atlassian"}]"#;
 
@@ -84,7 +84,7 @@ fn a_written_server_list_replaces_the_stale_loopback_list() {
         ("inferenceProvider", "REG_SZ", "gateway".to_owned()),
         ("managedMcpServers", "REG_SZ", fresh.to_owned()),
     ];
-    apply_claude_policy(&hive, PolicyHive::Machine, &values).unwrap();
+    let _receipt = apply_claude_policy(&hive, PolicyHive::Machine, &values).unwrap();
     assert_eq!(
         hive.get("managedMcpServers"),
         Some(PolicyDocumentValue::Str(fresh.to_owned()))
@@ -95,7 +95,7 @@ fn a_written_server_list_replaces_the_stale_loopback_list() {
 fn an_omitted_server_list_clears_the_stale_value() {
     let hive = Hive::with("managedMcpServers", STALE);
     let values = [("inferenceProvider", "REG_SZ", "gateway".to_owned())];
-    apply_claude_policy(&hive, PolicyHive::Machine, &values).unwrap();
+    let _receipt = apply_claude_policy(&hive, PolicyHive::Machine, &values).unwrap();
     assert_eq!(
         hive.get("managedMcpServers"),
         None,

@@ -66,8 +66,6 @@ fn catalog() -> &'static Catalog {
     })
 }
 
-// Brand names are filled in here rather than by each caller, so every message
-// can say `{ $app }` / `{ $vendor }` and a white-label build shows its own.
 pub fn t(id: &str) -> String {
     let Some(template) = catalog().messages.get(id) else {
         return id.to_owned();

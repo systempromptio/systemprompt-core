@@ -24,7 +24,7 @@ pub struct OidcSubject {
 #[derive(Debug, Deserialize)]
 struct OidcIdTokenClaims {
     sub: String,
-    // OIDC Core §2: `iat` is required in every id_token.
+    // Why: OIDC Core §2: `iat` is required in every id_token.
     #[serde(rename = "iat")]
     _iat: i64,
     #[serde(deserialize_with = "one_or_many")]
@@ -50,10 +50,10 @@ fn one_or_many<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Vec<String>, D
     })
 }
 
-/// OIDC Core §3.1.3.7 steps 4–5: an id_token for several audiences must name
-/// the party it was issued to in `azp`, and that party must be the expected
-/// client. A single-audience token's `azp` is not compared, since Google sets
-/// it to the requesting client in cross-client flows.
+// Why: OIDC Core §3.1.3.7 steps 4–5: an `id_token` for several audiences must
+// name the party it was issued to in `azp`, and that party must be the expected
+// client. A single-audience token's `azp` is not compared, since Google sets
+// it to the requesting client in cross-client flows.
 fn check_authorized_party(claims: &OidcIdTokenClaims, client: &str) -> IssuanceResult<()> {
     if claims.aud.len() > 1 && claims.azp.as_deref() != Some(client) {
         return Err(IssuanceError::InvalidRequest {

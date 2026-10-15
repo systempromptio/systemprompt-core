@@ -18,7 +18,7 @@ fn plugin(sha: char) -> PluginEntry {
 fn stamped(meta: &std::path::Path, root: &std::path::Path, sha: char) {
     stamp::write(
         meta,
-        "acme-plugin",
+        &PluginId::try_new("acme-plugin").unwrap(),
         &PluginStamp {
             sha256: sha.to_string().repeat(64),
             root: root.to_path_buf(),
@@ -71,7 +71,7 @@ fn a_cleared_stamp_is_not_current() {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(root.path().join("acme-plugin")).unwrap();
     stamped(meta.path(), root.path(), 'a');
-    stamp::clear(meta.path(), "acme-plugin").unwrap();
-    stamp::clear(meta.path(), "acme-plugin").unwrap();
+    stamp::clear(meta.path(), &PluginId::try_new("acme-plugin").unwrap()).unwrap();
+    stamp::clear(meta.path(), &PluginId::try_new("acme-plugin").unwrap()).unwrap();
     assert!(stamp::current(meta.path(), root.path(), &plugin('a')).is_none());
 }

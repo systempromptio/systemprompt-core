@@ -17,9 +17,7 @@ use systemprompt_api::routes::gateway::bridge_manifest::shape;
 use systemprompt_api::routes::gateway::bridge_plugin_archive::{archive_sha, pack};
 use systemprompt_identifiers::PluginId;
 use systemprompt_marketplace::{BundleFile, PluginBundle, skill_bundle_markdown};
-use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_HEADER, SignedManifest, SkillSource,
-};
+use systemprompt_models::bridge::manifest::{MANIFEST_SCHEMA_HEADER, SignedManifest, SkillSource};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 const DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
@@ -27,8 +25,9 @@ const DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000
 fn manifest() -> SignedManifest {
     let mut manifest = unhashed_manifest();
     let markdown = skill_bundle_markdown(&manifest.skills[0]).expect("render SKILL.md");
-    manifest.plugins[0].files[0].sha256 =
-        hex::encode(Sha256::digest(markdown.as_bytes())).try_into().expect("digest");
+    manifest.plugins[0].files[0].sha256 = hex::encode(Sha256::digest(markdown.as_bytes()))
+        .try_into()
+        .expect("digest");
     manifest
 }
 
@@ -63,7 +62,10 @@ fn unhashed_manifest() -> SignedManifest {
 
 fn schema_headers(value: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert(MANIFEST_SCHEMA_HEADER, value.parse().expect("schema header"));
+    headers.insert(
+        MANIFEST_SCHEMA_HEADER,
+        value.parse().expect("schema header"),
+    );
     headers
 }
 
@@ -79,7 +81,12 @@ fn a_bridge_that_advertises_nothing_gets_the_inline_schema() {
 fn the_inline_schema_keeps_every_body() {
     let mut manifest = manifest();
     shape::shape_for_schema(&mut manifest, 1);
-    assert!(manifest.skills.iter().all(|skill| skill.instructions.is_some()));
+    assert!(
+        manifest
+            .skills
+            .iter()
+            .all(|skill| skill.instructions.is_some())
+    );
     assert!(manifest.skills.iter().all(|skill| skill.source.is_none()));
 }
 
@@ -123,9 +130,8 @@ fn the_entity_tag_ignores_the_response_stamp_and_tracks_the_content() {
     let mut restamped = manifest();
     restamped.issued_at = Utc.with_ymd_and_hms(2027, 1, 1, 0, 0, 0).unwrap();
     restamped.not_before = restamped.issued_at;
-    restamped.manifest_version =
-        ManifestVersion::try_new("2027-01-01T00:00:00Z-0000000000000002")
-            .expect("manifest version");
+    restamped.manifest_version = ManifestVersion::try_new("2027-01-01T00:00:00Z-0000000000000002")
+        .expect("manifest version");
     let tag = shape::entity_tag(&first).expect("tag");
     assert_eq!(tag, shape::entity_tag(&restamped).expect("tag"));
     assert!(tag.starts_with('"') && tag.ends_with('"'));

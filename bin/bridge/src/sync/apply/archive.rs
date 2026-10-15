@@ -19,7 +19,11 @@ use super::safe_path::join_under;
 use crate::gateway::manifest::{PluginEntry, PluginFile};
 use crate::hash::sha256_hex;
 
-pub fn extract_verified(bytes: &[u8], plugin: &PluginEntry, stage: &Path) -> Result<(), ApplyError> {
+pub fn extract_verified(
+    bytes: &[u8],
+    plugin: &PluginEntry,
+    stage: &Path,
+) -> Result<(), ApplyError> {
     let mut pending: BTreeMap<&str, &PluginFile> =
         plugin.files.iter().map(|f| (f.path.as_str(), f)).collect();
     let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(bytes));

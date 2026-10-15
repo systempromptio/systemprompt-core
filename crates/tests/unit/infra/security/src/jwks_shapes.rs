@@ -55,7 +55,11 @@ fn entra_jwks_without_alg_parses_every_key() {
         kids(&jwks),
         ["JYhAcTPMZ_LX6DBlOWQ7Hn0NeXE", "L1KfKFI_jnXbwWc22xZxw1sUHH0"]
     );
-    assert!(jwks.keys.iter().all(|k| k.alg == "RS256" && k.use_ == "sig"));
+    assert!(
+        jwks.keys
+            .iter()
+            .all(|k| k.alg == "RS256" && k.use_ == "sig")
+    );
 }
 
 #[test]

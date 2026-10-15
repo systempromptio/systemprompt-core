@@ -44,12 +44,6 @@ pub async fn manifest(
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let profile = ProfileBootstrap::get()
         .map_err(|e| BridgeError::unavailable("manifest: profile not ready", e))?;
-    let tenant_id = profile
-        .cloud
-        .as_ref()
-        .and_then(|cloud| cloud.tenant_id.as_ref())
-        .filter(|t| !t.as_str().is_empty())
-        .cloned();
 
     let ManifestStamp {
         manifest_version,
@@ -92,14 +86,14 @@ pub async fn manifest(
     } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await?;
     let per_user_at = Instant::now();
 
-    let mut manifest = SignedManifest {
+    let manifest = SignedManifest {
         min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
         min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
         manifest_version,
         issued_at,
         not_before,
         user_id: claims.user_id,
-        tenant_id,
+        tenant_id: tenant_id(profile),
         user,
         plugins,
         skills,
@@ -118,11 +112,28 @@ pub async fn manifest(
         marketplaces,
     };
 
+    Ok(respond(
+        manifest,
+        schema,
+        &headers,
+        [started, resolved_at, per_user_at],
+    )?)
+}
+
+fn respond(
+    mut manifest: SignedManifest,
+    schema: u32,
+    headers: &HeaderMap,
+    [started, resolved_at, per_user_at]: [Instant; 3],
+) -> Result<Response, BridgeError> {
     shape::shape_for_schema(&mut manifest, schema);
     let etag = shape::entity_tag(&manifest)?;
-    if shape::matches_if_none_match(&headers, &etag) {
+    if shape::matches_if_none_match(headers, &etag) {
         log_timings(started, resolved_at, per_user_at, None);
-        return Ok(with_validators(StatusCode::NOT_MODIFIED.into_response(), &etag));
+        return Ok(with_validators(
+            StatusCode::NOT_MODIFIED.into_response(),
+            &etag,
+        ));
     }
 
     let signing_at = Instant::now();
@@ -130,6 +141,17 @@ pub async fn manifest(
         .map_err(|e| BridgeError::internal("manifest signing failed", e))?;
     log_timings(started, resolved_at, per_user_at, Some(signing_at));
     Ok(with_validators(Json(envelope).into_response(), &etag))
+}
+
+fn tenant_id(
+    profile: &systemprompt_manifest::Profile,
+) -> Option<systemprompt_identifiers::TenantId> {
+    profile
+        .cloud
+        .as_ref()
+        .and_then(|cloud| cloud.tenant_id.as_ref())
+        .filter(|t| !t.as_str().is_empty())
+        .cloned()
 }
 
 // Why: `no-cache` is "revalidate before reuse" — the bridge keeps the signed

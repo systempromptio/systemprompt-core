@@ -15,15 +15,19 @@ use crate::gateway::manifest::{SignedManifest, decode_payload};
 pub(super) enum CurrentVersion {
     Replay,
     Accepted,
-    /// The stored envelope, revalidated by a 304 from the gateway in this run.
-    /// Its `not_before` is as old as its first acceptance, so the clock-skew
-    /// check would refuse it; its signature is still verified by the caller.
+    // Why: The stored envelope, revalidated by a 304 from the gateway in this run.
+    // Its `not_before` is as old as its first acceptance, so the clock-skew
+    // check would refuse it; its signature is still verified by the caller.
     Revalidated,
 }
 
 impl CurrentVersion {
     pub(super) const fn for_run(revalidated: bool, otherwise: Self) -> Self {
-        if revalidated { Self::Revalidated } else { otherwise }
+        if revalidated {
+            Self::Revalidated
+        } else {
+            otherwise
+        }
     }
 }
 

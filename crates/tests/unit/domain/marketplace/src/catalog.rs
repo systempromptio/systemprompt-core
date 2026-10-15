@@ -310,7 +310,10 @@ fn load_skills_custom_content_file_honoured() {
 
     let skills = load_skills(dir.path()).expect("load skills");
     assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0].instructions.as_deref().unwrap_or_default(), "custom body\n");
+    assert_eq!(
+        skills[0].instructions.as_deref().unwrap_or_default(),
+        "custom body\n"
+    );
     assert!(skills[0].file_path.ends_with("PROMPT.md"));
 }
 
@@ -555,7 +558,10 @@ fn load_cached_reuses_until_the_skills_tree_changes() {
         "a changed skill file must invalidate the cache"
     );
     assert_eq!(
-        third.as_content().skills[0].instructions.as_deref().unwrap_or_default(),
+        third.as_content().skills[0]
+            .instructions
+            .as_deref()
+            .unwrap_or_default(),
         "a longer second body",
         "the rebuilt catalogue reflects the new on-disk content"
     );

@@ -51,8 +51,8 @@ impl AgentState {
         }
     }
 
-    /// Something on this machine waits on the user: every state with a fix
-    /// button except a missing app, which is a fact rather than a fault.
+    // Why: Something on this machine waits on the user: every state with a fix
+    // button except a missing app, which is a fact rather than a fault.
     #[must_use]
     pub const fn needs_attention(self) -> bool {
         matches!(

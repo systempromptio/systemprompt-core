@@ -54,9 +54,13 @@ async fn harness(mailbox: &str) -> Harness {
     )
     .expect("fixture context");
     let owner = ctx.system_admin().id();
-    seed_user_row(&pool, owner, &format!("{owner}@manifest-conditional.invalid"))
-        .await
-        .expect("seed the organisation owner");
+    seed_user_row(
+        &pool,
+        owner,
+        &format!("{owner}@manifest-conditional.invalid"),
+    )
+    .await
+    .expect("seed the organisation owner");
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
@@ -113,12 +117,17 @@ async fn a_matching_entity_tag_answers_not_modified_with_no_body() {
     let revalidated = fetch(&harness, &[("if-none-match", tag.as_str())]).await;
     assert_eq!(revalidated.status(), StatusCode::NOT_MODIFIED);
     assert_eq!(entity_tag(&revalidated), tag);
-    let empty = to_bytes(revalidated.into_body(), usize::MAX).await.expect("body");
+    let empty = to_bytes(revalidated.into_body(), usize::MAX)
+        .await
+        .expect("body");
     assert!(empty.is_empty(), "a 304 carries no envelope");
 
     let rebuilt = fetch(
         &harness,
-        &[("if-none-match", tag.as_str()), ("cache-control", "no-cache")],
+        &[
+            ("if-none-match", tag.as_str()),
+            ("cache-control", "no-cache"),
+        ],
     )
     .await;
     assert_eq!(
@@ -137,8 +146,13 @@ async fn the_schema_two_response_is_signed_and_tagged() {
     let response = fetch(&harness, &[(MANIFEST_SCHEMA_HEADER, "2")]).await;
     assert_eq!(response.status(), StatusCode::OK);
     entity_tag(&response);
-    let body = to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    let body = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
     let envelope: SignedManifestEnvelope = serde_json::from_slice(&body).expect("envelope");
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload).expect("payload");
-    assert_eq!(payload["min_schema_version"], 1, "0.67 bridges are never refused");
+    assert_eq!(
+        payload["min_schema_version"], 1,
+        "0.67 bridges are never refused"
+    );
 }

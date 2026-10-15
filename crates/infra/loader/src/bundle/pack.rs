@@ -194,8 +194,8 @@ pub fn create_tarball_bytes(root: &Path, files: &[FileEntry]) -> BundleResult<Ve
     Ok(encoder.finish()?)
 }
 
-/// Packs in-memory files into a gzipped tar. Headers carry no timestamp or
-/// owner, so the same entries always pack to the same bytes.
+// Why: Packs in-memory files into a gzipped tar. Headers carry no timestamp or
+// owner, so the same entries always pack to the same bytes.
 pub fn create_tarball_from_memory<'a>(
     entries: impl IntoIterator<Item = (&'a str, &'a [u8], bool)>,
 ) -> BundleResult<Vec<u8>> {

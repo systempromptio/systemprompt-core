@@ -31,7 +31,6 @@ pub fn load_services_config() -> ConfigLoadResult<ServicesConfig> {
         return Ok(config.clone());
     }
     let config = bridge_data::load_services_config()?;
-    *CACHED.lock().unwrap_or_else(PoisonError::into_inner) =
-        Some((Instant::now(), config.clone()));
+    *CACHED.lock().unwrap_or_else(PoisonError::into_inner) = Some((Instant::now(), config.clone()));
     Ok(config)
 }

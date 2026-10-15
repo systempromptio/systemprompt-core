@@ -92,13 +92,10 @@ pub(super) async fn asset_digest(
             status: resp.status(),
         });
     }
-    let body = resp
-        .text()
-        .await
-        .map_err(|source| ReleaseError::Request {
-            stage: "SHA256SUMS read",
-            source,
-        })?;
+    let body = resp.text().await.map_err(|source| ReleaseError::Request {
+        stage: "SHA256SUMS read",
+        source,
+    })?;
 
     parse_sha256sums(&body, asset_name).ok_or_else(|| ReleaseError::ChecksumMissing {
         asset: asset_name.to_owned(),

@@ -167,16 +167,19 @@ fn validate_self_issued(
     })
 }
 
-/// RFC 7519 §4.1: `jsonwebtoken` checks `iss` and `aud` only when the token
-/// carries them, so both are required outright for every subject token.
+// Why: RFC 7519 §4.1: `jsonwebtoken` checks `iss` and `aud` only when the token
+// carries them, so both are required outright for every subject token.
 pub const REQUIRED_CLAIMS: [&str; 3] = ["exp", "iss", "aud"];
 
-static SHARED_JWKS: LazyLock<Mutex<Option<(Vec<String>, Arc<JwksClient>)>>> =
-    LazyLock::new(|| Mutex::new(None));
+type HostKeyedJwks = Option<(Vec<String>, Arc<JwksClient>)>;
 
-/// One JWKS client per trusted-issuer host allowlist, kept for the process so
-/// its `Cache-Control` TTL and kid-miss refetch throttle actually apply; a
-/// client built per request re-fetched the issuer's JWKS on every exchange.
+static SHARED_JWKS: LazyLock<Mutex<HostKeyedJwks>> = LazyLock::new(|| Mutex::new(None));
+
+// Why: One JWKS client per trusted-issuer host allowlist.
+//
+// It is kept for the process so its `Cache-Control` TTL and kid-miss refetch
+// throttle actually apply; a client built per request re-fetched the issuer's
+// JWKS on every exchange.
 pub fn shared_jwks_client(trusted: &[TrustedIssuer]) -> Arc<JwksClient> {
     let hosts = jwks_host_allowlist(trusted);
     let mut slot = SHARED_JWKS.lock().unwrap_or_else(PoisonError::into_inner);

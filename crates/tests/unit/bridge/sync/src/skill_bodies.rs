@@ -10,7 +10,8 @@ use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough
 fn skill_signing(body: &str) -> SkillEntry {
     let frontmatter = crate::skill_passthrough::authored_frontmatter();
     let rendered = render_passthrough_frontmatter(Some(&frontmatter)).unwrap();
-    let digest = systemprompt_bridge::hash::hex_encode(&Sha256::digest(format!("{rendered}{body}")));
+    let digest =
+        systemprompt_bridge::hash::hex_encode(&Sha256::digest(format!("{rendered}{body}")));
     SkillEntry {
         publication: None,
         id: SkillId::try_new("code_review").unwrap(),
@@ -58,7 +59,7 @@ fn a_body_that_does_not_match_the_digest_is_refused() {
         "skills/code-review/SKILL.md",
     )
     .unwrap_err();
-    assert!(err.contains("does not match"), "{err}");
+    assert!(err.to_string().contains("does not match"), "{err}");
 }
 
 #[test]

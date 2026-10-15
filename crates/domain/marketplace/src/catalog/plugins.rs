@@ -102,7 +102,7 @@ pub(super) fn hash_entries(
         .collect();
 
     let mut out = Vec::with_capacity(bundles.len());
-    for (id, bundle) in bundles.iter() {
+    for (id, bundle) in bundles {
         let config = configs.get(id.as_str()).copied().ok_or_else(|| {
             MarketplaceError::Catalog(format!("plugin {id} missing from services config"))
         })?;

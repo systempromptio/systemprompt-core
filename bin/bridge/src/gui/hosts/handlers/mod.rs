@@ -12,6 +12,7 @@ mod repair;
 
 pub(crate) use enabled::{on_enabled_set_finished, on_enabled_set_requested};
 pub(crate) use model_filter::{on_model_filter_set_finished, on_model_filter_set_requested};
+pub(crate) use pending::{note_install_pending, on_restart_requested};
 pub(crate) use probe::{
     ProbeResult, on_probe_finished, on_probe_requested, on_proxy_probe_finished,
     on_proxy_probe_requested,
@@ -20,7 +21,6 @@ pub(crate) use profile::{
     on_profile_generate_finished, on_profile_generate_requested, on_profile_install_finished,
     on_profile_install_requested,
 };
-pub(crate) use pending::{note_install_pending, on_restart_requested};
 pub(crate) use repair::{on_unattended_repair_finished, repair_stale_unattended};
 
 use crate::gui::events::ReplyId;

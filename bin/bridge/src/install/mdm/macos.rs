@@ -229,7 +229,7 @@ pub(crate) fn apply_mobileconfig(
     let mobileconfig = build_mobileconfig(mcp, pubkey)?;
     let file_name = format!("{}.mobileconfig", crate::brand::brand().binary_name);
     let out_path =
-        crate::integration::generated_profile::write_persistent(&file_name, mobileconfig.as_bytes())
+        crate::config::paths::write_persistent_profile(&file_name, mobileconfig.as_bytes())
             .map_err(|e| MdmError::Io {
                 action: "write",
                 path: std::path::PathBuf::from(&file_name),
@@ -241,7 +241,7 @@ pub(crate) fn apply_mobileconfig(
     // Management pane open, never behind the user's back.
     let opened = Command::new("/usr/bin/open").arg(&out_path).status();
     let pane = Command::new("/usr/bin/open")
-        .arg(crate::integration::app_launch::DEVICE_MANAGEMENT_URL)
+        .arg(crate::install::mdm::DEVICE_MANAGEMENT_URL)
         .status();
     if !pane.as_ref().is_ok_and(std::process::ExitStatus::success) {
         tracing::warn!(?pane, "could not open the Device Management pane");

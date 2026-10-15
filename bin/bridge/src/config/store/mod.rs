@@ -12,6 +12,7 @@ mod macos_managed_prefs;
 #[cfg(target_os = "macos")]
 mod macos_plist_store;
 pub mod plist;
+pub mod policy_apply;
 pub mod verified;
 #[cfg(target_os = "windows")]
 mod windows_policy;

@@ -10,9 +10,9 @@
 
 use serde::{Deserialize, Deserializer};
 
-/// `expires_in` as a number, a numeric string, `null`, or absent (with
-/// `#[serde(default)]`). A negative or non-numeric value is absent rather than
-/// an error, so the caller falls back to its own default lifetime.
+// Why: servers send `expires_in` as a number, a numeric string, `null`, or
+// not at all; a negative or non-numeric value reads as absent so the caller
+// falls back to its own default lifetime.
 pub fn expires_in<'de, D: Deserializer<'de>>(de: D) -> Result<Option<u64>, D::Error> {
     #[derive(Deserialize)]
     #[serde(untagged)]

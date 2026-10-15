@@ -125,16 +125,15 @@ impl JwksClient {
 }
 
 pub fn parse_max_age(header: &str) -> Option<Duration> {
-    // RFC 9111 §5.2: directive names are case-insensitive, the argument may be
+    // Why: RFC 9111 §5.2: directive names are case-insensitive, the argument may be
     // a quoted-string, and `no-store` / `no-cache` forbid reuse without
     // revalidation — answered as zero so the caller clamps to its floor.
     let mut max_age = None;
     for directive in header.split(',') {
-        let (name, value) = directive
-            .split_once('=')
-            .map_or((directive.trim(), None), |(n, v)| {
-                (n.trim(), Some(v.trim()))
-            });
+        let (name, value) = directive.split_once('=').map_or_else(
+            || (directive.trim(), None),
+            |(n, v)| (n.trim(), Some(v.trim())),
+        );
         if name.eq_ignore_ascii_case("no-store") || name.eq_ignore_ascii_case("no-cache") {
             return Some(Duration::ZERO);
         }

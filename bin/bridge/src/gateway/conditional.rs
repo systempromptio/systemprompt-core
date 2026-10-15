@@ -36,9 +36,9 @@ pub enum ManifestResponse {
 #[derive(Debug)]
 pub enum ArchiveResponse {
     Archive(Vec<u8>),
-    /// The gateway predates the archive route; fetch file by file.
+    // Why: The gateway predates the archive route; fetch file by file.
     Unsupported,
-    /// The gateway no longer holds this plugin digest; the manifest is stale.
+    // Why: The gateway no longer holds this plugin digest; the manifest is stale.
     Stale,
 }
 

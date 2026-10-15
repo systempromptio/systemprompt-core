@@ -246,9 +246,7 @@ fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> Result<String, ApplyEr
             lines.join("\n")
         )));
     }
-    Ok(ensure_trailing_newline(
-        front_matter(skill, dir)? + body,
-    ))
+    Ok(ensure_trailing_newline(front_matter(skill, dir)? + body))
 }
 
 fn front_matter(skill: &SkillEntry, name: &str) -> Result<String, ApplyError> {

@@ -27,11 +27,11 @@ pub struct Jwks {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Jwk {
     pub kty: String,
-    // RFC 7517 §4.4: `alg` is optional and Entra ID omits it; callers pin the
+    // Why: RFC 7517 §4.4: `alg` is optional and Entra ID omits it; callers pin the
     // algorithm from the token header, never from the key.
     #[serde(default = "default_alg")]
     pub alg: String,
-    // RFC 7517 §4.2: `use` is optional; an absent one does not restrict the key.
+    // Why: RFC 7517 §4.2: `use` is optional; an absent one does not restrict the key.
     #[serde(rename = "use", default = "default_use")]
     pub use_: String,
     pub kid: String,
@@ -66,7 +66,7 @@ struct PublishedKey {
 }
 
 impl PublishedKey {
-    // RFC 7517 §4.2/§4.3 restrict a key's purpose and §4.4 its algorithm;
+    // Why: RFC 7517 §4.2/§4.3 restrict a key's purpose and §4.4 its algorithm;
     // RFC 8725 §3.1 forbids verifying with a key bound to another algorithm.
     fn into_rs256_verification_key(self) -> Option<Jwk> {
         if self.kty.as_deref() != Some("RSA") {

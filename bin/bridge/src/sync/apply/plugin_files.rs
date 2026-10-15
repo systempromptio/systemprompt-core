@@ -44,7 +44,10 @@ pub(super) fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, supe
     Ok(names)
 }
 
-pub(super) fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, super::ApplyError> {
+pub(super) fn remove_stale(
+    root: &Path,
+    expected: &HashSet<&str>,
+) -> Result<Vec<String>, super::ApplyError> {
     let mut removed = Vec::new();
     let entries = fs::read_dir(root).map_err(|source| super::ApplyError::Io {
         context: format!("enumerate {}", root.display()),

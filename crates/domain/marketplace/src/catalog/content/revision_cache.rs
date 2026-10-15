@@ -11,8 +11,8 @@
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use systemprompt_identifiers::ResourceRevisionId;
 use crate::managed::RevisionBundle;
+use systemprompt_identifiers::ResourceRevisionId;
 
 const CAPACITY: usize = 1024;
 

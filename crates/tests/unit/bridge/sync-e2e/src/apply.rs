@@ -2203,7 +2203,11 @@ fn a_plugin_archive_is_preferred_and_an_unchanged_plugin_is_not_refetched() {
         fs::read(b.dirs.org_plugins.join("acme-plugin/skills/a/SKILL.md")).unwrap(),
         b"archived body"
     );
-    assert_eq!(plugin_requests(&b.server), 1, "one archive, no per-file fetches");
+    assert_eq!(
+        plugin_requests(&b.server),
+        1,
+        "one archive, no per-file fetches"
+    );
 
     let second = run_sync(&b.dirs).expect("warm sync succeeds");
     assert!(second.installed.is_empty() && second.updated.is_empty());

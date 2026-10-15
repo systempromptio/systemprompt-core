@@ -34,7 +34,7 @@ const MEMO_BYTES: usize = 256 * 1024 * 1024;
 
 static PACKED: Mutex<VecDeque<(String, Bytes)>> = Mutex::new(VecDeque::new());
 
-/// The sha of an `archive/<sha256>` plugin path, or `None` for a file path.
+// Why: The sha of an `archive/<sha256>` plugin path, or `None` for a file path.
 #[must_use]
 pub fn archive_sha(relative_path: &str) -> Option<&str> {
     relative_path
@@ -66,22 +66,20 @@ pub(super) async fn serve(
     }
     let key = current.sha256.as_str().to_owned();
 
-    let bytes = match memo_get(&key) {
-        Some(bytes) => bytes,
-        None => {
-            let bundles = std::sync::Arc::clone(&resolved.bundles);
-            let plugin = id.clone();
-            let packed = tokio::task::spawn_blocking(move || {
-                bundles.get(&plugin).map(pack).transpose()
-            })
-            .await
-            .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
-            .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
-            .ok_or(BridgeError::PluginNotFound)?;
-            let bytes = Bytes::from(packed);
-            memo_put(key.clone(), bytes.clone());
-            bytes
-        },
+    let bytes = if let Some(bytes) = memo_get(&key) {
+        bytes
+    } else {
+        let bundles = std::sync::Arc::clone(&resolved.bundles);
+        let plugin = id.clone();
+        let packed =
+            tokio::task::spawn_blocking(move || bundles.get(&plugin).map(pack).transpose())
+                .await
+                .map_err(|e| BridgeError::internal("plugin archive: packing task failed", e))?
+                .map_err(|e| BridgeError::internal("plugin archive: packing failed", e))?
+                .ok_or(BridgeError::PluginNotFound)?;
+        let bytes = Bytes::from(packed);
+        memo_put(key.clone(), bytes.clone());
+        bytes
     };
 
     let mut response = Response::new(Body::from(bytes));
@@ -100,8 +98,8 @@ pub(super) async fn serve(
     Ok(response)
 }
 
-/// Packs a plugin bundle into the archive the route serves: one entry per
-/// bundle path, mode `0755` for executables.
+// Why: Packs a plugin bundle into the archive the route serves: one entry per
+// bundle path, mode `0755` for executables.
 pub fn pack(bundle: &PluginBundle) -> systemprompt_loader::BundleResult<Vec<u8>> {
     systemprompt_loader::bundle::pack::create_tarball_from_memory(
         bundle

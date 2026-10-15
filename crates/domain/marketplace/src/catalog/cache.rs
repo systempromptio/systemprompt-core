@@ -140,8 +140,8 @@ impl MarketplaceCache {
             .map(|entry| Arc::clone(&entry.value))
     }
 
-    /// A resolution of exactly `key` built at or after `since`, TTL ignored:
-    /// what a request that waited on another's rebuild may take as its own.
+    // Why: A resolution of exactly `key` built at or after `since`, TTL ignored:
+    // what a request that waited on another's rebuild may take as its own.
     pub fn resolved_built_since(
         &self,
         key: &ResolvedKey,
@@ -157,7 +157,7 @@ impl MarketplaceCache {
             .map(|entry| Arc::clone(&entry.value))
     }
 
-    /// The one rebuild gate for `user`; it lives while someone holds it.
+    // Why: The one rebuild gate for `user`; it lives while someone holds it.
     pub fn rebuild_gate(&self, user: &UserId) -> Arc<tokio::sync::Mutex<()>> {
         let mut gates = self
             .rebuilds

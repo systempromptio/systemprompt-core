@@ -58,9 +58,6 @@ pub struct SkillEntry {
     #[serde(default)]
     pub tags: Vec<String>,
     pub sha256: Sha256Digest,
-    /// The skill body. Always present in a schema-1 manifest; a schema-2
-    /// manifest omits it when [`Self::source`] names the plugin file that
-    /// carries the same body.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub instructions: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

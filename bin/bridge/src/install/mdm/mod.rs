@@ -10,6 +10,12 @@ pub mod desktop_tool_policy;
 pub(crate) mod egress;
 mod error;
 mod inference;
+// Why: The deep link into System Settings › General › Device Management, where
+// macOS holds a configuration profile until the user approves it.
+#[cfg(target_os = "macos")]
+pub(crate) const DEVICE_MANAGEMENT_URL: &str =
+    "x-apple.systempreferences:com.apple.Profiles-Settings.extension";
+
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub mod linux;
 #[cfg(target_os = "macos")]
@@ -18,7 +24,6 @@ pub(super) mod macos;
 mod macos_payload;
 mod macos_remove;
 pub mod policy;
-pub mod policy_apply;
 mod policy_render;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;

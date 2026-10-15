@@ -6,7 +6,8 @@
 //! written 0600 and removed once the installer has consumed it. A profile the
 //! OS installs asynchronously (a macOS `.mobileconfig` opened in System
 //! Settings) is the one case that outlives the call; it is written to a stable
-//! per-user path instead (`write_persistent`) and stays private.
+//! per-user path instead (`config::paths::write_persistent_profile`) and stays
+//! private.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -21,20 +22,6 @@ pub fn write(stem: &str, extension: &str, body: &[u8]) -> io::Result<PathBuf> {
         "{stem}-{}{extension}",
         uuid::Uuid::new_v4().simple()
     ));
-    crate::fsutil::atomic_write_0600(&path, body)?;
-    Ok(path)
-}
-
-/// A profile the OS installs on its own schedule, written where it survives:
-/// a stable per-user path under the bridge's metadata directory, so macOS can
-/// still find the `.mobileconfig` after the call and the user can re-add it
-/// from Device Management by hand. Regenerating overwrites it in place.
-pub fn write_persistent(file_name: &str, body: &[u8]) -> io::Result<PathBuf> {
-    let dir = crate::config::paths::bridge_metadata_dir()
-        .ok_or_else(|| io::Error::other("no per-user bridge metadata directory"))?
-        .join("profiles");
-    crate::fsutil::create_dir_all_mode_0700(&dir)?;
-    let path = dir.join(file_name);
     crate::fsutil::atomic_write_0600(&path, body)?;
     Ok(path)
 }

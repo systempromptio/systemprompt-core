@@ -16,11 +16,6 @@ mod windows;
 
 #[cfg(target_os = "windows")]
 use windows::{msix_launch, msix_package_present, start_menu_launch, start_menu_present_cached};
-/// The deep link into System Settings › General › Device Management, where
-/// macOS holds a configuration profile until the user approves it.
-#[cfg(target_os = "macos")]
-pub(crate) const DEVICE_MANAGEMENT_URL: &str =
-    "x-apple.systempreferences:com.apple.Profiles-Settings.extension";
 
 #[derive(Debug, Clone, Copy)]
 #[expect(

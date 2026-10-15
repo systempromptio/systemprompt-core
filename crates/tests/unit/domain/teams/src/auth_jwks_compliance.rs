@@ -139,7 +139,15 @@ async fn unknown_kid_refetches_at_most_once_per_window() {
         let err = verifier.verify(&token, SERVICE_URL, at).await;
         assert!(matches!(err, Err(TeamsError::UnknownSigningKey { .. })));
     }
-    assert_eq!(jwks_hits(&server).await, 1, "misses inside the window are throttled");
+    assert_eq!(
+        jwks_hits(&server).await,
+        1,
+        "misses inside the window are throttled"
+    );
     let _ = verifier.verify(&token, SERVICE_URL, 61).await;
-    assert_eq!(jwks_hits(&server).await, 2, "a miss after the window refetches");
+    assert_eq!(
+        jwks_hits(&server).await,
+        2,
+        "a miss after the window refetches"
+    );
 }

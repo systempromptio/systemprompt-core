@@ -37,10 +37,12 @@ pub struct IdJagClaims {
     pub resource: Option<String>,
 }
 
-/// OIDC Core §5.1 types `email_verified` as a boolean, but several identity
-/// providers (AWS Cognito among them) send `"true"` / `"false"` strings.
-/// Either spelling is read; anything else, and `null`, is `false`, so an
-/// ambiguous value can never vouch for an address.
+// Why: `email_verified` read as a boolean or a `"true"` / `"false"` string.
+//
+// OIDC Core §5.1 types it as a boolean, but several identity
+// providers (AWS Cognito among them) send `"true"` / `"false"` strings.
+// Either spelling is read; anything else, and `null`, is `false`, so an
+// ambiguous value can never vouch for an address.
 pub fn bool_or_bool_string<'de, D: Deserializer<'de>>(de: D) -> Result<bool, D::Error> {
     #[derive(Deserialize)]
     #[serde(untagged)]

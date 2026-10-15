@@ -59,7 +59,10 @@ async fn a_304_for_the_sent_etag_is_not_modified() {
         .fetch_manifest_conditional(&bearer(), Freshness::Fresh, Some("\"v1\""))
         .await
         .unwrap();
-    assert!(matches!(response, ManifestResponse::NotModified), "{response:?}");
+    assert!(
+        matches!(response, ManifestResponse::NotModified),
+        "{response:?}"
+    );
 }
 
 #[tokio::test]
@@ -80,7 +83,9 @@ async fn archive_status(status: u16) -> ArchiveResponse {
     let server = MockServer::start().await;
     let sha = "a".repeat(64);
     Mock::given(method("GET"))
-        .and(path(format!("/v1/bridge/plugins/acme-plugin/archive/{sha}")))
+        .and(path(format!(
+            "/v1/bridge/plugins/acme-plugin/archive/{sha}"
+        )))
         .respond_with(ResponseTemplate::new(status).set_body_bytes(b"tgz".to_vec()))
         .mount(&server)
         .await;
@@ -104,7 +109,10 @@ async fn an_archive_is_returned_verbatim() {
 
 #[tokio::test]
 async fn an_archive_404_means_an_older_gateway() {
-    assert!(matches!(archive_status(404).await, ArchiveResponse::Unsupported));
+    assert!(matches!(
+        archive_status(404).await,
+        ArchiveResponse::Unsupported
+    ));
 }
 
 #[tokio::test]

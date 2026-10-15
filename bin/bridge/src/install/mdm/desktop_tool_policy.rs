@@ -62,9 +62,9 @@ pub fn desktop_tool_policy_map(
     Some(out)
 }
 
-/// The managed servers the desktop policy skips because their wildcard has no
-/// tool names to expand over: the catalog drops a server whose last probe did
-/// not authenticate, so each one is fixed by signing in and probing it again.
+// Why: The managed servers the desktop policy skips because their wildcard has
+// no tool names to expand over: the catalog drops a server whose last probe did
+// not authenticate, so each one is fixed by signing in and probing it again.
 #[must_use]
 pub fn unlisted_servers(
     registry: &crate::mcp_registry::McpRegistry,

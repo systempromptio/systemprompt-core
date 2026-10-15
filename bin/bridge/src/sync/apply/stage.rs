@@ -41,8 +41,8 @@ struct StageJob {
     installed: PathBuf,
 }
 
-/// Stages `changed` under the staging root; `already` plugins are unchanged
-/// and count as done for progress out of `total`.
+// Why: Stages `changed` under the staging root; `already` plugins are unchanged
+// and count as done for progress out of `total`.
 pub(super) async fn stage_changed(
     ctx: &PluginSyncCtx<'_>,
     changed: &[&PluginEntry],

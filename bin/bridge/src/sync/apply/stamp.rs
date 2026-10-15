@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 use super::ApplyError;
 use crate::fsutil::atomic_write_0644;
 use crate::gateway::manifest::PluginEntry;
+use crate::ids::PluginId;
 
 pub const STAMP_DIR: &str = "plugin-stamps";
 
@@ -31,22 +32,22 @@ pub struct PluginStamp {
     pub mcp_servers: Vec<String>,
 }
 
-fn stamp_path(meta_dir: &Path, plugin_id: &str) -> PathBuf {
+fn stamp_path(meta_dir: &Path, plugin_id: &PluginId) -> PathBuf {
     meta_dir.join(STAMP_DIR).join(format!("{plugin_id}.json"))
 }
 
-/// The stamp of an installed plugin that already holds `plugin`'s digest.
+// Why: The stamp of an installed plugin that already holds `plugin`'s digest.
 #[must_use]
 pub fn current(meta_dir: &Path, root: &Path, plugin: &PluginEntry) -> Option<PluginStamp> {
     if !root.join(plugin.id.as_str()).is_dir() {
         return None;
     }
-    let bytes = fs::read(stamp_path(meta_dir, plugin.id.as_str())).ok()?;
+    let bytes = fs::read(stamp_path(meta_dir, &plugin.id)).ok()?;
     let stamp: PluginStamp = serde_json::from_slice(&bytes).ok()?;
     (stamp.sha256 == plugin.sha256.as_str() && stamp.root == root).then_some(stamp)
 }
 
-pub fn write(meta_dir: &Path, plugin_id: &str, stamp: &PluginStamp) -> Result<(), ApplyError> {
+pub fn write(meta_dir: &Path, plugin_id: &PluginId, stamp: &PluginStamp) -> Result<(), ApplyError> {
     let path = stamp_path(meta_dir, plugin_id);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| ApplyError::Io {
@@ -64,9 +65,9 @@ pub fn write(meta_dir: &Path, plugin_id: &str, stamp: &PluginStamp) -> Result<()
     })
 }
 
-/// Drops a stamp before its plugin directory changes, so an interrupted swap
-/// never leaves a stamp vouching for a tree it does not describe.
-pub fn clear(meta_dir: &Path, plugin_id: &str) -> Result<(), ApplyError> {
+// Why: Drops a stamp before its plugin directory changes, so an interrupted
+// swap never leaves a stamp vouching for a tree it does not describe.
+pub fn clear(meta_dir: &Path, plugin_id: &PluginId) -> Result<(), ApplyError> {
     let path = stamp_path(meta_dir, plugin_id);
     match fs::remove_file(&path) {
         Ok(()) => Ok(()),

@@ -198,22 +198,24 @@ fn host_profile_install(app: &GuiApp, args: Value, reply_id: ReplyId) -> Command
 }
 
 #[cfg(not(target_os = "macos"))]
+// JSON: webview IPC reply — never produced off macOS.
 fn open_device_management() -> Result<Value, BridgeError> {
     Err(BridgeError::invalid_args(
         "Device Management is a macOS settings pane",
     ))
 }
 
-// JSON: webview IPC reply — an empty object on success.
 #[cfg(target_os = "macos")]
+// JSON: webview IPC reply — an empty object on success.
 fn open_device_management() -> Result<Value, BridgeError> {
-    opener::open(crate::integration::app_launch::DEVICE_MANAGEMENT_URL)
+    opener::open(crate::install::mdm::DEVICE_MANAGEMENT_URL)
         .map(|()| serde_json::json!({}))
         .map_err(|e| {
-            BridgeError::new(
+            BridgeError::from_error_in(
                 ErrorScope::Host,
                 ErrorCode::Internal,
-                format!("open Device Management failed: {e}"),
+                "open Device Management",
+                &e,
             )
         })
 }
@@ -221,6 +223,7 @@ fn open_device_management() -> Result<Value, BridgeError> {
 // Why: an expired macOS profile can still be added by hand with the + in
 // Device Management, which needs the file the bridge last generated; Finder's
 // reveal (`open -R`) selects it there.
+// JSON: webview IPC reply — an empty object on success.
 fn reveal_profile(
     app: &GuiApp,
     host_id: systemprompt_models::bridge::host::HostKind,

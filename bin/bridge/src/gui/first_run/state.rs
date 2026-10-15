@@ -24,10 +24,10 @@ pub struct FirstRunState {
     pub sync: StepStatus,
     pub error: Option<String>,
     pub started_at_unix: u64,
-    /// Outcome of the run's first sync, held until every host is terminal.
+    // Why: Outcome of the run's first sync, held until every host is terminal.
     pub sync_result: Option<bool>,
-    /// A host finished installing after the sync started, so the sync may
-    /// have missed it and one follow-up sync is owed.
+    // Why: A host finished installing after the sync started, so the sync may
+    // have missed it and one follow-up sync is owed.
     pub host_installed_during_sync: bool,
     pub followup_sync: bool,
 }

@@ -48,7 +48,7 @@ impl<'a> WritePlan<'a> {
     pub(super) fn write(&self) -> Result<Vec<store::verified::PolicyReceipt>, MdmError> {
         let bridge = typed(self.bridge);
         let mut completed = vec![
-            super::policy_apply::apply_claude_policy(self.store.backend(), self.hive, self.claude)
+            store::policy_apply::apply_claude_policy(self.store.backend(), self.hive, self.claude)
                 .map_err(policy_err)?,
         ];
         if !bridge.is_empty() {

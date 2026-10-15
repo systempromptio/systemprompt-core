@@ -4,14 +4,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::config::store::verified::{self, PolicyReceipt};
-use crate::config::store::{ConfigStore, ConfigStoreError, PolicyHive, PolicyTarget};
+use super::verified::{self, PolicyReceipt};
+use super::{ConfigStore, ConfigStoreError, PolicyHive, PolicyTarget};
 
 pub type RenderedValues = [(&'static str, &'static str, String)];
 
-/// Keys the policy may withhold. A withheld key is cleared from the hive: a
-/// value an older install left there (a `managedMcpServers` list pointing at
-/// another loopback port) would otherwise stay in force.
+// Why: Keys the policy may withhold. A withheld key is cleared from the hive: a
+// value an older install left there (a `managedMcpServers` list pointing at
+// another loopback port) would otherwise stay in force.
 pub const RECONCILED_KEYS: &[&str] = &["managedMcpServers"];
 
 #[must_use]
@@ -19,11 +19,12 @@ pub fn withheld_keys(values: &RenderedValues) -> Vec<&'static str> {
     withheld_among(values.iter().map(|(name, _, _)| *name))
 }
 
-fn withheld_among<'a>(names: impl Iterator<Item = &'a str> + Clone) -> Vec<&'static str> {
+fn withheld_among<'a>(names: impl Iterator<Item = &'a str>) -> Vec<&'static str> {
+    let present: Vec<&str> = names.collect();
     RECONCILED_KEYS
         .iter()
         .copied()
-        .filter(|key| !names.clone().any(|name| name == *key))
+        .filter(|key| !present.contains(key))
         .collect()
 }
 
@@ -48,7 +49,7 @@ pub fn apply_claude_entries(
         store,
         hive,
         PolicyTarget::Claude,
-        &crate::config::store::PolicyDocumentValue::strings(entries),
+        &super::PolicyDocumentValue::strings(entries),
     )?;
     let withheld = withheld_among(entries.iter().map(|(name, _)| name.as_str()));
     if !withheld.is_empty() {

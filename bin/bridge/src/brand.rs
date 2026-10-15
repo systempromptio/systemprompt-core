@@ -87,8 +87,8 @@ pub struct Brand {
     pub autostart_task_name: &'static str,
     pub aumid: &'static str,
     pub force_dark: bool,
-    /// Licensing notice shown in the setup and settings footers; `None` hides
-    /// it, for a build that is licensed for production use.
+    // Why: Licensing notice shown in the setup and settings footers; `None` hides
+    // it, for a build that is licensed for production use.
     pub demo_notice: Option<&'static str>,
     pub assets: BrandAssets,
 }

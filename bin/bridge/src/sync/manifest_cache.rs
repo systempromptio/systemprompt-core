@@ -1,6 +1,6 @@
 //! The stored verified envelope as a revalidation cache for manifest fetches.
 //!
-//! The envelope a sync accepted is kept on disk with the gateway's ETag; the
+//! The envelope a sync accepted is kept on disk with the gateway's `ETag`; the
 //! next fetch sends it back as `If-None-Match`, and a 304 resolves to that
 //! stored envelope instead of a multi-megabyte download. The stored envelope is
 //! still signature-verified by the caller exactly as a fresh one would be.

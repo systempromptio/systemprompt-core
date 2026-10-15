@@ -7,7 +7,10 @@ use systemprompt_security::jwt::reject_critical_header;
 
 #[derive(Deserialize)]
 struct Response {
-    #[serde(default, deserialize_with = "systemprompt_security::oauth_wire::expires_in")]
+    #[serde(
+        default,
+        deserialize_with = "systemprompt_security::oauth_wire::expires_in"
+    )]
     expires_in: Option<u64>,
 }
 

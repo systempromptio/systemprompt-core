@@ -53,14 +53,13 @@ pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError
     );
     let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
     super::ensure_not_superseded(fetch.client.base_url())?;
-    let envelope_receipt =
-        apply::write_envelope(
-            &meta_dir,
-            fetch.client.base_url(),
-            &fetch.envelope,
-            fetch.etag.as_deref(),
-        )
-            .map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
+    let envelope_receipt = apply::write_envelope(
+        &meta_dir,
+        fetch.client.base_url(),
+        &fetch.envelope,
+        fetch.etag.as_deref(),
+    )
+    .map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
     let receipt = apply::write_mcp_servers(&meta_dir, fetch.client.base_url(), &servers)
         .map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
     crate::mcp_registry::publish(&bridge.mcp_registry, &servers);

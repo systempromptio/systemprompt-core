@@ -177,7 +177,7 @@ pub trait HostApp: Send + Sync + 'static {
         true
     }
 
-    /// Quit the running app so a relaunch reads the profile just written.
+    // Why: Quit the running app so a relaunch reads the profile just written.
     fn quit(&self) -> Result<(), HostAppError> {
         Err(HostAppError::OpenUnsupported)
     }

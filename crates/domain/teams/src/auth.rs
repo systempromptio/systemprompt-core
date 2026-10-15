@@ -77,23 +77,13 @@ impl Jwks {
                     && k.use_.as_deref().is_none_or(|u| u == "sig")
                     && k.alg.as_deref().is_none_or(|a| a == "RS256")
             })
-            .map(|k| {
-                (
-                    k.kid.clone(),
-                    Jwk {
-                        kid: k.kid,
-                        n: k.n,
-                        e: k.e,
-                    },
-                )
-            })
+            .map(|k| (k.kid.clone(), Jwk { n: k.n, e: k.e }))
             .collect()
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct Jwk {
-    kid: String,
     n: String,
     e: String,
 }
@@ -150,7 +140,7 @@ impl ActivityTokenVerifier {
         if header.crit.is_some() {
             return Err(TeamsError::InvalidToken {
                 context: "unsupported crit header",
-                source: jsonwebtoken::errors::ErrorKind::InvalidToken.into(),
+                source: ErrorKind::InvalidToken.into(),
             });
         }
         let kid = header.kid.ok_or(TeamsError::MissingKeyId)?;

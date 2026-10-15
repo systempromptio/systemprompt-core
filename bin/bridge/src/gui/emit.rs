@@ -118,7 +118,6 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
         "summary": summary,
         "failed": phase == "failed",
         "terminal": matches!(phase, "completed" | "cancelled" | "failed"),
-        // A lifecycle event (started, completed, …) ends any plugin count.
         "plugins": Value::Null,
     });
     send_emit(app, "sync.progress", &value);
