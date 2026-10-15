@@ -215,19 +215,20 @@ fn write_skill(root: &Path, dir_name: &str, content: &str) -> Result<(), ApplyEr
 }
 
 pub(crate) fn skill_markdown(skill: &SkillEntry) -> Result<String, ApplyError> {
-    let trimmed = skill.instructions.trim_start();
-    if trimmed.starts_with("---") {
-        return Ok(ensure_trailing_newline(skill.instructions.clone()));
+    let body = skill.instructions.as_deref().unwrap_or_default();
+    if body.trim_start().starts_with("---") {
+        return Ok(ensure_trailing_newline(body.to_owned()));
     }
     Ok(ensure_trailing_newline(
-        front_matter(skill, skill.name.as_str())? + &skill.instructions,
+        front_matter(skill, skill.name.as_str())? + body,
     ))
 }
 
 // Why: OpenCode requires the skill's front-matter name to match its directory
 // name.
 fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> Result<String, ApplyError> {
-    let trimmed = skill.instructions.trim_start();
+    let body = skill.instructions.as_deref().unwrap_or_default();
+    let trimmed = body.trim_start();
     if let Some(rest) = trimmed.strip_prefix("---")
         && let Some(end) = rest.find("\n---")
     {
@@ -246,7 +247,7 @@ fn skill_markdown_named(skill: &SkillEntry, dir: &str) -> Result<String, ApplyEr
         )));
     }
     Ok(ensure_trailing_newline(
-        front_matter(skill, dir)? + &skill.instructions,
+        front_matter(skill, dir)? + body,
     ))
 }
 

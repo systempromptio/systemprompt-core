@@ -38,7 +38,7 @@ use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, User
 
 pub use entries::{
     AgentEntry, ArtifactEntry, HookEntry, PluginEntry, PluginFile, RuleEntry, SkillEntry,
-    SkillPublication,
+    SkillPublication, SkillSource,
 };
 pub use external::{
     ExternalPluginSkills, ManifestExternalMarketplace, ManifestExternalMarketplaceSource,
@@ -46,7 +46,14 @@ pub use external::{
 };
 pub use managed_mcp::ManagedMcpServer;
 
-pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
+pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
+
+/// The schema every bridge since the floor parses: skill bodies inline.
+pub const MANIFEST_INLINE_SCHEMA_VERSION: u32 = 1;
+
+/// Request header a bridge sends to advertise the highest manifest schema it
+/// parses. Absent means [`MANIFEST_INLINE_SCHEMA_VERSION`].
+pub const MANIFEST_SCHEMA_HEADER: &str = "x-bridge-manifest-schema";
 
 #[must_use]
 pub const fn min_bridge_version() -> semver::Version {

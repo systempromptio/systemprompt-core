@@ -45,7 +45,8 @@ fn skill(id: &str) -> SkillEntry {
             "0000000000000000000000000000000000000000000000000000000000000000",
         )
         .expect("valid zero digest"),
-        instructions: String::new(),
+        instructions: Some(String::new()),
+        source: None,
         hosts: Vec::new(),
         plugins: Vec::new(),
         frontmatter: None,

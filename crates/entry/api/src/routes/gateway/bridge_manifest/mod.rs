@@ -19,7 +19,8 @@ use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::BridgePolicyConfig;
 use systemprompt_marketplace::{ManifestService, MarketplaceCandidate};
 use systemprompt_models::bridge::manifest::{
-    MANIFEST_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope, manifest_min_bridge_version,
+    MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
+    manifest_min_bridge_version,
 };
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 use systemprompt_runtime::AppContext;
@@ -85,7 +86,7 @@ pub async fn manifest(
     } = load_per_user_context(&ctx, &claims.user_id, instance_hosts).await?;
 
     let manifest = SignedManifest {
-        min_schema_version: MANIFEST_SCHEMA_VERSION,
+        min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
         min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
         manifest_version,
         issued_at,

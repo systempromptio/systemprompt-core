@@ -132,7 +132,7 @@ fn skill_md(kebab: &str, skill: &SkillEntry) -> Result<String, MarketplaceError>
     Ok(format!(
         "---\nname: {kebab}\ndescription: \"{}\"\n{passthrough}---\n\n{}\n",
         skill.description.replace('"', "\\\""),
-        skill.instructions.trim()
+        skill.instructions.as_deref().unwrap_or_default().trim()
     ))
 }
 

@@ -58,13 +58,27 @@ pub struct SkillEntry {
     #[serde(default)]
     pub tags: Vec<String>,
     pub sha256: Sha256Digest,
-    pub instructions: String,
+    /// The skill body. Always present in a schema-1 manifest; a schema-2
+    /// manifest omits it when [`Self::source`] names the plugin file that
+    /// carries the same body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instructions: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<SkillSource>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub hosts: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins: Vec<PluginId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frontmatter: Option<serde_yaml::Mapping>,
+}
+
+/// Where a plugin-delivered skill's `SKILL.md` sits: `path` is an entry of
+/// that plugin's [`PluginEntry::files`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkillSource {
+    pub plugin_id: PluginId,
+    pub path: String,
 }
 
 /// Exact signed publication identity shared by every host projection. This is

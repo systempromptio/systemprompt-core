@@ -54,7 +54,12 @@ async fn organization_grants_preserve_exact_publication_and_revocation() {
             .as_content()
             .skills
             .iter()
-            .any(|skill| skill.instructions.contains("managed instructions"))
+            .any(|skill| {
+                skill
+                    .instructions
+                    .as_deref()
+                    .is_some_and(|body| body.contains("managed instructions"))
+            })
     );
     f.repository
         .set_consumer_grant(&f.owner, &f.resource, &consumer.owner, false)
@@ -230,7 +235,12 @@ async fn catalog_includes_published_skill_without_grant() {
             .as_content()
             .skills
             .iter()
-            .any(|skill| skill.instructions.contains("managed instructions"))
+            .any(|skill| {
+                skill
+                    .instructions
+                    .as_deref()
+                    .is_some_and(|body| body.contains("managed instructions"))
+            })
     );
     assert_eq!(catalog.as_content().managed_files.len(), 1);
     assert!(
