@@ -13,6 +13,8 @@
 //! cover — the user's `MarketplaceFilter` (a DB-backed ACL) and a grant that
 //! is new rather than revoked — can never be served for longer than that.
 //!
+//! A per-user rebuild gate makes concurrent misses share one rebuild.
+//!
 //! The cache also remembers which catalogue-shape warnings it has logged, so
 //! a resolution that runs once per user per minute reports each once.
 //!
@@ -21,7 +23,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::{PluginId, UserId};
@@ -72,6 +74,7 @@ pub struct MarketplaceCache {
     bundles: Slot<BundleMap>,
     plugin_entries: Slot<Vec<PluginEntry>>,
     resolved: RwLock<VecDeque<ResolvedEntry>>,
+    rebuilds: Mutex<BTreeMap<UserId, Weak<tokio::sync::Mutex<()>>>>,
     sighted: Mutex<BTreeSet<String>>,
 }
 
@@ -135,6 +138,38 @@ impl MarketplaceCache {
             .find(|entry| &entry.key == key)
             .filter(|entry| now.saturating_duration_since(entry.built_at) < RESOLVED_TTL)
             .map(|entry| Arc::clone(&entry.value))
+    }
+
+    /// A resolution of exactly `key` built at or after `since`, TTL ignored:
+    /// what a request that waited on another's rebuild may take as its own.
+    pub fn resolved_built_since(
+        &self,
+        key: &ResolvedKey,
+        since: Instant,
+    ) -> Option<Arc<ResolvedCatalog>> {
+        let guard = self
+            .resolved
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .iter()
+            .find(|entry| &entry.key == key && entry.built_at >= since)
+            .map(|entry| Arc::clone(&entry.value))
+    }
+
+    /// The one rebuild gate for `user`; it lives while someone holds it.
+    pub fn rebuild_gate(&self, user: &UserId) -> Arc<tokio::sync::Mutex<()>> {
+        let mut gates = self
+            .rebuilds
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(gate) = gates.get(user).and_then(Weak::upgrade) {
+            return gate;
+        }
+        gates.retain(|_, gate| gate.strong_count() > 0);
+        let gate = Arc::new(tokio::sync::Mutex::new(()));
+        gates.insert(user.clone(), Arc::downgrade(&gate));
+        gate
     }
 
     // Why: a download that follows a manifest must serve the bytes that
