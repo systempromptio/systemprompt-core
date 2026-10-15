@@ -131,6 +131,11 @@ fn insert_skill_id(ids: &mut BTreeSet<SkillId>, raw: &str) {
     }
 }
 
+/// The exact `SKILL.md` text a bundle carries for `skill`.
+pub fn skill_bundle_markdown(skill: &SkillEntry) -> Result<String, MarketplaceError> {
+    skill_md(&skill.id.as_str().replace('_', "-"), skill)
+}
+
 fn skill_md(kebab: &str, skill: &SkillEntry) -> Result<String, MarketplaceError> {
     let passthrough = render_passthrough_frontmatter(skill.frontmatter.as_ref()).map_err(|e| {
         MarketplaceError::catalog(format!("skill {} frontmatter", skill.id.as_str()), e)

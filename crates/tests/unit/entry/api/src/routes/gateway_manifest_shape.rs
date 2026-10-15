@@ -9,12 +9,14 @@
 
 use std::io::Read;
 
+use sha2::{Digest, Sha256};
+
 use axum::http::{HeaderMap, header};
 use chrono::{TimeZone, Utc};
 use systemprompt_api::routes::gateway::bridge_manifest::shape;
 use systemprompt_api::routes::gateway::bridge_plugin_archive::{archive_sha, pack};
 use systemprompt_identifiers::PluginId;
-use systemprompt_marketplace::{BundleFile, PluginBundle};
+use systemprompt_marketplace::{BundleFile, PluginBundle, skill_bundle_markdown};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_SCHEMA_HEADER, SignedManifest, SkillSource,
 };
@@ -23,6 +25,14 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 const DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 fn manifest() -> SignedManifest {
+    let mut manifest = unhashed_manifest();
+    let markdown = skill_bundle_markdown(&manifest.skills[0]).expect("render SKILL.md");
+    manifest.plugins[0].files[0].sha256 =
+        hex::encode(Sha256::digest(markdown.as_bytes())).try_into().expect("digest");
+    manifest
+}
+
+fn unhashed_manifest() -> SignedManifest {
     serde_json::from_value(serde_json::json!({
         "manifest_version": "2026-10-15T00:00:00Z-0000000000000001",
         "issued_at": "2026-10-15T00:00:00Z",
@@ -91,6 +101,20 @@ fn schema_two_names_the_plugin_file_and_keeps_bodies_no_plugin_carries() {
     let loose = &manifest.skills[1];
     assert_eq!(loose.instructions.as_deref(), Some("inline body"));
     assert_eq!(loose.source, None);
+}
+
+#[test]
+fn a_body_the_plugin_file_cannot_reproduce_stays_inline() {
+    let mut drifted = manifest();
+    drifted.skills[0].instructions = Some("body\n".to_owned());
+    shape::shape_for_schema(&mut drifted, 2);
+    assert_eq!(drifted.skills[0].instructions.as_deref(), Some("body\n"));
+    assert_eq!(drifted.skills[0].source, None);
+
+    let mut unhashed = unhashed_manifest();
+    shape::shape_for_schema(&mut unhashed, 2);
+    assert_eq!(unhashed.skills[0].instructions.as_deref(), Some("body"));
+    assert_eq!(unhashed.skills[0].source, None);
 }
 
 #[test]

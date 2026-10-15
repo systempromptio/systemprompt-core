@@ -56,7 +56,7 @@ mod skills;
 pub(crate) use agents::resolve_agents;
 pub(crate) use rules::resolve_rule_ids;
 pub(crate) use skills::resolve_skill_ids;
-pub use skills::skill_bundle_path;
+pub use skills::{skill_bundle_markdown, skill_bundle_path};
 
 #[derive(Debug, Clone)]
 pub struct BundleFile {

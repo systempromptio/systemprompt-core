@@ -51,8 +51,10 @@ wiremock = { workspace = true }
 reqwest = { workspace = true }
 futures-util = { workspace = true }
 flate2 = { workspace = true }
+hex = { workspace = true }
 tar = { workspace = true }
 tower = { workspace = true }
+sha2 = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-mcp = { workspace = true }
