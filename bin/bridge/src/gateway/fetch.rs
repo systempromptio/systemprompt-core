@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::ids::{BearerToken, PluginId};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::SignedManifestEnvelope;
@@ -24,6 +24,10 @@ pub enum Freshness {
     Memo,
     Fresh,
 }
+
+// Why: the signed manifest runs to megabytes and the gateway can take tens
+// of seconds to build it, so the client-wide 30s ceiling fails a healthy sync.
+const ARTEFACT_TIMEOUT: Duration = Duration::from_secs(120);
 
 impl GatewayClient {
     #[tracing::instrument(
@@ -66,7 +70,11 @@ impl GatewayClient {
     ) -> Result<SignedManifestEnvelope, GatewayError> {
         let url = self.url("/v1/bridge/manifest");
         let started = Instant::now();
-        let mut request = self.http().get(&url).bearer_auth(bearer.expose());
+        let mut request = self
+            .http()
+            .get(&url)
+            .timeout(ARTEFACT_TIMEOUT)
+            .bearer_auth(bearer.expose());
         if freshness == Freshness::Fresh {
             request = request.header(reqwest::header::CACHE_CONTROL, "no-cache");
         }
@@ -104,17 +112,24 @@ impl GatewayClient {
         }
         let url = self.url(&format!("/v1/bridge/plugins/{plugin_id}/{relative_path}"));
         let started = Instant::now();
-        let resp = self
-            .http()
-            .get(&url)
-            .bearer_auth(bearer.expose())
-            .send()
-            .await
-            .map_err(|e| GatewayError::PluginFetch {
-                plugin_id: plugin_id.clone(),
-                path: relative_path.to_owned(),
-                source: Box::new(e),
-            })?;
+        let send = || {
+            self.http()
+                .get(&url)
+                .timeout(ARTEFACT_TIMEOUT)
+                .bearer_auth(bearer.expose())
+                .send()
+        };
+        let resp = match send().await {
+            Ok(resp) => resp,
+            Err(first) => {
+                tracing::debug!(error = %first, "plugin file fetch failed; retrying once");
+                send().await.map_err(|e| GatewayError::PluginFetch {
+                    plugin_id: plugin_id.clone(),
+                    path: relative_path.to_owned(),
+                    source: Box::new(e),
+                })?
+            },
+        };
         record_span(&resp, started);
         let resp = ensure_success(resp, "plugin").await?;
         let bytes = resp.bytes().await.map_err(|e| GatewayError::PluginRead {
