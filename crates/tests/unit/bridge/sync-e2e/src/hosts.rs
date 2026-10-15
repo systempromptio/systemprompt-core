@@ -1215,6 +1215,8 @@ fn manifest_with_plugin_json(body: &[u8], suffix: &str) -> SignedManifest {
         .expect("plugin manifest file");
     file.sha256 = Sha256Digest::try_new(sha_hex(body)).unwrap();
     file.size = body.len() as u64;
+    manifest.plugins[0].sha256 =
+        Sha256Digest::try_new(sha_hex(&[b"plugin:", body].concat())).unwrap();
     manifest
 }
 

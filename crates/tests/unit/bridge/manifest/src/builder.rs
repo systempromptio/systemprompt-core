@@ -1,5 +1,5 @@
 use systemprompt_bridge::gateway::manifest::{
-    AgentEntry, AgentId, AgentName, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
+    AgentEntry, AgentId, AgentName, HookEntry, MANIFEST_INLINE_SCHEMA_VERSION, ManagedMcpServer,
     PluginEntry, PluginFile, SignedManifestBuilder, SkillEntry, UserInfo, ValidatedUrl,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
@@ -142,7 +142,7 @@ fn minimal_build_preserves_constructor_fields() {
         "2026-04-22T00:00:00+00:00"
     );
     assert_eq!(manifest.user_id, fixture_user_id());
-    assert_eq!(manifest.min_schema_version, MANIFEST_SCHEMA_VERSION);
+    assert_eq!(manifest.min_schema_version, MANIFEST_INLINE_SCHEMA_VERSION);
     assert_eq!(
         manifest.manifest_version.as_str(),
         "2026-04-22T00:00:00Z-01aaaaaa"

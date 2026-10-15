@@ -226,7 +226,12 @@ async fn a_published_managed_skill_replaces_its_disk_copy() {
         .expect("overlay");
     let skills = &overlaid.as_content().skills;
     assert_eq!(skills.len(), 1);
-    assert!(skills[0].instructions.contains("managed instructions"));
+    assert!(
+        skills[0]
+            .instructions
+            .as_deref()
+            .is_some_and(|body| body.contains("managed instructions"))
+    );
     let ManagedSkillResolution::Published(published) = f
         .resolver
         .resolve_skill(&f.owner, &f.key)
