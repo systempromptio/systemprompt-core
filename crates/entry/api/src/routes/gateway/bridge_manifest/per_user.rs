@@ -25,20 +25,23 @@ pub(super) async fn record_catalog_grants(
     if user_id == owner {
         return Ok(());
     }
-    let repository = ctx.managed_repository();
-    for publication in candidate
+    let repository = &ctx.managed_repository();
+    // Why: one Postgres round trip per organisation skill, run in sequence,
+    // cost seconds per manifest against a remote database.
+    let writes = candidate
         .skills
         .iter()
         .filter_map(|skill| skill.publication.as_ref())
-    {
-        repository
-            .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
-            .await
-            .map_err(|source| BridgeError::CatalogGrant {
-                resource: publication.resource_id.clone(),
-                source,
-            })?;
-    }
+        .map(|publication| async move {
+            repository
+                .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
+                .await
+                .map_err(|source| BridgeError::CatalogGrant {
+                    resource: publication.resource_id.clone(),
+                    source,
+                })
+        });
+    futures_util::future::try_join_all(writes).await?;
     Ok(())
 }
 
