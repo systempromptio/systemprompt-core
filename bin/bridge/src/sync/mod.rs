@@ -16,6 +16,7 @@ mod seed_model;
 mod sentinel;
 mod stale_retry;
 mod summary;
+mod unsafe_flags;
 
 use self::org_plugins_scope::check_org_plugins_scope;
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
@@ -32,32 +33,13 @@ pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
 pub use stale_retry::run_once;
 pub use summary::SyncSummary;
 use summary::build_summary;
+pub use unsafe_flags::warn_unsafe_flags;
 
 use crate::config::{self, paths};
 use crate::gateway::Freshness;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
-
-pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) {
-    if allow_unsigned {
-        tracing::warn!("--allow-unsigned bypasses signature verification");
-    }
-    if force_replay {
-        tracing::warn!("--force-replay bypasses manifest version + skew checks");
-    }
-    if allow_tofu
-        && matches!(
-            config::pinned_pubkey_state(),
-            Ok(config::PinnedPubkeyState::Unpinned)
-        )
-    {
-        tracing::warn!(
-            "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
-             is insecure if the gateway is not authenticated yet"
-        );
-    }
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct SyncOptions {

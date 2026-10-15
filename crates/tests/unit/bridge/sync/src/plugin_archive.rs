@@ -58,7 +58,7 @@ fn archive(entries: &[Entry<'_>]) -> Vec<u8> {
             header.set_link_name(target).unwrap();
         }
         header.set_cksum();
-        builder.append(&header, *data).unwrap();
+        builder.append(&header, data).unwrap();
     }
     let tar = builder.into_inner().unwrap();
     let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());

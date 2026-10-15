@@ -232,7 +232,7 @@ pub(crate) fn apply_mobileconfig(
         crate::config::paths::write_persistent_profile(&file_name, mobileconfig.as_bytes())
             .map_err(|e| MdmError::Io {
                 action: "write",
-                path: std::path::PathBuf::from(&file_name),
+                path: PathBuf::from(&file_name),
                 source: e,
             })?;
 
