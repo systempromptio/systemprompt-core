@@ -18,12 +18,19 @@ pub struct Jwks {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Jwk {
     pub kty: String,
+    // RFC 7517 §4.4: `alg` is optional and Entra ID omits it; callers pin the
+    // algorithm from the token header, never from the key.
+    #[serde(default = "default_alg")]
     pub alg: String,
     #[serde(rename = "use")]
     pub use_: String,
     pub kid: String,
     pub n: String,
     pub e: String,
+}
+
+fn default_alg() -> String {
+    "RS256".to_owned()
 }
 
 impl Jwk {
