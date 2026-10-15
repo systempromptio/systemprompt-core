@@ -197,13 +197,16 @@ fn host_profile_install(app: &GuiApp, args: Value, reply_id: ReplyId) -> Command
     }
 }
 
-// JSON: webview IPC reply — an empty object on success.
+#[cfg(not(target_os = "macos"))]
 fn open_device_management() -> Result<Value, BridgeError> {
-    if !cfg!(target_os = "macos") {
-        return Err(BridgeError::invalid_args(
-            "Device Management is a macOS settings pane",
-        ));
-    }
+    Err(BridgeError::invalid_args(
+        "Device Management is a macOS settings pane",
+    ))
+}
+
+// JSON: webview IPC reply — an empty object on success.
+#[cfg(target_os = "macos")]
+fn open_device_management() -> Result<Value, BridgeError> {
     opener::open(crate::integration::app_launch::DEVICE_MANAGEMENT_URL)
         .map(|()| serde_json::json!({}))
         .map_err(|e| {
