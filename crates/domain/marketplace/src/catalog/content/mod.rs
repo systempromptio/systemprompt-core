@@ -29,6 +29,7 @@ use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
 
 mod managed;
+mod revision_cache;
 
 /// The owned entry lists a [`CatalogContent`] yields, in the order
 /// [`CatalogContent::into_parts`] returns them: skills, rules, agents, managed

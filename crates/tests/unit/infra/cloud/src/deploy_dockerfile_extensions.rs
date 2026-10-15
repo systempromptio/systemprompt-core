@@ -171,3 +171,24 @@ fn validate_profile_dockerfile_reports_missing_and_stale_together() {
         "got {message}"
     );
 }
+
+#[test]
+fn validate_profile_dockerfile_accepts_declared_cli_binaries() {
+    let temp = TempDir::new().unwrap();
+    let dir = temp.path().join("extensions/cli/worker");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("manifest.yaml"),
+        "extension:\n  type: cli\n  name: worker\n  binary: systemprompt-cov-worker\n  enabled: true\n",
+    )
+    .unwrap();
+    let dockerfile_path = temp.path().join("Dockerfile");
+    std::fs::write(
+        &dockerfile_path,
+        "COPY target/release/systemprompt-cov-worker /app/bin/\n",
+    )
+    .unwrap();
+
+    validate_profile_dockerfile(&dockerfile_path, temp.path(), &ServicesConfig::default())
+        .expect("a declared CLI binary is a valid COPY source");
+}

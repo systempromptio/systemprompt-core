@@ -8,11 +8,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::TrustedIssuer;
 use systemprompt_models::auth::{ActClaim, JwtAudience, JwtClaims, Permission};
 use systemprompt_oauth::services::EnterprisePrincipal;
+use systemprompt_security::jwt::reject_critical_header;
 use systemprompt_security::keys::JwksClient;
 
 use super::{ACCESS_TOKEN_TYPE, ID_TOKEN_TYPE, JWT_TOKEN_TYPE};
@@ -49,6 +52,9 @@ pub async fn validate_subject_token(
     let header = decode_header(token)
         .map_err(|e| IssuanceError::malformed("subject_token", "malformed JWT header", e))?;
 
+    reject_critical_header(&header)
+        .map_err(|e| IssuanceError::malformed("subject_token", "unsupported crit header", e))?;
+
     let declared_iss = peek_issuer(token)?;
 
     if declared_iss == global.jwt_issuer {
@@ -69,9 +75,7 @@ pub async fn validate_subject_token(
         message: "trusted-issuer token must carry a kid header".to_owned(),
     })?;
 
-    let allowed_hosts = jwks_host_allowlist(&global.trusted_issuers);
-    let client = JwksClient::new(allowed_hosts);
-    let jwk = client
+    let jwk = shared_jwks_client(&global.trusted_issuers)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
@@ -83,6 +87,7 @@ pub async fn validate_subject_token(
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
+    validation.set_required_spec_claims(&REQUIRED_CLAIMS);
 
     let data = decode::<JwtClaims>(token, &decoding_key, &validation).map_err(|e| {
         IssuanceError::malformed(
@@ -151,6 +156,7 @@ fn validate_self_issued(
         .map(JwtAudience::as_str)
         .collect();
     validation.set_audience(&aud_strs);
+    validation.set_required_spec_claims(&REQUIRED_CLAIMS);
     let data = decode::<JwtClaims>(token, key, &validation)
         .map_err(|e| IssuanceError::rejected_grant("subject_token rejected", e))?;
     Ok(SubjectIdentity {
@@ -159,6 +165,32 @@ fn validate_self_issued(
         principal: None,
         bound_resource: None,
     })
+}
+
+// Why: RFC 7519 §4.1: `jsonwebtoken` checks `iss` and `aud` only when the token
+// carries them, so both are required outright for every subject token.
+pub const REQUIRED_CLAIMS: [&str; 3] = ["exp", "iss", "aud"];
+
+type HostKeyedJwks = Option<(Vec<String>, Arc<JwksClient>)>;
+
+static SHARED_JWKS: LazyLock<Mutex<HostKeyedJwks>> = LazyLock::new(|| Mutex::new(None));
+
+// Why: One JWKS client per trusted-issuer host allowlist.
+//
+// It is kept for the process so its `Cache-Control` TTL and kid-miss refetch
+// throttle actually apply; a client built per request re-fetched the issuer's
+// JWKS on every exchange.
+pub fn shared_jwks_client(trusted: &[TrustedIssuer]) -> Arc<JwksClient> {
+    let hosts = jwks_host_allowlist(trusted);
+    let mut slot = SHARED_JWKS.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some((cached_hosts, client)) = slot.as_ref()
+        && *cached_hosts == hosts
+    {
+        return Arc::clone(client);
+    }
+    let client = Arc::new(JwksClient::new(hosts.clone()));
+    *slot = Some((hosts, Arc::clone(&client)));
+    client
 }
 
 pub fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {

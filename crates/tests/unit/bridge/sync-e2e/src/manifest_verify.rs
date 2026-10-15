@@ -707,6 +707,7 @@ fn refresh_rejects_skew_and_replay_without_overwriting_accepted_envelope() {
                 serde_json::to_vec(&systemprompt_bridge::mcp_registry::EnvelopeFragment {
                     gateway: systemprompt_identifiers::ValidatedUrl::try_new(server.uri()).unwrap(),
                     envelope: signed_envelope_of(&key, &accepted),
+                    etag: None,
                 })
                 .unwrap();
             fs::write(&path, &previous).unwrap();

@@ -76,9 +76,8 @@ pub(super) fn list_claude_processes() -> Result<Vec<String>, crate::sysproc::Sys
 pub(super) fn write_profile(inputs: &ProfileGenInputs) -> Result<GeneratedProfile, HostAppError> {
     let uuids = crate::integration::generated_profile::profile_uuids();
     let xml = render_profile(inputs, &uuids.payload, &uuids.profile)?;
-    let path = crate::integration::generated_profile::write(
-        "claude-bridge",
-        ".mobileconfig",
+    let path = crate::config::paths::write_persistent_profile(
+        "claude-desktop.mobileconfig",
         xml.as_bytes(),
     )?;
 
@@ -95,8 +94,17 @@ pub(super) fn install_profile(path: &str) -> Result<ProfileInstalled, HostAppErr
     if !status.success() {
         return Err(std::io::Error::other("could not open the configuration profile").into());
     }
+    // Why: macOS registers the profile on `open` but shows it only inside
+    // System Settings › Device Management; opening the pane puts the Install
+    // button in front of the user while the 8-minute window runs.
+    let pane = Command::new("/usr/bin/open")
+        .arg(crate::install::mdm::DEVICE_MANAGEMENT_URL)
+        .status();
+    if !pane.as_ref().is_ok_and(std::process::ExitStatus::success) {
+        tracing::warn!(?pane, "could not open the Device Management pane");
+    }
     Ok(ProfileInstalled::with_warning(
-        "Approval required: open System Settings > General > Device Management, select the Claude Desktop profile, and click Install. Then quit and relaunch Claude Desktop.".to_owned(),
+        "Approve within 8 minutes in System Settings › General › Device Management → Claude Desktop profile → Install, then relaunch Claude Desktop.".to_owned(),
     ))
 }
 

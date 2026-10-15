@@ -12,5 +12,9 @@ import type { Tone } from "./Tone";
  * `is_installed` means the managed profile is present and complete;
  * `is_running` is the raw process-table fact — the app is open — and says
  * nothing about whether it is configured, so it is never the headline.
+ * `is_listed` puts the row on the Agents list: every app installed here, and
+ * any agent with settings of ours left behind; only an absent app with nothing
+ * left over is hidden. `action` is the one fix button; `secondary_action` is
+ * the second choice a missing app with leftover settings offers.
  */
-export type AgentVerdict = { state: AgentState, tone: Tone, reason: AgentReason, action: AgentAction | null, is_set_up: boolean, is_installed: boolean, is_running: boolean, };
+export type AgentVerdict = { state: AgentState, tone: Tone, reason: AgentReason, action: AgentAction | null, secondary_action: AgentAction | null, is_set_up: boolean, is_listed: boolean, is_installed: boolean, is_running: boolean, };

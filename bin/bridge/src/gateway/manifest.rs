@@ -13,9 +13,10 @@ use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 
 pub use systemprompt_models::bridge::manifest::{
-    AgentEntry, ArtifactEntry, HookEntry, MANIFEST_SCHEMA_VERSION, ManagedMcpServer,
-    ManifestClaudeCode, ManifestMarketplace, PluginEntry, PluginFile, RuleEntry, SignedManifest,
-    SignedManifestEnvelope, SkillEntry, UserInfo, bridge_version_is_supported,
+    AgentEntry, ArtifactEntry, HookEntry, MANIFEST_INLINE_SCHEMA_VERSION, MANIFEST_SCHEMA_HEADER,
+    MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestClaudeCode, ManifestMarketplace,
+    PluginEntry, PluginFile, RuleEntry, SignedManifest, SignedManifestEnvelope, SkillEntry,
+    SkillSource, UserInfo, bridge_version_is_supported,
 };
 pub use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub use systemprompt_models::bridge::update_policy::AutoUpdatePolicy;
@@ -269,7 +270,7 @@ impl SignedManifestBuilder {
     #[must_use]
     pub fn build(self) -> SignedManifest {
         SignedManifest {
-            min_schema_version: MANIFEST_SCHEMA_VERSION,
+            min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
             min_bridge_version: None,
             manifest_version: self.manifest_version,
             issued_at: self.issued_at,

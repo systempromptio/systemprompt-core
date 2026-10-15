@@ -14,7 +14,7 @@ export function renderSetupHeading(component) {
   const appName = escapeHtml(appNameOf(component));
   return `
     <div class="sp-setup__heading">
-      <div class="sp-setup__eyebrow"><span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
+      <div class="sp-setup__eyebrow">${component.snapshot && component.snapshot.demo_notice ? `<span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · ` : ""}v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
       <h1 data-l10n-id="setup-heading">Welcome to ${appName}</h1>
       <p class="sp-setup__lede" data-l10n-id="setup-lede">${appName} routes one or more coding agents through your enterprise gateway.</p>
     </div>`;
@@ -24,6 +24,7 @@ export function renderSetupHeading(component) {
 // and writing policy — the window that previously flashed the sign-in form or a
 // full agent picker and read as broken.
 export function renderSetupFinalizing(component) {
+  const plugins = component.syncPlugins;
   const appName = escapeHtml(appNameOf(component));
   return `
     <div class="sp-setup__finalizing" role="status" aria-live="polite">
@@ -31,6 +32,7 @@ export function renderSetupFinalizing(component) {
       <div>
         <p class="sp-setup__finalizing-head">${escapeHtml(t("setup-finalizing-head") || "Finishing setup…")}</p>
         <p class="sp-setup__finalizing-body">${escapeHtml(t("setup-finalizing-body", { app: component.snapshot ? appNameOf(component) : "the bridge" }) || "Signing you in and preparing the bridge. This only takes a moment.")}</p>
+        ${plugins ? `<p class="sp-setup__finalizing-body">${escapeHtml(t("setup-sync-plugins-progress", plugins) || `Syncing plugins (${plugins.done}/${plugins.total})`)}</p>` : ""}
       </div>
     </div>`;
 }

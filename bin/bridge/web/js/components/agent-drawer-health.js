@@ -1,5 +1,5 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { toneDot } from "/assets/js/utils/verdict.js";
 import {
   AGENT_WIRE_SURFACES, AGENT_SURFACE_L10N, AGENT_SURFACE_LABEL,
@@ -57,7 +57,7 @@ function modelFilterBody(draft, effective, allModels, overridden) {
     <label class="sp-drawer__proto"><input type="checkbox" data-change="model-all" data-model-all ${allModels ? "checked" : ""}> <span>${escapeHtml(t("host-model-filter-all") || "All models")}</span></label>
     <div class="sp-drawer__protos">${checks}</div>
     ${agentDrawerDetailText(overridden ? (t("host-model-filter-custom") || "custom override") : (t("host-model-filter-default") || "host default"), { muted: true })}
-    ${agentDrawerDetailText(t("agent-model-filter-hint") || "Saved to your systemprompt account — you must be signed in.", { muted: true })}
+    ${agentDrawerDetailText(t("agent-model-filter-hint") || `Saved to your ${brandArgs().vendor} account — you must be signed in.`, { muted: true })}
     ${draft ? `<div class="sp-drawer__dirty">${escapeHtml(t("host-model-filter-unsaved") || "Unsaved changes.")}</div>` : ""}
     <div class="sp-drawer__filter-actions">
       <button class="sp-btn-primary" type="button" data-action="saveModelFilter" ${draft ? "" : "disabled"}>${escapeHtml(t("host-model-filter-save") || "Save filter")}</button>

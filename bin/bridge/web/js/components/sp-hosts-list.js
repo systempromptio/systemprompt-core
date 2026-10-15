@@ -1,13 +1,15 @@
 import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
-import { t } from "/assets/js/i18n.js";
-import { isSetUp } from "/assets/js/utils/verdict.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
+import { isListed } from "/assets/js/utils/verdict.js";
+import { agentBanner, runBannerFix } from "/assets/js/components/agents-banners.js";
 import { sameHost } from "/assets/js/utils/host-diff.js";
 import "/assets/js/components/sp-agent-row.js";
 import "/assets/js/components/sp-agent-drawer.js";
 import "/assets/js/components/sp-overall-badge.js";
 import "/assets/js/components/sp-agents-status.js";
+import "/assets/js/components/sp-sync-banner.js";
 
 export class SpHostsList extends SpElement {
   constructor() {
@@ -16,14 +18,19 @@ export class SpHostsList extends SpElement {
     this.order = [];
     this.snapshot = null;
     this.gated = false;
+    this.bannerBusy = false;
 
     this.registerAction("reverify-all", async () => {
-      // Only agents with something local to inspect. A sync-only agent has no
-      // process and no profile here, so probing it did nothing except write
-      // "probe requested for unknown host 'claude-code'" to the activity log on
-      // every press.
+      // Only agents with something local to inspect: a sync-only agent has no
+      // process or profile here, and probing it only logged "unknown host".
       const ids = this.order.filter((id) => this.hostsById.get(id)?.can_verify !== false);
-      await Promise.allSettled(ids.map((id) => bridge.hostProbe(id)));
+      await Promise.allSettled([bridge.hostProxyProbe(), ...ids.map((id) => bridge.hostProbe(id))]);
+    });
+    this.registerAction("banner-fix", async (trigger) => {
+      if (this.bannerBusy) { return; }
+      this.bannerBusy = true;
+      try { await runBannerFix(this.hostsById.get(trigger.dataset.hostId), trigger.dataset.kind); }
+      finally { this.bannerBusy = false; }
     });
     this.registerAction("add-agent", (trigger) => {
       const drawer = this._drawer();
@@ -38,12 +45,9 @@ export class SpHostsList extends SpElement {
     });
   }
 
-  // The drawer is a body-level singleton (index.html), not a child: it renders
-  // as `position: fixed`, and `.sp-content` is both a size container and a
-  // masked scroll container, which together clip a fixed descendant out of the
-  // paint completely -- it lays out over the viewport and then draws nothing.
-  // Keeping it out of the template also stops it being torn down and rebuilt on
-  // every list re-render.
+  // The drawer is a body-level singleton (index.html), not a child: a fixed
+  // element inside `.sp-content` (a size and masked scroll container) is
+  // clipped out of the paint entirely, and a child would be rebuilt per render.
   _drawer() {
     return document.querySelector("sp-agent-drawer");
   }
@@ -82,12 +86,11 @@ export class SpHostsList extends SpElement {
     return this.order.map((id) => this.hostsById.get(id)).filter(Boolean);
   }
 
+
   render() {
-    // Only agents that are actually set up belong in the list. One with no
-    // profile has no status to report — it is something you might add, which is
-    // the drawer's question, not this list's.
-    const setUp = this._hosts().filter(isSetUp);
-    return `${this._renderHeader()}<sp-agents-status></sp-agents-status>${this._renderBody(setUp)}`;
+    // Every installed agent is listed whatever its state, plus leftovers.
+    const listed = this._hosts().filter(isListed);
+    return `${this._renderHeader()}<sp-agents-status></sp-agents-status><sp-sync-banner></sp-sync-banner>${agentBanner(listed, this.bannerBusy)}${this._renderBody(listed)}`;
   }
 
   _renderHeader() {
@@ -103,16 +106,16 @@ export class SpHostsList extends SpElement {
           </button>
           <button class="sp-btn-ghost" type="button" data-action="reverify-all">${escapeHtml(t("agents-action-reverify-all") || "Re-verify")}</button>
         </div>
-        <p class="sp-tab__lede sp-u-muted">${escapeHtml(t("agents-lede") || "Every agent you add here runs through systemprompt's local proxy, so each request it makes is governed and logged. Any number of them can run at once.")}</p>
+        <p class="sp-tab__lede sp-u-muted">${escapeHtml(t("agents-lede") || `Every agent you add here runs through ${brandArgs().vendor}'s local proxy, so each request it makes is governed and logged. Any number of them can run at once.`)}</p>
       </header>
     `;
   }
 
-  _renderBody(setUp) {
-    if (setUp.length === 0) {
+  _renderBody(listed) {
+    if (listed.length === 0) {
       return `<div class="sp-hosts__empty">
         <p class="sp-hosts__empty-title">${escapeHtml(t("agents-empty-title") || "No agents set up yet")}</p>
-        <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || "Add a coding agent to route it through systemprompt, so every request it makes is governed and logged.")}</p>
+        <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || `Add a coding agent to route it through ${brandArgs().vendor}, so every request it makes is governed and logged.`)}</p>
         <button class="sp-btn-primary" type="button" data-action="add-agent">
           <span class="sp-hosts__plus" aria-hidden="true">+</span> ${escapeHtml(t("agents-action-add") || "Add agent")}
         </button>
@@ -120,7 +123,7 @@ export class SpHostsList extends SpElement {
     }
     // data-key lets the reconciler reuse the same row element per host across
     // renders instead of rebuilding it (and its whole subtree) each time.
-    return setUp.map((h) => `<sp-agent-row data-key="${escapeHtml(h.id)}" data-host-id="${escapeHtml(h.id)}"></sp-agent-row>`).join("");
+    return listed.map((h) => `<sp-agent-row data-key="${escapeHtml(h.id)}" data-host-id="${escapeHtml(h.id)}"></sp-agent-row>`).join("");
   }
 
   afterRender() {
@@ -143,5 +146,5 @@ export class SpHostsList extends SpElement {
   }
 }
 
-reactive(SpHostsList.prototype, ["snapshot", "gated"]);
+reactive(SpHostsList.prototype, ["snapshot", "gated", "bannerBusy"]);
 customElements.define("sp-hosts-list", SpHostsList);

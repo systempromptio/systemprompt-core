@@ -21,7 +21,8 @@ web="bin/bridge/web/js"
 fail=0
 
 # receiver.field === "literal"  |  receiver.field !== "literal"  |  switch (receiver.field)
-pattern='\.(state|kind|phase|level|app_installed)[[:space:]]*(===|!==|==|!=)[[:space:]]*["'"'"']|switch[[:space:]]*\([^)]*\.(state|kind|phase|level)[[:space:]]*\)'
+# | [..."literal"].includes(receiver.field) -- the same test spelled as a list
+pattern='\.(state|kind|phase|level|app_installed)[[:space:]]*(===|!==|==|!=)[[:space:]]*["'"'"']|switch[[:space:]]*\([^)]*\.(state|kind|phase|level)[[:space:]]*\)|\.includes\([^)]*\.(state|kind|phase|level|app_installed)[[:space:]]*\)'
 
 # receiver:file pairs that are legitimately not wire state.
 allow='this.state:services/marketplace-service.js

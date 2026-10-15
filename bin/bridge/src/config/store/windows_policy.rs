@@ -13,17 +13,16 @@
 use windows_sys::Win32::System::Registry::HKEY;
 
 use super::verified::{self, PolicyReceipt};
-use super::{ConfigStoreError, PolicyDocumentValue, PolicyTarget, hive_for, windows_registry};
+use super::{ConfigStoreError, PolicyTarget, hive_for, windows_registry};
 
 pub(crate) fn write_managed_claude_policy(
     elevated: bool,
     entries: &[(String, String)],
 ) -> Result<PolicyReceipt, ConfigStoreError> {
-    verified::apply(
+    super::policy_apply::apply_claude_entries(
         &windows_registry::WindowsRegistryStore,
         hive_for(elevated),
-        PolicyTarget::Claude,
-        &PolicyDocumentValue::strings(entries),
+        entries,
     )
 }
 

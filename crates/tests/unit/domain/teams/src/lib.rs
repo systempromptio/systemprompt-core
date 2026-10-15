@@ -19,6 +19,8 @@ mod auth;
 #[cfg(test)]
 mod auth_jwks;
 #[cfg(test)]
+mod auth_jwks_compliance;
+#[cfg(test)]
 mod cards;
 #[cfg(test)]
 mod client;

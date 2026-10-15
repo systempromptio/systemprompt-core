@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Added
+
+- **Bridge manifest schema 2.** A bridge advertises the highest schema it parses (`x-bridge-manifest-schema`); a schema-2 manifest lets a skill name the plugin `SKILL.md` that carries its body (`SkillEntry.source`) instead of inlining it, and the bridge fills the body back from the synced plugin tree, checked against the skill's signed digest. A body that does not match is withheld and reported, never guessed. Older bridges keep receiving inline bodies (`MANIFEST_INLINE_SCHEMA_VERSION`).
+- **Bridge sync: content-addressed and conditional.** The manifest carries an `ETag` and is revalidated with `If-None-Match` (a 304 reuses the stored envelope); plugins download as one verified archive; a plugin whose installed stamp matches its signed digest is skipped without reading, hashing or staging a file.
+- **Bridge agents:** every installed agent is listed with one fix action; an enabled agent whose app is not installed is turned off; the desktop policy names each MCP server it skips and why.
+- **Brand-driven web UI names;** `Brand::demo_notice` controls the demo footer.
+
+### Changed
+
+- **Gateway:** per-user catalogue rebuilds are single-flight and reuse the services config across a sync burst; `no-cache` revalidates only a memo older than `FRESH_REVALIDATE_AFTER` (30 s). Manifest and plugin-file fetches time out at 120 s and a plugin file retries once on a transport error.
+
+### Breaking
+
+- `SkillEntry.instructions` is `Option<String>` and `SkillEntry` gains `source`; `SignedManifest.min_schema_version` is the inline floor.
+
+### Fixed
+
+- **Replica identity no longer bricks a redeployed host.** A Fly redeploy reuses the machine id as `HOSTNAME`, and the replaced process's idle claim session kept the instance-id advisory lock under the server's default two-hour keepalive, so the new machine was refused until its restart limit. The claim session now sets server-side TCP keepalives (a vanished holder is freed within `CLAIM_DEAD_PEER_SECS`), and boot retries a refused claim with backoff before failing; a live duplicate replica is still refused.
+- **OAuth:** the session cookie is `SameSite=Lax`, so it survives an IdP's cross-site redirect back; disabling one bridge host keeps the user's other hosts enabled.
+- **Security:** JWKs without `alg` are accepted (the token header pins the algorithm), `Cache-Control` on a JWKS is honoured per RFC 9111, `crit` headers are refused, and `expires_in` / `email_verified` are read in the spellings deployed providers send.
+- **Bridge:** an omitted `managedMcpServers` clears the stale hive value; only the MCP server whose wildcard policy cannot be expanded is skipped; the update target is preflighted before download, and a refused `SHA256SUMS` download is reported as an upstream status; installation evidence is skipped for a host whose app is absent; sync progress, the sync pill and the update check read Rust-computed flags.
+- **Cloud:** CLI-extension binaries are accepted as Dockerfile `COPY` sources.
+
 ## [0.68.0] - 2026-10-14
 
 ### Added

@@ -384,6 +384,9 @@ const COMMANDS = {
   },
   "agent.open": () => ({}),
   "agent.enrol": () => ({ enrolled: true }),
+  "agent.restart": () => ({ restarted: true }),
+  "agent.openDeviceManagement": () => ({}),
+  "agent.revealProfile": () => ({ path: "~/Library/Application Support/bridge/profiles/claude-desktop.mobileconfig" }),
   "agent.openConfig": () => ({}),
   "agent.uninstall": ({ hostId }) => {
     const host = hostById(hostId);
@@ -434,6 +437,11 @@ const COMMANDS = {
     if (!host) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
     touch(host);
     return {};
+  },
+  "host.enabled.set": ({ hostId, enabled }) => {
+    if (!hostById(hostId)) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
+    if (!enabled) { state.host_apps = state.host_apps.filter((h) => h.id !== hostId); }
+    return { host_id: hostId, enabled };
   },
   "host.model-filter.set": ({ hostId, protocols }) => {
     const host = hostById(hostId);

@@ -1,6 +1,7 @@
 //! Installation-evidence capture after the host emitters have applied: every
-//! enabled, non-failed host at once, each within its own budget, reported as
-//! a typed outcome rather than a deadline error.
+//! enabled host that was applied (not failed, not skipped as absent) at once,
+//! each within its own budget, reported as a typed outcome rather than a
+//! deadline error.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +15,7 @@ pub(super) async fn capture(
     emitters: &[&'static dyn HostSync],
     manifest: &SignedManifest,
     ctx: &HostSyncCtx<'_>,
+    skipped_absent: &std::collections::BTreeSet<HostKind>,
     report: &mut ApplyReport,
 ) -> Vec<HostWarning> {
     let mut warnings = Vec::new();
@@ -24,6 +26,7 @@ pub(super) async fn capture(
         .into_iter()
         .filter(|host_id| {
             enables_host(manifest, *host_id)
+                && !skipped_absent.contains(host_id)
                 && !report
                     .host_failures
                     .iter()

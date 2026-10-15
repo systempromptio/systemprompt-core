@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Added
+
+- In-memory tarball packing for plugin archives.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

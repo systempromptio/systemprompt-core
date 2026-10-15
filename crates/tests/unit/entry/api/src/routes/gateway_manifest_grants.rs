@@ -252,10 +252,15 @@ async fn fetch_manifest(harness: &Harness, jwt: &str) -> SignedManifest {
         header::AUTHORIZATION,
         format!("Bearer {jwt}").parse().expect("bearer header"),
     );
-    let axum::Json(envelope) =
+    let response =
         bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
             .await
             .expect("a signed-in consumer receives a manifest");
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("manifest body");
+    let envelope: systemprompt_models::bridge::manifest::SignedManifestEnvelope =
+        serde_json::from_slice(&body).expect("the body is a signed envelope");
     serde_json::from_str(&envelope.payload).expect("the payload is the canonical manifest")
 }
 

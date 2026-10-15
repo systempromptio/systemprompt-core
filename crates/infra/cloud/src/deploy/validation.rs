@@ -1,5 +1,9 @@
 //! Validation of a profile's Dockerfile against the discovered MCP binaries.
 //!
+//! A `COPY target/release/systemprompt-*` line is stale unless it names a
+//! production MCP binary or a binary an enabled CLI extension manifest
+//! declares; CLI binaries are never required, only accepted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -71,9 +75,13 @@ pub fn validate_dockerfile_has_no_stale_binaries(
     }
 
     let dockerfile_binaries = extract_mcp_binary_names_from_dockerfile(dockerfile_content);
+    let cli_binaries = ExtensionLoader::get_enabled_cli_extensions(project_root)
+        .into_iter()
+        .filter_map(|e| e.binary_name().map(String::from));
     let current_binaries: HashSet<String> =
         ExtensionLoader::get_production_mcp_binary_names(project_root, services_config)
             .into_iter()
+            .chain(cli_binaries)
             .collect();
 
     dockerfile_binaries

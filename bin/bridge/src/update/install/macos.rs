@@ -13,13 +13,16 @@ use std::process::Command;
 use crate::update::error::UpdateError;
 use crate::update::install::{probe_writable, running_exe};
 
-pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
+pub(super) fn preflight() -> Result<PathBuf, UpdateError> {
     let bundle = running_bundle()?;
-    probe_writable(
-        &bundle,
-        "move the app to /Applications and try again — it cannot update in place from a disk image",
-    )?;
+    probe_writable(&bundle, READ_ONLY_HINT)?;
+    Ok(bundle)
+}
 
+pub(super) const READ_ONLY_HINT: &str =
+    "move the app to /Applications and try again — it cannot update in place from a disk image";
+
+pub(super) fn apply(staged: &Path, bundle: PathBuf) -> Result<PathBuf, UpdateError> {
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
         crate::fsutil::remove_leftover_dir(&workdir);

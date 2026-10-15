@@ -12,7 +12,7 @@ export function updateStateOf(snapshot) {
 
 /** True while the update is mid-flight and the trigger must not act again. */
 export function isUpdateBusy(update) {
-  return ["downloading", "installing"].includes(update.phase);
+  return update.in_progress === true;
 }
 
 /**

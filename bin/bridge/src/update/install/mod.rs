@@ -18,24 +18,48 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
+pub(crate) fn preflight() -> Result<PathBuf, UpdateError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::preflight()
+    }
+    #[cfg(target_os = "windows")]
+    {
+        windows::preflight()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        linux::preflight()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        Err(UpdateError::UnsupportedPlatform)
+    }
+}
+
 pub(crate) fn apply(
     #[cfg_attr(
         not(any(target_os = "macos", target_os = "windows", target_os = "linux")),
         expect(unused_variables, reason = "no installer exists for other platforms")
     )]
     staged: &Path,
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows", target_os = "linux")),
+        expect(unused_variables, reason = "no installer exists for other platforms")
+    )]
+    target: PathBuf,
 ) -> Result<PathBuf, UpdateError> {
     #[cfg(target_os = "macos")]
     {
-        macos::apply(staged)
+        macos::apply(staged, target)
     }
     #[cfg(target_os = "windows")]
     {
-        windows::apply(staged)
+        windows::apply(staged, target)
     }
     #[cfg(target_os = "linux")]
     {
-        linux::apply(staged)
+        linux::apply(staged, target)
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     {
@@ -93,4 +117,28 @@ pub(crate) fn installed_path() -> Result<PathBuf, UpdateError> {
 pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
     let exe = std::env::current_exe().map_err(UpdateError::LocateExe)?;
     Ok(std::fs::canonicalize(&exe).unwrap_or(exe))
+}
+
+// Why: macOS mounts a disk image read-only and runs a quarantined app from a
+// randomised read-only App Translocation path; neither can be updated in place.
+#[cfg_attr(
+    not(target_os = "macos"),
+    expect(
+        clippy::missing_const_for_fn,
+        reason = "constant only off macOS, where the body resolves the bundle path"
+    )
+)]
+#[must_use]
+pub(crate) fn read_only_launch() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let bundle = installed_path().ok()?;
+        let shown = bundle.to_string_lossy();
+        (shown.starts_with("/Volumes/") || shown.contains("/AppTranslocation/"))
+            .then(|| format!("running from {shown}; {}", macos::READ_ONLY_HINT))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
 }

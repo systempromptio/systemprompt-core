@@ -39,6 +39,15 @@ pub(crate) fn maybe_auto_check(app: &mut GuiApp, woke_from_sleep: bool) {
         return;
     }
     app.last_update_check_at = Some(Instant::now());
+    if let Some(message) = update::read_only_launch() {
+        tracing::warn!(reason = %message, "automatic update withheld: the install is read-only");
+        app.append_log(format!("automatic update withheld: {message}"));
+        app.state
+            .set_update_state(UpdateUiState::Failed { message });
+        app.refresh_ui();
+        emit::emit_state(app);
+        return;
+    }
     app.auto_update_pending = true;
     on_update_check_requested(app, None);
 }
@@ -176,6 +185,7 @@ pub(crate) fn on_update_install_finished(
         },
         Err(e) => {
             let message = format!("{e}");
+            tracing::error!(error = %message, automatic = reply_to.is_none(), "update install failed");
             app.append_log(format!("update failed: {message}"));
             app.state
                 .set_update_state(UpdateUiState::Failed { message });

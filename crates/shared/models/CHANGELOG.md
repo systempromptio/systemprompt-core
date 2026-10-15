@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Added
+
+- Manifest schema 2: `SkillEntry.source` (`SkillSource`), `MANIFEST_SCHEMA_VERSION = 2`, `MANIFEST_INLINE_SCHEMA_VERSION = 1` and `MANIFEST_SCHEMA_HEADER`.
+
+### Breaking
+
+- `SkillEntry.instructions` is `Option<String>`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

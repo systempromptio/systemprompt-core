@@ -17,7 +17,18 @@ function row(srv) {
       <span class="sp-dot ${toneDot(verdict.tone)}" aria-hidden="true"></span>
       <span class="sp-mcp-row__name">${escapeHtml(srv.id || "")}</span>
       <span class="sp-mcp-row__label">${escapeHtml(t(`mcp-auth-${verdict.code}`) || "")}${tools ? ` · ${escapeHtml(tools)}` : ""}</span>
+      ${unlisted(srv)}
     </li>`;
+}
+
+// A server Claude Desktop's policy skips: its wildcard tool policy has no
+// tool names to expand over until the server authenticates and lists them.
+function unlisted(srv) {
+  if (!srv.desktop_tools_unlisted) { return ""; }
+  const id = srv.id || "";
+  return `
+      <span class="sp-badge sp-badge--warn">${escapeHtml(t("mcp-desktop-unlisted", { slug: id }) || `${id}: sign in to list its tools`)}</span>
+      <button type="button" class="sp-btn sp-btn--ghost" data-action="list-tools" data-server="${escapeHtml(id)}">${escapeHtml(t("mcp-desktop-unlisted-fix") || "Sign in and list tools")}</button>`;
 }
 
 export class SpMcpAuthStatus extends SpElement {
@@ -28,6 +39,11 @@ export class SpMcpAuthStatus extends SpElement {
       run: () => bridge.mcpAuthProbe(),
       success: () => t("mcp-rechecked") || "MCP servers re-checked.",
       context: t("mcp-recheck") || "Re-check",
+    }));
+    this.registerAction("list-tools", (trigger) => runAction(trigger, {
+      run: () => bridge.mcpAuthProbe(trigger.dataset.server),
+      success: () => t("mcp-rechecked") || "MCP servers re-checked.",
+      context: t("mcp-desktop-unlisted-fix") || "Sign in and list tools",
     }));
     this.registerAction("open-marketplace", () => {
       const rail = document.querySelector("sp-rail");

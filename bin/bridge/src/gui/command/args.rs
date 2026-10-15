@@ -67,6 +67,13 @@ pub(super) struct HostModelFilterArgs {
     pub(super) protocols: Option<Vec<String>>,
 }
 
+#[derive(Debug, Deserialize)]
+pub(super) struct HostEnabledArgs {
+    #[serde(rename = "hostId")]
+    pub(super) host_id: HostKind,
+    pub(super) enabled: bool,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub(super) struct RecentArgs {

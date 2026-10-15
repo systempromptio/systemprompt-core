@@ -9,7 +9,7 @@ use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
 use systemprompt_oauth::OauthResult;
-use systemprompt_oauth::repository::EnabledHostPrefs;
+use systemprompt_oauth::repository::{EnabledHostPrefs, HostPrefWrite};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserError;
 
@@ -44,15 +44,16 @@ pub async fn load_enabled_hosts(
     repo.get_enabled_prefs(user_id).await
 }
 
-pub async fn upsert_host_pref(
+pub async fn set_host_enabled(
     ctx: &AppContext,
     user_id: &UserId,
     host: HostKind,
     enabled: bool,
-) -> OauthResult<()> {
+    instance_hosts: &[HostKind],
+) -> OauthResult<HostPrefWrite> {
     let repo = &ctx.oauth_repositories().bridge_host_prefs;
-    repo.upsert(user_id, host, enabled).await?;
-    Ok(())
+    repo.set_enabled(user_id, host, enabled, instance_hosts)
+        .await
 }
 
 pub async fn load_host_model_protocols(

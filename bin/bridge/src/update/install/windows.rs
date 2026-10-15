@@ -17,13 +17,16 @@ use crate::update::install::{probe_writable, running_exe};
 const OLD_SUFFIX: &str = ".old";
 const NEW_SUFFIX: &str = ".new";
 
-pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
+pub(super) fn preflight() -> Result<PathBuf, UpdateError> {
     let target = running_exe()?;
     probe_writable(
         &target,
         "reinstall to a per-user location, or re-run as Administrator",
     )?;
+    Ok(target)
+}
 
+pub(super) fn apply(staged: &Path, target: PathBuf) -> Result<PathBuf, UpdateError> {
     let displaced = displaced_path(&target);
     if displaced.exists() {
         std::fs::remove_file(&displaced).map_err(|e| UpdateError::io(&displaced, e))?;

@@ -116,18 +116,24 @@ pub(crate) fn emit_sync_progress(app: &GuiApp, phase: &str, summary: Option<&str
     let value = json!({
         "phase": phase,
         "summary": summary,
+        "failed": phase == "failed",
+        "terminal": matches!(phase, "completed" | "cancelled" | "failed"),
+        "plugins": Value::Null,
     });
     send_emit(app, "sync.progress", &value);
 }
 
 pub(crate) fn emit_sync_step(app: &GuiApp, step: &crate::progress::SyncProgress) {
-    let value = json!({
+    let mut value = json!({
         "phase": step.phase,
         "item": step.item,
         "current": step.current,
         "total": step.total,
         "detail": step.label(),
     });
+    if step.phase == "plugins" {
+        value["plugins"] = json!({ "done": step.current, "total": step.total });
+    }
     send_emit(app, "sync.progress", &value);
 }
 

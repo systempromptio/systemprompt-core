@@ -55,7 +55,8 @@ pub(super) async fn resource(
             tracing::warn!(%error, "consumer: services config load failed");
             ConsumerHttpError(StatusCode::SERVICE_UNAVAILABLE)
         })?;
-    if !crate::routes::gateway::bridge::instance_enabled_hosts(&services)
+    if !services
+        .instance_enabled_hosts()
         .iter()
         .any(|value| host.accepts_host_name(value.as_str()))
     {

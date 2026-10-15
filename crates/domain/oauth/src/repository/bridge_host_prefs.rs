@@ -4,8 +4,9 @@
 //!
 //! - `bridge_user_host_prefs`: whether a user has enabled the bridge for a
 //!   host. The bridge GUI reads these at sync time so disabling a host on one
-//!   device disables sync to it everywhere. "No rows at all" means every host
-//!   is enabled, so this table must never gain incidental rows.
+//!   device disables sync to it everywhere. "No enabled rows" means every host
+//!   is enabled, so disabling one host for a user with no rows first records
+//!   the instance's other hosts as enabled, in one transaction.
 //! - `bridge_user_host_model_prefs`: an optional per-host wire-protocol filter.
 //!   A row's presence is the override (an empty `model_protocols` array means
 //!   "all models"); absence means the host's built-in default applies. Kept in
@@ -44,6 +45,16 @@ impl EnabledHostPrefs {
     pub fn admits(&self, host: HostKind) -> bool {
         !self.any_enabled_row || self.hosts.contains(&host)
     }
+}
+
+/// Outcome of [`BridgeHostPrefsRepository::set_enabled`].
+///
+/// "No enabled rows" means every host, so a write that would leave none
+/// enabled cannot be stored and is refused rather than silently enabling all.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostPrefWrite {
+    Written,
+    WouldDisableAll,
 }
 
 fn known_host(user_id: &UserId, table: &'static str, raw: &str) -> Option<HostKind> {
@@ -95,7 +106,57 @@ impl BridgeHostPrefsRepository {
         })
     }
 
-    pub async fn upsert(&self, user_id: &UserId, host: HostKind, enabled: bool) -> OauthResult<()> {
+    pub async fn set_enabled(
+        &self,
+        user_id: &UserId,
+        host: HostKind,
+        enabled: bool,
+        instance_hosts: &[HostKind],
+    ) -> OauthResult<HostPrefWrite> {
+        let mut tx = self.write_pool.as_ref().begin().await?;
+        let stored: Vec<String> = sqlx::query_scalar!(
+            r#"
+            SELECT host_id FROM bridge_user_host_prefs
+            WHERE user_id = $1 AND enabled = true
+            FOR UPDATE
+            "#,
+            user_id.as_str(),
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        if !enabled {
+            let remaining: Vec<&str> = if stored.is_empty() {
+                instance_hosts
+                    .iter()
+                    .filter(|h| **h != host)
+                    .map(|h| h.as_str())
+                    .collect()
+            } else {
+                stored
+                    .iter()
+                    .map(String::as_str)
+                    .filter(|h| *h != host.as_str())
+                    .collect()
+            };
+            if remaining.is_empty() {
+                return Ok(HostPrefWrite::WouldDisableAll);
+            }
+            if stored.is_empty() {
+                let keep: Vec<String> = remaining.iter().map(|h| (*h).to_owned()).collect();
+                sqlx::query!(
+                    r#"
+                    INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled, updated_at)
+                    SELECT $1, host, true, CURRENT_TIMESTAMP FROM UNNEST($2::text[]) AS host
+                    ON CONFLICT (user_id, host_id)
+                    DO UPDATE SET enabled = true, updated_at = CURRENT_TIMESTAMP
+                    "#,
+                    user_id.as_str(),
+                    &keep,
+                )
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
         sqlx::query!(
             r#"
             INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled, updated_at)
@@ -107,9 +168,10 @@ impl BridgeHostPrefsRepository {
             host.as_str(),
             enabled,
         )
-        .execute(self.write_pool.as_ref())
+        .execute(&mut *tx)
         .await?;
-        Ok(())
+        tx.commit().await?;
+        Ok(HostPrefWrite::Written)
     }
 
     pub async fn load_model_protocols(

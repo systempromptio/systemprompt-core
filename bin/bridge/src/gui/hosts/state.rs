@@ -7,6 +7,7 @@ use std::collections::HashMap;
 
 use systemprompt_models::bridge::host::HostKind;
 
+use crate::integration::agent_health::PendingStep;
 use crate::integration::{GeneratedProfile, HostAppSnapshot, ProxyHealth};
 
 /// Monotonic per-host probe ticket: a result is applied only when its ticket
@@ -27,6 +28,7 @@ pub struct HostState {
     pub probe_in_flight: bool,
     pub probe_seq: ProbeSeq,
     pub last_generated_profile: Option<GeneratedProfile>,
+    pub pending: PendingStep,
 }
 
 impl HostState {

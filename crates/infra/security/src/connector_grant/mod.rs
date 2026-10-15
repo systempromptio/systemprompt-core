@@ -222,7 +222,7 @@ const GITHUB_HEADERS: &[(&str, &str)] = &[
 #[derive(Deserialize)]
 struct ClientCredentialsResponse {
     access_token: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "crate::oauth_wire::expires_in")]
     expires_in: Option<u64>,
 }
 

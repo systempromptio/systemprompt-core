@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- A JWK without `alg` is accepted (the token header pins the algorithm); `use` and `key_ops` restrict a key per RFC 7517; `Cache-Control` on a JWKS is honoured per RFC 9111; tokens with a `crit` header are refused; `expires_in` is read as a number or a numeric string.
+
 ## [0.68.0] - 2026-10-14
 
 ### Added

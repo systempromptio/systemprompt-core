@@ -24,6 +24,7 @@ pub struct McpServerAuthPayload<'a> {
     pub needs_sign_in: bool,
     pub conclusive: bool,
     pub shows_tools: bool,
+    pub desktop_tools_unlisted: bool,
 }
 
 impl<'a> From<&'a McpServerAuth> for McpServerAuthPayload<'a> {
@@ -34,6 +35,7 @@ impl<'a> From<&'a McpServerAuth> for McpServerAuthPayload<'a> {
             needs_sign_in: server.state.needs_sign_in(),
             conclusive: server.state.is_conclusive(),
             shows_tools: server.state.shows_tools(),
+            desktop_tools_unlisted: false,
         }
     }
 }

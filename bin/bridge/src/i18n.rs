@@ -67,11 +67,13 @@ fn catalog() -> &'static Catalog {
 }
 
 pub fn t(id: &str) -> String {
-    catalog()
-        .messages
-        .get(id)
-        .cloned()
-        .unwrap_or_else(|| id.to_owned())
+    let Some(template) = catalog().messages.get(id) else {
+        return id.to_owned();
+    };
+    let brand = crate::brand::brand();
+    template
+        .replace("{ $app }", brand.app_name)
+        .replace("{ $vendor }", brand.vendor)
 }
 
 pub fn t_args(id: &str, args: &[(&str, &str)]) -> String {

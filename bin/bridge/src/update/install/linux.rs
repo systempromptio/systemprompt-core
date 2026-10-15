@@ -9,13 +9,16 @@ use std::process::Command;
 use crate::update::error::UpdateError;
 use crate::update::install::{probe_writable, running_exe};
 
-pub(super) fn apply(staged: &Path) -> Result<PathBuf, UpdateError> {
+pub(super) fn preflight() -> Result<PathBuf, UpdateError> {
     let target = running_exe()?;
     probe_writable(
         &target,
         "re-run with sudo, or install to a directory you own such as ~/.local/bin",
     )?;
+    Ok(target)
+}
 
+pub(super) fn apply(staged: &Path, target: PathBuf) -> Result<PathBuf, UpdateError> {
     let workdir = staged.with_extension("unpack");
     if workdir.exists() {
         crate::fsutil::remove_leftover_dir(&workdir);

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- CLI-extension binaries are accepted as Dockerfile `COPY` sources.
+
 ## [0.67.0] - 2026-10-13
 
 ### Changed

@@ -1,6 +1,7 @@
 import { bridge } from "/assets/js/bridge.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { repairHost, hostInstallMessage, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
+import { hostActionSuccessLine } from "/assets/js/utils/host-action-messages.js";
 import { notifyOk, notifyErr, notifyAction } from "/assets/js/utils/notify.js";
 import { AGENT_WIRE_SURFACES, agentHostName } from "/assets/js/components/agent-drawer-parts.js";
 
@@ -8,19 +9,7 @@ import { AGENT_WIRE_SURFACES, agentHostName } from "/assets/js/components/agent-
 // the agent restarted afterwards. Saying which file was written is the whole
 // difference between "something happened" and a report.
 function successLine(kind, host, result) {
-  const name = agentHostName(host);
-  switch (kind) {
-    case "repair":
-    case "add":    return t("toast-agent-repaired", { name, path: result || "" })
-      || `${name} re-configured — wrote ${result || ""}. Restart ${name} to pick it up.`;
-    case "update":
-    case "update-admin": return t("toast-agent-updated", { name, path: result || "" })
-      || `${name} updated — wrote ${result || ""}. Quit and relaunch ${name} to load the new settings.`;
-    case "enrol":  return t("toast-agent-enrolled", { name })
-      || `${name} now routes through the gateway. Restart ${name} to pick it up.`;
-    case "verify": return t("toast-agent-verified", { name }) || `${name} re-checked.`;
-    default:       return "";
-  }
+  return hostActionSuccessLine(kind, agentHostName(host), result);
 }
 
 export async function runAgentDrawerAct(drawer, trigger) {
@@ -62,6 +51,24 @@ export async function runAgentDrawerAddHost(drawer, trigger) {
   }
 }
 
+// An agent the account enables but this computer lacks never receives its
+// skills, so it can only be turned off for the account, never repaired here.
+export async function runAgentDrawerTurnOffHost(drawer, trigger) {
+  const id = trigger.dataset.hostId;
+  if (!id || drawer.busyId) { return; }
+  drawer.busyId = id;
+  const name = agentHostName(drawer._hostById(id));
+  try {
+    await bridge.hostEnabledSet(id, false);
+    notifyOk(t("toast-agent-turned-off", { name })
+      || `${name} turned off for your account. Syncing now.`);
+  } catch (e) {
+    notifyErr(e, t("agent-action-turn-off") || "Turn off");
+  } finally {
+    drawer.busyId = null;
+  }
+}
+
 export function captureAgentDrawerFilter(drawer) {
   const allEl = drawer.querySelector("[data-model-all]");
   const host = drawer._host();
@@ -95,7 +102,7 @@ export async function runAgentDrawerSaveFilter(drawer, trigger) {
   const draft = drawer.filterDraft;
   if (!drawer._host() || !draft) { return; }
   await writeModelFilter(drawer, trigger, draft.all ? [] : draft.protocols,
-    t("toast-model-filter-saved") || "Model filter saved to your systemprompt account.",
+    t("toast-model-filter-saved") || `Model filter saved to your ${brandArgs().vendor} account.`,
     t("host-model-filter-save") || "Save filter");
 }
 

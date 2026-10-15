@@ -65,7 +65,8 @@
       },
       "needs_sign_in": false,
       "conclusive": true,
-      "shows_tools": true
+      "shows_tools": true,
+      "desktop_tools_unlisted": false
     },
     {
       "id": "odoo",
@@ -83,7 +84,8 @@
       },
       "needs_sign_in": true,
       "conclusive": true,
-      "shows_tools": false
+      "shows_tools": false,
+      "desktop_tools_unlisted": true
     },
     {
       "id": "systemprompt",
@@ -101,7 +103,8 @@
       },
       "needs_sign_in": false,
       "conclusive": false,
-      "shows_tools": false
+      "shows_tools": false,
+      "desktop_tools_unlisted": false
     }
   ],
   "mcp_auth_probe_in_flight": false,
@@ -181,7 +184,9 @@
         "action": {
           "code": "open"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -252,7 +257,9 @@
         "action": {
           "code": "open"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -323,7 +330,9 @@
         "action": {
           "code": "open"
         },
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -392,7 +401,9 @@
           "when_unix": 1787905697
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -429,7 +440,9 @@
           "code": "cloud-managed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": false
       }

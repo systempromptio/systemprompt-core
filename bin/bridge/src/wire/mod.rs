@@ -90,6 +90,7 @@ pub struct StatePayload<'a> {
     pub contact_email: &'static str,
     pub pitch_head: &'static str,
     pub pitch_body: &'static str,
+    pub demo_notice: Option<&'static str>,
     #[serde(flatten)]
     #[cfg_attr(feature = "ts-export", ts(flatten))]
     pub hosts: hosts::HostsPayload<'a>,

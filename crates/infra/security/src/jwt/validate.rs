@@ -25,7 +25,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use jsonwebtoken::{Algorithm, Validation, decode, decode_header};
+use jsonwebtoken::errors::{Error as JwtError, ErrorKind};
+use jsonwebtoken::{Algorithm, Header, Validation, decode, decode_header};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, MAX_ACT_CHAIN_DEPTH, UserType};
 
 use crate::error::{AuthError, AuthResult};
@@ -56,12 +57,23 @@ impl<'a> ValidationPolicy<'a> {
     }
 }
 
+// Why: RFC 7515 §4.1.11: a `crit` header names extensions the recipient must
+// understand, and no verifier here understands any, so its presence alone
+// rejects the token (an empty list is itself malformed).
+pub fn reject_critical_header(header: &Header) -> Result<(), JwtError> {
+    if header.crit.is_some() {
+        return Err(ErrorKind::InvalidToken.into());
+    }
+    Ok(())
+}
+
 pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthResult<JwtClaims> {
     if policy.audiences.is_empty() {
         return Err(AuthError::EmptyAudiencePolicy);
     }
 
     let header = decode_header(token).map_err(AuthError::InvalidToken)?;
+    reject_critical_header(&header).map_err(AuthError::InvalidToken)?;
     if header.alg != Algorithm::RS256 {
         return Err(AuthError::UnsupportedAlgorithm {
             got: format!("{:?}", header.alg),
@@ -76,6 +88,7 @@ pub fn decode_rs256_claims(token: &str, policy: &ValidationPolicy<'_>) -> AuthRe
     validation.validate_exp = true;
     validation.validate_nbf = true;
     validation.leeway = policy.leeway_seconds;
+    validation.set_required_spec_claims(&["exp", "iss", "aud"]);
     validation.set_issuer(&[policy.issuer]);
     let audience_strs: Vec<&str> = policy.audiences.iter().map(JwtAudience::as_str).collect();
     validation.set_audience(&audience_strs);

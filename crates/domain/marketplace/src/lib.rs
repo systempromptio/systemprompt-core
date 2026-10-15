@@ -76,6 +76,7 @@ mod view;
 
 pub use bundle::{
     BundleContent, BundleFile, PluginBundle, build_plugin_bundle, bundle_has_content,
+    skill_bundle_markdown, skill_bundle_path,
 };
 pub use candidate::{EntryKeepSets, FilterContext, ManifestEntries, MarketplaceCandidate};
 pub use catalog::{

@@ -24,8 +24,6 @@ function classify(snap) {
 // position, which is the difference between slow and stuck.
 function stepDetail(snap, progress) {
   if (!snap.sync_in_flight || !progress || !progress.detail) { return ""; }
-  const terminal = ["completed", "cancelled", "failed"];
-  if (terminal.includes(progress.phase)) { return ""; }
   return progress.detail;
 }
 
@@ -42,9 +40,9 @@ export class SpSyncPill extends SpElement {
     this.classList.add("sp-sync-pill");
     this.useSnapshot((s) => { this.snapshot = s; });
     this.bridgeSubscribe("sync.progress", (p) => {
-      // A terminal phase clears the step rather than leaving the last plugin
-      // name frozen beside "synced".
-      this.progress = ["completed", "cancelled", "failed"].includes(p && p.phase) ? null : p;
+      // A terminal event (the bridge sets `terminal`) clears the step rather
+      // than leaving the last plugin name frozen beside "synced".
+      this.progress = p && p.terminal === true ? null : p;
     });
   }
 

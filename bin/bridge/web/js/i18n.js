@@ -8,7 +8,25 @@ function warnMissing(id, where) {
   if (ready) console.warn(`i18n: no message "${id}" for ${where}`);
 }
 
-function format(template, args) {
+function metaContent(name, fallback) {
+  const el = typeof document !== "undefined" && document.querySelector(`meta[name="${name}"]`);
+  return (el && el.content) || fallback;
+}
+
+// Brand names come from the Brand via <meta> tags web_assets.rs fills in, so
+// every message can say `{ $app }` / `{ $vendor }` without each caller
+// passing them, and a white-label build never shows the default name.
+const BRAND_ARGS = Object.freeze({
+  app: metaContent("sp-brand-app", "systemprompt bridge"),
+  vendor: metaContent("sp-brand-vendor", "systemprompt"),
+});
+
+export function brandArgs() {
+  return BRAND_ARGS;
+}
+
+function format(template, callerArgs) {
+  const args = { ...BRAND_ARGS, ...callerArgs };
   return resolveSelects(template, args).replace(/\{\s*\$([A-Za-z0-9_-]+)\s*\}/g, (_, name) => {
     if (args && Object.prototype.hasOwnProperty.call(args, name)) {
       return String(args[name]);
@@ -22,7 +40,7 @@ export function t(id, args) {
   // Returning the id here made every `|| "English"` fallback in the app
   // unreachable, so a missing key rendered its own id at the user.
   if (typeof msg !== "string") return undefined;
-  return args ? format(msg, args) : msg;
+  return format(msg, args);
 }
 
 export function hydrate(root = document) {
@@ -30,7 +48,7 @@ export function hydrate(root = document) {
     const id = el.dataset.l10nId;
     const msg = messages.get(id);
     if (typeof msg === "string") {
-      el.textContent = msg;
+      el.textContent = format(msg);
     } else {
       warnMissing(id, "data-l10n-id");
     }
@@ -39,7 +57,7 @@ export function hydrate(root = document) {
     const id = el.dataset.l10nPlaceholder;
     const msg = messages.get(id);
     if (typeof msg === "string") {
-      el.placeholder = msg;
+      el.placeholder = format(msg);
     } else {
       warnMissing(id, "data-l10n-placeholder");
     }
@@ -48,7 +66,7 @@ export function hydrate(root = document) {
     const id = el.dataset.l10nAria;
     const msg = messages.get(id);
     if (typeof msg === "string") {
-      el.setAttribute("aria-label", msg);
+      el.setAttribute("aria-label", format(msg));
     } else {
       warnMissing(id, "data-l10n-aria");
     }

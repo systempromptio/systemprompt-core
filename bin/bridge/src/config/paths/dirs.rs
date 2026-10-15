@@ -148,3 +148,17 @@ pub fn claude_cli_plugins_dir() -> Option<PathBuf> {
 pub fn claude_cli_settings_path() -> Option<PathBuf> {
     claude_cli_home().map(|h| h.join("settings.json"))
 }
+
+// Why: macOS installs an offered profile on its own schedule, so it is written
+// to a stable per-user path under the bridge's metadata directory where macOS
+// can still find the `.mobileconfig` after the call and the user can re-add it
+// from Device Management by hand. Regenerating overwrites it in place.
+pub fn write_persistent_profile(file_name: &str, body: &[u8]) -> std::io::Result<PathBuf> {
+    let dir = bridge_metadata_dir()
+        .ok_or_else(|| std::io::Error::other("no per-user bridge metadata directory"))?
+        .join("profiles");
+    crate::fsutil::create_dir_all_mode_0700(&dir)?;
+    let path = dir.join(file_name);
+    crate::fsutil::atomic_write_0600(&path, body)?;
+    Ok(path)
+}

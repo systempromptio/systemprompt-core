@@ -45,6 +45,7 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
     // configured yet. Once any agent exists, sign-in drops straight into the app.
     step: configured && !anyInstalled && !onboarded ? "agents" : "connect",
     firstRunActive: !!(snap.first_run && snap.first_run.active),
+    signedIn: configured,
     leftSetup,
     setupMode: null,
   };

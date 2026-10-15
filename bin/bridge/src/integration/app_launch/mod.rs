@@ -16,6 +16,7 @@ mod windows;
 
 #[cfg(target_os = "windows")]
 use windows::{msix_launch, msix_package_present, start_menu_launch, start_menu_present_cached};
+
 #[derive(Debug, Clone, Copy)]
 #[expect(
     dead_code,
@@ -140,6 +141,25 @@ fn macos_bundles(name: &str) -> Vec<PathBuf> {
         out.push(home.join("Applications").join(format!("{name}.app")));
     }
     out
+}
+
+// Why: on macOS an app asked to quit through Apple Events closes its windows
+// and saves state; killing the process would not.
+#[cfg(target_os = "macos")]
+pub(crate) fn quit_app(loc: &AppLocator<'_>) -> io::Result<()> {
+    let script = format!("quit app \"{}\"", loc.macos_name);
+    run(
+        Command::new("/usr/bin/osascript").args(["-e", &script]),
+        loc.macos_name,
+    )
+}
+
+#[cfg(target_os = "windows")]
+pub(crate) fn quit_app(_loc: &AppLocator<'_>) -> io::Result<()> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "quitting the app from the bridge is supported on macOS only",
+    ))
 }
 
 #[cfg(target_os = "macos")]

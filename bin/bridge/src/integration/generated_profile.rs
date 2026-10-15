@@ -5,7 +5,9 @@
 //! The body carries a credential derived from the loopback secret, so it is
 //! written 0600 and removed once the installer has consumed it. A profile the
 //! OS installs asynchronously (a macOS `.mobileconfig` opened in System
-//! Settings) is the one case that outlives the call; it stays private.
+//! Settings) is the one case that outlives the call; it is written to a stable
+//! per-user path instead (`config::paths::write_persistent_profile`) and stays
+//! private.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

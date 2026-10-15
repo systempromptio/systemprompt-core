@@ -140,7 +140,7 @@ fn authored_keys_reach_config_catalog_and_client_skill_md() {
     );
     assert_ne!(
         skill.sha256.as_str(),
-        hex_sha256(skill.instructions.as_bytes()),
+        hex_sha256(skill.instructions.as_deref().unwrap_or_default().as_bytes()),
         "the skill digest covers the pass-through frontmatter"
     );
 

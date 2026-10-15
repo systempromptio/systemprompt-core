@@ -24,5 +24,8 @@ tempfile = { workspace = true }
 temp-env = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+sha2 = { workspace = true }
 
 [dev-dependencies]

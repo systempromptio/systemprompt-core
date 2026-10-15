@@ -73,7 +73,12 @@ impl AgentFleetSummary {
             match v.state {
                 AgentState::Working => s.working += 1,
                 AgentState::Ready => s.ready += 1,
-                AgentState::Attention => s.attention += 1,
+                AgentState::Attention
+                | AgentState::NeedsApproval
+                | AgentState::ApprovalExpired
+                | AgentState::NeedsAdminApproval
+                | AgentState::NeedsReapply
+                | AgentState::RestartNeeded => s.attention += 1,
                 AgentState::NotSetUp => s.not_set_up += 1,
                 AgentState::NotInstalled => s.not_installed += 1,
                 AgentState::Down => s.down += 1,
@@ -106,7 +111,8 @@ impl AgentFleetSummary {
     }
 }
 
-/// Both scopes the GUI needs: every enabled agent, and only those set up here.
+/// Both scopes the GUI needs: every enabled agent, and only those the Agents
+/// list shows (`is_listed`).
 #[derive(Debug, Clone, Copy, Default, Serialize)]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
@@ -120,7 +126,7 @@ impl AgentFleets {
     pub fn fold(verdicts: &[AgentVerdict]) -> Self {
         Self {
             all: AgentFleetSummary::fold(verdicts.iter()),
-            set_up: AgentFleetSummary::fold(verdicts.iter().filter(|v| v.is_set_up)),
+            set_up: AgentFleetSummary::fold(verdicts.iter().filter(|v| v.is_listed)),
         }
     }
 }

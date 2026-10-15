@@ -109,6 +109,20 @@ impl ManagedRepository {
         sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING", owner.as_str(), resource.as_str(), consumer.as_str()).execute(&self.pool).await?;
         Ok(())
     }
+
+    pub async fn retain_consumer_catalog_grants(
+        &self,
+        owner: &UserId,
+        resources: &[systemprompt_identifiers::ManagedResourceId],
+        consumer: &UserId,
+    ) -> Result<()> {
+        if resources.is_empty() {
+            return Ok(());
+        }
+        let resources: Vec<String> = resources.iter().map(|id| id.as_str().to_owned()).collect();
+        sqlx::query!("INSERT INTO managed_consumer_grants(owner_id,resource_id,consumer_id) SELECT $1, resource, $3 FROM UNNEST($2::text[]) AS resource ON CONFLICT DO NOTHING", owner.as_str(), &resources, consumer.as_str()).execute(&self.pool).await?;
+        Ok(())
+    }
 }
 
 impl ManagedRepository {

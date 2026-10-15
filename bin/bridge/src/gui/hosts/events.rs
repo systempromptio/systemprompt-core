@@ -20,6 +20,10 @@ pub enum ProbeCause {
 
 #[derive(Debug, Clone)]
 pub enum HostUiEvent {
+    RestartRequested {
+        host_id: HostKind,
+        reply_to: ReplyId,
+    },
     ProbeFailed {
         host_id: Option<(HostKind, ProbeSeq)>,
         error: String,
@@ -70,6 +74,17 @@ pub enum HostUiEvent {
     },
     ModelFilterSetFinished {
         host_id: HostKind,
+        result: Result<(), Arc<GuiError>>,
+        reply_to: ReplyId,
+    },
+    EnabledSetRequested {
+        host_id: HostKind,
+        enabled: bool,
+        reply_to: ReplyId,
+    },
+    EnabledSetFinished {
+        host_id: HostKind,
+        enabled: bool,
         result: Result<(), Arc<GuiError>>,
         reply_to: ReplyId,
     },

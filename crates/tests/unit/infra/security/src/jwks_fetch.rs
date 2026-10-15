@@ -347,7 +347,17 @@ fn parse_max_age_extracts_seconds_or_none() {
         parse_max_age("public, max-age=60"),
         Some(Duration::from_secs(60))
     );
-    assert_eq!(parse_max_age("no-store, no-cache"), None);
+    assert_eq!(parse_max_age("public"), None);
+    assert_eq!(parse_max_age("no-store, no-cache"), Some(Duration::ZERO));
+    assert_eq!(
+        parse_max_age("public, Max-Age=\"90\""),
+        Some(Duration::from_secs(90))
+    );
+    assert_eq!(
+        parse_max_age("max-age=60, no-cache"),
+        Some(Duration::ZERO),
+        "no-cache forbids reuse whatever max-age says"
+    );
 }
 
 #[test]

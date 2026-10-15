@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>systemprompt bridge</title>
+  <meta name="sp-brand-app" content="__APP_NAME__" />
+  <meta name="sp-brand-vendor" content="__VENDOR__" />
+  <title>__APP_NAME__</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/assets/css/main.css">
 </head>
@@ -26,7 +28,7 @@
 
   <header class="sp-topbar" role="banner">
     <div class="sp-topbar__left">
-      <a class="sp-brand" href="#" aria-label="systemprompt bridge">
+      <a class="sp-brand" href="#" aria-label="__APP_NAME__">
         <span class="sp-brand__word">__LOGO_SVG__</span>
       </a>
       <span class="sp-topbar__divider" aria-hidden="true"></span>
@@ -78,8 +80,8 @@
         <section class="sp-status-group" data-group="cloud">
           <header class="sp-status-group__header">
             <div>
-              <h2 data-l10n-id="status-cloud-heading">systemprompt cloud</h2>
-              <p class="sp-status-group__caption" data-l10n-id="status-cloud-caption">The hosted control plane systemprompt bridge talks to. Identity and PAT live here.</p>
+              <h2 data-l10n-id="status-cloud-heading">__VENDOR__ cloud</h2>
+              <p class="sp-status-group__caption" data-l10n-id="status-cloud-caption">The hosted control plane __APP_NAME__ talks to. Identity and PAT live here.</p>
             </div>
             <span class="sp-badge sp-badge--muted" data-section-badge data-l10n-id="status-badge-checking">checking…</span>
           </header>

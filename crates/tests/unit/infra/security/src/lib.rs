@@ -29,6 +29,8 @@ mod hook_token_typed_ids;
 #[cfg(test)]
 mod jwks_fetch;
 #[cfg(test)]
+mod jwks_shapes;
+#[cfg(test)]
 mod jwt_extract;
 #[cfg(test)]
 mod jwt_validate;
@@ -36,6 +38,8 @@ mod jwt_validate;
 mod manifest_signing_jcs;
 #[cfg(test)]
 mod manifest_signing_keys;
+#[cfg(test)]
+mod oauth_wire;
 #[cfg(test)]
 mod policy_approval;
 #[cfg(test)]

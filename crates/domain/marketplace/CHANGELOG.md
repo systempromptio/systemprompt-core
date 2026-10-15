@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Added
+
+- Manifest schema 2: a plugin-delivered skill may name the plugin `SKILL.md` that carries its body instead of inlining it; the body is dropped from the manifest only when that file provably yields it.
+- Content-addressed plugin bundles for archive downloads and conditional manifest fetches.
+
+### Changed
+
+- `MarketplaceCache` makes per-user catalogue rebuilds single-flight (`rebuild_gate`, `resolved_built_since`).
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

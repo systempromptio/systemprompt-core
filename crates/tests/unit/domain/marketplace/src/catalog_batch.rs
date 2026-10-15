@@ -206,6 +206,8 @@ async fn the_overlay_withholds_revoked_keys_for_that_consumer_only() {
     assert!(
         served.as_content().skills[0]
             .instructions
+            .as_deref()
+            .unwrap_or_default()
             .contains("managed instructions")
     );
 
@@ -399,10 +401,18 @@ async fn rejects_mismatched_selection_until_exact_publication_digest_is_restored
         .expect("matching selection restores catalog");
     assert_eq!(recovered.as_content().skills.len(), 2);
     assert!(recovered.as_content().skills.iter().any(|skill| {
-        skill.id.as_str() == published[0].0 && skill.instructions.contains("selected publication")
+        skill.id.as_str() == published[0].0
+            && skill
+                .instructions
+                .as_deref()
+                .is_some_and(|body| body.contains("selected publication"))
     }));
     assert!(recovered.as_content().skills.iter().any(|skill| {
-        skill.id.as_str() == published[1].0 && skill.instructions.contains("healthy publication")
+        skill.id.as_str() == published[1].0
+            && skill
+                .instructions
+                .as_deref()
+                .is_some_and(|body| body.contains("healthy publication"))
     }));
 
     drop(repository);

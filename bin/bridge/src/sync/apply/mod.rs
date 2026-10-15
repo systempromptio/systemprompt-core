@@ -9,27 +9,33 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod archive;
 mod evidence;
 mod fetch;
+mod fragments;
 mod hooks;
 pub(super) mod loopback;
 pub mod node_deps;
 mod plugin;
+mod plugin_files;
 pub mod safe_path;
+pub mod skill_bodies;
+mod stage;
+pub mod stamp;
 pub mod swap;
 
 pub(crate) use crate::host_sync::ApplyError;
 pub use crate::host_sync::{HostWarning, HostWarningKind};
 
+pub use fragments::{write_envelope, write_mcp_servers, write_user};
 pub use plugin::HostFailure;
 
 pub const PLUGIN_INSTALLATION_PREFERENCE: &str = "required";
 
 use crate::config::paths::{self, OrgPluginsLocation};
 use crate::context::BridgeContext;
-use crate::fsutil::{FileReceipt, atomic_write_0644};
 use crate::gateway::GatewayClient;
-use crate::gateway::manifest::{ManagedMcpServer, SignedManifest, UserInfo};
+use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{self, HostSyncCtx};
 use crate::ids::BearerToken;
 use std::fs;
@@ -80,6 +86,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         loopback,
         plugin_tokens: &bridge.plugin_tokens,
         root,
+        meta_dir: &meta_dir,
         staging_root: &staging_root,
         cancel,
         progress: bridge.sync_progress.clone(),
@@ -97,7 +104,8 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
 
     let mcp_servers =
         loopback::rewrite_loopback_urls(&manifest.managed_mcp_servers, client.base_url());
-    let manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
+    let mut manifest_for_write = loopback::manifest_with_servers(manifest, mcp_servers.clone());
+    skill_bodies::resolve(&mut manifest_for_write, root);
     report
         .receipts
         .push(write_user(&meta_dir, manifest.user.as_ref())?);
@@ -131,6 +139,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         );
     }
     let emitters = host_sync::registry();
+    let mut skipped_absent = std::collections::BTreeSet::new();
     for (index, emitter) in emitters.iter().enumerate() {
         let host_id = emitter.host_id();
         bridge
@@ -147,6 +156,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 host = host_id.as_str(),
                 "host app not installed; settings not written"
             );
+            skipped_absent.insert(host_id);
             continue;
         }
         let outcome = if enabled {
@@ -172,8 +182,14 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             },
         }
     }
-    let evidence_warnings =
-        evidence::capture(emitters, &manifest_for_write, &ctx, &mut report).await;
+    let evidence_warnings = evidence::capture(
+        emitters,
+        &manifest_for_write,
+        &ctx,
+        &skipped_absent,
+        &mut report,
+    )
+    .await;
     report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
@@ -236,64 +252,4 @@ fn plugin_manifest_path(plugin_dir: &Path) -> Option<std::path::PathBuf> {
         .iter()
         .map(|dir| plugin_dir.join(dir).join(PLUGIN_MANIFEST_FILE))
         .find(|path| path.is_file())
-}
-
-pub fn write_user(meta_dir: &Path, user: Option<&UserInfo>) -> Result<FileReceipt, ApplyError> {
-    let path = meta_dir.join(paths::USER_FRAGMENT);
-    let bytes = match user {
-        Some(u) => serde_json::to_vec_pretty(u).map_err(|e| ApplyError::Serialize {
-            what: "user".into(),
-            source: e,
-        })?,
-        None => b"null".to_vec(),
-    };
-    write_fragment(&path, &bytes)
-}
-
-// Why: the Windows policy writer accepts only a gateway-signed manifest and
-// re-verifies it under SYSTEM, so the envelope is kept verbatim rather than
-// the decoded manifest — a decoded copy could not be re-verified.
-pub fn write_envelope(
-    meta_dir: &Path,
-    gateway: &ValidatedUrl,
-    envelope: &systemprompt_models::bridge::manifest::SignedManifestEnvelope,
-) -> Result<FileReceipt, ApplyError> {
-    let path = meta_dir.join(paths::MANIFEST_ENVELOPE_FRAGMENT);
-    let fragment = crate::mcp_registry::EnvelopeFragment {
-        gateway: gateway.clone(),
-        envelope: envelope.clone(),
-    };
-    let bytes = serde_json::to_vec_pretty(&fragment).map_err(|e| ApplyError::Serialize {
-        what: "manifest envelope".into(),
-        source: e,
-    })?;
-    write_fragment(&path, &bytes)
-}
-
-pub fn write_mcp_servers(
-    meta_dir: &Path,
-    gateway: &ValidatedUrl,
-    servers: &[ManagedMcpServer],
-) -> Result<FileReceipt, ApplyError> {
-    let path = meta_dir.join(paths::MCP_SERVERS_FRAGMENT);
-    let fragment = crate::mcp_registry::McpServersFragment {
-        gateway: gateway.clone(),
-        servers: servers.to_vec(),
-    };
-    let bytes = serde_json::to_vec_pretty(&fragment).map_err(|e| ApplyError::Serialize {
-        what: "managed MCP servers".into(),
-        source: e,
-    })?;
-    write_fragment(&path, &bytes)
-}
-
-fn write_fragment(path: &Path, bytes: &[u8]) -> Result<FileReceipt, ApplyError> {
-    atomic_write_0644(path, bytes).map_err(|e| ApplyError::Io {
-        context: format!("write {}", path.display()),
-        source: e,
-    })?;
-    FileReceipt::verify(path, bytes).map_err(|e| ApplyError::Io {
-        context: format!("verify {}", path.display()),
-        source: e,
-    })
 }

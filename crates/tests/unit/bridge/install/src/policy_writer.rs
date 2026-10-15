@@ -9,6 +9,7 @@ use std::path::Path;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as B64;
 use ed25519_dalek::{Signer, SigningKey};
+use systemprompt_bridge::config::store::policy_apply::withheld_keys;
 use systemprompt_bridge::config::{PinSource, TrustRecord};
 use systemprompt_bridge::gateway::manifest::{
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, SignedManifest, SignedManifestEnvelope,
@@ -17,12 +18,13 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::{
     HostToken, ManifestSignature, McpServerId, McpToolName, ToolPolicy,
 };
+use systemprompt_bridge::install::mdm::desktop_tool_policy::unlisted_servers;
 use systemprompt_bridge::install::policy_writer::{
     BIN_SDDL, INBOX_SDDL, Layout, Loopback, MAX_REQUEST_BYTES, OUTBOX_SDDL, PolicyWriteRequest,
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
     expected_steps, facts_from_entries, render_task_xml, task_name, verify_against_anchor,
 };
-use systemprompt_bridge::mcp_registry::EnvelopeFragment;
+use systemprompt_bridge::mcp_registry::{EnvelopeFragment, from_servers};
 use systemprompt_identifiers::ValidatedUrl;
 
 const GATEWAY: &str = "https://gateway.example.test";
@@ -114,6 +116,7 @@ fn request(
     let fragment = EnvelopeFragment {
         gateway: ValidatedUrl::try_new(GATEWAY).unwrap(),
         envelope: envelope(key, manifest),
+        etag: None,
     };
     let tool_catalog = catalog
         .iter()
@@ -246,15 +249,66 @@ fn the_server_list_comes_from_the_manifest_never_from_the_catalog() {
 }
 
 #[test]
-fn a_wildcard_the_catalog_cannot_expand_withholds_the_whole_list() {
+fn a_wildcard_the_catalog_cannot_expand_skips_only_that_server() {
     let key = signing_key(1);
-    let manifest = manifest(vec![server("atlassian", wildcard(ToolPolicy::Allow))]);
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+    ]);
+    let req = request(&key, &manifest, &[("atlassian", &["x"])]);
+    let values = derive_policy(&req, &manifest, None).unwrap();
+    let servers = value_of(&values, "managedMcpServers").expect("the rest is written");
+    assert!(servers.contains("atlassian"));
+    assert!(!servers.contains("agent-farm"));
+}
+
+#[test]
+fn every_server_skipped_for_an_unexpandable_wildcard_omits_the_list() {
+    let key = signing_key(1);
+    let manifest = manifest(vec![server("agent-farm", wildcard(ToolPolicy::Allow))]);
     let req = request(&key, &manifest, &[]);
     let values = derive_policy(&req, &manifest, None).unwrap();
     assert_eq!(
         value_of(&values, "managedMcpServers"),
         None,
-        "a partial list is one Desktop would resolve to its own default"
+        "an empty list would lock Desktop out of every MCP server"
+    );
+    assert_eq!(
+        withheld_keys(&values),
+        vec!["managedMcpServers"],
+        "an omitted list is cleared from the hive, so a stale loopback list cannot persist"
+    );
+}
+
+#[test]
+fn one_server_skipped_keeps_the_list_in_the_written_values() {
+    let key = signing_key(1);
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+    ]);
+    let req = request(&key, &manifest, &[("atlassian", &["x"])]);
+    let values = derive_policy(&req, &manifest, None).unwrap();
+    assert!(
+        withheld_keys(&values).is_empty(),
+        "a written list replaces the stale one and is not removed"
+    );
+}
+
+#[test]
+fn the_gui_names_each_server_the_desktop_policy_skips() {
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+        server("blocked", wildcard(ToolPolicy::Deny)),
+    ]);
+    let registry = from_servers(&manifest.managed_mcp_servers);
+    let mut catalog = BTreeMap::new();
+    catalog.insert("atlassian".to_owned(), vec!["x".to_owned()]);
+    assert_eq!(
+        unlisted_servers(&registry, &catalog),
+        vec!["agent-farm".to_owned()],
+        "only the wildcard with no tool names is unlisted; a deny is withheld by design"
     );
 }
 

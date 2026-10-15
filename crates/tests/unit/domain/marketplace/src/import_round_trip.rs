@@ -105,7 +105,8 @@ fn skill_entry(id: &str, description: &str) -> SkillEntry {
             "0000000000000000000000000000000000000000000000000000000000000000",
         )
         .expect("zero digest"),
-        instructions: format!("Instructions for {id}."),
+        instructions: Some(format!("Instructions for {id}.")),
+        source: None,
         hosts: Vec::new(),
         plugins: Vec::new(),
         frontmatter: None,

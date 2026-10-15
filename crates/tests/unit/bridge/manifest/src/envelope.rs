@@ -1,6 +1,6 @@
 use systemprompt_bridge::gateway::manifest::{
-    MANIFEST_SCHEMA_VERSION, ManifestError, SignedManifestBuilder, SignedManifestEnvelope,
-    decode_payload,
+    MANIFEST_INLINE_SCHEMA_VERSION, MANIFEST_SCHEMA_VERSION, ManifestError, SignedManifestBuilder,
+    SignedManifestEnvelope, decode_payload,
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
@@ -37,7 +37,7 @@ fn envelope(payload: &serde_json::Value) -> SignedManifestEnvelope {
 fn decode_payload_round_trips_builder_manifest() {
     let manifest = decode_payload(&envelope(&payload_value())).expect("decodes");
     assert_eq!(manifest.user_id, fixture_user_id());
-    assert_eq!(manifest.min_schema_version, MANIFEST_SCHEMA_VERSION);
+    assert_eq!(manifest.min_schema_version, MANIFEST_INLINE_SCHEMA_VERSION);
     assert_eq!(manifest.enabled_hosts, vec!["claude-desktop"]);
 }
 

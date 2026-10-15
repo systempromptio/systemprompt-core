@@ -17,7 +17,7 @@ mod maintenance;
 mod model;
 mod repo;
 
-pub use claim::{INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError};
+pub use claim::{CLAIM_DEAD_PEER_SECS, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError};
 pub use model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
 pub use repo::ServiceRepository;
 pub use systemprompt_manifest::services::{ServiceModule, ServiceStatus};

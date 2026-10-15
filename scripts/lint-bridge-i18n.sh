@@ -37,9 +37,9 @@ dynamic_prefixes="setup-install-stage- update-phase-"
 # the gate called nineteen live keys dead and would equally have called a
 # missing string fine. Prefer this list; use `dynamic_prefixes` only when there
 # is no producer to point at.
-enum_families="agent-state-:integration/agent_health.rs:AgentState
-agent-reason-:integration/agent_health.rs:AgentReason
-agent-action-:integration/agent_health.rs:AgentAction
+enum_families="agent-state-:integration/agent_verdict.rs:AgentState
+agent-reason-:integration/agent_verdict.rs:AgentReason
+agent-action-:integration/agent_verdict.rs:AgentAction
 agents-fleet-:integration/agent_fleet.rs:FleetHeadline
 tone-section-:verdict.rs:Tone
 gateway-state-:wire/codes.rs:GatewayCode

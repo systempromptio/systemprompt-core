@@ -21,6 +21,9 @@ export function actionButtons(drawer, host, status) {
         busy ? agentDrawerWorkingLabel() : status.action.label
       )}${primaryKind === "download" ? " ↗" : ""}</button>`);
   }
+  if (status.secondary) {
+    buttons.push(ghostButton(escapeHtml(status.secondary.code), status.secondary.label, busy));
+  }
   // Whether an action is available at all is decided in Rust, beside the state
   // it depends on (`HostEntryPayload.can_*`), and only rendered here. These four
   // buttons used to be unconditional, so a sync-only agent — governed from the
@@ -31,7 +34,7 @@ export function actionButtons(drawer, host, status) {
   if (primaryKind !== "open" && host.can_open !== false && appInstallState(host) !== APP_NOT_INSTALLED) {
     buttons.push(ghostButton("open", t("host-action-open") || "Open"));
   }
-  const rewrites = primaryKind === "repair" || primaryKind === "add" || primaryKind === "update" || primaryKind === "update-admin";
+  const rewrites = ["repair", "add", "connect", "offer-again", "update", "update-admin"].includes(primaryKind);
   if (!rewrites && host.can_repair !== false) {
     buttons.push(ghostButton("repair", t("agent-action-repair") || "Repair", busy));
   }

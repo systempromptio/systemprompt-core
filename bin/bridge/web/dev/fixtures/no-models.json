@@ -110,7 +110,9 @@
           "providers": "anthropic"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -171,7 +173,9 @@
           "code": "no-models"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -232,7 +236,9 @@
           "code": "no-models"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -293,7 +299,9 @@
           "code": "no-models"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": true
       }
@@ -330,7 +338,9 @@
           "code": "cloud-managed"
         },
         "action": null,
+        "secondary_action": null,
         "is_set_up": true,
+        "is_listed": true,
         "is_installed": true,
         "is_running": false
       }

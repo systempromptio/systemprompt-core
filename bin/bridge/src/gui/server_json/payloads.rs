@@ -16,7 +16,10 @@ pub(super) use crate::wire::payloads::{
 pub(super) fn mcp_servers_payload(snap: &AppStateSnapshot) -> Vec<McpServerAuthPayload<'_>> {
     snap.mcp_auth
         .iter()
-        .map(McpServerAuthPayload::from)
+        .map(|server| McpServerAuthPayload {
+            desktop_tools_unlisted: snap.mcp_desktop_unlisted.contains(&server.id),
+            ..McpServerAuthPayload::from(server)
+        })
         .collect()
 }
 

@@ -8,6 +8,14 @@
 //! same id is refused at boot, and the claim vanishes with the session on a
 //! crash, so no stale claim ever needs reaping.
 //!
+//! A crash only frees the claim once the server notices the session is gone.
+//! A replaced host (a Fly machine redeployed under the same `HOSTNAME`) never
+//! sends a FIN, and with the default two-hour keepalive the server would hold
+//! the dead session — and the identity — long after the process died. The
+//! claim session therefore asks the server to probe its client every few
+//! seconds, so a vanished holder is torn down within
+//! [`CLAIM_DEAD_PEER_SECS`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -22,6 +30,8 @@ use super::repo::ServiceRepository;
 // two-key form with a dedicated class keeps instance claims disjoint from
 // the single-key `hashtext(job_name)` job locks.
 pub const INSTANCE_CLAIM_CLASS: i32 = 0x5350_0001;
+
+pub const CLAIM_DEAD_PEER_SECS: u64 = 25;
 
 /// Failure to claim this process's replica identity.
 #[derive(Debug, thiserror::Error)]
@@ -92,6 +102,16 @@ impl std::fmt::Debug for InstanceClaim {
 impl ServiceRepository {
     pub async fn claim_instance(&self) -> Result<InstanceClaim, InstanceClaimError> {
         let mut session = self.write_pool.acquire().await?.detach();
+        // Why: idle 10 s + 3 probes 5 s apart bounds a dead peer at
+        // CLAIM_DEAD_PEER_SECS; the server-side settings are what free a
+        // session whose client host disappeared without closing it.
+        sqlx::query_scalar!(
+            r#"SELECT set_config('tcp_keepalives_idle', '10', false)
+                   || set_config('tcp_keepalives_interval', '5', false)
+                   || set_config('tcp_keepalives_count', '3', false) AS "applied!""#
+        )
+        .fetch_one(&mut session)
+        .await?;
         let acquired = sqlx::query_scalar!(
             r#"SELECT pg_try_advisory_lock($1, hashtext($2)) AS "acquired!""#,
             INSTANCE_CLAIM_CLASS,

@@ -5,8 +5,12 @@
 //! [`MarketplaceCache`](systemprompt_marketplace::MarketplaceCache) and shared
 //! by the manifest route and every plugin-file download that follows it.
 //!
-//! A hit costs one query (the managed stamp) and no catalogue work; a miss
-//! does what the two routes used to do independently on every request.
+//! A `no-cache` request revalidates only a memo older than
+//! [`FRESH_REVALIDATE_AFTER`]. A hit costs one query (the managed stamp) and
+//! no catalogue work. Misses
+//! for one user are single-flight: a request that waited on another's
+//! rebuild takes its result instead of starting its own, so a memo that
+//! expires under load is rebuilt once, not once per waiting request.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,6 +55,11 @@ impl Freshness {
     }
 }
 
+// Why: How old a memo may be and still answer a `no-cache` request. A bridge
+// probes on a 10–30 s tick with `no-cache`, and rebuilding on each one starved
+// the pool; a connector the user just linked shows up at most this late.
+pub const FRESH_REVALIDATE_AFTER: std::time::Duration = std::time::Duration::from_secs(30);
+
 pub async fn resolve_for_user(
     ctx: &AppContext,
     services: &ServicesConfig,
@@ -76,11 +85,23 @@ pub async fn resolve_for_user(
         user: user_id.clone(),
         managed_stamp,
     };
-    if freshness == Freshness::Memo
-        && let Some(hit) = cache.resolved(&key)
-    {
+    let memo = match freshness {
+        Freshness::Memo => cache.resolved(&key),
+        Freshness::Fresh => std::time::Instant::now()
+            .checked_sub(FRESH_REVALIDATE_AFTER)
+            .and_then(|since| cache.resolved_built_since(&key, since)),
+    };
+    if let Some(hit) = memo {
         tracing::debug!(user_id = %user_id, "bridge: resolved catalogue served from memo");
         return Ok(hit);
+    }
+
+    let requested_at = std::time::Instant::now();
+    let gate = cache.rebuild_gate(user_id);
+    let _rebuilding = gate.lock().await;
+    if let Some(shared) = cache.resolved_built_since(&key, requested_at) {
+        tracing::debug!(user_id = %user_id, "bridge: resolved catalogue shared a concurrent rebuild");
+        return Ok(shared);
     }
 
     let started = std::time::Instant::now();
@@ -112,6 +133,7 @@ pub async fn resolve_for_user(
         elapsed_ms = started.elapsed().as_millis(),
         plugins = resolved.candidate.plugins.len(),
         skills = resolved.candidate.skills.len(),
+        fresh = freshness == Freshness::Fresh,
         "bridge: resolved catalogue rebuilt"
     );
     Ok(resolved)

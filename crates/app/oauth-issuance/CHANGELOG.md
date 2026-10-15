@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- Token exchange keeps one JWKS client per trusted-issuer host allowlist for the process, so the issuer's `Cache-Control` TTL and kid-miss refetch throttle apply; an `id_token` for several audiences must name this client as `azp` (OIDC Core §3.1.3.7) and must carry `iat`.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

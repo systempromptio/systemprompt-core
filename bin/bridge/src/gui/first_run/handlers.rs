@@ -32,6 +32,7 @@ pub(crate) fn on_start(app: &mut GuiApp) {
         enrol_claude_code(app);
     }
     progress(app);
+    start_sync(app);
     if desktop_hosts == 0 {
         advance(app);
         return;
@@ -121,6 +122,11 @@ pub(crate) fn on_install_result(app: &mut GuiApp, host_id: HostKind, error: Opti
     }
     app.state
         .set_first_run_host(host_id, StepStatus::Done, None);
+    app.state.update_first_run(|s| {
+        if s.sync != StepStatus::Pending {
+            s.host_installed_during_sync = true;
+        }
+    });
     advance(app);
 }
 
@@ -132,11 +138,49 @@ pub(crate) fn on_sync_cancelled(app: &mut GuiApp) {
 }
 
 pub(crate) fn on_sync_result(app: &mut GuiApp, succeeded: bool) {
-    app.state.set_first_run_sync(if succeeded {
-        StepStatus::Done
-    } else {
-        StepStatus::Failed
+    app.state.update_first_run(|s| {
+        let first = s.sync_result.unwrap_or(true);
+        s.sync_result = Some(if s.followup_sync {
+            first && succeeded
+        } else {
+            succeeded
+        });
+        s.followup_sync = false;
+        s.sync = if succeeded {
+            StepStatus::Done
+        } else {
+            StepStatus::Failed
+        };
     });
+    try_finish(app);
+}
+
+// Why: Finalises the run once both the sync result and every host are in,
+// whichever arrives last. A host that installed while the first sync ran
+// is owed one follow-up sync so its settings are applied.
+fn try_finish(app: &mut GuiApp) {
+    let state = app.state.snapshot().first_run;
+    if state.sync_result.is_none() || !state.all_hosts_terminal() || state.followup_sync {
+        if state.all_hosts_terminal() {
+            app.state.set_first_run_phase(FirstRunPhase::Syncing);
+        }
+        progress(app);
+        emit::emit_state(app);
+        return;
+    }
+    if state.host_installed_during_sync && state.sync_result == Some(true) {
+        app.state.update_first_run(|s| {
+            s.host_installed_during_sync = false;
+            s.followup_sync = true;
+        });
+        app.append_log("First use: applying settings to newly installed agents…");
+        start_sync(app);
+        return;
+    }
+    finish(app, state.sync_result == Some(true));
+}
+
+pub(crate) fn finish(app: &mut GuiApp, succeeded: bool) {
     let state = app.state.snapshot().first_run;
     let usable = succeeded || state.any_host_installed();
     app.state.finish_first_run(if usable {
@@ -162,11 +206,13 @@ fn fail_host(app: &mut GuiApp, host_id: HostKind, error: String) {
 }
 
 fn advance(app: &mut GuiApp) {
-    progress(app);
-    if !app.state.snapshot().first_run.all_hosts_terminal() {
-        return;
+    try_finish(app);
+}
+
+fn start_sync(app: &mut GuiApp) {
+    if app.state.snapshot().first_run.all_hosts_terminal() {
+        app.state.set_first_run_phase(FirstRunPhase::Syncing);
     }
-    app.state.set_first_run_phase(FirstRunPhase::Syncing);
     app.state.set_first_run_sync(StepStatus::Installing);
     progress(app);
     app.did_initial_sync = true;

@@ -61,7 +61,7 @@ export class SpFooter extends SpElement {
         <span class="sp-footer__sep" aria-hidden="true">·</span>
         <a href="${escapeHtml(docsUrl(snap))}" data-href="${escapeHtml(docsUrl(snap))}" data-action="open-external" data-l10n-id="footer-docs">docs</a>
         <span class="sp-footer__sep" aria-hidden="true">·</span>
-        <a href="https://systemprompt.io/documentation/licensing" data-href="https://systemprompt.io/documentation/licensing" data-action="open-external" data-l10n-id="footer-licensing">licensing</a>
+        <a href="${escapeHtml(`${docsUrl(snap)}/licensing`)}" data-href="${escapeHtml(`${docsUrl(snap)}/licensing`)}" data-action="open-external" data-l10n-id="footer-licensing">licensing</a>
       </div>
       <div class="sp-footer__right">
         <span class="sp-footer__hint"><span class="sp-kbd">⌘1</span><span class="sp-kbd">⌘2</span><span class="sp-kbd">⌘3</span><span class="sp-kbd">⌘4</span> <span data-l10n-id="footer-tabs-hint">tabs</span></span>

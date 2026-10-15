@@ -13,6 +13,8 @@
 //! cover — the user's `MarketplaceFilter` (a DB-backed ACL) and a grant that
 //! is new rather than revoked — can never be served for longer than that.
 //!
+//! A per-user rebuild gate makes concurrent misses share one rebuild.
+//!
 //! The cache also remembers which catalogue-shape warnings it has logged, so
 //! a resolution that runs once per user per minute reports each once.
 //!
@@ -21,14 +23,15 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 use std::time::{Duration, Instant};
 
 use systemprompt_identifiers::{PluginId, UserId};
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_models::bridge::manifest::PluginEntry;
 
 use super::content::{CatalogContent, catalog_fingerprint};
-use super::plugins::{bundle_fingerprint, plugin_bundles};
+use super::plugins::{bundle_fingerprint, hash_entries, plugin_bundles};
 use crate::bundle::{BundleContent, PluginBundle};
 use crate::candidate::MarketplaceCandidate;
 use crate::error::MarketplaceError;
@@ -69,7 +72,9 @@ struct ResolvedEntry {
 pub struct MarketplaceCache {
     catalog: Slot<CatalogContent>,
     bundles: Slot<BundleMap>,
+    plugin_entries: Slot<Vec<PluginEntry>>,
     resolved: RwLock<VecDeque<ResolvedEntry>>,
+    rebuilds: Mutex<BTreeMap<UserId, Weak<tokio::sync::Mutex<()>>>>,
     sighted: Mutex<BTreeSet<String>>,
 }
 
@@ -135,6 +140,55 @@ impl MarketplaceCache {
             .map(|entry| Arc::clone(&entry.value))
     }
 
+    // Why: A resolution of exactly `key` built at or after `since`, TTL ignored:
+    // what a request that waited on another's rebuild may take as its own.
+    pub fn resolved_built_since(
+        &self,
+        key: &ResolvedKey,
+        since: Instant,
+    ) -> Option<Arc<ResolvedCatalog>> {
+        let guard = self
+            .resolved
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .iter()
+            .find(|entry| &entry.key == key && entry.built_at >= since)
+            .map(|entry| Arc::clone(&entry.value))
+    }
+
+    // Why: The one rebuild gate for `user`; it lives while someone holds it.
+    pub fn rebuild_gate(&self, user: &UserId) -> Arc<tokio::sync::Mutex<()>> {
+        let mut gates = self
+            .rebuilds
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(gate) = gates.get(user).and_then(Weak::upgrade) {
+            return gate;
+        }
+        gates.retain(|_, gate| gate.strong_count() > 0);
+        let gate = Arc::new(tokio::sync::Mutex::new(()));
+        gates.insert(user.clone(), Arc::downgrade(&gate));
+        gate
+    }
+
+    // Why: a download that follows a manifest must serve the bytes that
+    // manifest hashed, so it takes the user's latest resolution as-is rather
+    // than re-fingerprinting the catalogue on every file request.
+    pub fn latest_resolved(&self, user: &UserId) -> Option<Arc<ResolvedCatalog>> {
+        let now = Instant::now();
+        let guard = self
+            .resolved
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        guard
+            .iter()
+            .rev()
+            .find(|entry| &entry.key.user == user)
+            .filter(|entry| now.saturating_duration_since(entry.built_at) < RESOLVED_TTL)
+            .map(|entry| Arc::clone(&entry.value))
+    }
+
     pub fn store_resolved(&self, key: ResolvedKey, value: Arc<ResolvedCatalog>) {
         self.store_resolved_at(key, value, Instant::now());
     }
@@ -171,6 +225,23 @@ impl MarketplaceCache {
         let fingerprint = bundle_fingerprint(services, content)?;
         memo(&self.bundles, fingerprint, || {
             plugin_bundles(services, content)
+        })
+    }
+
+    // Why: hashing every bundled file is the expensive half of a manifest
+    // rebuild, and the entries are a pure function of the bundles, so they
+    // share the bundles' fingerprint.
+    pub fn plugin_entries(
+        &self,
+        services: &ServicesConfig,
+        content: &BundleContent<'_>,
+    ) -> Result<Arc<Vec<PluginEntry>>, MarketplaceError> {
+        let fingerprint = bundle_fingerprint(services, content)?;
+        let bundles = memo(&self.bundles, fingerprint, || {
+            plugin_bundles(services, content)
+        })?;
+        memo(&self.plugin_entries, fingerprint, || {
+            hash_entries(services, &bundles)
         })
     }
 }

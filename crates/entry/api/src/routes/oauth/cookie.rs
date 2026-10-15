@@ -12,8 +12,11 @@ pub fn session_cookie_redirect(
     destination: &str,
     max_age_secs: i64,
 ) -> Response {
+    // Why: an SSO callback is reached by a cross-site redirect from the IdP;
+    // browsers withhold a `SameSite=Strict` cookie on the redirect that
+    // follows, so the session would never arrive. `Lax` is the OIDC norm.
     let cookie = format!(
-        "access_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Strict; \
+        "access_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Lax; \
          Max-Age={max_age_secs}"
     );
 

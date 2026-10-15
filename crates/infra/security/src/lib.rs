@@ -71,6 +71,7 @@ pub mod google;
 pub mod jwt;
 pub mod keys;
 pub mod manifest_signing;
+pub mod oauth_wire;
 pub mod policy;
 pub mod services;
 pub mod session;

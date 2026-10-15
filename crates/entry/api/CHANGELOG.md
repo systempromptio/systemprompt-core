@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Added
+
+- Bridge manifest schema negotiation (`x-bridge-manifest-schema`), an `ETag` with `If-None-Match` revalidation, and verified plugin archive downloads.
+
+### Changed
+
+- Per-user catalogue rebuilds are single-flight; `no-cache` rebuilds only a memo older than 30 s; the services config is reused across a sync burst.
+
+### Fixed
+
+- Boot retries a refused replica-identity claim with backoff, so a redeployed host whose predecessor's session is still open is not refused.
+- A refused `SHA256SUMS` download is reported as `UpstreamStatus`, not `ChecksumMissing`.
+
 ## [0.68.0] - 2026-10-14
 
 ### Changed

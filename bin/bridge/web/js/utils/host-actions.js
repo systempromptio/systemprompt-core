@@ -79,6 +79,30 @@ export async function downloadHost(host) {
   return bridge.openExternalUrl(url);
 }
 
+// macOS gives no event when the user approves a profile in System Settings,
+// so after opening the pane the host is re-probed until a profile is read back
+// (or the user plainly walked away).
+const APPROVAL_POLL_MS = 3000;
+const APPROVAL_POLL_LIMIT = 60;
+
+async function watchForApproval(hostId) {
+  for (let i = 0; i < APPROVAL_POLL_LIMIT; i += 1) {
+    await new Promise((resolve) => { setTimeout(resolve, APPROVAL_POLL_MS); });
+    try {
+      const reply = await bridge.hostProbe(hostId);
+      const verdict = reply && reply.snapshot && reply.snapshot.verdict;
+      if (verdict && verdict.is_set_up === true) { return; }
+    } catch (e) {
+      console.warn("probe while awaiting approval", e);
+    }
+  }
+}
+
+export async function openDeviceManagement(hostId) {
+  await bridge.openDeviceManagement();
+  watchForApproval(hostId);
+}
+
 /**
  * Run one of the actions the verdict recommends. Kept here so every surface
  * that renders a recommended button dispatches it identically.
@@ -90,7 +114,13 @@ export async function runHostAction(kind, host) {
     case "repair":
     case "update":
     case "update-admin":
-    case "add":      return repairHost(id);
+    case "add":
+    case "connect":
+    case "offer-again": return repairHost(id);
+    case "show-profile-file": return bridge.agentRevealProfile(id);
+    case "open-device-management": return openDeviceManagement(id);
+    case "restart":  return bridge.agentRestart(id);
+    case "remove-leftover": return bridge.agentUninstall(id);
     case "verify":   return verifyHost(id);
     case "open":     return openHost(id);
     case "download": return downloadHost(host);

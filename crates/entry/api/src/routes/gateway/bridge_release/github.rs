@@ -76,20 +76,26 @@ pub(super) async fn asset_digest(
     sums_url: &str,
     asset_name: &str,
 ) -> Result<String, ReleaseError> {
-    let body = github(http, spec, sums_url)?
+    let resp = github(http, spec, sums_url)?
         .header(header::ACCEPT, "application/octet-stream")
         .send()
         .await
         .map_err(|source| ReleaseError::Request {
             stage: "SHA256SUMS fetch",
             source,
-        })?
-        .text()
-        .await
-        .map_err(|source| ReleaseError::Request {
-            stage: "SHA256SUMS read",
-            source,
         })?;
+    // Why: GitHub answers a refused or rate-limited asset download with a JSON
+    // error body, which would otherwise parse as a SHA256SUMS with no entry.
+    if !resp.status().is_success() {
+        return Err(ReleaseError::UpstreamStatus {
+            stage: "SHA256SUMS fetch",
+            status: resp.status(),
+        });
+    }
+    let body = resp.text().await.map_err(|source| ReleaseError::Request {
+        stage: "SHA256SUMS read",
+        source,
+    })?;
 
     parse_sha256sums(&body, asset_name).ok_or_else(|| ReleaseError::ChecksumMissing {
         asset: asset_name.to_owned(),

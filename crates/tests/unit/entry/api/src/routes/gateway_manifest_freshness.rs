@@ -115,10 +115,15 @@ async fn fetch(harness: &Harness, cache_control: Option<&str>) {
             value.parse().expect("cache-control header"),
         );
     }
-    let axum::Json(envelope) =
+    let response =
         bridge_manifest::manifest(Arc::clone(&harness.extractor), harness.ctx.clone(), headers)
             .await
             .expect("a signed-in consumer receives a manifest");
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("manifest body");
+    let envelope: systemprompt_models::bridge::manifest::SignedManifestEnvelope =
+        serde_json::from_slice(&body).expect("the body is a signed envelope");
     assert!(!envelope.payload.is_empty());
     assert!(!envelope.signature.as_str().is_empty());
 }
@@ -151,21 +156,15 @@ async fn a_plain_fetch_within_the_ttl_is_served_from_the_memo() {
 }
 
 #[tokio::test]
-async fn no_cache_rebuilds_the_catalogue_and_warms_the_memo_again() {
+async fn no_cache_within_the_revalidate_window_is_served_from_the_memo() {
     let harness = harness("manifest-fresh@example.invalid").await;
 
     fetch(&harness, None).await;
     fetch(&harness, Some("no-cache")).await;
-    assert_eq!(
-        harness.filter.calls.load(Ordering::SeqCst),
-        2,
-        "no-cache bypasses a warm memo and rebuilds"
-    );
-
     fetch(&harness, None).await;
     assert_eq!(
         harness.filter.calls.load(Ordering::SeqCst),
-        2,
-        "the rebuild was stored, so the plain fetch behind it is a hit"
+        1,
+        "a memo younger than FRESH_REVALIDATE_AFTER satisfies no-cache"
     );
 }

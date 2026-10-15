@@ -156,3 +156,25 @@ fn bound_id_jag_refuses_a_different_resource() {
         })
     );
 }
+
+fn parsed_email_verified(value: serde_json::Value) -> bool {
+    let body = serde_json::json!({
+        "iss": "https://idp.example", "sub": "u", "aud": "https://core.example",
+        "jti": "j", "exp": 1, "iat": 0, "email_verified": value,
+    });
+    serde_json::from_value::<IdJagClaims>(body)
+        .expect("claims parse")
+        .email_verified
+}
+
+#[test]
+fn email_verified_reads_booleans_and_boolean_strings() {
+    assert!(parsed_email_verified(serde_json::json!(true)));
+    assert!(parsed_email_verified(serde_json::json!("true")));
+    assert!(parsed_email_verified(serde_json::json!("TRUE")));
+    assert!(!parsed_email_verified(serde_json::json!(false)));
+    assert!(!parsed_email_verified(serde_json::json!("false")));
+    assert!(!parsed_email_verified(serde_json::json!("yes")));
+    assert!(!parsed_email_verified(serde_json::json!(null)));
+    assert!(!parsed_email_verified(serde_json::json!(1)));
+}

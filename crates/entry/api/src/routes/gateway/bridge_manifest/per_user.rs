@@ -5,7 +5,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_identifiers::{ApiKeyId, ManagedResourceId, UserId};
 use systemprompt_marketplace::MarketplaceCandidate;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::UserInfo;
@@ -25,20 +25,25 @@ pub(super) async fn record_catalog_grants(
     if user_id == owner {
         return Ok(());
     }
-    let repository = ctx.managed_repository();
-    for publication in candidate
+    let started = std::time::Instant::now();
+    let resources: Vec<ManagedResourceId> = candidate
         .skills
         .iter()
         .filter_map(|skill| skill.publication.as_ref())
-    {
-        repository
-            .retain_consumer_catalog_grant(owner, &publication.resource_id, user_id)
-            .await
-            .map_err(|source| BridgeError::CatalogGrant {
-                resource: publication.resource_id.clone(),
-                source,
-            })?;
-    }
+        .map(|publication| publication.resource_id.clone())
+        .collect();
+    ctx.managed_repository()
+        .retain_consumer_catalog_grants(owner, &resources, user_id)
+        .await
+        .map_err(|source| BridgeError::CatalogGrants {
+            count: resources.len(),
+            source,
+        })?;
+    tracing::debug!(
+        grants = resources.len(),
+        elapsed_ms = started.elapsed().as_millis(),
+        "bridge: manifest catalogue grants recorded"
+    );
     Ok(())
 }
 

@@ -96,6 +96,7 @@ pub struct AppStateSnapshot {
 
     pub mcp_auth: Vec<McpServerAuth>,
     pub mcp_auth_probe_in_flight: bool,
+    pub mcp_desktop_unlisted: Vec<String>,
 
     pub update: crate::update::UpdateUiState,
     pub pending_device_action: Option<crate::wire::DeviceAction>,

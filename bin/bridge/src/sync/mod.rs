@@ -7,13 +7,16 @@ mod acceptance;
 pub mod apply;
 mod error;
 mod manifest;
+mod manifest_cache;
 mod org_plugins_scope;
 mod provision;
 mod registry_refresh;
 mod replay;
 mod seed_model;
 mod sentinel;
+mod stale_retry;
 mod summary;
+mod unsafe_flags;
 
 use self::org_plugins_scope::check_org_plugins_scope;
 use self::provision::{denied_inside_system_root, heal_org_plugins_scope, org_plugins_denied};
@@ -27,34 +30,16 @@ pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
 pub use registry_refresh::{refresh_registry, refresh_registry_for};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
+pub use stale_retry::run_once;
 pub use summary::SyncSummary;
 use summary::build_summary;
+pub use unsafe_flags::warn_unsafe_flags;
 
 use crate::config::{self, paths};
 use crate::gateway::Freshness;
 use std::fs;
 
 pub const WATCH_FLOOR_SECS: u64 = 60;
-
-pub fn warn_unsafe_flags(allow_unsigned: bool, force_replay: bool, allow_tofu: bool) {
-    if allow_unsigned {
-        tracing::warn!("--allow-unsigned bypasses signature verification");
-    }
-    if force_replay {
-        tracing::warn!("--force-replay bypasses manifest version + skew checks");
-    }
-    if allow_tofu
-        && matches!(
-            config::pinned_pubkey_state(),
-            Ok(config::PinnedPubkeyState::Unpinned)
-        )
-    {
-        tracing::warn!(
-            "--allow-tofu enables trust-on-first-use pubkey fetch over the gateway channel; this \
-             is insecure if the gateway is not authenticated yet"
-        );
-    }
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct SyncOptions {
@@ -124,13 +109,18 @@ async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncE
 
 fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
     let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
-    apply::write_envelope(&meta_dir, fetch.client.base_url(), &fetch.envelope)
-        .map(|_| ())
-        .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
+    apply::write_envelope(
+        &meta_dir,
+        fetch.client.base_url(),
+        &fetch.envelope,
+        fetch.etag.as_deref(),
+    )
+    .map(|_| ())
+    .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
 }
 
 #[tracing::instrument(level = "info", skip(bridge))]
-pub async fn run_once(
+async fn run_attempt(
     bridge: &crate::context::BridgeContext,
     options: &SyncOptions,
 ) -> Result<SyncSummary, SyncError> {
@@ -193,7 +183,7 @@ pub async fn run_once(
         &synced,
         &run_gateway,
         force_replay,
-        acceptance::CurrentVersion::Replay,
+        acceptance::CurrentVersion::for_run(fetch.revalidated, acceptance::CurrentVersion::Replay),
     )?;
     persist_envelope(&fetch)?;
 

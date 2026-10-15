@@ -51,7 +51,29 @@ impl CachedToken {
 #[derive(Debug, Deserialize)]
 struct TokenResponse {
     access_token: String,
-    expires_in: i64,
+    #[serde(default, deserialize_with = "expires_in_secs")]
+    expires_in: Option<i64>,
+}
+
+// Why: RFC 6749 §5.1 makes `expires_in` optional, and Microsoft's login
+// authority has served it as a numeric string; an absent or unreadable value
+// falls back to a conservative lifetime instead of failing the reply.
+const FALLBACK_EXPIRES_IN_SECS: i64 = 300;
+
+fn expires_in_secs<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Option<i64>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Lifetime {
+        Number(i64),
+        Text(String),
+        Other(serde::de::IgnoredAny),
+    }
+    Ok(match Option::<Lifetime>::deserialize(de)? {
+        Some(Lifetime::Number(secs)) => Some(secs),
+        Some(Lifetime::Text(text)) => text.trim().parse::<i64>().ok(),
+        Some(Lifetime::Other(_)) | None => None,
+    }
+    .filter(|secs| *secs > 0))
 }
 
 #[derive(Debug)]
@@ -142,7 +164,7 @@ impl TokenProvider {
         Ok(CachedToken::new(
             parsed.access_token,
             now_unix,
-            parsed.expires_in,
+            parsed.expires_in.unwrap_or(FALLBACK_EXPIRES_IN_SECS),
         ))
     }
 }

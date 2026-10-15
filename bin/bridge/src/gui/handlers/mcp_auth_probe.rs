@@ -72,6 +72,7 @@ pub(crate) fn on_mcp_auth_probe_finished(
             return;
         },
     }
+    refresh_desktop_unlisted(app);
     let broken: Vec<String> = app
         .state
         .snapshot()
@@ -115,4 +116,26 @@ fn remember_tools(app: &GuiApp, results: &[mcp_probe::McpServerAuth]) {
              run sync before repairing Claude Desktop"
         )),
     }
+}
+
+// Why: Claude Desktop's policy skips a wildcard server the catalog has no
+// tool names for; the GUI names each one beside its fix (probe it again).
+fn refresh_desktop_unlisted(app: &GuiApp) {
+    if !cfg!(any(target_os = "macos", target_os = "windows")) {
+        return;
+    }
+    let unlisted = match crate::install::mdm::tool_catalog::read() {
+        Ok(catalog) => crate::install::mdm::desktop_tool_policy::unlisted_servers(
+            &app.ctx.mcp_registry(),
+            &catalog,
+        ),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "mcp tool catalog unreadable; desktop-unlisted servers not refreshed"
+            );
+            return;
+        },
+    };
+    app.state.set_mcp_desktop_unlisted(unlisted);
 }
