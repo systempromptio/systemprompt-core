@@ -72,12 +72,21 @@ export class SpSettings extends SpElement {
         <button class="sp-btn-ghost" type="button" data-l10n-id="settings-action-open-folder" data-action="open-folder">Open config folder</button>
         <button class="sp-btn-ghost" type="button" data-l10n-id="settings-action-validate" data-action="validate">Run validate</button>
       </div>
-      <p class="sp-settings__note sp-u-muted">
-        <span data-l10n-id="settings-licensing-note-prefix">Demo build — for production licensing contact</span>
-        <a href="mailto:ed@systemprompt.io">ed@systemprompt.io</a>.
-      </p>
+      ${renderLicensingNote(this.snapshot || {})}
     `;
   }
+}
+
+// Only a build whose Brand carries a demo notice is unlicensed for production,
+// so a licensed white-label shows no note; the address is the Brand's own.
+function renderLicensingNote(snap) {
+  if (!snap.demo_notice || !snap.contact_email) return "";
+  const email = escapeHtml(snap.contact_email);
+  return `
+      <p class="sp-settings__note sp-u-muted">
+        <span data-l10n-id="settings-licensing-note-prefix">Demo build — for production licensing contact</span>
+        <a href="mailto:${email}">${email}</a>.
+      </p>`;
 }
 
 reactive(SpSettings.prototype, ["snapshot", "prefs", "gatewayDraft"]);

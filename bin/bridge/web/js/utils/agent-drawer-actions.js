@@ -1,5 +1,5 @@
 import { bridge } from "/assets/js/bridge.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { repairHost, hostInstallMessage, runHostAction, openHostConfig } from "/assets/js/utils/host-actions.js";
 import { notifyOk, notifyErr, notifyAction } from "/assets/js/utils/notify.js";
 import { AGENT_WIRE_SURFACES, agentHostName } from "/assets/js/components/agent-drawer-parts.js";
@@ -95,7 +95,7 @@ export async function runAgentDrawerSaveFilter(drawer, trigger) {
   const draft = drawer.filterDraft;
   if (!drawer._host() || !draft) { return; }
   await writeModelFilter(drawer, trigger, draft.all ? [] : draft.protocols,
-    t("toast-model-filter-saved") || "Model filter saved to your systemprompt account.",
+    t("toast-model-filter-saved") || `Model filter saved to your ${brandArgs().vendor} account.`,
     t("host-model-filter-save") || "Save filter");
 }
 

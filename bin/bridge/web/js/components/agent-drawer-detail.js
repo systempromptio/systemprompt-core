@@ -1,5 +1,5 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { statusOf, badgeSuffix, isSetUp, APP_NOT_INSTALLED, appInstallState } from "/assets/js/utils/verdict.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
 import {
@@ -48,8 +48,8 @@ function removeSection(drawer, host, hs) {
   const body = drawer.confirmRemove
     ? `
       <p>${escapeHtml(path
-          ? t("agent-remove-confirm-path", { name, path }) || `Remove ${name} from systemprompt? This strips its systemprompt keys from ${path}.`
-          : t("agent-remove-confirm", { name }) || `Remove ${name} from systemprompt?`)}</p>
+          ? t("agent-remove-confirm-path", { name, path }) || `Remove ${name} from ${brandArgs().vendor}? This strips its ${brandArgs().vendor} keys from ${path}.`
+          : t("agent-remove-confirm", { name }) || `Remove ${name} from ${brandArgs().vendor}?`)}</p>
       <div class="sp-drawer__filter-actions">
         <button class="sp-btn-danger" type="button" data-action="confirm-remove" ${busy ? "disabled" : ""}>${escapeHtml(
           busy ? agentDrawerWorkingLabel() : t("agent-remove-confirm-button") || "Remove it")}</button>

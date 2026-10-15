@@ -14,7 +14,7 @@ export function renderSetupHeading(component) {
   const appName = escapeHtml(appNameOf(component));
   return `
     <div class="sp-setup__heading">
-      <div class="sp-setup__eyebrow"><span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
+      <div class="sp-setup__eyebrow">${component.snapshot && component.snapshot.demo_notice ? `<span data-l10n-id="setup-eyebrow-prefix">DEMO BUILD</span> · ` : ""}v${escapeHtml(version)} · <span>${escapeHtml(stepLabel)}</span></div>
       <h1 data-l10n-id="setup-heading">Welcome to ${appName}</h1>
       <p class="sp-setup__lede" data-l10n-id="setup-lede">${appName} routes one or more coding agents through your enterprise gateway.</p>
     </div>`;

@@ -1,7 +1,7 @@
 import { bridge } from "/assets/js/bridge.js";
 
 /**
- * Sign out of systemprompt cloud.
+ * Sign out of the gateway's cloud control plane.
  *
  * Clears the stored PAT and cached JWT via the bridge, after which the next
  * state.changed carries no verified identity and `sp-setup` returns the app to

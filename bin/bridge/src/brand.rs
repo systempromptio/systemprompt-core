@@ -87,6 +87,9 @@ pub struct Brand {
     pub autostart_task_name: &'static str,
     pub aumid: &'static str,
     pub force_dark: bool,
+    /// Licensing notice shown in the setup and settings footers; `None` hides
+    /// it, for a build that is licensed for production use.
+    pub demo_notice: Option<&'static str>,
     pub assets: BrandAssets,
 }
 
@@ -126,6 +129,10 @@ impl Brand {
         autostart_task_name: "SystempromptBridgeGui",
         aumid: "io.systemprompt.bridge",
         force_dark: false,
+        demo_notice: Some(
+            "Demo software. This build is provided for demonstration purposes only and is not \
+             licensed for production use.",
+        ),
         assets: BrandAssets {
             icon_svg: include_str!("../assets/icon.svg"),
             logo_svg: include_str!("../assets/logo.svg"),

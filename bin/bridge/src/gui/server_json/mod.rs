@@ -100,6 +100,7 @@ pub fn state_payload<'a>(
             contact_email: crate::brand::brand().contact_email,
             pitch_head: crate::brand::brand().pitch_head,
             pitch_body: crate::brand::brand().pitch_body,
+            demo_notice: crate::brand::brand().demo_notice,
 
             hosts: crate::gui::hosts::serde::payload(snap),
         }

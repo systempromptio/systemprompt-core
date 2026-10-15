@@ -1,10 +1,10 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 
 export function appNameOf(component) {
   // Brand name comes from the snapshot (Brand::app_name), so white-label builds
   // get their own name with no forked component.
-  return (component.snapshot && component.snapshot.app_name) || "systemprompt bridge";
+  return (component.snapshot && component.snapshot.app_name) || brandArgs().app;
 }
 
 // Left column of the setup split: the brand mark, its pitch, and the
@@ -56,10 +56,7 @@ function renderSetupBrandFoot(component) {
   const subject = escapeHtml(encodeURIComponent(`${appName} licensing`));
   return `
     <footer class="sp-setup__brand-foot">
-      <p class="sp-setup__demo">
-        <strong data-l10n-id="setup-warning-strong">Demo software.</strong>
-        <span data-l10n-id="setup-warning-body">This build is provided for demonstration purposes only and is not licensed for production use.</span>
-      </p>
+      ${snap.demo_notice ? `<p class="sp-setup__demo">${escapeHtml(snap.demo_notice)}</p>` : ""}
       <p class="sp-setup__meta">
         <span class="sp-setup__version" title="${escapeHtml(buildTitle(component))}">${escapeHtml(appName)} v${escapeHtml(version)}${escapeHtml(buildSuffix(component))}</span>
         <span class="sp-setup__meta-sep">·</span>

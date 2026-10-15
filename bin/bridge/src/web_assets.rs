@@ -76,6 +76,14 @@ impl Asset {
     }
 }
 
+fn escape_attr(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
 pub fn render_index() -> String {
     render_index_from(HTML)
 }
@@ -90,7 +98,9 @@ pub fn render_index_from(source: &str) -> String {
         .replace("__ICON_SVG__", brand.assets.icon_svg)
         .replace("__LOGO_SVG__", brand.assets.logo_svg)
         .replace("__PLATFORM_DISPLAY__", PLATFORM_DISPLAY)
-        .replace("__PLATFORM__", PLATFORM_SLUG);
+        .replace("__PLATFORM__", PLATFORM_SLUG)
+        .replace("__APP_NAME__", &escape_attr(brand.app_name))
+        .replace("__VENDOR__", &escape_attr(brand.vendor));
     let mut head = String::new();
     if !brand.assets.theme_css.is_empty() {
         head.push_str(&format!(

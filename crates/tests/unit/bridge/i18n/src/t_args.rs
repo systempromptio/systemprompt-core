@@ -21,7 +21,7 @@ fn t_empty_id_returns_empty() {
 #[test]
 fn t_known_id_returns_catalog_value() {
     assert_eq!(t("ready"), "Ready");
-    assert_eq!(t("setup-heading"), "Welcome to systemprompt bridge");
+    assert_eq!(t("setup-heading"), "Welcome to Systemprompt Bridge");
     assert_eq!(t("sync-button"), "Sync now");
     assert_eq!(t("nav-settings"), "Settings");
 }

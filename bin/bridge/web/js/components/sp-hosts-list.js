@@ -1,7 +1,7 @@
 import { SpElement, reactive } from "/assets/js/components/sp-element.js";
 import { escapeHtml } from "/assets/js/utils/escape.js";
 import { bridge } from "/assets/js/bridge.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { isSetUp } from "/assets/js/utils/verdict.js";
 import { sameHost } from "/assets/js/utils/host-diff.js";
 import "/assets/js/components/sp-agent-row.js";
@@ -103,7 +103,7 @@ export class SpHostsList extends SpElement {
           </button>
           <button class="sp-btn-ghost" type="button" data-action="reverify-all">${escapeHtml(t("agents-action-reverify-all") || "Re-verify")}</button>
         </div>
-        <p class="sp-tab__lede sp-u-muted">${escapeHtml(t("agents-lede") || "Every agent you add here runs through systemprompt's local proxy, so each request it makes is governed and logged. Any number of them can run at once.")}</p>
+        <p class="sp-tab__lede sp-u-muted">${escapeHtml(t("agents-lede") || `Every agent you add here runs through ${brandArgs().vendor}'s local proxy, so each request it makes is governed and logged. Any number of them can run at once.`)}</p>
       </header>
     `;
   }
@@ -112,7 +112,7 @@ export class SpHostsList extends SpElement {
     if (setUp.length === 0) {
       return `<div class="sp-hosts__empty">
         <p class="sp-hosts__empty-title">${escapeHtml(t("agents-empty-title") || "No agents set up yet")}</p>
-        <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || "Add a coding agent to route it through systemprompt, so every request it makes is governed and logged.")}</p>
+        <p class="sp-u-muted">${escapeHtml(t("agents-empty-body") || `Add a coding agent to route it through ${brandArgs().vendor}, so every request it makes is governed and logged.`)}</p>
         <button class="sp-btn-primary" type="button" data-action="add-agent">
           <span class="sp-hosts__plus" aria-hidden="true">+</span> ${escapeHtml(t("agents-action-add") || "Add agent")}
         </button>

@@ -1,5 +1,5 @@
 import { escapeHtml } from "/assets/js/utils/escape.js";
-import { t } from "/assets/js/i18n.js";
+import { t, brandArgs } from "/assets/js/i18n.js";
 import { isSetUp, APP_NOT_INSTALLED, appInstallState } from "/assets/js/utils/verdict.js";
 import { hostLogoMarkup } from "/assets/js/components/sp-agent-row.js";
 import { agentDrawerWorkingLabel } from "/assets/js/components/agent-drawer-parts.js";
@@ -47,7 +47,7 @@ export function renderAgentDrawerAdd(drawer) {
     ? ""
     : `<p class="sp-drawer__note sp-u-muted">${escapeHtml(
         t("agents-add-provisional")
-          || "This list is provisional until this computer has synced with systemprompt."
+          || `This list is provisional until this computer has synced with ${brandArgs().vendor}.`
       )}</p>`;
 
   const items = hosts.length === 0
@@ -60,7 +60,7 @@ export function renderAgentDrawerAdd(drawer) {
     content: `
       <p class="sp-drawer__lede">${escapeHtml(
         t("agents-add-lede")
-          || "Pick a coding agent to route through systemprompt. Adding one writes its configuration profile — you do not need to configure anything by hand."
+          || `Pick a coding agent to route through ${brandArgs().vendor}. Adding one writes its configuration profile — you do not need to configure anything by hand.`
       )}</p>
       ${gateNote}
       <div class="sp-drawer__list">${items}</div>
