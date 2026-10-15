@@ -20,9 +20,10 @@ use systemprompt_oauth::services::EnterprisePrincipal;
 use systemprompt_oauth::services::validation::id_jag::{
     ClaimPolicy, DEFAULT_LEEWAY_SECS, IdJagClaims, validate_claims, validate_typ,
 };
-use systemprompt_security::keys::{JwksClient, authority};
+use systemprompt_security::jwt::reject_critical_header;
+use systemprompt_security::keys::authority;
 
-use super::subject::{SubjectIdentity, jwks_host_allowlist, peek_issuer};
+use super::subject::{REQUIRED_CLAIMS, SubjectIdentity, peek_issuer, shared_jwks_client};
 use crate::{IssuanceError, IssuanceResult};
 
 pub async fn validate_id_jag_subject(
@@ -92,6 +93,8 @@ async fn verify_id_jag_signature(
 ) -> IssuanceResult<(IdJagClaims, Vec<ClientId>)> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG header decode failed", e))?;
+    reject_critical_header(&header)
+        .map_err(|e| IssuanceError::rejected_grant("ID-JAG crit header unsupported", e))?;
     validate_typ(header.typ.as_deref()).map_err(IssuanceError::IdJagRejected)?;
     if header.alg != Algorithm::RS256 {
         return Err(IssuanceError::InvalidGrant {
@@ -107,6 +110,7 @@ async fn verify_id_jag_signature(
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[declared_iss.as_str()]);
     validation.set_audience(&[global.jwt_issuer.as_str()]);
+    validation.set_required_spec_claims(&REQUIRED_CLAIMS);
 
     if declared_iss == global.jwt_issuer {
         let key = authority::decoding_key_for_kid(&kid)
@@ -126,7 +130,7 @@ async fn verify_id_jag_signature(
         .ok_or_else(|| IssuanceError::InvalidGrant {
             reason: format!("ID-JAG issuer '{declared_iss}' is not trusted"),
         })?;
-    let jwk = JwksClient::new(jwks_host_allowlist(&global.trusted_issuers))
+    let jwk = shared_jwks_client(&global.trusted_issuers)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::rejected_grant("ID-JAG JWKS resolution failed", e))?;

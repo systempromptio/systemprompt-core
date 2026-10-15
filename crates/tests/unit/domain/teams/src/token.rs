@@ -70,6 +70,29 @@ mod fetch {
         assert_eq!(hits.len(), 1, "second call within validity is cached");
     }
 
+    async fn token_endpoint_body(server: &MockServer, body: serde_json::Value) {
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(body))
+            .mount(server)
+            .await;
+    }
+
+    #[tokio::test]
+    async fn a_string_or_absent_expires_in_still_yields_a_token() {
+        for body in [
+            serde_json::json!({"access_token": "fresh-token", "token_type": "Bearer", "expires_in": "3599", "ext_expires_in": "3599"}),
+            serde_json::json!({"access_token": "fresh-token", "token_type": "bearer"}),
+        ] {
+            let server = MockServer::start().await;
+            token_endpoint_body(&server, body).await;
+            assert_eq!(
+                provider(&server).token(0).await.expect("token minted"),
+                "fresh-token"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn refetches_after_the_token_expires() {
         let server = MockServer::start().await;

@@ -8,9 +8,10 @@
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
 use systemprompt_manifest::Config;
-use systemprompt_security::keys::JwksClient;
+use systemprompt_oauth::services::validation::id_jag::bool_or_bool_string;
+use systemprompt_security::jwt::reject_critical_header;
 
-use super::subject::{jwks_host_allowlist, peek_issuer};
+use super::subject::{REQUIRED_CLAIMS, peek_issuer, shared_jwks_client};
 use crate::{IssuanceError, IssuanceResult};
 
 #[derive(Debug)]
@@ -23,15 +24,51 @@ pub struct OidcSubject {
 #[derive(Debug, Deserialize)]
 struct OidcIdTokenClaims {
     sub: String,
+    // OIDC Core §2: `iat` is required in every id_token.
+    #[serde(rename = "iat")]
+    _iat: i64,
+    #[serde(deserialize_with = "one_or_many")]
+    aud: Vec<String>,
+    #[serde(default)]
+    azp: Option<String>,
     #[serde(default)]
     email: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "bool_or_bool_string")]
     email_verified: bool,
+}
+
+fn one_or_many<'de, D: serde::Deserializer<'de>>(de: D) -> Result<Vec<String>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany {
+        One(String),
+        Many(Vec<String>),
+    }
+    Ok(match OneOrMany::deserialize(de)? {
+        OneOrMany::One(aud) => vec![aud],
+        OneOrMany::Many(auds) => auds,
+    })
+}
+
+/// OIDC Core §3.1.3.7 steps 4–5: an id_token for several audiences must name
+/// the party it was issued to in `azp`, and that party must be the expected
+/// client. A single-audience token's `azp` is not compared, since Google sets
+/// it to the requesting client in cross-client flows.
+fn check_authorized_party(claims: &OidcIdTokenClaims, client: &str) -> IssuanceResult<()> {
+    if claims.aud.len() > 1 && claims.azp.as_deref() != Some(client) {
+        return Err(IssuanceError::InvalidRequest {
+            field: "subject_token".to_owned(),
+            message: "multi-audience id_token must carry azp naming this client".to_owned(),
+        });
+    }
+    Ok(())
 }
 
 pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResult<OidcSubject> {
     let header = decode_header(token)
         .map_err(|e| IssuanceError::malformed("subject_token", "malformed id_token header", e))?;
+    reject_critical_header(&header)
+        .map_err(|e| IssuanceError::malformed("subject_token", "unsupported crit header", e))?;
 
     let declared_iss = peek_issuer(token)?;
     let trusted = global
@@ -66,7 +103,7 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResu
         message: "id_token must carry a kid header".to_owned(),
     })?;
 
-    let jwk = JwksClient::new(jwks_host_allowlist(&global.trusted_issuers))
+    let jwk = shared_jwks_client(&global.trusted_issuers)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
@@ -77,10 +114,13 @@ pub async fn validate_oidc_subject(token: &str, global: &Config) -> IssuanceResu
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_issuer(&[&trusted.issuer]);
     validation.set_audience(&[&trusted.audience]);
+    validation.set_required_spec_claims(&REQUIRED_CLAIMS);
+    validation.validate_nbf = true;
 
     let data = decode::<OidcIdTokenClaims>(token, &key, &validation).map_err(|e| {
         IssuanceError::malformed("subject_token", "id_token signature/claims rejected", e)
     })?;
+    check_authorized_party(&data.claims, &trusted.audience)?;
 
     Ok(OidcSubject {
         sub: data.claims.sub,

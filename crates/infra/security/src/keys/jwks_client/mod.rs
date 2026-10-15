@@ -125,15 +125,27 @@ impl JwksClient {
 }
 
 pub fn parse_max_age(header: &str) -> Option<Duration> {
+    // RFC 9111 §5.2: directive names are case-insensitive, the argument may be
+    // a quoted-string, and `no-store` / `no-cache` forbid reuse without
+    // revalidation — answered as zero so the caller clamps to its floor.
+    let mut max_age = None;
     for directive in header.split(',') {
-        let trimmed = directive.trim();
-        if let Some(rest) = trimmed.strip_prefix("max-age=")
-            && let Ok(secs) = rest.trim().parse::<u64>()
+        let (name, value) = directive
+            .split_once('=')
+            .map_or((directive.trim(), None), |(n, v)| {
+                (n.trim(), Some(v.trim()))
+            });
+        if name.eq_ignore_ascii_case("no-store") || name.eq_ignore_ascii_case("no-cache") {
+            return Some(Duration::ZERO);
+        }
+        if name.eq_ignore_ascii_case("max-age")
+            && max_age.is_none()
+            && let Some(secs) = value.and_then(|v| v.trim_matches('"').parse::<u64>().ok())
         {
-            return Some(Duration::from_secs(secs));
+            max_age = Some(Duration::from_secs(secs));
         }
     }
-    None
+    max_age
 }
 
 pub fn clamp_ttl(ttl: Duration) -> Duration {

@@ -32,6 +32,10 @@ pub const MAX_TIMESTAMP_SKEW_SECS: u64 = 60 * 5;
 
 const JWKS_TTL_SECS: i64 = 24 * 60 * 60;
 
+// Why: an unknown kid arrives on an unauthenticated inbound request, so a
+// rotation refetch is allowed at most once per this window.
+const KID_MISS_REFETCH_SECS: i64 = 60;
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ActivityClaims {
     #[serde(default)]
@@ -45,7 +49,46 @@ struct OpenIdConfig {
 
 #[derive(Debug, Deserialize)]
 struct Jwks {
-    keys: Vec<Jwk>,
+    // JSON: each key is read on its own so one of another type or shape
+    // (RFC 7517 §5) drops out instead of failing the whole set.
+    keys: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PublishedKey {
+    #[serde(default)]
+    kty: Option<String>,
+    #[serde(rename = "use", default)]
+    use_: Option<String>,
+    #[serde(default)]
+    alg: Option<String>,
+    kid: String,
+    n: String,
+    e: String,
+}
+
+impl Jwks {
+    fn into_signing_keys(self) -> HashMap<String, Jwk> {
+        self.keys
+            .into_iter()
+            .filter_map(|raw| serde_json::from_value::<PublishedKey>(raw).ok())
+            .filter(|k| {
+                k.kty.as_deref() == Some("RSA")
+                    && k.use_.as_deref().is_none_or(|u| u == "sig")
+                    && k.alg.as_deref().is_none_or(|a| a == "RS256")
+            })
+            .map(|k| {
+                (
+                    k.kid.clone(),
+                    Jwk {
+                        kid: k.kid,
+                        n: k.n,
+                        e: k.e,
+                    },
+                )
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -104,6 +147,12 @@ impl ActivityTokenVerifier {
             context: "invalid token header",
             source,
         })?;
+        if header.crit.is_some() {
+            return Err(TeamsError::InvalidToken {
+                context: "unsupported crit header",
+                source: jsonwebtoken::errors::ErrorKind::InvalidToken.into(),
+            });
+        }
         let kid = header.kid.ok_or(TeamsError::MissingKeyId)?;
 
         let jwk = self.key_for(&kid, now_unix).await?;
@@ -120,6 +169,11 @@ impl ActivityTokenVerifier {
         if let Some(jwk) = self.cached_key(kid, now_unix) {
             return Ok(jwk);
         }
+        if self.refetched_within(now_unix, KID_MISS_REFETCH_SECS) {
+            return Err(TeamsError::UnknownSigningKey {
+                kid: kid.to_owned(),
+            });
+        }
         let keys = self.fetch_keys().await?;
         let jwk = keys.get(kid).cloned();
         match self.cache.write() {
@@ -133,6 +187,14 @@ impl ActivityTokenVerifier {
         }
         jwk.ok_or_else(|| TeamsError::UnknownSigningKey {
             kid: kid.to_owned(),
+        })
+    }
+
+    fn refetched_within(&self, now_unix: i64, window_secs: i64) -> bool {
+        self.cache.read().is_ok_and(|guard| {
+            guard
+                .as_ref()
+                .is_some_and(|cache| now_unix - cache.refreshed_at_unix < window_secs)
         })
     }
 
@@ -159,10 +221,18 @@ impl ActivityTokenVerifier {
             .get(&self.openid_config_url)
             .send()
             .await?
+            .error_for_status()?
             .json()
             .await?;
-        let jwks: Jwks = self.http.get(&config.jwks_uri).send().await?.json().await?;
-        Ok(jwks.keys.into_iter().map(|k| (k.kid.clone(), k)).collect())
+        let jwks: Jwks = self
+            .http
+            .get(&config.jwks_uri)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+        Ok(jwks.into_signing_keys())
     }
 }
 
@@ -176,6 +246,7 @@ pub fn validate_token(
     validation.set_issuer(&[ISSUER]);
     validation.set_audience(&[audience.as_str()]);
     validation.validate_exp = true;
+    validation.set_required_spec_claims(&["exp", "iss", "aud"]);
     validation.leeway = MAX_TIMESTAMP_SKEW_SECS;
 
     let data = decode::<ActivityClaims>(token, key, &validation).map_err(|e| match e.kind() {

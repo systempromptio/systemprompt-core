@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::ClientId;
 
 pub const ID_JAG_TOKEN_TYPE: &str = "urn:ietf:params:oauth:token-type:id-jag";
@@ -31,10 +31,29 @@ pub struct IdJagClaims {
     pub scope: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "bool_or_bool_string")]
     pub email_verified: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resource: Option<String>,
+}
+
+/// OIDC Core §5.1 types `email_verified` as a boolean, but several identity
+/// providers (AWS Cognito among them) send `"true"` / `"false"` strings.
+/// Either spelling is read; anything else, and `null`, is `false`, so an
+/// ambiguous value can never vouch for an address.
+pub fn bool_or_bool_string<'de, D: Deserializer<'de>>(de: D) -> Result<bool, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Flag {
+        Bool(bool),
+        Text(String),
+        Other(serde::de::IgnoredAny),
+    }
+    Ok(match Flag::deserialize(de)? {
+        Flag::Bool(flag) => flag,
+        Flag::Text(text) => text.eq_ignore_ascii_case("true"),
+        Flag::Other(_) => false,
+    })
 }
 
 impl IdJagClaims {
