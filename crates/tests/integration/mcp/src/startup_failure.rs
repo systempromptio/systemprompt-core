@@ -56,7 +56,14 @@ async fn unreaped_exited_child_is_reported_dead_despite_being_a_zombie() {
         .read_to_end(&mut drained)
         .expect("child closed stdout on exit");
 
-    let reported_alive = ProcessService::is_running(pid).await;
+    // Why: the kernel closes the child's stdout before it marks the process a
+    // zombie, so EOF alone does not mean the exit has been recorded yet.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut reported_alive = ProcessService::is_running(pid).await;
+    while reported_alive && std::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        reported_alive = ProcessService::is_running(pid).await;
+    }
     drop(child);
 
     assert!(

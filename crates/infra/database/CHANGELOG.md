@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- The instance-claim session sets server-side TCP keepalives, so a claim held by a host that vanished without closing its connection is freed within `CLAIM_DEAD_PEER_SECS` instead of the server's two-hour default.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

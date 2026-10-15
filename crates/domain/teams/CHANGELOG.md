@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- Bot Framework activity tokens with a `crit` header are refused; JWKs are matched by `kid` without retaining it.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

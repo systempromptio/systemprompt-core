@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Fixed
+
+- Disabling one bridge host keeps the user's other hosts enabled.
+- `email_verified` is read as a boolean or a `"true"` / `"false"` string; anything else is `false`.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

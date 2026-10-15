@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.69.0] - 2026-10-15
+
+### Changed
+
+- `ServicesConfig::instance_enabled_hosts` owns the instance-enabled bridge host rule.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added
