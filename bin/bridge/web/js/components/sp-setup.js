@@ -59,11 +59,14 @@ export class SpSetup extends SpElement {
     document.body.classList.remove("is-setup-mode");
   }
 
+  // Same progress steps sp-sync-pill reads: the plugins step carries the
+  // n/N count, and a terminal step clears it.
   _onSyncProgress(p) {
-    if (p && p.phase === "plugins" && p.total) {
-      this.syncPlugins = { done: p.current, total: p.total };
-    } else if (p && p.phase !== "manifest" && p.phase !== "hosts") {
+    if (!p) { return; }
+    if (["completed", "cancelled", "failed"].includes(p.phase)) {
       this.syncPlugins = null;
+    } else if (["plugins"].includes(p.phase) && p.total) {
+      this.syncPlugins = { done: p.current, total: p.total };
     }
   }
 
