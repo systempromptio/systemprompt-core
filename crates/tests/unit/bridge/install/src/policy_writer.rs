@@ -246,16 +246,17 @@ fn the_server_list_comes_from_the_manifest_never_from_the_catalog() {
 }
 
 #[test]
-fn a_wildcard_the_catalog_cannot_expand_withholds_the_whole_list() {
+fn a_wildcard_the_catalog_cannot_expand_skips_only_that_server() {
     let key = signing_key(1);
-    let manifest = manifest(vec![server("atlassian", wildcard(ToolPolicy::Allow))]);
-    let req = request(&key, &manifest, &[]);
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+    ]);
+    let req = request(&key, &manifest, &[("atlassian", &["x"])]);
     let values = derive_policy(&req, &manifest, None).unwrap();
-    assert_eq!(
-        value_of(&values, "managedMcpServers"),
-        None,
-        "a partial list is one Desktop would resolve to its own default"
-    );
+    let servers = value_of(&values, "managedMcpServers").expect("the rest is written");
+    assert!(servers.contains("atlassian"));
+    assert!(!servers.contains("agent-farm"));
 }
 
 #[test]

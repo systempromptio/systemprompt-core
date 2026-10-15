@@ -274,8 +274,8 @@ pub fn mcp_entries_with(
             upstream,
             catalog.get(slug).map_or(&[][..], Vec::as_slice),
         ) else {
-            tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; managedMcpServers withheld");
-            return None;
+            tracing::warn!(target: "bridge::mdm", slug = %slug, "tool catalog has no names for a wildcard tool policy; this server skipped, the rest still written");
+            continue;
         };
         out.push(McpServerEntry {
             name: slug.clone(),
