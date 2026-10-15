@@ -131,6 +131,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
         );
     }
     let emitters = host_sync::registry();
+    let mut skipped_absent = std::collections::BTreeSet::new();
     for (index, emitter) in emitters.iter().enumerate() {
         let host_id = emitter.host_id();
         bridge
@@ -147,6 +148,7 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 host = host_id.as_str(),
                 "host app not installed; settings not written"
             );
+            skipped_absent.insert(host_id);
             continue;
         }
         let outcome = if enabled {
@@ -172,8 +174,14 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
             },
         }
     }
-    let evidence_warnings =
-        evidence::capture(emitters, &manifest_for_write, &ctx, &mut report).await;
+    let evidence_warnings = evidence::capture(
+        emitters,
+        &manifest_for_write,
+        &ctx,
+        &skipped_absent,
+        &mut report,
+    )
+    .await;
     report.host_warnings.extend(evidence_warnings);
 
     Ok(ApplyOutcome::Applied(report))
