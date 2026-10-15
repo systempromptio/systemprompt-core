@@ -20,6 +20,8 @@ export class SpSetup extends SpElement {
     this.finalizing = false;
     this.firstRunActive = false;
     this.settleTimedOut = false;
+    this.signedIn = false;
+    this.syncPlugins = null;
     this.confirmEmptyFinish = false;
     this._settleTimer = null;
     this._finished = false;
@@ -43,6 +45,7 @@ export class SpSetup extends SpElement {
       tpl.remove();
     }
     this.useSnapshot((s) => this._applySnapshot(s));
+    this.bridgeSubscribe("sync.progress", (p) => this._onSyncProgress(p));
     this._unsubOpen = onBridgeEvent("setup-open", this._onSetupOpen);
   }
 
@@ -56,6 +59,14 @@ export class SpSetup extends SpElement {
     document.body.classList.remove("is-setup-mode");
   }
 
+  _onSyncProgress(p) {
+    if (p && p.phase === "plugins" && p.total) {
+      this.syncPlugins = { done: p.current, total: p.total };
+    } else if (p && p.phase !== "manifest" && p.phase !== "hosts") {
+      this.syncPlugins = null;
+    }
+  }
+
   _applySnapshot(snap) {
     this.snapshot = snap;
     if (!snap) { return; }
@@ -65,6 +76,7 @@ export class SpSetup extends SpElement {
     this.step = model.step;
     this.finalizing = model.finalizing;
     this.firstRunActive = model.firstRunActive;
+    this.signedIn = model.signedIn;
     this._leftSetup = model.leftSetup;
     // Why: the update endpoint is authenticated, so this cannot run on step 1.
     // Sign-in is the earliest honest moment, and it is also the moment a user
@@ -106,8 +118,8 @@ export class SpSetup extends SpElement {
         ${renderSetupBrand(this)}
         <section class="sp-setup__panel">
           <div class="sp-setup__panel-inner">
-            ${this.finalizing && !this.settleTimedOut
-              ? renderSetupFinalizing(this)
+            ${this.finalizing && (!this.settleTimedOut || this.signedIn)
+              ? `${renderSetupFinalizing(this)}${renderSetupSettleNotice(this)}`
               : `
                 ${renderSetupHeading(this)}
                 <div class="sp-setup__step" data-step="connect" ${this.step !== "connect" ? "hidden" : ""}>
@@ -124,5 +136,5 @@ export class SpSetup extends SpElement {
   }
 }
 
-reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled", "finalizing", "firstRunActive", "settleTimedOut", "confirmEmptyFinish"]);
+reactive(SpSetup.prototype, ["snapshot", "step", "anyInstalled", "finalizing", "firstRunActive", "settleTimedOut", "signedIn", "syncPlugins", "confirmEmptyFinish"]);
 customElements.define("sp-setup", SpSetup);

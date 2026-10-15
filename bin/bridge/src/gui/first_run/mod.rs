@@ -49,5 +49,5 @@ pub(crate) fn tick(app: &mut crate::gui::GuiApp) {
         }
     }
     app.append_log_warn("First use: setup timed out; continuing with what succeeded.");
-    handlers::on_sync_result(app, false);
+    handlers::finish(app, false);
 }

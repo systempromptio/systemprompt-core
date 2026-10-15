@@ -35,6 +35,8 @@ pub enum ApplyError {
     UnsafeAgentName(String),
     #[error("plugin fetch failed: {0}")]
     PluginFetch(#[from] crate::gateway::GatewayError),
+    #[error("gateway no longer serves plugin {0} at the manifest's digest; the manifest is stale")]
+    StaleManifest(PluginId),
     #[error("gateway changed to {current} while syncing {started_for}")]
     Superseded {
         started_for: String,

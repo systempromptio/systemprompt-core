@@ -5,6 +5,7 @@
 
 mod auth;
 pub mod catalog;
+pub mod conditional;
 pub mod errors;
 mod fetch;
 mod identity;
@@ -23,6 +24,7 @@ use std::time::{Duration, Instant};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use systemprompt_identifiers::ValidatedUrl;
 
+pub use conditional::{ArchiveResponse, ManifestResponse};
 pub use errors::{GatewayError, GatewayRejection};
 pub use fetch::Freshness;
 pub use types::{BridgeOAuthClientResponse, HookTokenResponse, WhoamiResponse};

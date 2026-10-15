@@ -23,6 +23,8 @@ pub enum GatewayError {
         snippet: String,
         source: serde_json::Error,
     },
+    #[error("gateway answered 304 Not Modified but no stored manifest envelope exists")]
+    ManifestNotModifiedWithoutCache,
     #[error("refused unsafe path: {0}")]
     UnsafePath(String),
     #[error("plugin fetch {plugin_id}:{path} failed: {source}")]

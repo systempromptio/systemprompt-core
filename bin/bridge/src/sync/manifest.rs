@@ -139,6 +139,10 @@ pub(super) struct ManifestFetch {
     pub bearer: Secret,
     pub envelope: SignedManifestEnvelope,
     pub config: config::Config,
+    pub etag: Option<String>,
+    /// The gateway answered 304 in this run for the stored envelope's ETag, so
+    /// `envelope` is the stored one, revalidated rather than freshly issued.
+    pub revalidated: bool,
 }
 
 pub(super) async fn fetch_authenticated_manifest(
@@ -158,13 +162,19 @@ pub(super) async fn fetch_authenticated_manifest(
         None => fetch_fresh_token(http, &cfg).await?,
     };
 
-    let mut envelope = client.fetch_manifest(&bearer, freshness).await;
+    let stored = super::manifest_cache::stored_envelope(&gateway);
+    let if_none_match = stored.as_ref().and_then(|f| f.etag.clone());
+    let mut envelope = client
+        .fetch_manifest_conditional(&bearer, freshness, if_none_match.as_deref())
+        .await;
 
     if is_unauthorized(&envelope) && was_cached {
         tracing::warn!("gateway refused the cached token; discarding it and re-authenticating");
         crate::auth::cache::clear().map_err(SyncError::CredentialCache)?;
         bearer = fetch_fresh_token(http, &cfg).await?;
-        envelope = client.fetch_manifest(&bearer, freshness).await;
+        envelope = client
+            .fetch_manifest_conditional(&bearer, freshness, if_none_match.as_deref())
+            .await;
     }
 
     if is_unauthorized(&envelope) {
@@ -188,11 +198,15 @@ pub(super) async fn fetch_authenticated_manifest(
         )
     })?;
 
+    let (envelope, etag, revalidated) = super::manifest_cache::resolve(envelope, stored)?;
+
     Ok(ManifestFetch {
         client,
         bearer,
         envelope,
         config: cfg,
+        etag,
+        revalidated,
     })
 }
 

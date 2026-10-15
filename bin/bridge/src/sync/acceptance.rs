@@ -15,6 +15,16 @@ use crate::gateway::manifest::{SignedManifest, decode_payload};
 pub(super) enum CurrentVersion {
     Replay,
     Accepted,
+    /// The stored envelope, revalidated by a 304 from the gateway in this run.
+    /// Its `not_before` is as old as its first acceptance, so the clock-skew
+    /// check would refuse it; its signature is still verified by the caller.
+    Revalidated,
+}
+
+impl CurrentVersion {
+    pub(super) const fn for_run(revalidated: bool, otherwise: Self) -> Self {
+        if revalidated { Self::Revalidated } else { otherwise }
+    }
 }
 
 pub(super) fn accept(
@@ -26,9 +36,11 @@ pub(super) fn accept(
     let meta = paths::bridge_metadata_dir().ok_or(SyncError::PathUnresolvable)?;
     let prior = prior_checkpoint(&meta.join(paths::LAST_SYNC_SENTINEL), gateway)?;
     if !force_replay {
-        check_skew(manifest.not_before, chrono::Utc::now())?;
+        if current != CurrentVersion::Revalidated {
+            check_skew(manifest.not_before, chrono::Utc::now())?;
+        }
         let is_current = prior.manifest_version.as_ref() == Some(&manifest.manifest_version);
-        if !(is_current && current == CurrentVersion::Accepted) {
+        if !(is_current && current != CurrentVersion::Replay) {
             check_replay(&prior, &manifest.manifest_version)?;
         }
         if let Some(fragment) = crate::mcp_registry::read_envelope().map_err(|source| {

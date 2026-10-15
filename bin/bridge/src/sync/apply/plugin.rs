@@ -10,9 +10,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::fetch::fetch_plugin_into_staging;
 use super::hooks::{PluginJsonShape, ensure_plugin_json_managed_fields, write_hooks_json};
 use super::node_deps::{self, NodeInstall};
+use super::plugin_files::{extract_mcp_servers, remove_stale};
+use super::stage::{Staged, stage_changed};
+use super::stamp::{self, PluginStamp};
 use super::swap::promote_staged;
 use crate::auth::plugin_oauth::PluginTokenCache;
 use crate::gateway::GatewayClient;
@@ -21,8 +23,7 @@ use crate::hash::safe_plugin_id;
 use crate::host_sync::{HostWarning, HostWarningKind, WarningScope};
 use crate::ids::BearerToken;
 use crate::proxy::LoopbackEndpoint;
-use std::collections::{BTreeMap, HashSet};
-use std::fs;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 use systemprompt_models::bridge::host::HostKind;
 use tokio_util::sync::CancellationToken;
@@ -74,20 +75,40 @@ pub(super) async fn apply_plugins(
     let mut receipts = Vec::new();
     let mut warnings = Vec::new();
     let total = manifest.plugins.len();
+    if let Some(unsafe_id) = manifest
+        .plugins
+        .iter()
+        .find(|p| !safe_plugin_id(p.id.as_str()))
+    {
+        return Err(super::ApplyError::UnsafePluginId(unsafe_id.id.clone()));
+    }
+    let unchanged: HashMap<&str, PluginStamp> = manifest
+        .plugins
+        .iter()
+        .filter_map(|p| stamp::current(ctx.meta_dir, ctx.root, p).map(|s| (p.id.as_str(), s)))
+        .collect();
+    let changed: Vec<&PluginEntry> = manifest
+        .plugins
+        .iter()
+        .filter(|p| !unchanged.contains_key(p.id.as_str()))
+        .collect();
+    tracing::info!(
+        target: "bridge::sync",
+        unchanged = unchanged.len(),
+        changed = changed.len(),
+        "plugins compared against their installed stamps"
+    );
+    if let Staged::Cancelled = stage_changed(ctx, &changed, unchanged.len(), total).await? {
+        return Ok(PluginPhase::Cancelled { applied: 0 });
+    }
     for (index, plugin) in manifest.plugins.iter().enumerate() {
         if ctx.cancel.is_cancelled() {
             return Ok(PluginPhase::Cancelled { applied: index });
         }
-        if !safe_plugin_id(plugin.id.as_str()) {
-            return Err(super::ApplyError::UnsafePluginId(plugin.id.clone()));
-        }
-        ctx.progress.report(&crate::progress::SyncProgress::new(
-            "plugins",
-            plugin.id.to_string(),
-            index + 1,
-            total,
-        ));
-        let applied = sync_one_plugin(ctx, plugin, &manifest.hooks).await?;
+        let applied = match unchanged.get(plugin.id.as_str()) {
+            Some(stamp) => refresh_unchanged(ctx, plugin, &manifest.hooks, stamp).await?,
+            None => promote_plugin(ctx, plugin, &manifest.hooks).await?,
+        };
         receipts.push(applied.hooks_receipt);
         if let NodeInstall::Skipped { reason } = &applied.node_install {
             warnings.push(HostWarning::raise(
@@ -102,11 +123,10 @@ pub(super) async fn apply_plugins(
         match applied.change {
             PluginChange::Installed(id) => installed.push(id),
             PluginChange::Updated(id) => updated.push(id),
+            PluginChange::Unchanged => {},
         }
-        let plugin_dir = ctx.root.join(plugin.id.as_str());
-        let servers = extract_mcp_servers(&plugin_dir)?;
-        if !servers.is_empty() {
-            mcp_servers_by_plugin.insert(plugin.id.to_string(), servers);
+        if !applied.mcp_servers.is_empty() {
+            mcp_servers_by_plugin.insert(plugin.id.to_string(), applied.mcp_servers);
         }
         match applied.manifest_shape {
             PluginJsonShape::Stamped => {},
@@ -134,6 +154,7 @@ pub(super) async fn apply_plugins(
     let expected: HashSet<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
     let removed = remove_stale(ctx.root, &expected)?;
     for id in &removed {
+        stamp::clear(ctx.meta_dir, id)?;
         ctx.plugin_tokens
             .invalidate_plugin(&systemprompt_identifiers::PluginId::new(id));
     }
@@ -150,45 +171,10 @@ pub(super) async fn apply_plugins(
     }))
 }
 
-#[derive(serde::Deserialize)]
-struct McpFileProbe {
-    // JSON: `.mcp.json` is Claude Code's own file; only the server names are
-    // read, the per-server bodies are opaque here.
-    #[serde(rename = "mcpServers", default)]
-    mcp_servers: BTreeMap<String, serde_json::Value>,
-}
-
-// Why: Claude Desktop would register a bundled `.mcp.json` verbatim, bypassing
-// the loopback proxy; the names are recorded and the file is stripped only
-// once it has parsed — a malformed file stays in place for the operator to see.
-fn extract_mcp_servers(plugin_dir: &Path) -> Result<Vec<String>, super::ApplyError> {
-    let path = plugin_dir.join(".mcp.json");
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(source) => {
-            return Err(super::ApplyError::Io {
-                context: format!("read {}", path.display()),
-                source,
-            });
-        },
-    };
-    let names: Vec<String> = serde_json::from_slice::<McpFileProbe>(&bytes)
-        .map(|f| f.mcp_servers.into_keys().collect())
-        .map_err(|e| super::ApplyError::Serialize {
-            what: format!("{} is not valid JSON", path.display()),
-            source: e,
-        })?;
-    crate::fsutil::remove_verified(&path).map_err(|source| super::ApplyError::Io {
-        context: format!("strip bundled {}", path.display()),
-        source,
-    })?;
-    Ok(names)
-}
-
 enum PluginChange {
     Installed(String),
     Updated(String),
+    Unchanged,
 }
 
 struct PluginApplied {
@@ -196,6 +182,7 @@ struct PluginApplied {
     hooks_receipt: crate::fsutil::FileReceipt,
     manifest_shape: PluginJsonShape,
     node_install: NodeInstall,
+    mcp_servers: Vec<String>,
 }
 
 pub(super) struct PluginSyncCtx<'a> {
@@ -204,29 +191,80 @@ pub(super) struct PluginSyncCtx<'a> {
     pub loopback: &'a LoopbackEndpoint,
     pub plugin_tokens: &'a PluginTokenCache,
     pub root: &'a Path,
+    pub meta_dir: &'a Path,
     pub staging_root: &'a Path,
     pub cancel: &'a CancellationToken,
     // Why: borrowing this sink across file-fetch awaits triggers rustc's higher-ranked Send error.
     pub progress: crate::progress::SyncProgressSink,
 }
 
+// Why: hooks.json embeds the loopback endpoint, which can move between runs,
+// so an unchanged plugin still has its hooks and plugin.json fields restamped;
+// the Node pass is its own no-op unless its lockfile fingerprint changed.
+async fn refresh_unchanged(
+    ctx: &PluginSyncCtx<'_>,
+    plugin: &PluginEntry,
+    hook_pool: &[HookEntry],
+    stamp: &PluginStamp,
+) -> Result<PluginApplied, super::ApplyError> {
+    let target = ctx.root.join(plugin.id.as_str());
+    let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
+    let manifest_shape = ensure_plugin_json_managed_fields(&target)?;
+    Ok(PluginApplied {
+        change: PluginChange::Unchanged,
+        hooks_receipt,
+        manifest_shape,
+        node_install: install_node_packages(plugin, &target).await?,
+        mcp_servers: stamp.mcp_servers.clone(),
+    })
+}
+
 #[tracing::instrument(level = "debug", skip(ctx, plugin, hook_pool), fields(plugin_id = %plugin.id))]
-async fn sync_one_plugin(
+async fn promote_plugin(
     ctx: &PluginSyncCtx<'_>,
     plugin: &PluginEntry,
     hook_pool: &[HookEntry],
 ) -> Result<PluginApplied, super::ApplyError> {
     let target = ctx.root.join(plugin.id.as_str());
-
     let stage = ctx.staging_root.join(plugin.id.as_str());
-    fetch_plugin_into_staging(ctx.client, ctx.bearer, plugin, &stage, &target).await?;
     super::check_not_superseded(ctx.client.base_url())?;
 
+    stamp::clear(ctx.meta_dir, plugin.id.as_str())?;
     let was_present = promote_staged(&stage, &target, &plugin.id)?;
 
     let hooks_receipt = write_hooks_json(ctx.loopback, plugin, &target, hook_pool)?;
     let manifest_shape = ensure_plugin_json_managed_fields(&target)?;
-    let install_dir = target.clone();
+    let node_install = install_node_packages(plugin, &target).await?;
+    let mcp_servers = extract_mcp_servers(&target)?;
+    stamp::write(
+        ctx.meta_dir,
+        plugin.id.as_str(),
+        &PluginStamp {
+            sha256: plugin.sha256.as_str().to_owned(),
+            root: ctx.root.to_path_buf(),
+            mcp_servers: mcp_servers.clone(),
+        },
+    )?;
+
+    let change = if was_present {
+        PluginChange::Updated(plugin.id.to_string())
+    } else {
+        PluginChange::Installed(plugin.id.to_string())
+    };
+    Ok(PluginApplied {
+        change,
+        hooks_receipt,
+        manifest_shape,
+        node_install,
+        mcp_servers,
+    })
+}
+
+async fn install_node_packages(
+    plugin: &PluginEntry,
+    target: &Path,
+) -> Result<NodeInstall, super::ApplyError> {
+    let install_dir = target.to_path_buf();
     let node_install = tokio::task::spawn_blocking(move || node_deps::install(&install_dir))
         .await
         .map_err(|error| super::ApplyError::Io {
@@ -241,45 +279,5 @@ async fn sync_one_plugin(
             "installed the plugin's Node packages from its lockfile"
         );
     }
-
-    let change = if was_present {
-        PluginChange::Updated(plugin.id.to_string())
-    } else {
-        PluginChange::Installed(plugin.id.to_string())
-    };
-    Ok(PluginApplied {
-        change,
-        hooks_receipt,
-        manifest_shape,
-        node_install,
-    })
-}
-
-fn remove_stale(root: &Path, expected: &HashSet<&str>) -> Result<Vec<String>, super::ApplyError> {
-    let mut removed = Vec::new();
-    let entries = fs::read_dir(root).map_err(|source| super::ApplyError::Io {
-        context: format!("enumerate {}", root.display()),
-        source,
-    })?;
-    for entry in entries {
-        let entry = entry.map_err(|source| super::ApplyError::Io {
-            context: format!("enumerate {}", root.display()),
-            source,
-        })?;
-        let name = entry.file_name();
-        let Some(name_str) = name.to_str() else {
-            continue;
-        };
-        if name_str.starts_with('.') {
-            continue;
-        }
-        if !expected.contains(name_str) && entry.path().is_dir() {
-            fs::remove_dir_all(entry.path()).map_err(|e| super::ApplyError::Io {
-                context: format!("remove stale {name_str}"),
-                source: e,
-            })?;
-            removed.push(name_str.to_owned());
-        }
-    }
-    Ok(removed)
+    Ok(node_install)
 }

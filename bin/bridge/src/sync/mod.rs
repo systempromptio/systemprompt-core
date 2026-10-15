@@ -7,12 +7,14 @@ mod acceptance;
 pub mod apply;
 mod error;
 mod manifest;
+mod manifest_cache;
 mod org_plugins_scope;
 mod provision;
 mod registry_refresh;
 mod replay;
 mod seed_model;
 mod sentinel;
+mod stale_retry;
 mod summary;
 
 use self::org_plugins_scope::check_org_plugins_scope;
@@ -27,6 +29,7 @@ pub use error::{CredentialRejection, SyncError};
 pub use provision::ProvisionError;
 pub use registry_refresh::{refresh_registry, refresh_registry_for};
 pub use replay::{SKEW_WINDOW_MINUTES, check_replay, check_skew};
+pub use stale_retry::run_once;
 pub use summary::SyncSummary;
 use summary::build_summary;
 
@@ -124,13 +127,18 @@ async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncE
 
 fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
     let meta_dir = apply::metadata_dir().map_err(|e| SyncError::ApplyFailed(Box::new(e)))?;
-    apply::write_envelope(&meta_dir, fetch.client.base_url(), &fetch.envelope)
-        .map(|_| ())
-        .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
+    apply::write_envelope(
+        &meta_dir,
+        fetch.client.base_url(),
+        &fetch.envelope,
+        fetch.etag.as_deref(),
+    )
+    .map(|_| ())
+    .map_err(|e| SyncError::ApplyFailed(Box::new(e)))
 }
 
 #[tracing::instrument(level = "info", skip(bridge))]
-pub async fn run_once(
+async fn run_attempt(
     bridge: &crate::context::BridgeContext,
     options: &SyncOptions,
 ) -> Result<SyncSummary, SyncError> {
@@ -193,7 +201,7 @@ pub async fn run_once(
         &synced,
         &run_gateway,
         force_replay,
-        acceptance::CurrentVersion::Replay,
+        acceptance::CurrentVersion::for_run(fetch.revalidated, acceptance::CurrentVersion::Replay),
     )?;
     persist_envelope(&fetch)?;
 

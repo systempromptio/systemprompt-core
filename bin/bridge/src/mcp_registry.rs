@@ -102,6 +102,9 @@ pub fn clear(slot: &McpRegistrySlot) {
 pub struct EnvelopeFragment {
     pub gateway: ValidatedUrl,
     pub envelope: systemprompt_models::bridge::manifest::SignedManifestEnvelope,
+    /// The gateway's validator for `envelope`, sent back as `If-None-Match`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub etag: Option<String>,
 }
 
 pub fn read_envelope() -> std::io::Result<Option<EnvelopeFragment>> {

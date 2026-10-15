@@ -12,6 +12,7 @@ setup-gateway-empty = enter a URL to check…
 setup-gateway-target = Signing in to { $host }.
 setup-gateway-target-default = Using the default gateway, { $host }. Change it above if yours is elsewhere.
 setup-connect = Connect
+setup-sync-plugins-progress = Syncing plugins ({ $done }/{ $total })
 setup-sign-in-default = Sign in to your gateway
 setup-sign-in-hint = Opens your browser to sign in on the gateway; this device is linked automatically.
 setup-keep-signed-in = Keep me signed in on this device

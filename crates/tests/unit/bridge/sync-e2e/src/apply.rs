@@ -1883,8 +1883,10 @@ fn metadata_fragment_failure_keeps_promoted_plugin_retryable_and_repair_converge
     fs::remove_dir(&blocked).unwrap();
     let recovered = run_sync(&fixture.dirs).expect("repair retries the same manifest");
     assert!(
-        recovered.updated.contains(&"metadata-recovery".to_owned()),
-        "the already-promoted plugin is recognized and safely refreshed"
+        recovered.installed.is_empty() && recovered.updated.is_empty(),
+        "the already-promoted plugin is recognised by its stamp and not re-fetched: {:?} {:?}",
+        recovered.installed,
+        recovered.updated
     );
     assert_eq!(fs::read(&blocked).unwrap(), b"null");
     assert_eq!(fs::read(&foreign).unwrap(), b"retain");
@@ -2151,4 +2153,64 @@ fn sync_routes_claude_code_rewrites_stale_values_and_preserves_foreign_keys() {
         "settings that already route are not rewritten"
     );
     let _ = (&pat_dir, &server);
+}
+
+fn plugin_archive(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut builder = tar::Builder::new(Vec::new());
+    for (rel, bytes) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(bytes.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder.append_data(&mut header, rel, *bytes).unwrap();
+    }
+    let tar = builder.into_inner().unwrap();
+    let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    std::io::Write::write_all(&mut gz, &tar).unwrap();
+    gz.finish().unwrap()
+}
+
+fn plugin_requests(server: &MockServer) -> usize {
+    setup_runtime()
+        .block_on(server.received_requests())
+        .unwrap_or_default()
+        .iter()
+        .filter(|r| r.url.path().starts_with("/v1/bridge/plugins/"))
+        .count()
+}
+
+#[test]
+fn a_plugin_archive_is_preferred_and_an_unchanged_plugin_is_not_refetched() {
+    let files: Vec<(&str, &[u8])> = vec![
+        (".claude-plugin/plugin.json", PLUGIN_FILE_BODY),
+        ("skills/a/SKILL.md", b"archived body"),
+    ];
+    let m = manifest_of(vec![plugin("acme-plugin", files.clone())], vec![]);
+    let b = serve_plugins(&m, &[], "pat-archive-skip");
+    setup_runtime().block_on(
+        Mock::given(method("GET"))
+            .and(path(format!(
+                "/v1/bridge/plugins/acme-plugin/archive/{}",
+                "0".repeat(64)
+            )))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(plugin_archive(&files)))
+            .mount(&b.server),
+    );
+
+    let first = run_sync(&b.dirs).expect("archive sync succeeds");
+    assert_eq!(first.installed, vec!["acme-plugin".to_owned()]);
+    assert_eq!(
+        fs::read(b.dirs.org_plugins.join("acme-plugin/skills/a/SKILL.md")).unwrap(),
+        b"archived body"
+    );
+    assert_eq!(plugin_requests(&b.server), 1, "one archive, no per-file fetches");
+
+    let second = run_sync(&b.dirs).expect("warm sync succeeds");
+    assert!(second.installed.is_empty() && second.updated.is_empty());
+    assert_eq!(
+        plugin_requests(&b.server),
+        1,
+        "an unchanged plugin is skipped without a request"
+    );
+    let _ = (&b.server, &b.pat_dir);
 }

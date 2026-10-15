@@ -20,6 +20,9 @@ impl AppState {
         guard.first_run.sync = StepStatus::Pending;
         guard.first_run.error = None;
         guard.first_run.started_at_unix = now_unix();
+        guard.first_run.sync_result = None;
+        guard.first_run.host_installed_during_sync = false;
+        guard.first_run.followup_sync = false;
         guard.first_run.hosts = hosts
             .iter()
             .map(|(id, name)| FirstRunHost {
@@ -57,5 +60,12 @@ impl AppState {
         guard.first_run.phase = phase;
         guard.first_run.active = false;
         guard.first_run.done = true;
+    }
+
+    pub fn update_first_run(
+        &self,
+        f: impl FnOnce(&mut crate::gui::first_run::state::FirstRunState),
+    ) {
+        f(&mut self.snap_mut().first_run);
     }
 }

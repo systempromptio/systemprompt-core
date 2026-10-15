@@ -23,9 +23,15 @@ mod mcp_sidecar_port_move;
 #[cfg(test)]
 mod opencode_managed_resources;
 #[cfg(test)]
+mod plugin_archive;
+#[cfg(test)]
+mod plugin_stamp;
+#[cfg(test)]
 mod progress_sink;
 #[cfg(test)]
 mod replay;
+#[cfg(test)]
+mod skill_bodies;
 #[cfg(test)]
 mod skill_passthrough;
 #[cfg(test)]

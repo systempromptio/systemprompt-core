@@ -114,6 +114,7 @@ fn request(
     let fragment = EnvelopeFragment {
         gateway: ValidatedUrl::try_new(GATEWAY).unwrap(),
         envelope: envelope(key, manifest),
+        etag: None,
     };
     let tool_catalog = catalog
         .iter()

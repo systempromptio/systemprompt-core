@@ -5,6 +5,8 @@ mod auth_endpoints;
 #[cfg(test)]
 mod catalog;
 #[cfg(test)]
+mod conditional;
+#[cfg(test)]
 mod gateway_client;
 #[cfg(test)]
 mod rejection;
