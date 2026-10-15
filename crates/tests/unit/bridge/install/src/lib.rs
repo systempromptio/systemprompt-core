@@ -29,6 +29,8 @@ mod model_picker;
 #[cfg(test)]
 mod policy;
 #[cfg(test)]
+mod policy_apply;
+#[cfg(test)]
 mod policy_writer;
 #[cfg(test)]
 mod pubkey;

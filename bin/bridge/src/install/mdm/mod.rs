@@ -18,6 +18,7 @@ pub(super) mod macos;
 mod macos_payload;
 mod macos_remove;
 pub mod policy;
+pub mod policy_apply;
 mod policy_render;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod sync;

@@ -286,7 +286,8 @@ pub fn mcp_entries_with(
         });
     }
     // Why: an empty managedMcpServers locks Claude Desktop out of every MCP
-    // server; omitting the key leaves Desktop on its own default.
+    // server; omitting the key leaves Desktop on its own default, and the
+    // policy writers clear any value an older install left (`policy_apply`).
     if unexpanded && out.is_empty() {
         return None;
     }

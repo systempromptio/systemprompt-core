@@ -129,11 +129,11 @@ fn apply(
         _ => None,
     };
     let values = derive_policy(request, &manifest, existing_models)?;
-    let entries: Vec<(String, String)> = values
-        .into_iter()
-        .map(|(name, _, value)| (name.to_owned(), value))
-        .collect();
-    let receipt = store::write_managed_claude_policy(true, &entries)?;
+    let receipt = crate::install::mdm::policy_apply::apply_claude_policy(
+        store.as_ref(),
+        PolicyHive::Machine,
+        &values,
+    )?;
     tracing::info!(
         target: "bridge::policy_writer",
         job = %request.job_id,

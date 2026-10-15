@@ -234,15 +234,18 @@ fn verify_hive(request: &PolicyWriteRequest) -> Result<(), PolicyWriterError> {
         _ => None,
     };
     let expected = derive_policy(request, &manifest, existing_models)?;
-    let names: Vec<&str> = expected.iter().map(|(name, _, _)| *name).collect();
+    let withheld = crate::install::mdm::policy_apply::withheld_keys(&expected);
+    let mut names: Vec<&str> = expected.iter().map(|(name, _, _)| *name).collect();
+    names.extend(&withheld);
     let actual = store.read_policy_document(PolicyHive::Machine, PolicyTarget::Claude, &names)?;
-    let differing: Vec<&str> = expected
+    let mut differing: Vec<&str> = expected
         .iter()
         .filter(|(name, _, value)| {
             actual.get(*name) != Some(&store::PolicyDocumentValue::Str(value.clone()))
         })
         .map(|(name, _, _)| *name)
         .collect();
+    differing.extend(withheld.iter().filter(|name| actual.contains_key(**name)));
     if differing.is_empty() {
         return Ok(());
     }

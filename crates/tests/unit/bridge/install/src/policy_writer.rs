@@ -22,6 +22,7 @@ use systemprompt_bridge::install::policy_writer::{
     PolicyWriterError, REQUEST_VERSION, RequestFacts, TASK_SDDL, build_request, derive_policy,
     expected_steps, facts_from_entries, render_task_xml, task_name, verify_against_anchor,
 };
+use systemprompt_bridge::install::mdm::policy_apply::withheld_keys;
 use systemprompt_bridge::mcp_registry::EnvelopeFragment;
 use systemprompt_identifiers::ValidatedUrl;
 
@@ -270,6 +271,26 @@ fn every_server_skipped_for_an_unexpandable_wildcard_omits_the_list() {
         value_of(&values, "managedMcpServers"),
         None,
         "an empty list would lock Desktop out of every MCP server"
+    );
+    assert_eq!(
+        withheld_keys(&values),
+        vec!["managedMcpServers"],
+        "an omitted list is cleared from the hive, so a stale loopback list cannot persist"
+    );
+}
+
+#[test]
+fn one_server_skipped_keeps_the_list_in_the_written_values() {
+    let key = signing_key(1);
+    let manifest = manifest(vec![
+        server("agent-farm", wildcard(ToolPolicy::Allow)),
+        server("atlassian", wildcard(ToolPolicy::Allow)),
+    ]);
+    let req = request(&key, &manifest, &[("atlassian", &["x"])]);
+    let values = derive_policy(&req, &manifest, None).unwrap();
+    assert!(
+        withheld_keys(&values).is_empty(),
+        "a written list replaces the stale one and is not removed"
     );
 }
 
