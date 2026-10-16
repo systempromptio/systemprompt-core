@@ -17,6 +17,10 @@ use std::path::Path;
 
 use crate::BoxedSource;
 
+pub use read::{ByteRange, FileByteStream, ServedRange, StoredFileRead};
+
+mod read;
+
 pub type FileStorageResult<T> = Result<T, FileStorageError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +40,9 @@ pub enum FileStorageError {
 
     #[error("storage backend error: {0}")]
     Backend(#[source] BoxedSource),
+
+    #[error("requested range not satisfiable for an object of {size} bytes")]
+    RangeNotSatisfiable { size: u64 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -77,6 +84,7 @@ pub struct StoredFileMetadata {
     pub path: String,
     pub mime_type: String,
     pub size_bytes: Option<i64>,
+    pub etag: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -85,7 +93,11 @@ pub struct StoredFileMetadata {
 pub trait FileStorage: Send + Sync {
     async fn store(&self, path: &Path, content: &[u8]) -> FileStorageResult<StoredFileId>;
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>>;
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead>;
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()>;
 

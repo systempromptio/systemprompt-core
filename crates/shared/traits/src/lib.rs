@@ -121,7 +121,8 @@ pub use auth::{
 };
 
 pub use storage::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, ServedRange,
+    StoredFileId, StoredFileMetadata, StoredFileRead,
 };
 
 pub use ai_providers::{

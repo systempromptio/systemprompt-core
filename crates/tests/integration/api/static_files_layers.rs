@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use axum::body::to_bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, Uri, header};
+use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
@@ -60,10 +60,24 @@ fn files_url(relative: &str) -> String {
 }
 
 async fn get(state: &StaticContentState, uri: &str) -> (StatusCode, HeaderMap, Vec<u8>) {
+    request(state, Method::GET, uri, &[]).await
+}
+
+async fn request(
+    state: &StaticContentState,
+    method: Method,
+    uri: &str,
+    extra: &[(header::HeaderName, &str)],
+) -> (StatusCode, HeaderMap, Vec<u8>) {
+    let mut headers = HeaderMap::new();
+    for (name, value) in extra {
+        headers.insert(name.clone(), value.parse().unwrap());
+    }
     let resp = serve_static_content(
         State(state.clone()),
         uri.parse::<Uri>().expect("uri"),
-        HeaderMap::new(),
+        method,
+        headers,
         None,
     )
     .await
@@ -142,5 +156,116 @@ async fn a_traversal_attempt_through_the_backend_is_not_found() -> anyhow::Resul
     let l = layers().await?;
     let (status, _, _) = get(&l.state, &files_url("../../etc/passwd")).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
+    Ok(())
+}
+
+async fn backend_file(l: &Layers, body: &[u8]) -> String {
+    let rel = format!("uploads/range-{}.mp4", FileId::generate().as_str());
+    l.state
+        .ctx
+        .file_storage()
+        .store(Path::new(&format!("files/{rel}")), body)
+        .await
+        .unwrap();
+    files_url(&rel)
+}
+
+#[tokio::test]
+async fn a_full_get_advertises_ranges_and_the_length() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (status, headers, body) = get(&l.state, &url).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::ACCEPT_RANGES], "bytes");
+    assert_eq!(headers[header::CONTENT_LENGTH], "10");
+    assert_eq!(headers[header::CONTENT_TYPE], "video/mp4");
+    assert!(headers.contains_key(header::LAST_MODIFIED));
+    assert_eq!(body, b"0123456789");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_range_request_is_answered_with_206() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (status, headers, body) =
+        request(&l.state, Method::GET, &url, &[(header::RANGE, "bytes=3-5")]).await;
+    assert_eq!(status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(headers[header::CONTENT_RANGE], "bytes 3-5/10");
+    assert_eq!(headers[header::CONTENT_LENGTH], "3");
+    assert_eq!(body, b"345");
+    let (status, _, body) =
+        request(&l.state, Method::GET, &url, &[(header::RANGE, "bytes=-2")]).await;
+    assert_eq!(status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(body, b"89");
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_unsatisfiable_range_is_416_with_the_size() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (status, headers, body) =
+        request(&l.state, Method::GET, &url, &[(header::RANGE, "bytes=20-")]).await;
+    assert_eq!(status, StatusCode::RANGE_NOT_SATISFIABLE);
+    assert_eq!(headers[header::CONTENT_RANGE], "bytes */10");
+    assert!(body.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_malformed_or_multi_range_is_served_whole() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    for raw in ["bytes=0-1,4-5", "bytes=9-2", "lines=1-2"] {
+        let (status, _, body) =
+            request(&l.state, Method::GET, &url, &[(header::RANGE, raw)]).await;
+        assert_eq!(status, StatusCode::OK, "{raw}");
+        assert_eq!(body, b"0123456789", "{raw}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn head_returns_headers_without_a_body() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (status, headers, body) =
+        request(&l.state, Method::HEAD, &url, &[(header::RANGE, "bytes=0-1")]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::CONTENT_LENGTH], "10");
+    assert!(headers.contains_key(header::ETAG));
+    assert!(body.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_matching_etag_is_304() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (_, headers, _) = get(&l.state, &url).await;
+    let etag = headers[header::ETAG].to_str()?.to_owned();
+    let (status, _, body) =
+        request(&l.state, Method::GET, &url, &[(header::IF_NONE_MATCH, &etag)]).await;
+    assert_eq!(status, StatusCode::NOT_MODIFIED);
+    assert!(body.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn shipped_layer_files_honour_ranges_too() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let rel = format!("downloads/bin-{}.zip", FileId::generate().as_str());
+    write(&l.shipped.join(&rel), "abcdefgh");
+    let (status, headers, body) = request(
+        &l.state,
+        Method::GET,
+        &files_url(&rel),
+        &[(header::RANGE, "bytes=4-")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(headers[header::CONTENT_RANGE], "bytes 4-7/8");
+    assert_eq!(body, b"efgh");
     Ok(())
 }

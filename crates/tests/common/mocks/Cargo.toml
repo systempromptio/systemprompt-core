@@ -13,6 +13,7 @@ anyhow = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
 futures = { workspace = true }
+bytes = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-traits = { workspace = true }

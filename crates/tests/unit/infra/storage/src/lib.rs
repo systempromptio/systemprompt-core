@@ -19,3 +19,7 @@ mod local_storage;
 mod s3_storage;
 #[cfg(test)]
 mod shared_mount_probe;
+#[cfg(test)]
+mod support;
+#[cfg(test)]
+mod ranged_reads;

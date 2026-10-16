@@ -1,3 +1,4 @@
+use crate::support::ReadAll;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -73,7 +74,7 @@ async fn retrieve_gets_the_object_with_the_key_encoded() {
         .mount(&server)
         .await;
     let bytes = storage(&server, None)
-        .retrieve(&StoredFileId::new("files/uploads/a b.png"))
+        .read_all(&StoredFileId::new("files/uploads/a b.png"))
         .await
         .unwrap();
     assert_eq!(bytes, b"bytes");
@@ -93,7 +94,7 @@ async fn a_missing_object_is_not_found() {
     let s = storage(&server, None);
     let id = StoredFileId::new("files/x.png");
     assert!(matches!(
-        s.retrieve(&id).await,
+        s.read_all(&id).await,
         Err(FileStorageError::NotFound(_))
     ));
     assert!(!s.exists(&id).await.unwrap());
@@ -155,7 +156,7 @@ async fn a_session_token_is_sent_and_signed() {
         .mount(&server)
         .await;
     let s = S3FileStorage::new(params(&server, None), credentials(Some("sess-1")), reqwest::Client::new());
-    assert_eq!(s.retrieve(&StoredFileId::new("files/a")).await.unwrap(), b"ok");
+    assert_eq!(s.read_all(&StoredFileId::new("files/a")).await.unwrap(), b"ok");
 }
 
 #[tokio::test]
@@ -166,8 +167,8 @@ async fn signatures_differ_per_object() {
         .mount(&server)
         .await;
     let s = storage(&server, None);
-    s.retrieve(&StoredFileId::new("files/a")).await.unwrap();
-    s.retrieve(&StoredFileId::new("files/b")).await.unwrap();
+    s.read_all(&StoredFileId::new("files/a")).await.unwrap();
+    s.read_all(&StoredFileId::new("files/b")).await.unwrap();
     let requests: Vec<Request> = server.received_requests().await.unwrap();
     let auth = |r: &Request| r.headers.get("authorization").unwrap().to_str().unwrap().to_owned();
     assert_ne!(auth(&requests[0]), auth(&requests[1]));

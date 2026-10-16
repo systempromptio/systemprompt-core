@@ -7,6 +7,7 @@
 use chrono::{DateTime, Utc};
 use reqwest::{RequestBuilder, Response};
 use serde::Deserialize;
+use systemprompt_traits::ByteRange;
 use url::Url;
 
 use super::{GcsError, GcsFileStorage};
@@ -16,6 +17,7 @@ use super::{GcsError, GcsFileStorage};
 pub(crate) struct ObjectResource {
     pub size: Option<String>,
     pub content_type: Option<String>,
+    pub etag: Option<String>,
     pub time_created: Option<DateTime<Utc>>,
     pub updated: Option<DateTime<Utc>>,
 }
@@ -42,7 +44,7 @@ impl GcsFileStorage {
         let bearer = self.tokens.bearer().await?;
         let response = request.bearer_auth(bearer).send().await?;
         let status = response.status();
-        if status.is_success() {
+        if status.is_success() || status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
             return Ok(response);
         }
         Err(GcsError::Status {
@@ -74,11 +76,18 @@ impl GcsFileStorage {
         Ok(())
     }
 
-    pub(crate) async fn download(&self, name: &str) -> Result<Vec<u8>, GcsError> {
+    pub(crate) async fn download(
+        &self,
+        name: &str,
+        range: Option<ByteRange>,
+    ) -> Result<Response, GcsError> {
         let mut url = self.object_url(name)?;
         url.query_pairs_mut().append_pair("alt", "media");
-        let response = self.send(self.http.get(url)).await?;
-        Ok(response.bytes().await?.to_vec())
+        let mut request = self.http.get(url);
+        if let Some(range) = range {
+            request = request.header(reqwest::header::RANGE, range.header_value());
+        }
+        self.send(request).await
     }
 
     pub(crate) async fn remove(&self, name: &str) -> Result<(), GcsError> {

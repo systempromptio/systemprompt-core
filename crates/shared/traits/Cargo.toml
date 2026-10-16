@@ -37,6 +37,7 @@ tracing = { workspace = true }
 
 serde = { workspace = true }
 futures = { workspace = true }
+bytes = { workspace = true }
 http = { workspace = true }
 xxhash-rust = { workspace = true }
 sqlx = { workspace = true, optional = true }

@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use axum::body::to_bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, Uri, header};
+use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
@@ -63,6 +63,7 @@ async fn serve(
     let resp = serve_static_content(
         State(state.clone()),
         uri.parse::<Uri>().expect("uri"),
+        Method::GET,
         headers,
         None,
     )

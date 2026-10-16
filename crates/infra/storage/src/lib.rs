@@ -27,6 +27,7 @@ pub mod gcs;
 pub mod local;
 mod object_id;
 pub mod probe;
+mod remote_read;
 pub mod s3;
 
 use std::path::PathBuf;

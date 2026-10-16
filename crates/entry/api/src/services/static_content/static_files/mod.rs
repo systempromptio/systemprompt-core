@@ -19,7 +19,7 @@ pub use cache::{
 };
 
 use axum::extract::State;
-use axum::http::{HeaderMap, Uri};
+use axum::http::{HeaderMap, Method, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
 use systemprompt_traits::RepositoryError;
@@ -45,6 +45,7 @@ pub struct StaticContentState {
 pub async fn serve_static_content(
     State(state): State<StaticContentState>,
     uri: Uri,
+    method: Method,
     headers: HeaderMap,
     _req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
@@ -56,7 +57,7 @@ pub async fn serve_static_content(
         state.route_classifier.classify(path, "GET"),
         RouteType::StaticAsset { .. }
     ) {
-        return serve_static_asset(&state.ctx, path, &dist_dir, &headers).await;
+        return serve_static_asset(&state.ctx, path, &method, &dist_dir, &headers).await;
     }
 
     if path == "/" {
@@ -106,6 +107,7 @@ pub async fn serve_static_content(
 async fn serve_static_asset(
     ctx: &AppContext,
     path: &str,
+    method: &Method,
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
@@ -133,35 +135,14 @@ async fn serve_static_asset(
         return ApiHttpError::not_found("Asset not found").into_response();
     };
 
-    if relative_path
-        .split(['/', '\\'])
-        .any(|segment| segment == "..")
-    {
-        return ApiHttpError::not_found("Asset not found").into_response();
-    }
-
-    let layers = std::iter::once(files_config.files()).chain(
-        ctx.app_paths()
-            .storage()
-            .shipped_files()
-            .map(std::path::Path::to_path_buf),
-    );
-    for layer in layers {
-        let asset_path = layer.join(relative_path);
-        if asset_path.is_file() {
-            let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
-            let cache_control = files_config
-                .cache_control()
-                .unwrap_or_else(|| asset_cache_policy(&asset_path));
-            return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
-        }
-    }
-
-    stored::serve_stored_file(
-        ctx.file_storage().as_ref(),
-        relative_path,
-        headers,
+    stored::serve_files_path(
+        ctx,
         files_config,
+        stored::FilesRequest {
+            relative_path,
+            method,
+            headers,
+        },
     )
     .await
 }

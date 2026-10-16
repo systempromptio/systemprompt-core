@@ -74,7 +74,7 @@ paths:
 
 `system`, `services`, and `bin` are required (`crates/shared/manifest/src/profile/paths.rs`). Omit `web_path` for a headless API-only deployment.
 
-`/files/*` is resolved in three layers: `paths.storage/files` (user data and operator overrides) first, then `shipped_files` (the read-only copy an image ships), then the configured storage backend. With `shipped_files` set, `paths.storage` only has to hold user data, and nothing has to be copied onto it when a pod starts.
+`/files/*` is resolved in three layers: `paths.storage/files` (user data and operator overrides) first, then `shipped_files` (the read-only copy an image ships), then the configured storage backend. Responses are streamed; a single `Range` is answered with `206` (or `416`), `HEAD` returns the headers alone, and `ETag`/`If-None-Match` gives `304`. With `shipped_files` set, `paths.storage` only has to hold user data, and nothing has to be copied onto it when a pod starts.
 
 ### File storage
 

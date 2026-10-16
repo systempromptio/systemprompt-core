@@ -19,6 +19,9 @@ workspace = true
 
 [dependencies]
 tokio = { workspace = true }
+tokio-util = { workspace = true, features = ["io"] }
+futures = { workspace = true }
+bytes = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }

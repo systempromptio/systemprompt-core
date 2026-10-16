@@ -7121,6 +7121,7 @@ dependencies = [
  "systemprompt-scheduler",
  "systemprompt-security",
  "systemprompt-slack",
+ "systemprompt-storage",
  "systemprompt-teams",
  "systemprompt-traits",
  "systemprompt-users",
@@ -9552,7 +9553,9 @@ name = "systemprompt-storage"
 version = "0.69.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "chrono",
+ "futures",
  "hex",
  "hmac 0.13.0",
  "reqwest",
@@ -9564,6 +9567,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
  "urlencoding",
@@ -9575,6 +9579,8 @@ name = "systemprompt-storage-tests"
 version = "0.0.11"
 dependencies = [
  "async-trait",
+ "bytes",
+ "futures",
  "hex",
  "reqwest",
  "serde_json",
@@ -9753,6 +9759,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "chrono",
  "futures",
  "reqwest",
@@ -9772,6 +9779,7 @@ name = "systemprompt-traits"
 version = "0.69.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "chrono",
  "futures",
  "http",

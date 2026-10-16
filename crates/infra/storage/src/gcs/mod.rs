@@ -18,7 +18,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_traits::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    StoredFileRead,
 };
 use url::Url;
 
@@ -112,9 +113,17 @@ impl FileStorage for GcsFileStorage {
         Ok(id)
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
         let name = self.object_name(id)?;
-        self.download(&name).await.map_err(|e| e.into_storage(id))
+        let response = self
+            .download(&name, range)
+            .await
+            .map_err(|e| e.into_storage(id))?;
+        crate::remote_read::into_read(id, response)
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
@@ -152,6 +161,7 @@ impl FileStorage for GcsFileStorage {
                 .content_type
                 .unwrap_or_else(|| mime_for(Path::new(id.as_str())).to_owned()),
             size_bytes,
+            etag: object.etag,
             created_at,
             updated_at: object.updated.unwrap_or(created_at),
         })

@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, HeaderMap, LAST_MODIFIED};
+use reqwest::header::{CONTENT_LENGTH, CONTENT_TYPE, ETAG, HeaderMap, LAST_MODIFIED};
 use reqwest::{Method, Response};
+use systemprompt_traits::ByteRange;
 use url::Url;
 
 use super::sigv4::{SigningInput, sign};
@@ -14,6 +15,7 @@ use super::{S3Error, S3FileStorage};
 pub(crate) struct ObjectHead {
     pub content_type: Option<String>,
     pub size_bytes: Option<i64>,
+    pub etag: Option<String>,
     pub last_modified: DateTime<Utc>,
 }
 
@@ -62,9 +64,10 @@ impl S3FileStorage {
         &self,
         method: Method,
         name: &str,
-        content_type: Option<&str>,
-        payload: &[u8],
+        upload: Option<(&str, &[u8])>,
+        range: Option<ByteRange>,
     ) -> Result<Response, S3Error> {
+        let payload = upload.map_or(&b""[..], |(_, payload)| payload);
         let (url, host) = self.object_url(name)?;
         let signed = sign(
             &self.credentials,
@@ -86,14 +89,17 @@ impl S3FileStorage {
         if let Some(token) = self.credentials.session_token.as_deref() {
             request = request.header("x-amz-security-token", token);
         }
-        if let Some(content_type) = content_type {
+        if let Some(range) = range {
+            request = request.header(reqwest::header::RANGE, range.header_value());
+        }
+        if let Some((content_type, payload)) = upload {
             request = request
                 .header(CONTENT_TYPE, content_type)
                 .body(payload.to_vec());
         }
         let response = request.send().await?;
         let status = response.status();
-        if status.is_success() {
+        if status.is_success() || status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
             return Ok(response);
         }
         Err(S3Error::Status {
@@ -108,23 +114,26 @@ impl S3FileStorage {
         content_type: &str,
         content: &[u8],
     ) -> Result<(), S3Error> {
-        self.send(Method::PUT, name, Some(content_type), content)
+        self.send(Method::PUT, name, Some((content_type, content)), None)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn get(&self, name: &str) -> Result<Vec<u8>, S3Error> {
-        let response = self.send(Method::GET, name, None, b"").await?;
-        Ok(response.bytes().await?.to_vec())
+    pub(crate) async fn get(
+        &self,
+        name: &str,
+        range: Option<ByteRange>,
+    ) -> Result<Response, S3Error> {
+        self.send(Method::GET, name, None, range).await
     }
 
     pub(crate) async fn remove(&self, name: &str) -> Result<(), S3Error> {
-        self.send(Method::DELETE, name, None, b"").await?;
+        self.send(Method::DELETE, name, None, None).await?;
         Ok(())
     }
 
     pub(crate) async fn head(&self, name: &str) -> Result<Lookup<ObjectHead>, S3Error> {
-        match self.send(Method::HEAD, name, None, b"").await {
+        match self.send(Method::HEAD, name, None, None).await {
             Ok(response) => Ok(Lookup::Found(parse_head(name, response.headers())?)),
             Err(S3Error::Status { status: 404, .. }) => Ok(Lookup::Missing),
             Err(other) => Err(other),
@@ -151,6 +160,7 @@ fn parse_head(name: &str, headers: &HeaderMap) -> Result<ObjectHead, S3Error> {
     Ok(ObjectHead {
         content_type: text(CONTENT_TYPE).map(str::to_owned),
         size_bytes,
+        etag: text(ETAG).map(str::to_owned),
         last_modified,
     })
 }
