@@ -8,7 +8,15 @@
 //! directory must be a per-node writable volume. Admission only reserves a
 //! receipt; settlement of receipts left behind by a crash runs from
 //! [`spawn_recovery`], a cancellable task on the server's `BackgroundTasks`,
-//! never on the request path.
+//! never on the request path. On cancellation — the server's shutdown drain —
+//! the task runs one final settlement pass before it returns, so a node that
+//! terminates in order leaves its journal empty; the drain's background grace
+//! bounds that pass.
+//!
+//! Every pass publishes `gateway_journal_receipts` (receipts still on disk)
+//! and counts `gateway_journal_settle_failures_total` (receipts retained
+//! because settlement failed) and `gateway_journal_recovery_failures_total`
+//! (passes that failed outright).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,6 +39,9 @@ use systemprompt_manifest::Secrets;
 use systemprompt_traits::BackgroundTasks;
 
 pub const RECOVERY_INTERVAL: Duration = Duration::from_secs(30);
+pub const JOURNAL_RECEIPTS: &str = "gateway_journal_receipts";
+pub const JOURNAL_SETTLE_FAILURES_TOTAL: &str = "gateway_journal_settle_failures_total";
+pub const JOURNAL_RECOVERY_FAILURES_TOTAL: &str = "gateway_journal_recovery_failures_total";
 pub use systemprompt_ai::repository::ai_requests::ORPHAN_AGE;
 
 #[derive(Clone)]
@@ -142,7 +153,28 @@ pub(super) async fn settle_unadmitted_failure(
     settle::settle(settlement, receipt).await
 }
 
+pub async fn pending(journal: &Arc<GatewayJournal>) -> Result<usize> {
+    let journal = Arc::clone(journal);
+    tokio::task::spawn_blocking(move || files::count(&journal)).await?
+}
+
 pub async fn recover(settlement: &Settlement) -> Result<usize> {
+    let outcome = settle_listed(settlement).await;
+    match pending(&settlement.journal).await {
+        #[expect(
+            clippy::cast_precision_loss,
+            reason = "bounded by the journal's 4096-entry capacity"
+        )]
+        Ok(remaining) => metrics::gauge!(JOURNAL_RECEIPTS).set(remaining as f64),
+        Err(error) => tracing::warn!(%error, "Gateway journal receipts could not be counted"),
+    }
+    if outcome.is_err() {
+        metrics::counter!(JOURNAL_RECOVERY_FAILURES_TOTAL).increment(1);
+    }
+    outcome
+}
+
+async fn settle_listed(settlement: &Settlement) -> Result<usize> {
     let journal = Arc::clone(&settlement.journal);
     let listed = tokio::task::spawn_blocking(move || files::list(&journal)).await??;
     let mut settled = 0;
@@ -170,6 +202,7 @@ pub async fn recover(settlement: &Settlement) -> Result<usize> {
         }
         let id = receipt.storage_id();
         if let Err(error) = settle::settle(settlement, &receipt).await {
+            metrics::counter!(JOURNAL_SETTLE_FAILURES_TOTAL).increment(1);
             tracing::warn!(ai_request_id = %id, %error, "Gateway accounting recovery pending; receipt retained");
             continue;
         }
@@ -206,5 +239,23 @@ pub fn spawn_recovery(settlement: Settlement, tasks: &BackgroundTasks) {
                 Err(error) => tracing::error!(%error, "Gateway accounting recovery failed"),
             }
         }
+        flush_on_shutdown(&settlement).await;
     });
+}
+
+pub async fn flush_on_shutdown(settlement: &Settlement) {
+    match recover(settlement).await {
+        Ok(settled) => match pending(&settlement.journal).await {
+            Ok(0) => tracing::info!(settled, "Gateway journal flushed on shutdown"),
+            Ok(remaining) => tracing::warn!(
+                settled,
+                remaining,
+                "Gateway journal receipts remain after the shutdown flush"
+            ),
+            Err(error) => {
+                tracing::warn!(settled, %error, "Gateway journal could not be counted after the shutdown flush");
+            },
+        },
+        Err(error) => tracing::error!(%error, "Gateway journal shutdown flush failed"),
+    }
 }

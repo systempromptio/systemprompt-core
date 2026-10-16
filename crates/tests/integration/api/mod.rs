@@ -288,6 +288,10 @@ mod static_files_serving;
 mod static_files_layers;
 
 #[cfg(test)]
+#[path = "gateway_journal_drain.rs"]
+mod gateway_journal_drain;
+
+#[cfg(test)]
 #[path = "gateway_pipeline.rs"]
 mod gateway_pipeline;
 

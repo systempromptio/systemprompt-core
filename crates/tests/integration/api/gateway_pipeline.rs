@@ -1549,7 +1549,7 @@ impl<T> Drop for AbortOnDrop<T> {
     }
 }
 
-async fn admitted_receipt_fixture(
+pub(super) async fn admitted_receipt_fixture(
     label: &str,
 ) -> anyhow::Result<(
     systemprompt_test_fixtures::DisposableDb,
