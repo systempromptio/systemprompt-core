@@ -121,6 +121,7 @@ pub(super) async fn init_core(
         &profile.paths.services,
     ))?);
 
+    systemprompt_logging::set_console_format(profile.observability.log_format);
     systemprompt_logging::init_logging(&database);
 
     if config.database_write_url.is_some() {

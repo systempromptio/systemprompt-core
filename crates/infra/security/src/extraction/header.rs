@@ -29,7 +29,13 @@ pub struct HeaderExtractor;
 impl HeaderExtractor {
     pub fn extract_trace_id(headers: &HeaderMap) -> TraceId {
         Self::extract_header(headers, headers::TRACE_ID)
-            .map_or_else(TraceId::generate, TraceId::new)
+            .filter(|s| !s.is_empty())
+            .map(TraceId::new)
+            .or_else(|| {
+                Self::extract_header(headers, headers::TRACEPARENT)
+                    .and_then(|value| TraceId::from_traceparent(&value))
+            })
+            .unwrap_or_else(TraceId::generate)
     }
 
     pub fn extract_context_id(headers: &HeaderMap) -> Option<ContextId> {

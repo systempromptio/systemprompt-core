@@ -91,15 +91,15 @@ Gateway spend controls add two counters. `systemprompt_quota_denials_total{subje
 
 ## 4. Read structured logs
 
-Logs are emitted as structured JSON to stdout and persisted to the `logs` table in Postgres (`crates/infra/logging/src/layer/mod.rs`). The verbosity is set by `runtime.log_level` in the profile (`quiet`→`error`, `normal`→`info`, `verbose`→`debug`, `debug`→`trace`); set `runtime.output_format: json` for machine ingestion.
+Logs are written to **stderr** and persisted to the `logs` table in Postgres (`crates/infra/logging/src/layer/mod.rs`). The verbosity is set by `runtime.log_level` in the profile (`quiet`→`error`, `normal`→`info`, `verbose`→`debug`, `debug`→`trace`). The stderr format is `observability.log_format`: `text` (the default, `key=value` fields) or `json`, one object per line with `timestamp`, `level`, `target`, `fields`, `spans` and `instance` — set `json` for machine ingestion. `runtime.output_format` affects CLI command output only.
 
-Each log line carries a `trace_id` for correlation. The request middleware threads the request's `trace_id` through the span chain into every log line and echoes it back to the client as the `x-trace-id` response header (`crates/entry/api/src/services/middleware/trace.rs`). To trace one request end to end, read `x-trace-id` from the response and filter logs or the `logs.trace_id` column on that value. Span context also propagates `user_id`, `session_id`, `task_id`, `context_id`, and `client_id` into dedicated `logs` columns (`crates/infra/logging/src/layer/visitor.rs`).
+Each log line carries a `trace_id` for correlation. The request middleware threads the request's `trace_id` through the span chain into every log line and echoes it back to the client as the `x-trace-id` response header (`crates/entry/api/src/services/middleware/trace.rs`). A request that carries no `x-trace-id` but a W3C `traceparent` header takes its trace id from `traceparent`, and the gateway sends a `traceparent` with the same trace id on its provider calls, so a caller's distributed trace, the gateway's audit rows and the provider's request logs share one id. To trace one request end to end, read `x-trace-id` from the response and filter logs or the `logs.trace_id` column on that value. Span context also propagates `user_id`, `session_id`, `task_id`, `context_id`, and `client_id` into dedicated `logs` columns (`crates/infra/logging/src/layer/visitor.rs`).
 
 Secret-bearing fields are redacted before emission. The log field visitor matches an allow-list — `password`, `token`, `*_token`, `authorization`, `cookie`, `client_secret`, `private_key`, and similar — across string, debug, integer, and boolean field types, and strips ANSI escapes from messages (`crates/infra/logging/src/layer/visitor.rs:15-37`).
 
 Forward logs off-host by one of:
 
-- **Structured log egress** — forward the stdout JSON via Fluent Bit, Vector, or similar to your SIEM.
+- **Structured log egress** — set `observability.log_format: json` and forward the stderr stream via Fluent Bit, Vector, or similar to your SIEM.
 - **Logical replication** — subscribe a downstream system to the `logs` table for high volume.
 - **Pull-based export** — periodic query against a read-only replica.
 

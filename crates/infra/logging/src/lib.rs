@@ -18,6 +18,8 @@
 //! - [`init_logging`] / [`init_console_logging`] /
 //!   [`init_console_logging_with_level`] — install the global `tracing`
 //!   subscriber (with optional database sink).
+//! - [`set_console_format`] — switch stderr between text and JSON lines
+//!   (`observability.log_format`); both redact the same fields.
 //! - [`shutdown_database_logging`] — flush the database sink's buffered and
 //!   queued entries and stop its writer task; awaited on server shutdown.
 //! - [`LoggingExtension`] — schema/extension registration via the `inventory`
@@ -38,7 +40,9 @@ pub mod services;
 pub use attribution::{LogAttributionUnset, install_log_attribution, platform_attribution};
 pub use extension::LoggingExtension;
 
-pub use layer::{DatabaseLayer, LogWriterHandle, LogWriterShutdownError, enqueue_background};
+pub use layer::{
+    DatabaseLayer, LogWriterHandle, LogWriterShutdownError, dropped_log_entries, enqueue_background,
+};
 pub use models::{LogActor, LogEntry, LogFilter, LogLevel};
 pub use repository::{
     AnalyticsEvent, AnalyticsRepository, LoggingOwnerReassignment, LoggingRepository,
@@ -46,9 +50,10 @@ pub use repository::{
 #[cfg(feature = "cli")]
 pub use services::CliService;
 pub use services::{
-    BufferedNotice, DatabaseLogService, FilterSystemFields, LogThrottle, LoggingMaintenanceService,
-    SystemSpan, buffer_notice, drain_notices, is_startup_mode, is_structured_output,
-    mark_structured_emitted, reset_structured_emitted, set_startup_mode, set_structured_output,
+    BufferedNotice, ConsoleEventFormat, DatabaseLogService, FilterSystemFields, JsonEventFormat,
+    LogThrottle, LoggingMaintenanceService, SystemSpan, buffer_notice, console_format,
+    drain_notices, is_startup_mode, is_structured_output, mark_structured_emitted,
+    reset_structured_emitted, set_console_format, set_startup_mode, set_structured_output,
     structured_was_emitted,
 };
 
@@ -117,7 +122,7 @@ fn ensure_subscriber(level_override: Option<&str>) {
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
-        .with_target(true)
+        .event_format(ConsoleEventFormat::default())
         .with_writer(std::io::stderr)
         .log_internal_errors(true)
         .with_filter(base_filter)

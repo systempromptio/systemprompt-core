@@ -6,6 +6,7 @@ mod cli_service_smoke;
 mod db_services;
 mod display_smoke;
 mod format;
+mod json_format;
 mod maintenance;
 mod output;
 mod spans;
