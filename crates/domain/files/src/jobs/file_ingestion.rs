@@ -4,6 +4,10 @@
 //! image file not already tracked in the `files` table and reporting found /
 //! inserted / skipped / error counts in the job result.
 //!
+//! The job is `node`-scoped: the directory it walks is this replica's view of
+//! storage, per node unless `storage.shared` mounts one volume everywhere, and
+//! the upsert keyed on `path` keeps every replica's pass idempotent.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,7 +18,7 @@ use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::FileId;
 use systemprompt_provider_contracts::ProviderError;
-use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
+use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 use walkdir::WalkDir;
 
 use crate::{File, FileMetadata, FileRepository, FilesConfig};
@@ -61,6 +65,10 @@ impl Job for FileIngestionJob {
 
     fn schedule(&self) -> &'static str {
         "0 */30 * * * *"
+    }
+
+    fn scope(&self) -> JobScope {
+        JobScope::Node
     }
 
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {

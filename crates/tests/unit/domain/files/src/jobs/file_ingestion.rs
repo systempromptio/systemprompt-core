@@ -53,3 +53,11 @@ fn test_file_ingestion_job_enabled() {
     let job = FileIngestionJob::new();
     assert!(job.enabled());
 }
+
+#[test]
+fn file_ingestion_runs_on_every_replica_because_it_walks_local_storage() {
+    assert_eq!(
+        FileIngestionJob::new().scope(),
+        systemprompt_traits::JobScope::Node
+    );
+}
