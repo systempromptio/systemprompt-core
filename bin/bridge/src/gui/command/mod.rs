@@ -8,6 +8,7 @@ mod diagnostics;
 mod general;
 mod hosts;
 mod removal;
+mod window;
 
 pub use removal::method as removal_method;
 
@@ -20,6 +21,7 @@ use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, Repl
 use diagnostics::diagnostics_dispatch;
 use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
 use hosts::{agent_dispatch, host_dispatch};
+use window::window_dispatch;
 
 #[derive(Debug)]
 pub enum CommandOutcome {
@@ -55,6 +57,9 @@ pub(crate) fn dispatch(
         return out;
     }
     if let Some(out) = diagnostics_dispatch(app, cmd, reply_id) {
+        return out;
+    }
+    if let Some(out) = window_dispatch(app, cmd) {
         return out;
     }
     CommandOutcome::Sync(Err(BridgeError::new(
