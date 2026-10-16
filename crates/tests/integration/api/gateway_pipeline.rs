@@ -1608,18 +1608,22 @@ pub(super) async fn admitted_receipt_fixture(
     })
     .await
     .expect("admission receipt created");
+    let admitted = std::fs::read(&receipt)?;
     let handle = task.0.take().expect("dispatch task");
     handle.abort();
     let error = handle.await.expect_err("dispatch task aborted");
     assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
-    // Why: dropping the cancelled dispatch hands its audit (and the receipt's
-    // lease) to background finalize work; until that drains, a recovery pass
-    // sees a live lease and skips the receipt, which made journal tests racy.
+    // Why: the cancelled dispatch's abandon guard settles the request in the
+    // background and, when that settlement succeeds, deletes the receipt. The
+    // fixture stands for a process that died before settling, so it waits for
+    // that work (whose audit holds the receipt's lease) and then puts the
+    // admission receipt back exactly as it was written.
     let drained = repositories.background.drain(Duration::from_secs(30)).await;
     assert!(
         drained.is_drained(),
         "cancelled dispatch must finish its background work"
     );
+    std::fs::write(&receipt, admitted)?;
     Ok((database, repositories, state_dir, receipt))
 }
 
