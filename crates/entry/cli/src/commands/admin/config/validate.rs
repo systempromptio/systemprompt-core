@@ -6,6 +6,9 @@
 //! the [`systemprompt_manifest::profile::Profile`] schema. Also prints the
 //! generated `Profile` JSON schema on demand.
 //!
+//! A full validation (no target) also parses every registered config plane's
+//! declaration offline ([`super::plane_validate`]).
+//!
 //! Whenever the scheduler section is in scope, the merged services config is
 //! additionally cross-checked against the registered job catalog, so a job name
 //! no `submit_job!` registers is caught here instead of aborting scheduler
@@ -96,6 +99,8 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
             error,
         });
     }
+
+    all_valid &= super::plane_validate::append_full_validation(args.target.as_ref(), &mut results);
 
     if let Some(error) = scheduler_catalog_error(&results) {
         all_valid = false;
