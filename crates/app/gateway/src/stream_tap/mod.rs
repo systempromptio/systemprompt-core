@@ -23,6 +23,7 @@ use systemprompt_wire::error::WireStreamError;
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
 use self::finalize::finalize;
 use super::audit::GatewayAudit;
+use super::audit::phases::StreamInFlight;
 use super::protocol::canonical::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
@@ -77,6 +78,7 @@ pub fn tap(
         finalize_ctx: Some(finalize_ctx),
         message_stop_rendered: false,
         ended: false,
+        _in_flight: StreamInFlight::enter(),
     };
     Body::from_stream(tapped)
 }
@@ -95,6 +97,7 @@ pub fn tap_raw(
         audit,
         finalize_ctx: Some(finalize_ctx),
         ended: false,
+        _in_flight: StreamInFlight::enter(),
     })
 }
 
@@ -106,6 +109,7 @@ struct RawTappedStream {
     audit: Arc<GatewayAudit>,
     finalize_ctx: Option<TapFinalizeCtx>,
     ended: bool,
+    _in_flight: StreamInFlight,
 }
 
 impl RawTappedStream {
@@ -184,6 +188,7 @@ struct TappedStream {
     finalize_ctx: Option<TapFinalizeCtx>,
     message_stop_rendered: bool,
     ended: bool,
+    _in_flight: StreamInFlight,
 }
 
 impl Stream for TappedStream {

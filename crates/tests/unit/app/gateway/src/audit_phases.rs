@@ -1,11 +1,86 @@
-//! Gateway phase histogram and the outbound W3C trace context.
+//! Gateway phase histogram, the in-flight stream gauge, and the outbound
+//! W3C trace context.
 
 use std::time::Duration;
 
-use metrics_util::debugging::DebuggingRecorder;
+use metrics_util::debugging::{DebugValue, DebuggingRecorder, Snapshotter};
 use systemprompt_gateway::protocol::outbound::trace_context::{current_traceparent, with_trace};
-use systemprompt_gateway::{GATEWAY_PHASE_SECONDS, GatewayPhase};
+use systemprompt_gateway::{
+    GATEWAY_PHASE_SECONDS, GATEWAY_STREAMS_IN_FLIGHT, GatewayPhase, StreamInFlight,
+};
 use systemprompt_identifiers::TraceId;
+
+fn gauge(snapshotter: &Snapshotter, name: &str) -> Option<f64> {
+    snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .find_map(|(composite, _, _, value)| match value {
+            DebugValue::Gauge(v) if composite.key().name() == name => Some(v.into_inner()),
+            _ => None,
+        })
+}
+
+fn phase_samples(snapshotter: &Snapshotter, phase: &str) -> Vec<f64> {
+    snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .filter_map(|(composite, _, _, value)| {
+            let key = composite.key();
+            let matches = key.name() == GATEWAY_PHASE_SECONDS
+                && key
+                    .labels()
+                    .any(|l| l.key() == "phase" && l.value() == phase);
+            match value {
+                DebugValue::Histogram(values) if matches => Some(
+                    values
+                        .into_iter()
+                        .map(|v| v.into_inner())
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            }
+        })
+        .flatten()
+        .collect()
+}
+
+#[test]
+fn a_stream_holds_the_gauge_until_its_body_is_dropped() {
+    let open = DebuggingRecorder::new();
+    let open_snap = open.snapshotter();
+    metrics::with_local_recorder(&open, || {
+        let first = StreamInFlight::enter();
+        let second = StreamInFlight::enter();
+        std::mem::forget((first, second));
+    });
+    assert_eq!(gauge(&open_snap, GATEWAY_STREAMS_IN_FLIGHT), Some(2.0));
+
+    let closed = DebuggingRecorder::new();
+    let closed_snap = closed.snapshotter();
+    metrics::with_local_recorder(&closed, || {
+        let first = StreamInFlight::enter();
+        let second = StreamInFlight::enter();
+        drop(first);
+        drop(second);
+    });
+    assert_eq!(gauge(&closed_snap, GATEWAY_STREAMS_IN_FLIGHT), Some(0.0));
+}
+
+#[test]
+fn a_dropped_stream_records_its_lifetime_as_the_stream_phase() {
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    metrics::with_local_recorder(&recorder, || {
+        let guard = StreamInFlight::enter();
+        std::thread::sleep(Duration::from_millis(30));
+        drop(guard);
+    });
+    let samples = phase_samples(&snapshotter, "stream");
+    assert_eq!(samples.len(), 1);
+    assert!(samples[0] >= 0.03, "{samples:?}");
+}
 
 #[test]
 fn every_phase_records_under_its_own_label() {

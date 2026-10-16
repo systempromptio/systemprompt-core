@@ -1,4 +1,4 @@
-//! Operational signals for running many replicas: gateway phases,
+//! Operational signals for running many replicas: gateway phases and streams,
 //! pool acquire wait, scheduler jobs, projection backlog and dropped log rows.
 //!
 //! sqlx hands the pool straight to every query, so there is no central
@@ -57,6 +57,10 @@ pub(super) fn describe() {
         systemprompt_gateway::GATEWAY_PHASE_SECONDS,
         metrics::Unit::Seconds,
         "Gateway request time by phase (admission, upstream_first_byte, stream, finalize)"
+    );
+    metrics::describe_gauge!(
+        systemprompt_gateway::GATEWAY_STREAMS_IN_FLIGHT,
+        "Streamed gateway response bodies still being written by this process"
     );
     metrics::describe_histogram!(
         DB_POOL_ACQUIRE_SECONDS,

@@ -300,23 +300,87 @@ Recorded series (`crates/entry/api/src/services/server/metrics.rs`, `crates/app/
 | `sse_active_connections` | gauge | `channel` (`context`, `agui`, `a2a`, `analytics`) | live SSE stream counts |
 | `gateway_overhead_seconds` | histogram (1 ms–1 s) | `route` (inbound wire dialect, e.g. `anthropic.messages`), `provider` | time the gateway added to a completed inference request, excluding the provider call |
 | `gateway_upstream_duration_seconds` | histogram (100 ms–120 s) | `route`, `provider` | provider call duration for a completed inference request |
+| `gateway_phase_seconds` | histogram (1 ms–120 s) | `phase` (`admission`, `upstream_first_byte`, `stream`, `finalize`) | where a request's time goes: quota/guards/governance/scanning before dispatch, provider time to headers, the streamed body, and audit/quota settlement |
+| `gateway_streams_in_flight` | gauge | — | streamed gateway response bodies still being written, for their whole lifetime (including a client that disconnects mid-stream); the autoscaling signal, see §7.3 |
+| `db_pool_connections`, `db_pool_size` | gauge | `pool`, `state` | pool occupancy; `used / size` near 1 is pool saturation |
+| `db_pool_acquire_seconds` | histogram (0.5 ms–5 s) | `pool` (`read`, `write`) | a probe acquires one connection every 5 s and records the wait — the queueing a request would see at that moment |
+| `scheduler_job_runs_total` | counter | `job`, `status` (`success`, `idle`, `error`) | scheduled job runs on nodes that run the scheduler |
+| `scheduler_job_duration_seconds` | histogram (10 ms–30 min) | `job` | scheduled job run duration |
+| `projection_backlog_depth` | gauge | `projection` | keys waiting for a projection refresh (sampled every 30 s on scheduler nodes) |
+| `log_entries_dropped_total` | counter | — | log rows the database sink dropped because its queue was full |
+| `cache_invalidations_received_total` | counter | `domain` (`gateway_policy`, `authz`, `jti_revocation`) | cross-replica cache invalidations this replica received (§7.4) |
+| `systemprompt_config_info` | gauge | `profile_sha`, `secret_keys_sha`, `services_sha`, `secrets_generation` | `1` for the configuration this replica runs (§7.4) |
 
 Recommended alerts:
 
 - `http_requests_total` 5xx rate climbing for 5 minutes — warn.
 - p99 of `http_request_duration_seconds` over your SLO for 10 minutes — page.
 - `http_requests_in_flight` near the replica's concurrency ceiling — warn (saturation).
-- p99 of `gateway_overhead_seconds` above 50 ms for 10 minutes — warn: the gateway, not the provider, is adding latency.
+- p99 of `gateway_overhead_seconds` above 50 ms for 10 minutes — warn: the gateway, not the provider, is adding latency. `gateway_phase_seconds{phase="admission"}` shows whether quota and guard writes are the cause.
+- `db_pool_connections{state="used"} / db_pool_size` above 0.9, or p99 of `db_pool_acquire_seconds` above 100 ms — warn: adding replicas will not help while Postgres is the bottleneck.
+- `increase(scheduler_job_runs_total{status="error"}[1h]) > 0` — warn.
+- `projection_backlog_depth` growing for 30 minutes — warn.
+- `rate(http_load_shed_total[5m]) > 0` — warn. Requests shed at the ceiling are refused before `http_requests_total` records them, so an error-budget query must add this counter.
+
+### 7.3 Autoscaling on stream load
+
+`http_requests_in_flight` and `http_in_flight_saturation` count a streamed response only until its headers are sent, so they stay near zero while a gateway pod is busy relaying long streams. `gateway_streams_in_flight` counts each streamed body until it is dropped and is the per-pod load signal to scale on. Expose it through the Prometheus Adapter (or KEDA) and target an average per pod sized to what one replica sustains:
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: systemprompt-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: systemprompt-gateway
+  minReplicas: 3
+  maxReplicas: 30
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: gateway_streams_in_flight
+        target:
+          type: AverageValue
+          averageValue: "200"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+```
+
+```yaml
+# prometheus-adapter rule
+rules:
+  - seriesQuery: 'gateway_streams_in_flight{namespace!="",pod!=""}'
+    resources:
+      overrides:
+        namespace: { resource: namespace }
+        pod: { resource: pod }
+    metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+```
+
+Before raising `maxReplicas`, check the database signals above: when the pool is saturated, more gateway pods add load to the bottleneck.
+
+### 7.4 Replica coherence
+
+Every replica reports what it is running. `GET /readyz` carries a `config` object — `profile_sha` (the loaded profile), `secret_keys_sha` (the sorted *names* of the loaded secrets; values and value hashes are never exposed), `secrets_generation`, `secrets_last_reload_at` and, for a bundle-composed services tree, `services_sha` — and `/metrics` publishes the same labels on `systemprompt_config_info`. `count by (profile_sha) (systemprompt_config_info == 1)` returns one series once a rollout has converged; a second value names the replicas still on the old configuration.
+
+Secret reloads (`secrets.refresh_secs` for a `file` source, `secrets.external.refresh_secs` for `external`) run on every replica and every role, `gateway` included, without a cluster lock, so `secrets_generation` advances everywhere within one interval of a rotation.
+
+The gateway policy cache, the authz chain-index cache and the logout (JTI revocation) cache are invalidated across replicas: a statement trigger on the backing table sends `NOTIFY systemprompt_cache` in the writing transaction, and each replica's event bridge drops the matching cache, so a rule change or a logout takes effect on every replica within one notification round trip rather than at the cache TTL. A lost notification falls back to the TTL (60 s), and the bridge invalidates every cache when its listener reconnects. Like the event relay, this needs a session-level `LISTEN` on the primary: it does not pass through a transaction-pooling proxy.
 
 ### 7.2 SIEM integration
 
-Structured logs and audit events are written to Postgres (the `logs` table) and emitted to stdout as JSON. Forward to a SIEM via:
+Structured logs and audit events are written to Postgres (the `logs` table) and to stderr — as JSON lines with `observability.log_format: json`, as `key=value` text otherwise. Forward to a SIEM via:
 
 1. **Logical replication** — preferred for high volume; the SIEM subscribes to the audit tables.
-2. **Structured log egress** — forward stdout JSON via Fluent Bit, Vector, or similar to Splunk / Elastic / Datadog.
+2. **Structured log egress** — set `observability.log_format: json` and forward stderr via Fluent Bit, Vector, or similar to Splunk / Elastic / Datadog.
 3. **Pull-based export** — periodic query by the SIEM against a read-only replica.
 
-Log lines are structured JSON carrying a `trace_id` for correlation; secret-bearing fields (tokens, API keys, authorization headers) are redacted before emission. See [operate.md](operate.md) for the log fields and the OTLP ingest endpoint.
+Log lines carry a `trace_id` for correlation; secret-bearing fields (tokens, API keys, authorization headers) are redacted before emission. See [operate.md](operate.md) for the log fields and the OTLP ingest endpoint.
 
 ## 8. Air-gap deployment
 
@@ -377,7 +441,7 @@ Starting points; benchmark against your own workload.
 
 The request hot path is CPU-bound; Postgres becomes the capacity bottleneck before the binary does.
 
-**Overload shedding.** Set `server.max_in_flight` to cap concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"` instead of queueing until the balancer times out; `/livez`, `/readyz`, `/health`, `/api/v1/health` and `/metrics` are exempt, and `/readyz` reports `saturated` so the balancer stops sending new work. Unset (the default) means no ceiling; `0` is rejected. Start near 64 × vCPU for gateway nodes and tune with `http_in_flight_saturation` (fraction of the ceiling in use) and `http_load_shed_total`. A permit covers the handler, not the remainder of a streamed response body, so long SSE streams are bounded by `server.max_concurrent_streams` instead.
+**Overload shedding.** Set `server.max_in_flight` to cap concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"` instead of queueing until the balancer times out; `/livez`, `/readyz`, `/health`, `/api/v1/health` and `/metrics` are exempt, and `/readyz` reports `saturated` so the balancer stops sending new work. Unset (the default) means no ceiling; `0` is rejected. Start near 64 × vCPU for gateway nodes and tune with `http_in_flight_saturation` (fraction of the ceiling in use) and `http_load_shed_total`. A permit covers the handler, not the remainder of a streamed response body; `server.max_concurrent_streams` bounds A2A SSE streams only, and gateway streams are measured by `gateway_streams_in_flight` (§7.3).
 
 ## Next steps
 
