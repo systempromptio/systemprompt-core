@@ -47,6 +47,7 @@ fn ensure_config() {
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
             database_write_url: None,
+            database_session_url: None,
             github_link: String::new(),
             github_token: None,
             system_path: "/tmp".to_owned(),

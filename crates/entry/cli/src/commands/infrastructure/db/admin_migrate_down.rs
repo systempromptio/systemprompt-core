@@ -32,12 +32,18 @@ pub(super) async fn execute_migrate_down(
             &systemprompt_database::PoolConfig::default(),
         )
         .await
-        .context("Failed to connect to database")?,
+        .context("Failed to connect to database")?
+        .with_session_url(
+            sys_config.database_session_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
+        )
+        .await
+        .context("Failed to connect to the session database")?,
     );
 
     run_down(
         &ExtensionRegistry::discover()?,
-        database.write(),
+        database.session(),
         config,
         extension,
         count,
@@ -54,7 +60,7 @@ pub(super) async fn execute_migrate_down_standalone(
     let database = db_ctx.db_pool();
     run_down(
         &ExtensionRegistry::discover()?,
-        database.write(),
+        database.session(),
         config,
         extension,
         count,

@@ -39,11 +39,17 @@ pub(super) async fn execute_migrate_mark_applied(
             &systemprompt_database::PoolConfig::default(),
         )
         .await
-        .context("Failed to connect to database")?,
+        .context("Failed to connect to database")?
+        .with_session_url(
+            sys_config.database_session_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
+        )
+        .await
+        .context("Failed to connect to the session database")?,
     );
 
     run_mark_applied(
-        database.write(),
+        database.session(),
         &ExtensionRegistry::discover()?,
         args,
         config,
@@ -57,7 +63,7 @@ pub(super) async fn execute_migrate_mark_applied_standalone(
     args: MarkAppliedArgs<'_>,
 ) -> Result<()> {
     run_mark_applied(
-        db_ctx.db_pool().write(),
+        db_ctx.db_pool().session(),
         &ExtensionRegistry::discover()?,
         args,
         config,

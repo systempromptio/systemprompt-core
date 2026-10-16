@@ -66,6 +66,7 @@ pub struct Config {
     pub database_type: String,
     pub database_url: String,
     pub database_write_url: Option<String>,
+    pub database_session_url: Option<String>,
     pub github_link: String,
     pub github_token: Option<String>,
     pub system_path: String,
@@ -123,6 +124,7 @@ impl std::fmt::Debug for Config {
             .field("database_type", &self.database_type)
             .field("database_url", &REDACTED)
             .field("database_write_url", &REDACTED)
+            .field("database_session_url", &REDACTED)
             .field("github_link", &self.github_link)
             .field("github_token", &REDACTED)
             .field("system_path", &self.system_path)
@@ -204,6 +206,7 @@ impl ConfigProvider for Config {
             "database_type" => Some(self.database_type.clone()),
             "database_url" => Some(self.database_url.clone()),
             "database_write_url" => self.database_write_url.clone(),
+            "database_session_url" => self.database_session_url.clone(),
             "host" => Some(self.host.clone()),
             "port" => Some(self.port.to_string()),
             "system_path" => Some(self.system_path.clone()),

@@ -140,6 +140,7 @@ fn build_config(
         database_type: profile.database.db_type.clone(),
         database_url: secrets.database_url.clone(),
         database_write_url: secrets.database_write_url.clone(),
+        database_session_url: secrets.database_session_url.clone(),
         github_link: profile
             .site
             .github_link
@@ -224,8 +225,11 @@ pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
     }
 
     validate_postgres_url(&config.database_url).map_err(ConfigError::InvalidDatabaseUrl)?;
-    if let Some(write_url) = &config.database_write_url {
-        validate_postgres_url(write_url).map_err(ConfigError::InvalidDatabaseUrl)?;
+    for url in [&config.database_write_url, &config.database_session_url]
+        .into_iter()
+        .flatten()
+    {
+        validate_postgres_url(url).map_err(ConfigError::InvalidDatabaseUrl)?;
     }
     Ok(())
 }

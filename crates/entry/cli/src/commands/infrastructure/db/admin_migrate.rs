@@ -43,12 +43,18 @@ pub(super) async fn execute_migrate(
             &systemprompt_database::PoolConfig::default(),
         )
         .await
-        .context("Failed to connect to database")?,
+        .context("Failed to connect to database")?
+        .with_session_url(
+            sys_config.database_session_url.as_deref(),
+            &systemprompt_database::PoolConfig::default(),
+        )
+        .await
+        .context("Failed to connect to the session database")?,
     );
 
     run_install(
         &ExtensionRegistry::discover()?,
-        database.write(),
+        database.session(),
         config,
         allow_checksum_drift,
         repair_drift,
@@ -65,7 +71,7 @@ pub(super) async fn execute_migrate_standalone(
     let database = db_ctx.db_pool();
     run_install(
         &ExtensionRegistry::discover()?,
-        database.write(),
+        database.session(),
         config,
         allow_checksum_drift,
         repair_drift,

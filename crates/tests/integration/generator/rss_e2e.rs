@@ -31,6 +31,7 @@ fn install_test_config() {
             database_type: "postgres".to_owned(),
             database_url: String::new(),
             database_write_url: None,
+            database_session_url: None,
             github_link: String::new(),
             github_token: None,
             system_path: String::new(),

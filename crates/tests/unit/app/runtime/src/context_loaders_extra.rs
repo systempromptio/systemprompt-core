@@ -21,6 +21,7 @@ fn cfg_without_geoip() -> Config {
         database_type: "postgres".to_string(),
         database_url: "postgres://x/y".to_string(),
         database_write_url: None,
+        database_session_url: None,
         github_link: String::new(),
         github_token: None,
         system_path: "/tmp".to_string(),

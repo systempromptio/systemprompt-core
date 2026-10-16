@@ -28,6 +28,7 @@ const RESERVED: &[&str] = &[
     "manifest_signing_secret_seed",
     "database_url",
     "database_write_url",
+    "database_session_url",
     "external_database_url",
     "internal_database_url",
 ];

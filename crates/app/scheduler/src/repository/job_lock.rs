@@ -10,7 +10,9 @@
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]
 //! therefore pins the connection it locked on for the job's whole lifetime
-//! and releases on that same connection.
+//! and releases on that same connection, taken from the session pool so a
+//! transaction-mode pooler in front of the main pool cannot hand the locked
+//! backend to another client.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -78,13 +80,13 @@ impl std::fmt::Debug for JobLockGuard {
 
 #[derive(Debug, Clone)]
 pub(crate) struct JobLockRepository {
-    write_pool: Arc<PgPool>,
+    session_pool: Arc<PgPool>,
 }
 
 impl JobLockRepository {
     pub(crate) fn new(db: &DbPool) -> Self {
         Self {
-            write_pool: db.write_pool(),
+            session_pool: db.session_pool(),
         }
     }
 
@@ -92,7 +94,7 @@ impl JobLockRepository {
         &self,
         job_name: &JobName,
     ) -> SchedulerResult<Option<JobLockGuard>> {
-        let mut conn = self.write_pool.acquire().await.map_err(lock_error)?;
+        let mut conn = self.session_pool.acquire().await.map_err(lock_error)?;
 
         let key = sqlx::query_scalar!(
             r#"SELECT hashtext($1)::bigint AS "key!""#,

@@ -23,6 +23,7 @@ use crate::error::DatabaseResult;
 pub struct ServiceRepository {
     pub(super) pool: Arc<PgPool>,
     pub(super) write_pool: Arc<PgPool>,
+    pub(super) session_pool: Arc<PgPool>,
     pub(super) instance_id: InstanceId,
 }
 
@@ -30,9 +31,11 @@ impl ServiceRepository {
     pub fn new(db: &DbPool, instance_id: InstanceId) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();
+        let session_pool = db.session_pool();
         Self {
             pool,
             write_pool,
+            session_pool,
             instance_id,
         }
     }

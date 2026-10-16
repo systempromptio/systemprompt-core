@@ -89,13 +89,15 @@ pub(super) async fn init_core(
 
     systemprompt_security::keys::authority::init()?;
 
-    let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
+    let pool_config = pool_config_from_profile(profile.database.pool.as_ref(), profile.server.role);
     let database = Arc::new(
         Database::connect(
             &config.database_url,
             config.database_write_url.as_deref(),
             &pool_config,
         )
+        .await?
+        .with_session_url(config.database_session_url.as_deref(), &pool_config)
         .await?,
     );
 
@@ -167,6 +169,7 @@ fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> 
 
 fn pool_config_from_profile(
     profile_pool: Option<&systemprompt_manifest::profile::PoolConfig>,
+    role: systemprompt_manifest::profile::NodeRole,
 ) -> PoolConfig {
     use std::time::Duration;
 
@@ -174,7 +177,7 @@ fn pool_config_from_profile(
     let Some(p) = profile_pool else {
         return cfg;
     };
-    if let Some(max) = p.max_connections {
+    if let Some(max) = p.max_connections_for(role) {
         cfg.max_connections = max;
     }
     if let Some(secs) = p.acquire_timeout_secs {
@@ -212,7 +215,7 @@ pub(super) async fn init_extensions(
 
     let report = if schema.install {
         let report =
-            install_extension_schemas_full(&registry, database.write(), &[], migration_config)
+            install_extension_schemas_full(&registry, database.session(), &[], migration_config)
                 .await?;
         systemprompt_database::mark_schema_changed();
         report

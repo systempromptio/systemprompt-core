@@ -1,6 +1,14 @@
-//! Top-level [`Database`] handle that owns one or two
-//! [`DatabaseProvider`] instances (read + optional write) and exposes the
-//! query and transaction surface.
+//! Top-level [`Database`] handle that owns the read provider, an optional
+//! write provider and an optional session provider, and exposes the query and
+//! transaction surface.
+//!
+//! The session provider exists for features that need a Postgres session of
+//! their own rather than a transaction: `LISTEN`, session advisory locks (the
+//! replica-identity claim, scheduler job locks, the migration lock) and the
+//! migration runner. Pointing `database_session_url` straight at Postgres
+//! lets `database_url`/`database_write_url` go through a transaction-mode
+//! pooler such as `PgBouncer`. Without it, [`Database::session`] is the write
+//! provider.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +23,7 @@ use std::sync::Arc;
 pub struct Database {
     provider: Arc<dyn DatabaseProvider>,
     write_provider: Option<Arc<dyn DatabaseProvider>>,
+    session_provider: Option<Arc<dyn DatabaseProvider>>,
 }
 
 impl std::fmt::Debug for Database {
@@ -31,6 +40,7 @@ impl Database {
         Ok(Self {
             provider: Arc::new(provider),
             write_provider: None,
+            session_provider: None,
         })
     }
 
@@ -50,7 +60,20 @@ impl Database {
         Ok(Self {
             provider,
             write_provider,
+            session_provider: None,
         })
+    }
+
+    pub async fn with_session_url(
+        mut self,
+        session_url: Option<&str>,
+        pool: &PoolConfig,
+    ) -> DatabaseResult<Self> {
+        if let Some(url) = session_url {
+            self.session_provider =
+                Some(Arc::new(PostgresProvider::new_with_pool(url, pool).await?));
+        }
+        Ok(self)
     }
 
     #[must_use]
@@ -61,6 +84,7 @@ impl Database {
         Self {
             provider: Arc::new(PostgresProvider::from_pool(read)),
             write_provider,
+            session_provider: None,
         }
     }
 
@@ -77,6 +101,13 @@ impl Database {
     }
 
     #[must_use]
+    pub fn session(&self) -> &dyn DatabaseProvider {
+        self.session_provider
+            .as_deref()
+            .unwrap_or_else(|| self.write())
+    }
+
+    #[must_use]
     pub fn pool(&self) -> Arc<sqlx::PgPool> {
         self.read().get_postgres_pool()
     }
@@ -84,6 +115,16 @@ impl Database {
     #[must_use]
     pub fn write_pool(&self) -> Arc<sqlx::PgPool> {
         self.write().get_postgres_pool()
+    }
+
+    #[must_use]
+    pub fn session_pool(&self) -> Arc<sqlx::PgPool> {
+        self.session().get_postgres_pool()
+    }
+
+    #[must_use]
+    pub fn has_session_pool(&self) -> bool {
+        self.session_provider.is_some()
     }
 
     #[must_use]
@@ -103,6 +144,9 @@ impl Database {
         self.provider.test_connection().await?;
         if let Some(wp) = &self.write_provider {
             wp.test_connection().await?;
+        }
+        if let Some(sp) = &self.session_provider {
+            sp.test_connection().await?;
         }
         Ok(())
     }

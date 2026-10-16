@@ -60,6 +60,18 @@ impl Profile {
                 "database.pool.max_connections must be between 1 and 500 (got {max})"
             ));
         }
+        if let Some(by_role) = pool.max_connections_by_role.as_ref() {
+            for (role, max) in by_role.entries() {
+                if let Some(max) = max
+                    && !(1..=500).contains(&max)
+                {
+                    errors.push(format!(
+                        "database.pool.max_connections_by_role.{role} must be between 1 and 500 \
+                         (got {max})"
+                    ));
+                }
+            }
+        }
         if pool.acquire_timeout_secs == Some(0) {
             errors.push("database.pool.acquire_timeout_secs must be greater than 0".to_owned());
         }

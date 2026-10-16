@@ -56,6 +56,8 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
 
+| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
+
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
 
 ## `server`
@@ -371,6 +373,8 @@ its `providers[]` entries into `providers` and expresses each `models[]` entry a
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `authz` | object | no | absent | Authorization hook config. See [`governance.authz.hook`](#governanceauthzhook). |
+| `quota.shared_subject_shards` | integer | no | `8` | Rows a quota window keyed by a shared subject (anything other than `user` or `api_key`) is spread over, 1–64. Admission checks the summed total; each extra shard can admit up to one more concurrent reservation past a ceiling. `1` restores exact single-row accounting. |
+| `quota.principal_subject_shards` | integer | no | `1` | The same for `user` and `api_key` windows, 1–64. |
 
 ### `governance.authz.hook`
 
@@ -443,6 +447,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
 | `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
+| `database_session_url` | `database_session_url` | string | no | Direct (unpooled) primary connection for `LISTEN`, session advisory locks and migrations; set it when `database_url` goes through a transaction-mode pooler. See [guides/database-connections.md](../guides/database-connections.md). |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
 | `internal_database_url` | `internal_database_url` | string | no | Internal connection string. |
 | `gemini` | `gemini` | string | no | Gemini API key. |
@@ -467,6 +472,7 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
 | `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
 | `database_write_url` | `DATABASE_WRITE_URL` |
+| `database_session_url` | `DATABASE_SESSION_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |
 | `internal_database_url` | `INTERNAL_DATABASE_URL` |
 | `gemini` | `GEMINI_API_KEY` |

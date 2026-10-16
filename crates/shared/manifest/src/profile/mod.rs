@@ -38,7 +38,7 @@ mod vault;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
 pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
-pub use database::{DatabaseConfig, PoolConfig};
+pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use governance::{

@@ -22,6 +22,7 @@ fn fixture_config() -> Config {
         database_type: "postgres".to_string(),
         database_url: "postgres://localhost/x".to_string(),
         database_write_url: None,
+        database_session_url: None,
         github_link: String::new(),
         github_token: None,
         system_path: "/tmp".to_string(),

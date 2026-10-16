@@ -29,6 +29,7 @@ fn minimal_config(
         database_type: "postgres".to_string(),
         database_url: "postgres://u:p@localhost:5432/t".to_string(),
         database_write_url: None,
+        database_session_url: None,
         github_link: String::new(),
         github_token: None,
         system_path,

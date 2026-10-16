@@ -13,6 +13,12 @@
 //! The same listener also carries [`CACHE_INVALIDATION_CHANNEL`], whose
 //! payload is a cache domain; see [`super::cache_invalidation`].
 //!
+//! `LISTEN` holds a Postgres session for the bridge's lifetime, so the
+//! listener connects through its own pool
+//! ([`PostgresEventBridge::with_listener_pool`]): a direct, session-capable
+//! connection when the main pool sits behind a transaction-mode pooler.
+//! `NOTIFY` and the outbox writes are ordinary statements on the main pool.
+//!
 //! The notification payload is only the row id (a UUID string) to stay
 //! well under Postgres' ~8 KB `NOTIFY` limit; the event body lives in the
 //! `jsonb` column.
@@ -56,7 +62,7 @@ fn is_read_only_standby(err: &sqlx::Error) -> bool {
 
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
-    pool: PgPool,
+    listener_pool: PgPool,
     outbox: EventOutboxRepository,
 }
 
@@ -65,8 +71,14 @@ impl PostgresEventBridge {
     pub fn new(pool: PgPool, instance_id: InstanceId) -> Self {
         Self {
             outbox: EventOutboxRepository::new(pool.clone(), instance_id),
-            pool,
+            listener_pool: pool,
         }
+    }
+
+    #[must_use]
+    pub fn with_listener_pool(mut self, listener_pool: PgPool) -> Self {
+        self.listener_pool = listener_pool;
+        self
     }
 
     #[must_use]
@@ -88,7 +100,7 @@ impl PostgresEventBridge {
     }
 
     async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
-        let mut listener = PgListener::connect_with(&self.pool).await?;
+        let mut listener = PgListener::connect_with(&self.listener_pool).await?;
         listener
             .listen_all([OUTBOX_CHANNEL, CACHE_INVALIDATION_CHANNEL])
             .await?;

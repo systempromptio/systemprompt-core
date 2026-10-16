@@ -302,6 +302,9 @@ mod profile_config_planes;
 mod profile_validation;
 
 #[cfg(test)]
+mod profile_database_scaling;
+
+#[cfg(test)]
 mod profile_storage_gcs;
 
 #[cfg(test)]
