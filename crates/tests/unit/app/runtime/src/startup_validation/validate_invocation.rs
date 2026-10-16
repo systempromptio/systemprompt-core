@@ -54,6 +54,7 @@ fn minimal_config() -> Config {
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
         retention: systemprompt_manifest::profile::RetentionConfig::default(),
+        planes: Default::default(),
         cors_allowed_origins: Vec::new(),
         trusted_proxies: Vec::new(),
         is_cloud: false,

@@ -127,6 +127,9 @@ impl SchedulerConfig {
                 JobConfig::new(JobName::new("cleanup_inactive_sessions"))
                     .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 * * * *"),
+                JobConfig::new(JobName::new("config_reconcile"))
+                    .with_extension(ExtensionId::new("core"))
+                    .with_schedule("0 * * * * *"),
                 JobConfig::new(JobName::new("database_cleanup"))
                     .with_extension(ExtensionId::new("core"))
                     .with_schedule("0 0 4 * * *")

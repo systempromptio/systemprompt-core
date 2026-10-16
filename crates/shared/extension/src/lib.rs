@@ -109,10 +109,12 @@ pub mod prelude {
     };
 
     pub use systemprompt_provider_contracts::{
-        ComponentContext, ComponentRenderer, ContentDataContext, ContentDataProvider, FrameOptions,
-        FrontmatterContext, FrontmatterProcessor, PageContext, PageDataProvider,
-        PagePrepareContext, PagePrerenderer, PageRenderSpec, PlaceholderMapping, RenderedComponent,
-        RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,
+        ApplyMode, ApplyOutcome, ChangeActor, ChangeRequest, ComponentContext, ComponentRenderer,
+        ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ContentDataContext, ContentDataProvider,
+        DeclaredState, DriftKind, DriftRow, FrameOptions, FrontmatterContext, FrontmatterProcessor,
+        PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer, PageRenderSpec,
+        PlaceholderMapping, PlaneContext, PlaneSnapshot, RenderedComponent, RssFeedContext,
+        RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,
         SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
         TemplateDefinition, TemplateProvider, TemplateSource,
     };

@@ -45,6 +45,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod component;
+pub mod config_plane;
 mod content_data;
 mod dependencies;
 mod error;
@@ -62,6 +63,11 @@ pub mod web_config;
 
 pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
+};
+pub use config_plane::{
+    ApplyMode, ApplyOutcome, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError,
+    ConfigPlaneResult, DeclaredState, DriftKind, DriftRow, PlaneContext, PlaneSnapshot,
+    diff_snapshots,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, MissingDependency};

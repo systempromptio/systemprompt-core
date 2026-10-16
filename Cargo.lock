@@ -5307,10 +5307,12 @@ version = "0.69.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "hex",
  "inventory",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sha2 0.11.1",
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]
@@ -5345,6 +5347,7 @@ dependencies = [
  "systemprompt-mcp",
  "systemprompt-models",
  "systemprompt-oauth",
+ "systemprompt-provider-contracts",
  "systemprompt-security",
  "systemprompt-storage",
  "systemprompt-traits",

@@ -62,6 +62,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
     let profile = Profile {
         storage: systemprompt_manifest::profile::StorageConfig::default(),
         observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
+        config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
         name: env_name.to_owned(),
         display_name: generate_display_name(env_name),
         target: ProfileType::Local,

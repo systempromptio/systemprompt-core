@@ -93,6 +93,7 @@ pub fn fixture_config(database_url: &str) -> Config {
             ..RateLimitsConfig::default()
         },
         retention: systemprompt_manifest::profile::RetentionConfig::default(),
+        planes: Default::default(),
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,

@@ -22,6 +22,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod builder;
+pub mod config_planes;
 mod context;
 mod context_traits;
 mod database_context;
@@ -35,6 +36,7 @@ pub mod trace;
 mod validation;
 
 pub use builder::{AppContextBuilder, discover_vertex_models, owner_reassignments};
+pub use config_planes::{ConfigPlaneSet, EffectiveAuthority};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};

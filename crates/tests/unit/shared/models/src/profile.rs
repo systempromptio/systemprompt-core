@@ -62,6 +62,7 @@ fn make_profile(name: &str) -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: name.to_string(),
         display_name: format!("Test {name}"),
         target: ProfileType::Local,

@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod config_plane;
 mod extension;
 mod identifier;
 mod repository;

@@ -94,6 +94,7 @@ pub struct Config {
     pub use_https: bool,
     pub rate_limits: crate::profile::RateLimitsConfig,
     pub retention: crate::profile::RetentionConfig,
+    pub planes: crate::profile::ConfigPlanesConfig,
     pub cors_allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<ipnet::IpNet>,
     pub is_cloud: bool,
@@ -159,6 +160,7 @@ impl std::fmt::Debug for Config {
             .field("use_https", &self.use_https)
             .field("rate_limits", &self.rate_limits)
             .field("retention", &self.retention)
+            .field("planes", &self.planes)
             .field("cors_allowed_origins", &self.cors_allowed_origins)
             .field("trusted_proxies", &self.trusted_proxies)
             .field("is_cloud", &self.is_cloud)

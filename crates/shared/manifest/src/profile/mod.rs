@@ -12,6 +12,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod cloud;
+mod config_planes;
 mod database;
 mod error;
 mod external_secrets;
@@ -36,6 +37,7 @@ mod validation;
 mod vault;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
+pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
 pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
@@ -172,6 +174,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub observability: ObservabilityConfig,
+
+    #[serde(default)]
+    pub config_planes: ConfigPlanesConfig,
 }
 
 const MOVED_SECTIONS: &[(&str, &str)] = &[

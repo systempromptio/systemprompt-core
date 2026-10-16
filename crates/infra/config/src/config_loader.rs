@@ -175,6 +175,7 @@ fn build_config(
         use_https: profile.server.use_https,
         rate_limits: profile.rate_limits,
         retention: profile.retention,
+        planes: profile.config_planes.clone(),
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
         trusted_proxies: profile.server.trusted_proxies.clone(),
         is_cloud: profile.target.is_cloud(),

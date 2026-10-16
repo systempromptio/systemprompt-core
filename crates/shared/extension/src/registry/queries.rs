@@ -10,7 +10,7 @@ use crate::asset::{AssetDefinition, AssetPaths};
 use crate::error::LoaderError;
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_provider_contracts::Job;
+use systemprompt_provider_contracts::{ConfigPlane, Job};
 
 impl ExtensionRegistry {
     #[must_use]
@@ -190,6 +190,14 @@ impl ExtensionRegistry {
             .iter()
             .flat_map(|ext| ext.jobs())
             .filter(|job| job.tags().contains(&tag))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn all_config_planes(&self) -> Vec<Arc<dyn ConfigPlane>> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| ext.config_planes())
             .collect()
     }
 }

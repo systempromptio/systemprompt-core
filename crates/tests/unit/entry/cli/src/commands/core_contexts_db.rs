@@ -318,6 +318,7 @@ fn minimal_profile() -> systemprompt_manifest::Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "ctxcmd".to_string(),
         display_name: "Ctx".to_string(),
         target: ProfileType::Local,

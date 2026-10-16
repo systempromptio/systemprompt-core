@@ -17,6 +17,7 @@ fn profile(cloud: Option<CloudConfig>) -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Cloud,

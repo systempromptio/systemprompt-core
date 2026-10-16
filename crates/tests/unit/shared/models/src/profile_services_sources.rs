@@ -22,6 +22,7 @@ pub(crate) fn local_profile() -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,
