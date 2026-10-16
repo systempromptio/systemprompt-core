@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.70.0] - 2026-10-16
+
+### Breaking
+
+- **Breaking:** `security.allow_registration` and `security.allow_dynamic_client_registration` default to `false`. Migrate by setting them to `true` where self-registration or MCP dynamic client registration is wanted.
+- **Breaking:** gateway `hidden_requires_route` defaults to `true`, so a `hidden` catalogue model is served only through a declared route that matches it. Migrate by declaring a route for each hidden model that must stay reachable, or by setting the option to `false`.
+- **Breaking:** `FileStorage::retrieve` is replaced by `FileStorage::open(id, range)`, which returns metadata and a byte stream, and `StoredFileMetadata` gains `etag`. Migrate by calling `open(id, None)` and collecting the stream.
+- **Breaking:** `ExtensionContext` requires `file_storage()` and `instance_id()`. Migrate custom implementations by returning the host's storage backend and replica id.
+- **Breaking:** `ApiKeyService::new` and `RunCredentialService::new` take an `ApiKeyLifetime`, and `UserRepository::insert_service_account` is replaced by the idempotent `ensure_service_account`.
+- **Breaking:** `bind_and_serve` takes a `ShutdownConfig`, and `SchedulerConfig` gains `unlisted_jobs`; struct literals must name the new fields.
+
+### Added
+
+- **Config planes:** extensions register `ConfigPlane`s through `Extension::config_planes()`, and `config_planes.authority` sets each plane to `file` (default) or `db`. A `file` plane is reconciled to its declaration at boot and by the `config_reconcile` job, every correction is recorded with its before and after values in `config_change_audit`, and console writes to it are refused with 409; a `db` plane is seeded when empty and its drift is reported.
+- **Config planes:** `admin config planes list|diff|apply --reason` applies a plane headless, `admin config validate` parses every plane's declaration offline, `/readyz` reports each plane's authority, hash and drift, and `/metrics` exports `systemprompt_config_drift_rows` and `systemprompt_config_plane_info`.
+- **Security:** `security.api_keys.max_lifetime_days` caps every personal access token; a key without an expiry gets the cap and a longer expiry is refused.
+- **CLI:** `admin users api-key issue --if-absent [--renew-before-days N] [--secret-file PATH]` and `admin users service-account create` provision idempotently.
+- **Gateway:** quota windows accept `calendar: day | week | month` (UTC) and reset at the next calendar boundary.
+- **Gateway:** `governance.quota.shared_subject_shards` (default 8) spreads organisation and project quota windows over several rows; admission checks their sum, so a window may over-admit by at most one concurrent reservation per extra row.
+- **Storage:** `storage.backend: s3` stores files in an S3-compatible bucket (`endpoint`, `region`, `path_style`, `credentials: { secret }`).
+- **API:** `/files/*` streams from `paths.storage`, then the read-only `paths.shipped_files`, then the storage backend, with single-range `206`/`416`, `HEAD` and `If-None-Match`.
+- **Database:** `database.pool.max_connections_by_role` sizes the pool per server role, and the optional `database_session_url` secret carries `LISTEN`, advisory locks and migrations so the main URL can sit behind a transaction-mode pooler.
+- **Server:** `server.shutdown` sets `pre_stop_delay_secs`, `drain_grace_secs`, `child_grace_secs`, `background_grace_secs` and `forced_exit_grace_secs`; the defaults match the previous fixed values.
+- **Scheduler:** `scheduler.unlisted_jobs: warn | default | error` (default `default`) schedules a registered job missing from the YAML on its `Job::default_schedule()`.
+- **CLI:** `infra jobs run` takes the scheduler's per-job lock for cluster jobs, with `--lock-wait-secs` to wait for it.
+- **Observability:** `observability.log_format: json` writes JSON log lines, an inbound W3C `traceparent` sets the trace id and is propagated to providers, and `secrets.refresh_secs` reloads a `file` secrets source on every replica.
+- **Metrics:** `gateway_phase_seconds`, `gateway_streams_in_flight`, `db_pool_acquire_seconds`, `scheduler_job_runs_total`, `scheduler_job_duration_seconds`, `projection_backlog_depth`, `gateway_journal_receipts` and `systemprompt_config_info` (a per-replica configuration fingerprint, also on `/readyz`).
+
+### Changed
+
+- **Gateway:** the `rate_limit` policy counts a fixed window in Postgres shared by every replica and fails closed when the counter is unavailable.
+- **Cache:** writes to gateway policies, access-control rules and token revocations notify every replica, which drops its cached copy.
+- **Gateway:** tool catalogues are filed without locking the shared row, thought signatures are looked up in one query and only for Gemini-capable routes, and `ensure_context` skips a context touched within the last minute.
+- **Gateway:** the audit journal is settled once more during shutdown drain.
+- **Database:** a node whose database a newer release has migrated keeps serving and reports `"schema": "ahead"` on `/readyz` instead of refusing to start.
+- **Runtime:** the governance engine loads from the active composed services root.
+- **Generator:** generated output is written to a temporary file and renamed into place.
+- **Scheduler:** `file_ingestion` runs on every replica.
+
+### Fixed
+
+- **API:** `/files/*` refuses a path containing `..`.
+- **Agent:** the A2A run stream follower runs on the server's task tracker and is drained at shutdown.
+
 ## [0.69.0] - 2026-10-15
 
 ### Added
