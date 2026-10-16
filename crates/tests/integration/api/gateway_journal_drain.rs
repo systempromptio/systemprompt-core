@@ -35,6 +35,93 @@ async fn the_shutdown_flush_settles_a_cut_request_and_empties_the_journal() -> a
 }
 
 #[tokio::test]
+async fn a_settlement_pass_publishes_the_receipts_left_on_disk() -> anyhow::Result<()> {
+    use metrics_util::debugging::{DebugValue, DebuggingRecorder};
+
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _local = metrics::set_default_local_recorder(&recorder);
+    let (database, repositories, _state_dir, _receipt) =
+        admitted_receipt_fixture("gateway_journal_metrics").await?;
+    let settlement = repositories.settlement();
+
+    let settled = journal::recover(&settlement).await?;
+
+    let values: Vec<(String, DebugValue)> = snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .map(|(key, _, _, value)| (key.key().name().to_owned(), value))
+        .collect();
+    let value = |name: &str| {
+        values
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v)
+    };
+    assert_eq!(settled, 1);
+    assert_eq!(
+        value(journal::JOURNAL_RECEIPTS),
+        Some(&DebugValue::Gauge(0.0.into()))
+    );
+    assert_eq!(value(journal::JOURNAL_SETTLE_FAILURES_TOTAL), None);
+    assert_eq!(value(journal::JOURNAL_RECOVERY_FAILURES_TOTAL), None);
+    database.drop_now().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_failed_settlement_is_counted_and_the_receipt_stays_on_the_gauge() -> anyhow::Result<()> {
+    use metrics_util::debugging::{DebugValue, DebuggingRecorder};
+
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _local = metrics::set_default_local_recorder(&recorder);
+    let (database, repositories, _state_dir, receipt) =
+        admitted_receipt_fixture("gateway_journal_metrics_fail").await?;
+    let pool = database.test_pool().await;
+    sqlx::raw_sql(
+        "CREATE FUNCTION reject_journal_drain() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN RAISE EXCEPTION 'journal drain settlement fault'; END $$; \
+         CREATE TRIGGER reject_journal_drain BEFORE UPDATE ON ai_requests \
+         FOR EACH ROW \
+         EXECUTE FUNCTION reject_journal_drain()",
+    )
+    .execute(pool.write_pool().as_ref())
+    .await?;
+
+    let settled = journal::recover(&repositories.settlement()).await?;
+
+    let values: Vec<(String, DebugValue)> = snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .map(|(key, _, _, value)| (key.key().name().to_owned(), value))
+        .collect();
+    let value = |name: &str| {
+        values
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v)
+    };
+    assert_eq!(settled, 0);
+    assert!(
+        receipt.exists(),
+        "a receipt that did not settle is retained"
+    );
+    assert_eq!(
+        value(journal::JOURNAL_SETTLE_FAILURES_TOTAL),
+        Some(&DebugValue::Counter(1))
+    );
+    assert_eq!(
+        value(journal::JOURNAL_RECEIPTS),
+        Some(&DebugValue::Gauge(1.0.into()))
+    );
+    database.drop_now().await;
+    Ok(())
+}
+
+#[tokio::test]
 async fn draining_background_tasks_runs_the_final_settlement_pass() -> anyhow::Result<()> {
     let (database, repositories, _state_dir, receipt) =
         admitted_receipt_fixture("gateway_journal_drain_pass").await?;
