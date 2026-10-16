@@ -73,6 +73,7 @@ fn app_paths_for(system: &std::path::Path) -> AppPaths {
         web_path: Some(system.join("web").display().to_string()),
         storage: Some(system.join("storage").display().to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     AppPaths::from_profile(
         &paths,

@@ -69,9 +69,12 @@ paths:
   web_path: /var/lib/systemprompt/web/dist   # optional; only if serving a static site
   storage: /var/lib/systemprompt/storage     # optional
   geoip_database: /var/lib/systemprompt/GeoLite2-City.mmdb  # optional
+  shipped_files: /app/share/storage-files     # optional; read-only files/ layer from the image
 ```
 
 `system`, `services`, and `bin` are required (`crates/shared/manifest/src/profile/paths.rs`). Omit `web_path` for a headless API-only deployment.
+
+`/files/*` is resolved in three layers: `paths.storage/files` (user data and operator overrides) first, then `shipped_files` (the read-only copy an image ships), then the configured storage backend. With `shipped_files` set, `paths.storage` only has to hold user data, and nothing has to be copied onto it when a pod starts.
 
 ### File storage
 
@@ -95,6 +98,22 @@ storage:
 ```
 
 `workload_identity` takes the token of the service account bound to the workload from the GCE metadata server (GKE Workload Identity, Cloud Run, GCE). `{ secret: NAME }` reads a service-account key JSON from the secrets document under `NAME`. Either identity needs `roles/storage.objectAdmin` on the bucket. `bucket`, `prefix`, `public_read` and `credentials` are refused with `backend: local`, and `shared` is refused with `backend: gcs`. `paths.storage` is still required: the gateway journal and exports stay on local disk.
+
+To keep them in an S3-compatible bucket (AWS S3, MinIO, Ceph RGW, R2):
+
+```yaml
+storage:
+  backend: s3
+  bucket: my-bucket              # required
+  prefix: tenant-a/files         # optional
+  endpoint: https://s3.example.internal  # optional; default https://s3.<region>.amazonaws.com
+  region: eu-west-1              # optional; default us-east-1
+  path_style: true               # MinIO, Ceph RGW and most self-hosted S3 need this
+  public_read: false             # optional; true returns the bucket URL for stored files
+  credentials: { secret: S3_FILES }  # required
+```
+
+The secret holds `{"access_key_id": "...", "secret_access_key": "...", "session_token": "..."}` (`session_token` optional). Requests are signed with AWS Signature Version 4. `endpoint`, `region` and `path_style` are refused with any other backend. Files in a `gcs` or `s3` bucket are served at their `/files/...` URL by every replica.
 
 ## 5. Wire secrets
 

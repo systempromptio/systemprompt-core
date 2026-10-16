@@ -15,6 +15,7 @@ fn paths_with_bin(bin_dir: &str) -> AppPaths {
         web_path: Some("/tmp".to_owned()),
         storage: Some("/tmp".to_owned()),
         geoip_database: None,
+        shipped_files: None,
     };
     AppPaths::from_profile(
         &cfg,

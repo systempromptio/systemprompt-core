@@ -24,6 +24,7 @@ fn tmp_paths() -> PathsConfig {
         web_path: Some("/tmp".to_string()),
         storage: Some("/tmp".to_string()),
         geoip_database: None,
+        shipped_files: None,
     }
 }
 

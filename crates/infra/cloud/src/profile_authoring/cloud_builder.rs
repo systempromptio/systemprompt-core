@@ -128,6 +128,7 @@ impl CloudProfileBuilder {
                 storage: Some(container::STORAGE.to_owned()),
                 geoip_database: self.geoip_database,
                 web_path: Some(container::WEB.to_owned()),
+                shipped_files: None,
             },
             rate_limits: RateLimitsConfig::default(),
             runtime: cloud_runtime_config(),

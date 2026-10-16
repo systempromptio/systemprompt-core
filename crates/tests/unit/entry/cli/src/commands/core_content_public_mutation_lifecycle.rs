@@ -68,6 +68,7 @@ async fn public_edit_verify_and_delete_mutate_only_the_selected_content() {
         web_path: Some(boot.system_path.join("web").display().to_string()),
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     let app = fixture_app_context_with(
         &pool,

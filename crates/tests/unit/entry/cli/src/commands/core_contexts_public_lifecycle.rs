@@ -126,6 +126,7 @@ async fn public_context_lifecycle_helper() {
         web_path: Some(boot.system_path.join("web").display().to_string()),
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     let app = fixture_app_context_with(
         &pool,

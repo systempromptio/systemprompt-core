@@ -26,6 +26,7 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
         web_path: None,
         storage: Some(b.storage_path.to_string_lossy().into_owned()),
         geoip_database: None,
+        shipped_files: None,
     };
     let ctx = systemprompt_test_fixtures::fixture_app_context_with(
         &pool,

@@ -68,6 +68,7 @@ fn local_paths() -> PathsConfig {
         web_path: None,
         storage: Some("/tmp/storage".to_string()),
         geoip_database: None,
+        shipped_files: None,
     }
 }
 
@@ -79,6 +80,7 @@ fn cloud_paths() -> PathsConfig {
         web_path: Some("/app/web".to_string()),
         storage: Some("/app/storage".to_string()),
         geoip_database: None,
+        shipped_files: None,
     }
 }
 

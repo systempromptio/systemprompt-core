@@ -9,6 +9,7 @@ fn paths_config_with_storage(storage: &str) -> PathsConfig {
         web_path: None,
         storage: Some(storage.to_owned()),
         geoip_database: None,
+        shipped_files: None,
     }
 }
 
@@ -55,6 +56,7 @@ fn storage_paths_from_profile_errors_when_storage_not_set() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
     };
     let err = StoragePaths::from_profile(&cfg).unwrap_err();
     assert!(matches!(err, PathError::NotConfigured { field: "storage" }));
@@ -124,6 +126,7 @@ fn paths_config_storage_resolved_none_when_unset() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
     };
     assert!(cfg.storage_resolved().is_none());
 }
@@ -143,6 +146,7 @@ mod path_resolution {
             web_path: None,
             storage: Some("/srv/storage".to_owned()),
             geoip_database: None,
+            shipped_files: None,
         }
     }
 

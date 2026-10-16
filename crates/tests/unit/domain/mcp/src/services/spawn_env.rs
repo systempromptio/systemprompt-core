@@ -171,6 +171,7 @@ fn open_server_log_creates_log_directory_and_file() {
         web_path: Some(dir.path().display().to_string()),
         storage: Some(dir.path().display().to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     let paths = Arc::new(
         AppPaths::from_profile(

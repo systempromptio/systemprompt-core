@@ -30,6 +30,7 @@ fn app_paths_rooted(root: &str) -> AppPaths {
         web_path: Some(root.to_owned()),
         storage: Some(root.to_owned()),
         geoip_database: None,
+        shipped_files: None,
     };
     AppPaths::from_profile(
         &paths,

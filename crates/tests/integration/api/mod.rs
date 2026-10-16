@@ -280,6 +280,10 @@ mod health_monitor;
 mod static_files_serving;
 
 #[cfg(test)]
+#[path = "static_files_layers.rs"]
+mod static_files_layers;
+
+#[cfg(test)]
 #[path = "gateway_pipeline.rs"]
 mod gateway_pipeline;
 

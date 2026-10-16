@@ -11,6 +11,7 @@
 
 mod cache;
 mod responses;
+mod stored;
 
 pub use cache::{
     CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, CACHE_STATIC_ASSET_REVALIDATE,
@@ -55,7 +56,7 @@ pub async fn serve_static_content(
         state.route_classifier.classify(path, "GET"),
         RouteType::StaticAsset { .. }
     ) {
-        return serve_static_asset(path, &dist_dir, &headers).await;
+        return serve_static_asset(&state.ctx, path, &dist_dir, &headers).await;
     }
 
     if path == "/" {
@@ -103,6 +104,7 @@ pub async fn serve_static_content(
 }
 
 async fn serve_static_asset(
+    ctx: &AppContext,
     path: &str,
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
@@ -116,21 +118,52 @@ async fn serve_static_asset(
     };
 
     let files_prefix = format!("{}/", files_config.url_prefix());
-    let stored_file = path.strip_prefix(&files_prefix);
-    let asset_path = stored_file.map_or_else(
-        || dist_dir.join(path.trim_start_matches('/')),
-        |relative_path| files_config.files().join(relative_path),
-    );
+    let Some(relative_path) = path.strip_prefix(&files_prefix) else {
+        let asset_path = dist_dir.join(path.trim_start_matches('/'));
+        if asset_path.is_file() {
+            let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
+            return serve_cached_file(
+                &asset_path,
+                headers,
+                mime_type,
+                asset_cache_policy(&asset_path),
+            )
+            .await;
+        }
+        return ApiHttpError::not_found("Asset not found").into_response();
+    };
 
-    if asset_path.exists() && asset_path.is_file() {
-        let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
-        let cache_control = stored_file
-            .and_then(|_| files_config.cache_control())
-            .unwrap_or_else(|| asset_cache_policy(&asset_path));
-        return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
+    if relative_path
+        .split(['/', '\\'])
+        .any(|segment| segment == "..")
+    {
+        return ApiHttpError::not_found("Asset not found").into_response();
     }
 
-    ApiHttpError::not_found("Asset not found").into_response()
+    let layers = std::iter::once(files_config.files()).chain(
+        ctx.app_paths()
+            .storage()
+            .shipped_files()
+            .map(std::path::Path::to_path_buf),
+    );
+    for layer in layers {
+        let asset_path = layer.join(relative_path);
+        if asset_path.is_file() {
+            let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
+            let cache_control = files_config
+                .cache_control()
+                .unwrap_or_else(|| asset_cache_policy(&asset_path));
+            return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
+        }
+    }
+
+    stored::serve_stored_file(
+        ctx.file_storage().as_ref(),
+        relative_path,
+        headers,
+        files_config,
+    )
+    .await
 }
 
 async fn serve_metadata_file(

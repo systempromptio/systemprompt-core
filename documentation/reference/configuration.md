@@ -113,6 +113,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `web_path` | string | no | `<system>/web` | Web asset root (parent of `dist/`). For `target: cloud`, must start with `/app/web` and must not contain `/services/web`. |
 | `storage` | string | no | absent | File storage root. |
 | `geoip_database` | string | no | absent | Path to a MaxMind GeoIP database file. |
+| `shipped_files` | string | no | absent | Read-only directory consulted for `/files/*` after `<storage>/files` and before the storage backend. |
 
 ## `storage`
 
@@ -120,8 +121,15 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `backend` | `local` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set. It is the seam an object-store backend lands in; no vendor SDK ships today. |
+| `backend` | `local` \| `gcs` \| `s3` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set; `gcs` writes to a Cloud Storage bucket; `s3` writes to an S3-compatible bucket. Files in a bucket are served at their `/files/...` URL by every replica. |
 | `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
+| `bucket` | string | `gcs`, `s3` | — | Bucket name. |
+| `prefix` | string | no | absent | Object-name prefix inside the bucket. |
+| `public_read` | bool | no | `false` | Return the bucket URL as the stored file's public URL. |
+| `credentials` | `workload_identity` \| `{ secret: NAME }` | `s3` | `workload_identity` (`gcs`) | `gcs`: metadata-server identity or a service-account key secret. `s3`: a secret holding `access_key_id`, `secret_access_key` and optional `session_token`. |
+| `endpoint` | URL | no | `https://s3.<region>.amazonaws.com` | `s3` only. |
+| `region` | string | no | `us-east-1` | `s3` only; the SigV4 signing region. |
+| `path_style` | bool | no | `false` | `s3` only; address the bucket as `<endpoint>/<bucket>/<key>`. |
 
 File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
 

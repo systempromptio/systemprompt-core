@@ -85,6 +85,7 @@ fn make_app_paths(base: &std::path::Path) -> AppPaths {
         web_path: None,
         storage: Some(base.join("storage").to_string_lossy().to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     AppPaths::from_profile(
         &paths,

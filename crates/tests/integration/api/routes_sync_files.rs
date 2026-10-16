@@ -31,6 +31,7 @@ async fn ctx_with_services(tree: &std::path::Path) -> anyhow::Result<Arc<AppCont
         web_path: Some("/tmp".to_string()),
         storage: Some("/tmp".to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))
 }

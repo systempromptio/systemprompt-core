@@ -111,6 +111,7 @@ fn make_profile(services: &Path, web_path: &Path) -> Profile {
             web_path: Some(web_path.to_string_lossy().to_string()),
             storage: None,
             geoip_database: None,
+            shipped_files: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_string(),

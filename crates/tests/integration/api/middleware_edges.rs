@@ -46,6 +46,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
         web_path: Some("/tmp".to_string()),
         storage: Some("/tmp".to_string()),
         geoip_database: None,
+        shipped_files: None,
     };
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,

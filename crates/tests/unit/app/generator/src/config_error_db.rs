@@ -111,6 +111,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> AppPaths {
             web_path: Some(p.clone()),
             storage: Some(p),
             geoip_database: None,
+            shipped_files: None,
         },
         systemprompt_manifest::PathResolution::Canonicalize,
         None,

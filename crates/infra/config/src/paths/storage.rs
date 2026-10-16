@@ -1,5 +1,9 @@
 //! Storage path layout for uploaded and generated files.
 //!
+//! `files` under `paths.storage` is the writable layer (uploads, generated
+//! images, operator overrides); `shipped_files` is the optional read-only
+//! layer an image ships, consulted after it.
+//!
 //! `data` is the one sanctioned root for runtime state the server writes for
 //! itself (the gateway accounting journal), and `data/scratch` the one root
 //! for short-lived working trees (Git checkouts of managed sources, import
@@ -34,6 +38,7 @@ pub struct StoragePaths {
     video: PathBuf,
     documents: PathBuf,
     uploads: PathBuf,
+    shipped_files: Option<PathBuf>,
 }
 
 impl StoragePaths {
@@ -62,6 +67,7 @@ impl StoragePaths {
             uploads: files.join("uploads"),
             files,
             root,
+            shipped_files: paths.shipped_files.as_ref().map(PathBuf::from),
         })
     }
 
@@ -123,5 +129,9 @@ impl StoragePaths {
 
     pub fn uploads(&self) -> &Path {
         &self.uploads
+    }
+
+    pub fn shipped_files(&self) -> Option<&Path> {
+        self.shipped_files.as_deref()
     }
 }

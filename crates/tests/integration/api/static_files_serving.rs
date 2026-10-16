@@ -39,6 +39,7 @@ async fn state_with_dist(
         web_path: Some(web.to_string_lossy().into_owned()),
         storage: Some("/tmp".to_owned()),
         geoip_database: None,
+        shipped_files: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
     let _ = FilesConfig::init(ctx.app_paths());

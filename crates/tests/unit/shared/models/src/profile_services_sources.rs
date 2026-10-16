@@ -60,6 +60,7 @@ pub(crate) fn local_profile() -> Profile {
             web_path: None,
             storage: Some("/tmp/storage".to_owned()),
             geoip_database: None,
+            shipped_files: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_owned(),

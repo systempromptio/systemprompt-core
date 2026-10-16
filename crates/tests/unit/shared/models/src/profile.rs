@@ -19,6 +19,7 @@ fn make_paths_config(base: &str) -> PathsConfig {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
     }
 }
 
@@ -499,6 +500,7 @@ fn paths_config_resolve_relative_to() {
         web_path: Some("web".to_string()),
         storage: Some("storage".to_string()),
         geoip_database: Some("geoip.mmdb".to_string()),
+        shipped_files: None,
     };
     paths.resolve_relative_to(Path::new("/base"));
     assert!(paths.system.starts_with('/'));
@@ -518,6 +520,7 @@ fn paths_config_resolve_relative_to_preserves_absolute() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
     };
     paths.resolve_relative_to(Path::new("/base"));
     assert_eq!(paths.system, "/absolute/system");

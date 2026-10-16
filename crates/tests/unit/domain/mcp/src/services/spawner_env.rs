@@ -399,6 +399,7 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
             web_path: Some(root.clone()),
             storage: Some(root),
             geoip_database: None,
+            shipped_files: None,
         },
         systemprompt_manifest::PathResolution::Lexical,
         None,

@@ -6,6 +6,12 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Filesystem roots for one profile.
+///
+/// `shipped_files` is an optional read-only directory holding the files an
+/// image ships under `files/` (CSS, JS, fonts, downloads). `/files/*` reads
+/// `paths.storage/files` first and falls back to it, so `paths.storage` only
+/// has to hold user data and nothing has to be copied onto it at boot.
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PathsConfig {
@@ -21,6 +27,9 @@ pub struct PathsConfig {
 
     #[serde(default)]
     pub geoip_database: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shipped_files: Option<String>,
 }
 
 impl PathsConfig {
@@ -31,6 +40,7 @@ impl PathsConfig {
         self.storage = self.storage.as_ref().map(|p| resolve_path(base, p));
         self.geoip_database = self.geoip_database.as_ref().map(|p| resolve_path(base, p));
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
+        self.shipped_files = self.shipped_files.as_ref().map(|p| resolve_path(base, p));
     }
 
     #[must_use]

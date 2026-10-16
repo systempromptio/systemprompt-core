@@ -56,6 +56,7 @@ fn profile_with_services(services: &Path) -> Profile {
             web_path: None,
             storage: None,
             geoip_database: None,
+            shipped_files: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_string(),
