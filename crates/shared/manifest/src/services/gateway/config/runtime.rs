@@ -20,6 +20,11 @@ use systemprompt_wire::canonical::CanonicalRequest;
 /// Runtime gateway configuration: the post-resolution shape every non-loader
 /// caller sees.
 ///
+/// With `hidden_requires_route` (the default) a `hidden` catalog model is
+/// served only through a declared route whose pattern matches it; neither
+/// catalog membership nor the `*` route synthesised from `default_provider`
+/// exposes it.
+///
 /// Not `Deserialize`: the only legal construction paths are
 /// [`GatewayConfigSpec::resolve`] for the production loader and direct
 /// struct-literal construction in tests.
@@ -30,6 +35,7 @@ pub struct GatewayConfig {
     pub default_provider: Option<ProviderId>,
     pub default_model: Option<String>,
     pub allow_unlisted_models: bool,
+    pub hidden_requires_route: bool,
     pub quota_fault_mode: QuotaFaultMode,
     pub require_scopes: Vec<systemprompt_identifiers::ScopeDimension>,
     pub automatic_prompt_caching: bool,
@@ -47,6 +53,7 @@ impl Default for GatewayConfig {
             default_provider: None,
             default_model: None,
             allow_unlisted_models: false,
+            hidden_requires_route: true,
             quota_fault_mode: QuotaFaultMode::default(),
             require_scopes: Vec::new(),
             automatic_prompt_caching: true,
@@ -79,8 +86,19 @@ impl GatewayConfig {
         registry: &ProviderRegistry,
         request: &CanonicalRequest,
     ) -> Option<Cow<'a, GatewayRoute>> {
+        if self.requires_declared_route(registry, request.model.as_str()) {
+            return self
+                .routes
+                .iter()
+                .find(|route| route.matches_request(request))
+                .map(Cow::Borrowed);
+        }
         self.candidate_routes(registry)
             .find(|route| route.matches_request(request))
+    }
+
+    fn requires_declared_route(&self, registry: &ProviderRegistry, model: &str) -> bool {
+        self.hidden_requires_route && registry.is_hidden_model(model)
     }
 
     #[must_use]
@@ -122,7 +140,13 @@ impl GatewayConfig {
 
     #[must_use]
     pub fn is_model_exposed(&self, registry: &ProviderRegistry, model: &str) -> bool {
-        if self.find_route(model).is_some() || registry.contains_model(model) {
+        if self.find_route(model).is_some() {
+            return true;
+        }
+        if self.requires_declared_route(registry, model) {
+            return false;
+        }
+        if registry.contains_model(model) {
             return true;
         }
         if self.default_provider.is_some() && self.allow_unlisted_models {
@@ -144,6 +168,7 @@ impl GatewayConfig {
             default_provider: self.default_provider.clone(),
             default_model: self.default_model.clone(),
             allow_unlisted_models: self.allow_unlisted_models,
+            hidden_requires_route: self.hidden_requires_route,
             quota_fault_mode: self.quota_fault_mode,
             require_scopes: self.require_scopes.clone(),
             automatic_prompt_caching: self.automatic_prompt_caching,

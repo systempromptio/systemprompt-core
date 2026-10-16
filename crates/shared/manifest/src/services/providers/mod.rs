@@ -209,6 +209,14 @@ impl ProviderRegistry {
             .any(|p| p.find_model(requested).is_some())
     }
 
+    #[must_use]
+    pub fn is_hidden_model(&self, requested: &str) -> bool {
+        self.providers
+            .iter()
+            .filter_map(|p| p.find_model(requested))
+            .any(|m| m.hidden)
+    }
+
     pub fn advertised_providers(&self) -> impl Iterator<Item = &ProviderEntry> {
         self.providers
             .iter()
