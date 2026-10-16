@@ -1,7 +1,7 @@
 //! W3C trace context carried onto upstream provider requests.
 //!
 //! The dispatch scopes the request's [`TraceId`] around the provider send, and
-//! [`super::send_checked`] stamps a `traceparent` (same trace id, a new parent
+//! `send_checked` stamps a `traceparent` (same trace id, a new parent
 //! span id per upstream send), so a provider's own request logs join the
 //! caller's trace. A trace id with no W3C form is not propagated.
 //!

@@ -5,7 +5,7 @@
 //! At start it forgets `scheduled_jobs` rows whose job this build no longer
 //! has, so a retired job leaves neither a row nor a line in `jobs list`.
 //! Jobs the build registers but the configuration never names are handled by
-//! `scheduler.unlisted_jobs` (see [`unlisted`]).
+//! `scheduler.unlisted_jobs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
