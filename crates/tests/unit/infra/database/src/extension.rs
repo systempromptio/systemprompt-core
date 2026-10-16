@@ -39,7 +39,7 @@ fn test_database_extension_dependencies() {
 fn test_database_extension_schemas() {
     let ext = DatabaseExtension;
     let schemas = ext.schemas();
-    assert_eq!(schemas.len(), 5);
+    assert_eq!(schemas.len(), 6);
     assert!(
         schemas
             .iter()
@@ -59,6 +59,11 @@ fn test_database_extension_schemas() {
         schemas
             .iter()
             .any(|s| s.table.as_deref() == Some("trace_facts"))
+    );
+    assert!(
+        schemas
+            .iter()
+            .any(|s| s.table.as_deref() == Some("extension_migration_compat"))
     );
 }
 

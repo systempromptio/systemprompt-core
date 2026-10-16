@@ -3,7 +3,7 @@
 //!
 //! A tapped stream also watches the process's stream drain and, when the
 //! server's connection drain runs out, ends itself with a terminal error frame
-//! (see [`drain`]).
+//! (the `drain` module).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
