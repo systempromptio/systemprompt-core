@@ -45,6 +45,9 @@ impl Extension for AuthzExtension {
                 "rule_value".into(),
                 "access".into(),
             ]),
+            SchemaDefinition::sql_only(include_str!(
+                "../../schema/access_control_cache_notify.sql"
+            )),
             SchemaDefinition::new(
                 "governance_decisions",
                 include_str!("../../schema/governance_decisions.sql"),

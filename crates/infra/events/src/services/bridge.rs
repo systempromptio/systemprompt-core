@@ -10,6 +10,9 @@
 //! through the router's *local-only* path — which deliberately does **not**
 //! touch the outbox, so the relay cannot loop.
 //!
+//! The same listener also carries [`CACHE_INVALIDATION_CHANNEL`], whose
+//! payload is a cache domain; see [`super::cache_invalidation`].
+//!
 //! The notification payload is only the row id (a UUID string) to stay
 //! well under Postgres' ~8 KB `NOTIFY` limit; the event body lives in the
 //! `jsonb` column.
@@ -27,6 +30,9 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 use super::bridge_handle::{EventBridgeHandle, RelayStatus, StatusCell};
+use super::cache_invalidation::{
+    CACHE_INVALIDATION_CHANNEL, invalidate_all_cache_domains, receive_cache_invalidation,
+};
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
@@ -83,7 +89,9 @@ impl PostgresEventBridge {
 
     async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
         let mut listener = PgListener::connect_with(&self.pool).await?;
-        listener.listen(OUTBOX_CHANNEL).await?;
+        listener
+            .listen_all([OUTBOX_CHANNEL, CACHE_INVALIDATION_CHANNEL])
+            .await?;
         Ok(listener)
     }
 
@@ -128,6 +136,7 @@ impl PostgresEventBridge {
                 },
             };
             backoff = RETRY_MIN;
+            invalidate_all_cache_domains();
             status.set(RelayStatus::Listening);
             info!(
                 channel = OUTBOX_CHANNEL,
@@ -153,6 +162,9 @@ impl PostgresEventBridge {
             tokio::select! {
                 () = cancel.cancelled() => return false,
                 notification = listener.recv() => match notification {
+                    Ok(notification) if notification.channel() == CACHE_INVALIDATION_CHANNEL => {
+                        receive_cache_invalidation(notification.payload());
+                    },
                     Ok(notification) => {
                         self.deliver(&EventOutboxId::new(notification.payload())).await;
                     },

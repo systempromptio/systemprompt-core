@@ -49,6 +49,8 @@ pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
+pub mod cache_epoch;
+pub use cache_epoch::{CacheDomain, advance_cache_epoch, cache_epoch};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;

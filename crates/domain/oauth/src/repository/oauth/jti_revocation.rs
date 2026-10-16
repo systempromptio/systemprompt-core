@@ -14,6 +14,7 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{AccessTokenId, UserId};
+use systemprompt_traits::{CacheDomain, cache_epoch};
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
@@ -78,13 +79,16 @@ impl OAuthRepository {
 
 #[derive(Debug, Clone, Copy)]
 enum CacheEntry {
-    NotRevoked { inserted_at: Instant },
+    NotRevoked { inserted_at: Instant, epoch: u64 },
     Revoked,
 }
 
-/// In-memory LRU layered in front of `is_jti_revoked`. Negative results
-/// expire after 60s; positive results are sticky (a revoked jti cannot
-/// become un-revoked).
+/// In-memory LRU layered in front of `is_jti_revoked`.
+///
+/// Negative results
+/// expire after 60s, or as soon as a revocation on any replica advances the
+/// [`CacheDomain::JtiRevocation`] epoch; positive results are sticky (a
+/// revoked jti cannot become un-revoked).
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
 }
@@ -117,8 +121,10 @@ impl JtiRevocationCache {
             .ok()?;
         match guard.get(jti).copied()? {
             CacheEntry::Revoked => Some(true),
-            CacheEntry::NotRevoked { inserted_at } => {
-                if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS) {
+            CacheEntry::NotRevoked { inserted_at, epoch } => {
+                if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS)
+                    && epoch == cache_epoch(CacheDomain::JtiRevocation)
+                {
                     Some(false)
                 } else {
                     guard.pop(jti);
@@ -135,6 +141,7 @@ impl JtiRevocationCache {
             } else {
                 CacheEntry::NotRevoked {
                     inserted_at: Instant::now(),
+                    epoch: cache_epoch(CacheDomain::JtiRevocation),
                 }
             };
             guard.put(jti.clone(), entry);

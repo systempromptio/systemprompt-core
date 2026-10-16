@@ -167,3 +167,23 @@ async fn non_uuid_user_can_revoke_a_jti() {
         .expect("a non-UUID user id is a valid revocation owner");
     assert!(repo.is_jti_revoked(&jti).await.expect("check"));
 }
+
+#[test]
+fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
+    let cache = JtiRevocationCache::with_capacity(16);
+    let id = fresh_jti();
+    cache.record(&id, false);
+    assert_eq!(cache.peek(&id), Some(false));
+
+    systemprompt_traits::advance_cache_epoch(systemprompt_traits::CacheDomain::JtiRevocation);
+    assert_eq!(cache.peek(&id), None);
+}
+
+#[test]
+fn a_cached_revocation_survives_an_invalidation() {
+    let cache = JtiRevocationCache::with_capacity(16);
+    let id = fresh_jti();
+    cache.record(&id, true);
+    systemprompt_traits::advance_cache_epoch(systemprompt_traits::CacheDomain::JtiRevocation);
+    assert_eq!(cache.peek(&id), Some(true));
+}

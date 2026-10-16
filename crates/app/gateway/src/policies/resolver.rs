@@ -3,7 +3,9 @@
 //! [`PolicyResolver`] loads the global policy rows in ascending
 //! `(priority, name)` order and merges them into a single
 //! [`GatewayPolicySpec`] — each non-empty section overrides the previous, so
-//! the highest-priority row wins. The result is cached for a short TTL.
+//! the highest-priority row wins. The result is cached for a short TTL, and
+//! dropped as soon as a policy write on any replica advances the
+//! [`CacheDomain::GatewayPolicy`] epoch.
 //!
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
@@ -22,6 +24,7 @@ use std::time::{Duration, Instant};
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_manifest::services::QuotaFaultMode;
+use systemprompt_traits::{CacheDomain, cache_epoch};
 
 use super::GatewayPolicySpec;
 
@@ -55,6 +58,7 @@ impl std::fmt::Debug for PolicyResolver {
 struct CachedEntry {
     spec: GatewayPolicySpec,
     fetched_at: Instant,
+    epoch: u64,
 }
 
 impl PolicyResolver {
@@ -69,9 +73,11 @@ impl PolicyResolver {
         &self,
         fault_mode: QuotaFaultMode,
     ) -> Result<GatewayPolicySpec, PolicyUnavailable> {
+        let epoch = cache_epoch(CacheDomain::GatewayPolicy);
         if let Ok(cache) = self.cache.read()
             && let Some(entry) = cache.as_ref()
             && entry.fetched_at.elapsed() < CACHE_TTL
+            && entry.epoch == epoch
         {
             return Ok(entry.spec.clone());
         }
@@ -113,6 +119,7 @@ impl PolicyResolver {
             *cache = Some(CachedEntry {
                 spec: spec.clone(),
                 fetched_at: Instant::now(),
+                epoch,
             });
         }
         Ok(spec)
