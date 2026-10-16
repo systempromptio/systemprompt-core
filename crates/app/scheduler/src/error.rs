@@ -72,6 +72,9 @@ pub enum SchedulerError {
     #[error("Scheduler not initialized")]
     NotInitialized,
 
+    #[error(transparent)]
+    ConfigPlane(#[from] systemprompt_provider_contracts::ConfigPlaneError),
+
     #[error("Job context: {0}")]
     MissingContext(#[from] MissingDependency),
 

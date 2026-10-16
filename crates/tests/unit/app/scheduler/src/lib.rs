@@ -18,6 +18,8 @@ mod bootstrap_dispatch_db;
 #[cfg(test)]
 mod cancelled_cluster_job_db;
 #[cfg(test)]
+mod config_planes;
+#[cfg(test)]
 mod dispatch_instance_stamp_db;
 #[cfg(test)]
 mod dispatch_scope_db;

@@ -25,3 +25,9 @@ pub fn user_rate_limit_buckets(
 ) -> Arc<systemprompt_users::UserRateLimitBucketRepository> {
     Arc::new(systemprompt_users::UserRateLimitBucketRepository::new(db))
 }
+
+pub fn config_plane_state(
+    db: &DbPool,
+) -> Arc<systemprompt_scheduler::repository::ConfigReconcileRepository> {
+    Arc::new(systemprompt_scheduler::repository::ConfigReconcileRepository::new(db))
+}

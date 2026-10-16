@@ -79,6 +79,14 @@ fn describe_metrics() {
         HTTP_IN_FLIGHT_SATURATION,
         "Fraction of the in-flight ceiling in use (1.0 = shedding)"
     );
+    metrics::describe_gauge!(
+        systemprompt_scheduler::services::config_reconcile::CONFIG_DRIFT_ROWS,
+        "Rows of a config plane that differ from its declaration after the last reconcile pass"
+    );
+    metrics::describe_gauge!(
+        systemprompt_scheduler::services::config_reconcile::CONFIG_INFO,
+        "1 for the declaration hash a config plane last reconciled against"
+    );
     metrics::describe_histogram!(
         HTTP_REQUEST_DURATION_SECONDS,
         metrics::Unit::Seconds,

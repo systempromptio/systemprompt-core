@@ -10,12 +10,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod config_reconcile;
 mod job_execution;
 pub mod orchestration;
 mod plans;
 pub mod scheduling;
 mod service_management;
 
+pub use config_reconcile::{
+    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport, ReconcileReport,
+    ReconcileTrigger,
+};
 pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };

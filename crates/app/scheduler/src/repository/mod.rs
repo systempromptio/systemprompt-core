@@ -14,6 +14,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod analytics;
+mod config_reconcile;
 mod job_lock;
 mod jobs;
 pub mod otlp;
@@ -21,6 +22,9 @@ mod retention;
 mod security;
 
 pub use analytics::AnalyticsRepository;
+pub use config_reconcile::{
+    ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow, PlaneStateUpdate,
+};
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;
 pub use jobs::JobRepository;
