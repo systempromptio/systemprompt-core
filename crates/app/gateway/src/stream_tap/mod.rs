@@ -1,12 +1,18 @@
 //! Streaming response tap: re-renders upstream canonical events to the inbound
 //! wire format while accumulating a full response snapshot for the audit sink.
 //!
+//! A tapped stream also watches the process's stream drain and, when the
+//! server's connection drain runs out, ends itself with a terminal error frame
+//! (see [`drain`]).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod abort;
 pub mod accumulator;
+mod drain;
 mod finalize;
+mod raw;
 
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
@@ -18,6 +24,7 @@ use futures_util::stream::{BoxStream, Stream};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::QuotaFaultMode;
+use systemprompt_traits::StreamDrainWatch;
 use systemprompt_wire::error::WireStreamError;
 
 use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
@@ -27,12 +34,13 @@ use super::audit::phases::StreamInFlight;
 use super::protocol::canonical::CanonicalEvent;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
-use systemprompt_wire::anthropic::SseFrameDecoder as SseDecoder;
 
 pub(super) use self::finalize::log_terminal;
 pub use self::finalize::{ClientConnection, FailCause, FinalizeDecision, classify};
 
 pub use self::abort::STREAM_ABORT_MESSAGE;
+pub use self::drain::{STREAM_DRAIN_MESSAGE, STREAMS_ABORTED_ON_SHUTDOWN_TOTAL};
+pub use self::raw::tap_raw;
 
 /// Shared by the streaming and buffered completion tasks so both debit quota
 /// and run the response-phase safety scan identically.
@@ -69,6 +77,7 @@ pub fn tap(
     } = render;
     let state = Arc::new(Mutex::new(TapState::default()));
     let tapped = TappedStream {
+        drain: audit.background().stream_drain().watch(),
         inner: upstream,
         state: Arc::clone(&state),
         inbound,
@@ -83,102 +92,8 @@ pub fn tap(
     Body::from_stream(tapped)
 }
 
-pub fn tap_raw(
-    upstream: BoxStream<'static, Result<Bytes, WireStreamError>>,
-    inbound: Arc<dyn InboundAdapter>,
-    audit: Arc<GatewayAudit>,
-    finalize_ctx: TapFinalizeCtx,
-) -> Body {
-    Body::from_stream(RawTappedStream {
-        inner: upstream,
-        state: Arc::new(Mutex::new(TapState::default())),
-        decoder: SseDecoder::default(),
-        inbound,
-        audit,
-        finalize_ctx: Some(finalize_ctx),
-        ended: false,
-        _in_flight: StreamInFlight::enter(),
-    })
-}
-
-struct RawTappedStream {
-    inner: BoxStream<'static, Result<Bytes, WireStreamError>>,
-    state: Arc<Mutex<TapState>>,
-    decoder: SseDecoder,
-    inbound: Arc<dyn InboundAdapter>,
-    audit: Arc<GatewayAudit>,
-    finalize_ctx: Option<TapFinalizeCtx>,
-    ended: bool,
-    _in_flight: StreamInFlight,
-}
-
-impl RawTappedStream {
-    fn take_summary(&mut self) -> Option<(Summary, TapFinalizeCtx)> {
-        let ctx = self.finalize_ctx.take()?;
-        self.state.lock().ok().and_then(|mut s| {
-            if s.finalized {
-                return None;
-            }
-            s.finalized = true;
-            Some((extract_summary(&mut s), ctx))
-        })
-    }
-}
-
-impl Stream for RawTappedStream {
-    type Item = Result<Bytes, std::io::Error>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        if self.ended {
-            return Poll::Ready(None);
-        }
-        match self.inner.as_mut().poll_next(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(None) => {
-                self.ended = true;
-                let Some((summary, ctx)) = self.take_summary() else {
-                    return Poll::Ready(None);
-                };
-                let aborted = abort::is_abort(&summary);
-                finalize(&self.audit, summary, ctx, ClientConnection::Connected);
-                if !aborted {
-                    return Poll::Ready(None);
-                }
-                Poll::Ready(abort::abort_frame(&self.inbound, "").map(Ok))
-            },
-            Poll::Ready(Some(Err(e))) => {
-                if let Ok(mut s) = self.state.lock() {
-                    s.error = Some(e.to_string());
-                }
-                Poll::Ready(Some(Err(std::io::Error::new(
-                    std::io::ErrorKind::BrokenPipe,
-                    e,
-                ))))
-            },
-            Poll::Ready(Some(Ok(bytes))) => {
-                let events = self.decoder.push(&bytes);
-                if let Ok(mut s) = self.state.lock() {
-                    for event in &events {
-                        accumulate_event(&mut s, event);
-                    }
-                    s.final_bytes.extend_from_slice(&bytes);
-                }
-                Poll::Ready(Some(Ok(bytes)))
-            },
-        }
-    }
-}
-
-impl Drop for RawTappedStream {
-    fn drop(&mut self) {
-        let Some((summary, ctx)) = self.take_summary() else {
-            return;
-        };
-        finalize(&self.audit, summary, ctx, ClientConnection::Disconnected);
-    }
-}
-
 struct TappedStream {
+    drain: StreamDrainWatch,
     inner: BoxStream<'static, Result<CanonicalEvent, WireStreamError>>,
     state: Arc<Mutex<TapState>>,
     inbound: Arc<dyn InboundAdapter>,
@@ -197,6 +112,20 @@ impl Stream for TappedStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         if self.ended {
             return Poll::Ready(None);
+        }
+        if self.drain.poll_ended(cx) {
+            self.ended = true;
+            let ctx = self.finalize_ctx.take();
+            return Poll::Ready(
+                drain::end(drain::DrainedStream {
+                    state: &self.state,
+                    ctx,
+                    audit: &self.audit,
+                    inbound: &self.inbound,
+                    model: &self.request_model,
+                })
+                .map(Ok),
+            );
         }
         loop {
             match self.inner.as_mut().poll_next(cx) {

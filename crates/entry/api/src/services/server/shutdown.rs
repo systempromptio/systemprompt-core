@@ -5,7 +5,10 @@
 //! On the first signal `/readyz` flips to `draining` at once, but the listener
 //! keeps accepting for the pre-stop delay so a balancer can deregister the
 //! node before connections are refused. The connection drain then gets its
-//! full window measured from the end of that delay.
+//! full window measured from the end of that delay. When it runs out, the
+//! process's [`StreamDrain`] is raised so open streams close themselves with a
+//! terminal error frame, and the listener gets a short flush window before the
+//! remaining connections are dropped.
 //!
 //! The wait resolves on `SIGTERM`, `Ctrl-C`, or the [`ShutdownRequest`] the
 //! listener was bound with — the handle an admin action raises when it needs
@@ -33,7 +36,7 @@ use systemprompt_loader::subprocess::{ChildKind, StopOutcome};
 use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use systemprompt_scheduler::SchedulerHandle;
-use systemprompt_traits::{DrainOutcome, OwnedTask};
+use systemprompt_traits::{DrainOutcome, OwnedTask, StreamDrain};
 
 const FORCED_EXIT_CODE: i32 = 1;
 
@@ -120,6 +123,7 @@ pub async fn join_within_drain_grace(
     serve: impl Future<Output = anyhow::Result<()>>,
     restart: &ShutdownRequest,
     timings: &ShutdownConfig,
+    streams: &StreamDrain,
 ) -> anyhow::Result<()> {
     use super::readiness::ReadinessEvent;
     use tokio::sync::broadcast::error::RecvError;
@@ -139,16 +143,21 @@ pub async fn join_within_drain_grace(
     }
 
     tokio::select! {
+        result = &mut serve => return result,
+        never = exit_on_second_signal(restart) => match never {},
+        () = tokio::time::sleep(timings.pre_stop_delay() + timings.drain_grace()) => {},
+    }
+
+    tracing::warn!(
+        pre_stop_delay_secs = timings.pre_stop_delay_secs,
+        drain_grace_secs = timings.drain_grace_secs,
+        "Connection drain exceeded grace window; ending open streams before terminating children"
+    );
+    streams.end_streams();
+    tokio::select! {
         result = &mut serve => result,
         never = exit_on_second_signal(restart) => match never {},
-        () = tokio::time::sleep(timings.pre_stop_delay() + timings.drain_grace()) => {
-            tracing::warn!(
-                pre_stop_delay_secs = timings.pre_stop_delay_secs,
-                drain_grace_secs = timings.drain_grace_secs,
-                "Connection drain exceeded grace window, proceeding to terminate children"
-            );
-            Ok(())
-        },
+        () = tokio::time::sleep(ShutdownConfig::stream_flush_grace()) => Ok(()),
     }
 }
 

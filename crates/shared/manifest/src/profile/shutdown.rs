@@ -7,7 +7,9 @@
 //!    listener keeps accepting for `pre_stop_delay_secs` so an orchestrator's
 //!    endpoint controller stops routing to the node first.
 //! 2. The listener stops accepting and in-flight requests — long SSE streams
-//!    included — get the full `drain_grace_secs` to finish.
+//!    included — get the full `drain_grace_secs` to finish. Streams still open
+//!    then end themselves with a terminal error frame, flushed within a fixed
+//!    [`STREAM_FLUSH_GRACE_SECS`].
 //! 3. Child processes get `child_grace_secs` after their signal and owned
 //!    background work (the final gateway journal settlement included)
 //!    `background_grace_secs`, in parallel.
@@ -26,6 +28,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_PRE_STOP_DELAY_SECS: u64 = 600;
 pub const MAX_DRAIN_GRACE_SECS: u64 = 86_400;
+pub const STREAM_FLUSH_GRACE_SECS: u64 = 2;
 
 /// Shutdown deadlines in seconds. The defaults are the historical fixed
 /// windows: no pre-stop delay, a 10 s drain, 5 s for children and background
@@ -73,6 +76,11 @@ impl ShutdownConfig {
     }
 
     #[must_use]
+    pub const fn stream_flush_grace() -> Duration {
+        Duration::from_secs(STREAM_FLUSH_GRACE_SECS)
+    }
+
+    #[must_use]
     pub const fn child_grace(&self) -> Duration {
         Duration::from_secs(self.child_grace_secs)
     }
@@ -92,6 +100,7 @@ impl ShutdownConfig {
         Duration::from_secs(
             self.pre_stop_delay_secs
                 .saturating_add(self.drain_grace_secs)
+                .saturating_add(STREAM_FLUSH_GRACE_SECS)
                 .saturating_add(self.forced_exit_grace_secs),
         )
     }

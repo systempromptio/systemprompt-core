@@ -21,6 +21,9 @@
 //! it, so its events correlate with the originating request and reach the same
 //! collector. A task that panics is logged by name instead of vanishing.
 //!
+//! It also carries the process's [`crate::StreamDrain`], so anything that
+//! can spawn can also see when long-lived response streams must end.
+//!
 //! Work whose handle a single owner must join or abort (a listener, a relay,
 //! a request-scoped worker) uses [`OwnedTask`], which stores its
 //! [`JoinHandle`] and aborts it on drop.
@@ -44,6 +47,7 @@ use tracing::instrument::WithSubscriber;
 pub struct BackgroundTasks {
     tracker: TaskTracker,
     cancel: CancellationToken,
+    streams: crate::StreamDrain,
 }
 
 /// Result of waiting for in-flight background work.
@@ -85,6 +89,11 @@ impl BackgroundTasks {
     {
         let token = self.cancel.child_token();
         self.spawn(name, task(token));
+    }
+
+    #[must_use]
+    pub const fn stream_drain(&self) -> &crate::StreamDrain {
+        &self.streams
     }
 
     #[must_use]

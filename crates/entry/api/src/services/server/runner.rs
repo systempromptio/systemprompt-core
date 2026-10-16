@@ -86,8 +86,13 @@ pub async fn run_server(
         "Shutdown budget; the orchestrator's termination grace must cover the total"
     );
     let restart = ctx.shutdown_request().clone();
-    let serve_result =
-        super::shutdown::join_within_drain_grace(early.join(), &restart, &timings).await;
+    let serve_result = super::shutdown::join_within_drain_grace(
+        early.join(),
+        &restart,
+        &timings,
+        ctx.background_tasks().stream_drain(),
+    )
+    .await;
 
     let forced_exit = super::shutdown::arm_forced_exit(restart, timings);
     if let Some(listener) = metrics_listener

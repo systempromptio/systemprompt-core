@@ -435,3 +435,71 @@ async fn tap_completion_runs_response_safety_scan() {
     assert_eq!(phase, "response");
     assert_eq!(scanner, "heuristic");
 }
+
+#[tokio::test]
+async fn an_expired_drain_ends_an_open_stream_with_a_terminal_error_frame() {
+    use futures::StreamExt;
+    use metrics_util::debugging::{DebugValue, DebuggingRecorder};
+    use systemprompt_gateway::stream_tap::{
+        STREAM_DRAIN_MESSAGE, STREAMS_ABORTED_ON_SHUTDOWN_TOTAL,
+    };
+
+    let recorder = DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _local = metrics::set_default_local_recorder(&recorder);
+
+    let db = setup_db().await;
+    let user_id = seed_user(&db).await;
+    let (audit, ai_request_id) = open_audit(&db, user_id.clone()).await;
+
+    let opened = stream::iter(vec![
+        Ok(CanonicalEvent::MessageStart {
+            id: "resp-tap-drain".to_owned(),
+            model: "claude-served".to_owned(),
+            usage: usage(4, 0),
+        }),
+        Ok(CanonicalEvent::ContentBlockStart {
+            index: 0,
+            block: ContentBlockKind::Text,
+        }),
+    ]);
+    let upstream = Box::pin(opened.chain(stream::pending()));
+    let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
+    let policy = GatewayPolicySpec::default();
+    let body = tap(
+        upstream,
+        render(inbound),
+        Arc::clone(&audit),
+        tap_ctx(&db, &ai_request_id, policy),
+    );
+    let mut frames = body.into_data_stream();
+    let first = frames.next().await.expect("first frame").expect("bytes");
+    assert!(String::from_utf8_lossy(&first).contains("message_start"));
+    let _ = frames.next().await;
+
+    audit.background().stream_drain().end_streams();
+    let mut tail = Vec::new();
+    while let Some(frame) = frames.next().await {
+        tail.extend_from_slice(&frame.expect("a drained stream ends cleanly"));
+    }
+    let wire = String::from_utf8(tail).expect("utf8 wire");
+    assert!(wire.contains("event: error"), "{wire}");
+    assert!(wire.contains(STREAM_DRAIN_MESSAGE), "{wire}");
+
+    let counted = snapshotter
+        .snapshot()
+        .into_vec()
+        .into_iter()
+        .find(|(key, ..)| key.key().name() == STREAMS_ABORTED_ON_SHUTDOWN_TOTAL)
+        .map(|(.., value)| value);
+    assert_eq!(counted, Some(DebugValue::Counter(1)));
+
+    let (status, error) = settled_status(&audit, &db, &ai_request_id).await;
+    assert_eq!(status, "failed");
+    assert!(
+        error
+            .as_deref()
+            .is_some_and(|e| e.contains(STREAM_DRAIN_MESSAGE)),
+        "{error:?}"
+    );
+}

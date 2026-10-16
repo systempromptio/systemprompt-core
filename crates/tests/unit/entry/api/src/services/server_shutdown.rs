@@ -20,6 +20,7 @@ async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
         async { Err(anyhow::anyhow!("bind lost")) },
         &ShutdownRequest::default(),
         &ShutdownConfig::default(),
+        &systemprompt_traits::StreamDrain::default(),
     )
     .await;
 

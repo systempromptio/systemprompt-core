@@ -30,6 +30,8 @@ bytes = { workspace = true }
 tokio = { workspace = true }
 axum = { workspace = true }
 sqlx = { workspace = true }
+metrics = { workspace = true }
+metrics-util = { workspace = true }
 uuid = { workspace = true }
 futures = { workspace = true }
 

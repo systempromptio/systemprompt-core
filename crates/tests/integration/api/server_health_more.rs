@@ -163,6 +163,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
             &ShutdownConfig::default(),
+            &systemprompt_traits::StreamDrain::default(),
         ),
     )
     .await;
@@ -174,11 +175,14 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // Signalled, then wedged: the drain is abandoned rather than the process.
     // The signal is spawned rather than sent inline because the guard
     // subscribes on first poll, and a broadcast delivers nothing sent earlier.
-    let wedged = tokio::spawn(async {
+    let streams = systemprompt_traits::StreamDrain::default();
+    let watched = streams.clone();
+    let wedged = tokio::spawn(async move {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
             &ShutdownConfig::default(),
+            &watched,
         )
         .await
     });
@@ -192,6 +196,10 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     assert!(
         result.is_ok(),
         "abandoning a wedged drain must not fail the run loop"
+    );
+    assert!(
+        streams.is_ending(),
+        "open streams are told to end once the drain runs out"
     );
 }
 
@@ -207,6 +215,7 @@ async fn drain_grace_leaves_room_for_child_termination() {
         async { Ok(()) },
         &ShutdownRequest::default(),
         &ShutdownConfig::default(),
+        &systemprompt_traits::StreamDrain::default(),
     )
     .await;
     assert!(served.is_ok(), "a clean drain returns the serve result");

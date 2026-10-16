@@ -44,7 +44,7 @@ fn a_partial_block_overrides_only_what_it_names() {
     assert_eq!(shutdown.pre_stop_delay_secs, 15);
     assert_eq!(shutdown.drain_grace_secs, 600);
     assert_eq!(shutdown.child_grace_secs, 5);
-    assert_eq!(shutdown.total_budget().as_secs(), 15 + 600 + 10);
+    assert_eq!(shutdown.total_budget().as_secs(), 15 + 600 + 2 + 10);
     assert!(shutdown.validation_errors().is_empty());
 }
 
