@@ -7,7 +7,10 @@
 //! open-shaped at the wire boundary. The matching response frame is also
 //! stamped with the execution id the tap minted, under the systemprompt
 //! `_meta` key, so a client that reports the result later carries the exact
-//! server key.
+//! server key. A result counts as failed when it is a JSON-RPC error, sets
+//! `isError`, or carries a top-level `error` key in its body (structured
+//! content, or a text block holding a JSON object): hosted servers report
+//! tool-level failures that way without the protocol flag.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -141,14 +144,37 @@ pub fn parse_response_frame(data: &str, request_id: &Value) -> Option<ToolCallOu
     }
     let result = parsed.result?;
     let output = result.structured_content.or(result.content);
-    let error_message = result
-        .is_error
-        .then(|| "MCP tool call returned isError".to_owned());
+    let error_message = if result.is_error {
+        Some("MCP tool call returned isError".to_owned())
+    } else {
+        output
+            .as_ref()
+            .and_then(body_error)
+            .map(|error| format!("MCP tool result reported an error: {error}"))
+    };
     Some(ToolCallOutcome {
         output,
         error_message,
         result: frame.get("result").cloned(),
     })
+}
+
+// JSON: MCP `tools/call` output — structured content or the content blocks.
+fn body_error(output: &Value) -> Option<String> {
+    let reported = |body: &Value| -> Option<String> {
+        match body.as_object()?.get("error")? {
+            Value::Null | Value::Bool(false) => None,
+            Value::String(text) => Some(text.clone()),
+            other => Some(other.to_string()),
+        }
+    };
+    match output {
+        Value::Array(blocks) => blocks.iter().find_map(|block| {
+            let text = block.get("text")?.as_str()?;
+            reported(&serde_json::from_str::<Value>(text).ok()?)
+        }),
+        body => reported(body),
+    }
 }
 
 // JSON: MCP JSON-RPC `id` — string or number per JSON-RPC 2.0.

@@ -64,6 +64,34 @@ fn parse_response_frame_surfaces_jsonrpc_error() {
 }
 
 #[test]
+fn parse_response_frame_reports_an_error_key_in_a_text_block() {
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"{\"error\": \"Parent not found or not accessible.\"}"}]}}"#;
+    let error = parse_response_frame(data, &json!(7))
+        .expect("result parses")
+        .error_message;
+    assert_eq!(
+        error.as_deref(),
+        Some("MCP tool result reported an error: Parent not found or not accessible.")
+    );
+}
+
+#[test]
+fn parse_response_frame_reports_an_error_key_in_structured_content() {
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"structuredContent":{"error":{"code":404}}}}"#;
+    let error = parse_response_frame(data, &json!(7))
+        .expect("result parses")
+        .error_message;
+    assert_eq!(error.as_deref(), Some(r#"MCP tool result reported an error: {"code":404}"#));
+}
+
+#[test]
+fn parse_response_frame_keeps_a_plain_text_result_successful() {
+    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"error: none"}]}}"#;
+    let outcome = parse_response_frame(data, &json!(7)).expect("result parses");
+    assert!(outcome.error_message.is_none());
+}
+
+#[test]
 fn parse_response_frame_ignores_mismatched_id() {
     let data = r#"{"jsonrpc":"2.0","id":9,"result":{"isError":false}}"#;
     assert!(parse_response_frame(data, &json!(7)).is_none());
