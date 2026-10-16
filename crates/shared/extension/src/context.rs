@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use systemprompt_traits::{ConfigProvider, DatabaseHandle};
+use systemprompt_identifiers::InstanceId;
+use systemprompt_traits::{ConfigProvider, DatabaseHandle, FileStorage};
 
 pub trait ExtensionContext: Send + Sync {
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId;
@@ -12,6 +13,10 @@ pub trait ExtensionContext: Send + Sync {
     fn config(&self) -> Arc<dyn ConfigProvider>;
 
     fn database(&self) -> Arc<dyn DatabaseHandle>;
+
+    fn file_storage(&self) -> Arc<dyn FileStorage>;
+
+    fn instance_id(&self) -> InstanceId;
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
 

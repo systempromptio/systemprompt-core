@@ -8344,7 +8344,9 @@ dependencies = [
 name = "systemprompt-extension-tests"
 version = "0.0.11"
 dependencies = [
+ "async-trait",
  "axum",
+ "chrono",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-identifiers",
