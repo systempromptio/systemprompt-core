@@ -12,6 +12,7 @@
 //!   scan, scope check, blocklist, rate limit, require approval) self-register
 //!   here.
 //! - [`engine`] — [`GovernanceEngine`], the traced first-halt-wins evaluator.
+//! - [`rate_window`] — the Postgres counters charged before evaluation.
 //! - [`audit`] — [`DecisionAudit`], the typed blob persisted through
 //!   [`record_decision`] into `governance_decisions`.
 //! - [`secrets`] — the shared credential scanner.
@@ -31,6 +32,7 @@ pub mod builtin;
 pub mod config;
 pub mod engine;
 pub mod governed;
+pub mod rate_window;
 pub mod registry;
 pub mod secrets;
 pub mod types;
@@ -45,11 +47,12 @@ pub use audit::{
 };
 pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
-pub use engine::{Evaluation, GovernanceEngine, GovernanceEngineError};
+pub use engine::{Evaluation, GovernanceEngine, GovernanceEngineError, RateChargeSubject};
 pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,
 };
+pub use rate_window::{RateCharge, RateCounts, RateWindowRepository};
 pub use registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 pub use secrets::{
     EntropyConfig, SecretPattern, SecretPatternError, SecretScanner, SignatureExemptions,

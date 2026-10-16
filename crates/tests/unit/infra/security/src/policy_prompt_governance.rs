@@ -39,6 +39,7 @@ fn prompt_ctx<'a>(
         user_id: user,
         input,
         call_id: call,
+        rate_counts: &NO_RATE_COUNTS,
     }
 }
 
@@ -208,6 +209,7 @@ fn secret_scanning_is_not_gated_on_the_target_kind() {
         user_id: &user,
         input: &input,
         call_id: &call,
+        rate_counts: &NO_RATE_COUNTS,
     });
 
     assert!(matches!(
@@ -217,3 +219,6 @@ fn secret_scanning_is_not_gated_on_the_target_kind() {
         }
     ));
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

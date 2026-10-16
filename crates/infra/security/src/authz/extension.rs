@@ -73,6 +73,16 @@ impl Extension for AuthzExtension {
                 "status".into(),
                 "expires_at".into(),
             ]),
+            SchemaDefinition::new(
+                "governance_rate_windows",
+                include_str!("../../schema/governance_rate_windows.sql"),
+            )
+            .with_required_columns(vec![
+                "bucket_key".into(),
+                "window_start".into(),
+                "hits".into(),
+                "expires_at".into(),
+            ]),
         ]
     }
 

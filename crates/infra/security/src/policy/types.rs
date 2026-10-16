@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 
 use super::governed::{GovernedInput, GovernedTarget};
+use super::rate_window::RateCounts;
 use super::secrets::{SecretFinding, SecretScanner};
 use crate::authz::error::AuthzError;
 use crate::authz::types::Decision;
@@ -152,6 +153,7 @@ pub struct PolicyContext<'a> {
     pub user_id: &'a UserId,
     pub input: &'a GovernedInput,
     pub call_id: &'a CallId,
+    pub rate_counts: &'a RateCounts,
 }
 
 impl PolicyContext<'_> {
@@ -166,6 +168,7 @@ impl PolicyContext<'_> {
             user_id: self.user_id,
             input,
             call_id: self.call_id,
+            rate_counts: self.rate_counts,
         }
     }
 }
@@ -195,6 +198,9 @@ pub trait GovernancePolicy: Send + Sync + fmt::Debug {
     fn description(&self) -> &'static str;
     fn evaluate(&self, ctx: &PolicyContext<'_>) -> Decision;
     fn prompt_secret_findings(&self, _input: &GovernedInput) -> Option<Vec<SecretFinding>> {
+        None
+    }
+    fn rate_window(&self) -> Option<RateLimitWindow> {
         None
     }
 }

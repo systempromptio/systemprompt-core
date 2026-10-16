@@ -7,13 +7,15 @@
 //! so the audit row preserves the full evaluation order, not just the first
 //! deny. The walk itself lives in `chain`.
 //!
-//! Policies that accumulate state (the rate limiter) scope it to their
-//! instance, so two engines never share buckets — a second engine would
-//! silently double every budget. The engine is therefore built once at the
-//! composition root ([`GovernanceEngine::from_services_root`]) and injected
-//! into every enforcement point: the MCP governance webhook and the
-//! `/v1/messages` gateway charge the same limiter, not one each.
-//! [`GovernanceEngine::from_config`] builds an isolated chain for tests.
+//! Policies hold no request state. Rate windows are counted in Postgres
+//! (see [`super::rate_window`]): an enforcement point calls
+//! [`GovernanceEngine::charge_rate_windows`] before evaluating, and every
+//! replica charges the same counter. The engine is built once at the
+//! composition root ([`GovernanceEngine::from_services_root`] plus
+//! [`GovernanceEngine::with_rate_windows`]) and injected into every
+//! enforcement point. [`GovernanceEngine::from_config`] builds a chain with no
+//! counter store; its rate windows are never charged, so an enabled
+//! `rate_limit` policy reports the missing count as a violation.
 //!
 //! [`GovernanceEngine::evaluate_with_prompt_recovery`] is the opt-in variant
 //! for prompt targets: when a policy denies with a located secret leak, the
@@ -28,14 +30,16 @@ mod chain;
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use systemprompt_identifiers::PolicyId;
+use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
 use super::governed::GovernedInput;
+use super::rate_window::{RateCharge, RateCounts, RateWindowRepository};
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
@@ -77,6 +81,17 @@ struct ChainEntry {
 pub struct GovernanceEngine {
     enabled: bool,
     entries: Vec<ChainEntry>,
+    rate_windows: Option<RateWindowRepository>,
+    charges_since_prune: AtomicU64,
+}
+
+const PRUNE_EVERY_CHARGES: u64 = 1024;
+
+#[derive(Debug, Clone, Copy)]
+pub struct RateChargeSubject<'a> {
+    pub session: &'a SessionId,
+    pub user: &'a UserId,
+    pub call: &'a CallId,
 }
 
 impl std::fmt::Debug for GovernanceEngine {
@@ -91,6 +106,8 @@ impl std::fmt::Debug for GovernanceEngine {
                     .map(|e| e.config.id.as_str())
                     .collect::<Vec<_>>(),
             )
+            .field("rate_windows", &self.rate_windows.is_some())
+            .field("charges_since_prune", &self.charges_since_prune)
             .finish()
     }
 }
@@ -159,7 +176,57 @@ impl GovernanceEngine {
         Ok(Self {
             enabled: config.enabled,
             entries,
+            rate_windows: None,
+            charges_since_prune: AtomicU64::new(0),
         })
+    }
+
+    #[must_use]
+    pub fn with_rate_windows(mut self, repository: RateWindowRepository) -> Self {
+        self.rate_windows = Some(repository);
+        self
+    }
+
+    pub async fn charge_rate_windows(&self, subject: RateChargeSubject<'_>) -> RateCounts {
+        let mut counts = RateCounts::empty();
+        let mut charged = false;
+        if !self.enabled {
+            return counts;
+        }
+        let Some(repository) = self.rate_windows.as_ref() else {
+            return counts;
+        };
+        for entry in self.entries.iter().filter(|e| e.config.enabled) {
+            let Some(window) = entry.instance.rate_window() else {
+                continue;
+            };
+            let charge = RateCharge {
+                policy_id: &entry.config.id,
+                window_secs: window.seconds,
+                session_id: subject.session,
+                user_id: subject.user,
+                call_id: subject.call,
+            };
+            charged = true;
+            match repository.charge(charge).await {
+                Ok(position) => counts.record(entry.config.id.clone(), position),
+                Err(error) => tracing::error!(
+                    %error,
+                    policy_id = %entry.config.id,
+                    "rate window charge failed; the policy fails closed for this call"
+                ),
+            }
+        }
+        if charged
+            && self
+                .charges_since_prune
+                .fetch_add(1, Ordering::Relaxed)
+                .is_multiple_of(PRUNE_EVERY_CHARGES)
+            && let Err(error) = repository.prune_expired().await
+        {
+            tracing::warn!(%error, "expired rate windows could not be pruned");
+        }
+        counts
     }
 
     #[must_use]

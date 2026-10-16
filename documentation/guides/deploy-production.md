@@ -178,7 +178,7 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 - **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s and no longer holds its identity claim, so a stalled but live replica is never reaped. Replicas may boot concurrently; the post-reconcile registration check retries for up to about a second before failing the boot.
 - **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.
 
-**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits and AI quotas are global. `web/dist` is rendered per node.
+**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits, AI quotas and the `rate_limit` governance policy (a fixed window per session and user, counted in Postgres) are global. `web/dist` is rendered per node.
 
 ### 3.5 Writable paths and a read-only root filesystem
 

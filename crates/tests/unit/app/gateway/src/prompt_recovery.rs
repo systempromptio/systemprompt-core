@@ -25,6 +25,26 @@ pub(super) fn govern(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
 ) -> PromptRecovery {
+    govern_counted(engine, &NO_RATE_COUNTS, request, body)
+}
+
+fn govern_at(
+    engine: &GovernanceEngine,
+    position: u64,
+    request: &mut CanonicalRequest,
+    body: &mut PreparedBody,
+) -> PromptRecovery {
+    let mut counts = systemprompt_security::policy::RateCounts::empty();
+    counts.record(systemprompt_identifiers::PolicyId::new("rate_limit"), position);
+    govern_counted(engine, &counts, request, body)
+}
+
+fn govern_counted(
+    engine: &GovernanceEngine,
+    rate_counts: &systemprompt_security::policy::RateCounts,
+    request: &mut CanonicalRequest,
+    body: &mut PreparedBody,
+) -> PromptRecovery {
     let session = SessionId::new("session-recovery");
     let user = UserId::new("user-recovery");
     let call = CallId::generate();
@@ -40,6 +60,7 @@ pub(super) fn govern(
         user_id: &user,
         input: &input,
         call_id: &call,
+        rate_counts,
     };
     govern_prompt(engine, &ctx, request, body)
 }
@@ -283,8 +304,9 @@ fn custom_prefix_removes_whole_value_and_respects_configured_policy_order() {
         "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 1\n    - id: secret_scan\n      patterns:\n        - id: internal-credential\n          name: Internal Credential\n          regex: 'PRIVATE_[A-Za-z]+'\n          redact_whole_value: true\n",
     );
     let mut wire = body(json!({"system":"Use PRIVATE_sensitive here"}));
-    let result = govern(
+    let result = govern_at(
         &engine,
+        1,
         &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
         &mut wire,
     );
@@ -293,8 +315,9 @@ fn custom_prefix_removes_whole_value_and_respects_configured_policy_order() {
     assert_eq!(value["system"], REDACTION_MARKER);
     let mut second = body(json!({"system":"Use PRIVATE_sensitive here"}));
     let original = second.bytes.clone();
-    let result = govern(
+    let result = govern_at(
         &engine,
+        2,
         &mut CanonicalRequest::new(ModelId::new("m"), Vec::new(), 1024),
         &mut second,
     );
@@ -433,3 +456,6 @@ fn invalid_json_and_excessive_findings_cannot_be_forwarded() {
         assert_eq!(wire.bytes, bytes);
     }
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

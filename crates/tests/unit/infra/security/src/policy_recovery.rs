@@ -76,6 +76,7 @@ fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
         user_id: &user,
         input: &input,
         call_id: &call,
+        rate_counts: &NO_RATE_COUNTS,
     };
     assert!(matches!(
         engine.evaluate(&ctx).decision,
@@ -150,6 +151,7 @@ fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
         user_id: &user,
         input: &input,
         call_id: &call,
+        rate_counts: &NO_RATE_COUNTS,
     };
     EVALUATIONS.store(0, std::sync::atomic::Ordering::SeqCst);
     let evaluation = engine.evaluate_with_prompt_recovery(&ctx, |_| {
@@ -215,6 +217,7 @@ fn a_policy_without_located_findings_never_offers_recovery() {
         user_id: &user,
         input: &input,
         call_id: &call,
+        rate_counts: &NO_RATE_COUNTS,
     };
     let evaluation = engine.evaluate_with_prompt_recovery(&ctx, |_| {
         panic!("a policy that returns no findings must not be offered a repair")
@@ -222,3 +225,6 @@ fn a_policy_without_located_findings_never_offers_recovery() {
     assert!(matches!(evaluation.decision, Decision::Deny { .. }));
     assert_eq!(evaluation.chain[0].result, ChainEntryResult::Fail);
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

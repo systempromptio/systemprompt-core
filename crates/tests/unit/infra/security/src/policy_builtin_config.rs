@@ -41,6 +41,7 @@ impl Call {
             user_id: &self.user,
             input,
             call_id: &self.call,
+            rate_counts: &NO_RATE_COUNTS,
         }
     }
 }
@@ -252,3 +253,6 @@ governance:
         );
     }
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

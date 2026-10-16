@@ -76,6 +76,7 @@ fn ctx<'a>(
         user_id: user,
         input,
         call_id: call,
+        rate_counts: &NO_RATE_COUNTS,
     }
 }
 
@@ -284,3 +285,6 @@ fn skipped_entries_carry_zero_duration() {
         .unwrap();
     assert!(skipped.duration_ms.abs() < f64::EPSILON);
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

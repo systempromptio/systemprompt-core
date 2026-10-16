@@ -46,6 +46,7 @@ fn decide(name: &str, scope: AccessScope, roles: &[String]) -> Decision {
             user_id: &user,
             input: &input,
             call_id: &call,
+            rate_counts: &NO_RATE_COUNTS,
         })
         .decision
 }
@@ -95,3 +96,6 @@ fn admin_passes_without_the_role() {
     let decision = decide("mcp__odoo__lead_delete", AccessScope::Admin, &[]);
     assert!(matches!(decision, Decision::Allow { .. }), "{decision:?}");
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

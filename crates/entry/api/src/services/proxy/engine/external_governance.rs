@@ -14,8 +14,8 @@ use systemprompt_security::authz::{Decision, DenyReason};
 use systemprompt_security::policy::governed::McpToolInput;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
-    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, GovernedInput, GovernedTarget,
-    PolicyContext, PrincipalSnapshot, record_decision,
+    AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput, GovernedTarget,
+    PolicyContext, PrincipalSnapshot, RateChargeSubject, record_decision,
 };
 
 pub(super) async fn enforce(
@@ -50,25 +50,7 @@ pub(super) async fn enforce(
         .cloned()
         .unwrap_or_else(|| serde_json::json!({}));
     let input = GovernedInput::tool_arguments(McpToolInput::new(arguments));
-    let roles = request
-        .user
-        .as_ref()
-        .map(|user| user.roles.clone())
-        .unwrap_or_default();
-    let evaluation = ctx.governance().evaluate(&PolicyContext {
-        target: GovernedTarget::Tool {
-            tool: target.clone(),
-        },
-        agent_scope: AgentScope::User {
-            user_id: request.user_id().clone(),
-        },
-        access_scope: scope,
-        roles: &roles,
-        session_id: request.session_id(),
-        user_id: request.user_id(),
-        input: &input,
-        call_id: &call_id,
-    });
+    let evaluation = evaluate_tool(ctx, request, &target, &input, &call_id).await;
     let allowed = matches!(
         evaluation.decision,
         Decision::Allow { .. } | Decision::Warn { .. }
@@ -96,6 +78,43 @@ pub(super) async fn enforce(
         denied()
     })?;
     if allowed { Ok(()) } else { Err(denied()) }
+}
+
+async fn evaluate_tool(
+    ctx: &AppContext,
+    request: &RequestContext,
+    target: &McpToolName,
+    input: &GovernedInput,
+    call_id: &CallId,
+) -> Evaluation {
+    let roles = request
+        .user
+        .as_ref()
+        .map(|user| user.roles.clone())
+        .unwrap_or_default();
+    let rate_counts = ctx
+        .governance()
+        .charge_rate_windows(RateChargeSubject {
+            session: request.session_id(),
+            user: request.user_id(),
+            call: call_id,
+        })
+        .await;
+    ctx.governance().evaluate(&PolicyContext {
+        target: GovernedTarget::Tool {
+            tool: target.clone(),
+        },
+        agent_scope: AgentScope::User {
+            user_id: request.user_id().clone(),
+        },
+        access_scope: access_scope(request),
+        roles: &roles,
+        session_id: request.session_id(),
+        user_id: request.user_id(),
+        input,
+        call_id,
+        rate_counts: &rate_counts,
+    })
 }
 
 fn access_scope(request: &RequestContext) -> AccessScope {

@@ -4,7 +4,7 @@ use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
 use systemprompt_security::policy::secrets::{SecretHit, SecretScanner};
 use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
+use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
@@ -60,6 +60,7 @@ impl Call {
             user_id: &self.user,
             input,
             call_id: &self.call,
+            rate_counts: &NO_RATE_COUNTS,
         }
     }
 }
@@ -494,128 +495,72 @@ fn tool_blocklist_admin_bypasses_the_list() {
 
 const RATE_LIMIT_2: &str = "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 2\n      window_secs: 60\n";
 
-#[test]
-fn rate_limit_denies_after_the_configured_limit() {
-    let e = engine(RATE_LIMIT_2);
+fn rate_decision(
+    e: &GovernanceEngine,
+    counts: &systemprompt_security::policy::RateCounts,
+) -> Decision {
     let session = SessionId::generate();
     let user = UserId::new("u-rate");
     let input = args(json!({}));
-    let target = tool("read_file");
+    let call = CallId::generate();
+    let ctx = PolicyContext {
+        target: tool("read_file"),
+        agent_scope: AgentScope::User {
+            user_id: user.clone(),
+        },
+        access_scope: AccessScope::User,
+        roles: &[],
+        session_id: &session,
+        user_id: &user,
+        input: &input,
+        call_id: &call,
+        rate_counts: counts,
+    };
+    e.evaluate(&ctx).decision
+}
 
-    let mut last = None;
-    for _ in 0..3 {
-        let call = CallId::generate();
-        let ctx = PolicyContext {
-            target: target.clone(),
-            agent_scope: AgentScope::User {
-                user_id: user.clone(),
-            },
-            access_scope: AccessScope::User,
-            roles: &[],
-            session_id: &session,
-            user_id: &user,
-            input: &input,
-            call_id: &call,
-        };
-        last = Some(e.evaluate(&ctx).decision);
-    }
+fn counts_at(position: u64) -> systemprompt_security::policy::RateCounts {
+    let mut counts = systemprompt_security::policy::RateCounts::empty();
+    counts.record(
+        systemprompt_identifiers::PolicyId::new("rate_limit"),
+        position,
+    );
+    counts
+}
+
+#[test]
+fn rate_limit_allows_positions_up_to_the_limit() {
+    let e = engine(RATE_LIMIT_2);
     assert!(matches!(
-        last,
-        Some(Decision::Deny {
-            reason: DenyReason::RateLimitExceeded { .. }
-        })
+        rate_decision(&e, &counts_at(1)),
+        Decision::Allow { .. }
+    ));
+    assert!(matches!(
+        rate_decision(&e, &counts_at(2)),
+        Decision::Allow { .. }
     ));
 }
 
 #[test]
-fn rate_limit_is_idempotent_per_call_id() {
+fn rate_limit_denies_the_position_past_the_limit() {
     let e = engine(RATE_LIMIT_2);
-    let session = SessionId::generate();
-    let user = UserId::new("u-idem");
-    let input = args(json!({}));
-    let target = tool("read_file");
-    let call = CallId::generate();
-
-    let ctx = PolicyContext {
-        target: target.clone(),
-        agent_scope: AgentScope::User {
-            user_id: user.clone(),
-        },
-        access_scope: AccessScope::User,
-        roles: &[],
-        session_id: &session,
-        user_id: &user,
-        input: &input,
-        call_id: &call,
-    };
-
-    let first = e.evaluate(&ctx);
-    for _ in 0..5 {
-        let again = e.evaluate(&ctx);
-        assert_eq!(
-            entry_detail(&first, "rate_limit"),
-            entry_detail(&again, "rate_limit"),
-            "re-evaluating one call must reproduce the count it first saw"
-        );
-    }
+    assert!(matches!(
+        rate_decision(&e, &counts_at(3)),
+        Decision::Deny {
+            reason: DenyReason::RateLimitExceeded { .. }
+        }
+    ));
 }
 
 #[test]
-fn rate_limit_state_is_isolated_per_engine() {
-    let a = engine(RATE_LIMIT_2);
-    let b = engine(RATE_LIMIT_2);
-    let session = SessionId::generate();
-    let user = UserId::new("u-iso");
-    let input = args(json!({}));
-    let target = tool("read_file");
-
-    for _ in 0..3 {
-        let call = CallId::generate();
-        let ctx = PolicyContext {
-            target: target.clone(),
-            agent_scope: AgentScope::User {
-                user_id: user.clone(),
-            },
-            access_scope: AccessScope::User,
-            roles: &[],
-            session_id: &session,
-            user_id: &user,
-            input: &input,
-            call_id: &call,
-        };
-        let _ = a.evaluate(&ctx);
-    }
-
-    let call = CallId::generate();
-    let ctx = PolicyContext {
-        target,
-        agent_scope: AgentScope::User {
-            user_id: user.clone(),
-        },
-        access_scope: AccessScope::User,
-        roles: &[],
-        session_id: &session,
-        user_id: &user,
-        input: &input,
-        call_id: &call,
-    };
-    assert!(matches!(a.evaluate(&ctx).decision, Decision::Deny { .. }));
-    assert!(matches!(b.evaluate(&ctx).decision, Decision::Allow { .. }));
-}
-
-fn entry_detail(evaluation: &systemprompt_security::policy::Evaluation, id: &str) -> String {
-    evaluation
-        .chain
-        .iter()
-        .find(|e| {
-            e.policy_id.as_str() == id
-                && !matches!(
-                    e.result,
-                    ChainEntryResult::Skip | ChainEntryResult::Disabled
-                )
-        })
-        .map(|e| e.detail.clone())
-        .unwrap_or_default()
+fn rate_limit_fails_closed_without_a_charged_count() {
+    let e = engine(RATE_LIMIT_2);
+    assert!(matches!(
+        rate_decision(&e, &NO_RATE_COUNTS),
+        Decision::Deny {
+            reason: DenyReason::PolicyViolation { .. }
+        }
+    ));
 }
 
 mod require_approval {
@@ -1362,3 +1307,6 @@ governance:
             .expect("an armed enforce scanner is fine");
     }
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();
