@@ -39,6 +39,7 @@ url = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
+sha2 = { workspace = true }
 
 # systemprompt.io dependencies
 systemprompt-identifiers = { workspace = true }

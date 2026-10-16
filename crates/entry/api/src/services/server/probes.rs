@@ -6,6 +6,8 @@
 //! A ready answer carries a `config` block: per declared config plane, the
 //! authority, declaration hash, remaining drift and outcome of the last
 //! reconcile pass. Drift never makes a replica unready.
+//! It also carries `fingerprint`, this replica's configuration fingerprint,
+//! so replicas running different configuration are visible.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -40,11 +42,18 @@ pub(crate) async fn handle_readyz(
 
     let instance = ctx.config().instance_id.clone();
     let version = env!("CARGO_PKG_VERSION");
+    let fingerprint = super::config_fingerprint::current();
+    let config = json!({ "fingerprint": fingerprint });
 
     if !super::readiness::is_ready() {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({ "status": "draining", "instance": instance, "version": version })),
+            Json(json!({
+                "status": "draining",
+                "instance": instance,
+                "version": version,
+                "config": config
+            })),
         );
     }
 
@@ -58,7 +67,8 @@ pub(crate) async fn handle_readyz(
                 "in_flight": shed.in_flight(),
                 "limit": shed.limit(),
                 "instance": instance,
-                "version": version
+                "version": version,
+                "config": config
             })),
         );
     }
@@ -69,7 +79,7 @@ pub(crate) async fn handle_readyz(
         Ok(Ok(_))
     );
     if db_ready {
-        let config = config_block(planes.as_deref().map(AsRef::as_ref)).await;
+        let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
         (
             StatusCode::OK,
             Json(json!({
@@ -86,18 +96,23 @@ pub(crate) async fn handle_readyz(
                 "status": "unready",
                 "database": "unreachable",
                 "instance": instance,
-                "version": version
+                "version": version,
+                "config": config
             })),
         )
     }
 }
 
-async fn config_block(repository: Option<&ConfigReconcileRepository>) -> serde_json::Value {
+async fn config_block(
+    fingerprint: Option<systemprompt_config::ConfigFingerprint>,
+    repository: Option<&ConfigReconcileRepository>,
+) -> serde_json::Value {
     let Some(repository) = repository else {
-        return json!({ "planes": [] });
+        return json!({ "fingerprint": fingerprint, "planes": [] });
     };
     match tokio::time::timeout(HEALTH_PROBE_TIMEOUT, repository.list_states()).await {
         Ok(Ok(rows)) => json!({
+            "fingerprint": fingerprint,
             "planes": rows.iter().map(|row| json!({
                 "plane": row.plane,
                 "authority": row.authority,
@@ -109,8 +124,8 @@ async fn config_block(repository: Option<&ConfigReconcileRepository>) -> serde_j
         }),
         Ok(Err(error)) => {
             tracing::warn!(error = %error, "readyz could not read config_plane_state");
-            json!({ "planes": [], "error": "unavailable" })
+            json!({ "fingerprint": fingerprint, "planes": [], "error": "unavailable" })
         },
-        Err(_) => json!({ "planes": [], "error": "timeout" }),
+        Err(_) => json!({ "fingerprint": fingerprint, "planes": [], "error": "timeout" }),
     }
 }

@@ -94,6 +94,7 @@ pub(super) fn build(params: &ProfileBuildParams<'_>) -> Result<Profile> {
             source: SecretsSource::File,
             vault: None,
             external: None,
+            refresh_secs: None,
         }),
         extensions: ExtensionsConfig::default(),
         governance: Some(governance),

@@ -28,6 +28,7 @@ fn config(source: SecretsSource, path: Option<&str>, vault: bool) -> SecretsConf
         secrets_path: path.map(str::to_owned),
         vault: vault.then(vault_block),
         external: None,
+        refresh_secs: None,
     }
 }
 

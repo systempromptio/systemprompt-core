@@ -220,6 +220,7 @@ replica count.
 | `secrets_path` | string | for `file` | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). Required for `source: file`; unused for `source: vault`. |
 | `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a loaded document is checked. It does not govern whether a source may be abandoned: a Vault fetch failure aborts the boot under every mode. |
 | `vault` | object | for `vault` | absent | KV v2 access. Required when `source: vault`, and refused for the other two sources. See [`secrets.vault`](#secretsvault). |
+| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `signing_key_pem`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
 
 ### `secrets.vault`
 
@@ -390,6 +391,7 @@ governance:
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `otlp` | object | no | absent | The collector. Absent means nothing is exported and the job is a no-op. |
+| `log_format` | enum `text` \| `json` | no | `text` | How the process writes its own log events to **stderr**. `json` writes one object per line (`timestamp`, `level`, `target`, `fields`, `spans`, `instance`) for Fluent Bit, Vector or Loki. Both formats redact the same secret-bearing fields. `runtime.output_format` governs CLI command output only, not this stream. |
 
 ### `observability.otlp`
 

@@ -6,6 +6,11 @@
 //! [`SecretsConfig::secrets_path`], which reports the misconfiguration rather
 //! than substituting an empty path.
 //!
+//! `refresh_secs` re-reads a `file` source on that interval (at least 60 s),
+//! so a mounted secret that is rotated on disk reaches the running process.
+//! An `external` source keeps its interval on `secrets.external.refresh_secs`;
+//! `env` and `vault` are read once at boot.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -40,10 +45,26 @@ pub struct SecretsConfig {
 
     #[serde(default)]
     pub external: Option<ExternalSecretsConfig>,
+
+    #[serde(default)]
+    pub refresh_secs: Option<u64>,
 }
 
 impl SecretsConfig {
     pub fn validate(&self) -> Result<(), ProfileError> {
+        if let Some(secs) = self.refresh_secs {
+            if self.source != SecretsSource::File {
+                return Err(ProfileError::RefreshSecsUnexpected {
+                    secrets_source: self.source_name(),
+                });
+            }
+            if secs < MIN_EXTERNAL_REFRESH_SECS {
+                return Err(ProfileError::RefreshIntervalOutOfRange {
+                    field: "secrets.refresh_secs",
+                    secs,
+                });
+            }
+        }
         match self.source {
             SecretsSource::File | SecretsSource::Env => {
                 if matches!(self.source, SecretsSource::File)
@@ -78,7 +99,10 @@ impl SecretsConfig {
                 if let Some(secs) = external.refresh_secs
                     && secs < MIN_EXTERNAL_REFRESH_SECS
                 {
-                    return Err(ProfileError::RefreshIntervalOutOfRange { secs });
+                    return Err(ProfileError::RefreshIntervalOutOfRange {
+                        field: "secrets.external.refresh_secs",
+                        secs,
+                    });
                 }
             },
         }

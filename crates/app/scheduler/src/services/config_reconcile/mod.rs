@@ -13,7 +13,7 @@
 //!
 //! The pass runs at boot (a failed plane fails the boot) and as the
 //! `config_reconcile` job. Each pass rewrites `config_plane_state` and the
-//! `systemprompt_config_drift_rows` / `systemprompt_config_info` gauges.
+//! `systemprompt_config_drift_rows` / `systemprompt_config_plane_info` gauges.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +34,7 @@ use systemprompt_runtime::{AppContext, ConfigPlaneSet, EffectiveAuthority};
 use crate::error::SchedulerResult;
 use crate::repository::{ConfigReconcileRepository, PlaneStateUpdate};
 
-pub use metrics::{CONFIG_DRIFT_ROWS, CONFIG_INFO};
+pub use metrics::{CONFIG_DRIFT_ROWS, CONFIG_PLANE_INFO};
 pub use report::{
     AppliedPlane, PlaneDiff, PlaneOutcome, PlaneReport, ReconcileReport, ReconcileTrigger,
 };

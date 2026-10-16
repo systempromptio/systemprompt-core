@@ -19,7 +19,7 @@ use systemprompt_traits::{
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
-    start_registry_heartbeat,
+    start_registry_heartbeat, start_secrets_refresh,
 };
 
 pub async fn run_server(
@@ -39,6 +39,7 @@ pub async fn run_server(
 
     start_event_bridge(&ctx);
     start_registry_heartbeat(&ctx);
+    start_secrets_refresh(&ctx);
     if plan.reconcile_mcp {
         let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
         reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;

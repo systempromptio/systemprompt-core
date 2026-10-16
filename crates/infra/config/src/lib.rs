@@ -39,6 +39,7 @@
 pub mod bootstrap;
 pub(crate) mod config_loader;
 pub mod error;
+pub mod fingerprint;
 pub mod path_validation;
 pub mod paths;
 pub mod private_file;
@@ -47,14 +48,15 @@ pub(crate) mod skill_validator;
 pub mod state_dir;
 
 pub use bootstrap::{
-    DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup, KeyMaterialError,
-    MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, ProfileBootstrap, ProfileBootstrapError,
-    ReloadOutcome, ResolvedSource, SecretsBootstrap, SecretsBootstrapError, SecretsDocument,
-    SecretsFetch, SecretsProvider, SecretsSourceFactory, SecretsSourceRegistration, SecretsStatus,
-    SharedSecretsProvider, VaultAttemptFailure, VaultError, VaultKvProvider,
-    build_external_provider, build_loaded_secrets_message, decode_master_key, decode_seed,
-    diff_secrets, generate_master_key, generate_seed, load_secrets_from_path, persist_seed,
-    process_env_lookup, registered_external_kinds, resolve_source,
+    BOOT_REQUIRED_SECRET_KEYS, DynSecretsProvider, ENCRYPTION_MASTER_KEY_BYTES, EnvLookup,
+    KeyMaterialError, MANIFEST_SIGNING_SEED_BYTES, PINNED_SECRET_KEYS, ProfileBootstrap,
+    ProfileBootstrapError, ReloadOutcome, ResolvedSource, SIGNING_KEY_PEM, SecretsBootstrap,
+    SecretsBootstrapError, SecretsDocument, SecretsFetch, SecretsProvider, SecretsSourceFactory,
+    SecretsSourceRegistration, SecretsStatus, SharedSecretsProvider, VaultAttemptFailure,
+    VaultError, VaultKvProvider, build_external_provider, build_loaded_secrets_message,
+    decode_master_key, decode_seed, diff_secrets, generate_master_key, generate_seed,
+    load_secrets_from_path, persist_seed, process_env_lookup, refresh_interval_for,
+    registered_external_kinds, resolve_source,
 };
 pub use systemprompt_manifest::profile::ExternalSecretsConfig;
 
@@ -62,6 +64,7 @@ pub use config_loader::{
     build_from_profile, resolve_instance_id, try_init_config, validate_database_config,
 };
 pub use error::{ConfigError, ConfigResult};
+pub use fingerprint::{ConfigFingerprint, FINGERPRINT_HEX_LEN};
 #[doc(hidden)]
 pub use inventory as __inventory;
 pub use paths::{

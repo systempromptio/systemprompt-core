@@ -30,6 +30,8 @@ impl Respond for RepairableVault {
                 "data": {"data": {
                     "database_url": DATABASE_SECRET,
                     "oauth_at_rest_pepper": PEPPER_SECRET,
+                    "manifest_signing_secret_seed": "owned-seed-never-rendered",
+                    "encryption_master_key": "owned-master-key-never-rendered",
                     "optional_owned_key": "optional-value-never-rendered"
                 }}
             }))
@@ -225,7 +227,13 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
     );
     assert_eq!(
         report.keys,
-        ["database_url", "oauth_at_rest_pepper", "optional_owned_key"]
+        [
+            "database_url",
+            "encryption_master_key",
+            "manifest_signing_secret_seed",
+            "oauth_at_rest_pepper",
+            "optional_owned_key"
+        ]
     );
     assert!(report.missing_required.is_empty());
     let serialized = serde_json::to_string(&report).expect("serialize public report");
@@ -244,7 +252,7 @@ async fn vault_secret_check_reports_transport_failure_then_recovers_without_expo
     assert_eq!(healthy_check.status, CheckStatus::Pass);
     assert_eq!(
         healthy_check.detail,
-        "document secret/systemprompt/owned readable via token, 3 keys"
+        "document secret/systemprompt/owned readable via token, 5 keys"
     );
     assert_eq!(
         healthy_values.get("database_url").map(String::as_str),

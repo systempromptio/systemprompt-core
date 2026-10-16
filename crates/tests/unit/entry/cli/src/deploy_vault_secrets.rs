@@ -37,6 +37,7 @@ fn config(source: SecretsSource, vault: Option<VaultSecretsConfig>) -> SecretsCo
         secrets_path: Some("secrets.json".to_owned()),
         vault,
         external: None,
+        refresh_secs: None,
     }
 }
 

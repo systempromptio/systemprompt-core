@@ -1,6 +1,6 @@
 //! Prometheus gauges for declared configuration planes.
 //!
-//! `systemprompt_config_info{plane,hash,authority}` is 1 for the declaration
+//! `systemprompt_config_plane_info{plane,hash,authority}` is 1 for the declaration
 //! hash a plane last reconciled against; when the hash moves, the previous
 //! series is set to 0 so a dashboard keyed on `== 1` sees exactly one hash per
 //! plane. The gauges live on the replica that ran the pass.
@@ -11,7 +11,7 @@
 use super::PlaneReport;
 
 pub const CONFIG_DRIFT_ROWS: &str = "systemprompt_config_drift_rows";
-pub const CONFIG_INFO: &str = "systemprompt_config_info";
+pub const CONFIG_PLANE_INFO: &str = "systemprompt_config_plane_info";
 
 pub(super) fn record(report: &PlaneReport, previous_hash: Option<&str>) {
     metrics::gauge!(CONFIG_DRIFT_ROWS, "plane" => report.plane.clone())
@@ -21,7 +21,7 @@ pub(super) fn record(report: &PlaneReport, previous_hash: Option<&str>) {
         && report.declared_hash.as_deref() != Some(previous)
     {
         metrics::gauge!(
-            CONFIG_INFO,
+            CONFIG_PLANE_INFO,
             "plane" => report.plane.clone(),
             "hash" => previous.to_owned(),
             "authority" => authority,
@@ -30,7 +30,7 @@ pub(super) fn record(report: &PlaneReport, previous_hash: Option<&str>) {
     }
     if let Some(hash) = &report.declared_hash {
         metrics::gauge!(
-            CONFIG_INFO,
+            CONFIG_PLANE_INFO,
             "plane" => report.plane.clone(),
             "hash" => hash.clone(),
             "authority" => authority,

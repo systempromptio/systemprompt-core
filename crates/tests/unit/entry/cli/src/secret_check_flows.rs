@@ -24,10 +24,14 @@ fn install(secrets_section: &str, secrets_body: Option<&str>) -> fx::ProfileTree
     tree
 }
 
+const IDENTITY: &str = "\"manifest_signing_secret_seed\": \"seed\",\n  \
+                        \"encryption_master_key\": \"key\"";
+
 fn secrets_json() -> String {
     format!(
         "{{\n  \"oauth_at_rest_pepper\": \"{PEPPER}\",\n  \"database_url\": \
-         \"postgres://u:p@localhost/db\",\n  \"anthropic\": \"{SECRET_VALUE}\"\n}}\n"
+         \"postgres://u:p@localhost/db\",\n  {IDENTITY},\n  \"anthropic\": \
+         \"{SECRET_VALUE}\"\n}}\n"
     )
 }
 
@@ -43,7 +47,13 @@ async fn a_file_source_lists_its_key_names_and_reports_no_gaps() {
     assert!(report.detail.ends_with("secrets.json"), "{}", report.detail);
     assert_eq!(
         report.keys,
-        vec!["anthropic", "database_url", "oauth_at_rest_pepper"]
+        vec![
+            "anthropic",
+            "database_url",
+            "encryption_master_key",
+            "manifest_signing_secret_seed",
+            "oauth_at_rest_pepper"
+        ]
     );
     assert!(report.missing_required.is_empty());
     let body = serde_json::to_string(&report).expect("serialises");
@@ -54,11 +64,27 @@ async fn a_file_source_lists_its_key_names_and_reports_no_gaps() {
 async fn a_file_source_missing_the_pepper_reports_the_gap() {
     let _tree = install(
         "secrets:\n  secrets_path: secrets.json\n  source: file\n",
-        Some("{\n  \"database_url\": \"postgres://u:p@localhost/db\"\n}\n"),
+        Some(&format!(
+            "{{\n  \"database_url\": \"postgres://u:p@localhost/db\",\n  {IDENTITY}\n}}\n"
+        )),
     );
 
     let report = run().await.expect("the file source resolves");
     assert_eq!(report.missing_required, vec!["oauth_at_rest_pepper"]);
+}
+
+#[tokio::test]
+async fn a_file_source_missing_the_master_key_reports_the_gap_boot_would_refuse() {
+    let _tree = install(
+        "secrets:\n  secrets_path: secrets.json\n  source: file\n",
+        Some(&format!(
+            "{{\n  \"oauth_at_rest_pepper\": \"{PEPPER}\",\n  \"database_url\": \
+             \"postgres://u:p@localhost/db\",\n  \"manifest_signing_secret_seed\": \"s\"\n}}\n"
+        )),
+    );
+
+    let report = run().await.expect("the file source resolves");
+    assert_eq!(report.missing_required, vec!["encryption_master_key"]);
 }
 
 #[tokio::test]
@@ -77,6 +103,8 @@ async fn a_subprocess_reports_the_inherited_environment_and_its_present_keys() {
     fx::set_env("SYSTEMPROMPT_SUBPROCESS", "1");
     fx::set_env("OAUTH_AT_REST_PEPPER", PEPPER);
     fx::set_env("DATABASE_URL", "postgres://u:p@localhost/db");
+    fx::set_env("MANIFEST_SIGNING_SECRET_SEED", "seed");
+    fx::set_env("ENCRYPTION_MASTER_KEY", "key");
     let _tree = install(
         "secrets:\n  secrets_path: secrets.json\n  source: env\n",
         Some(&secrets_json()),
@@ -85,7 +113,15 @@ async fn a_subprocess_reports_the_inherited_environment_and_its_present_keys() {
     let report = run().await.expect("the subprocess source resolves");
     assert_eq!(report.source, "subprocess-env");
     assert_eq!(report.detail, "inherited from the parent process");
-    assert_eq!(report.keys, vec!["database_url", "oauth_at_rest_pepper"]);
+    assert_eq!(
+        report.keys,
+        vec![
+            "database_url",
+            "encryption_master_key",
+            "manifest_signing_secret_seed",
+            "oauth_at_rest_pepper"
+        ]
+    );
     assert!(report.missing_required.is_empty());
 }
 
