@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
+use tokio_util::task::TaskTracker;
 
 use axum::response::sse::Event;
 use systemprompt_identifiers::AgentRunId;
@@ -28,9 +29,10 @@ pub(super) fn follow_run(
     launcher: DynAgentRunLauncher,
     run_id: Option<AgentRunId>,
     request_id: NumberOrString,
+    tracker: &TaskTracker,
 ) -> ReceiverStream<Event> {
     let (tx, rx) = tokio::sync::mpsc::channel(64);
-    tokio::spawn(async move {
+    tracker.spawn(async move {
         let submitted = stream_response_event(StreamResponse::Task(task), &request_id);
         if tx.send(submitted).await.is_err() {
             return;

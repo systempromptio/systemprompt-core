@@ -66,8 +66,6 @@ pub enum ReleaseError {
 }
 
 impl ReleaseError {
-    /// The failure for a non-2xx GitHub answer: a refused token when one was
-    /// sent, otherwise a plain upstream status.
     #[must_use]
     pub fn upstream(
         stage: &'static str,

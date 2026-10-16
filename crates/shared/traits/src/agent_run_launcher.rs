@@ -50,7 +50,6 @@ pub struct AgentRunUpdates {
     // JSON: A2A `StreamResponse` frames, which this crate cannot name.
     pub frames: Vec<serde_json::Value>,
     pub last_seq: i64,
-    /// The run is terminal and every event has been returned.
     pub finished: bool,
     // JSON: the run's terminal status frame, set once `finished`.
     pub final_status: Option<serde_json::Value>,
@@ -70,8 +69,6 @@ pub trait AgentRunLauncher: Send + Sync {
         task_id: &TaskId,
     ) -> Result<Option<AgentRunId>, AgentRunLaunchError>;
 
-    /// A launcher that cannot replay events reports the run finished, so a
-    /// streaming client gets the `Submitted` task alone.
     async fn updates_after(
         &self,
         _run_id: &AgentRunId,

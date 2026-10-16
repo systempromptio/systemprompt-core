@@ -112,7 +112,13 @@ async fn run_stream(
             None
         },
     };
-    super::run_stream::follow_run(task, launcher, run_id, request_id)
+    super::run_stream::follow_run(
+        task,
+        launcher,
+        run_id,
+        request_id,
+        state.active_tasks.tracker(),
+    )
 }
 
 fn error_stream(error: JsonRpcErrorBuilder, request_id: &NumberOrString) -> ReceiverStream<Event> {

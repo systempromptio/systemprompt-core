@@ -78,8 +78,6 @@ pub struct RunRequest {
     pub permission_mode: PermissionMode,
     #[serde(default)]
     pub permission_prompts_none: bool,
-    /// The directory the host runs in, for Claude Code and Codex alike.
-    /// Claude Code falls back to the run's scratch `workspace` when empty.
     pub workspace: PathBuf,
     #[serde(default)]
     pub add_dirs: Vec<PathBuf>,
