@@ -12,6 +12,7 @@ pub mod agent_run;
 pub mod helpers;
 pub mod list_tasks;
 mod non_streaming;
+mod run_stream;
 mod streaming;
 pub mod validation;
 

@@ -43,7 +43,7 @@
 
 pub mod agent_run_launcher;
 pub use agent_run_launcher::{
-    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, DynAgentRunLauncher,
+    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
 };
 pub mod ai_providers;
 pub mod analytics;

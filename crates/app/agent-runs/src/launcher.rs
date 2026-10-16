@@ -4,7 +4,9 @@
 //! `enqueue` decodes the opaque request as a [`RunRequest`] and inserts a
 //! queued run carrying the task and context; the run's claim loop takes it
 //! from there. `cancel` records the request for a running run and cancels a
-//! still-queued one outright, together with its task.
+//! still-queued one outright, together with its task. `updates_after` maps
+//! the run's events past a `seq` through [`task_events`] for a streaming
+//! client, and reports the run finished once it is terminal and drained.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,12 +16,22 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentRunId, TaskId};
+use systemprompt_models::a2a::TaskState;
 use systemprompt_traits::{
-    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, DynAgentRunLauncher,
+    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
 };
 
+use crate::a2a::{TaskUpdate, final_status, task_events};
+use crate::outcome::RunStatus;
 use crate::repository::{AgentRunRepository, NewAgentRun};
 use crate::request::RunRequest;
+
+const UPDATE_PAGE: i64 = 200;
+
+fn frame(update: TaskUpdate) -> Result<serde_json::Value, AgentRunLaunchError> {
+    serde_json::to_value(update.into_stream_response())
+        .map_err(AgentRunLaunchError::unavailable)
+}
 
 #[derive(Debug, Clone)]
 pub struct RepositoryRunLauncher {
@@ -80,5 +92,54 @@ impl AgentRunLauncher for RepositoryRunLauncher {
             .find_run_for_task(task_id)
             .await
             .map_err(AgentRunLaunchError::unavailable)
+    }
+
+    async fn updates_after(
+        &self,
+        run_id: &AgentRunId,
+        after_seq: i64,
+    ) -> Result<AgentRunUpdates, AgentRunLaunchError> {
+        let row = self
+            .repo
+            .find_run(run_id)
+            .await
+            .map_err(AgentRunLaunchError::unavailable)?
+            .ok_or_else(|| AgentRunLaunchError::NotFound(run_id.clone()))?;
+        let status = row
+            .status
+            .parse::<RunStatus>()
+            .map_err(AgentRunLaunchError::unavailable)?;
+        let events = self
+            .repo
+            .list_events_after(run_id, after_seq, UPDATE_PAGE)
+            .await
+            .map_err(AgentRunLaunchError::unavailable)?;
+        let (Some(task_id), Some(context_id)) = (row.task_id, row.context_id) else {
+            return Ok(AgentRunUpdates {
+                last_seq: after_seq,
+                finished: true,
+                ..AgentRunUpdates::default()
+            });
+        };
+
+        let mut frames = Vec::new();
+        for event in &events {
+            for update in task_events(run_id, &task_id, &context_id, event) {
+                frames.push(frame(update)?);
+            }
+        }
+        let finished = status.is_terminal() && events.is_empty();
+        let closing = if finished {
+            let state = TaskState::from(status);
+            Some(frame(final_status(&task_id, &context_id, state))?)
+        } else {
+            None
+        };
+        Ok(AgentRunUpdates {
+            frames,
+            last_seq: events.last().map_or(after_seq, |event| event.seq),
+            finished,
+            final_status: closing,
+        })
     }
 }

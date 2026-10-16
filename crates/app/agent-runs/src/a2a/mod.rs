@@ -20,4 +20,4 @@ pub mod state;
 pub mod updates;
 
 pub use content::{AGENT_RUN_ARTIFACT_SOURCE, AGENT_RUN_ARTIFACT_TYPE};
-pub use updates::{TaskUpdate, task_events};
+pub use updates::{TaskUpdate, final_status, task_events};
