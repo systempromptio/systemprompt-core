@@ -8,6 +8,8 @@
 //! reconcile pass. Drift never makes a replica unready.
 //! It also carries `fingerprint`, this replica's configuration fingerprint,
 //! so replicas running different configuration are visible.
+//! A node whose database a newer release has migrated stays ready and says so
+//! with `"schema": "ahead"` and the migrations it does not know.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -80,6 +82,20 @@ pub(crate) async fn handle_readyz(
     );
     if db_ready {
         let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
+        let schema = ctx.schema_install();
+        if schema.is_ahead() {
+            return (
+                StatusCode::OK,
+                Json(json!({
+                    "status": "ready",
+                    "schema": "ahead",
+                    "schema_ahead": schema.ahead,
+                    "instance": instance,
+                    "version": version,
+                    "config": config
+                })),
+            );
+        }
         (
             StatusCode::OK,
             Json(json!({

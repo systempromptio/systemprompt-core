@@ -217,14 +217,22 @@ pub(super) async fn init_extensions(
         let report =
             install_extension_schemas_full(&registry, database.session(), &[], migration_config)
                 .await?;
-        systemprompt_database::mark_schema_changed();
+        if report.is_ahead() {
+            crate::schema_currency::warn_ahead(&report.ahead);
+        } else {
+            systemprompt_database::mark_schema_changed();
+        }
         report
-    } else {
-        if schema.verify {
-            let profile = ProfileBootstrap::get()?;
+    } else if schema.verify {
+        let profile = ProfileBootstrap::get()?;
+        let ahead =
             crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
                 .await?;
+        SchemaInstallReport {
+            ahead,
+            ..SchemaInstallReport::default()
         }
+    } else {
         SchemaInstallReport::default()
     };
 

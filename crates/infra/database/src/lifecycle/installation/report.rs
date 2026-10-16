@@ -33,6 +33,15 @@ pub struct ForeignKeyDrift {
 pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
     pub residue: SchemaResidue,
+    pub ahead: Vec<SchemaAhead>,
+}
+
+/// A ledger row a newer release wrote: the database is ahead of this binary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SchemaAhead {
+    pub extension: ExtensionId,
+    pub version: u32,
+    pub name: String,
 }
 
 impl SchemaInstallReport {
@@ -44,5 +53,10 @@ impl SchemaInstallReport {
     #[must_use]
     pub const fn is_tidy(&self) -> bool {
         self.residue.is_empty()
+    }
+
+    #[must_use]
+    pub const fn is_ahead(&self) -> bool {
+        !self.ahead.is_empty()
     }
 }

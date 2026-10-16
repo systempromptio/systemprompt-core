@@ -17,8 +17,11 @@
 //! defined migration is stamped as applied without running — in the same
 //! transaction as that extension's structural DDL, so the tables and the
 //! baseline claiming them can never be committed apart.
-//! A session-scoped advisory lock serialises concurrent boots. See
-//! `internal/guides/migrations.md`.
+//! A session-scoped advisory lock serialises concurrent boots.
+//! Under that lock the install first checks whether the database is *ahead*
+//! of this binary (see [`current`]): a newer release owns that schema, so an
+//! older binary applies nothing — no declarative DDL, no migrations — and
+//! returns a report carrying the ahead migrations instead.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -72,7 +75,26 @@ pub async fn install_extension_schemas_full(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = run_install(db, &schema_extensions, migration_config).await;
+    let currency = current::schema_currency(db, registry, disabled_extensions).await;
+    let result = match currency {
+        Ok(currency) if currency.is_ahead() => {
+            guard.release().await;
+            return Ok(SchemaInstallReport {
+                ahead: currency
+                    .ahead
+                    .into_iter()
+                    .map(|m| super::report::SchemaAhead {
+                        extension: m.extension_id,
+                        version: m.version,
+                        name: m.name,
+                    })
+                    .collect(),
+                ..SchemaInstallReport::default()
+            });
+        },
+        Ok(_) => run_install(db, &schema_extensions, migration_config).await,
+        Err(e) => Err(e),
+    };
 
     guard.release().await;
 

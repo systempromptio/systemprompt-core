@@ -26,7 +26,7 @@ pub use migration_cost::{
     ExpensiveStatement, HOT_TABLES, MigrationCost, audit_migration_cost, audit_one,
 };
 pub use migration_refs::check_migration_references;
-pub use report::{ForeignKeyDrift, SchemaInstallReport};
+pub use report::{ForeignKeyDrift, SchemaAhead, SchemaInstallReport};
 pub use routine_refs::check_trigger_routines;
 pub use undeclared::{OrphanMigrationLedger, SchemaResidue, UndeclaredTable, audit_schema_residue};
 
