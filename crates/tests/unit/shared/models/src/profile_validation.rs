@@ -161,10 +161,10 @@ mod storage {
 
     #[test]
     fn storage_section_rejects_unknown_backend_and_fields() {
-        let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "s3"}"#)
-            .expect_err("s3 is not a backend");
-        assert!(err.to_string().contains("s3"));
-        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "region": "x"}"#)
+        let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "azure"}"#)
+            .expect_err("azure is not a backend");
+        assert!(err.to_string().contains("azure"));
+        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "zone": "x"}"#)
             .expect_err("unknown field must be rejected");
         let cfg: StorageConfig =
             serde_json::from_str(r#"{"shared": true}"#).expect("shared alone parses");

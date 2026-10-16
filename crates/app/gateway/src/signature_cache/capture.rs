@@ -1,3 +1,8 @@
+//! Counting and reporting signed `tool_use` blocks a response could not cache.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
 use systemprompt_wire::canonical::{CanonicalContent, CanonicalResponse};
 
 use super::{CAPTURE_SKIPPED_TOTAL, ThoughtSignatureCache};

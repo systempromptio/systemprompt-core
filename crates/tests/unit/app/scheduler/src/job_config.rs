@@ -181,12 +181,12 @@ mod scheduler_config_tests {
     }
 
     #[test]
-    fn with_system_admin_has_four_jobs() {
+    fn with_system_admin_has_five_jobs() {
         let cfg = SchedulerConfig::with_system_admin();
         assert_eq!(
             cfg.jobs.len(),
-            4,
-            "expected 4 default jobs, got {}",
+            5,
+            "expected 5 default jobs, got {}",
             cfg.jobs.len()
         );
     }

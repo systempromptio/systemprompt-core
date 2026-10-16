@@ -156,7 +156,8 @@ impl<'a> PlaneContext<'a> {
 /// declaration (a following [`ConfigPlane::read_current`] diffs clean): the
 /// host re-reads after every correction and reports a plane whose apply did
 /// not converge as failed rather than corrected. The host inserts `DbPool`
-/// into the context's dependencies.
+/// into the context's dependencies. Planes are held as `Arc<dyn ConfigPlane>`,
+/// and native `async fn` in traits is not `dyn`-compatible.
 #[async_trait]
 pub trait ConfigPlane: Send + Sync {
     fn name(&self) -> &'static str;
