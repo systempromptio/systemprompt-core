@@ -99,7 +99,11 @@ async fn send_frame(
         &response,
         StreamResponse::StatusUpdate(event) if event.status.state.is_terminal()
     );
-    if tx.send(stream_response_event(response, request_id)).await.is_err() {
+    if tx
+        .send(stream_response_event(response, request_id))
+        .await
+        .is_err()
+    {
         return Sent::Closed;
     }
     if terminal { Sent::Terminal } else { Sent::Open }

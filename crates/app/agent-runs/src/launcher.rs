@@ -29,8 +29,7 @@ use crate::request::RunRequest;
 const UPDATE_PAGE: i64 = 200;
 
 fn frame(update: TaskUpdate) -> Result<serde_json::Value, AgentRunLaunchError> {
-    serde_json::to_value(update.into_stream_response())
-        .map_err(AgentRunLaunchError::unavailable)
+    serde_json::to_value(update.into_stream_response()).map_err(AgentRunLaunchError::unavailable)
 }
 
 #[derive(Debug, Clone)]

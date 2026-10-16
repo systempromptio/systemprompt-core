@@ -13,8 +13,8 @@ use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
-use crate::models::a2a::{StreamResponse, Task};
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::{StreamResponse, Task};
 use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::streaming::{
