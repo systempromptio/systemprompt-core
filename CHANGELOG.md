@@ -9,6 +9,7 @@
 - **Breaking:** `FileStorage::retrieve` is replaced by `FileStorage::open(id, range)`, which returns metadata and a byte stream, and `StoredFileMetadata` gains `etag`. Migrate by calling `open(id, None)` and collecting the stream.
 - **Breaking:** `ExtensionContext` requires `file_storage()` and `instance_id()`. Migrate custom implementations by returning the host's storage backend and replica id.
 - **Breaking:** `ApiKeyService::new` and `RunCredentialService::new` take an `ApiKeyLifetime`, and `UserRepository::insert_service_account` is replaced by the idempotent `ensure_service_account`.
+- **Breaking:** a profile with `storage.shared: true` must set `paths.data`, the per-node directory for the gateway journal and scratch state. Migrate by mounting a node-local volume and pointing `paths.data` at it.
 - **Breaking:** `bind_and_serve` takes a `ShutdownConfig`, and `SchedulerConfig` gains `unlisted_jobs`; struct literals must name the new fields.
 
 ### Added
@@ -27,6 +28,11 @@
 - **CLI:** `infra jobs run` takes the scheduler's per-job lock for cluster jobs, with `--lock-wait-secs` to wait for it.
 - **Observability:** `observability.log_format: json` writes JSON log lines, an inbound W3C `traceparent` sets the trace id and is propagated to providers, and `secrets.refresh_secs` reloads a `file` secrets source on every replica.
 - **Metrics:** `gateway_phase_seconds`, `gateway_streams_in_flight`, `db_pool_acquire_seconds`, `scheduler_job_runs_total`, `scheduler_job_duration_seconds`, `projection_backlog_depth`, `gateway_journal_receipts` and `systemprompt_config_info` (a per-replica configuration fingerprint, also on `/readyz`).
+
+- **Gateway:** policies accept `rate_windows: [{ window_seconds, subject: user | api_key, max_requests }]`, counted across replicas and refused with `429` and `Retry-After` under `warn` and `enforce`.
+- **Database:** a migration headed `-- @compat: breaking` is a contract migration; an older binary refuses to start against it, and `infra db migrate-plan --require-rolling-safe` fails a batch that contains one.
+- **CLI:** `admin config validate --strict` fails when a registered job has no `scheduler.jobs` entry.
+- **Gateway:** when the drain window expires, each open stream ends with one error event in its wire format and `gateway_streams_aborted_on_shutdown_total` counts it.
 
 ### Changed
 
