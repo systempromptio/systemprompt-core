@@ -305,6 +305,9 @@ mod profile_validation;
 mod profile_storage_gcs;
 
 #[cfg(test)]
+mod profile_storage_s3;
+
+#[cfg(test)]
 mod auth_claims;
 
 #[cfg(test)]

@@ -147,7 +147,7 @@ fn local_refuses_every_gcs_key() {
         let mut p = valid_profile();
         p.storage = storage;
         assert!(
-            errors_of(&p).contains(&format!("storage.{key} applies to backend 'gcs' only")),
+            errors_of(&p).contains(&format!("storage.{key} applies to backends 'gcs' and 's3' only")),
             "{key}"
         );
     }

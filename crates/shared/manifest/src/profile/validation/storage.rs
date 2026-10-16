@@ -1,10 +1,10 @@
-//! `storage:` validation: backend-specific keys and the GCS bucket/prefix
-//! shape.
+//! `storage:` validation: backend-specific keys and the object-store
+//! bucket/prefix shape.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::super::{Profile, StorageBackend};
+use super::super::{GcsCredentials, Profile, StorageBackend, StorageConfig};
 
 impl Profile {
     pub(crate) fn validate_storage(&self, errors: &mut Vec<String>) {
@@ -22,46 +22,94 @@ impl Profile {
                 ] {
                     if set {
                         errors.push(format!(
-                            "storage.{key} applies to backend 'gcs' only; remove it or set \
-                             storage.backend: gcs"
+                            "storage.{key} applies to backends 'gcs' and 's3' only; remove it \
+                             or set storage.backend"
                         ));
                     }
                 }
+                reject_s3_keys(storage, "local", errors);
             },
             StorageBackend::Gcs => {
-                match storage.bucket.as_deref() {
-                    None | Some("") => {
-                        errors.push("storage.backend 'gcs' requires storage.bucket".to_owned());
-                    },
-                    Some(bucket) if !is_bucket_name(bucket) => errors.push(format!(
-                        "storage.bucket '{bucket}' is not a valid Cloud Storage bucket name \
-                         (3-222 chars of a-z, 0-9, '.', '_', '-', starting and ending with a \
-                         letter or digit)"
-                    )),
-                    Some(_) => {},
-                }
-                if let Some(prefix) = storage.prefix.as_deref()
-                    && !is_object_prefix(prefix)
-                {
-                    errors.push(format!(
-                        "storage.prefix '{prefix}' must be non-empty, must not start or end \
-                         with '/', and must not contain empty, '.' or '..' segments"
-                    ));
-                }
-                if storage.shared {
+                validate_object_store(storage, "gcs", errors);
+                reject_s3_keys(storage, "gcs", errors);
+            },
+            StorageBackend::S3 => {
+                validate_object_store(storage, "s3", errors);
+                if !matches!(storage.credentials, Some(GcsCredentials::Secret(_))) {
                     errors.push(
-                        "storage.shared applies to backend 'local' only; a bucket is shared by \
-                         every replica"
+                        "storage.backend 's3' requires storage.credentials: { secret: NAME }"
                             .to_owned(),
                     );
                 }
-                if let Some(super::super::GcsCredentials::Secret(name)) = &storage.credentials
-                    && name.as_str().trim().is_empty()
+                if let Some(endpoint) = storage.endpoint.as_deref()
+                    && !(endpoint.starts_with("https://") || endpoint.starts_with("http://"))
                 {
-                    errors.push("storage.credentials.secret must name a secret".to_owned());
+                    errors.push(format!(
+                        "storage.endpoint '{endpoint}' must be an http:// or https:// URL"
+                    ));
+                }
+                if storage
+                    .region
+                    .as_deref()
+                    .is_some_and(|r| r.trim().is_empty())
+                {
+                    errors.push("storage.region must not be empty".to_owned());
                 }
             },
         }
+    }
+}
+
+fn reject_s3_keys(storage: &StorageConfig, backend: &str, errors: &mut Vec<String>) {
+    for (key, set) in [
+        ("endpoint", storage.endpoint.is_some()),
+        ("region", storage.region.is_some()),
+        ("path_style", storage.path_style),
+    ] {
+        if set {
+            errors.push(format!(
+                "storage.{key} applies to backend 's3' only, not '{backend}'"
+            ));
+        }
+    }
+}
+
+fn validate_object_store(storage: &StorageConfig, backend: &str, errors: &mut Vec<String>) {
+    match storage.bucket.as_deref() {
+        None | Some("") => {
+            errors.push(format!(
+                "storage.backend '{backend}' requires storage.bucket"
+            ));
+        },
+        Some(bucket) if !is_bucket_name(bucket) => errors.push(format!(
+            "storage.bucket '{bucket}' is not a valid {} bucket name (3-222 chars of a-z, 0-9, \
+             '.', '_', '-', starting and ending with a letter or digit)",
+            if backend == "gcs" {
+                "Cloud Storage"
+            } else {
+                "S3"
+            }
+        )),
+        Some(_) => {},
+    }
+    if let Some(prefix) = storage.prefix.as_deref()
+        && !is_object_prefix(prefix)
+    {
+        errors.push(format!(
+            "storage.prefix '{prefix}' must be non-empty, must not start or end with '/', and \
+             must not contain empty, '.' or '..' segments"
+        ));
+    }
+    if storage.shared {
+        errors.push(
+            "storage.shared applies to backend 'local' only; a bucket is shared by every replica"
+                .to_owned(),
+        );
+    }
+    if let Some(GcsCredentials::Secret(name)) = &storage.credentials
+        && name.as_str().trim().is_empty()
+    {
+        errors.push("storage.credentials.secret must name a secret".to_owned());
     }
 }
 

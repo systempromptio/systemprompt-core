@@ -130,15 +130,18 @@ pub enum RuntimeError {
     #[error("storage.credentials names secret '{name}', which the secrets store does not hold")]
     StorageCredentialMissing { name: SecretName },
 
-    #[error("storage.credentials secret '{name}' is not a service-account key: {source}")]
+    #[error("storage.credentials secret '{name}' does not hold the backend's credential: {source}")]
     StorageCredential {
         name: SecretName,
         #[source]
         source: serde_json::Error,
     },
 
-    #[error("storage.backend 'gcs' requires storage.bucket")]
+    #[error("storage backend requires storage.bucket")]
     StorageBucketMissing,
+
+    #[error("storage.backend 's3' requires storage.credentials: {{ secret: NAME }}")]
+    StorageS3CredentialsRequired,
 
     #[error("storage endpoint: {0}")]
     StorageEndpoint(#[source] url::ParseError),
