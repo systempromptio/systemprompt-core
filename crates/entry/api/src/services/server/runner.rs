@@ -77,10 +77,19 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
+    let timings = ctx.config().shutdown;
+    tracing::info!(
+        pre_stop_delay_secs = timings.pre_stop_delay_secs,
+        drain_grace_secs = timings.drain_grace_secs,
+        forced_exit_grace_secs = timings.forced_exit_grace_secs,
+        total_budget_secs = timings.total_budget().as_secs(),
+        "Shutdown budget; the orchestrator's termination grace must cover the total"
+    );
     let restart = ctx.shutdown_request().clone();
-    let serve_result = super::shutdown::join_within_drain_grace(early.join(), &restart).await;
+    let serve_result =
+        super::shutdown::join_within_drain_grace(early.join(), &restart, &timings).await;
 
-    let forced_exit = super::shutdown::arm_forced_exit(restart);
+    let forced_exit = super::shutdown::arm_forced_exit(restart, timings);
     if let Some(listener) = metrics_listener
         && listener.abort_and_join().await.is_some()
     {

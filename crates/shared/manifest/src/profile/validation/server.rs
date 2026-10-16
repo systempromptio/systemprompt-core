@@ -1,4 +1,4 @@
-//! `server` replica-identity and capacity checks.
+//! `server` replica-identity, capacity and shutdown-window checks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,5 +15,9 @@ impl Profile {
                     .to_owned(),
             );
         }
+    }
+
+    pub(crate) fn validate_shutdown(&self, errors: &mut Vec<String>) {
+        errors.extend(self.server.shutdown.validation_errors());
     }
 }

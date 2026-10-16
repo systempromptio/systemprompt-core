@@ -27,6 +27,7 @@ fn install_test_config() {
             max_concurrent_streams: 256,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: String::new(),

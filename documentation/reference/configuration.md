@@ -79,6 +79,19 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
 | `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
+| `shutdown` | object | no | see below | Shutdown deadlines. |
+
+### `server.shutdown`
+
+`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs `pre_stop_delay_secs + drain_grace_secs + forced_exit_grace_secs` at boot; an orchestrator's termination grace must exceed it.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `pre_stop_delay_secs` | u64 | no | `0` | After the termination signal `/readyz` answers `503 draining` while the listener keeps accepting for this long, so endpoints can update before connections are refused. At most `600`. |
+| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. |
+| `child_grace_secs` | u64 | no | `5` | How long MCP and agent children get to exit after their signal. Greater than `0`. |
+| `background_grace_secs` | u64 | no | `5` | How long owned background work, including the final gateway journal settlement, gets to finish. Greater than `0`. |
+| `forced_exit_grace_secs` | u64 | no | `10` | Backstop armed after the drain; the process exits non-zero when it fires. Must exceed `child_grace_secs` and `background_grace_secs`. |
 
 ### `server.content_negotiation`
 

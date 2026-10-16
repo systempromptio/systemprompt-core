@@ -136,6 +136,7 @@ fn build_config(
         max_concurrent_streams: profile.server.max_concurrent_streams,
         role: profile.server.role,
         max_in_flight: profile.server.max_in_flight,
+        shutdown: profile.server.shutdown,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),
         database_url: secrets.database_url.clone(),

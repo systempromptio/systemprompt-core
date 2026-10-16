@@ -132,6 +132,7 @@ fn local_server_config(local_url: String) -> ServerConfig {
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: systemprompt_manifest::profile::NodeRole::All,
         max_in_flight: None,
+        shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
         trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
     }
 }

@@ -17,6 +17,7 @@ fn cfg_without_geoip() -> Config {
         max_concurrent_streams: 16,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         sitename: "t".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x/y".to_string(),

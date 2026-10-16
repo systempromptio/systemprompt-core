@@ -25,6 +25,7 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
         "127.0.0.1:0",
         None,
         systemprompt_runtime::ShutdownRequest::default(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
     )
     .await?;
     let base = format!("http://{}", early.local_addr());
@@ -236,6 +237,7 @@ settings:
             "127.0.0.1:0",
             None,
             systemprompt_runtime::ShutdownRequest::default(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         )
         .await?;
 
@@ -275,6 +277,7 @@ settings:
             "127.0.0.1:0",
             None,
             systemprompt_runtime::ShutdownRequest::default(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         )
         .await?;
 
@@ -374,6 +377,7 @@ settings:
             "127.0.0.1:0",
             None,
             systemprompt_runtime::ShutdownRequest::default(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         )
         .await?;
 
@@ -407,6 +411,7 @@ settings:
             "127.0.0.1:0",
             None,
             systemprompt_runtime::ShutdownRequest::default(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
         )
         .await?;
 

@@ -58,6 +58,9 @@ pub struct ServerConfig {
     )]
     #[schemars(with = "Vec<String>")]
     pub trusted_proxies: Vec<IpNet>,
+
+    #[serde(default)]
+    pub shutdown: super::ShutdownConfig,
 }
 
 #[derive(Debug, thiserror::Error)]

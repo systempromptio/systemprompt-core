@@ -95,6 +95,8 @@ mod profile_judge;
 mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;
+#[cfg(test)]
+mod profile_server_shutdown;
 
 #[cfg(test)]
 mod oci_reference;

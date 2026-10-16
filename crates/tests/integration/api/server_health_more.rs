@@ -17,6 +17,7 @@ use systemprompt_api::services::server::lifecycle::reconciliation::cleanup_stale
 use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use tower::ServiceExt;
@@ -153,7 +154,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
 /// the other's grace window and make the pair flaky.
 #[tokio::test(start_paused = true)]
 async fn drain_grace_bounds_the_drain_and_not_the_server() {
-    let grace = Duration::from_millis(shutdown::AXUM_DRAIN_GRACE_MS);
+    let grace = ShutdownConfig::default().drain_grace();
 
     // Never signalled: the guard must not be a deadline on healthy serving.
     let unsignalled = tokio::time::timeout(
@@ -161,6 +162,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
+            &ShutdownConfig::default(),
         ),
     )
     .await;
@@ -176,6 +178,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
+            &ShutdownConfig::default(),
         )
         .await
     });
@@ -194,13 +197,18 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
 
 #[tokio::test(start_paused = true)]
 async fn drain_grace_leaves_room_for_child_termination() {
+    let timings = ShutdownConfig::default();
     assert!(
-        shutdown::AXUM_DRAIN_GRACE_MS > shutdown::CHILD_SHUTDOWN_GRACE_MS,
-        "a drain that consumes the whole budget would strand every child"
+        timings.forced_exit_grace() > timings.child_grace(),
+        "a backstop that fires before the child grace would strand every child"
     );
 
-    let served =
-        shutdown::join_within_drain_grace(async { Ok(()) }, &ShutdownRequest::default()).await;
+    let served = shutdown::join_within_drain_grace(
+        async { Ok(()) },
+        &ShutdownRequest::default(),
+        &ShutdownConfig::default(),
+    )
+    .await;
     assert!(served.is_ok(), "a clean drain returns the serve result");
 }
 

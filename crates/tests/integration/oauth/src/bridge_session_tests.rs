@@ -36,6 +36,7 @@ fn test_config() -> Config {
         max_concurrent_streams: 256,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url,

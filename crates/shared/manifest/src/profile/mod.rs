@@ -30,6 +30,7 @@ mod secrets;
 mod security;
 mod server;
 mod services;
+mod shutdown;
 mod site;
 mod storage;
 mod style;
@@ -73,6 +74,7 @@ pub use services::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,
     ServicesProfileConfig, ServicesSource,
 };
+pub use shutdown::{MAX_DRAIN_GRACE_SECS, MAX_PRE_STOP_DELAY_SECS, ShutdownConfig};
 pub use site::SiteConfig;
 pub use storage::{GcsCredentials, StorageBackend, StorageConfig};
 pub use style::ProfileStyle;

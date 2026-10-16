@@ -47,6 +47,7 @@ fn profile_with_services(services: &Path) -> Profile {
             max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {

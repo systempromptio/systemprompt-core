@@ -68,6 +68,7 @@ async fn early_server_swaps_full_router_on_same_listener() {
         "127.0.0.1:0",
         None,
         systemprompt_runtime::ShutdownRequest::default(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
     )
     .await
     .expect("bind");

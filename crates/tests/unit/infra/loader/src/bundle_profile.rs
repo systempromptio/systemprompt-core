@@ -69,6 +69,7 @@ pub fn profile(
             max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },
         paths: PathsConfig {
