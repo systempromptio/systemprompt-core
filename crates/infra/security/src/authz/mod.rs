@@ -43,6 +43,7 @@ pub mod registry;
 pub mod repository;
 pub mod resolver;
 pub mod rule_based;
+mod rule_based_cache;
 pub mod runtime;
 pub mod scope_binding;
 pub mod subject;

@@ -13,6 +13,7 @@ pub mod attribution;
 pub mod authz;
 pub mod headers;
 pub mod scope;
+pub mod signatures;
 
 use axum::body::Body;
 use axum::extract::Request;
@@ -149,11 +150,8 @@ pub(super) async fn extract_request_context(
     )?;
     let route = resolve_route(rc, gateway_config, &gateway_request, partial)?;
     scope::enforce_key_model_allowlist(&principal, gateway_request.model.as_str())?;
-    let wire = rc
-        .services
-        .providers
-        .find_provider(route.provider.as_str())
-        .map(|p| p.wire);
+    let signatures_required =
+        signatures::route_needs_thought_signatures(&rc.services.providers, &route);
     ensure_owned_context(rc, principal.user_id(), &context_id, &session_id).await?;
     rc.repos
         .thought_signatures
@@ -161,7 +159,7 @@ pub(super) async fn extract_request_context(
             principal.user_id(),
             &gateway_conversation_id,
             &mut gateway_request,
-            wire,
+            signatures_required,
         )
         .await;
 

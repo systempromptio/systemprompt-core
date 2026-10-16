@@ -20,9 +20,13 @@
 //! signature. A miss on both tiers is a real failure mode: `thought_signature`
 //! is omitted from the outbound wire when absent, and Gemini then rejects the
 //! turn — so misses are counted under `gateway_signature_hydration_total` and
-//! warned, but only when the resolved upstream is [`WireProtocol::Gemini`];
-//! for every other wire the absent signature is expected and carries no
-//! signal.
+//! warned.
+//!
+//! Hydration only runs when the caller says signatures are required, i.e. a
+//! deployment the request may be served by speaks the Gemini wire; for every
+//! other route the absent signature is expected, so no lookup is made. The
+//! unsigned `tool_use` ids the local tier misses are fetched in one statement,
+//! and a client-echoed signature already held locally is not re-written.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,7 +38,6 @@ use std::time::{Duration, Instant};
 use systemprompt_ai::repository::AiThoughtSignatureRepository;
 use systemprompt_ai::repository::thought_signatures::ThoughtSignatureWrite;
 use systemprompt_identifiers::{GatewayConversationId, UserId};
-use systemprompt_wire::WireProtocol;
 use systemprompt_wire::canonical::{CanonicalContent, CanonicalRequest, CanonicalResponse};
 
 pub const TTL: Duration = Duration::from_hours(1);
@@ -191,39 +194,78 @@ impl ThoughtSignatureCache {
         user_id: &UserId,
         conversation: &GatewayConversationId,
         request: &mut CanonicalRequest,
-        wire: Option<WireProtocol>,
+        signatures_required: bool,
     ) {
-        let model = request.model.clone();
-        let signatures_required = wire == Some(WireProtocol::Gemini);
-        for message in &mut request.messages {
-            for content in &mut message.content {
-                let CanonicalContent::ToolUse { id, signature, .. } = content else {
-                    continue;
-                };
-                match signature {
-                    Some(sig) => self.store(user_id, conversation, id, sig).await,
-                    None => match self.lookup(user_id, conversation, id).await {
-                        Some(cached) => {
-                            *signature = Some(cached);
-                            if signatures_required {
-                                metrics::counter!(HYDRATION_TOTAL, "outcome" => "hit").increment(1);
-                            }
-                        },
-                        None => {
-                            if signatures_required {
-                                metrics::counter!(HYDRATION_TOTAL, "outcome" => "miss")
-                                    .increment(1);
-                                tracing::warn!(
-                                    conversation = %conversation,
-                                    tool_use_id = %id,
-                                    model = %model,
-                                    "no cached thought signature for tool_use; upstream may reject the turn"
-                                );
-                            }
-                        },
-                    },
-                }
+        if !signatures_required {
+            return;
+        }
+        let mut missing: Vec<String> = Vec::new();
+        for content in request.messages.iter().flat_map(|m| &m.content) {
+            let CanonicalContent::ToolUse { id, signature, .. } = content else {
+                continue;
+            };
+            let key = (user_id.clone(), conversation.clone(), id.clone());
+            let local = self.lookup_local(&key);
+            match signature {
+                Some(sig) if local.as_deref() != Some(sig.as_str()) => {
+                    self.store(user_id, conversation, id, sig).await;
+                },
+                None if local.is_none() => missing.push(id.clone()),
+                Some(_) | None => {},
             }
+        }
+        self.load_persisted(user_id, conversation, &missing).await;
+        let model = request.model.clone();
+        for content in request
+            .messages
+            .iter_mut()
+            .flat_map(|m| m.content.iter_mut())
+        {
+            let CanonicalContent::ToolUse { id, signature, .. } = content else {
+                continue;
+            };
+            if signature.is_some() {
+                continue;
+            }
+            let key = (user_id.clone(), conversation.clone(), id.clone());
+            if let Some(cached) = self.lookup_local(&key) {
+                *signature = Some(cached);
+                metrics::counter!(HYDRATION_TOTAL, "outcome" => "hit").increment(1);
+            } else {
+                metrics::counter!(HYDRATION_TOTAL, "outcome" => "miss").increment(1);
+                tracing::warn!(
+                    conversation = %conversation,
+                    tool_use_id = %id,
+                    model = %model,
+                    "no cached thought signature for tool_use; upstream may reject the turn"
+                );
+            }
+        }
+    }
+
+    async fn load_persisted(
+        &self,
+        user_id: &UserId,
+        conversation: &GatewayConversationId,
+        tool_use_ids: &[String],
+    ) {
+        match self
+            .repository
+            .find_many(user_id, conversation, tool_use_ids, self.ttl)
+            .await
+        {
+            Ok(found) => {
+                for (tool_use_id, signature) in found {
+                    let key = (user_id.clone(), conversation.clone(), tool_use_id);
+                    self.store_local(key, &signature);
+                }
+            },
+            Err(e) => tracing::warn!(
+                conversation = %conversation,
+                tool_use_ids = tool_use_ids.len(),
+                error = %e,
+                "thought signature lookup failed"
+            ),
         }
     }
 

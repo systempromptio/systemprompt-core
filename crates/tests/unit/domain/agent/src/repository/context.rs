@@ -452,3 +452,55 @@ async fn stored_session(
     .await
     .expect("read session")
 }
+
+async fn row_version(pool: &systemprompt_database::DbPool, context_id: &ContextId) -> String {
+    sqlx::query_scalar::<_, String>("SELECT xmin::text FROM user_contexts WHERE context_id = $1")
+        .bind(context_id.as_str())
+        .fetch_one(pool.write_pool().as_ref())
+        .await
+        .expect("row version")
+}
+
+#[tokio::test]
+async fn a_repeat_ensure_within_the_touch_interval_writes_nothing() {
+    let pool = test_db_pool().await;
+    let (user_id, session_id) = seed_user_and_session(&pool).await;
+    let repo = ctx_repo(&pool).await;
+    let context_id = ContextId::derived_from_session(&session_id);
+    let params = systemprompt_traits::EnsureContextParams {
+        context_id: &context_id,
+        user_id: &user_id,
+        session_id: Some(&session_id),
+        name: "derived-name",
+        kind: ContextKind::Session.as_str(),
+    };
+    repo.ensure_context(&params, ContextKind::Session)
+        .await
+        .expect("first ensure");
+    let version_before = row_version(&pool, &context_id).await;
+
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    repo.ensure_context(&params, ContextKind::Session)
+        .await
+        .expect("repeat ensure");
+    assert_eq!(
+        row_version(&pool, &context_id).await,
+        version_before,
+        "a fresh owned context must not be rewritten on every turn"
+    );
+
+    sqlx::query(
+        "UPDATE user_contexts SET updated_at = updated_at - INTERVAL '5 minutes', \
+         message_count = message_count + 1 WHERE context_id = $1",
+    )
+    .bind(context_id.as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("backdate");
+    let stale = repo.get_context(&context_id, &user_id).await.expect("get");
+    repo.ensure_context(&params, ContextKind::Session)
+        .await
+        .expect("stale ensure");
+    let touched = repo.get_context(&context_id, &user_id).await.expect("get");
+    assert!(touched.updated_at > stale.updated_at);
+}

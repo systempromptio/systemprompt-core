@@ -32,6 +32,7 @@ mod gateway_messages_auth;
 mod gateway_messages_authenticate;
 mod gateway_messages_dispatch_errors;
 mod gateway_messages_extract;
+mod gateway_messages_signatures;
 mod gateway_otel_convert;
 mod gateway_otel_ingest;
 mod gateway_scope_header_only;

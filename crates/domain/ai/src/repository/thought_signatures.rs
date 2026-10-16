@@ -9,6 +9,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
@@ -91,6 +92,39 @@ impl AiThoughtSignatureRepository {
         .fetch_optional(&*self.write_pool)
         .await?;
         Ok(row)
+    }
+
+    pub async fn find_many(
+        &self,
+        user_id: &UserId,
+        conversation: &GatewayConversationId,
+        tool_use_ids: &[String],
+        ttl: Duration,
+    ) -> Result<HashMap<String, String>, RepositoryError> {
+        if tool_use_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"
+            UPDATE ai_gateway_thought_signatures
+            SET expires_at = NOW() + make_interval(secs => $3)
+            WHERE conversation_id = $1
+              AND tool_use_id = ANY($2)
+              AND user_id = $4
+              AND expires_at > NOW()
+            RETURNING tool_use_id, signature
+            "#,
+            conversation.as_str(),
+            tool_use_ids,
+            ttl.as_secs_f64(),
+            user_id.as_str(),
+        )
+        .fetch_all(&*self.write_pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| (row.tool_use_id, row.signature))
+            .collect())
     }
 
     pub async fn cleanup_expired(&self) -> Result<u64, RepositoryError> {
