@@ -42,10 +42,13 @@ pub async fn create_session(
         ));
     }
 
-    let record = ApiKeyService::new(Arc::clone(ctx.user_repository()))
-        .verify(&presented)
-        .await?
-        .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
+    let record = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    )
+    .verify(&presented)
+    .await?
+    .ok_or_else(|| ApiHttpError::unauthorized("Invalid or revoked API key"))?;
 
     let analytics = ctx
         .analytics_provider()

@@ -69,6 +69,7 @@ fn install_test_config() {
             security_headers: Default::default(),
             allow_registration: false,
             allow_dynamic_client_registration: true,
+            api_key_max_lifetime_days: None,
             login_page_url: None,
             system_admin_username: "admin".to_owned(),
             system_admin_email: None,

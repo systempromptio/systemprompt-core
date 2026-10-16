@@ -15,7 +15,9 @@ use std::sync::Arc;
 use systemprompt_oauth::OAuthRepository;
 use systemprompt_oauth::services::SessionCreationService;
 use systemprompt_traits::{SessionProvider, UserProvider};
-use systemprompt_users::{ApiKeyService, SessionRepository, UserRepository, UserService};
+use systemprompt_users::{
+    ApiKeyLifetime, ApiKeyService, SessionRepository, UserRepository, UserService,
+};
 
 use super::hook_token::{HookTokenRequest, mint_hook_token, revoke_hook_token};
 use super::mcp_token::{McpTokenRequest, mint_mcp_token};
@@ -45,7 +47,11 @@ impl std::fmt::Debug for RunCredentialService {
 }
 
 impl RunCredentialService {
-    pub fn new(repos: RunCredentialRepositories, issuer: impl Into<String>) -> Self {
+    pub fn new(
+        repos: RunCredentialRepositories,
+        issuer: impl Into<String>,
+        lifetime: ApiKeyLifetime,
+    ) -> Self {
         let RunCredentialRepositories {
             users,
             sessions,
@@ -54,7 +60,7 @@ impl RunCredentialService {
         let session_provider: Arc<dyn SessionProvider> = Arc::new(sessions.clone());
         let user_provider: Arc<dyn UserProvider> = Arc::new(UserService::new(Arc::clone(&users)));
         Self {
-            keys: ApiKeyService::new(Arc::clone(&users)),
+            keys: ApiKeyService::new(Arc::clone(&users), lifetime),
             sessions,
             creator: SessionCreationService::new(session_provider, Arc::clone(&user_provider)),
             user_provider,

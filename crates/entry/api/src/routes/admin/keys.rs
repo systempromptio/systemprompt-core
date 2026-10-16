@@ -100,7 +100,10 @@ async fn issue_key(
         .verify_scope_bindings(&target_user, &body.scopes)
         .await?;
     }
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
 
     let issued = service
         .issue(IssueApiKeyParams {
@@ -132,7 +135,10 @@ async fn list_keys(
     State(ctx): State<AppContext>,
     Extension(req_ctx): Extension<RequestContext>,
 ) -> Result<Json<Vec<ApiKeyView>>, ApiHttpError> {
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
 
     let keys = service.list_for_user(req_ctx.user_id()).await?;
 
@@ -144,7 +150,10 @@ async fn revoke_key(
     Extension(req_ctx): Extension<RequestContext>,
     Path(key_id): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
 
     let id = ApiKeyId::try_new(key_id).map_err(ApiError::from)?;
     let revoked = service.revoke(&id, req_ctx.user_id()).await?;

@@ -89,6 +89,7 @@ pub fn profile(
             allowed_resource_audiences: default_resource_audiences(),
             allow_registration: true,
             allow_dynamic_client_registration: true,
+            api_keys: Default::default(),
             login_page_url: None,
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

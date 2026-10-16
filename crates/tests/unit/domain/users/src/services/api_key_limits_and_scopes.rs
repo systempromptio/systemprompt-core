@@ -21,7 +21,10 @@ async fn setup(prefix: &str) -> Ctx {
     let email = format!("{prefix}-{}@limits.invalid", Uuid::new_v4().simple());
     seed_user_row(&pool, &user_id, &email).await.expect("user");
     Ctx {
-        service: ApiKeyService::new(Arc::new(UserRepository::new(&pool))),
+        service: ApiKeyService::new(
+            Arc::new(UserRepository::new(&pool)),
+            systemprompt_users::ApiKeyLifetime::unbounded(),
+        ),
         repo: UserRepository::new(&pool),
         pool,
         user_id,

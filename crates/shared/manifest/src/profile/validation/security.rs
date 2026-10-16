@@ -18,6 +18,14 @@ impl Profile {
             errors.push("Security refresh_token_expiration must be positive".to_owned());
         }
 
+        if self.security.api_keys.max_lifetime_days == Some(0) {
+            errors.push(
+                "security.api_keys.max_lifetime_days must be greater than 0, or omitted for no \
+                 ceiling"
+                    .to_owned(),
+            );
+        }
+
         if !self
             .security
             .audiences

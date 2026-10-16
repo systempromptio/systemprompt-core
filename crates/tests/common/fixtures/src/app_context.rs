@@ -105,6 +105,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
         allow_dynamic_client_registration: true,
+        api_key_max_lifetime_days: None,
         login_page_url: None,
     }
 }

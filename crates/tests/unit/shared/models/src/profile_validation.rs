@@ -55,6 +55,7 @@ fn security_config() -> SecurityConfig {
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
         allow_dynamic_client_registration: true,
+        api_keys: Default::default(),
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
@@ -243,6 +244,29 @@ mod security_settings {
         let mut p = valid_profile();
         p.security.refresh_token_expiration = -1;
         assert!(errors_of(&p).contains("refresh_token_expiration must be positive"));
+    }
+
+    #[test]
+    fn zero_api_key_max_lifetime_rejected() {
+        let mut p = valid_profile();
+        p.security.api_keys.max_lifetime_days = Some(0);
+        assert!(errors_of(&p).contains("api_keys.max_lifetime_days must be greater than 0"));
+    }
+
+    #[test]
+    fn positive_api_key_max_lifetime_accepted() {
+        let mut p = valid_profile();
+        p.security.api_keys.max_lifetime_days = Some(90);
+        assert!(!errors_of(&p).contains("max_lifetime_days"));
+    }
+
+    #[test]
+    fn registration_flags_default_closed() {
+        let yaml = "jwt_issuer: https://issuer.test\njwt_access_token_expiration: 3600\njwt_refresh_token_expiration: 86400\njwt_audiences: [api]\n";
+        let security: SecurityConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(!security.allow_registration);
+        assert!(!security.allow_dynamic_client_registration);
+        assert_eq!(security.api_keys.max_lifetime_days, None);
     }
 
     #[test]

@@ -149,7 +149,10 @@ async fn authenticate_api_key(
     session_id: &SessionId,
     ctx: &AppContext,
 ) -> Result<AuthedPrincipal, RejectionError> {
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
     let record = service.verify(credential).await.map_err(|e| {
         RejectionError::server(
             StatusCode::INTERNAL_SERVER_ERROR,

@@ -36,6 +36,7 @@ mod admin_users_ban_dispatcher_db;
 mod admin_users_delete_preview_lifecycle;
 mod admin_users_dispatcher_db;
 mod admin_users_merge_atomic_db;
+mod admin_users_provisioning_db;
 mod admin_users_role_session_db;
 mod admin_users_session_end_db;
 mod admin_users_show_db;

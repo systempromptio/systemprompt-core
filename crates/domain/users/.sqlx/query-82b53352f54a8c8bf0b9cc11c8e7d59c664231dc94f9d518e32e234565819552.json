@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO users (\n                id, name, email, display_name, status, email_verified, roles, is_bot,\n                account_kind, created_at, updated_at\n            )\n            VALUES ($1, $2, $3, $2, $4, true, ARRAY[$5]::TEXT[], false, $6, $7, $7)\n            RETURNING id, name, email, full_name, display_name, status, email_verified,\n                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind\n            ",
+  "query": "\n            INSERT INTO users (\n                id, name, email, display_name, status, email_verified, roles, is_bot,\n                account_kind, created_at, updated_at\n            )\n            VALUES ($1, $2, $3, $2, $4, true, ARRAY[$5]::TEXT[], false, $6, $7, $7)\n            ON CONFLICT (email) DO NOTHING\n            RETURNING id, name, email, full_name, display_name, status, email_verified,\n                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind\n            ",
   "describe": {
     "columns": [
       {
@@ -186,5 +186,5 @@
       false
     ]
   },
-  "hash": "b5cd14d5f6c0d7b695e2b8bc53bb9d35f1e9b012e0699886f9c724fb6b0d3941"
+  "hash": "82b53352f54a8c8bf0b9cc11c8e7d59c664231dc94f9d518e32e234565819552"
 }

@@ -370,7 +370,10 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey@example.invalid").await?;
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,
@@ -400,7 +403,10 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey-forged@example.invalid").await?;
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,

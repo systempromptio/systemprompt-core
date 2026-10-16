@@ -104,6 +104,7 @@ pub struct Config {
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
     pub allow_dynamic_client_registration: bool,
+    pub api_key_max_lifetime_days: Option<u32>,
     pub login_page_url: Option<String>,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
@@ -175,6 +176,7 @@ impl std::fmt::Debug for Config {
                 "allow_dynamic_client_registration",
                 &self.allow_dynamic_client_registration,
             )
+            .field("api_key_max_lifetime_days", &self.api_key_max_lifetime_days)
             .field("login_page_url", &self.login_page_url)
             .field("system_admin_username", &self.system_admin_username)
             .field("system_admin_email", &self.system_admin_email)

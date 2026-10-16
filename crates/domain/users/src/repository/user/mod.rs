@@ -28,4 +28,4 @@ pub use archive::{ArchiveOutcome, ArchiveParams, ArchiveState};
 pub use merge::{MERGE_EXCLUDED_SECURITY_TABLES, MergeResult};
 pub use operations::UpdateUserParams;
 pub use purge::PurgeCount;
-pub use service_account::NewServiceAccount;
+pub use service_account::{EnsuredServiceAccount, NewServiceAccount};

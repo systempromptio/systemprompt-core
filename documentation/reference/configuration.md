@@ -159,8 +159,9 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `refresh_token_expiration` | `jwt_refresh_token_expiration` | i64 (seconds) | yes | — | Refresh token lifetime. |
 | `audiences` | `jwt_audiences` | list of audience | yes | — | Accepted JWT audiences. Each entry is one of `web`, `api`, `a2a`, `mcp`, `internal`, `bridge`, `hook`, or an arbitrary resource string (`auth/enums.rs:10`). |
 | `allowed_resource_audiences` | `allowed_resource_audiences` | list of string | no | `[]` | Additional resource audience identifiers permitted. |
-| `allow_registration` | `allow_registration` | bool | no | `true` | Whether self-service passkey (user) registration is open. |
-| `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `true` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients depend on it; set `false` only when clients are pre-provisioned. |
+| `allow_registration` | `allow_registration` | bool | no | `false` | Whether self-service passkey (user) registration is open. |
+| `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `false` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients that register themselves depend on it; set `true` explicitly when they connect, leave it `false` when clients are pre-provisioned. |
+| `api_keys.max_lifetime_days` | `api_keys.max_lifetime_days` | integer | no | unset | Maximum lifetime of a personal access token, in days (must be greater than 0). Applies to every issuance path (admin API, CLI, bridge sign-in, agent runs): a key issued without an expiry gets the maximum, and a longer expiry is rejected. Unset means no ceiling. |
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
@@ -336,7 +337,7 @@ loader (`crates/infra/loader/src/config_loader/`):
 | Services key | Conventional file | Type | Meaning |
 |--------------|-------------------|------|---------|
 | `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/manifest/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
-| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
+| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `hidden_requires_route` (default `true`: a catalog model marked `hidden` is served only when a declared route pattern matches it, never through catalog membership or the route synthesised from `default_provider`), `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
 
 Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
 `systemprompt admin setup` writes them from the embedded seed catalog when absent and appends
