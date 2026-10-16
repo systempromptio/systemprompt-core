@@ -87,7 +87,7 @@ fn describe_metrics() {
         "Rows of a config plane that differ from its declaration after the last reconcile pass"
     );
     metrics::describe_gauge!(
-        systemprompt_scheduler::services::config_reconcile::CONFIG_INFO,
+        systemprompt_scheduler::services::config_reconcile::CONFIG_PLANE_INFO,
         "1 for the declaration hash a config plane last reconciled against"
     );
     metrics::describe_histogram!(
