@@ -1612,6 +1612,14 @@ pub(super) async fn admitted_receipt_fixture(
     handle.abort();
     let error = handle.await.expect_err("dispatch task aborted");
     assert!(error.is_cancelled(), "dispatch must be cancelled: {error}");
+    // Why: dropping the cancelled dispatch hands its audit (and the receipt's
+    // lease) to background finalize work; until that drains, a recovery pass
+    // sees a live lease and skips the receipt, which made journal tests racy.
+    let drained = repositories.background.drain(Duration::from_secs(30)).await;
+    assert!(
+        drained.is_drained(),
+        "cancelled dispatch must finish its background work"
+    );
     Ok((database, repositories, state_dir, receipt))
 }
 
