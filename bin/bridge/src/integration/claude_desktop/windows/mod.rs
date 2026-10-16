@@ -154,33 +154,27 @@ fn install_profile_with(
         Err(crate::config::store::ConfigStoreError::HiveConflict { differing, .. })
             if !elevated =>
         {
-            match install_through_writer(&entries) {
-                Ok(Some(installed)) => return Ok(installed),
-                Ok(None) => {},
-                Err(e) => tracing::warn!(
-                    path,
-                    error = %e,
-                    "the elevated policy writer did not apply the profile; asking for approval"
-                ),
-            }
-            if attendance == Attendance::Unattended {
-                tracing::warn!(
-                    path,
-                    differing = ?differing,
-                    "machine policy holds other values; an unattended repair cannot replace it"
-                );
-                return Err(ApprovalRefusal::NeedsPrompt {
-                    reason: "the machine policy holds other values; replacing it needs \
-                             administrator approval — use Repair",
-                }
-                .into());
-            }
-            tracing::warn!(
+            return install_needing_approval(
                 path,
-                differing = ?differing,
-                "machine policy holds other values; requesting administrator approval to replace it"
+                &entries,
+                attendance,
+                "the machine policy holds other values; replacing it needs administrator \
+                 approval — use Repair",
+                &differing,
             );
-            return install_profile_elevated(path);
+        },
+        // Why: Windows ACLs HKCU\SOFTWARE\Policies read-only for a filtered UAC
+        // token, so an administrator running unelevated is denied the per-user
+        // write too; only the elevated helper can land the policy then.
+        Err(crate::config::store::ConfigStoreError::AccessDenied { .. }) if !elevated => {
+            return install_needing_approval(
+                path,
+                &entries,
+                attendance,
+                "writing the Claude policy needs administrator approval — use Update as \
+                 administrator",
+                &[],
+            );
         },
         Err(e) => {
             tracing::error!(error = %e, path, "managed Claude policy write failed");
@@ -211,6 +205,30 @@ fn install_profile_with(
         "Claude Desktop profile installed"
     );
     Ok(outcome)
+}
+
+fn install_needing_approval(
+    path: &str,
+    entries: &[(String, String)],
+    attendance: Attendance,
+    reason: &'static str,
+    differing: &[String],
+) -> Result<ProfileInstalled, HostAppError> {
+    match install_through_writer(entries) {
+        Ok(Some(installed)) => return Ok(installed),
+        Ok(None) => {},
+        Err(e) => tracing::warn!(
+            path,
+            error = %e,
+            "the elevated policy writer did not apply the profile; asking for approval"
+        ),
+    }
+    if attendance == Attendance::Unattended {
+        tracing::warn!(path, differing = ?differing, reason, "an unattended repair cannot elevate");
+        return Err(ApprovalRefusal::NeedsPrompt { reason }.into());
+    }
+    tracing::warn!(path, differing = ?differing, reason, "requesting administrator approval");
+    install_profile_elevated(path)
 }
 
 fn install_profile_elevated(path: &str) -> Result<ProfileInstalled, HostAppError> {

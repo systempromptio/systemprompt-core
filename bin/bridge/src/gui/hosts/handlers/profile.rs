@@ -253,19 +253,30 @@ pub(crate) fn on_profile_install_finished(
             }
         },
         Err(e) => {
-            let (code, line) = match e.as_ref() {
+            let (code, line, elevate) = match e.as_ref() {
                 GuiError::HostApp { source, .. }
                     if source.is_refusal() || source.is_permission_denied() =>
                 {
-                    (ErrorCode::Unauthorized, format!("[{host_id}] {source}"))
+                    (
+                        ErrorCode::ElevationRequired,
+                        format!("[{host_id}] {source}"),
+                        true,
+                    )
                 },
                 _ => (
                     ErrorCode::Internal,
                     format!("[{host_id}] profile install failed: {e}"),
+                    false,
                 ),
             };
             app.append_log_error(&line);
-            Err(BridgeError::new(ErrorScope::Host, code, line))
+            let failure = json!([{ "host_id": host_id, "message": line, "needs_elevation": true }]);
+            let err = BridgeError::new(ErrorScope::Host, code, line);
+            Err(if elevate {
+                err.with_detail(json!({ "host_failures": failure }))
+            } else {
+                err
+            })
         },
     };
     app.proxy
