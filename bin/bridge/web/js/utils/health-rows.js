@@ -31,6 +31,23 @@ function repairAction(hostId, elevated) {
   };
 }
 
+// Every other host warning is answered by the next sync: evidence and
+// receipts are redelivered, a Cowork session opened since is picked up.
+function syncAction() {
+  return { kind: "sync", hostId: "", label: t("sync-now") || "Sync now" };
+}
+
+// A failing `policy <key>` validation line is the Claude Desktop managed
+// policy drifting from what the gateway grants; that host's repair rewrites it.
+const POLICY_HOST = "claude-desktop";
+
+function lineAction(line, tone) {
+  if ((tone === "err" || tone === "warn") && String(line.label || "").startsWith("policy ")) {
+    return repairAction(POLICY_HOST, false);
+  }
+  return null;
+}
+
 function firstLine(text) {
   const s = text == null ? "" : String(text);
   const nl = s.indexOf("\n");
@@ -42,7 +59,7 @@ export function healthRows(snapshot) {
   const report = snapshot && snapshot.last_validation;
   for (const line of (report && report.lines) || []) {
     const tone = TONE_BY_LEVEL[line.level] || line.tone;
-    rows.push({ tone, label: line.label, value: line.value, action: null });
+    rows.push({ tone, label: line.label, value: line.value, action: lineAction(line, tone) });
   }
   const catalog = (snapshot && snapshot.inference_catalog) || {};
   const freshness = catalog.freshness || {};
@@ -92,7 +109,7 @@ export function healthRows(snapshot) {
       tone: "warn",
       label: w.host_id,
       value: firstLine(w.message),
-      action: REPAIRABLE_WARNINGS.has(w.kind) ? repairAction(w.host_id, false) : null,
+      action: REPAIRABLE_WARNINGS.has(w.kind) ? repairAction(w.host_id, false) : syncAction(),
     });
   }
   for (const d of sync.diagnostics || []) {
