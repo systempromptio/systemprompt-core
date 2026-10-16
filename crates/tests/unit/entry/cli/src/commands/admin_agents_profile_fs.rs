@@ -103,6 +103,7 @@ async fn restarting_failed_agent_reports_failure_and_preserves_failed_state() {
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app = fixture_app_context_with(
         &pool,
@@ -403,6 +404,7 @@ async fn coverage_restart_populated_registry_reports_failed_starts_and_skips_dis
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app = fixture_app_context_with(
         &pool,
@@ -483,6 +485,7 @@ async fn delete_all_agents_public_helper() {
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app = fixture_app_context_with(
         &pool,

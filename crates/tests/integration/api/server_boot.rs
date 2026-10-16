@@ -43,6 +43,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,

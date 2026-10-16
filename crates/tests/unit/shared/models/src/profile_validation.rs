@@ -72,6 +72,7 @@ fn local_paths() -> PathsConfig {
         storage: Some("/tmp/storage".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     }
 }
 
@@ -84,6 +85,7 @@ fn cloud_paths() -> PathsConfig {
         storage: Some("/app/storage".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     }
 }
 
@@ -150,6 +152,23 @@ mod storage {
 
         p.paths.storage = Some("/tmp/storage".to_string());
         assert!(p.validate().is_ok());
+    }
+
+    #[test]
+    fn shared_local_storage_requires_a_node_local_data_root() {
+        let mut p = valid_profile();
+        p.storage = StorageConfig {
+            backend: StorageBackend::Local,
+            shared: true,
+            ..StorageConfig::default()
+        };
+        assert!(errors_of(&p).contains("paths.data"));
+
+        p.paths.data = Some("/var/lib/systemprompt/node".to_string());
+        assert!(p.validate().is_ok(), "{:?}", p.validate());
+
+        p.paths.data = Some(String::new());
+        assert!(errors_of(&p).contains("paths.data must not be empty"));
     }
 
     #[test]

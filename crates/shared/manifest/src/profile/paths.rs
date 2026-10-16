@@ -1,5 +1,11 @@
 //! Profile `paths:` block resolving system/services locations.
 //!
+//! `data` is the node-local root for state the server writes for itself (the
+//! gateway accounting journal and scratch trees). It defaults to
+//! `<storage>/data`; a profile whose `storage` is a mount shared between
+//! replicas must point it at a per-node volume, because journal receipts
+//! belong to the node that admitted them.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,6 +36,9 @@ pub struct PathsConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shipped_files: Option<String>,
+
+    #[serde(default)]
+    pub data: Option<String>,
 }
 
 impl PathsConfig {
@@ -41,6 +50,7 @@ impl PathsConfig {
         self.geoip_database = self.geoip_database.as_ref().map(|p| resolve_path(base, p));
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
         self.shipped_files = self.shipped_files.as_ref().map(|p| resolve_path(base, p));
+        self.data = self.data.as_ref().map(|p| resolve_path(base, p));
     }
 
     #[must_use]

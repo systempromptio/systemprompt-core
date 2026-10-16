@@ -30,6 +30,7 @@ fn paths_in(tmp: &TempDir) -> AppPaths {
         storage: Some(root.join("storage").to_string_lossy().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     std::fs::create_dir_all(root.join("storage/files")).expect("mkdir storage/files");
 

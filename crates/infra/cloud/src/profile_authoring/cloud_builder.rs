@@ -122,15 +122,7 @@ impl CloudProfileBuilder {
                 shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
                 trusted_proxies: crate::trusted_proxies::default_cloud_trusted_proxies(),
             },
-            paths: PathsConfig {
-                system: container::APP.to_owned(),
-                services: container::SERVICES.to_owned(),
-                bin: container::BIN.to_owned(),
-                storage: Some(container::STORAGE.to_owned()),
-                geoip_database: self.geoip_database,
-                web_path: Some(container::WEB.to_owned()),
-                shipped_files: None,
-            },
+            paths: cloud_paths(self.geoip_database),
             rate_limits: RateLimitsConfig::default(),
             runtime: cloud_runtime_config(),
             cloud: Some(CloudConfig {
@@ -155,5 +147,18 @@ impl CloudProfileBuilder {
                 email: Some(Email::local_admin()),
             },
         }
+    }
+}
+
+fn cloud_paths(geoip_database: Option<String>) -> PathsConfig {
+    PathsConfig {
+        system: container::APP.to_owned(),
+        services: container::SERVICES.to_owned(),
+        bin: container::BIN.to_owned(),
+        storage: Some(container::STORAGE.to_owned()),
+        geoip_database,
+        data: None,
+        web_path: Some(container::WEB.to_owned()),
+        shipped_files: None,
     }
 }

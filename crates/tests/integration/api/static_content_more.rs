@@ -40,6 +40,7 @@ async fn state_with_dist() -> anyhow::Result<(TempDir, StaticContentState)> {
         storage: Some("/tmp".to_owned()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
     let _ = FilesConfig::init(ctx.app_paths());

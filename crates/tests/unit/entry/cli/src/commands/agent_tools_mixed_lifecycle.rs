@@ -232,6 +232,7 @@ async fn mixed_agent_tools_helper() {
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app = fixture_app_context_with(
         &pool,

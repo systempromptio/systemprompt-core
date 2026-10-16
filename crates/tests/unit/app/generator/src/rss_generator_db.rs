@@ -342,6 +342,7 @@ fn tempdir_paths(tmp: &tempfile::TempDir) -> systemprompt_config::paths::AppPath
             storage: Some(p),
             geoip_database: None,
             shipped_files: None,
+            data: None,
         },
         systemprompt_manifest::PathResolution::Canonicalize,
         None,

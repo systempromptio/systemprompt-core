@@ -40,6 +40,7 @@ fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     }
 }
 

@@ -53,12 +53,7 @@ async fn a_settlement_pass_publishes_the_receipts_left_on_disk() -> anyhow::Resu
         .into_iter()
         .map(|(key, _, _, value)| (key.key().name().to_owned(), value))
         .collect();
-    let value = |name: &str| {
-        values
-            .iter()
-            .find(|(n, _)| n == name)
-            .map(|(_, v)| v)
-    };
+    let value = |name: &str| values.iter().find(|(n, _)| n == name).map(|(_, v)| v);
     assert_eq!(settled, 1);
     assert_eq!(
         value(journal::JOURNAL_RECEIPTS),
@@ -98,12 +93,7 @@ async fn a_failed_settlement_is_counted_and_the_receipt_stays_on_the_gauge() -> 
         .into_iter()
         .map(|(key, _, _, value)| (key.key().name().to_owned(), value))
         .collect();
-    let value = |name: &str| {
-        values
-            .iter()
-            .find(|(n, _)| n == name)
-            .map(|(_, v)| v)
-    };
+    let value = |name: &str| values.iter().find(|(n, _)| n == name).map(|(_, v)| v);
     assert_eq!(settled, 0);
     assert!(
         receipt.exists(),

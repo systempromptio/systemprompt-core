@@ -37,6 +37,7 @@ async fn make_lifecycle() -> (LifecycleService, ServiceRepository) {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app_paths = Arc::new(
         AppPaths::from_profile(

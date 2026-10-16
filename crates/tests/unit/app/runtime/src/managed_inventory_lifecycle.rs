@@ -34,6 +34,7 @@ async fn runtime_inventory_retains_last_good_membership_across_scan_failure_and_
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let ctx = fixture_app_context_with(
         &pool,

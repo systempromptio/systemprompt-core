@@ -400,6 +400,7 @@ fn lexical_paths(root: &Path) -> systemprompt_config::paths::AppPaths {
             storage: Some(root),
             geoip_database: None,
             shipped_files: None,
+            data: None,
         },
         systemprompt_manifest::PathResolution::Lexical,
         None,

@@ -66,6 +66,7 @@ async fn internal_status_helper() {
         storage: Some(boot.storage_path.to_string_lossy().into_owned()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let app = fixture_app_context_with(&pool, database.url(), paths, Arc::new(AllowAllFilter))
         .expect("fixture app context with owned build paths");

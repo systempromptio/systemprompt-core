@@ -71,6 +71,7 @@ pub(super) fn paths(
         ),
         storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
         geoip_database: None,
+        data: None,
         web_path: None,
         shipped_files: None,
     }

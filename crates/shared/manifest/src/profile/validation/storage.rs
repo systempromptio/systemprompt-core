@@ -12,8 +12,21 @@ impl Profile {
             errors.push("storage requires paths.storage to be set".to_owned());
         }
         let storage = &self.storage;
+        if self.paths.data.as_deref().is_some_and(str::is_empty) {
+            errors.push(
+                "paths.data must not be empty; omit it to use <paths.storage>/data".to_owned(),
+            );
+        }
         match storage.backend {
             StorageBackend::Local => {
+                if storage.shared && self.paths.data.is_none() {
+                    errors.push(
+                        "storage.shared puts paths.storage on a mount every replica sees; set \
+                         paths.data to a per-node writable volume so each node's gateway \
+                         journal and scratch stay its own"
+                            .to_owned(),
+                    );
+                }
                 for (key, set) in [
                     ("bucket", storage.bucket.is_some()),
                     ("prefix", storage.prefix.is_some()),

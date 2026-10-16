@@ -124,6 +124,7 @@ fn tmp_paths() -> PathsConfig {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     }
 }
 

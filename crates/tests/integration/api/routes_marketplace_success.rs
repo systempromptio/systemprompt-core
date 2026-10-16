@@ -50,6 +50,7 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
         storage: Some(b.storage_path.display().to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     let pool = test_db_pool().await;
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;

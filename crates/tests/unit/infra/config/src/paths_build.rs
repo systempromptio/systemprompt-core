@@ -24,6 +24,7 @@ fn build_paths(bin: &Path) -> BuildPaths {
         storage: None,
         geoip_database: None,
         shipped_files: None,
+        data: None,
     })
 }
 

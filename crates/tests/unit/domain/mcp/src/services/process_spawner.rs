@@ -22,6 +22,7 @@ fn make_paths(bin_dir: &str) -> Arc<AppPaths> {
         storage: Some("/tmp".to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     Arc::new(
         AppPaths::from_profile(
@@ -42,6 +43,7 @@ fn make_paths_with_system(system_dir: &str) -> Arc<AppPaths> {
         storage: Some(system_dir.to_string()),
         geoip_database: None,
         shipped_files: None,
+        data: None,
     };
     Arc::new(
         AppPaths::from_profile(
