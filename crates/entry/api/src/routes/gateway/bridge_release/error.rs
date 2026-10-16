@@ -5,6 +5,9 @@
 //! 502/503 through `ApiError`, which logs it at error with its full cause
 //! chain while the body carries only the fixed public text. A configuration
 //! answer (no build for the platform, no release, no asset) stays a 404.
+//! GitHub refusing the configured token (401, or a 403 that is not a rate
+//! limit) is [`ReleaseError::TokenRejected`], a 503 naming the secret to
+//! rotate, so it is not mistaken for a GitHub outage.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -47,6 +50,15 @@ pub enum ReleaseError {
         stage: &'static str,
         status: StatusCode,
     },
+    #[error(
+        "{stage} returned {status}: GitHub rejected the release token from secret {key}; rotate \
+         that secret (bridge_releases.token_secret)"
+    )]
+    TokenRejected {
+        stage: &'static str,
+        status: StatusCode,
+        key: String,
+    },
     #[error("bridge release token secret unavailable")]
     SecretsUnavailable(#[source] SecretsBootstrapError),
     #[error("bridge release token secret {key} is not configured")]
@@ -54,6 +66,31 @@ pub enum ReleaseError {
 }
 
 impl ReleaseError {
+    /// The failure for a non-2xx GitHub answer: a refused token when one was
+    /// sent, otherwise a plain upstream status.
+    #[must_use]
+    pub fn upstream(
+        stage: &'static str,
+        resp: &reqwest::Response,
+        token_secret: Option<&str>,
+    ) -> Self {
+        let status = resp.status();
+        let rate_limited = resp
+            .headers()
+            .get("x-ratelimit-remaining")
+            .is_some_and(|remaining| remaining == "0");
+        let refused = status == StatusCode::UNAUTHORIZED
+            || (status == StatusCode::FORBIDDEN && !rate_limited);
+        match token_secret {
+            Some(key) if refused => Self::TokenRejected {
+                stage,
+                status,
+                key: key.to_owned(),
+            },
+            _ => Self::UpstreamStatus { stage, status },
+        }
+    }
+
     #[must_use]
     pub const fn status(&self) -> StatusCode {
         match self {
@@ -68,14 +105,17 @@ impl ReleaseError {
             | Self::UpstreamStatus { .. } => StatusCode::BAD_GATEWAY,
             Self::ServicesNotReady(_)
             | Self::SecretsUnavailable(_)
-            | Self::TokenNotConfigured { .. } => StatusCode::SERVICE_UNAVAILABLE,
+            | Self::TokenNotConfigured { .. }
+            | Self::TokenRejected { .. } => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
     #[must_use]
     pub const fn stage(&self) -> Option<&'static str> {
         match self {
-            Self::Request { stage, .. } | Self::UpstreamStatus { stage, .. } => Some(*stage),
+            Self::Request { stage, .. }
+            | Self::UpstreamStatus { stage, .. }
+            | Self::TokenRejected { stage, .. } => Some(*stage),
             _ => None,
         }
     }
@@ -83,7 +123,9 @@ impl ReleaseError {
     #[must_use]
     pub fn upstream_status(&self) -> Option<StatusCode> {
         match self {
-            Self::UpstreamStatus { status, .. } => Some(*status),
+            Self::UpstreamStatus { status, .. } | Self::TokenRejected { status, .. } => {
+                Some(*status)
+            },
             Self::Request { source, .. } => source.status(),
             _ => None,
         }
@@ -101,6 +143,7 @@ impl ReleaseError {
                 "release_checksum_unavailable"
             },
             Self::Request { .. } | Self::UpstreamStatus { .. } => "release_upstream_failed",
+            Self::TokenRejected { .. } => "release_token_rejected",
             Self::ServicesNotReady(_)
             | Self::SecretsUnavailable(_)
             | Self::TokenNotConfigured { .. } => "release_feed_not_ready",

@@ -87,10 +87,11 @@ pub(super) async fn asset_digest(
     // Why: GitHub answers a refused or rate-limited asset download with a JSON
     // error body, which would otherwise parse as a SHA256SUMS with no entry.
     if !resp.status().is_success() {
-        return Err(ReleaseError::UpstreamStatus {
-            stage: "SHA256SUMS fetch",
-            status: resp.status(),
-        });
+        return Err(ReleaseError::upstream(
+            "SHA256SUMS fetch",
+            &resp,
+            spec.token_secret.as_deref(),
+        ));
     }
     let body = resp.text().await.map_err(|source| ReleaseError::Request {
         stage: "SHA256SUMS read",
@@ -124,10 +125,11 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
         })?;
     if !resp.status().is_success() {
         tracing::debug!(url, status = %resp.status(), "github refused the release lookup");
-        return Err(ReleaseError::UpstreamStatus {
-            stage: "github request",
-            status: resp.status(),
-        });
+        return Err(ReleaseError::upstream(
+            "github request",
+            &resp,
+            spec.token_secret.as_deref(),
+        ));
     }
     resp.json::<T>()
         .await
