@@ -119,9 +119,9 @@ pub(super) async fn init_core(
         chain_sources()?,
     )?;
 
-    let governance = Arc::new(GovernanceEngine::from_services_root(std::path::Path::new(
-        &profile.paths.services,
-    ))?);
+    let governance = Arc::new(GovernanceEngine::from_services_root(
+        active_root.path.as_path(),
+    )?);
 
     systemprompt_logging::set_console_format(profile.observability.log_format);
     systemprompt_logging::init_logging(&database);
