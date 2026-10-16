@@ -83,7 +83,7 @@ pub async fn copy_asset(
         })?;
     }
 
-    tokio::fs::copy(asset.source(), &dest_path)
+    crate::atomic::copy_atomic(asset.source(), &dest_path)
         .await
         .map_err(|e| {
             PublishError::io_context(

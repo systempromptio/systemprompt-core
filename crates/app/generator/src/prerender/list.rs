@@ -111,7 +111,7 @@ pub(super) async fn render_list_route(params: RenderListParams<'_>) -> Generator
             .join(list_config.url.trim_start_matches('/'))
     };
     fs::create_dir_all(&list_dir).await?;
-    fs::write(list_dir.join("index.html"), &list_html).await?;
+    crate::atomic::write_atomic(&list_dir.join("index.html"), list_html.as_bytes()).await?;
 
     tracing::debug!(path = %list_config.url, locale_prefix = %locale_prefix, "Generated list route");
     Ok(())

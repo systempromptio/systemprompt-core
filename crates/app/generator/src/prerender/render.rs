@@ -193,7 +193,7 @@ async fn write_rendered_page(
     fs::create_dir_all(&output_dir).await?;
 
     let output_path = output_dir.join("index.html");
-    fs::write(&output_path, html).await?;
+    crate::atomic::write_atomic(&output_path, html.as_bytes()).await?;
 
     let generated_path = format!(
         "{locale_prefix}{}",

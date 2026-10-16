@@ -27,6 +27,8 @@ pub(crate) mod config_error_db;
 #[cfg(test)]
 mod content;
 #[cfg(test)]
+mod atomic_write_tests;
+#[cfg(test)]
 mod copy_assets_tests;
 #[cfg(test)]
 mod css_steps_tests;

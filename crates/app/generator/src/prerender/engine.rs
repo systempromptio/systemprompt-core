@@ -166,7 +166,7 @@ async fn render_prerenderer_page(
         fs::create_dir_all(parent).await?;
     }
 
-    fs::write(&output_path, html).await?;
+    crate::atomic::write_atomic(&output_path, html.as_bytes()).await?;
 
     tracing::debug!(
         page_type = %page_type,
