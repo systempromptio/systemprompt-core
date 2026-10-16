@@ -10,12 +10,22 @@
 //! releases the tokens and cost. The request count is never returned: an
 //! admitted request is one request whatever its outcome.
 //!
+//! A window keyed by a shared subject is spread over
+//! `QuotaConfig::shared_subject_shards` rows; per-principal (`user`,
+//! `api_key`) windows over `principal_subject_shards`. One random draw per
+//! request picks the shard of every window, the shard is kept on the
+//! [`ReservedWindow`] so settlement lands on the same row, and the ceiling is
+//! checked against the window total across shards. Each shard beyond the
+//! first widens the overshoot bound by up to one reservation per admission
+//! running concurrently on another shard (see `AiQuotaBucketRepository`).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
 use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_security::authz::SubjectProviderSet;
@@ -25,7 +35,7 @@ use super::AccountingOutcome;
 use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
 use super::estimate::QuotaEstimate;
 use super::subject::{SubjectResolution, resolve_subject};
-use crate::policies::{QuotaWindow, WindowSpan};
+use crate::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow, USER_QUOTA_SUBJECT, WindowSpan};
 
 /// Who a request's quota windows can be keyed by.
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +52,7 @@ pub struct ReservedWindow {
     pub subject_id: String,
     pub window_seconds: i32,
     pub window_start: DateTime<Utc>,
+    pub shard: i16,
     pub delta: QuotaBucketDelta,
 }
 
@@ -84,6 +95,7 @@ pub struct ReserveParams<'a> {
     pub windows: &'a [QuotaWindow],
     pub fault_mode: QuotaFaultMode,
     pub estimate: QuotaEstimate,
+    pub sharding: QuotaConfig,
 }
 
 struct ResolvedWindow<'w> {
@@ -91,6 +103,7 @@ struct ResolvedWindow<'w> {
     subject_kind: &'w str,
     subject_id: String,
     span: WindowSpan,
+    shard: i16,
 }
 
 struct ResolvedWindows<'w> {
@@ -106,11 +119,13 @@ async fn resolve_windows<'w>(
     now: DateTime<Utc>,
 ) -> ResolvedWindows<'w> {
     let mut resolved = Vec::with_capacity(params.windows.len());
+    let draw: u16 = rand::random();
     for window in params.windows {
         let span = window.span(now);
         match resolve_subject(window, &params.subjects, params.providers).await {
             SubjectResolution::Resolved(subject) => resolved.push(ResolvedWindow {
                 window,
+                shard: pick_shard(&params.sharding, subject.kind, draw),
                 subject_kind: subject.kind,
                 subject_id: subject.id,
                 span,
@@ -160,6 +175,7 @@ pub async fn precheck_and_reserve(
             subject_id: &r.subject_id,
             window_seconds: r.span.bucket_seconds,
             window_start: r.span.start,
+            shard: r.shard,
             delta,
         })
         .collect();
@@ -171,6 +187,7 @@ pub async fn precheck_and_reserve(
             subject_id: r.subject_id.clone(),
             window_seconds: r.span.bucket_seconds,
             window_start: r.span.start,
+            shard: r.shard,
             delta,
         });
         if let Some(decision) = ceiling_decision(r.window, state, r.span, now) {
@@ -227,6 +244,7 @@ pub async fn settle(
             subject_id: &window.subject_id,
             window_seconds: window.window_seconds,
             window_start: window.window_start,
+            shard: window.shard,
             delta: QuotaBucketDelta {
                 requests: 0,
                 input_tokens: actual.input_tokens - window.delta.input_tokens,
@@ -255,3 +273,13 @@ pub async fn release(
 ) -> AccountingOutcome {
     settle(repo, reservation, QuotaUsage::default()).await
 }
+
+fn pick_shard(sharding: &QuotaConfig, subject_kind: &str, draw: u16) -> i16 {
+    let shards = if subject_kind == USER_QUOTA_SUBJECT || subject_kind == API_KEY_QUOTA_SUBJECT {
+        sharding.principal_subject_shards
+    } else {
+        sharding.shared_subject_shards
+    };
+    i16::try_from(draw % shards.max(1)).unwrap_or(0)
+}
+

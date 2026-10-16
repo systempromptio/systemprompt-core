@@ -82,6 +82,7 @@ pub(super) async fn enforce_quota(
             windows: &windows,
             fault_mode,
             estimate,
+            sharding: repos.quota_sharding,
         },
     )
     .await

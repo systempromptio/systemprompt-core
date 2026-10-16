@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::super::Profile;
-use super::super::governance::{AuditConfig, AuthzMode, UNRESTRICTED_ACKNOWLEDGEMENT};
+use super::super::governance::{AuditConfig, AuthzMode, QuotaConfig, UNRESTRICTED_ACKNOWLEDGEMENT};
 use super::super::security::GATEWAY_REQUIRED_RESOURCE_AUDIENCES;
 use systemprompt_models::auth::JwtAudience;
 
@@ -80,6 +80,18 @@ impl Profile {
                  that every ordinary request is stored as digest + excerpt only.",
                 AuditConfig::MIN_PAYLOAD_CAP_BYTES
             ));
+        }
+        let quota = self.quota_config();
+        for (field, shards) in [
+            ("shared_subject_shards", quota.shared_subject_shards),
+            ("principal_subject_shards", quota.principal_subject_shards),
+        ] {
+            if !(1..=QuotaConfig::MAX_SHARDS).contains(&shards) {
+                errors.push(format!(
+                    "governance.quota.{field} must be between 1 and {} (got {shards})",
+                    QuotaConfig::MAX_SHARDS
+                ));
+            }
         }
         if !is_cloud {
             return;

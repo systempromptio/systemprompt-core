@@ -42,7 +42,7 @@ pub use database::{DatabaseConfig, PoolConfig};
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use governance::{
-    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
@@ -257,6 +257,12 @@ impl Profile {
             .map_or(AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES, |governance| {
                 governance.audit.payload_cap_bytes
             })
+    }
+
+    pub fn quota_config(&self) -> QuotaConfig {
+        self.governance
+            .as_ref()
+            .map_or_else(QuotaConfig::default, |governance| governance.quota)
     }
 
     pub fn profile_style(&self) -> ProfileStyle {

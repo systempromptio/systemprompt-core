@@ -361,7 +361,8 @@ async fn a_scope_window_is_keyed_by_the_attributed_value() -> anyhow::Result<()>
         "another project value has its own bucket"
     );
     let apollo: i64 = sqlx::query_scalar(
-        "SELECT requests FROM ai_quota_buckets WHERE subject_kind = 'project' AND subject_id = 'apollo'",
+        "SELECT SUM(requests)::BIGINT FROM ai_quota_buckets \
+         WHERE subject_kind = 'project' AND subject_id = 'apollo'",
     )
     .fetch_one(fx.pool.pool().as_ref())
     .await?;

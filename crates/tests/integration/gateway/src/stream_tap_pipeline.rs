@@ -159,6 +159,7 @@ async fn admit(audit: &GatewayAudit, db: &DbPool, policy: &GatewayPolicySpec) {
     let outcome = quota::precheck_and_reserve(
         &repos.quota_buckets,
         quota::ReserveParams {
+            sharding: systemprompt_manifest::profile::QuotaConfig::default(),
             providers: &repos.subject_providers,
             subjects: quota::QuotaSubjects {
                 user_id: &audit.ctx.user_id,

@@ -119,6 +119,7 @@ fn reservation_for(user_id: &UserId) -> QuotaReservation {
             subject_id: user_id.as_str().to_owned(),
             window_seconds: 60,
             window_start: sqlx::types::chrono::Utc::now(),
+            shard: 0,
             delta: systemprompt_ai::repository::QuotaBucketDelta {
                 requests: 1,
                 input_tokens: 0,

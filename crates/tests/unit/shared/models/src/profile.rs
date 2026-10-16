@@ -927,6 +927,7 @@ fn validate_rejects_governance_webhook_malformed_url() {
     };
     let mut profile = valid_profile("bad-webhook");
     profile.governance = Some(GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,

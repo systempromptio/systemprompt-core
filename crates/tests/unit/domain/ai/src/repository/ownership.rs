@@ -31,6 +31,7 @@ async fn reassigning_an_owner_moves_requests_and_signatures_but_discards_source_
             subject_id: source.as_str(),
             window_seconds: 60,
             window_start: Utc::now(),
+            shard: 0,
             delta: QuotaBucketDelta {
                 requests: 2,
                 input_tokens: 20,
@@ -117,6 +118,7 @@ async fn signature_update_fault_rolls_back_owner_reassignment_across_all_ai_tabl
             subject_id: source.as_str(),
             window_seconds: 60,
             window_start: Utc::now(),
+            shard: 0,
             delta: QuotaBucketDelta {
                 requests: 1,
                 input_tokens: 1,

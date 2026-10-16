@@ -12,6 +12,7 @@ use systemprompt_models::auth::JwtAudience;
 
 fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,
@@ -507,6 +508,7 @@ mod governance_validation {
     fn cloud_profile_with_empty_authz_rejected() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: None,
             audit: AuditConfig::default(),
         });
@@ -526,6 +528,7 @@ mod governance_validation {
     fn cloud_unrestricted_without_acknowledgement_rejected() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: Some(AuthzConfig {
                 hook: AuthzHookConfig {
                     mode: AuthzMode::Unrestricted,
@@ -543,6 +546,7 @@ mod governance_validation {
     fn cloud_unrestricted_with_acknowledgement_passes() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: Some(AuthzConfig {
                 hook: AuthzHookConfig {
                     mode: AuthzMode::Unrestricted,

@@ -144,6 +144,10 @@ mod server_run_loop;
 mod services_quota_policy;
 
 #[cfg(test)]
+#[path = "services_quota_sharding.rs"]
+mod services_quota_sharding;
+
+#[cfg(test)]
 #[path = "routes_bridge_data.rs"]
 mod routes_bridge_data;
 

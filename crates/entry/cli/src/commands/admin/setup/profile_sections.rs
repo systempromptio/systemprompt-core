@@ -14,7 +14,7 @@ use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_manifest::profile::{
-    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     default_resource_audiences,
 };
 use systemprompt_manifest::{
@@ -121,5 +121,6 @@ pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
             },
         }),
         audit: AuditConfig::default(),
+        quota: QuotaConfig::default(),
     }
 }

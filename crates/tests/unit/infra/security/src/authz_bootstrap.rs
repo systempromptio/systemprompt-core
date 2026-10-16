@@ -43,6 +43,7 @@ fn fixture() -> AuthzRequest {
 
 fn governance_with(mode: AuthzMode, url: Option<&str>, ack: Option<&str>) -> GovernanceConfig {
     GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode,

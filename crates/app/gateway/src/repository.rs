@@ -12,7 +12,7 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_manifest::profile::AuditConfig;
+use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
@@ -35,6 +35,7 @@ pub struct GatewayRepositories {
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
+    pub quota_sharding: QuotaConfig,
     pub background: BackgroundTasks,
     pub subject_providers: SubjectProviderSet,
 }
@@ -71,6 +72,7 @@ impl GatewayRepositories {
             artifact_ingest: None,
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
+            quota_sharding: QuotaConfig::default(),
             background,
             subject_providers: SubjectProviderSet::discover(&AuthzHookContext {
                 pool: db.pool(),
@@ -88,6 +90,12 @@ impl GatewayRepositories {
     #[must_use]
     pub const fn with_payload_cap(mut self, payload_cap_bytes: usize) -> Self {
         self.payload_cap_bytes = payload_cap_bytes;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_quota_sharding(mut self, quota_sharding: QuotaConfig) -> Self {
+        self.quota_sharding = quota_sharding;
         self
     }
 

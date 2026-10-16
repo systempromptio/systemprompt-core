@@ -114,6 +114,7 @@ async fn reserve_with(
     precheck_and_reserve(
         &quota_repo(p),
         ReserveParams {
+            sharding: systemprompt_manifest::profile::QuotaConfig::default(),
             providers: &providers(p),
             subjects: QuotaSubjects {
                 user_id: user,
@@ -330,6 +331,7 @@ async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
         subject_id: user.as_str(),
         window_seconds: 60,
         window_start,
+        shard: 0,
         delta,
     })
     .await
@@ -340,6 +342,7 @@ async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
             subject_id: user.as_str().to_owned(),
             window_seconds: 60,
             window_start,
+            shard: 0,
             delta,
         }],
     };
@@ -385,6 +388,7 @@ async fn an_attributed_scope_keys_its_window_by_the_attributed_value() {
     let outcome = precheck_and_reserve(
         &quota_repo(&p),
         ReserveParams {
+            sharding: systemprompt_manifest::profile::QuotaConfig::default(),
             providers: &providers(&p),
             subjects: QuotaSubjects {
                 user_id: &user,
