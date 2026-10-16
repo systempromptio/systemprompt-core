@@ -61,11 +61,14 @@ server:
 ```
 
 The values above are the defaults. At boot the server logs the total budget
-(`pre_stop_delay_secs + drain_grace_secs + forced_exit_grace_secs`); set
+(`pre_stop_delay_secs + drain_grace_secs + 2 + forced_exit_grace_secs`); set
 `terminationGracePeriodSeconds` above it. With `pre_stop_delay_secs` set, no
 `preStop` `sleep` hook is needed. Set `drain_grace_secs` to the longest stream you
-are prepared to wait for; a stream that outlasts it is cut, and its client must
-reconnect and fetch canonical state.
+are prepared to wait for. A gateway stream that outlasts it is ended with a
+terminal error event in its own wire format telling the client to retry, and gets
+2 seconds to flush before the connection closes;
+`gateway_streams_aborted_on_shutdown_total` counts them. The client must reconnect
+and fetch canonical state.
 
 A replica that drains in order leaves its gateway journal empty. The
 `gateway_journal_receipts` gauge reports the receipts still on disk;

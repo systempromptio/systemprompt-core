@@ -83,12 +83,12 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ### `server.shutdown`
 
-`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs `pre_stop_delay_secs + drain_grace_secs + forced_exit_grace_secs` at boot; an orchestrator's termination grace must exceed it.
+`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs `pre_stop_delay_secs + drain_grace_secs + 2 + forced_exit_grace_secs` at boot (the 2 s is the fixed flush window for streams ended by the drain); an orchestrator's termination grace must exceed it.
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `pre_stop_delay_secs` | u64 | no | `0` | After the termination signal `/readyz` answers `503 draining` while the listener keeps accepting for this long, so endpoints can update before connections are refused. At most `600`. |
-| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. |
+| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. A gateway stream still open when it expires ends itself with a terminal error frame in its wire format ("server is shutting down; retry the request"), counted in `gateway_streams_aborted_on_shutdown_total`, and gets 2 s to flush. |
 | `child_grace_secs` | u64 | no | `5` | How long MCP and agent children get to exit after their signal. Greater than `0`. |
 | `background_grace_secs` | u64 | no | `5` | How long owned background work, including the final gateway journal settlement, gets to finish. Greater than `0`. |
 | `forced_exit_grace_secs` | u64 | no | `10` | Backstop armed after the drain; the process exits non-zero when it fires. Must exceed `child_grace_secs` and `background_grace_secs`. |
@@ -129,6 +129,7 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `storage` | string | no | absent | File storage root. |
 | `geoip_database` | string | no | absent | Path to a MaxMind GeoIP database file. |
 | `shipped_files` | string | no | absent | Read-only directory consulted for `/files/*` after `<storage>/files` and before the storage backend. |
+| `data` | string | no | `<storage>/data` | Node-local root for state the server writes for itself: the gateway accounting journal and `scratch/` working trees. Required when `storage.shared: true`, so each replica keeps its own journal off the shared mount. Must not be empty. |
 
 ## `storage`
 
