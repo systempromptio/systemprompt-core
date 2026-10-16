@@ -13,7 +13,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
@@ -25,7 +25,7 @@ use super::AccountingOutcome;
 use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
 use super::estimate::QuotaEstimate;
 use super::subject::{SubjectResolution, resolve_subject};
-use crate::policies::QuotaWindow;
+use crate::policies::{QuotaWindow, WindowSpan};
 
 /// Who a request's quota windows can be keyed by.
 #[derive(Debug, Clone, Copy)]
@@ -90,7 +90,7 @@ struct ResolvedWindow<'w> {
     window: &'w QuotaWindow,
     subject_kind: &'w str,
     subject_id: String,
-    window_start: DateTime<Utc>,
+    span: WindowSpan,
 }
 
 struct ResolvedWindows<'w> {
@@ -107,24 +107,24 @@ async fn resolve_windows<'w>(
 ) -> ResolvedWindows<'w> {
     let mut resolved = Vec::with_capacity(params.windows.len());
     for window in params.windows {
-        let window_start = align_window(now, window.window_seconds);
+        let span = window.span(now);
         match resolve_subject(window, &params.subjects, params.providers).await {
             SubjectResolution::Resolved(subject) => resolved.push(ResolvedWindow {
                 window,
                 subject_kind: subject.kind,
                 subject_id: subject.id,
-                window_start,
+                span,
             }),
             SubjectResolution::Fault(fault) => {
                 if params.fault_mode.is_closed() {
                     return ResolvedWindows {
                         resolved,
-                        closed_fault: Some(fault_decision(window, fault, window_start, now)),
+                        closed_fault: Some(fault_decision(window, fault, span, now)),
                     };
                 }
                 tracing::warn!(
                     subject = %window.subject,
-                    window_seconds = window.window_seconds,
+                    window = %window.label(),
                     fault,
                     fault_mode = params.fault_mode.as_str(),
                     "Quota window not evaluated; allowing the request"
@@ -158,8 +158,8 @@ pub async fn precheck_and_reserve(
         .map(|r| IncrementParams {
             subject_kind: r.subject_kind,
             subject_id: &r.subject_id,
-            window_seconds: r.window.window_seconds,
-            window_start: r.window_start,
+            window_seconds: r.span.bucket_seconds,
+            window_start: r.span.start,
             delta,
         })
         .collect();
@@ -169,11 +169,11 @@ pub async fn precheck_and_reserve(
         reservation.windows.push(ReservedWindow {
             subject_kind: r.subject_kind.to_owned(),
             subject_id: r.subject_id.clone(),
-            window_seconds: r.window.window_seconds,
-            window_start: r.window_start,
+            window_seconds: r.span.bucket_seconds,
+            window_start: r.span.start,
             delta,
         });
-        if let Some(decision) = ceiling_decision(r.window, state, r.window_start, now) {
+        if let Some(decision) = ceiling_decision(r.window, state, r.span, now) {
             unreserve(repo, &increments[index + 1..]).await;
             return Ok(ReserveOutcome::Denied {
                 decision,
@@ -254,11 +254,4 @@ pub async fn release(
     reservation: &QuotaReservation,
 ) -> AccountingOutcome {
     settle(repo, reservation, QuotaUsage::default()).await
-}
-
-fn align_window(now: DateTime<Utc>, window_seconds: i32) -> DateTime<Utc> {
-    let secs = now.timestamp();
-    let w = i64::from(window_seconds.max(1));
-    let aligned = (secs / w) * w;
-    Utc.timestamp_opt(aligned, 0).single().unwrap_or(now)
 }

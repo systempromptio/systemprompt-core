@@ -83,6 +83,8 @@ mod prompt_recovery;
 #[cfg(test)]
 mod prompt_recovery_transport;
 #[cfg(test)]
+mod quota_calendar;
+#[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]
 mod registry;

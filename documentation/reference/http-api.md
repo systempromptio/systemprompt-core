@@ -316,6 +316,15 @@ Gateway policies (`services/gateway/policies.yaml`) declare `quota_windows`, eac
 
 `dimension` is one of `requests`, `input_tokens`, `output_tokens`, `cost_microdollars`; it, `limit` and `used` are `null` when the window could not be evaluated under `quota_fault_mode: closed`. The `Retry-After` header equals `retry_after_seconds`, the time until `resets_at`. Under `quota_mode: warn` the request proceeds and the breach is recorded as a `quota` governance decision. Every breach increments `systemprompt_quota_denials_total{subject_kind, dimension, mode}`.
 
+A window is either `window_seconds` long, aligned to the Unix epoch, or a UTC calendar period declared with `calendar: day`, `calendar: week` (starting Monday) or `calendar: month`, in which case `window_seconds` is not read. A calendar window counts one bucket per period and resets at the next period boundary; its `quota.window_seconds` is the length of the current period (for example `2678400` in a 31-day month) and the message names it `calendar-month`:
+
+```yaml
+quota_windows:
+  - subject: user
+    calendar: month
+    max_cost_microdollars: 50000000
+```
+
 ### API key limits and scope bindings
 
 `POST /api/v1/admin/api-keys` accepts, beside `name`, `target_user_id` and `expires_at`:

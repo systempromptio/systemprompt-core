@@ -11,18 +11,26 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod safety;
+mod window;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 pub use safety::{
     DEFAULT_SCANNER_TIMEOUT_MS, HeuristicConfig, SafetyConfig, SafetyHistoryMode, SafetyMode,
     ScannerFailMode, ScannerSettings,
 };
+pub use window::{CalendarPeriod, WindowSpan};
 
+/// One quota ceiling set. With `calendar` set the window resets on that UTC
+/// calendar boundary and `window_seconds` is not read.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct QuotaWindow {
+    #[serde(default)]
     pub window_seconds: i32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar: Option<CalendarPeriod>,
     #[serde(default = "default_subject")]
     pub subject: String,
     pub max_requests: Option<i64>,
@@ -36,11 +44,32 @@ impl Default for QuotaWindow {
     fn default() -> Self {
         Self {
             window_seconds: 0,
+            calendar: None,
             subject: default_subject(),
             max_requests: None,
             max_input_tokens: None,
             max_output_tokens: None,
             max_cost_microdollars: None,
+        }
+    }
+}
+
+impl QuotaWindow {
+    #[must_use]
+    pub fn span(&self, now: DateTime<Utc>) -> WindowSpan {
+        self.calendar.map_or_else(
+            || WindowSpan::fixed(now, self.window_seconds),
+            |period| WindowSpan::calendar(now, period),
+        )
+    }
+
+    #[must_use]
+    pub fn label(&self) -> String {
+        match self.calendar {
+            Some(CalendarPeriod::Day) => "calendar-day".to_owned(),
+            Some(CalendarPeriod::Week) => "calendar-week".to_owned(),
+            Some(CalendarPeriod::Month) => "calendar-month".to_owned(),
+            None => format!("{}s", self.window_seconds),
         }
     }
 }
