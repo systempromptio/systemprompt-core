@@ -39,6 +39,7 @@ pub use artifact_scanner::GatewayArtifactScanner;
 pub use audit::metrics::{
     GATEWAY_OVERHEAD_SECONDS, GATEWAY_UPSTREAM_DURATION_SECONDS, OVERHEAD_BUCKETS, UPSTREAM_BUCKETS,
 };
+pub use audit::phases::{GATEWAY_PHASE_SECONDS, GatewayPhase, PHASE_BUCKETS};
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};

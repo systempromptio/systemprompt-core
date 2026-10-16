@@ -30,6 +30,7 @@ use super::{RunningJobs, make_job_context};
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::SchedulerRepository;
+use crate::services::job_metrics;
 
 pub(super) use super::claim::{ClaimPolicy, claim_policy};
 
@@ -89,7 +90,13 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
     let ctx = make_job_context(actor, db_pool, app_context)
         .with_enforce(enforce)
         .with_parameters(parameters);
+    let started = std::time::Instant::now();
     let result = find_and_execute_job(&job_name, &ctx).await;
+    job_metrics::record_job_run(
+        &job_name,
+        job_metrics::run_status(&result),
+        started.elapsed(),
+    );
     handle_job_result(&job_name, result, &repository, &instance_id).await;
 
     if let Some(claim) = claim {

@@ -42,7 +42,8 @@ pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHa
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
-    let handle = PrometheusBuilder::new()
+    let builder = super::ops_metrics::with_buckets(PrometheusBuilder::new())?;
+    let handle = builder
         .add_global_label("instance", instance_id.as_str())
         .set_buckets_for_metric(
             Matcher::Full(systemprompt_gateway::GATEWAY_OVERHEAD_SECONDS.to_owned()),
@@ -67,6 +68,7 @@ fn describe_metrics() {
         HTTP_IN_FLIGHT_LIMIT, HTTP_IN_FLIGHT_SATURATION, HTTP_LOAD_SHED_TOTAL,
     };
     super::pool_metrics::describe();
+    super::ops_metrics::describe();
     super::config_fingerprint::describe();
     metrics::describe_counter!(
         HTTP_LOAD_SHED_TOTAL,

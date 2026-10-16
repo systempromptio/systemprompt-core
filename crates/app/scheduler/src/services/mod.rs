@@ -12,6 +12,7 @@
 
 pub mod config_reconcile;
 mod job_execution;
+pub mod job_metrics;
 pub mod orchestration;
 mod plans;
 pub mod scheduling;

@@ -64,7 +64,7 @@ pub async fn run_server(
     let addr = ctx.server_address();
 
     early.activate(router);
-    let metrics_listener = start_metrics_listener(&ctx).await?;
+    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler).await?;
     super::readiness::signal_ready();
 
     if let Some(ref tx) = events {
@@ -207,12 +207,16 @@ fn create_mcp_orchestrator(
     Ok(Arc::new(manager))
 }
 
-async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>>> {
+async fn start_metrics_listener(
+    ctx: &AppContext,
+    runs_scheduler: bool,
+) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
     let handle = super::metrics::install_recorder(&ctx.config().instance_id)?;
     super::pool_metrics::spawn_sampler(ctx);
+    super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, handle).await?,
