@@ -41,15 +41,36 @@ missing static-site artifacts require investigation only when the deployment ser
 
 ## 2. Configure shutdown and draining
 
-Ctrl-C or Unix SIGTERM marks the API unready and starts graceful connection draining.
-The connection drain has a 10-second limit. Teardown then stops the scheduler and
-terminates registered children, with a 5-second child grace period and a separate
-10-second forced-exit deadline covering teardown. A second signal exits immediately.
-See `crates/entry/api/src/services/server/shutdown.rs`.
+Ctrl-C or Unix SIGTERM marks the API unready (`/readyz` answers `503 draining`) at once.
+The listener keeps accepting for `server.shutdown.pre_stop_delay_secs`, so the balancer
+can deregister the replica first, then stops accepting and drains in-flight requests and
+SSE streams for the full `drain_grace_secs`. Teardown then stops the scheduler,
+terminates registered children (`child_grace_secs`) and drains owned background work
+(`background_grace_secs`), which includes a final settlement pass over the gateway
+accounting journal. `forced_exit_grace_secs` bounds that teardown. A second signal
+exits immediately.
 
-Allow at least 30 seconds for termination and increase it to include any orchestrator
-`preStop` delay. Remove the replica from load-balancer admission before replacement.
-SSE clients must reconnect and fetch canonical state if their stream outlasts the drain.
+```yaml
+server:
+  shutdown:
+    pre_stop_delay_secs: 0      # accept while endpoints update
+    drain_grace_secs: 10        # longest request or stream to wait for
+    child_grace_secs: 5         # MCP and agent children
+    background_grace_secs: 5    # owned background work and journal flush
+    forced_exit_grace_secs: 10  # backstop for the teardown; must exceed both graces above
+```
+
+The values above are the defaults. At boot the server logs the total budget
+(`pre_stop_delay_secs + drain_grace_secs + forced_exit_grace_secs`); set
+`terminationGracePeriodSeconds` above it. With `pre_stop_delay_secs` set, no
+`preStop` `sleep` hook is needed. Set `drain_grace_secs` to the longest stream you
+are prepared to wait for; a stream that outlasts it is cut, and its client must
+reconnect and fetch canonical state.
+
+A replica that drains in order leaves its gateway journal empty. The
+`gateway_journal_receipts` gauge reports the receipts still on disk;
+`gateway_journal_settle_failures_total` and `gateway_journal_recovery_failures_total`
+count receipts kept because settlement failed and recovery passes that failed.
 
 
 ## 3. Scrape Prometheus metrics
@@ -161,7 +182,7 @@ Apply them:
 systemprompt infra db migrate
 ```
 
-Migrations are additive-only within a minor version. A failed migration leaves the schema at the last successful step; re-running `migrate` resumes from there. Confirm connectivity and the role's privileges first with `systemprompt infra db status` — a migration that cannot create or alter a table usually indicates a least-privilege role missing DDL grants on its schema.
+Migrations follow the expand/contract contract (see [deploy-production.md](deploy-production.md#93-schema-compatibility-during-a-rolling-update)). A failed migration leaves the schema at the last successful step; re-running `migrate` resumes from there. Confirm connectivity and the role's privileges first with `systemprompt infra db status` — a migration that cannot create or alter a table usually indicates a least-privilege role missing DDL grants on its schema.
 
 ### Provider / gateway errors (502 / 429)
 

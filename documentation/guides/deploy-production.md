@@ -94,7 +94,7 @@ readinessProbe:
   periodSeconds: 5
 ```
 
-**Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, stops accepting connections, drains in-flight requests and SSE streams for `AXUM_DRAIN_GRACE_MS` (10 s), gives MCP and agent children 5 s to exit, and force-exits 10 s after that (`crates/entry/api/src/services/server/shutdown.rs`). Set the balancer's drain interval or `preStop` delay to at least 10 s and `terminationGracePeriodSeconds` to at least 30 s. A second `SIGTERM` exits at once.
+**Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, keeps accepting for `server.shutdown.pre_stop_delay_secs` (default 0) while endpoints update, then stops accepting and drains in-flight requests and SSE streams for `drain_grace_secs` (default 10). MCP and agent children get `child_grace_secs` (default 5), owned background work — including the final gateway journal settlement — gets `background_grace_secs` (default 5), and the process force-exits `forced_exit_grace_secs` (default 10) after the drain. The server logs the total at boot; set `terminationGracePeriodSeconds` above it, and set `pre_stop_delay_secs` to cover the time your endpoints controller needs instead of a `preStop` `sleep`. A second `SIGTERM` exits at once.
 
 Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
 
@@ -103,7 +103,7 @@ Rolling deploys are safe: replace one replica at a time and wait for `/readyz` t
 ```yaml
 # Two Deployments from one image; the mounted profile differs only in server.role.
 # gateway Deployment: replicas: 4,  profile server.role: gateway
-# admin Deployment:   replicas: 1,  profile server.role: admin
+# admin Deployment:   replicas: 1+, profile server.role: admin (see Scheduler scope below)
 # Route /v1/* and /api/public/gateway to the gateway Service, everything else to admin.
 ```
 
@@ -172,7 +172,8 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 - **`server.trusted_proxies` is required on cloud profiles.** Without it every request resolves to the balancer's address and all callers share one rate-limit bucket and one ban target. Validation refuses the profile.
 - **`/metrics` on its own port.** Set `server.metrics_port`; the scrape endpoint is served on that port only and never on the public router. Leave it unset and no metrics endpoint is exposed.
 - **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB); the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node. Alternatively set `storage.backend: gcs` to keep these files in a Cloud Storage bucket every replica reaches; no shared mount is needed and the shared-mount probe is skipped. On GKE, bind the Kubernetes service account to a Google service account with `roles/storage.objectAdmin` on the bucket (annotation `iam.gke.io/gcp-service-account`) and leave `credentials` at `workload_identity`. See [configure.md](configure.md#file-storage).
-- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock. Jobs that write the local filesystem (`content_prerender`, `page_prerender`, `copy_extension_assets`) declare `scope: node` and run on every replica so each serves a current `web/dist`. Override per job in `services.yaml` with `scope: cluster | node`.
+- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock (`scheduler.distributed_lock`, on by default). Jobs whose effect is local to the node declare `scope: node` and run on every replica: the renderers (`content_prerender`, `page_prerender`, `copy_extension_assets`) so each serves a current `web/dist`, `managed_inventory_refresh`, and `file_ingestion`, which walks the node's own view of `paths.storage`. Override per job in `services.yaml` with `scope: cluster | node`. A manual `infra jobs run` takes the same lock for a `cluster` job and fails when another replica holds it; `--lock-wait-secs N` waits up to N seconds instead. Several `admin` replicas are therefore safe for the scheduler; what still has to hold is shared storage (or the `gcs` backend) and MCP routing to the replica that owns each child.
+- **Unlisted jobs.** `scheduler.unlisted_jobs` decides what happens to a job the build registers but `scheduler.jobs` does not name: `default` (the default) schedules it on its declared default schedule when the job declares one (the read-model rollups do) and warns about the rest; `warn` only warns; `error` refuses to start the scheduler while any job is unlisted. Name a job with `enabled: false` to keep it off the schedule.
 - **Databases.** `database_write_url` is the primary; `database_url` is the nearest replica. Security-critical lookups (session attestation, token and revocation checks, API keys, bans, MCP sessions) always read the primary, so a fresh login is valid in every region at once; listings and analytics read the replica. The cross-replica event relay (`LISTEN`/`NOTIFY`) also runs on the primary.
 - **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s and no longer holds its identity claim, so a stalled but live replica is never reaped. Replicas may boot concurrently; the post-reconcile registration check retries for up to about a second before failing the boot.
 - **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.
@@ -421,13 +422,26 @@ A pod that skips migrations still verifies the schema before its domain services
 
 ### 9.2 Rollback
 
-Migrations are additive-only within a minor version, so rolling back by one minor is supported:
+Migrations follow the expand/contract contract (§9.3), so rolling back by one minor is supported:
 
 1. Replace the binary with the previous version.
 2. Rolling restart, draining each replica first.
 3. Columns added by the newer version are ignored by the older binary.
 
 Rolling back across more than one minor version requires a point-in-time restore from backup (§4.2).
+
+### 9.3 Schema compatibility during a rolling update
+
+During a rolling update the newest release migrates the database while pods of the previous release are still serving. The schema contract that makes this safe is expand/contract:
+
+- **Expand.** A release only adds: new tables, new nullable columns or columns with a default, new indexes, new views and functions. The previous release keeps working against the expanded schema because it never reads what it does not know.
+- **Contract.** Removing or renaming anything a previous release reads happens in a later release, once no live binary depends on it. Such a change is called out as breaking in the changelog and needs a `Recreate` rollout or a drain of every older pod first.
+
+A binary that finds migrations it does not know — ledger rows numbered past every migration it declares — treats the database as *ahead*, not broken:
+
+- It applies nothing: no declarative DDL and no migrations, so it never rewrites what the newer release installed. A checksum mismatch in an ahead extension is left to the newer release and does not block the boot.
+- It logs the unknown migrations at `WARN` and keeps serving. `/readyz` answers `200` with `"schema": "ahead"` and the list in `schema_ahead`, so the state is visible without failing the probe.
+- A database *behind* the binary (pending migrations, missing tables, or drift in an extension that is not ahead) still fails the boot of a pod that skips migrations, as in §9.1.
 
 ## 10. Reference sizing
 
