@@ -28,6 +28,7 @@ use crate::request::RunRequest;
 
 const UPDATE_PAGE: i64 = 200;
 
+// JSON: A2A `StreamResponse` frames cross the launcher trait as JSON.
 fn frame(update: TaskUpdate) -> Result<serde_json::Value, AgentRunLaunchError> {
     serde_json::to_value(update.into_stream_response()).map_err(AgentRunLaunchError::unavailable)
 }

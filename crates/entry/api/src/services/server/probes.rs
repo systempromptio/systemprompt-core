@@ -93,6 +93,7 @@ pub(crate) async fn handle_readyz(
     respond(StatusCode::OK, body, config)
 }
 
+// JSON: the `/readyz` body is assembled as an open JSON object.
 async fn config_block(
     fingerprint: Option<systemprompt_config::ConfigFingerprint>,
     repository: Option<&ConfigReconcileRepository>,

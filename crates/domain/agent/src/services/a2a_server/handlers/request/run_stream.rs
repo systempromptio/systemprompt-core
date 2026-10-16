@@ -87,6 +87,7 @@ enum Sent {
 
 async fn send_frame(
     tx: &Sender<Event>,
+    // JSON: a stored A2A `StreamResponse` frame, parsed here before sending.
     value: serde_json::Value,
     request_id: &NumberOrString,
 ) -> Sent {
