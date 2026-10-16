@@ -5,6 +5,12 @@
 //! JSONB text, so two clients sending the same catalogue with different key
 //! order or whitespace share one row.
 //!
+//! The catalogue insert is `ON CONFLICT DO NOTHING`, never `DO UPDATE`: these
+//! writes run inside the admission transaction, and an update of an existing
+//! row would hold its row lock until that transaction commits, serialising
+//! every admission that carries the same tool list. The payload row's foreign
+//! key only takes a shared `FOR KEY SHARE` lock on the catalogue row.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -164,10 +170,11 @@ where
     sqlx::query!(
         r#"
             WITH catalog AS (
+                SELECT encode(sha256(convert_to($2::jsonb::text, 'UTF8')), 'hex') AS sha256
+            ), inserted AS (
                 INSERT INTO ai_tool_catalogs (sha256, tools)
-                VALUES (encode(sha256(convert_to($2::jsonb::text, 'UTF8')), 'hex'), $2)
-                ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
-                RETURNING sha256
+                SELECT catalog.sha256, $2 FROM catalog
+                ON CONFLICT (sha256) DO NOTHING
             ), flagged AS (
                 UPDATE ai_requests SET has_offered_tools = TRUE
                 WHERE id = $1 AND has_offered_tools IS DISTINCT FROM TRUE
@@ -201,11 +208,12 @@ where
     sqlx::query!(
         r#"
             WITH catalog AS (
-                INSERT INTO ai_tool_catalogs (sha256, tools)
-                SELECT encode(sha256(convert_to($3::jsonb::text, 'UTF8')), 'hex'), $3
+                SELECT encode(sha256(convert_to($3::jsonb::text, 'UTF8')), 'hex') AS sha256
                 WHERE $3::jsonb IS NOT NULL
-                ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
-                RETURNING sha256
+            ), inserted AS (
+                INSERT INTO ai_tool_catalogs (sha256, tools)
+                SELECT catalog.sha256, $3 FROM catalog
+                ON CONFLICT (sha256) DO NOTHING
             )
             INSERT INTO ai_request_payloads (
                 ai_request_id, prepared_body_sha256, prepared_tools_sha256, created_at, updated_at
