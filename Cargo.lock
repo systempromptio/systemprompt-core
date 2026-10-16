@@ -5469,7 +5469,6 @@ name = "systemprompt-storage"
 version = "0.69.0"
 dependencies = [
  "async-trait",
- "bytes",
  "chrono",
  "futures",
  "hex",
