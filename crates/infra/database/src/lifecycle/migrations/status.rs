@@ -26,6 +26,7 @@ pub struct PendingMigration {
     pub sql: &'static str,
     pub checksum: String,
     pub no_tx: bool,
+    pub breaks_older: bool,
 }
 
 /// An applied migration whose slot the extension no longer declares at all.
@@ -128,6 +129,7 @@ impl MigrationService<'_> {
                 sql: m.sql,
                 checksum: m.checksum(),
                 no_tx: m.no_transaction,
+                breaks_older: m.breaks_older(),
             })
             .collect())
     }
@@ -244,6 +246,7 @@ impl SlotClassification {
                 sql: m.sql,
                 checksum: current_checksum,
                 no_tx: m.no_transaction,
+                breaks_older: m.breaks_older(),
             });
             return;
         };

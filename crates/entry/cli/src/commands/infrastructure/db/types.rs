@@ -170,12 +170,14 @@ pub struct PendingMigrationInfo {
     pub name: String,
     pub checksum: String,
     pub no_tx: bool,
+    pub breaking: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MigratePlanOutput {
     pub pending: Vec<PendingMigrationInfo>,
     pub total_pending: usize,
+    pub rolling_safe: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

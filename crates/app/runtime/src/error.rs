@@ -195,6 +195,18 @@ pub enum RuntimeError {
         drift: Vec<String>,
     },
 
+    #[error(
+        "database schema was contracted by a newer release: {} migration(s) marked `@compat: \
+         breaking` [{}] cannot be served by this binary; stop this release's pods and run the \
+         newer one (profile {profile})",
+        .migrations.len(),
+        .migrations.join(", ")
+    )]
+    SchemaBreaksThisRelease {
+        profile: String,
+        migrations: Vec<String>,
+    },
+
     #[error("DATABASE_URL is empty")]
     EmptyDatabaseUrl,
 

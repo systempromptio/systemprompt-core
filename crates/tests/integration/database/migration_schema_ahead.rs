@@ -110,6 +110,53 @@ async fn an_older_install_against_an_ahead_database_applies_nothing_and_reports_
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_ahead_breaking_migration_refuses_the_older_binary() {
+    let f = fixture().await;
+    let contract = leak_str(format!(
+        "-- @compat: breaking\nALTER TABLE {} ADD COLUMN IF NOT EXISTS contracted INT;",
+        f.table
+    ));
+    let newer = SlotExt {
+        id: f.ext_id,
+        table: f.table,
+        schema_sql: f.schema_sql,
+        migrations: vec![
+            Migration::new(7, "original", f.create_sql),
+            Migration::new(8, "contract", contract),
+        ],
+    };
+    MigrationService::new(f.db.write())
+        .run_pending_migrations(&newer)
+        .await
+        .expect("newer release migrates");
+
+    let registry = registry_of(older(&f, f.create_sql));
+    let currency = schema_currency(f.db.write(), &registry, &[])
+        .await
+        .expect("currency check");
+    assert!(currency.is_ahead());
+    assert!(currency.breaks_this_release());
+    assert_eq!(currency.breaking[0].version, 8);
+
+    let report = install_extension_schemas(&registry, f.db.as_ref())
+        .await
+        .expect("install reports rather than fails");
+    assert!(report.breaks_this_release());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_ahead_additive_migration_is_not_breaking() {
+    let f = fixture().await;
+    migrate_as_newer(&f).await;
+    let registry = registry_of(older(&f, f.create_sql));
+    let currency = schema_currency(f.db.write(), &registry, &[])
+        .await
+        .expect("currency check");
+    assert!(currency.is_ahead());
+    assert!(!currency.breaks_this_release());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn drift_without_a_newer_migration_still_fails_currency() {
     let f = fixture().await;
     apply_original(&f).await;

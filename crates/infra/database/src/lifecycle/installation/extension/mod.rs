@@ -80,15 +80,7 @@ pub async fn install_extension_schemas_full(
         Ok(currency) if currency.is_ahead() => {
             guard.release().await;
             return Ok(SchemaInstallReport {
-                ahead: currency
-                    .ahead
-                    .into_iter()
-                    .map(|m| super::report::SchemaAhead {
-                        extension: m.extension_id,
-                        version: m.version,
-                        name: m.name,
-                    })
-                    .collect(),
+                ahead: super::report::SchemaAhead::from_currency(&currency),
                 ..SchemaInstallReport::default()
             });
         },

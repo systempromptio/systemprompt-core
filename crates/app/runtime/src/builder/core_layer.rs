@@ -222,6 +222,7 @@ pub(super) async fn init_extensions(
             install_extension_schemas_full(&registry, database.session(), &[], migration_config)
                 .await?;
         if report.is_ahead() {
+            crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
             crate::schema_currency::warn_ahead(&report.ahead);
         } else {
             systemprompt_database::mark_schema_changed();

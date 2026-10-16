@@ -9,6 +9,7 @@
 
 pub(crate) mod budget;
 mod checksum_transition;
+mod compat;
 mod down;
 mod exec;
 mod mark_applied;

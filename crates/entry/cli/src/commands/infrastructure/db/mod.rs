@@ -83,8 +83,8 @@ pub async fn execute(cmd: DbCommands, ctx: &CommandContext) -> Result<()> {
         DbCommands::Migrations { cmd } => {
             admin::execute_migrations(ctx.app_context().await?, cmd, config).await
         },
-        DbCommands::MigratePlan { extension, json } => {
-            admin::execute_migrate_plan(ctx.app_context().await?, extension.as_ref(), json, config)
+        DbCommands::MigratePlan { extension, flags } => {
+            admin::execute_migrate_plan(ctx.app_context().await?, extension.as_ref(), flags, config)
                 .await
         },
         DbCommands::MigrateStatus { extension, json } => {

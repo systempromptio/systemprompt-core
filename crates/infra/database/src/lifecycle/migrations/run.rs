@@ -24,6 +24,9 @@ impl MigrationService<'_> {
         let ext_id = &ExtensionId::new(extension.metadata().id);
 
         check_cross_extension_alters(extension, migration)?;
+        if migration.breaks_older() {
+            self.record_breaking(ext_id, migration.version).await?;
+        }
 
         info!(
             extension = %ext_id,

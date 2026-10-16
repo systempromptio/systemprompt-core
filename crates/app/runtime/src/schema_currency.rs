@@ -13,7 +13,9 @@
 //! [`systemprompt_database::SchemaInstallReport`] so `/readyz` can report it.
 //! A booting install against an ahead database applies nothing (the newer
 //! release owns that schema) and reports the same state through
-//! [`warn_ahead`].
+//! [`warn_ahead`]. The exception is an ahead migration recorded as
+//! `@compat: breaking`: [`refuse_breaking`] fails the boot, because the newer
+//! release has contracted the schema this one reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,7 +33,9 @@ pub async fn assert_schema_current(
 ) -> RuntimeResult<Vec<SchemaAhead>> {
     let currency = schema_currency(db, registry, &[]).await?;
     if currency.is_current() {
-        return Ok(report_ahead(&currency));
+        let ahead = report_ahead(&currency);
+        refuse_breaking(&ahead, profile)?;
+        return Ok(ahead);
     }
     Err(RuntimeError::SchemaBehind {
         profile: profile.name.clone(),
@@ -68,16 +72,23 @@ pub fn warn_ahead(ahead: &[SchemaAhead]) {
     );
 }
 
-fn report_ahead(currency: &SchemaCurrency) -> Vec<SchemaAhead> {
-    let ahead: Vec<SchemaAhead> = currency
-        .ahead
+pub fn refuse_breaking(ahead: &[SchemaAhead], profile: &Profile) -> RuntimeResult<()> {
+    let breaking: Vec<String> = ahead
         .iter()
-        .map(|m| SchemaAhead {
-            extension: m.extension_id.clone(),
-            version: m.version,
-            name: m.name.clone(),
-        })
+        .filter(|m| m.breaks_older)
+        .map(|m| format!("{}:{:03} {}", m.extension, m.version, m.name))
         .collect();
+    if breaking.is_empty() {
+        return Ok(());
+    }
+    Err(RuntimeError::SchemaBreaksThisRelease {
+        profile: profile.name.clone(),
+        migrations: breaking,
+    })
+}
+
+fn report_ahead(currency: &SchemaCurrency) -> Vec<SchemaAhead> {
+    let ahead = SchemaAhead::from_currency(currency);
     if !currency.superseded_drift.is_empty() {
         let superseded: Vec<String> = currency
             .superseded_drift

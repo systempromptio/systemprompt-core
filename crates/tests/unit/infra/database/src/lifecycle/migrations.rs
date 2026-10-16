@@ -838,6 +838,7 @@ fn test_pending_migration_fields() {
         sql: "CREATE INDEX idx ON t(c)",
         checksum: "abc".to_string(),
         no_tx: false,
+        breaks_older: false,
     };
 
     assert_eq!(p.extension_id, "ext");
@@ -880,6 +881,7 @@ fn test_extension_migration_status_with_drift_and_pending() {
             sql: "ALTER TABLE x ADD c INT",
             checksum: "newcs".to_string(),
             no_tx: false,
+            breaks_older: false,
         }],
         drift: vec![ChecksumDrift {
             extension_id: ExtensionId::new("users"),

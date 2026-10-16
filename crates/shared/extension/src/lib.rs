@@ -59,6 +59,7 @@ mod asset;
 )]
 pub mod build;
 pub mod capabilities;
+pub mod compat;
 pub mod context;
 pub mod cost;
 pub mod error;

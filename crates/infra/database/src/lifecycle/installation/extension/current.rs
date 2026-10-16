@@ -15,6 +15,10 @@
 //! contract a newer schema stays readable by the previous release. Checksum
 //! drift in an ahead extension is the newer release's to judge, so it moves to
 //! [`SchemaCurrency::superseded_drift`] instead of failing the boot.
+//! The exception is a contract migration: an ahead migration the newer
+//! release recorded as `@compat: breaking` is listed again in
+//! [`SchemaCurrency::breaking`], and [`SchemaCurrency::breaks_this_release`]
+//! tells the caller this binary must not serve.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,6 +43,7 @@ pub struct SchemaCurrency {
     pub drift: Vec<ChecksumDrift>,
     pub ahead: Vec<OrphanedMigration>,
     pub superseded_drift: Vec<ChecksumDrift>,
+    pub breaking: Vec<OrphanedMigration>,
 }
 
 impl SchemaCurrency {
@@ -50,6 +55,11 @@ impl SchemaCurrency {
     #[must_use]
     pub const fn is_ahead(&self) -> bool {
         !self.ahead.is_empty()
+    }
+
+    #[must_use]
+    pub const fn breaks_this_release(&self) -> bool {
+        !self.breaking.is_empty()
     }
 }
 
@@ -82,6 +92,13 @@ pub async fn schema_currency(
             if ahead.is_empty() {
                 currency.drift.extend(status.drift);
             } else {
+                let breaking = migrations.breaking_versions(&prepared.extension_id).await?;
+                currency.breaking.extend(
+                    ahead
+                        .iter()
+                        .filter(|m| breaking.contains(&m.version))
+                        .cloned(),
+                );
                 currency.superseded_drift.extend(status.drift);
                 currency.ahead.extend(ahead);
             }
