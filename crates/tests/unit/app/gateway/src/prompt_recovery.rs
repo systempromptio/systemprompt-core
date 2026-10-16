@@ -35,7 +35,10 @@ fn govern_at(
     body: &mut PreparedBody,
 ) -> PromptRecovery {
     let mut counts = systemprompt_security::policy::RateCounts::empty();
-    counts.record(systemprompt_identifiers::PolicyId::new("rate_limit"), position);
+    counts.record(
+        systemprompt_identifiers::PolicyId::new("rate_limit"),
+        position,
+    );
     govern_counted(engine, &counts, request, body)
 }
 

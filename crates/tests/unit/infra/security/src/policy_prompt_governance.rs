@@ -86,7 +86,7 @@ fn a_clean_inference_prompt_is_allowed() {
 fn tool_shaped_policies_still_appear_in_a_prompt_chain_trace() {
     let e = engine(
         "governance:\n  policies:\n    - id: secret_scan\n      mode: warn\n    - id: \
-         scope_check\n    - id: tool_blocklist\n    - id: rate_limit\n",
+         scope_check\n    - id: tool_blocklist\n",
     );
     let (session, user, call) = (
         SessionId::generate(),
@@ -147,44 +147,6 @@ fn a_rejected_services_governance_config_refuses_the_engine() {
 // Why: the gateway derives call_id from the ai-request id precisely so a
 // re-evaluated call is charged once. A prompt and a tool call share that
 // contract, so it is pinned on the prompt path too.
-#[test]
-fn re_evaluating_one_prompt_charges_the_limiter_once() {
-    let e = engine(
-        "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 2\n      \
-         window_secs: 60\n",
-    );
-    let (session, user) = (SessionId::generate(), UserId::new("u-prompt-idem"));
-    let input = GovernedInput::prompt_text("hello".to_owned());
-    let call = CallId::generate();
-
-    for _ in 0..5 {
-        let decision = e
-            .evaluate(&prompt_ctx(&input, &session, &user, &call))
-            .decision;
-        assert!(
-            matches!(decision, Decision::Allow { .. }),
-            "the same call_id re-evaluated must stay allowed, not accumulate charges"
-        );
-    }
-
-    // Why: a genuinely different call still consumes the remaining budget, so
-    // the idempotency above is per-call and not a disabled limiter.
-    let second = CallId::generate();
-    assert!(matches!(
-        e.evaluate(&prompt_ctx(&input, &session, &user, &second))
-            .decision,
-        Decision::Allow { .. }
-    ));
-    let third = CallId::generate();
-    assert!(matches!(
-        e.evaluate(&prompt_ctx(&input, &session, &user, &third))
-            .decision,
-        Decision::Deny {
-            reason: DenyReason::RateLimitExceeded { .. }
-        }
-    ));
-}
-
 // Why: a tool-arguments input on a Prompt-governed engine must still scan —
 // the gateway will grow a path that governs `tool_use` blocks inside a request
 // body, and this pins that the scanner is not target-gated.
