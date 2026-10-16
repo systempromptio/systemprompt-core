@@ -14,6 +14,7 @@ use systemprompt_ai::repository::{
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_security::policy::RateWindowRepository;
 use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
@@ -38,6 +39,7 @@ pub struct GatewayRepositories {
     pub quota_sharding: QuotaConfig,
     pub background: BackgroundTasks,
     pub subject_providers: SubjectProviderSet,
+    pub rate_windows: RateWindowRepository,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -78,6 +80,7 @@ impl GatewayRepositories {
                 pool: db.pool(),
                 sink: Arc::new(NullAuditSink),
             }),
+            rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
         }
     }
 

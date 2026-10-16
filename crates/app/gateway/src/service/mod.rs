@@ -18,6 +18,7 @@ pub mod finalize;
 mod guards;
 mod opening;
 mod pricing;
+mod rate;
 pub mod resolve;
 pub mod stages;
 

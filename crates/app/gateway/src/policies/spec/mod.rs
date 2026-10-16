@@ -1,8 +1,12 @@
 //! Declarative gateway-policy specification.
 //!
 //! Spec payload of `ai_gateway_policies` rows, shared with the YAML schema in
-//! `services/gateway/policies.yaml`. Carries quota windows and safety
-//! configuration.
+//! `services/gateway/policies.yaml`. Carries quota windows, request-rate
+//! windows and safety configuration.
+//!
+//! Rate windows are admission throttles, not budgets: a fixed window per user
+//! or per API key, counted cluster-wide, that refuses with 429 and
+//! `Retry-After` regardless of `quota_mode`.
 //!
 //! Model exposure lives on the profile's gateway catalog, not here — see
 //! `GatewayConfig::is_model_exposed`.
@@ -105,6 +109,31 @@ impl QuotaMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RateSubject {
+    User,
+    ApiKey,
+}
+
+impl RateSubject {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::User => USER_QUOTA_SUBJECT,
+            Self::ApiKey => API_KEY_QUOTA_SUBJECT,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RateWindow {
+    pub window_seconds: u32,
+    pub subject: RateSubject,
+    pub max_requests: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPolicySpec {
@@ -112,6 +141,8 @@ pub struct GatewayPolicySpec {
     pub quota_mode: QuotaMode,
     #[serde(default)]
     pub quota_windows: Vec<QuotaWindow>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rate_windows: Vec<RateWindow>,
     #[serde(default)]
     pub safety: SafetyConfig,
 }

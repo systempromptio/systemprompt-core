@@ -325,6 +325,8 @@ quota_windows:
     max_cost_microdollars: 50000000
 ```
 
+Policies may also declare `rate_windows`, request-rate throttles counted across every replica: `{window_seconds, subject, max_requests}` with `subject` set to `user` or `api_key`. A request past `max_requests` in the current fixed window answers `429` (`rate_limit_error`) with `Retry-After` set to the end of the window, under `quota_mode: warn` as well as `enforce`. An `api_key` window applies only to requests authenticated with a key. If the counter cannot be updated, `quota_fault_mode: closed` answers `503` and `open` admits the request.
+
 ### API key limits and scope bindings
 
 `POST /api/v1/admin/api-keys` accepts, beside `name`, `target_user_id` and `expires_at`:

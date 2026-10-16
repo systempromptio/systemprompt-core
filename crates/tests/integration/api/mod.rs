@@ -596,3 +596,7 @@ mod gateway_scope_routing;
 #[cfg(test)]
 #[path = "gateway_api_key_limits.rs"]
 mod gateway_api_key_limits;
+
+#[cfg(test)]
+#[path = "gateway_rate_windows.rs"]
+mod gateway_rate_windows;

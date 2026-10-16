@@ -196,6 +196,8 @@ impl GovernanceEngine {
         let Some(repository) = self.rate_windows.as_ref() else {
             return counts;
         };
+        let call = subject.call;
+        let subject = format!("{}:{}", subject.session.as_str(), subject.user.as_str());
         for entry in self.entries.iter().filter(|e| e.config.enabled) {
             let Some(window) = entry.instance.rate_window() else {
                 continue;
@@ -203,9 +205,8 @@ impl GovernanceEngine {
             let charge = RateCharge {
                 policy_id: &entry.config.id,
                 window_secs: window.seconds,
-                session_id: subject.session,
-                user_id: subject.user,
-                call_id: subject.call,
+                subject: &subject,
+                call_id: call,
             };
             charged = true;
             match repository.charge(charge).await {

@@ -8,6 +8,9 @@
 //! [`PolicyContext::rate_counts`][super::PolicyContext::rate_counts]. Every
 //! replica charges the same row, so a budget holds per deployment.
 //!
+//! [`RateWindowRepository`] is also the counter behind the gateway's
+//! per-user and per-key request-rate windows.
+//!
 //! Charging is idempotent per call id: a re-evaluated call reads the position
 //! it was first charged at. A window whose charge fails is absent from
 //! [`RateCounts`], and the policy treats an absent count as a violation —
@@ -17,7 +20,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use sqlx::PgPool;
-use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::{CallId, PolicyId};
 use systemprompt_models::errors::RepositoryError;
 
 /// Each charged window's 1-based position of the current call within it.
@@ -52,19 +55,17 @@ impl RateCounts {
 pub struct RateCharge<'a> {
     pub policy_id: &'a PolicyId,
     pub window_secs: u64,
-    pub session_id: &'a SessionId,
-    pub user_id: &'a UserId,
+    pub subject: &'a str,
     pub call_id: &'a CallId,
 }
 
 impl RateCharge<'_> {
     fn bucket_key(&self) -> String {
         format!(
-            "{}:{}:{}:{}",
+            "{}:{}:{}",
             self.policy_id.as_str(),
             self.window_secs,
-            self.session_id.as_str(),
-            self.user_id.as_str()
+            self.subject
         )
     }
 }

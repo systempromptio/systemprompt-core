@@ -44,6 +44,7 @@ pub use safety::{
 };
 pub use spec::{
     API_KEY_QUOTA_SUBJECT, CalendarPeriod, DEFAULT_SCANNER_TIMEOUT_MS, GatewayPolicySpec,
-    HeuristicConfig, QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode, SafetyMode,
-    ScannerFailMode, ScannerSettings, USER_QUOTA_SUBJECT, WindowSpan,
+    HeuristicConfig, QuotaMode, QuotaWindow, RateSubject, RateWindow, SafetyConfig,
+    SafetyHistoryMode, SafetyMode, ScannerFailMode, ScannerSettings, USER_QUOTA_SUBJECT,
+    WindowSpan,
 };

@@ -1,4 +1,4 @@
-//! Pre-dispatch quota and extension guard enforcement.
+//! Pre-dispatch rate-window, quota and extension guard enforcement.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -63,6 +63,7 @@ pub(super) async fn enforce_quota(
         fault_mode,
         estimate,
     } = admission;
+    super::rate::enforce_rate_windows(repos, audit, policy, fault_mode).await?;
     let ctx = &audit.ctx;
     let windows: Vec<QuotaWindow> = policy
         .quota_windows
