@@ -17,13 +17,13 @@ use crate::models::{JobConfig, SchedulerConfig};
 use crate::repository::{JobLockGuard, SchedulerRepository};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum ClaimPolicy {
+pub(crate) enum ClaimPolicy {
     None,
     Cluster,
     Node { instance_id: InstanceId },
 }
 
-pub(super) fn claim_policy(
+pub(crate) fn claim_policy(
     config: &SchedulerConfig,
     job_config: Option<&JobConfig>,
     job: Option<&dyn JobTrait>,

@@ -37,6 +37,10 @@ impl Job for TraceFactsRollupJob {
         "*/10 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("*/10 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         drain_projection(ctx, &DRAIN).await
     }

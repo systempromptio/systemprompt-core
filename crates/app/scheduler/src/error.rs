@@ -35,6 +35,12 @@ pub enum SchedulerError {
     )]
     UnknownJob { names: String },
 
+    #[error(
+        "scheduler.unlisted_jobs is `error` and these registered jobs have no scheduler.jobs \
+         entry: {names}. Add an entry (enabled: false to keep one off) or relax unlisted_jobs."
+    )]
+    UnlistedJobs { names: String },
+
     #[error("Invalid cron schedule: {schedule}")]
     InvalidSchedule { schedule: String },
 

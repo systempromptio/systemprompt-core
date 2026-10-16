@@ -7,12 +7,26 @@
 //! the returned [`JobRunReport`] / [`JobBatchReport`]; a missing job is
 //! reported as a failed run rather than an error so a batch keeps going.
 //!
+//! A manual run claims a job exactly as the cron loop does: with
+//! `scheduler.distributed_lock` on, a `cluster`-scoped job runs only under
+//! its cross-replica advisory lock, waiting up to the service's lock wait
+//! (zero by default) for a replica that holds it. A run that cannot claim the
+//! lock is reported as failed with [`JobRunReport::lock_contended`] set and
+//! leaves the job's `scheduled_jobs` row to the replica that holds it.
+//! `node`-scoped jobs, and every job without the distributed lock, run
+//! unclaimed on this node.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod claim;
+mod report;
+
+pub use report::{JobBatchReport, JobRunReport, JobSelection, parse_job_parameters};
+
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{Actor, JobName};
@@ -23,44 +37,9 @@ use systemprompt_traits::Job;
 use super::scheduling::make_job_context;
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{JobRunRecord, JobStatus};
-use crate::repository::JobRepository;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum JobSelection {
-    All,
-    Tag(String),
-    Names(Vec<JobName>),
-}
-
-#[derive(Debug, Clone)]
-pub struct JobRunReport {
-    pub job_name: JobName,
-    pub success: bool,
-    pub duration_ms: u64,
-    pub message: Option<String>,
-    pub items_processed: Option<u64>,
-    pub items_failed: Option<u64>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct JobBatchReport {
-    pub runs: Vec<JobRunReport>,
-    pub succeeded: usize,
-    pub failed: usize,
-}
-
-pub fn parse_job_parameters(params: &[String]) -> SchedulerResult<HashMap<String, String>> {
-    let mut map = HashMap::new();
-    for param in params {
-        let Some((key, value)) = param.split_once('=') else {
-            return Err(SchedulerError::InvalidJobParameter {
-                parameter: param.clone(),
-            });
-        };
-        map.insert(key.to_owned(), value.to_owned());
-    }
-    Ok(map)
-}
+use crate::repository::{JobRepository, SchedulerRepository};
+use claim::Claimed;
+use report::{elapsed_ms, failed_report};
 
 enum RunnableJob {
     Manifest(Arc<dyn Job>),
@@ -81,6 +60,8 @@ pub struct JobExecutionService {
     registry: ExtensionRegistry,
     scheduler_config: SchedulerConfig,
     job_repo: JobRepository,
+    scheduler_repo: SchedulerRepository,
+    lock_wait: Duration,
 }
 
 impl std::fmt::Debug for JobExecutionService {
@@ -97,12 +78,21 @@ impl JobExecutionService {
         scheduler_config: SchedulerConfig,
     ) -> Self {
         let job_repo = JobRepository::new(ctx.db_pool());
+        let scheduler_repo = SchedulerRepository::new(ctx.db_pool());
         Self {
             ctx,
             registry,
             scheduler_config,
             job_repo,
+            scheduler_repo,
+            lock_wait: Duration::ZERO,
         }
+    }
+
+    #[must_use]
+    pub const fn with_lock_wait(mut self, wait: Duration) -> Self {
+        self.lock_wait = wait;
+        self
     }
 
     pub fn resolve_job_names(&self, selection: &JobSelection) -> SchedulerResult<Vec<JobName>> {
@@ -157,10 +147,12 @@ impl JobExecutionService {
 
         let succeeded = runs.iter().filter(|run| run.success).count();
         let failed = runs.len() - succeeded;
+        let contended = runs.iter().filter(|run| run.lock_contended).count();
         Ok(JobBatchReport {
             runs,
             succeeded,
             failed,
+            contended,
         })
     }
 
@@ -171,19 +163,36 @@ impl JobExecutionService {
     ) -> JobRunReport {
         let start = Instant::now();
 
-        let report = match self.find_runnable(job_name) {
-            Some(runnable) => {
-                self.execute_runnable(job_name, &runnable, parameters, start)
-                    .await
-            },
-            None => failed_report(
+        let Some(runnable) = self.find_runnable(job_name) else {
+            let report = failed_report(
                 job_name,
                 start,
                 Some(format!("Job '{}' not found", job_name)),
-            ),
+            );
+            self.record_run(&report).await;
+            return report;
         };
 
+        let guard = match self.claim(job_name, &runnable).await {
+            Ok(Claimed::Held(guard)) => Some(guard),
+            Ok(Claimed::Free) => None,
+            Ok(Claimed::Contended) => return self.contended_report(job_name, start),
+            Err(e) => {
+                return failed_report(
+                    job_name,
+                    start,
+                    Some(format!("Could not claim the job's distributed lock: {e}")),
+                );
+            },
+        };
+
+        let report = self
+            .execute_runnable(job_name, &runnable, parameters, start)
+            .await;
         self.record_run(&report).await;
+        if let Some(guard) = guard {
+            guard.release().await;
+        }
         report
     }
 
@@ -230,6 +239,7 @@ impl JobExecutionService {
                 message: result.message,
                 items_processed: result.items_processed,
                 items_failed: result.items_failed,
+                lock_contended: false,
             },
             Err(e) => failed_report(job_name, start, Some(e.to_string())),
         }
@@ -272,19 +282,4 @@ impl JobExecutionService {
             tracing::warn!(job = %report.job_name, error = %e, "failed to record manual job execution");
         }
     }
-}
-
-fn failed_report(job_name: &JobName, start: Instant, message: Option<String>) -> JobRunReport {
-    JobRunReport {
-        job_name: job_name.clone(),
-        success: false,
-        duration_ms: elapsed_ms(start),
-        message,
-        items_processed: None,
-        items_failed: None,
-    }
-}
-
-fn elapsed_ms(start: Instant) -> u64 {
-    u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX)
 }

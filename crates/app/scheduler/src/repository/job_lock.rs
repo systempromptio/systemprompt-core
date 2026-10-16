@@ -5,7 +5,8 @@
 //! replicas against one database, every replica's cron fires the same job
 //! on the same tick. [`JobLockRepository::try_acquire`] gives exactly one
 //! replica the right to run a given job: the others observe a held lock and
-//! skip.
+//! skip. [`JobLockRepository::acquire_within`] is the waiting form a manual
+//! run takes, polling the same lock until its deadline.
 //!
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]
@@ -18,6 +19,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::time::Instant;
 
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};
@@ -27,6 +31,8 @@ use systemprompt_traits::RepositoryError;
 use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
+
+const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 // Why: SQLx pool return keeps the session open; Postgres session locks
 // survive until explicit unlock or session closure.
@@ -118,6 +124,24 @@ impl JobLockRepository {
             }))
         } else {
             Ok(None)
+        }
+    }
+
+    pub(crate) async fn acquire_within(
+        &self,
+        job_name: &JobName,
+        wait: Duration,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        let deadline = Instant::now() + wait;
+        loop {
+            if let Some(guard) = self.try_acquire(job_name).await? {
+                return Ok(Some(guard));
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return Ok(None);
+            }
+            tokio::time::sleep(LOCK_POLL_INTERVAL.min(deadline - now)).await;
         }
     }
 }

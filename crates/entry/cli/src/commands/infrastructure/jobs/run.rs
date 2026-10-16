@@ -5,12 +5,18 @@
 //! [`systemprompt_scheduler::JobExecutionService`], and renders the returned
 //! batch report.
 //!
+//! A `cluster`-scoped job takes the same cross-replica advisory lock the
+//! scheduler takes; `--lock-wait-secs` bounds how long the run waits for a
+//! replica that holds it. A job skipped because another replica holds its
+//! lock makes the command fail.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::Args;
 use std::sync::Arc;
+use std::time::Duration;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::JobName;
 use systemprompt_scheduler::{
@@ -53,6 +59,14 @@ pub struct RunArgs {
         help = "Job parameters (can be specified multiple times)"
     )]
     pub params: Vec<String>,
+
+    #[arg(
+        long,
+        default_value_t = 0,
+        value_name = "SECONDS",
+        help = "Wait up to this long for another replica holding a cluster job's lock (0 fails at once)"
+    )]
+    pub lock_wait_secs: u64,
 }
 
 pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<CommandOutput> {
@@ -75,8 +89,24 @@ pub(super) async fn execute(args: RunArgs, ctx: &CommandContext) -> Result<Comma
                 .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin)
         },
     );
-    let service = JobExecutionService::new(app, registry, scheduler_config);
+    let service = JobExecutionService::new(app, registry, scheduler_config)
+        .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;
+
+    if batch.contended > 0 {
+        let held: Vec<&str> = batch
+            .runs
+            .iter()
+            .filter(|run| run.lock_contended)
+            .map(|run| run.job_name.as_str())
+            .collect();
+        bail!(
+            "{} job(s) not run: another replica holds the distributed lock ({}); retry later or \
+             pass --lock-wait-secs",
+            held.len(),
+            held.join(", ")
+        );
+    }
 
     let jobs_run: Vec<JobRunOutput> = batch.runs.into_iter().map(into_output).collect();
     let output = BatchJobRunOutput {

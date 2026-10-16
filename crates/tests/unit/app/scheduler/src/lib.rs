@@ -40,6 +40,8 @@ mod jobs_db;
 #[cfg(test)]
 mod jobs_seeded_db;
 #[cfg(test)]
+mod manual_run_lock_db;
+#[cfg(test)]
 mod models;
 #[cfg(test)]
 mod multi_replica_jobs_db;
@@ -73,5 +75,7 @@ mod supervision;
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;
+#[cfg(test)]
+mod unlisted_jobs_db;
 #[cfg(test)]
 mod vertex_discovery_lifecycle;

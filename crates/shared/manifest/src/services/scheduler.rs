@@ -1,5 +1,11 @@
 //! Scheduler job configuration and the built-in job set.
 //!
+//! `unlisted_jobs` decides what happens to a job this build registers but
+//! `jobs`/`bootstrap_jobs` never names: `warn` logs it and leaves it off the
+//! schedule; `default` (the default) schedules it, as the system admin, when
+//! the job declares a `default_schedule()`, and warns about the rest; `error`
+//! refuses to start the scheduler while any schedulable job is unlisted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -94,6 +100,15 @@ impl JobConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UnlistedJobs {
+    Warn,
+    #[default]
+    Default,
+    Error,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulerConfig {
     #[serde(default = "default_true")]
@@ -104,6 +119,8 @@ pub struct SchedulerConfig {
     pub bootstrap_jobs: Vec<JobName>,
     #[serde(default = "default_true")]
     pub distributed_lock: bool,
+    #[serde(default)]
+    pub unlisted_jobs: UnlistedJobs,
 }
 
 fn default_bootstrap_jobs() -> Vec<JobName> {
@@ -137,6 +154,7 @@ impl SchedulerConfig {
             ],
             bootstrap_jobs: default_bootstrap_jobs(),
             distributed_lock: true,
+            unlisted_jobs: UnlistedJobs::Default,
         }
     }
 }

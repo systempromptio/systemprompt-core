@@ -60,6 +60,14 @@ impl SchedulerRepository {
         self.locks.try_acquire(job_name).await
     }
 
+    pub(crate) async fn acquire_job_lock_within(
+        &self,
+        job_name: &JobName,
+        wait: std::time::Duration,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        self.locks.acquire_within(job_name, wait).await
+    }
+
     pub async fn upsert_job(
         &self,
         job_name: &JobName,

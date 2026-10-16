@@ -222,11 +222,11 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.default.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.ci.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.default.overrides]]
@@ -430,7 +430,7 @@ filter = 'package(systemprompt-agent-integration-tests) and test(/agent_service_
 test-group = 'scheduler-services-db'
 
 [[profile.coverage.overrides]]
-filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db)::/)'
+filter = 'package(systemprompt-scheduler-tests) and test(/(jobs_seeded_db|bootstrap_dispatch_db|dispatch_scope_db|dispatch_instance_stamp_db|job_execution_db|start_owner_resolution_db|manual_run_lock_db|unlisted_jobs_db)::/)'
 test-group = 'scheduler-jobs-db'
 
 [[profile.coverage.overrides]]

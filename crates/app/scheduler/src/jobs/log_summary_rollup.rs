@@ -36,6 +36,10 @@ impl Job for LogSummaryRollupJob {
         "35 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("35 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         drain_projection(ctx, &DRAIN).await
     }

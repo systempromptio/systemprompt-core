@@ -70,5 +70,6 @@ pub use services::{
     SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
     StartupRequest, VerifiedServiceState, child_kind, parse_job_parameters, port_holders,
-    stop_api_listeners, stop_owned_port_holders, unknown_job_names, wait_for_port_free,
+    stop_api_listeners, stop_owned_port_holders, unknown_job_names, unlisted_job_names,
+    wait_for_port_free,
 };

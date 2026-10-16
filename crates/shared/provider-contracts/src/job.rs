@@ -11,6 +11,10 @@
 //! whether this deployment has what the job needs (an exporter with no
 //! destination answers `false`); an unconfigured job is never put on the cron
 //! schedule, so it costs no ticks, but it can still be run by name.
+//! [`Job::default_schedule`] is the opt-in for a job whose absence breaks
+//! something (a read model it alone fills): under the scheduler's
+//! `unlisted_jobs: default` it is scheduled even when the configuration does
+//! not name it.
 //!
 //! A job reaches the host's handles through [`JobContext::get`]: the scheduler
 //! inserts `DbPool`, `Arc<AppContext>` and `Arc<AppPaths>` into the context's
@@ -215,6 +219,10 @@ pub trait Job: Send + Sync + 'static {
 
     fn scope(&self) -> JobScope {
         JobScope::Cluster
+    }
+
+    fn default_schedule(&self) -> Option<&'static str> {
+        None
     }
 }
 
