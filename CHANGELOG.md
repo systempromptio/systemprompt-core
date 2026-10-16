@@ -10,6 +10,7 @@
 - **Breaking:** `ExtensionContext` requires `file_storage()` and `instance_id()`. Migrate custom implementations by returning the host's storage backend and replica id.
 - **Breaking:** `ApiKeyService::new` and `RunCredentialService::new` take an `ApiKeyLifetime`, and `UserRepository::insert_service_account` is replaced by the idempotent `ensure_service_account`.
 - **Breaking:** a profile with `storage.shared: true` must set `paths.data`, the per-node directory for the gateway journal and scratch state. Migrate by mounting a node-local volume and pointing `paths.data` at it.
+- **Breaking:** the `ai_quota_buckets` unique key includes `shard` (ai migration `042_quota_bucket_shards`). Migrate SQL that upserts into the table by adding `shard` to its `ON CONFLICT` target, and sum rows across shards when reading a window's usage.
 - **Breaking:** `bind_and_serve` takes a `ShutdownConfig`, and `SchedulerConfig` gains `unlisted_jobs`; struct literals must name the new fields.
 
 ### Added
