@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_traits::{
-    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
-    StoredFileMetadata, StoredFileRead,
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    StoredFileRead,
 };
 use tokio::sync::Mutex;
 

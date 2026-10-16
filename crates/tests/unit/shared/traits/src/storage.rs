@@ -66,8 +66,7 @@ mod file_storage_default_method {
     use async_trait::async_trait;
     use std::path::Path;
     use systemprompt_traits::storage::{
-        ByteRange, FileStorage, FileStorageResult, StoredFileId, StoredFileMetadata,
-        StoredFileRead,
+        ByteRange, FileStorage, FileStorageResult, StoredFileId, StoredFileMetadata, StoredFileRead,
     };
 
     struct MinimalStorage;
@@ -144,15 +143,34 @@ mod byte_range {
 
     #[test]
     fn rejects_multi_inverted_and_malformed_ranges() {
-        for raw in ["bytes=0-1,4-5", "bytes=5-2", "bytes=-", "items=0-1", "bytes=a-b", ""] {
+        for raw in [
+            "bytes=0-1,4-5",
+            "bytes=5-2",
+            "bytes=-",
+            "items=0-1",
+            "bytes=a-b",
+            "",
+        ] {
             assert_eq!(ByteRange::parse(raw), None, "{raw}");
         }
     }
 
     #[test]
     fn resolves_against_the_object_size() {
-        let r = ByteRange::Bounded { start: 90, end: 500 }.resolve(100).unwrap();
-        assert_eq!(r, ServedRange { start: 90, end: 99, size: 100 });
+        let r = ByteRange::Bounded {
+            start: 90,
+            end: 500,
+        }
+        .resolve(100)
+        .unwrap();
+        assert_eq!(
+            r,
+            ServedRange {
+                start: 90,
+                end: 99,
+                size: 100
+            }
+        );
         assert_eq!(r.length(), 10);
         assert_eq!(r.content_range(), "bytes 90-99/100");
         assert!(matches!(
@@ -166,6 +184,9 @@ mod byte_range {
     fn renders_the_request_header() {
         assert_eq!(ByteRange::Suffix(3).header_value(), "bytes=-3");
         assert_eq!(ByteRange::From(3).header_value(), "bytes=3-");
-        assert_eq!(ByteRange::Bounded { start: 1, end: 2 }.header_value(), "bytes=1-2");
+        assert_eq!(
+            ByteRange::Bounded { start: 1, end: 2 }.header_value(),
+            "bytes=1-2"
+        );
     }
 }

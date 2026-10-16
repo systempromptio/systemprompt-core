@@ -20,10 +20,14 @@ fn credentials(session_token: Option<&str>) -> S3Credentials {
 }
 
 fn params(server: &MockServer, prefix: Option<&str>) -> S3Params {
-    S3Params::new("my-bucket", Some("eu-west-1".to_owned()), Some(&server.uri()))
-        .unwrap()
-        .with_prefix(prefix.map(str::to_owned))
-        .with_path_style(true)
+    S3Params::new(
+        "my-bucket",
+        Some("eu-west-1".to_owned()),
+        Some(&server.uri()),
+    )
+    .unwrap()
+    .with_prefix(prefix.map(str::to_owned))
+    .with_path_style(true)
 }
 
 fn storage(server: &MockServer, prefix: Option<&str>) -> Arc<dyn FileStorage> {
@@ -47,7 +51,10 @@ async fn store_puts_the_object_path_style_with_a_sigv4_signature() {
     Mock::given(method("PUT"))
         .and(path("/my-bucket/tenant-a/files/uploads/a.png"))
         .and(header("content-type", "image/png"))
-        .and(header("x-amz-content-sha256", sha256_hex(b"png-bytes").as_str()))
+        .and(header(
+            "x-amz-content-sha256",
+            sha256_hex(b"png-bytes").as_str(),
+        ))
         .and(header_regex("x-amz-date", r"^\d{8}T\d{6}Z$"))
         .and(header_regex("authorization", AUTH))
         .and(body_bytes(b"png-bytes".to_vec()))
@@ -155,8 +162,15 @@ async fn a_session_token_is_sent_and_signed() {
         .expect(1)
         .mount(&server)
         .await;
-    let s = S3FileStorage::new(params(&server, None), credentials(Some("sess-1")), reqwest::Client::new());
-    assert_eq!(s.read_all(&StoredFileId::new("files/a")).await.unwrap(), b"ok");
+    let s = S3FileStorage::new(
+        params(&server, None),
+        credentials(Some("sess-1")),
+        reqwest::Client::new(),
+    );
+    assert_eq!(
+        s.read_all(&StoredFileId::new("files/a")).await.unwrap(),
+        b"ok"
+    );
 }
 
 #[tokio::test]
@@ -170,7 +184,14 @@ async fn signatures_differ_per_object() {
     s.read_all(&StoredFileId::new("files/a")).await.unwrap();
     s.read_all(&StoredFileId::new("files/b")).await.unwrap();
     let requests: Vec<Request> = server.received_requests().await.unwrap();
-    let auth = |r: &Request| r.headers.get("authorization").unwrap().to_str().unwrap().to_owned();
+    let auth = |r: &Request| {
+        r.headers
+            .get("authorization")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned()
+    };
     assert_ne!(auth(&requests[0]), auth(&requests[1]));
 }
 
@@ -192,7 +213,8 @@ fn public_url_is_virtual_hosted_unless_path_style() {
     let base = S3Params::new("my-bucket", None, None)
         .unwrap()
         .with_public_read(true);
-    let virtual_hosted = S3FileStorage::new(base.clone(), credentials(None), reqwest::Client::new());
+    let virtual_hosted =
+        S3FileStorage::new(base.clone(), credentials(None), reqwest::Client::new());
     assert_eq!(
         virtual_hosted
             .public_url(&StoredFileId::new("files/a b.png"))
@@ -205,7 +227,9 @@ fn public_url_is_virtual_hosted_unless_path_style() {
         reqwest::Client::new(),
     );
     assert_eq!(
-        path_style.public_url(&StoredFileId::new("files/a.png")).as_deref(),
+        path_style
+            .public_url(&StoredFileId::new("files/a.png"))
+            .as_deref(),
         Some("https://s3.us-east-1.amazonaws.com/my-bucket/files/a.png")
     );
     let private = S3FileStorage::new(
@@ -213,7 +237,11 @@ fn public_url_is_virtual_hosted_unless_path_style() {
         credentials(None),
         reqwest::Client::new(),
     );
-    assert!(private.public_url(&StoredFileId::new("files/a.png")).is_none());
+    assert!(
+        private
+            .public_url(&StoredFileId::new("files/a.png"))
+            .is_none()
+    );
 }
 
 #[test]

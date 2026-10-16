@@ -17,7 +17,10 @@ use crate::support::ReadAll;
 async fn local_with(content: &[u8]) -> (TempDir, LocalFileStorage, StoredFileId) {
     let dir = TempDir::new().unwrap();
     let storage = LocalFileStorage::new(dir.path().to_path_buf());
-    let id = storage.store(Path::new("files/a.bin"), content).await.unwrap();
+    let id = storage
+        .store(Path::new("files/a.bin"), content)
+        .await
+        .unwrap();
     (dir, storage, id)
 }
 
@@ -38,7 +41,11 @@ async fn local_ranges_serve_the_requested_bytes() {
         (ByteRange::Bounded { start: 2, end: 4 }, &b"234"[..], (2, 4)),
         (ByteRange::From(7), &b"789"[..], (7, 9)),
         (ByteRange::Suffix(3), &b"789"[..], (7, 9)),
-        (ByteRange::Bounded { start: 8, end: 100 }, &b"89"[..], (8, 9)),
+        (
+            ByteRange::Bounded { start: 8, end: 100 },
+            &b"89"[..],
+            (8, 9),
+        ),
         (ByteRange::Suffix(50), &b"0123456789"[..], (0, 9)),
     ];
     for (range, expected, (start, end)) in cases {
@@ -52,7 +59,11 @@ async fn local_ranges_serve_the_requested_bytes() {
             }),
             "{range:?}"
         );
-        assert_eq!(s.read_range(&id, range).await.unwrap(), expected, "{range:?}");
+        assert_eq!(
+            s.read_range(&id, range).await.unwrap(),
+            expected,
+            "{range:?}"
+        );
     }
 }
 
@@ -199,7 +210,10 @@ async fn gcs_forwards_the_range_and_reads_a_206() {
         reqwest::Client::new(),
     );
     let read = s
-        .open(&StoredFileId::new("files/a.bin"), Some(ByteRange::Suffix(3)))
+        .open(
+            &StoredFileId::new("files/a.bin"),
+            Some(ByteRange::Suffix(3)),
+        )
         .await
         .unwrap();
     assert_eq!(

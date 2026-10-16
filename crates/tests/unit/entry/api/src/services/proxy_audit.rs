@@ -81,12 +81,16 @@ fn parse_response_frame_reports_an_error_key_in_structured_content() {
     let error = parse_response_frame(data, &json!(7))
         .expect("result parses")
         .error_message;
-    assert_eq!(error.as_deref(), Some(r#"MCP tool result reported an error: {"code":404}"#));
+    assert_eq!(
+        error.as_deref(),
+        Some(r#"MCP tool result reported an error: {"code":404}"#)
+    );
 }
 
 #[test]
 fn parse_response_frame_keeps_a_plain_text_result_successful() {
-    let data = r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"error: none"}]}}"#;
+    let data =
+        r#"{"jsonrpc":"2.0","id":7,"result":{"content":[{"type":"text","text":"error: none"}]}}"#;
     let outcome = parse_response_frame(data, &json!(7)).expect("result parses");
     assert!(outcome.error_message.is_none());
 }

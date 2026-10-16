@@ -17,6 +17,8 @@
 #[cfg(test)]
 mod asset_tests;
 #[cfg(test)]
+mod atomic_write_tests;
+#[cfg(test)]
 pub(crate) mod build;
 #[cfg(test)]
 mod build_steps_error_tests;
@@ -26,8 +28,6 @@ mod build_tests;
 pub(crate) mod config_error_db;
 #[cfg(test)]
 mod content;
-#[cfg(test)]
-mod atomic_write_tests;
 #[cfg(test)]
 mod copy_assets_tests;
 #[cfg(test)]

@@ -84,7 +84,10 @@ async fn request(
     .into_response();
     let status = resp.status();
     let headers = resp.headers().clone();
-    let body = to_bytes(resp.into_body(), 1024 * 1024).await.unwrap().to_vec();
+    let body = to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap()
+        .to_vec();
     (status, headers, body)
 }
 
@@ -133,7 +136,10 @@ async fn a_file_only_in_the_storage_backend_is_served_from_it() -> anyhow::Resul
         .store(Path::new(&format!("files/{rel}")), b"png-bytes")
         .await?;
     let local = FilesConfig::get().unwrap().files().join(&rel);
-    assert!(!local.exists(), "the fixture must not share the writable layer");
+    assert!(
+        !local.exists(),
+        "the fixture must not share the writable layer"
+    );
     let (status, headers, body) = get(&l.state, &files_url(&rel)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(headers[header::CONTENT_TYPE], "image/png");
@@ -218,8 +224,7 @@ async fn a_malformed_or_multi_range_is_served_whole() -> anyhow::Result<()> {
     let l = layers().await?;
     let url = backend_file(&l, b"0123456789").await;
     for raw in ["bytes=0-1,4-5", "bytes=9-2", "lines=1-2"] {
-        let (status, _, body) =
-            request(&l.state, Method::GET, &url, &[(header::RANGE, raw)]).await;
+        let (status, _, body) = request(&l.state, Method::GET, &url, &[(header::RANGE, raw)]).await;
         assert_eq!(status, StatusCode::OK, "{raw}");
         assert_eq!(body, b"0123456789", "{raw}");
     }
@@ -230,8 +235,13 @@ async fn a_malformed_or_multi_range_is_served_whole() -> anyhow::Result<()> {
 async fn head_returns_headers_without_a_body() -> anyhow::Result<()> {
     let l = layers().await?;
     let url = backend_file(&l, b"0123456789").await;
-    let (status, headers, body) =
-        request(&l.state, Method::HEAD, &url, &[(header::RANGE, "bytes=0-1")]).await;
+    let (status, headers, body) = request(
+        &l.state,
+        Method::HEAD,
+        &url,
+        &[(header::RANGE, "bytes=0-1")],
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(headers[header::CONTENT_LENGTH], "10");
     assert!(headers.contains_key(header::ETAG));
@@ -245,8 +255,13 @@ async fn a_matching_etag_is_304() -> anyhow::Result<()> {
     let url = backend_file(&l, b"0123456789").await;
     let (_, headers, _) = get(&l.state, &url).await;
     let etag = headers[header::ETAG].to_str()?.to_owned();
-    let (status, _, body) =
-        request(&l.state, Method::GET, &url, &[(header::IF_NONE_MATCH, &etag)]).await;
+    let (status, _, body) = request(
+        &l.state,
+        Method::GET,
+        &url,
+        &[(header::IF_NONE_MATCH, &etag)],
+    )
+    .await;
     assert_eq!(status, StatusCode::NOT_MODIFIED);
     assert!(body.is_empty());
     Ok(())

@@ -31,6 +31,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod capture;
+
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
@@ -267,35 +269,5 @@ impl ThoughtSignatureCache {
                 "thought signature lookup failed"
             ),
         }
-    }
-
-    #[must_use]
-    pub fn signed_tool_use_count(response: &CanonicalResponse) -> usize {
-        response
-            .content
-            .iter()
-            .filter(|c| {
-                matches!(
-                    c,
-                    CanonicalContent::ToolUse {
-                        signature: Some(_),
-                        ..
-                    }
-                )
-            })
-            .count()
-    }
-
-    pub fn note_uncacheable_response(response: &CanonicalResponse, reason: &'static str) {
-        let signed = Self::signed_tool_use_count(response);
-        if signed == 0 {
-            return;
-        }
-        metrics::counter!(CAPTURE_SKIPPED_TOTAL, "reason" => reason).increment(1);
-        tracing::warn!(
-            reason,
-            signed_tool_use_blocks = signed,
-            "thought signatures could not be cached; a later turn in this conversation will miss"
-        );
     }
 }

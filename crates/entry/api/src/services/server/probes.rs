@@ -43,36 +43,34 @@ pub(crate) async fn handle_readyz(
     use systemprompt_database::DatabaseProvider;
 
     let instance = ctx.config().instance_id.clone();
-    let version = env!("CARGO_PKG_VERSION");
     let fingerprint = super::config_fingerprint::current();
-    let config = json!({ "fingerprint": fingerprint });
+    let respond = |status: StatusCode, mut body: serde_json::Value, config: serde_json::Value| {
+        if let Some(fields) = body.as_object_mut() {
+            fields.insert("instance".to_owned(), json!(instance));
+            fields.insert("version".to_owned(), json!(env!("CARGO_PKG_VERSION")));
+            fields.insert("config".to_owned(), config);
+        }
+        (status, Json(body))
+    };
+    let bare = json!({ "fingerprint": fingerprint });
 
     if !super::readiness::is_ready() {
-        return (
+        return respond(
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({
-                "status": "draining",
-                "instance": instance,
-                "version": version,
-                "config": config
-            })),
+            json!({ "status": "draining" }),
+            bare,
         );
     }
 
     if let Some(axum::Extension(shed)) = shed
         && shed.saturated()
     {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({
-                "status": "saturated",
-                "in_flight": shed.in_flight(),
-                "limit": shed.limit(),
-                "instance": instance,
-                "version": version,
-                "config": config
-            })),
-        );
+        let body = json!({
+            "status": "saturated",
+            "in_flight": shed.in_flight(),
+            "limit": shed.limit(),
+        });
+        return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 
     let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
@@ -80,43 +78,19 @@ pub(crate) async fn handle_readyz(
         tokio::time::timeout(HEALTH_PROBE_TIMEOUT, probe).await,
         Ok(Ok(_))
     );
-    if db_ready {
-        let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
-        let schema = ctx.schema_install();
-        if schema.is_ahead() {
-            return (
-                StatusCode::OK,
-                Json(json!({
-                    "status": "ready",
-                    "schema": "ahead",
-                    "schema_ahead": schema.ahead,
-                    "instance": instance,
-                    "version": version,
-                    "config": config
-                })),
-            );
-        }
-        (
-            StatusCode::OK,
-            Json(json!({
-                "status": "ready",
-                "instance": instance,
-                "version": version,
-                "config": config
-            })),
-        )
-    } else {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({
-                "status": "unready",
-                "database": "unreachable",
-                "instance": instance,
-                "version": version,
-                "config": config
-            })),
-        )
+    if !db_ready {
+        let body = json!({ "status": "unready", "database": "unreachable" });
+        return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
+
+    let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
+    let schema = ctx.schema_install();
+    let body = if schema.is_ahead() {
+        json!({ "status": "ready", "schema": "ahead", "schema_ahead": schema.ahead })
+    } else {
+        json!({ "status": "ready" })
+    };
+    respond(StatusCode::OK, body, config)
 }
 
 async fn config_block(

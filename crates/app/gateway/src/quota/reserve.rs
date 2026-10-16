@@ -282,4 +282,3 @@ fn pick_shard(sharding: &QuotaConfig, subject_kind: &str, draw: u16) -> i16 {
     };
     i16::try_from(draw % shards.max(1)).unwrap_or(0)
 }
-

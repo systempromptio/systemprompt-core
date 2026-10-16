@@ -16,10 +16,10 @@ mod gcs_token_refresh;
 #[cfg(test)]
 mod local_storage;
 #[cfg(test)]
+mod ranged_reads;
+#[cfg(test)]
 mod s3_storage;
 #[cfg(test)]
 mod shared_mount_probe;
 #[cfg(test)]
 mod support;
-#[cfg(test)]
-mod ranged_reads;
