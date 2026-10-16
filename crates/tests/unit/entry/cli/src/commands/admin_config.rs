@@ -11,7 +11,9 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
-use systemprompt_cli::admin::config::validate::{ValidateArgs, execute, unknown_jobs_message};
+use systemprompt_cli::admin::config::validate::{
+    ValidateArgs, execute, unknown_jobs_message, unlisted_jobs_message,
+};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
@@ -298,4 +300,21 @@ fn validate_names_every_unregistered_scheduler_job() {
     assert!(message.contains("access_control_sync"), "got: {message}");
     assert!(message.contains("content_sync"), "got: {message}");
     assert!(message.contains("infra jobs list"), "got: {message}");
+}
+
+#[test]
+fn strict_validation_names_registered_jobs_the_config_omits() {
+    let config = SchedulerConfig::with_system_admin();
+    let message = unlisted_jobs_message(&config).expect("the built-in set omits the rollups");
+    assert!(message.contains("trace_facts_rollup"), "got: {message}");
+    assert!(!message.contains("database_cleanup"), "got: {message}");
+}
+
+#[test]
+fn strict_validation_passes_once_every_job_is_named() {
+    let mut config = SchedulerConfig::with_system_admin();
+    for name in systemprompt_scheduler::unlisted_job_names(&config) {
+        config.jobs.push(JobConfig::new(name).disabled());
+    }
+    assert!(unlisted_jobs_message(&config).is_none());
 }
