@@ -104,10 +104,11 @@ impl systemprompt_traits::FileStorage for StubFiles {
             path.display().to_string(),
         ))
     }
-    async fn retrieve(
+    async fn open(
         &self,
         id: &systemprompt_traits::StoredFileId,
-    ) -> systemprompt_traits::FileStorageResult<Vec<u8>> {
+        _range: Option<systemprompt_traits::ByteRange>,
+    ) -> systemprompt_traits::FileStorageResult<systemprompt_traits::StoredFileRead> {
         Err(systemprompt_traits::FileStorageError::NotFound(
             id.to_string(),
         ))

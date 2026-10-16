@@ -10,8 +10,8 @@ use systemprompt_extension::{Extension, ExtensionMetadata};
 
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::{
-    ConfigProvider, DatabaseHandle, FileStorage, FileStorageError, FileStorageResult, StoredFileId,
-    StoredFileMetadata,
+    ByteRange, ConfigProvider, DatabaseHandle, FileStorage, FileStorageError, FileStorageResult,
+    StoredFileId, StoredFileMetadata, StoredFileRead,
 };
 
 #[derive(Debug, Clone)]
@@ -77,6 +77,17 @@ struct MemoryFiles {
     objects: Mutex<HashMap<String, Vec<u8>>>,
 }
 
+impl MemoryFiles {
+    fn bytes_of(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+        self.objects
+            .lock()
+            .expect("lock")
+            .get(id.as_str())
+            .cloned()
+            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
+    }
+}
+
 #[async_trait::async_trait]
 impl FileStorage for MemoryFiles {
     async fn store(
@@ -92,13 +103,24 @@ impl FileStorage for MemoryFiles {
         Ok(StoredFileId::new(key))
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
-        self.objects
-            .lock()
-            .expect("lock")
-            .get(id.as_str())
-            .cloned()
-            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
+        let content = self.bytes_of(id)?;
+        let metadata = self.metadata(id).await?;
+        let served = range.map(|r| r.resolve(content.len() as u64)).transpose()?;
+        let body = served.map_or_else(
+            || content.clone(),
+            |r| content[r.start as usize..=r.end as usize].to_vec(),
+        );
+        let chunk: FileStorageResult<bytes::Bytes> = Ok(bytes::Bytes::from(body));
+        Ok(StoredFileRead {
+            metadata,
+            range: served,
+            body: Box::pin(futures::stream::iter([chunk])),
+        })
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
@@ -107,11 +129,12 @@ impl FileStorage for MemoryFiles {
     }
 
     async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
-        let size = self.retrieve(id).await?.len();
+        let size = self.bytes_of(id)?.len();
         Ok(StoredFileMetadata {
             id: id.clone(),
             path: id.to_string(),
             mime_type: "application/octet-stream".to_string(),
+            etag: None,
             size_bytes: i64::try_from(size).ok(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -455,8 +478,13 @@ async fn file_storage_shares_one_backend_across_handles() {
         .store(std::path::Path::new("exports/a.json"), b"payload")
         .await
         .expect("store");
-    let read = ctx.file_storage().retrieve(&id).await.expect("retrieve");
-    assert_eq!(read, b"payload");
+    let read = ctx.file_storage().open(&id, None).await.expect("open");
+    let chunks: Vec<_> = futures::StreamExt::collect(read.body).await;
+    let body: Vec<u8> = chunks
+        .into_iter()
+        .flat_map(|chunk| chunk.expect("chunk").to_vec())
+        .collect();
+    assert_eq!(body, b"payload");
     assert!(files.exists(&id).await.expect("exists"));
 }
 

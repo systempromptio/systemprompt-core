@@ -8346,7 +8346,9 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "axum",
+ "bytes",
  "chrono",
+ "futures",
  "serde_json",
  "systemprompt-extension",
  "systemprompt-identifiers",
