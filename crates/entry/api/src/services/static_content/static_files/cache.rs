@@ -66,10 +66,25 @@ pub fn compute_etag(content: &[u8]) -> String {
 }
 
 pub(super) fn etag_matches(headers: &HeaderMap, etag: &str) -> bool {
-    headers
+    let Some(value) = headers
         .get(header::IF_NONE_MATCH)
         .and_then(|v| v.to_str().ok())
-        == Some(etag)
+    else {
+        return false;
+    };
+    let opaque = |tag: &str| tag.trim().trim_start_matches("W/").to_owned();
+    let current = opaque(etag);
+    value
+        .split(',')
+        .any(|candidate| candidate.trim() == "*" || opaque(candidate) == current)
+}
+
+pub(super) fn if_range_holds(headers: &HeaderMap, etag: Option<&str>) -> bool {
+    let Some(value) = headers.get(header::IF_RANGE).and_then(|v| v.to_str().ok()) else {
+        return true;
+    };
+    let value = value.trim();
+    etag.is_some_and(|etag| !etag.starts_with("W/") && !value.starts_with("W/") && value == etag)
 }
 
 pub(super) fn not_modified_response(etag: &str, cache_control: &str) -> axum::response::Response {

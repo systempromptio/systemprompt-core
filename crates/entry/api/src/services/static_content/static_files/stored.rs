@@ -4,8 +4,8 @@
 //! the optional read-only `paths.shipped_files`, then the configured
 //! [`FileStorage`] backend, so files written to an object store by any
 //! replica are served by every replica. Bodies are streamed, a single
-//! `Range` is answered with `206` (or `416`), and `HEAD` returns the headers
-//! alone.
+//! `Range` is answered with `206` (or `416`) unless a stale `If-Range` asks
+//! for the whole file, and `HEAD` returns the headers alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +22,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_storage::LocalFileStorage;
 use systemprompt_traits::{ByteRange, FileStorage, FileStorageError, StoredFileId, StoredFileRead};
 
-use super::cache::{asset_cache_policy, etag_matches, not_modified_response};
+use super::cache::{asset_cache_policy, etag_matches, if_range_holds, not_modified_response};
 use crate::error::ApiHttpError;
 
 pub(super) struct FilesRequest<'a> {
@@ -64,7 +64,21 @@ pub(super) async fn serve_files_path(
     layers.push((ctx.file_storage().as_ref(), &backend_id));
 
     for (layer, id) in layers {
-        match layer.open(id, range).await {
+        let opened = match layer.open(id, range).await {
+            Ok(read)
+                if read.range.is_some()
+                    && !if_range_holds(req.headers, read.metadata.etag.as_deref()) =>
+            {
+                layer.open(id, None).await
+            },
+            Err(FileStorageError::RangeNotSatisfiable { .. })
+                if req.headers.contains_key(header::IF_RANGE) =>
+            {
+                layer.open(id, None).await
+            },
+            other => other,
+        };
+        match opened {
             Ok(read) => return respond(read, files_config, &req),
             Err(FileStorageError::NotFound(_) | FileStorageError::Validation(_)) => {},
             Err(FileStorageError::RangeNotSatisfiable { size }) => {

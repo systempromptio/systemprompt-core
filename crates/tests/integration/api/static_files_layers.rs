@@ -305,3 +305,52 @@ async fn shipped_layer_files_honour_ranges_too() -> anyhow::Result<()> {
     assert_eq!(body, b"efgh");
     Ok(())
 }
+
+#[tokio::test]
+async fn a_weak_or_listed_if_none_match_is_304() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (_, headers, _) = get(&l.state, &url).await;
+    let etag = headers[header::ETAG].to_str()?.to_owned();
+    for candidate in [format!("W/{etag}"), format!("\"other\", {etag}"), "*".to_owned()] {
+        let (status, _, _) = request(
+            &l.state,
+            Method::GET,
+            &url,
+            &[(header::IF_NONE_MATCH, &candidate)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_MODIFIED, "{candidate}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_stale_if_range_is_served_whole() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let url = backend_file(&l, b"0123456789").await;
+    let (_, headers, _) = get(&l.state, &url).await;
+    let etag = headers[header::ETAG].to_str()?.to_owned();
+    let (status, _, body) = request(
+        &l.state,
+        Method::GET,
+        &url,
+        &[(header::RANGE, "bytes=3-5"), (header::IF_RANGE, &etag)],
+    )
+    .await;
+    assert_eq!(status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(body, b"345");
+    for range in ["bytes=3-5", "bytes=20-"] {
+        let (status, headers, body) = request(
+            &l.state,
+            Method::GET,
+            &url,
+            &[(header::RANGE, range), (header::IF_RANGE, "\"stale\"")],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{range}");
+        assert!(!headers.contains_key(header::CONTENT_RANGE), "{range}");
+        assert_eq!(body, b"0123456789", "{range}");
+    }
+    Ok(())
+}
