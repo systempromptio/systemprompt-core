@@ -38,10 +38,11 @@ pub(super) async fn serve_files_path(
     files_config: &FilesConfig,
     req: FilesRequest<'_>,
 ) -> Response {
-    if req
-        .relative_path
-        .split(['/', '\\'])
-        .any(|segment| segment == "..")
+    if req.relative_path.chars().any(char::is_control)
+        || req
+            .relative_path
+            .split(['/', '\\'])
+            .any(|segment| segment == "..")
     {
         return ApiHttpError::not_found("Asset not found").into_response();
     }
