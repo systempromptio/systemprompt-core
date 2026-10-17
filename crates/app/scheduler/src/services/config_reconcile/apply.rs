@@ -8,7 +8,7 @@ use systemprompt_provider_contracts::{
 };
 
 use super::{AppliedPlane, ConfigReconcileService, PlaneDiff};
-use crate::error::SchedulerResult;
+use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::ConfigChangeRecord;
 
 #[derive(Clone, Copy)]
@@ -40,6 +40,24 @@ impl ConfigReconcileService {
     }
 
     pub async fn apply(
+        &self,
+        name: &str,
+        mode: ApplyMode,
+        change: &ChangeRequest<'_>,
+    ) -> SchedulerResult<AppliedPlane> {
+        let guard = self
+            .repository
+            .acquire_reconcile_lock(super::RECONCILE_LOCK_WAIT)
+            .await?
+            .ok_or(SchedulerError::ReconcileLockTimeout {
+                waited_secs: super::RECONCILE_LOCK_WAIT.as_secs(),
+            })?;
+        let applied = self.apply_unlocked(name, mode, change).await;
+        guard.release().await;
+        applied
+    }
+
+    async fn apply_unlocked(
         &self,
         name: &str,
         mode: ApplyMode,

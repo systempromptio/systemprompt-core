@@ -5,13 +5,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::JobName;
 
+use super::job_lock::{JobLockGuard, JobLockRepository};
 use crate::error::SchedulerResult;
+
+const RECONCILE_LOCK: &str = "config_reconcile";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PlaneStateRow {
@@ -68,6 +73,7 @@ pub struct ConfigChangeRow {
 pub struct ConfigReconcileRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
+    locks: JobLockRepository,
 }
 
 impl ConfigReconcileRepository {
@@ -75,7 +81,17 @@ impl ConfigReconcileRepository {
         Self {
             pool: db.pool(),
             write_pool: db.write_pool(),
+            locks: JobLockRepository::new(db),
         }
+    }
+
+    pub(crate) async fn acquire_reconcile_lock(
+        &self,
+        wait: Duration,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        self.locks
+            .acquire_within(&JobName::new(RECONCILE_LOCK), wait)
+            .await
     }
 
     pub async fn upsert_state(&self, update: &PlaneStateUpdate<'_>) -> SchedulerResult<()> {

@@ -24,14 +24,15 @@ mod report;
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use systemprompt_provider_contracts::{
-    ApplyMode, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError, Dependencies,
-    PlaneContext,
+    ApplyMode, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError, DeclaredState,
+    Dependencies, PlaneContext, PlaneSnapshot,
 };
 use systemprompt_runtime::{AppContext, ConfigPlaneSet, EffectiveAuthority};
 
-use crate::error::SchedulerResult;
+use crate::error::{SchedulerError, SchedulerResult};
 use crate::repository::{ConfigReconcileRepository, PlaneStateUpdate};
 
 pub use metrics::{CONFIG_DRIFT_ROWS, CONFIG_PLANE_INFO};
@@ -41,6 +42,7 @@ pub use report::{
 
 const RECONCILE_REASON: &str = "declared file is authoritative; database drift overwritten";
 const SEED_REASON: &str = "empty projection seeded from its declaration";
+pub const RECONCILE_LOCK_WAIT: Duration = Duration::from_secs(120);
 
 #[derive(Debug, Clone)]
 pub struct ConfigReconcileService {
@@ -81,6 +83,21 @@ impl ConfigReconcileService {
     #[must_use]
     pub const fn repository(&self) -> &ConfigReconcileRepository {
         &self.repository
+    }
+
+    pub async fn reconcile_exclusive(
+        &self,
+        trigger: ReconcileTrigger,
+        wait: Duration,
+    ) -> SchedulerResult<ReconcileReport> {
+        let guard = self.repository.acquire_reconcile_lock(wait).await?.ok_or(
+            SchedulerError::ReconcileLockTimeout {
+                waited_secs: wait.as_secs(),
+            },
+        )?;
+        let report = self.reconcile_all(trigger).await;
+        guard.release().await;
+        Ok(report)
     }
 
     pub async fn reconcile_all(&self, trigger: ReconcileTrigger) -> ReconcileReport {
@@ -147,6 +164,7 @@ impl ConfigReconcileService {
         let current = plane.read_current(&ctx).await?;
         let drift = plane.diff(&declared, &current);
         report.drift_rows = drift.len();
+        refuse_unattended_wipe(plane, report.authority, &declared, &current)?;
         let actor = match trigger {
             ReconcileTrigger::Boot => ChangeActor::Boot,
             ReconcileTrigger::Scheduled => ChangeActor::Reconciler,
@@ -220,4 +238,24 @@ impl ConfigReconcileService {
             tracing::warn!(plane = %report.plane, error = %error, "config_plane_state not recorded");
         }
     }
+}
+
+fn refuse_unattended_wipe(
+    plane: &dyn ConfigPlane,
+    authority: EffectiveAuthority,
+    declared: &DeclaredState,
+    current: &PlaneSnapshot,
+) -> Result<(), ConfigPlaneError> {
+    if !authority.is_file_managed() || !declared.entries.is_empty() || current.is_empty() {
+        return Ok(());
+    }
+    Err(ConfigPlaneError::Invalid {
+        plane: plane.name().to_owned(),
+        path: plane.declared_path().to_owned(),
+        message: format!(
+            "the declaration is empty and would delete all {} database rows; refusing an \
+             unattended wipe (use `admin config planes apply` to empty the plane)",
+            current.len()
+        ),
+    })
 }

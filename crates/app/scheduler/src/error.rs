@@ -72,6 +72,9 @@ pub enum SchedulerError {
     #[error("Cron scheduler error: {0}")]
     CronScheduler(#[from] tokio_cron_scheduler::JobSchedulerError),
 
+    #[error("config reconcile lock not acquired within {waited_secs}s: another replica holds it")]
+    ReconcileLockTimeout { waited_secs: u64 },
+
     #[error("Scheduler already running")]
     AlreadyRunning,
 

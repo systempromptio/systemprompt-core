@@ -19,8 +19,8 @@ pub mod scheduling;
 mod service_management;
 
 pub use config_reconcile::{
-    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport, ReconcileReport,
-    ReconcileTrigger,
+    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,
+    RECONCILE_LOCK_WAIT, ReconcileReport, ReconcileTrigger,
 };
 pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,

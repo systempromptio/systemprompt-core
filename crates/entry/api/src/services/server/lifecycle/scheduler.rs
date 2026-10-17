@@ -9,7 +9,8 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_scheduler::services::{
-    ConfigReconcileService, ReconcileTrigger, SchedulerHandle, SchedulerService,
+    ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger, SchedulerHandle,
+    SchedulerService,
 };
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
@@ -55,7 +56,9 @@ async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
         &Arc::new(ctx.clone()),
         (*crate::repository::config_plane_state(ctx.db_pool())).clone(),
     )?;
-    let report = service.reconcile_all(ReconcileTrigger::Boot).await;
+    let report = service
+        .reconcile_exclusive(ReconcileTrigger::Boot, RECONCILE_LOCK_WAIT)
+        .await?;
     let failures: Vec<String> = report
         .failures()
         .iter()

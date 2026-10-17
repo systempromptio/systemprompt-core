@@ -238,3 +238,42 @@ async fn operator_diff_and_insert_only_apply_record_the_reason() {
         ("b", "cli", "ticket OPS-1")
     );
 }
+
+#[tokio::test]
+async fn empty_file_declaration_never_wipes_rows_unattended() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(
+        unique_plane_name("rec_empty"),
+        &[("a", "1"), ("b", "2")],
+    ));
+    plane.write_declaration(root.path(), &[]);
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
+
+    let report = svc.reconcile_all(ReconcileTrigger::Scheduled).await;
+    let row = report
+        .planes
+        .iter()
+        .find(|p| p.plane == plane.name)
+        .expect("plane");
+
+    assert_eq!(row.outcome, PlaneOutcome::Failed);
+    assert_eq!(plane.store().len(), 2);
+    assert!(plane.applied_reasons.lock().expect("lock").is_empty());
+}
+
+#[tokio::test]
+async fn exclusive_reconcile_takes_and_releases_the_cluster_lock() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(unique_plane_name("rec_lock"), &[]));
+    plane.write_declaration(root.path(), &[("a", "1")]);
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
+
+    let wait = std::time::Duration::from_secs(30);
+    svc.reconcile_exclusive(ReconcileTrigger::Boot, wait)
+        .await
+        .expect("first pass");
+    svc.reconcile_exclusive(ReconcileTrigger::Boot, wait)
+        .await
+        .expect("lock released after the first pass");
+    assert_eq!(plane.store().get("a").map(String::as_str), Some("1"));
+}
