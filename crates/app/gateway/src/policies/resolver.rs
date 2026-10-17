@@ -154,6 +154,7 @@ pub enum MalformedSpec {
     QuotaWindow { index: usize, reason: &'static str },
 }
 
+// JSON: a stored policy row carries its spec as an untyped jsonb column
 fn decode_spec(value: serde_json::Value) -> Result<GatewayPolicySpec, MalformedSpec> {
     let spec = serde_json::from_value::<GatewayPolicySpec>(value)?;
     for (index, window) in spec.quota_windows.iter().enumerate() {
