@@ -26,7 +26,8 @@ use systemprompt_traits::FileStorage;
 
 use crate::error::{RuntimeError, RuntimeResult};
 
-const OBJECT_STORE_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const OBJECT_STORE_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+const OBJECT_STORE_READ_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Cloud Storage tokens minted from a service-account key held in secrets.
 #[derive(Debug)]
@@ -106,10 +107,7 @@ async fn init_local(
 }
 
 fn init_gcs(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn FileStorage>> {
-    let http = reqwest::Client::builder()
-        .timeout(OBJECT_STORE_REQUEST_TIMEOUT)
-        .build()
-        .map_err(RuntimeError::StorageHttp)?;
+    let http = object_store_http()?;
     let tokens: Arc<dyn GcsTokenSource> = match storage.credentials.clone().unwrap_or_default() {
         GcsCredentials::WorkloadIdentity => {
             let endpoint = url::Url::parse(DEFAULT_METADATA_TOKEN_URL)
@@ -146,6 +144,18 @@ fn init_gcs(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn
     ))
 }
 
+// Why: `/files` streams object bodies straight to the client, so a total
+// request deadline would cut a large or slowly-consumed download mid-body
+// after its Content-Length was sent; only connect and per-read stalls are
+// bounded.
+fn object_store_http() -> RuntimeResult<reqwest::Client> {
+    reqwest::Client::builder()
+        .connect_timeout(OBJECT_STORE_CONNECT_TIMEOUT)
+        .read_timeout(OBJECT_STORE_READ_TIMEOUT)
+        .build()
+        .map_err(RuntimeError::StorageHttp)
+}
+
 fn required_bucket(storage: &StorageConfig) -> RuntimeResult<String> {
     storage
         .bucket
@@ -155,10 +165,7 @@ fn required_bucket(storage: &StorageConfig) -> RuntimeResult<String> {
 }
 
 fn init_s3(storage: &StorageConfig, secrets: &Secrets) -> RuntimeResult<Arc<dyn FileStorage>> {
-    let http = reqwest::Client::builder()
-        .timeout(OBJECT_STORE_REQUEST_TIMEOUT)
-        .build()
-        .map_err(RuntimeError::StorageHttp)?;
+    let http = object_store_http()?;
     let Some(GcsCredentials::Secret(name)) = storage.credentials.clone() else {
         return Err(RuntimeError::StorageS3CredentialsRequired);
     };
