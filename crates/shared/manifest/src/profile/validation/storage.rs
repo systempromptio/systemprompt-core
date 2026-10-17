@@ -48,28 +48,40 @@ impl Profile {
             },
             StorageBackend::S3 => {
                 validate_object_store(storage, "s3", errors);
-                if !matches!(storage.credentials, Some(GcsCredentials::Secret(_))) {
-                    errors.push(
-                        "storage.backend 's3' requires storage.credentials: { secret: NAME }"
-                            .to_owned(),
-                    );
-                }
-                if let Some(endpoint) = storage.endpoint.as_deref()
-                    && !(endpoint.starts_with("https://") || endpoint.starts_with("http://"))
-                {
-                    errors.push(format!(
-                        "storage.endpoint '{endpoint}' must be an http:// or https:// URL"
-                    ));
-                }
-                if storage
-                    .region
-                    .as_deref()
-                    .is_some_and(|r| r.trim().is_empty())
-                {
-                    errors.push("storage.region must not be empty".to_owned());
-                }
+                validate_s3(storage, errors);
             },
         }
+    }
+}
+
+fn validate_s3(storage: &StorageConfig, errors: &mut Vec<String>) {
+    if !storage.path_style
+        && let Some(bucket) = storage.bucket.as_deref()
+        && bucket.contains(['_', '.'])
+    {
+        errors.push(format!(
+            "storage.bucket '{bucket}' contains '_' or '.', which cannot be addressed as a \
+             virtual-hosted S3 bucket (invalid hostname or TLS certificate mismatch); set \
+             storage.path_style: true"
+        ));
+    }
+    if !matches!(storage.credentials, Some(GcsCredentials::Secret(_))) {
+        errors
+            .push("storage.backend 's3' requires storage.credentials: { secret: NAME }".to_owned());
+    }
+    if let Some(endpoint) = storage.endpoint.as_deref()
+        && !(endpoint.starts_with("https://") || endpoint.starts_with("http://"))
+    {
+        errors.push(format!(
+            "storage.endpoint '{endpoint}' must be an http:// or https:// URL"
+        ));
+    }
+    if storage
+        .region
+        .as_deref()
+        .is_some_and(|r| r.trim().is_empty())
+    {
+        errors.push("storage.region must not be empty".to_owned());
     }
 }
 

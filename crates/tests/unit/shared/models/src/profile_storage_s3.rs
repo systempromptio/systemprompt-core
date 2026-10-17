@@ -97,3 +97,17 @@ fn s3_only_keys_are_rejected_on_other_backends() {
         }
     }
 }
+
+#[test]
+fn s3_dotted_or_underscored_bucket_requires_path_style() {
+    for bucket in ["my.files", "my_files"] {
+        let mut p = valid_profile();
+        p.storage = StorageConfig {
+            bucket: Some(bucket.to_owned()),
+            ..s3()
+        };
+        assert!(errors_of(&p).contains("set storage.path_style: true"), "{bucket}");
+        p.storage.path_style = true;
+        assert!(!errors_of(&p).contains("path_style"), "{bucket}");
+    }
+}
