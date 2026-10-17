@@ -76,7 +76,10 @@ fn output_only_usage(output: u32) -> CanonicalUsageUpdate {
     }
 }
 
-async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiRequestId) {
+pub(super) async fn open_audit(
+    db: &DbPool,
+    user_id: UserId,
+) -> (Arc<GatewayAudit>, AiRequestId) {
     let request = minimal_request(Some("tap-system"), "tap first turn");
     let gw_conv = request
         .derived_gateway_conversation_id()
@@ -124,7 +127,7 @@ async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiReque
     (Arc::new(audit), ai_request_id)
 }
 
-async fn settled_status(
+pub(super) async fn settled_status(
     audit: &GatewayAudit,
     db: &DbPool,
     id: &AiRequestId,
@@ -143,7 +146,11 @@ async fn settled_status(
         .expect("query ai_requests")
 }
 
-fn tap_ctx(db: &DbPool, ai_request_id: &AiRequestId, policy: GatewayPolicySpec) -> TapFinalizeCtx {
+pub(super) fn tap_ctx(
+    db: &DbPool,
+    ai_request_id: &AiRequestId,
+    policy: GatewayPolicySpec,
+) -> TapFinalizeCtx {
     TapFinalizeCtx {
         db: db.clone(),
         repos: gateway_repos(db),
