@@ -11,6 +11,9 @@
 //! [`RateWindowRepository`] is also the counter behind the gateway's
 //! per-user and per-key request-rate windows.
 //!
+//! Every [`PRUNE_EVERY_CHARGES`]th charge through a repository prunes expired
+//! windows and charges, whichever enforcement point charged it.
+//!
 //! Charging is idempotent per call id: a re-evaluated call reads the position
 //! it was first charged at. A window whose charge fails is absent from
 //! [`RateCounts`], and the policy treats an absent count as a violation —
@@ -18,6 +21,9 @@
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use sqlx::PgPool;
 use systemprompt_identifiers::{CallId, PolicyId};
@@ -70,18 +76,37 @@ impl RateCharge<'_> {
     }
 }
 
+pub const PRUNE_EVERY_CHARGES: u64 = 1024;
+
 #[derive(Debug, Clone)]
 pub struct RateWindowRepository {
     pool: PgPool,
+    charges: Arc<AtomicU64>,
 }
 
 impl RateWindowRepository {
     #[must_use]
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            pool,
+            charges: Arc::new(AtomicU64::new(0)),
+        }
     }
 
     pub async fn charge(&self, charge: RateCharge<'_>) -> Result<u64, RepositoryError> {
+        let position = self.charge_window(charge).await?;
+        if self
+            .charges
+            .fetch_add(1, Ordering::Relaxed)
+            .is_multiple_of(PRUNE_EVERY_CHARGES)
+            && let Err(error) = self.prune_expired().await
+        {
+            tracing::warn!(%error, "expired rate windows could not be pruned");
+        }
+        Ok(position)
+    }
+
+    async fn charge_window(&self, charge: RateCharge<'_>) -> Result<u64, RepositoryError> {
         let window_secs = i64::try_from(charge.window_secs.max(1)).unwrap_or(i64::MAX);
         let position = sqlx::query_scalar!(
             r#"

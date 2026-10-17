@@ -30,7 +30,6 @@ mod chain;
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
 use thiserror::Error;
@@ -82,10 +81,7 @@ pub struct GovernanceEngine {
     enabled: bool,
     entries: Vec<ChainEntry>,
     rate_windows: Option<RateWindowRepository>,
-    charges_since_prune: AtomicU64,
 }
-
-const PRUNE_EVERY_CHARGES: u64 = 1024;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RateChargeSubject<'a> {
@@ -107,7 +103,6 @@ impl std::fmt::Debug for GovernanceEngine {
                     .collect::<Vec<_>>(),
             )
             .field("rate_windows", &self.rate_windows.is_some())
-            .field("charges_since_prune", &self.charges_since_prune)
             .finish()
     }
 }
@@ -177,7 +172,6 @@ impl GovernanceEngine {
             enabled: config.enabled,
             entries,
             rate_windows: None,
-            charges_since_prune: AtomicU64::new(0),
         })
     }
 
@@ -189,7 +183,6 @@ impl GovernanceEngine {
 
     pub async fn charge_rate_windows(&self, subject: RateChargeSubject<'_>) -> RateCounts {
         let mut counts = RateCounts::empty();
-        let mut charged = false;
         if !self.enabled {
             return counts;
         }
@@ -208,7 +201,6 @@ impl GovernanceEngine {
                 subject: &subject,
                 call_id: call,
             };
-            charged = true;
             match repository.charge(charge).await {
                 Ok(position) => counts.record(entry.config.id.clone(), position),
                 Err(error) => tracing::error!(
@@ -217,15 +209,6 @@ impl GovernanceEngine {
                     "rate window charge failed; the policy fails closed for this call"
                 ),
             }
-        }
-        if charged
-            && self
-                .charges_since_prune
-                .fetch_add(1, Ordering::Relaxed)
-                .is_multiple_of(PRUNE_EVERY_CHARGES)
-            && let Err(error) = repository.prune_expired().await
-        {
-            tracing::warn!(%error, "expired rate windows could not be pruned");
         }
         counts
     }
