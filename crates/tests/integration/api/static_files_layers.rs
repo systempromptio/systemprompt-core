@@ -166,6 +166,26 @@ async fn a_traversal_attempt_through_the_backend_is_not_found() -> anyhow::Resul
     Ok(())
 }
 
+#[tokio::test]
+async fn no_traversal_spelling_reaches_a_file_outside_the_layers() -> anyhow::Result<()> {
+    let l = layers().await?;
+    let root = l.shipped.parent().expect("tempdir root").to_path_buf();
+    let name = format!("secret-{}.txt", FileId::generate().as_str());
+    for dir in ["", "storage", "storage/files", "web", "shipped"] {
+        write(&root.join(dir).join(&name), "SENTINEL");
+    }
+    for depth in 1..=5 {
+        for (up, sep) in [("..", "/"), ("%2e%2e", "/"), ("%2E%2E", "%2F"), ("..", "%2f")] {
+            let mut rel = [up, sep].concat().repeat(depth);
+            rel.push_str(&name);
+            let (status, _, body) = get(&l.state, &files_url(&rel)).await;
+            assert_ne!(status, StatusCode::OK, "{rel} was served");
+            assert!(!body.windows(8).any(|w| w == b"SENTINEL"), "{rel} leaked");
+        }
+    }
+    Ok(())
+}
+
 async fn backend_file(l: &Layers, body: &[u8]) -> String {
     let rel = format!("uploads/range-{}.mp4", FileId::generate().as_str());
     l.state
