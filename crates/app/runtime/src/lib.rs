@@ -40,7 +40,7 @@ pub use config_planes::{ConfigPlaneSet, EffectiveAuthority};
 pub use context::{AppContext, ConfigPlane, DataPlane, Plugins, ShutdownRequest, Subsystems};
 pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
-pub use schema_currency::assert_schema_current;
+pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
     ExtensionConfigOutcome, FilesConfigValidator, StartupValidator, collect_manifest_errors,
     display_validation_report, display_validation_warnings, merge_mcp_errors,

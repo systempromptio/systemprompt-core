@@ -319,7 +319,9 @@ fn fixture_app_context_assembled(
             governance,
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
-            schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
+            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
+                systemprompt_database::SchemaInstallReport::default(),
+            )),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,

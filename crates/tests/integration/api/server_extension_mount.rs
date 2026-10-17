@@ -211,7 +211,9 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             governance: systemprompt_test_fixtures::default_governance_engine(),
             ai_service: None,
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
-            schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
+            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
+                systemprompt_database::SchemaInstallReport::default(),
+            )),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,

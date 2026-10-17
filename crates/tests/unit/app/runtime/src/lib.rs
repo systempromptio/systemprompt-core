@@ -47,6 +47,8 @@ mod managed_inventory_lifecycle;
 #[cfg(test)]
 mod schema_behind_error;
 #[cfg(test)]
+mod schema_state;
+#[cfg(test)]
 mod services_reconcile_decision;
 #[cfg(test)]
 mod services_reconcile_fetched;

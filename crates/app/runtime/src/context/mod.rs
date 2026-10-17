@@ -90,7 +90,7 @@ pub struct Subsystems {
     pub governance: Arc<GovernanceEngine>,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
-    pub schema_install: Arc<SchemaInstallReport>,
+    pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
@@ -261,6 +261,11 @@ impl AppContext {
 
     #[must_use]
     pub fn schema_install(&self) -> &SchemaInstallReport {
+        self.subsystems.schema_install.boot()
+    }
+
+    #[must_use]
+    pub fn schema_state(&self) -> &crate::SchemaState {
         &self.subsystems.schema_install
     }
 

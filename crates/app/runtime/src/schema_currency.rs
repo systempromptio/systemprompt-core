@@ -17,10 +17,20 @@
 //! `@compat: breaking`: [`refuse_breaking`] fails the boot, because the newer
 //! release has contracted the schema this one reads.
 //!
+//! A running node learns the same thing later: [`SchemaState`] holds the boot
+//! report and the latest ahead set, which [`recheck`] refreshes against the
+//! live ledger, so a newer release's migration applied after this node booted
+//! reaches `/readyz` — and an ahead `@compat: breaking` migration makes the
+//! node unready instead of serving a schema it can no longer read.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_database::{DatabaseProvider, SchemaAhead, SchemaCurrency, schema_currency};
+use std::sync::{PoisonError, RwLock};
+
+use systemprompt_database::{
+    DatabaseProvider, SchemaAhead, SchemaCurrency, SchemaInstallReport, schema_currency,
+};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_manifest::Profile;
 
@@ -102,4 +112,81 @@ fn report_ahead(currency: &SchemaCurrency) -> Vec<SchemaAhead> {
     }
     warn_ahead(&ahead);
     ahead
+}
+
+/// The boot-time schema report plus the ahead set the last [`recheck`] saw.
+#[derive(Debug)]
+pub struct SchemaState {
+    boot: SchemaInstallReport,
+    ahead: RwLock<Vec<SchemaAhead>>,
+}
+
+impl From<SchemaInstallReport> for SchemaState {
+    fn from(boot: SchemaInstallReport) -> Self {
+        let ahead = RwLock::new(boot.ahead.clone());
+        Self { boot, ahead }
+    }
+}
+
+impl SchemaState {
+    #[must_use]
+    pub const fn boot(&self) -> &SchemaInstallReport {
+        &self.boot
+    }
+
+    #[must_use]
+    pub fn ahead(&self) -> Vec<SchemaAhead> {
+        self.ahead
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    #[must_use]
+    pub fn breaks_this_release(&self) -> bool {
+        self.ahead
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .any(|m| m.breaks_older)
+    }
+
+    fn replace(&self, ahead: Vec<SchemaAhead>) -> Vec<SchemaAhead> {
+        std::mem::replace(
+            &mut *self.ahead.write().unwrap_or_else(PoisonError::into_inner),
+            ahead,
+        )
+    }
+}
+
+pub async fn recheck(
+    registry: &ExtensionRegistry,
+    db: &dyn DatabaseProvider,
+    state: &SchemaState,
+) -> RuntimeResult<()> {
+    let currency = schema_currency(db, registry, &[]).await?;
+    let ahead = SchemaAhead::from_currency(&currency);
+    let previous = state.replace(ahead.clone());
+    let newly: Vec<&SchemaAhead> = ahead.iter().filter(|m| !previous.contains(m)).collect();
+    if newly.is_empty() {
+        return Ok(());
+    }
+    let migrations: Vec<String> = newly
+        .iter()
+        .map(|m| format!("{}:{:03} {}", m.extension, m.version, m.name))
+        .collect();
+    if newly.iter().any(|m| m.breaks_older) {
+        tracing::error!(
+            migrations = ?migrations,
+            "A newer release applied a contract migration this binary cannot serve; reporting \
+             not ready until this node is replaced"
+        );
+    } else {
+        tracing::warn!(
+            migrations = ?migrations,
+            "A newer release applied migrations while this node was running; serving under the \
+             expand/contract contract"
+        );
+    }
+    Ok(())
 }

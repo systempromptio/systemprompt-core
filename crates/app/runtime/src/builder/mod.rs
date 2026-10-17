@@ -190,7 +190,7 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             governance,
-            schema_install: Arc::new(schema_install),
+            schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: self
                 .event_router

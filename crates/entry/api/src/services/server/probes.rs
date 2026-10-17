@@ -9,7 +9,10 @@
 //! It also carries `fingerprint`, this replica's configuration fingerprint,
 //! so replicas running different configuration are visible.
 //! A node whose database a newer release has migrated stays ready and says so
-//! with `"schema": "ahead"` and the migrations it does not know.
+//! with `"schema": "ahead"` and the migrations it does not know, unless one of
+//! them is `@compat: breaking`: then it answers 503 with `"schema":
+//! "breaking"`. The ahead set is the one the node's schema watch last read,
+//! not the boot snapshot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -84,11 +87,16 @@ pub(crate) async fn handle_readyz(
     }
 
     let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
-    let schema = ctx.schema_install();
-    let body = if schema.is_ahead() {
-        json!({ "status": "ready", "schema": "ahead", "schema_ahead": schema.ahead })
-    } else {
+    let schema = ctx.schema_state();
+    let ahead = schema.ahead();
+    if schema.breaks_this_release() {
+        let body = json!({ "status": "unready", "schema": "breaking", "schema_ahead": ahead });
+        return respond(StatusCode::SERVICE_UNAVAILABLE, body, config);
+    }
+    let body = if ahead.is_empty() {
         json!({ "status": "ready" })
+    } else {
+        json!({ "status": "ready", "schema": "ahead", "schema_ahead": ahead })
     };
     respond(StatusCode::OK, body, config)
 }
