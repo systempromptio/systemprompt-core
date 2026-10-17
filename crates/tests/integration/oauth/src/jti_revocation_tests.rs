@@ -115,7 +115,9 @@ async fn revoke_jtis_for_user_bulk() {
 
 #[test]
 fn cache_negative_ttl_then_revocation_sticks() {
-    let cache = JtiRevocationCache::new(CacheEpochs::new());
+    let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
+    let cache = JtiRevocationCache::new(epochs);
 
     assert_eq!(
         cache.peek(&AccessTokenId::new("jti-a")),

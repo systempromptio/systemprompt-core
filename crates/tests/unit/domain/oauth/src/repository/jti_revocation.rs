@@ -35,6 +35,7 @@ fn cache_miss_returns_none() {
 #[test]
 fn cache_records_negative_then_positive() {
     let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
     let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
     cache.record(&jti("jti-a"), false, cache.epoch());
     assert_eq!(cache.peek(&jti("jti-a")), Some(false));
@@ -140,6 +141,7 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
 #[test]
 fn cache_with_zero_capacity_is_clamped_and_usable() {
     let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
     let cache = JtiRevocationCache::with_capacity(0, epochs.clone());
     cache.record(&jti("jti-a"), true, cache.epoch());
     assert_eq!(cache.peek(&jti("jti-a")), Some(true));
@@ -175,6 +177,7 @@ async fn non_uuid_user_can_revoke_a_jti() {
 #[test]
 fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
     let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
     let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
     let id = fresh_jti();
     cache.record(&id, false, cache.epoch());
@@ -187,6 +190,7 @@ fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
 #[test]
 fn a_cached_revocation_survives_an_invalidation() {
     let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
     let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
     let id = fresh_jti();
     cache.record(&id, true, cache.epoch());
@@ -197,10 +201,35 @@ fn a_cached_revocation_survives_an_invalidation() {
 #[test]
 fn a_revocation_notified_during_the_lookup_leaves_the_answer_stale() {
     let epochs = CacheEpochs::new();
+    epochs.set_relay_live(true);
     let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
     let id = fresh_jti();
     let looked_up_at = cache.epoch();
     epochs.advance(CacheDomain::JtiRevocation);
     cache.record(&id, false, looked_up_at);
     assert_eq!(cache.peek(&id), None);
+}
+
+#[test]
+fn a_not_revoked_answer_is_not_trusted_without_a_live_relay() {
+    let epochs = CacheEpochs::new();
+    let cache = JtiRevocationCache::with_capacity(16, epochs.clone());
+    let id = fresh_jti();
+    cache.record(&id, false, cache.epoch());
+    assert_eq!(cache.peek(&id), None);
+
+    epochs.set_relay_live(true);
+    cache.record(&id, false, cache.epoch());
+    assert_eq!(cache.peek(&id), Some(false));
+
+    epochs.set_relay_live(false);
+    assert_eq!(cache.peek(&id), None);
+}
+
+#[test]
+fn a_revocation_is_trusted_without_a_live_relay() {
+    let cache = JtiRevocationCache::with_capacity(16, CacheEpochs::new());
+    let id = fresh_jti();
+    cache.record(&id, true, cache.epoch());
+    assert_eq!(cache.peek(&id), Some(true));
 }

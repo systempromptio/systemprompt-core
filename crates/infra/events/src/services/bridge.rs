@@ -136,6 +136,7 @@ impl PostgresEventBridge {
         let mut backoff = RETRY_MIN;
 
         loop {
+            self.epochs.set_relay_live(false);
             status.set(RelayStatus::Reconnecting);
             let mut listener = match self.open_listener().await {
                 Ok(listener) => listener,
@@ -151,6 +152,7 @@ impl PostgresEventBridge {
             };
             backoff = RETRY_MIN;
             invalidate_all_cache_domains(&self.epochs);
+            self.epochs.set_relay_live(true);
             status.set(RelayStatus::Listening);
             info!(
                 channel = OUTBOX_CHANNEL,
@@ -162,6 +164,7 @@ impl PostgresEventBridge {
                 break;
             }
         }
+        self.epochs.set_relay_live(false);
         status.set(RelayStatus::Stopped);
         info!("event bridge: stopped");
     }

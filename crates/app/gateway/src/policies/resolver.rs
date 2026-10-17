@@ -5,7 +5,9 @@
 //! [`GatewayPolicySpec`] — each non-empty section overrides the previous, so
 //! the highest-priority row wins. The result is cached for a short TTL, and
 //! dropped as soon as a policy write on any replica advances the
-//! [`CacheDomain::GatewayPolicy`] epoch.
+//! [`CacheDomain::GatewayPolicy`] epoch. While no invalidation relay is
+//! listening the TTL drops to a few seconds, since a write elsewhere cannot
+//! reach this cache.
 //!
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
@@ -31,6 +33,7 @@ use systemprompt_traits::{CacheDomain, CacheEpochs};
 use super::GatewayPolicySpec;
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
+const UNRELAYED_CACHE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyUnavailable {
@@ -78,9 +81,14 @@ impl PolicyResolver {
         fault_mode: QuotaFaultMode,
     ) -> Result<GatewayPolicySpec, PolicyUnavailable> {
         let epoch = self.epochs.current(CacheDomain::GatewayPolicy);
+        let ttl = if self.epochs.relay_live() {
+            CACHE_TTL
+        } else {
+            UNRELAYED_CACHE_TTL
+        };
         if let Ok(cache) = self.cache.read()
             && let Some(entry) = cache.as_ref()
-            && entry.fetched_at.elapsed() < CACHE_TTL
+            && entry.fetched_at.elapsed() < ttl
             && entry.epoch == epoch
         {
             return Ok(entry.spec.clone());

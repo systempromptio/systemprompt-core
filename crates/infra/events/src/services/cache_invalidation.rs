@@ -13,7 +13,14 @@
 //! whenever its listener (re)connects.
 //!
 //! The channel needs a session-level `LISTEN`, so it does not work through a
-//! transaction-pooling proxy — the same constraint as the event outbox.
+//! transaction-pooling proxy — the same constraint as the event outbox. Point
+//! `database_session_url` at a direct, session-capable connection (the
+//! primary, or a pooler in session mode) whenever `database_url` goes through
+//! PgBouncer in transaction mode: a `LISTEN` there can succeed and then never
+//! deliver. The relay marks the shared [`CacheEpochs`] live only while its
+//! listener is connected; a process with no relay, or one between
+//! reconnects, is not live, and the JTI cache then stops trusting cached
+//! "not revoked" answers.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

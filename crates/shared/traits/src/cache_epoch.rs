@@ -15,7 +15,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 /// A family of cached rows invalidated together.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,10 +51,23 @@ impl CacheDomain {
     }
 }
 
-/// Shared invalidation epochs, one per [`CacheDomain`]; clones share state.
+/// Shared invalidation epochs, one per [`CacheDomain`], plus whether a relay
+/// is currently listening; clones share state.
+///
+/// A handle starts not live. Only the relay marks it live, once its `LISTEN`
+/// is established, and clears it when the connection drops or the relay
+/// stops. While not live a cache cannot learn of a write on another replica,
+/// so a security-relevant cache (the JTI "not revoked" answer) is not trusted
+/// and others shorten their bound.
 #[derive(Debug, Clone, Default)]
 pub struct CacheEpochs {
-    slots: Arc<[AtomicU64; 3]>,
+    inner: Arc<EpochSlots>,
+}
+
+#[derive(Debug, Default)]
+struct EpochSlots {
+    slots: [AtomicU64; 3],
+    relay_live: AtomicBool,
 }
 
 impl CacheEpochs {
@@ -65,11 +78,20 @@ impl CacheEpochs {
 
     #[must_use]
     pub fn current(&self, domain: CacheDomain) -> u64 {
-        self.slots[domain.slot()].load(Ordering::Acquire)
+        self.inner.slots[domain.slot()].load(Ordering::Acquire)
     }
 
     pub fn advance(&self, domain: CacheDomain) -> u64 {
-        self.slots[domain.slot()].fetch_add(1, Ordering::AcqRel) + 1
+        self.inner.slots[domain.slot()].fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    #[must_use]
+    pub fn relay_live(&self) -> bool {
+        self.inner.relay_live.load(Ordering::Acquire)
+    }
+
+    pub fn set_relay_live(&self, live: bool) {
+        self.inner.relay_live.store(live, Ordering::Release);
     }
 
     pub fn advance_all(&self) {

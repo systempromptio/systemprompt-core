@@ -73,8 +73,13 @@ async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
     let pool = fixture_pool().await;
     let _guard = BRIDGE_LOCK.lock().await;
     let epochs = CacheEpochs::new();
+    assert!(!epochs.relay_live(), "a handle starts not live");
     let handle = PostgresEventBridge::new(pool.clone(), unique_instance(), epochs.clone()).start();
     await_listening(&handle).await;
+    assert!(
+        epochs.relay_live(),
+        "a listening relay marks the handle live"
+    );
 
     let baseline = epochs.current(CacheDomain::Authz);
     sqlx::query("SELECT pg_notify($1, 'authz')")
@@ -84,6 +89,7 @@ async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
         .expect("notify");
     let moved = epoch_moves_past(&epochs, CacheDomain::Authz, baseline).await;
     handle.shutdown().await;
+    assert!(!epochs.relay_live(), "a stopped relay clears liveness");
     assert!(moved, "the authz epoch did not advance after NOTIFY");
 }
 

@@ -90,7 +90,10 @@ enum CacheEntry {
 /// [`CacheDomain::JtiRevocation`] epoch; positive results are sticky (a
 /// revoked jti cannot become un-revoked). A negative result is recorded under
 /// the epoch read before its lookup, so a revocation notified while the lookup
-/// was in flight leaves the entry already stale.
+/// was in flight leaves the entry already stale. A negative result is trusted
+/// only while the invalidation relay is live: with no relay listening a
+/// revocation on another replica cannot reach this cache, so every lookup
+/// goes to the database.
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
     epochs: CacheEpochs,
@@ -133,6 +136,7 @@ impl JtiRevocationCache {
             CacheEntry::NotRevoked { inserted_at, epoch } => {
                 if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS)
                     && epoch == self.epoch()
+                    && self.epochs.relay_live()
                 {
                     Some(false)
                 } else {
