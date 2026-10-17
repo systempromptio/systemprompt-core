@@ -145,7 +145,9 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `credentials` | `workload_identity` \| `{ secret: NAME }` | `s3` | `workload_identity` (`gcs`) | `gcs`: metadata-server identity or a service-account key secret. `s3`: a secret holding `access_key_id`, `secret_access_key` and optional `session_token`. |
 | `endpoint` | URL | no | `https://s3.<region>.amazonaws.com` | `s3` only. |
 | `region` | string | no | `us-east-1` | `s3` only; the SigV4 signing region. |
-| `path_style` | bool | no | `false` | `s3` only; address the bucket as `<endpoint>/<bucket>/<key>`. |
+| `path_style` | bool | no | `false` | `s3` only; address the bucket as `<endpoint>/<bucket>/<key>`. Required when `bucket` contains `_` or `.`. |
+
+The S3 credentials need `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the prefix, and `s3:ListBucket` on the bucket. Without `s3:ListBucket`, S3 answers a missing key with `403` instead of `404`, so a request for a missing `/files/...` URL returns `500` instead of `404`.
 
 File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
 
