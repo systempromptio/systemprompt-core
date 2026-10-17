@@ -153,6 +153,7 @@ impl AppContextBuilder {
             authz_hook,
             governance,
             file_storage,
+            cache_epochs,
         } = init_core(self.authz_hook).await?;
 
         let (extension_registry, schema_install) = init_extensions(
@@ -190,6 +191,7 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             governance,
+            cache_epochs,
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: self

@@ -31,7 +31,7 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
-use systemprompt_traits::OwnedTask;
+use systemprompt_traits::{CacheEpochs, OwnedTask};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
@@ -64,14 +64,16 @@ fn is_read_only_standby(err: &sqlx::Error) -> bool {
 pub struct PostgresEventBridge {
     listener_pool: PgPool,
     outbox: EventOutboxRepository,
+    epochs: CacheEpochs,
 }
 
 impl PostgresEventBridge {
     #[must_use]
-    pub fn new(pool: PgPool, instance_id: InstanceId) -> Self {
+    pub fn new(pool: PgPool, instance_id: InstanceId, epochs: CacheEpochs) -> Self {
         Self {
             outbox: EventOutboxRepository::new(pool.clone(), instance_id),
             listener_pool: pool,
+            epochs,
         }
     }
 
@@ -148,7 +150,7 @@ impl PostgresEventBridge {
                 },
             };
             backoff = RETRY_MIN;
-            invalidate_all_cache_domains();
+            invalidate_all_cache_domains(&self.epochs);
             status.set(RelayStatus::Listening);
             info!(
                 channel = OUTBOX_CHANNEL,
@@ -175,7 +177,7 @@ impl PostgresEventBridge {
                 () = cancel.cancelled() => return false,
                 notification = listener.recv() => match notification {
                     Ok(notification) if notification.channel() == CACHE_INVALIDATION_CHANNEL => {
-                        receive_cache_invalidation(notification.payload());
+                        receive_cache_invalidation(&self.epochs, notification.payload());
                     },
                     Ok(notification) => {
                         self.deliver(&EventOutboxId::new(notification.payload())).await;

@@ -132,7 +132,10 @@ async fn harness(filter: Arc<dyn MarketplaceFilter>) -> Harness {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     ));
     Harness {
@@ -806,7 +809,10 @@ async fn private_consumer(label: &str) -> PrivateConsumer {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().unwrap(),
         ctx.user_provider().unwrap(),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     ));
     let harness = Harness {

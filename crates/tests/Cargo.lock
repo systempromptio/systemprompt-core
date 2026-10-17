@@ -8302,6 +8302,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tokio",
 ]
 
@@ -9458,6 +9459,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "systemprompt-users",
  "tempfile",
  "tokio",
@@ -9484,6 +9486,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "systemprompt-wire",
  "tokio",
  "url",
@@ -9515,6 +9518,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-security",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tempfile",
  "tokio",
  "url",

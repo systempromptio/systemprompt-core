@@ -7,6 +7,7 @@
 use std::sync::Arc;
 
 use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_traits::CacheEpochs;
 
 use super::AppContext;
 
@@ -29,6 +30,11 @@ impl AppContext {
     #[must_use]
     pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
         Arc::clone(&self.subsystems.governance)
+    }
+
+    #[must_use]
+    pub fn cache_epochs(&self) -> &CacheEpochs {
+        &self.subsystems.cache_epochs
     }
 
     #[must_use]

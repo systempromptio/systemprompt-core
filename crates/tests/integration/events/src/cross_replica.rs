@@ -60,7 +60,12 @@ fn sample_event() -> A2AEvent {
 
 async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
     let router = EventRouter::with_outbox(pool.clone(), unique_instance());
-    let bridge = PostgresEventBridge::new(pool.clone(), unique_instance()).start();
+    let bridge = PostgresEventBridge::new(
+        pool.clone(),
+        unique_instance(),
+        systemprompt_traits::CacheEpochs::new(),
+    )
+    .start();
     assert!(
         bounded("the replica-b relay LISTEN", bridge.listening()).await,
         "the replica-b relay stopped before it was listening"

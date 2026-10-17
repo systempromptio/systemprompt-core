@@ -10,7 +10,7 @@ use systemprompt_events::{
     invalidate_all_cache_domains, receive_cache_invalidation,
 };
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
-use systemprompt_traits::{CacheDomain, cache_epoch};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 static BRIDGE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -27,9 +27,9 @@ async fn await_listening(handle: &EventBridgeHandle) {
     assert!(listening, "the bridge stopped before it was listening");
 }
 
-async fn epoch_moves_past(domain: CacheDomain, baseline: u64) -> bool {
+async fn epoch_moves_past(epochs: &CacheEpochs, domain: CacheDomain, baseline: u64) -> bool {
     for _ in 0..100 {
-        if cache_epoch(domain) > baseline {
+        if epochs.current(domain) > baseline {
             return true;
         }
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -39,28 +39,32 @@ async fn epoch_moves_past(domain: CacheDomain, baseline: u64) -> bool {
 
 #[test]
 fn a_known_domain_advances_only_its_own_epoch() {
-    let policy = cache_epoch(CacheDomain::GatewayPolicy);
-    let jti = cache_epoch(CacheDomain::JtiRevocation);
+    let epochs = CacheEpochs::new();
     assert_eq!(
-        receive_cache_invalidation("gateway_policy"),
+        receive_cache_invalidation(&epochs, "gateway_policy"),
         Some(CacheDomain::GatewayPolicy)
     );
-    assert!(cache_epoch(CacheDomain::GatewayPolicy) > policy);
-    assert!(cache_epoch(CacheDomain::JtiRevocation) >= jti);
+    assert_eq!(epochs.current(CacheDomain::GatewayPolicy), 1);
+    assert_eq!(epochs.current(CacheDomain::JtiRevocation), 0);
+    assert_eq!(epochs.current(CacheDomain::Authz), 0);
 }
 
 #[test]
 fn an_unknown_domain_is_ignored() {
-    assert_eq!(receive_cache_invalidation("not-a-cache"), None);
-    assert_eq!(receive_cache_invalidation(""), None);
+    let epochs = CacheEpochs::new();
+    assert_eq!(receive_cache_invalidation(&epochs, "not-a-cache"), None);
+    assert_eq!(receive_cache_invalidation(&epochs, ""), None);
+    for domain in CacheDomain::ALL {
+        assert_eq!(epochs.current(domain), 0);
+    }
 }
 
 #[test]
 fn invalidating_all_domains_advances_every_epoch() {
-    let before: Vec<u64> = CacheDomain::ALL.iter().map(|d| cache_epoch(*d)).collect();
-    invalidate_all_cache_domains();
-    for (domain, was) in CacheDomain::ALL.iter().zip(before) {
-        assert!(cache_epoch(*domain) > was, "{}", domain.label());
+    let epochs = CacheEpochs::new();
+    invalidate_all_cache_domains(&epochs);
+    for domain in CacheDomain::ALL {
+        assert_eq!(epochs.current(domain), 1, "{}", domain.label());
     }
 }
 
@@ -68,16 +72,17 @@ fn invalidating_all_domains_advances_every_epoch() {
 async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
     let pool = fixture_pool().await;
     let _guard = BRIDGE_LOCK.lock().await;
-    let handle = PostgresEventBridge::new(pool.clone(), unique_instance()).start();
+    let epochs = CacheEpochs::new();
+    let handle = PostgresEventBridge::new(pool.clone(), unique_instance(), epochs.clone()).start();
     await_listening(&handle).await;
 
-    let baseline = cache_epoch(CacheDomain::Authz);
+    let baseline = epochs.current(CacheDomain::Authz);
     sqlx::query("SELECT pg_notify($1, 'authz')")
         .bind(CACHE_INVALIDATION_CHANNEL)
         .execute(&pool)
         .await
         .expect("notify");
-    let moved = epoch_moves_past(CacheDomain::Authz, baseline).await;
+    let moved = epoch_moves_past(&epochs, CacheDomain::Authz, baseline).await;
     handle.shutdown().await;
     assert!(moved, "the authz epoch did not advance after NOTIFY");
 }
@@ -86,7 +91,8 @@ async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
 async fn writes_to_cached_tables_notify_through_their_triggers() {
     let pool = fixture_pool().await;
     let _guard = BRIDGE_LOCK.lock().await;
-    let handle = PostgresEventBridge::new(pool.clone(), unique_instance()).start();
+    let epochs = CacheEpochs::new();
+    let handle = PostgresEventBridge::new(pool.clone(), unique_instance(), epochs.clone()).start();
     await_listening(&handle).await;
 
     let cases = [
@@ -106,12 +112,12 @@ async fn writes_to_cached_tables_notify_through_their_triggers() {
     ];
     let mut failures = Vec::new();
     for (domain, statement) in cases {
-        let baseline = cache_epoch(domain);
+        let baseline = epochs.current(domain);
         sqlx::query(statement)
             .execute(&pool)
             .await
             .expect("statement runs");
-        if !epoch_moves_past(domain, baseline).await {
+        if !epoch_moves_past(&epochs, domain, baseline).await {
             failures.push(domain.label());
         }
     }

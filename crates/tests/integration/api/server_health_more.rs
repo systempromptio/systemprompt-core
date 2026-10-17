@@ -279,6 +279,7 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
     let handle = systemprompt_events::PostgresEventBridge::new(
         ctx.db_pool().write_pool().as_ref().clone(),
         instance_id,
+        systemprompt_traits::CacheEpochs::new(),
     )
     .start();
     let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())

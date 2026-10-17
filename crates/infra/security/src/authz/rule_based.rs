@@ -28,6 +28,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::PgPool;
+use systemprompt_traits::CacheEpochs;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::error::{AuthzError, AuthzResult};
@@ -66,7 +67,12 @@ impl std::fmt::Debug for RuleBasedHook {
 
 impl RuleBasedHook {
     #[must_use]
-    pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>, sources: ChainSources) -> Self {
+    pub fn new(
+        pool: Arc<PgPool>,
+        sink: Arc<dyn AuthzAuditSink>,
+        sources: ChainSources,
+        epochs: CacheEpochs,
+    ) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::clone(&sink),
@@ -77,7 +83,7 @@ impl RuleBasedHook {
             dimensions: dimensions_of(&providers),
             providers,
             sources: Arc::new(sources),
-            cache: Arc::new(ChainIndexCache::default()),
+            cache: Arc::new(ChainIndexCache::with_default_bounds(epochs)),
             entity_cache: Arc::new(EntityRulesCache::default()),
         }
     }

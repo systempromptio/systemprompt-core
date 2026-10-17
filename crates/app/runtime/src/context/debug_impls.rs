@@ -80,6 +80,7 @@ impl std::fmt::Debug for Subsystems {
             .field("system_admin", &self.system_admin.username())
             .field("authz_hook", &"SharedAuthzHook")
             .field("governance", &self.governance)
+            .field("cache_epochs", &self.cache_epochs)
             .field("ai_service", &self.ai_service.is_some())
             .field("artifact_ingest", &self.artifact_ingest)
             .field("schema_install_clean", &self.schema_install.boot().is_clean())

@@ -641,6 +641,7 @@ async fn policy_resolver_falls_back_when_empty() {
     let p = pool().await;
     let resolver = PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p),
+        systemprompt_traits::CacheEpochs::new(),
     );
     let _spec1 = resolver
         .resolve(QuotaFaultMode::Open)
@@ -691,9 +692,10 @@ fn unreadable_policy_resolver() -> PolicyResolver {
             std::sync::Arc::new(dead.clone()),
             Some(std::sync::Arc::new(dead)),
         ));
-    PolicyResolver::from_repository(systemprompt_ai::repository::AiGatewayPolicyRepository::new(
-        &db,
-    ))
+    PolicyResolver::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
+        systemprompt_traits::CacheEpochs::new(),
+    )
 }
 
 fn policy_row(name: &str, spec: serde_json::Value) -> systemprompt_ai::GatewayPolicyRow {

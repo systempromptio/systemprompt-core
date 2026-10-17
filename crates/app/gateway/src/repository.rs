@@ -15,7 +15,7 @@ use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_security::policy::RateWindowRepository;
-use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
 use crate::policies::PolicyResolver;
@@ -55,6 +55,7 @@ impl GatewayRepositories {
         journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
         background: BackgroundTasks,
+        cache_epochs: CacheEpochs,
     ) -> Self {
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -65,7 +66,10 @@ impl GatewayRepositories {
             client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)),
             safety_findings: AiSafetyFindingRepository::new(db),
             gateway_policies: AiGatewayPolicyRepository::new(db),
-            policy_resolver: PolicyResolver::from_repository(AiGatewayPolicyRepository::new(db)),
+            policy_resolver: PolicyResolver::from_repository(
+                AiGatewayPolicyRepository::new(db),
+                cache_epochs,
+            ),
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
                 TTL,
                 Arc::new(AiThoughtSignatureRepository::new(db)),

@@ -27,7 +27,10 @@ async fn extractor() -> Result<(systemprompt_database::DbPool, JwtContextExtract
     let analytics = Arc::clone(&ctx.analytics_repositories().session_store);
     let user_provider: Arc<dyn UserProvider> =
         Arc::new(UserService::new(Arc::clone(ctx.user_repository())));
-    let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
+    let jti = JtiRevocationChecker::from_repository(
+        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_traits::CacheEpochs::new(),
+    );
     let issuer = ctx.config().jwt_issuer.clone();
     Ok((
         db,

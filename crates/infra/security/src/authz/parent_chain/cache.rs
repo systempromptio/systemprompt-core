@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use systemprompt_traits::{CacheDomain, cache_epoch};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 use tokio::sync::RwLock;
 
 use super::{ChainSources, ParentChainIndex};
@@ -42,22 +42,23 @@ pub struct ChainIndexCache {
     slot: RwLock<Option<CachedIndex>>,
     ttl: Duration,
     recheck: Duration,
-}
-
-impl Default for ChainIndexCache {
-    fn default() -> Self {
-        Self::new(DEFAULT_TTL, DEFAULT_RECHECK)
-    }
+    epochs: CacheEpochs,
 }
 
 impl ChainIndexCache {
     #[must_use]
-    pub fn new(ttl: Duration, recheck: Duration) -> Self {
+    pub fn new(ttl: Duration, recheck: Duration, epochs: CacheEpochs) -> Self {
         Self {
             slot: RwLock::new(None),
             ttl,
             recheck,
+            epochs,
         }
+    }
+
+    #[must_use]
+    pub fn with_default_bounds(epochs: CacheEpochs) -> Self {
+        Self::new(DEFAULT_TTL, DEFAULT_RECHECK, epochs)
     }
 
     pub async fn get(
@@ -66,7 +67,7 @@ impl ChainIndexCache {
         sources: Arc<ChainSources>,
     ) -> AuthzResult<Arc<ParentChainIndex>> {
         let now = Instant::now();
-        let epoch = cache_epoch(CacheDomain::Authz);
+        let epoch = self.epochs.current(CacheDomain::Authz);
         let fresh = {
             let slot = self.slot.read().await;
             slot.as_ref()

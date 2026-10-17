@@ -33,6 +33,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> GatewayRepositories {
         gateway_journal(),
         materializer(db),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 

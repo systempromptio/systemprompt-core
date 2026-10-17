@@ -118,6 +118,7 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_engine(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: systemprompt_test_fixtures::fixture_artifact_ingest(&pool)?,
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(

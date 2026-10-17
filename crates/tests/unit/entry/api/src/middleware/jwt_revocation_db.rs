@@ -19,7 +19,10 @@ use uuid::Uuid;
 
 
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
-    JtiRevocationChecker::from_repository(OAuthRepository::new(pool))
+    JtiRevocationChecker::from_repository(
+        OAuthRepository::new(pool),
+        systemprompt_traits::CacheEpochs::new(),
+    )
 }
 
 fn jti() -> AccessTokenId {

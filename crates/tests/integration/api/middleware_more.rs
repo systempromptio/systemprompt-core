@@ -322,6 +322,7 @@ async fn jti_revocation_checker_fails_closed_on_revoked() -> Result<()> {
     let (pool, _ctx) = setup_ctx().await?;
     let checker = JtiRevocationChecker::from_repository(
         systemprompt_oauth::repository::OAuthRepository::new(&pool),
+        systemprompt_traits::CacheEpochs::new(),
     );
 
     let fresh = AccessTokenId::new(format!("jti-fresh-{}", Uuid::new_v4()));

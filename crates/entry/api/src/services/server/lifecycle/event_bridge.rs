@@ -18,9 +18,13 @@ pub(in crate::services::server) fn start_event_bridge(ctx: &AppContext) {
 
     let instance_id = ctx.config().instance_id.clone();
     let listener_pool = ctx.db_pool().session_pool();
-    let handle = PostgresEventBridge::new(pool.as_ref().clone(), instance_id)
-        .with_listener_pool(listener_pool.as_ref().clone())
-        .start();
+    let handle = PostgresEventBridge::new(
+        pool.as_ref().clone(),
+        instance_id,
+        ctx.cache_epochs().clone(),
+    )
+    .with_listener_pool(listener_pool.as_ref().clone())
+    .start();
 
     if ctx.event_bridge().set(handle).is_err() {
         tracing::warn!("Event bridge already started; ignoring duplicate start");

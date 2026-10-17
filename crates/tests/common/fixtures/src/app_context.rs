@@ -16,10 +16,10 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_manifest::Config;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
@@ -317,6 +317,7 @@ fn fixture_app_context_assembled(
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook,
             governance,
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
             schema_install: Arc::new(systemprompt_runtime::SchemaState::from(

@@ -63,6 +63,7 @@ pub(super) fn gw_repos(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 
@@ -1537,6 +1538,7 @@ fn owned_gateway_repos(
             systemprompt_agent::repository::ContextRepository::new(pool),
         )),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 

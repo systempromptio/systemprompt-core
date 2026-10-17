@@ -167,7 +167,10 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
@@ -183,7 +186,10 @@ fn jwt_extractor(
     Ok(Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     )))
 }

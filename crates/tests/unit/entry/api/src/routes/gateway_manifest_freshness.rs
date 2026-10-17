@@ -89,7 +89,10 @@ async fn harness(mailbox: &str) -> Harness {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, mailbox)

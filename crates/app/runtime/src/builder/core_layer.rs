@@ -30,7 +30,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_manifest::Config;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;
 
@@ -41,6 +41,7 @@ pub(super) struct CoreLayer {
     pub(super) authz_hook: SharedAuthzHook,
     pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
+    pub(super) cache_epochs: CacheEpochs,
 }
 
 async fn init_services(
@@ -120,12 +121,14 @@ pub(super) async fn init_core(
     )
     .await?;
 
+    let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
         chain_sources()?,
+        cache_epochs.clone(),
     )?;
 
     let governance = Arc::new(
@@ -152,6 +155,7 @@ pub(super) async fn init_core(
         authz_hook,
         governance,
         file_storage,
+        cache_epochs,
     })
 }
 

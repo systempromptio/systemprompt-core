@@ -59,6 +59,7 @@ fn gateway_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Ga
         gateway_journal(),
         materializer(db),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 

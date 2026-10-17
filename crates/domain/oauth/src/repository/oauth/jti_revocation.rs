@@ -14,7 +14,7 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{AccessTokenId, UserId};
-use systemprompt_traits::{CacheDomain, cache_epoch};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
@@ -93,6 +93,7 @@ enum CacheEntry {
 /// was in flight leaves the entry already stale.
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
+    epochs: CacheEpochs,
 }
 
 impl std::fmt::Debug for JtiRevocationCache {
@@ -103,16 +104,22 @@ impl std::fmt::Debug for JtiRevocationCache {
 
 impl JtiRevocationCache {
     #[must_use]
-    pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_CACHE_CAPACITY)
+    pub fn new(epochs: CacheEpochs) -> Self {
+        Self::with_capacity(DEFAULT_CACHE_CAPACITY, epochs)
     }
 
     #[must_use]
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: usize, epochs: CacheEpochs) -> Self {
         let cap = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
             cache: Mutex::new(LruCache::new(cap)),
+            epochs,
         }
+    }
+
+    #[must_use]
+    pub fn epoch(&self) -> u64 {
+        self.epochs.current(CacheDomain::JtiRevocation)
     }
 
     pub fn peek(&self, jti: &AccessTokenId) -> Option<bool> {
@@ -125,7 +132,7 @@ impl JtiRevocationCache {
             CacheEntry::Revoked => Some(true),
             CacheEntry::NotRevoked { inserted_at, epoch } => {
                 if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS)
-                    && epoch == cache_epoch(CacheDomain::JtiRevocation)
+                    && epoch == self.epoch()
                 {
                     Some(false)
                 } else {
@@ -148,11 +155,5 @@ impl JtiRevocationCache {
             };
             guard.put(jti.clone(), entry);
         }
-    }
-}
-
-impl Default for JtiRevocationCache {
-    fn default() -> Self {
-        Self::new()
     }
 }

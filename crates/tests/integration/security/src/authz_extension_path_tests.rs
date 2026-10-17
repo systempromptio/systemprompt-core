@@ -107,6 +107,7 @@ async fn extension_hook_evaluated_and_audited() {
         write_pool.clone(),
         Some(hook),
         ChainSources::default(),
+        systemprompt_traits::CacheEpochs::new(),
     )
     .expect("bootstrap ok");
 

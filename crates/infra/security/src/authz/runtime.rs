@@ -46,6 +46,7 @@ use systemprompt_manifest::profile::{
     AuthzConfig, AuthzMode, GovernanceConfig, UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 use systemprompt_models::net::validate_outbound_url;
+use systemprompt_traits::CacheEpochs;
 
 use super::audit::{AuthzAuditSink, DbAuditSink, GovernanceDecisionRepository};
 use super::composite::CompositeAuthzHook;
@@ -60,6 +61,7 @@ pub fn build_authz_hook(
     pool: Arc<sqlx::PgPool>,
     extension: Option<SharedAuthzHook>,
     sources: ChainSources,
+    epochs: CacheEpochs,
 ) -> AuthzResult<SharedAuthzHook> {
     let sink: Arc<dyn AuthzAuditSink> = Arc::new(DbAuditSink::new(
         GovernanceDecisionRepository::from_pool(Arc::clone(&pool)),
@@ -88,7 +90,7 @@ pub fn build_authz_hook(
                 hook = ?hook,
                 "governance.authz.hook.mode = extension — composing RuleBasedHook with extension hook"
             );
-            Ok(compose_rule_based(pool, sink, sources, vec![hook]))
+            Ok(compose_rule_based(pool, sink, sources, epochs, vec![hook]))
         },
         (AuthzMode::Extension, None) => Err(AuthzBootstrapError::ExtensionModeButNoHook.into()),
         (AuthzMode::Webhook, Some(hook)) => {
@@ -98,7 +100,7 @@ pub fn build_authz_hook(
                  — using the registered hook and ignoring governance.authz.hook.url; set \
                  governance.authz.hook.mode: extension in the profile"
             );
-            Ok(compose_rule_based(pool, sink, sources, vec![hook]))
+            Ok(compose_rule_based(pool, sink, sources, epochs, vec![hook]))
         },
         (mode, Some(_)) => Err(AuthzBootstrapError::ExtensionHookButWrongMode {
             mode: mode_name(mode),
@@ -124,7 +126,13 @@ pub fn build_authz_hook(
         },
         (AuthzMode::Webhook, None) => {
             let webhook = build_webhook_hook(authz, &sink)?;
-            Ok(compose_rule_based(pool, sink, sources, vec![webhook]))
+            Ok(compose_rule_based(
+                pool,
+                sink,
+                sources,
+                epochs,
+                vec![webhook],
+            ))
         },
     }
 }
@@ -154,9 +162,10 @@ fn compose_rule_based(
     pool: Arc<sqlx::PgPool>,
     sink: Arc<dyn AuthzAuditSink>,
     sources: ChainSources,
+    epochs: CacheEpochs,
     tail: Vec<SharedAuthzHook>,
 ) -> SharedAuthzHook {
-    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, sources));
+    let rule_based: SharedAuthzHook = Arc::new(RuleBasedHook::new(pool, sink, sources, epochs));
     let mut hooks = Vec::with_capacity(tail.len() + 1);
     hooks.push(rule_based);
     hooks.extend(tail);

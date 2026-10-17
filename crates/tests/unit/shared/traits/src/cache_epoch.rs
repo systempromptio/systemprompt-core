@@ -1,6 +1,6 @@
 //! Cache invalidation epochs: labels round-trip and an advance is observed.
 
-use systemprompt_traits::{CacheDomain, advance_cache_epoch, cache_epoch};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 #[test]
 fn every_domain_label_parses_back_to_itself() {
@@ -11,9 +11,22 @@ fn every_domain_label_parses_back_to_itself() {
 }
 
 #[test]
-fn advancing_a_domain_moves_its_epoch_forward() {
-    let before = cache_epoch(CacheDomain::Authz);
-    let after = advance_cache_epoch(CacheDomain::Authz);
-    assert!(after > before);
-    assert!(cache_epoch(CacheDomain::Authz) >= after);
+fn advancing_a_domain_moves_only_its_epoch_forward() {
+    let epochs = CacheEpochs::new();
+    let after = epochs.advance(CacheDomain::Authz);
+    assert_eq!(after, 1);
+    assert_eq!(epochs.current(CacheDomain::Authz), 1);
+    assert_eq!(epochs.current(CacheDomain::JtiRevocation), 0);
+}
+
+#[test]
+fn clones_share_epochs_and_separate_handles_do_not() {
+    let epochs = CacheEpochs::new();
+    let shared = epochs.clone();
+    let other = CacheEpochs::new();
+    shared.advance_all();
+    for domain in CacheDomain::ALL {
+        assert_eq!(epochs.current(domain), 1);
+        assert_eq!(other.current(domain), 0);
+    }
 }

@@ -35,7 +35,12 @@ fn fixture() -> AuthzRequest {
 async fn rule_based_hook_denies_when_the_pool_is_unavailable() {
     let db = closed_db_pool().await;
     let pool = db.write_pool();
-    let hook = RuleBasedHook::new(pool, Arc::new(NullAuditSink), ChainSources::default());
+    let hook = RuleBasedHook::new(
+        pool,
+        Arc::new(NullAuditSink),
+        ChainSources::default(),
+        systemprompt_traits::CacheEpochs::new(),
+    );
 
     let decision = hook.evaluate(fixture()).await;
     match decision {
@@ -68,7 +73,12 @@ async fn a_rule_added_after_a_cached_decision_applies_once_the_index_revalidates
     repo.upsert_entity(EntityKind::GatewayRoute, &route, false, "test")
         .await
         .expect("entity");
-    let hook = RuleBasedHook::new(pool, Arc::new(NullAuditSink), ChainSources::default());
+    let hook = RuleBasedHook::new(
+        pool,
+        Arc::new(NullAuditSink),
+        ChainSources::default(),
+        systemprompt_traits::CacheEpochs::new(),
+    );
 
     for _ in 0..3 {
         assert!(matches!(

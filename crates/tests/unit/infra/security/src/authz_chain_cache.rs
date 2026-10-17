@@ -61,7 +61,7 @@ async fn within_the_recheck_window_the_same_index_is_served_without_a_reload() {
     repo.upsert_entity(KIND, &id, false, "test")
         .await
         .expect("entity");
-    let cache = ChainIndexCache::new(LONG, LONG);
+    let cache = ChainIndexCache::new(LONG, LONG, systemprompt_traits::CacheEpochs::new());
 
     let first = cache.get(&repo, sources()).await.expect("first load");
     upsert_rule(&repo, &id, "admin").await;
@@ -81,7 +81,11 @@ async fn an_upserted_rule_moves_the_fingerprint_and_forces_a_reload() {
     repo.upsert_entity(KIND, &id, false, "test")
         .await
         .expect("entity");
-    let cache = ChainIndexCache::new(LONG, Duration::ZERO);
+    let cache = ChainIndexCache::new(
+        LONG,
+        Duration::ZERO,
+        systemprompt_traits::CacheEpochs::new(),
+    );
 
     let before = cache.get(&repo, sources()).await.expect("first load");
     upsert_rule(&repo, &id, "admin").await;
@@ -114,7 +118,11 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
         })
         .await
         .expect("rule");
-    let cache = ChainIndexCache::new(LONG, Duration::ZERO);
+    let cache = ChainIndexCache::new(
+        LONG,
+        Duration::ZERO,
+        systemprompt_traits::CacheEpochs::new(),
+    );
 
     let before = cache.get(&repo, sources()).await.expect("first load");
     assert!(repo.delete_rule(&rule.id).await.expect("delete"));
@@ -130,7 +138,11 @@ async fn a_deleted_rule_moves_the_fingerprint_and_forces_a_reload() {
 #[tokio::test]
 async fn ttl_expiry_reloads_even_when_the_fingerprint_is_unchanged() {
     let (repo, _db) = fixture_repository().await;
-    let cache = ChainIndexCache::new(Duration::ZERO, Duration::ZERO);
+    let cache = ChainIndexCache::new(
+        Duration::ZERO,
+        Duration::ZERO,
+        systemprompt_traits::CacheEpochs::new(),
+    );
 
     let first = cache.get(&repo, sources()).await.expect("first load");
     let second = cache.get(&repo, sources()).await.expect("second load");

@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_manifest::services::QuotaFaultMode;
-use systemprompt_traits::{CacheDomain, cache_epoch};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 use super::GatewayPolicySpec;
 
@@ -48,6 +48,7 @@ pub enum PolicyUnavailable {
 pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
     cache: Arc<RwLock<Option<CachedEntry>>>,
+    epochs: CacheEpochs,
 }
 
 impl std::fmt::Debug for PolicyResolver {
@@ -64,10 +65,11 @@ struct CachedEntry {
 }
 
 impl PolicyResolver {
-    pub fn from_repository(repo: AiGatewayPolicyRepository) -> Self {
+    pub fn from_repository(repo: AiGatewayPolicyRepository, epochs: CacheEpochs) -> Self {
         Self {
             repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
+            epochs,
         }
     }
 
@@ -75,7 +77,7 @@ impl PolicyResolver {
         &self,
         fault_mode: QuotaFaultMode,
     ) -> Result<GatewayPolicySpec, PolicyUnavailable> {
-        let epoch = cache_epoch(CacheDomain::GatewayPolicy);
+        let epoch = self.epochs.current(CacheDomain::GatewayPolicy);
         if let Ok(cache) = self.cache.read()
             && let Some(entry) = cache.as_ref()
             && entry.fetched_at.elapsed() < CACHE_TTL

@@ -59,6 +59,7 @@ fn gateway_repos_in(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 

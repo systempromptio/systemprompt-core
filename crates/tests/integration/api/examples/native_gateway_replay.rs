@@ -246,6 +246,7 @@ async fn replay() -> Result<()> {
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
         background.clone(),
+        systemprompt_traits::CacheEpochs::new(),
     );
     let cred = seed_admin_credential(
         &db,

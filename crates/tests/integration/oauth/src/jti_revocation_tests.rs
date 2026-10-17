@@ -4,7 +4,7 @@ use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
-use systemprompt_traits::{CacheDomain, cache_epoch};
+use systemprompt_traits::CacheEpochs;
 
 fn unique_jti() -> AccessTokenId {
     AccessTokenId::generate()
@@ -115,7 +115,7 @@ async fn revoke_jtis_for_user_bulk() {
 
 #[test]
 fn cache_negative_ttl_then_revocation_sticks() {
-    let cache = JtiRevocationCache::new();
+    let cache = JtiRevocationCache::new(CacheEpochs::new());
 
     assert_eq!(
         cache.peek(&AccessTokenId::new("jti-a")),
@@ -123,22 +123,14 @@ fn cache_negative_ttl_then_revocation_sticks() {
         "miss before any record"
     );
 
-    cache.record(
-        &AccessTokenId::new("jti-a"),
-        false,
-        cache_epoch(CacheDomain::JtiRevocation),
-    );
+    cache.record(&AccessTokenId::new("jti-a"), false, cache.epoch());
     assert_eq!(
         cache.peek(&AccessTokenId::new("jti-a")),
         Some(false),
         "negative result must be visible to subsequent peeks"
     );
 
-    cache.record(
-        &AccessTokenId::new("jti-b"),
-        true,
-        cache_epoch(CacheDomain::JtiRevocation),
-    );
+    cache.record(&AccessTokenId::new("jti-b"), true, cache.epoch());
     assert_eq!(cache.peek(&AccessTokenId::new("jti-b")), Some(true));
 
     // Re-record as not-revoked should NOT be possible monotonically — but the
