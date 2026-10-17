@@ -3,7 +3,9 @@
 //! `--if-absent` makes issuance idempotent per user and key name: a live key
 //! with that name that does not expire within `--renew-before-days` is
 //! reported (`issued: false`) instead of minting another. `--secret-file`
-//! writes the secret to a `0600` file so it never reaches stdout.
+//! writes the secret to a `0600` file so it never reaches stdout; a key whose
+//! secret file cannot be written is revoked, so a rerun with `--if-absent`
+//! issues a fresh one instead of reporting a key nobody holds.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -111,7 +113,9 @@ pub(super) async fn execute(service: &ApiKeyService, args: IssueArgs) -> Result<
     };
     match ensured {
         EnsuredApiKey::Existing(record) => Ok(existing_output(record)),
-        EnsuredApiKey::Issued(issued) => issued_output(issued, args.secret_file.as_deref()),
+        EnsuredApiKey::Issued(issued) => {
+            issued_output(service, issued, args.secret_file.as_deref()).await
+        },
     }
 }
 
@@ -132,10 +136,20 @@ fn existing_output(record: UserApiKey) -> CommandOutput {
     CommandOutput::card_value("API Key Exists", &output)
 }
 
-fn issued_output(issued: NewApiKey, secret_file: Option<&Path>) -> Result<CommandOutput> {
+async fn issued_output(
+    service: &ApiKeyService,
+    issued: NewApiKey,
+    secret_file: Option<&Path>,
+) -> Result<CommandOutput> {
     let (secret, secret_file, message) = match secret_file {
         Some(path) => {
-            write_secret_file(path, &issued.secret)?;
+            if let Err(error) = write_secret_file(path, &issued.secret) {
+                service
+                    .revoke(&issued.record.id, &issued.record.user_id)
+                    .await
+                    .context("revoke the key whose secret could not be written")?;
+                return Err(error);
+            }
             (
                 None,
                 Some(path.to_path_buf()),
