@@ -73,7 +73,7 @@ impl LocalProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&local_url, Vec::new()),
+            security: security_config(&local_url, Vec::new(), true),
             server: local_server_config(local_url),
             paths: PathsConfig {
                 system: system_path,

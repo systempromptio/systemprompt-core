@@ -102,7 +102,7 @@ impl CloudProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&external, self.trusted_issuers),
+            security: security_config(&external, self.trusted_issuers, false),
             server: ServerConfig {
                 host: consts::CLOUD_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,

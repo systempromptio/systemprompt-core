@@ -59,15 +59,19 @@ fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
     }
 }
 
-fn security_config(issuer: &str, trusted_issuers: Vec<TrustedIssuer>) -> SecurityConfig {
+fn security_config(
+    issuer: &str,
+    trusted_issuers: Vec<TrustedIssuer>,
+    open_enrolment: bool,
+) -> SecurityConfig {
     SecurityConfig {
         issuer: issuer.to_owned(),
         access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
         refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
         audiences: JwtAudience::standard(),
         allowed_resource_audiences: default_resource_audiences(),
-        allow_registration: true,
-        allow_dynamic_client_registration: true,
+        allow_registration: open_enrolment,
+        allow_dynamic_client_registration: open_enrolment,
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers,

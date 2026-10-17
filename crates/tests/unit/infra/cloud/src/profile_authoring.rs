@@ -112,6 +112,8 @@ fn test_local_profile_governance_webhook() {
 #[test]
 fn test_cloud_profile_defaults() {
     let profile = CloudProfileBuilder::new("prod").build();
+    assert!(!profile.security.allow_registration);
+    assert!(!profile.security.allow_dynamic_client_registration);
 
     assert_eq!(profile.name, "prod");
     assert_eq!(profile.display_name, "Production");
