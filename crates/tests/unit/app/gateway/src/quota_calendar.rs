@@ -62,6 +62,29 @@ fn calendar_week_starts_on_monday_utc() {
 }
 
 #[test]
+fn the_first_instant_of_a_month_opens_the_new_bucket() {
+    let span = month().span(at(2026, 3, 1, 0, 0, 0));
+    assert_eq!(span.start, at(2026, 3, 1, 0, 0, 0));
+    assert_eq!(span.end, at(2026, 4, 1, 0, 0, 0));
+}
+
+#[test]
+fn sunday_midnight_closes_the_week_and_monday_opens_the_next() {
+    let sunday = WindowSpan::calendar(at(2026, 10, 18, 23, 59, 59), CalendarPeriod::Week);
+    let monday = WindowSpan::calendar(at(2026, 10, 19, 0, 0, 0), CalendarPeriod::Week);
+    assert_eq!(sunday.end, monday.start);
+    assert_eq!(monday.start, at(2026, 10, 19, 0, 0, 0));
+    assert_eq!(monday.end, at(2026, 10, 26, 0, 0, 0));
+}
+
+#[test]
+fn a_week_spanning_the_new_year_starts_in_the_old_year() {
+    let span = WindowSpan::calendar(at(2027, 1, 1, 8, 0, 0), CalendarPeriod::Week);
+    assert_eq!(span.start, at(2026, 12, 28, 0, 0, 0));
+    assert_eq!(span.end, at(2027, 1, 4, 0, 0, 0));
+}
+
+#[test]
 fn calendar_day_is_the_same_bucket_as_a_fixed_86400_window() {
     let now = at(2026, 10, 16, 9, 30, 0);
     let day = WindowSpan::calendar(now, CalendarPeriod::Day);
