@@ -27,7 +27,7 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::Config;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::{CacheEpochs, FileStorage};
@@ -90,26 +90,7 @@ pub(super) async fn init_core(
 
     systemprompt_security::keys::authority::init()?;
 
-    let pool_config = pool_config_from_profile(profile.database.pool.as_ref(), profile.server.role);
-    let database = Arc::new(
-        Database::connect(
-            &config.database_url,
-            config.database_write_url.as_deref(),
-            &pool_config,
-        )
-        .await?
-        .with_session_url(
-            config.database_session_url.as_deref(),
-            &pool_config.for_session(
-                profile
-                    .database
-                    .pool
-                    .as_ref()
-                    .and_then(|p| p.session_max_connections),
-            ),
-        )
-        .await?,
-    );
+    let database = connect_database(profile, &config).await?;
 
     validate_write_pool_is_primary(&database).await?;
 
@@ -252,4 +233,27 @@ pub(super) async fn init_extensions(
     };
 
     Ok((Arc::new(registry), report))
+}
+
+async fn connect_database(profile: &Profile, config: &Config) -> RuntimeResult<Arc<Database>> {
+    let pool_config = pool_config_from_profile(profile.database.pool.as_ref(), profile.server.role);
+    Ok(Arc::new(
+        Database::connect(
+            &config.database_url,
+            config.database_write_url.as_deref(),
+            &pool_config,
+        )
+        .await?
+        .with_session_url(
+            config.database_session_url.as_deref(),
+            &pool_config.for_session(
+                profile
+                    .database
+                    .pool
+                    .as_ref()
+                    .and_then(|p| p.session_max_connections),
+            ),
+        )
+        .await?,
+    ))
 }

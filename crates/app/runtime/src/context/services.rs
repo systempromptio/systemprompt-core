@@ -33,7 +33,7 @@ impl AppContext {
     }
 
     #[must_use]
-    pub fn cache_epochs(&self) -> &CacheEpochs {
+    pub const fn cache_epochs(&self) -> &CacheEpochs {
         &self.subsystems.cache_epochs
     }
 
