@@ -33,6 +33,8 @@ pub const PINNED_SECRET_KEYS: &[&str] = &[
     "oauth_at_rest_pepper",
     "manifest_signing_secret_seed",
     "database_url",
+    "database_write_url",
+    "database_session_url",
     "signing_key_pem",
     "jwt_secret",
 ];
