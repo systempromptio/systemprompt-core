@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::GatewayPolicyError;
-use super::spec::{GatewayPolicySpec, RateWindow, SafetyConfig};
+use super::spec::{GatewayPolicySpec, QuotaWindow, RateWindow, SafetyConfig};
 
 const fn default_enabled() -> bool {
     true
@@ -68,6 +68,7 @@ impl GatewayPolicyConfig {
                 });
             }
             validate_safety_settings(idx, safety)?;
+            validate_quota_windows(idx, &policy.spec.quota_windows)?;
             validate_rate_windows(idx, &policy.spec.rate_windows)?;
         }
         Ok(())
@@ -116,6 +117,25 @@ fn validate_rate_windows(idx: usize, windows: &[RateWindow]) -> Result<(), Gatew
                 reason: "window_seconds and max_requests must both be at least 1".to_owned(),
             });
         }
+    }
+    Ok(())
+}
+
+fn validate_quota_windows(idx: usize, windows: &[QuotaWindow]) -> Result<(), GatewayPolicyError> {
+    for (w, window) in windows.iter().enumerate() {
+        let reason = match (window.calendar, window.window_seconds) {
+            (None, seconds) if seconds < 1 => {
+                "window_seconds must be at least 1 unless calendar is set"
+            },
+            (Some(_), seconds) if seconds != 0 => {
+                "set either calendar or window_seconds, not both"
+            },
+            _ => continue,
+        };
+        return Err(GatewayPolicyError::Invalid {
+            field: format!("policies[{idx}].spec.quota_windows[{w}]"),
+            reason: reason.to_owned(),
+        });
     }
     Ok(())
 }
