@@ -67,6 +67,18 @@ impl QuotaWindow {
         )
     }
 
+    pub const fn validate_span(&self) -> Result<(), &'static str> {
+        match (self.calendar, self.window_seconds) {
+            (None, seconds) if seconds < 1 => {
+                Err("window_seconds must be at least 1 unless calendar is set")
+            },
+            (Some(_), seconds) if seconds != 0 => {
+                Err("set either calendar or window_seconds, not both")
+            },
+            _ => Ok(()),
+        }
+    }
+
     #[must_use]
     pub fn label(&self) -> String {
         match self.calendar {

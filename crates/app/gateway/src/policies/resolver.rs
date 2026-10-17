@@ -13,7 +13,9 @@
 //! [`PolicyUnavailable`] and the request is denied. A malformed spec row is a
 //! fault in either mode: the policy it would have contributed is unknown, so
 //! the resolver returns [`PolicyUnavailable`] rather than merging the rest from
-//! a permissive base.
+//! a permissive base. A row that decodes but declares a quota window with no
+//! span (or two) is malformed in the same way: it never becomes a one-second
+//! bucket.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -131,7 +133,25 @@ impl PolicyResolver {
 pub struct MalformedPolicy {
     pub policy_id: AiGatewayPolicyId,
     pub name: String,
-    pub error: serde_json::Error,
+    pub error: MalformedSpec,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum MalformedSpec {
+    #[error(transparent)]
+    Decode(#[from] serde_json::Error),
+    #[error("quota_windows[{index}]: {reason}")]
+    QuotaWindow { index: usize, reason: &'static str },
+}
+
+fn decode_spec(value: serde_json::Value) -> Result<GatewayPolicySpec, MalformedSpec> {
+    let spec = serde_json::from_value::<GatewayPolicySpec>(value)?;
+    for (index, window) in spec.quota_windows.iter().enumerate() {
+        window
+            .validate_span()
+            .map_err(|reason| MalformedSpec::QuotaWindow { index, reason })?;
+    }
+    Ok(spec)
 }
 
 pub fn merge_policy_rows(
@@ -139,12 +159,10 @@ pub fn merge_policy_rows(
 ) -> Result<GatewayPolicySpec, MalformedPolicy> {
     let mut merged = GatewayPolicySpec::permissive();
     for row in rows {
-        let spec = serde_json::from_value::<GatewayPolicySpec>(row.spec).map_err(|error| {
-            MalformedPolicy {
-                policy_id: row.id,
-                name: row.name,
-                error,
-            }
+        let spec = decode_spec(row.spec).map_err(|error| MalformedPolicy {
+            policy_id: row.id,
+            name: row.name,
+            error,
         })?;
         if !spec.quota_windows.is_empty() || spec.quota_mode.is_warn() {
             merged.quota_mode = spec.quota_mode;

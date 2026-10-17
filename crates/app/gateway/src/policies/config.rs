@@ -123,19 +123,12 @@ fn validate_rate_windows(idx: usize, windows: &[RateWindow]) -> Result<(), Gatew
 
 fn validate_quota_windows(idx: usize, windows: &[QuotaWindow]) -> Result<(), GatewayPolicyError> {
     for (w, window) in windows.iter().enumerate() {
-        let reason = match (window.calendar, window.window_seconds) {
-            (None, seconds) if seconds < 1 => {
-                "window_seconds must be at least 1 unless calendar is set"
-            },
-            (Some(_), seconds) if seconds != 0 => {
-                "set either calendar or window_seconds, not both"
-            },
-            _ => continue,
-        };
-        return Err(GatewayPolicyError::Invalid {
-            field: format!("policies[{idx}].spec.quota_windows[{w}]"),
-            reason: reason.to_owned(),
-        });
+        window
+            .validate_span()
+            .map_err(|reason| GatewayPolicyError::Invalid {
+                field: format!("policies[{idx}].spec.quota_windows[{w}]"),
+                reason: reason.to_owned(),
+            })?;
     }
     Ok(())
 }

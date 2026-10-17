@@ -721,3 +721,24 @@ fn a_malformed_policy_row_fails_the_merge_instead_of_being_skipped() {
     let err = merge_policy_rows(rows).expect_err("a malformed row must not be dropped");
     assert_eq!(err.name, "typo");
 }
+
+#[test]
+fn a_stored_quota_window_without_a_span_fails_the_merge() {
+    let rows = vec![policy_row(
+        "spanless",
+        serde_json::json!({ "quota_windows": [{ "max_requests": 10 }] }),
+    )];
+    let err = merge_policy_rows(rows).expect_err("a spanless window must not become a 1s bucket");
+    assert_eq!(err.name, "spanless");
+    assert!(err.to_string().contains("quota_windows[0]"), "{err}");
+}
+
+#[test]
+fn a_stored_calendar_window_merges() {
+    let rows = vec![policy_row(
+        "monthly",
+        serde_json::json!({ "quota_windows": [{ "calendar": "month", "max_requests": 10 }] }),
+    )];
+    let merged = merge_policy_rows(rows).expect("calendar window is valid");
+    assert_eq!(merged.quota_windows.len(), 1);
+}

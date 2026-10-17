@@ -33,7 +33,9 @@ pub use overrides::{
     OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine, OverrideError,
     OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
 };
-pub use resolver::{MalformedPolicy, PolicyResolver, PolicyUnavailable, merge_policy_rows};
+pub use resolver::{
+    MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
+};
 pub use route_selector::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
 };
