@@ -4,6 +4,7 @@ use crate::{create_test_user, setup_test_db};
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{AccessTokenId, UserId};
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthCleanupRepository};
+use systemprompt_traits::{CacheDomain, cache_epoch};
 
 fn unique_jti() -> AccessTokenId {
     AccessTokenId::generate()
@@ -122,14 +123,22 @@ fn cache_negative_ttl_then_revocation_sticks() {
         "miss before any record"
     );
 
-    cache.record(&AccessTokenId::new("jti-a"), false);
+    cache.record(
+        &AccessTokenId::new("jti-a"),
+        false,
+        cache_epoch(CacheDomain::JtiRevocation),
+    );
     assert_eq!(
         cache.peek(&AccessTokenId::new("jti-a")),
         Some(false),
         "negative result must be visible to subsequent peeks"
     );
 
-    cache.record(&AccessTokenId::new("jti-b"), true);
+    cache.record(
+        &AccessTokenId::new("jti-b"),
+        true,
+        cache_epoch(CacheDomain::JtiRevocation),
+    );
     assert_eq!(cache.peek(&AccessTokenId::new("jti-b")), Some(true));
 
     // Re-record as not-revoked should NOT be possible monotonically — but the

@@ -7,6 +7,7 @@ use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository, OauthC
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_user_row, test_db_pool, unique_user_id,
 };
+use systemprompt_traits::{CacheDomain, cache_epoch};
 use uuid::Uuid;
 
 fn jti(label: &str) -> AccessTokenId {
@@ -34,16 +35,20 @@ fn cache_miss_returns_none() {
 #[test]
 fn cache_records_negative_then_positive() {
     let cache = JtiRevocationCache::with_capacity(16);
-    cache.record(&jti("jti-a"), false);
+    cache.record(
+        &jti("jti-a"),
+        false,
+        cache_epoch(CacheDomain::JtiRevocation),
+    );
     assert_eq!(cache.peek(&jti("jti-a")), Some(false));
-    cache.record(&jti("jti-a"), true);
+    cache.record(&jti("jti-a"), true, cache_epoch(CacheDomain::JtiRevocation));
     assert_eq!(cache.peek(&jti("jti-a")), Some(true));
 }
 
 #[test]
 fn cache_revoked_is_sticky() {
     let cache = JtiRevocationCache::default();
-    cache.record(&jti("jti-b"), true);
+    cache.record(&jti("jti-b"), true, cache_epoch(CacheDomain::JtiRevocation));
     assert_eq!(cache.peek(&jti("jti-b")), Some(true));
     assert_eq!(cache.peek(&jti("jti-b")), Some(true));
 }
@@ -51,7 +56,7 @@ fn cache_revoked_is_sticky() {
 #[test]
 fn cache_capacity_zero_clamps_to_one() {
     let cache = JtiRevocationCache::with_capacity(0);
-    cache.record(&jti("only"), true);
+    cache.record(&jti("only"), true, cache_epoch(CacheDomain::JtiRevocation));
     assert_eq!(cache.peek(&jti("only")), Some(true));
 }
 
@@ -137,10 +142,14 @@ async fn cleanup_expired_jti_revocations_removes_past_rows() {
 #[test]
 fn cache_with_zero_capacity_is_clamped_and_usable() {
     let cache = JtiRevocationCache::with_capacity(0);
-    cache.record(&jti("jti-a"), true);
+    cache.record(&jti("jti-a"), true, cache_epoch(CacheDomain::JtiRevocation));
     assert_eq!(cache.peek(&jti("jti-a")), Some(true));
 
-    cache.record(&jti("jti-b"), false);
+    cache.record(
+        &jti("jti-b"),
+        false,
+        cache_epoch(CacheDomain::JtiRevocation),
+    );
     assert_eq!(cache.peek(&jti("jti-b")), Some(false));
     assert_eq!(
         cache.peek(&jti("jti-a")),
@@ -172,7 +181,7 @@ async fn non_uuid_user_can_revoke_a_jti() {
 fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
     let cache = JtiRevocationCache::with_capacity(16);
     let id = fresh_jti();
-    cache.record(&id, false);
+    cache.record(&id, false, cache_epoch(CacheDomain::JtiRevocation));
     assert_eq!(cache.peek(&id), Some(false));
 
     systemprompt_traits::advance_cache_epoch(systemprompt_traits::CacheDomain::JtiRevocation);
@@ -183,7 +192,17 @@ fn a_revocation_on_another_replica_drops_cached_not_revoked_answers() {
 fn a_cached_revocation_survives_an_invalidation() {
     let cache = JtiRevocationCache::with_capacity(16);
     let id = fresh_jti();
-    cache.record(&id, true);
+    cache.record(&id, true, cache_epoch(CacheDomain::JtiRevocation));
     systemprompt_traits::advance_cache_epoch(systemprompt_traits::CacheDomain::JtiRevocation);
     assert_eq!(cache.peek(&id), Some(true));
+}
+
+#[test]
+fn a_revocation_notified_during_the_lookup_leaves_the_answer_stale() {
+    let cache = JtiRevocationCache::with_capacity(16);
+    let id = fresh_jti();
+    let looked_up_at = cache_epoch(CacheDomain::JtiRevocation);
+    systemprompt_traits::advance_cache_epoch(CacheDomain::JtiRevocation);
+    cache.record(&id, false, looked_up_at);
+    assert_eq!(cache.peek(&id), None);
 }

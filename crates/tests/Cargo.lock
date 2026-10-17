@@ -9059,6 +9059,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-oauth",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "systemprompt-users",
  "tokio",
  "uuid",

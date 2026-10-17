@@ -88,7 +88,9 @@ enum CacheEntry {
 /// Negative results
 /// expire after 60s, or as soon as a revocation on any replica advances the
 /// [`CacheDomain::JtiRevocation`] epoch; positive results are sticky (a
-/// revoked jti cannot become un-revoked).
+/// revoked jti cannot become un-revoked). A negative result is recorded under
+/// the epoch read before its lookup, so a revocation notified while the lookup
+/// was in flight leaves the entry already stale.
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
 }
@@ -134,14 +136,14 @@ impl JtiRevocationCache {
         }
     }
 
-    pub fn record(&self, jti: &AccessTokenId, revoked: bool) {
+    pub fn record(&self, jti: &AccessTokenId, revoked: bool, looked_up_at_epoch: u64) {
         if let Ok(mut guard) = self.cache.lock() {
             let entry = if revoked {
                 CacheEntry::Revoked
             } else {
                 CacheEntry::NotRevoked {
                     inserted_at: Instant::now(),
-                    epoch: cache_epoch(CacheDomain::JtiRevocation),
+                    epoch: looked_up_at_epoch,
                 }
             };
             guard.put(jti.clone(), entry);
