@@ -67,6 +67,7 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
+    pub trace_sampled: Option<bool>,
     pub governance: Arc<GovernanceEngine>,
 }
 
@@ -85,6 +86,7 @@ impl GatewayService {
             inbound,
             forward_headers,
             identity_headers,
+            trace_sampled,
             governance,
         } = inputs;
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
@@ -114,6 +116,7 @@ impl GatewayService {
             ctx,
             inbound,
             forward_headers,
+            trace_sampled,
             governance,
         }))
         .await;
@@ -147,6 +150,7 @@ struct OpenedDispatch<'a> {
     ctx: GatewayRequestContext,
     inbound: Arc<dyn InboundAdapter>,
     forward_headers: Vec<(String, String)>,
+    trace_sampled: Option<bool>,
     governance: Arc<GovernanceEngine>,
 }
 
@@ -205,6 +209,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         ctx,
         inbound,
         forward_headers,
+        trace_sampled,
         governance,
     } = opened;
 
@@ -228,6 +233,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let admitted_at = std::time::Instant::now();
     let outcome = crate::protocol::outbound::trace_context::with_trace(
         ctx.trace_id.clone(),
+        trace_sampled,
         Box::pin(send_with_failover(
             &mut scanned,
             FailoverSend {

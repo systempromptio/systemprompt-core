@@ -116,7 +116,7 @@ fn every_phase_records_under_its_own_label() {
 #[tokio::test]
 async fn the_dispatch_trace_id_is_stamped_as_a_traceparent() {
     let trace = TraceId::new("4bf92f3577b34da6a3ce929d0e0e4736");
-    let header = with_trace(Some(trace), async { current_traceparent() })
+    let header = with_trace(Some(trace), None, async { current_traceparent() })
         .await
         .expect("a W3C trace id is propagated");
     assert!(
@@ -128,6 +128,35 @@ async fn the_dispatch_trace_id_is_stamped_as_a_traceparent() {
 #[tokio::test]
 async fn no_traceparent_outside_a_dispatch_or_for_a_non_w3c_id() {
     assert!(current_traceparent().is_none());
-    let none = with_trace(Some(TraceId::system()), async { current_traceparent() }).await;
+    let none = with_trace(Some(TraceId::system()), None, async { current_traceparent() }).await;
     assert!(none.is_none());
+}
+
+#[tokio::test]
+async fn an_originated_trace_is_marked_sampled() {
+    let trace = TraceId::new("4bf92f3577b34da6a3ce929d0e0e4736");
+    let header = with_trace(Some(trace), None, async { current_traceparent() })
+        .await
+        .expect("propagated");
+    assert!(header.ends_with("-01"), "{header}");
+}
+
+#[tokio::test]
+async fn the_callers_unsampled_flag_is_propagated() {
+    let inbound = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00";
+    let trace = TraceId::from_traceparent(inbound).expect("valid traceparent");
+    let sampled = trace.sampled_in_traceparent(inbound);
+    assert_eq!(sampled, Some(false));
+    let header = with_trace(Some(trace), sampled, async { current_traceparent() })
+        .await
+        .expect("propagated");
+    assert!(header.ends_with("-00"), "{header}");
+}
+
+#[test]
+fn a_traceparent_for_another_trace_carries_no_flag() {
+    let trace = TraceId::new("0af7651916cd43dd8448eb211c80319c");
+    let other = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-00";
+    assert_eq!(trace.sampled_in_traceparent(other), None);
+    assert_eq!(trace.sampled_in_traceparent("garbage"), None);
 }
