@@ -154,3 +154,30 @@ async fn settlement_trues_up_the_shard_it_reserved_on() {
 
     assert_eq!(shard_rows(&db, &project).await, vec![(shard, 1, 400)]);
 }
+
+#[tokio::test]
+async fn windows_sharing_one_bucket_charge_it_once() {
+    let db = pool().await;
+    let project = format!("proj-{}", uuid::Uuid::new_v4());
+    let daily = QuotaWindow {
+        window_seconds: 86_400,
+        subject: DIMENSION.to_owned(),
+        max_requests: Some(100),
+        ..QuotaWindow::default()
+    };
+    let calendar_day = QuotaWindow {
+        window_seconds: 0,
+        calendar: Some(systemprompt_gateway::policies::CalendarPeriod::Day),
+        ..daily.clone()
+    };
+    let sharding = QuotaConfig {
+        shared_subject_shards: 1,
+        principal_subject_shards: 1,
+    };
+    let reservation = match reserve(&db, &project, &[daily, calendar_day], sharding).await {
+        ReserveOutcome::Admitted(reservation) => reservation,
+        ReserveOutcome::Denied { .. } => panic!("first request must be admitted"),
+    };
+    assert_eq!(reservation.windows.len(), 1);
+    assert_eq!(shard_rows(&db, &project).await, vec![(0, 1, 1_000)]);
+}

@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod decision;
+mod distinct;
 mod estimate;
 mod reserve;
 mod subject;

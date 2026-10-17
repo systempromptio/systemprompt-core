@@ -33,6 +33,7 @@ use systemprompt_traits::RepositoryError;
 
 use super::AccountingOutcome;
 use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
+use super::distinct::distinct_increments;
 use super::estimate::QuotaEstimate;
 use super::subject::{SubjectResolution, resolve_subject};
 use crate::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow, USER_QUOTA_SUBJECT, WindowSpan};
@@ -168,30 +169,35 @@ pub async fn precheck_and_reserve(
         resolved,
         closed_fault,
     } = resolve_windows(&params, now).await;
-    let increments: Vec<IncrementParams<'_>> = resolved
-        .iter()
-        .map(|r| IncrementParams {
-            subject_kind: r.subject_kind,
-            subject_id: &r.subject_id,
-            window_seconds: r.span.bucket_seconds,
-            window_start: r.span.start,
-            shard: r.shard,
-            delta,
-        })
-        .collect();
+    let (increments, slots) = distinct_increments(
+        resolved
+            .iter()
+            .map(|r| IncrementParams {
+                subject_kind: r.subject_kind,
+                subject_id: &r.subject_id,
+                window_seconds: r.span.bucket_seconds,
+                window_start: r.span.start,
+                shard: r.shard,
+                delta,
+            })
+            .collect(),
+    );
     let states = repo.increment_many(&increments).await?;
     let mut reservation = QuotaReservation::default();
-    for (index, (r, state)) in resolved.iter().zip(states).enumerate() {
-        reservation.windows.push(ReservedWindow {
-            subject_kind: r.subject_kind.to_owned(),
-            subject_id: r.subject_id.clone(),
-            window_seconds: r.span.bucket_seconds,
-            window_start: r.span.start,
-            shard: r.shard,
-            delta,
-        });
-        if let Some(decision) = ceiling_decision(r.window, state, r.span, now) {
-            unreserve(repo, &increments[index + 1..]).await;
+    for (r, &slot) in resolved.iter().zip(&slots) {
+        if slot == reservation.windows.len() {
+            let charged = &increments[slot];
+            reservation.windows.push(ReservedWindow {
+                subject_kind: charged.subject_kind.to_owned(),
+                subject_id: charged.subject_id.to_owned(),
+                window_seconds: charged.window_seconds,
+                window_start: charged.window_start,
+                shard: charged.shard,
+                delta,
+            });
+        }
+        if let Some(decision) = ceiling_decision(r.window, states[slot], r.span, now) {
+            unreserve(repo, &increments[reservation.windows.len()..]).await;
             return Ok(ReserveOutcome::Denied {
                 decision,
                 reservation,
