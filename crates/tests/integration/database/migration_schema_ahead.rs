@@ -170,3 +170,28 @@ async fn drift_without_a_newer_migration_still_fails_currency() {
     assert_eq!(currency.drift.len(), 1);
     assert!(!currency.is_current());
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_ahead_extension_does_not_hold_back_the_others() {
+    let f = fixture().await;
+    let g = fixture().await;
+    migrate_as_newer(&f).await;
+    apply_original(&g).await;
+
+    let mut registry = ExtensionRegistry::new();
+    registry
+        .register(Arc::new(older(&f, f.create_sql)))
+        .expect("register ahead extension");
+    registry
+        .register(Arc::new(newer(&g)))
+        .expect("register behind extension");
+    let report = install_extension_schemas(&registry, f.db.as_ref())
+        .await
+        .expect("install migrates the extension that is behind");
+
+    assert!(report.is_ahead());
+    assert!(report.ahead.iter().all(|m| m.extension.as_str() == f.ext_id));
+    assert_eq!(applied_versions(&f.pool, f.ext_id).await, vec![7, 8]);
+    assert_eq!(applied_versions(&g.pool, g.ext_id).await, vec![7, 8]);
+    assert!(column_exists(&g.pool, g.table, "refilled_slot").await);
+}
