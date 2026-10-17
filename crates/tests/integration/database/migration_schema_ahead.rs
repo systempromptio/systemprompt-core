@@ -190,7 +190,12 @@ async fn an_ahead_extension_does_not_hold_back_the_others() {
         .expect("install migrates the extension that is behind");
 
     assert!(report.is_ahead());
-    assert!(report.ahead.iter().all(|m| m.extension.as_str() == f.ext_id));
+    assert!(
+        report
+            .ahead
+            .iter()
+            .all(|m| m.extension.as_str() == f.ext_id)
+    );
     assert_eq!(applied_versions(&f.pool, f.ext_id).await, vec![7, 8]);
     assert_eq!(applied_versions(&g.pool, g.ext_id).await, vec![7, 8]);
     assert!(column_exists(&g.pool, g.table, "refilled_slot").await);

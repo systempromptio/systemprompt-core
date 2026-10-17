@@ -128,7 +128,10 @@ async fn the_dispatch_trace_id_is_stamped_as_a_traceparent() {
 #[tokio::test]
 async fn no_traceparent_outside_a_dispatch_or_for_a_non_w3c_id() {
     assert!(current_traceparent().is_none());
-    let none = with_trace(Some(TraceId::system()), None, async { current_traceparent() }).await;
+    let none = with_trace(Some(TraceId::system()), None, async {
+        current_traceparent()
+    })
+    .await;
     assert!(none.is_none());
 }
 

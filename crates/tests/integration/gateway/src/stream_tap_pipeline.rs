@@ -77,10 +77,7 @@ fn output_only_usage(output: u32) -> CanonicalUsageUpdate {
     }
 }
 
-pub(super) async fn open_audit(
-    db: &DbPool,
-    user_id: UserId,
-) -> (Arc<GatewayAudit>, AiRequestId) {
+pub(super) async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudit>, AiRequestId) {
     let request = minimal_request(Some("tap-system"), "tap first turn");
     let gw_conv = request
         .derived_gateway_conversation_id()

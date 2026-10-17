@@ -379,6 +379,7 @@ mod database_pool {
             max_lifetime_secs: Some(3600),
             statement_cache_capacity: Some(100),
             max_connections_by_role: None,
+            session_max_connections: Some(10),
         });
         assert!(!errors_of(&p).contains("database.pool"));
     }

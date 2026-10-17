@@ -175,7 +175,12 @@ async fn no_traversal_spelling_reaches_a_file_outside_the_layers() -> anyhow::Re
         write(&root.join(dir).join(&name), "SENTINEL");
     }
     for depth in 1..=5 {
-        for (up, sep) in [("..", "/"), ("%2e%2e", "/"), ("%2E%2E", "%2F"), ("..", "%2f")] {
+        for (up, sep) in [
+            ("..", "/"),
+            ("%2e%2e", "/"),
+            ("%2E%2E", "%2F"),
+            ("..", "%2f"),
+        ] {
             let mut rel = [up, sep].concat().repeat(depth);
             rel.push_str(&name);
             let (status, _, body) = get(&l.state, &files_url(&rel)).await;
@@ -312,7 +317,11 @@ async fn a_weak_or_listed_if_none_match_is_304() -> anyhow::Result<()> {
     let url = backend_file(&l, b"0123456789").await;
     let (_, headers, _) = get(&l.state, &url).await;
     let etag = headers[header::ETAG].to_str()?.to_owned();
-    for candidate in [format!("W/{etag}"), format!("\"other\", {etag}"), "*".to_owned()] {
+    for candidate in [
+        format!("W/{etag}"),
+        format!("\"other\", {etag}"),
+        "*".to_owned(),
+    ] {
         let (status, _, _) = request(
             &l.state,
             Method::GET,

@@ -106,7 +106,10 @@ fn s3_dotted_or_underscored_bucket_requires_path_style() {
             bucket: Some(bucket.to_owned()),
             ..s3()
         };
-        assert!(errors_of(&p).contains("set storage.path_style: true"), "{bucket}");
+        assert!(
+            errors_of(&p).contains("set storage.path_style: true"),
+            "{bucket}"
+        );
         p.storage.path_style = true;
         assert!(!errors_of(&p).contains("path_style"), "{bucket}");
     }

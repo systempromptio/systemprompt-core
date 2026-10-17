@@ -16,10 +16,10 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
+use systemprompt_manifest::Config;
 use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilter};
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
