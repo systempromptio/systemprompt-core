@@ -2,7 +2,8 @@
 //!
 //! Cloud Storage and S3 answer a ranged `GET` the same way: `206` with
 //! `Content-Range: bytes a-b/size`, `200` when the range was ignored, and
-//! `416` with `Content-Range: bytes */size` when it cannot be satisfied.
+//! `416` with `Content-Range: bytes */size` when it cannot be satisfied; a
+//! `416` without that header is sized from the object's metadata.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -39,16 +40,23 @@ fn parse_content_range(value: &str) -> Option<(Option<(u64, u64)>, u64)> {
     ))
 }
 
-pub(crate) fn into_read(
-    id: &StoredFileId,
-    response: Response,
-) -> Result<StoredFileRead, FileStorageError> {
+pub(crate) enum RemoteRead {
+    Read(StoredFileRead),
+    Unsatisfiable(Option<u64>),
+}
+
+pub(crate) fn stat_size(metadata: &StoredFileMetadata) -> u64 {
+    metadata
+        .size_bytes
+        .and_then(|size| u64::try_from(size).ok())
+        .unwrap_or(0)
+}
+
+pub(crate) fn into_read(id: &StoredFileId, response: Response) -> RemoteRead {
     let headers = response.headers();
     let content_range = header(headers, CONTENT_RANGE).and_then(parse_content_range);
     if response.status() == StatusCode::RANGE_NOT_SATISFIABLE {
-        return Err(FileStorageError::RangeNotSatisfiable {
-            size: content_range.map_or(0, |(_, size)| size),
-        });
+        return RemoteRead::Unsatisfiable(content_range.map(|(_, size)| size));
     }
     let range = match (response.status(), content_range) {
         (StatusCode::PARTIAL_CONTENT, Some((Some((start, end)), size))) => {
@@ -77,7 +85,7 @@ pub(crate) fn into_read(
     let body = response
         .bytes_stream()
         .map_err(|e| FileStorageError::Backend(Box::new(e)));
-    Ok(StoredFileRead {
+    RemoteRead::Read(StoredFileRead {
         metadata,
         range,
         body: Box::pin(body),

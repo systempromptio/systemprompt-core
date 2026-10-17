@@ -26,6 +26,7 @@ use url::Url;
 pub use error::S3Error;
 
 use crate::object_id::{id_for, mime_for, relative_path};
+use crate::remote_read::RemoteRead;
 use client::Lookup;
 
 pub const DEFAULT_S3_REGION: &str = "us-east-1";
@@ -157,7 +158,15 @@ impl FileStorage for S3FileStorage {
             .get(&name, range)
             .await
             .map_err(|e| e.into_storage(id))?;
-        crate::remote_read::into_read(id, response)
+        match crate::remote_read::into_read(id, response) {
+            RemoteRead::Read(read) => Ok(read),
+            RemoteRead::Unsatisfiable(Some(size)) => {
+                Err(FileStorageError::RangeNotSatisfiable { size })
+            },
+            RemoteRead::Unsatisfiable(None) => Err(FileStorageError::RangeNotSatisfiable {
+                size: crate::remote_read::stat_size(&self.metadata(id).await?),
+            }),
+        }
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {

@@ -225,3 +225,38 @@ async fn gcs_forwards_the_range_and_reads_a_206() {
         })
     );
 }
+
+#[tokio::test]
+async fn local_directory_metadata_is_not_found() {
+    let (_dir, s, _id) = local_with(b"x").await;
+    assert!(matches!(
+        s.metadata(&StoredFileId::new("files")).await,
+        Err(FileStorageError::NotFound(_))
+    ));
+}
+
+#[tokio::test]
+async fn s3_unsatisfiable_without_content_range_is_sized_from_head() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/b/files/v.mp4"))
+        .respond_with(ResponseTemplate::new(416))
+        .mount(&server)
+        .await;
+    Mock::given(method("HEAD"))
+        .and(path("/b/files/v.mp4"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("last-modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+                .set_body_bytes(b"0123456789".to_vec()),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let s = s3(&server);
+    assert!(matches!(
+        s.open(&StoredFileId::new("files/v.mp4"), Some(ByteRange::From(20)))
+            .await,
+        Err(FileStorageError::RangeNotSatisfiable { size: 10 })
+    ));
+}

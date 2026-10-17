@@ -27,6 +27,7 @@ pub use error::GcsError;
 pub use token::{DEFAULT_METADATA_TOKEN_URL, GcsTokenSource, MetadataServerTokens};
 
 use crate::object_id::{id_for, mime_for, relative_path};
+use crate::remote_read::RemoteRead;
 use client::Lookup;
 
 pub const DEFAULT_GCS_ENDPOINT: &str = "https://storage.googleapis.com/";
@@ -123,7 +124,15 @@ impl FileStorage for GcsFileStorage {
             .download(&name, range)
             .await
             .map_err(|e| e.into_storage(id))?;
-        crate::remote_read::into_read(id, response)
+        match crate::remote_read::into_read(id, response) {
+            RemoteRead::Read(read) => Ok(read),
+            RemoteRead::Unsatisfiable(Some(size)) => {
+                Err(FileStorageError::RangeNotSatisfiable { size })
+            },
+            RemoteRead::Unsatisfiable(None) => Err(FileStorageError::RangeNotSatisfiable {
+                size: crate::remote_read::stat_size(&self.metadata(id).await?),
+            }),
+        }
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {

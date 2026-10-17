@@ -163,6 +163,9 @@ impl FileStorage for LocalFileStorage {
         let meta = fs::metadata(&full)
             .await
             .map_err(|err| not_found(id, err))?;
+        if !meta.is_file() {
+            return Err(FileStorageError::NotFound(id.as_str().to_owned()));
+        }
         Ok(describe(id, &full, &meta))
     }
 

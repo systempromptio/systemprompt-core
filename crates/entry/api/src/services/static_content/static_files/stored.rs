@@ -5,7 +5,7 @@
 //! [`FileStorage`] backend, so files written to an object store by any
 //! replica are served by every replica. Bodies are streamed, a single
 //! `Range` is answered with `206` (or `416`) unless a stale `If-Range` asks
-//! for the whole file, and `HEAD` returns the headers alone.
+//! for the whole file, and `HEAD` reads the metadata alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,7 +20,9 @@ use systemprompt_manifest::paths::constants::storage;
 use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 use systemprompt_storage::LocalFileStorage;
-use systemprompt_traits::{ByteRange, FileStorage, FileStorageError, StoredFileId, StoredFileRead};
+use systemprompt_traits::{
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileRead,
+};
 
 use super::cache::{asset_cache_policy, etag_matches, if_range_holds, not_modified_response};
 use crate::error::ApiHttpError;
@@ -64,20 +66,7 @@ pub(super) async fn serve_files_path(
     layers.push((ctx.file_storage().as_ref(), &backend_id));
 
     for (layer, id) in layers {
-        let opened = match layer.open(id, range).await {
-            Ok(read)
-                if read.range.is_some()
-                    && !if_range_holds(req.headers, read.metadata.etag.as_deref()) =>
-            {
-                layer.open(id, None).await
-            },
-            Err(FileStorageError::RangeNotSatisfiable { .. })
-                if req.headers.contains_key(header::IF_RANGE) =>
-            {
-                layer.open(id, None).await
-            },
-            other => other,
-        };
+        let opened = open_layer(layer, id, range, &req).await;
         match opened {
             Ok(read) => return respond(read, files_config, &req),
             Err(FileStorageError::NotFound(_) | FileStorageError::Validation(_)) => {},
@@ -91,6 +80,36 @@ pub(super) async fn serve_files_path(
         }
     }
     ApiHttpError::not_found("Asset not found").into_response()
+}
+
+async fn open_layer(
+    layer: &dyn FileStorage,
+    id: &StoredFileId,
+    range: Option<ByteRange>,
+    req: &FilesRequest<'_>,
+) -> FileStorageResult<StoredFileRead> {
+    if req.method == Method::HEAD {
+        let metadata = layer.metadata(id).await?;
+        return Ok(StoredFileRead {
+            metadata,
+            range: None,
+            body: Box::pin(futures_util::stream::empty()),
+        });
+    }
+    match layer.open(id, range).await {
+        Ok(read)
+            if read.range.is_some()
+                && !if_range_holds(req.headers, read.metadata.etag.as_deref()) =>
+        {
+            layer.open(id, None).await
+        },
+        Err(FileStorageError::RangeNotSatisfiable { .. })
+            if req.headers.contains_key(header::IF_RANGE) =>
+        {
+            layer.open(id, None).await
+        },
+        other => other,
+    }
 }
 
 fn range_not_satisfiable(size: u64) -> Response {
