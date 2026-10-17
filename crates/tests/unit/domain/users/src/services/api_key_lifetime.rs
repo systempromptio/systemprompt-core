@@ -232,3 +232,13 @@ async fn a_human_email_is_never_converted_into_a_service_account() {
         .await;
     assert!(matches!(result, Err(UserError::EmailAlreadyExists(_))));
 }
+
+#[test]
+fn a_ceiling_refuses_a_key_issued_before_it_was_configured() {
+    let now = Utc::now();
+    let ceiling = ApiKeyLifetime::from_max_days(Some(90));
+    assert!(ceiling.admits(Some(now - Duration::days(89)), now));
+    assert!(!ceiling.admits(Some(now - Duration::days(91)), now));
+    assert!(!ceiling.admits(None, now));
+    assert!(ApiKeyLifetime::unbounded().admits(None, now));
+}

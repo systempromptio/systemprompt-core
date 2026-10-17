@@ -5,7 +5,9 @@
 //!
 //! Every key passes through [`ApiKeyLifetime`]: with a ceiling configured, an
 //! omitted expiry becomes `now + max` and an expiry beyond it is refused with
-//! [`UserError::ApiKeyLifetimeExceeded`].
+//! [`UserError::ApiKeyLifetimeExceeded`]. The ceiling also holds for keys
+//! issued before it was configured: [`ApiKeyService::verify`] refuses a key
+//! older than the ceiling, whatever its stored expiry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -73,6 +75,13 @@ impl ApiKeyLifetime {
             }),
             Some(at) => Ok(Some(at)),
         }
+    }
+
+    pub fn admits(self, created_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+        let Some(max_days) = self.max_days else {
+            return true;
+        };
+        created_at.is_some_and(|at| now < at + chrono::TimeDelta::days(i64::from(max_days)))
     }
 }
 
@@ -147,6 +156,7 @@ impl ApiKeyService {
             .find(|key| {
                 key.name == name
                     && key.is_active(now)
+                    && self.lifetime.admits(key.created_at, renew_at)
                     && key.expires_at.is_none_or(|at| at > renew_at)
             });
         match existing {
@@ -168,7 +178,8 @@ impl ApiKeyService {
             return Ok(None);
         };
 
-        if !record.is_active(Utc::now()) {
+        let now = Utc::now();
+        if !record.is_active(now) || !self.lifetime.admits(record.created_at, now) {
             return Ok(None);
         }
 
