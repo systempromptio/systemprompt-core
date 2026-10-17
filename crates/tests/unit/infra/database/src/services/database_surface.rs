@@ -201,3 +201,14 @@ async fn validation_helpers_detect_tables_and_columns() {
             .expect("query")
     );
 }
+
+#[test]
+fn the_session_pool_is_sized_on_its_own() {
+    let main = pool_config();
+    assert_eq!(main.for_session(None).max_connections, 10);
+    assert_eq!(main.for_session(Some(3)).max_connections, 3);
+    assert_eq!(
+        main.for_session(Some(3)).statement_cache_capacity,
+        main.statement_cache_capacity
+    );
+}

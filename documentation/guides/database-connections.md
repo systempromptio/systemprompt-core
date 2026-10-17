@@ -54,7 +54,7 @@ A transaction-mode pooler hands a server connection to a client for one transact
 - Session advisory locks — the replica-identity claim and the scheduler job locks would be held by a backend another client then uses.
 - The migration lock — the migration runner holds it for the whole run.
 
-Point `database_url` (and `database_write_url`, if used) at the pooler and set the secret `database_session_url` (`DATABASE_SESSION_URL` with the `env` secrets source) to a direct connection to the primary. The session pool, the event listener, every advisory lock and the migration runner then use the direct connection, and everything else goes through the pooler. Budget the direct connections as `2 + concurrent_jobs` per admin node and `2` per gateway node, plus one for a migration run.
+Point `database_url` (and `database_write_url`, if used) at the pooler and set the secret `database_session_url` (`DATABASE_SESSION_URL` with the `env` secrets source) to a direct connection to the primary. The session pool, the event listener, every advisory lock and the migration runner then use the direct connection, and everything else goes through the pooler. Budget the direct connections as `2 + concurrent_jobs` per admin node and `2` per gateway node, plus one for a migration run. The session pool is capped by `database.pool.session_max_connections` (default 10), independent of `max_connections`; raise it on an admin node that runs more concurrent cluster jobs than that.
 
 Configure the pooler as follows:
 

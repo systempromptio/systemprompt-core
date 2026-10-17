@@ -80,6 +80,13 @@ impl Profile {
                 }
             }
         }
+        if let Some(max) = pool.session_max_connections
+            && !(1..=500).contains(&max)
+        {
+            errors.push(format!(
+                "database.pool.session_max_connections must be between 1 and 500 (got {max})"
+            ));
+        }
         if pool.acquire_timeout_secs == Some(0) {
             errors.push("database.pool.acquire_timeout_secs must be greater than 0".to_owned());
         }

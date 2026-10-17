@@ -97,7 +97,16 @@ pub(super) async fn init_core(
             &pool_config,
         )
         .await?
-        .with_session_url(config.database_session_url.as_deref(), &pool_config)
+        .with_session_url(
+            config.database_session_url.as_deref(),
+            &pool_config.for_session(
+                profile
+                    .database
+                    .pool
+                    .as_ref()
+                    .and_then(|p| p.session_max_connections),
+            ),
+        )
         .await?,
     );
 

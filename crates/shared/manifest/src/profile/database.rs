@@ -23,6 +23,10 @@ use super::NodeRole;
 /// admit `gateway_replicas × (gateway pool + 2) + admin × (admin pool + 2)`
 /// plus migration and operator sessions; the `+ 2` are the replica-identity
 /// claim and the event listener sessions every node holds.
+/// `session_max_connections` sizes the separate session pool a
+/// `database_session_url` opens (10 by default): it holds only the claim,
+/// listener, job-lock and migration sessions, so it never needs the main
+/// pool's ceiling.
 /// [`crate::profile::Profile::validate`] range-checks the values at bootstrap.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +48,9 @@ pub struct PoolConfig {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_connections_by_role: Option<RoleMaxConnections>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_max_connections: Option<u32>,
 }
 
 impl PoolConfig {

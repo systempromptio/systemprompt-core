@@ -56,7 +56,7 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
 
-| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
+| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
 
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
 

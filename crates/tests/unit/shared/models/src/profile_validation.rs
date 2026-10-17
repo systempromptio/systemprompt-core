@@ -350,6 +350,16 @@ mod database_pool {
     }
 
     #[test]
+    fn zero_session_max_connections_rejected() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            session_max_connections: Some(0),
+            ..PoolConfig::default()
+        });
+        assert!(errors_of(&p).contains("database.pool.session_max_connections"));
+    }
+
+    #[test]
     fn zero_acquire_timeout_rejected() {
         let mut p = valid_profile();
         p.database.pool = Some(PoolConfig {

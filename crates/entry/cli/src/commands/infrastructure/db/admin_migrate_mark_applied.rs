@@ -42,7 +42,7 @@ pub(super) async fn execute_migrate_mark_applied(
         .context("Failed to connect to database")?
         .with_session_url(
             sys_config.database_session_url.as_deref(),
-            &systemprompt_database::PoolConfig::default(),
+            &systemprompt_database::PoolConfig::default().for_session(None),
         )
         .await
         .context("Failed to connect to the session database")?,
