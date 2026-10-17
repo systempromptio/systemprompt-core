@@ -11,17 +11,24 @@
 - **Breaking:** `ApiKeyService::new` and `RunCredentialService::new` take an `ApiKeyLifetime`, and `UserRepository::insert_service_account` is replaced by the idempotent `ensure_service_account`.
 - **Breaking:** a profile with `storage.shared: true` must set `paths.data`, the per-node directory for the gateway journal and scratch state. Migrate by mounting a node-local volume and pointing `paths.data` at it.
 - **Breaking:** the `ai_quota_buckets` unique key includes `shard` (ai migration `042_quota_bucket_shards`). Migrate SQL that upserts into the table by adding `shard` to its `ON CONFLICT` target, and sum rows across shards when reading a window's usage.
+- **Breaking:** upgrading from 0.69 is not rolling-safe: once a 0.70 node applies ai migration `042_quota_bucket_shards`, a 0.69 node's quota upserts fail. Migrate with a recreate rollout (scale 0.69 to zero, then start 0.70); ai migration `043_quota_bucket_shards_contract` records the change as `@compat: breaking`, so a binary older than 0.70 refuses to start against the migrated database and a rollback needs a database restore.
+- **Breaking:** a config plane is `file`-authoritative by default, so on first boot a plane with a declaration file is reconciled to it and rows that exist only in the database are removed. Migrate by exporting console-managed rows into the declaration, or by setting `config_planes.authority.<plane>: db`, before upgrading.
+- **Breaking:** `scheduler.unlisted_jobs` defaults to `default`, so a registered job missing from `scheduler.jobs` now runs on its `Job::default_schedule()`. Migrate by setting `scheduler.unlisted_jobs: warn` to keep such jobs unscheduled.
+- **Breaking:** cache invalidation epochs are an injected `CacheEpochs` handle (`AppContext::cache_epochs()`); the `cache_epoch` and `advance_cache_epoch` functions are removed, and `PostgresEventBridge::new`, `PolicyResolver::from_repository`, `GatewayRepositories::new`, `ChainIndexCache::new`, `RuleBasedHook::new`, `build_authz_hook`, `JtiRevocationCache::new`/`with_capacity` and `JtiRevocationChecker::from_repository` take it. Migrate by passing `ctx.cache_epochs().clone()`.
+- **Breaking:** `IncrementParams` gains `shard`, and `MalformedPolicy::error` is a `MalformedSpec`. Migrate struct literals by setting `shard: 0`.
+- **Breaking:** a gateway quota window must set exactly one of `window_seconds` (at least 1) or `calendar`; a window with neither or both is rejected in YAML and treated as a malformed policy, which denies the request, when read from the database.
+- **Breaking:** cloud profiles written by the CLI set `allow_registration` and `allow_dynamic_client_registration` to `false`.
 - **Breaking:** `bind_and_serve` takes a `ShutdownConfig`, and `SchedulerConfig` gains `unlisted_jobs`; struct literals must name the new fields.
 
 ### Added
 
-- **Config planes:** extensions register `ConfigPlane`s through `Extension::config_planes()`, and `config_planes.authority` sets each plane to `file` (default) or `db`. A `file` plane is reconciled to its declaration at boot and by the `config_reconcile` job, every correction is recorded with its before and after values in `config_change_audit`, and console writes to it are refused with 409; a `db` plane is seeded when empty and its drift is reported.
+- **Config planes:** extensions register `ConfigPlane`s through `Extension::config_planes()`, and `config_planes.authority` sets each plane to `file` (default) or `db`. A `file` plane is reconciled to its declaration at boot and by the `config_reconcile` job, every correction is recorded with its before and after values in `config_change_audit`, and `ConfigPlaneSet::ensure_db_writable` lets an extension refuse console writes to it with 409; a `db` plane is seeded when empty and its drift is reported.
 - **Config planes:** `admin config planes list|diff|apply --reason` applies a plane headless, `admin config validate` parses every plane's declaration offline, `/readyz` reports each plane's authority, hash and drift, and `/metrics` exports `systemprompt_config_drift_rows` and `systemprompt_config_plane_info`.
 - **Security:** `security.api_keys.max_lifetime_days` caps every personal access token; a key without an expiry gets the cap and a longer expiry is refused.
 - **CLI:** `admin users api-key issue --if-absent [--renew-before-days N] [--secret-file PATH]` and `admin users service-account create` provision idempotently.
 - **Gateway:** quota windows accept `calendar: day | week | month` (UTC) and reset at the next calendar boundary.
 - **Gateway:** `governance.quota.shared_subject_shards` (default 8) spreads organisation and project quota windows over several rows; admission checks their sum, so a window may over-admit by at most one concurrent reservation per extra row.
-- **Storage:** `storage.backend: s3` stores files in an S3-compatible bucket (`endpoint`, `region`, `path_style`, `credentials: { secret }`).
+- **Storage:** `storage.backend: s3` stores files in an S3-compatible bucket (`endpoint`, `region`, `path_style`, `credentials: { secret }`); a bucket name containing `_` or `.` requires `path_style: true`, and the credentials need `s3:ListBucket` so a missing object answers 404.
 - **API:** `/files/*` streams from `paths.storage`, then the read-only `paths.shipped_files`, then the storage backend, with single-range `206`/`416`, `HEAD` and `If-None-Match`.
 - **Database:** `database.pool.max_connections_by_role` sizes the pool per server role, and the optional `database_session_url` secret carries `LISTEN`, advisory locks and migrations so the main URL can sit behind a transaction-mode pooler.
 - **Server:** `server.shutdown` sets `pre_stop_delay_secs`, `drain_grace_secs`, `child_grace_secs`, `background_grace_secs` and `forced_exit_grace_secs`; the defaults match the previous fixed values.
@@ -35,20 +42,36 @@
 - **CLI:** `admin config validate --strict` fails when a registered job has no `scheduler.jobs` entry.
 - **Gateway:** when the drain window expires, each open stream ends with one error event in its wire format and `gateway_streams_aborted_on_shutdown_total` counts it.
 
+- **Database:** `database.pool.session_max_connections` (default 10) sizes the `database_session_url` pool.
+
 ### Changed
 
 - **Gateway:** the `rate_limit` policy counts a fixed window in Postgres shared by every replica and fails closed when the counter is unavailable.
 - **Cache:** writes to gateway policies, access-control rules and token revocations notify every replica, which drops its cached copy.
 - **Gateway:** tool catalogues are filed without locking the shared row, thought signatures are looked up in one query and only for Gemini-capable routes, and `ensure_context` skips a context touched within the last minute.
 - **Gateway:** the audit journal is settled once more during shutdown drain.
-- **Database:** a node whose database a newer release has migrated keeps serving and reports `"schema": "ahead"` on `/readyz` instead of refusing to start.
+- **Database:** a node whose database a newer release has migrated keeps serving and reports `"schema": "ahead"` on `/readyz` instead of refusing to start; `/readyz` re-reads the migration ledger every 60 s and answers `503` with `"schema": "breaking"` once a newer `@compat: breaking` migration is applied.
 - **Runtime:** the governance engine loads from the active composed services root.
 - **Generator:** generated output is written to a temporary file and renamed into place.
 - **Scheduler:** `file_ingestion` runs on every replica.
+- **Cache:** a process with no listening invalidation relay (the CLI, a replica while it reconnects) never trusts a cached "not revoked" token answer and caches gateway policies for 5 s.
+- **Config planes:** the boot reconcile and `admin config planes apply` take the cluster-wide `config_reconcile` lock, waiting up to 120 s.
+- **Gateway:** the outbound `traceparent` carries the sampled flag of a valid inbound `traceparent`.
+- **Gateway:** a request whose quota windows resolve to the same bucket row charges that row once.
+- **Secrets:** a secrets reload that changes `database_write_url` or `database_session_url` is refused; restart to adopt them.
 
 ### Fixed
 
-- **API:** `/files/*` refuses a path containing `..`.
+- **API:** `/files/*` refuses a path containing `..` or a control character.
+- **API:** `/files/*` honours `If-Range`, matches weak, listed and `*` `If-None-Match`, answers `HEAD` from object metadata without downloading the body, and sizes a backend `416` from the object.
+- **Storage:** S3 and GCS downloads streamed through `/files` are bounded by a read-stall timeout, not a whole-request timeout, so large downloads are no longer cut off after 60 s.
+- **Config planes:** an unattended reconcile of a `file` plane whose declaration parses to zero entries fails the plane instead of deleting every row.
+- **Security:** expired rate-window rows are pruned on every charging path, including gateway `rate_windows`.
+- **Security:** a token revoked while its revocation lookup was in flight is no longer cached as valid.
+- **Security:** `security.api_keys.max_lifetime_days` also refuses existing keys older than the ceiling.
+- **CLI:** `admin users api-key issue --secret-file` revokes the new key when the secret file cannot be written.
+- **Database:** an install where one extension's schema is ahead still migrates every other extension.
+- **Gateway:** a pass-through stream cut by shutdown or abort ends on a whole SSE frame.
 - **Agent:** the A2A run stream follower runs on the server's task tracker and is drained at shutdown.
 
 ## [0.69.0] - 2026-10-15
