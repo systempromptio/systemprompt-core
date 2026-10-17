@@ -185,7 +185,10 @@ async fn an_apply_that_does_not_converge_fails_the_plane() {
 #[tokio::test]
 async fn an_unreadable_declaration_fails_the_plane() {
     let root = tempfile::tempdir().expect("tempdir");
-    let plane = Arc::new(FakePlane::new(unique_plane_name("rec_bad"), &[]));
+    let plane = Arc::new(FakePlane::new(
+        unique_plane_name("rec_bad"),
+        &[("live", "row")],
+    ));
     let path = root.path().join(plane.path);
     std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     std::fs::write(&path, "no separator here\n").expect("write");
@@ -194,7 +197,34 @@ async fn an_unreadable_declaration_fails_the_plane() {
     let report = svc.reconcile_all(ReconcileTrigger::Boot).await;
 
     assert_eq!(report.failures().len(), 1);
-    assert!(plane.store().is_empty());
+    assert_eq!(
+        plane.store().get("live").map(String::as_str),
+        Some("row"),
+        "a declaration that cannot be parsed must never prune the live projection"
+    );
+}
+
+#[tokio::test]
+async fn a_declaration_that_cannot_be_read_never_deletes_live_rows() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(
+        unique_plane_name("rec_io"),
+        &[("live", "row"), ("other", "x")],
+    ));
+    std::fs::create_dir_all(root.path().join(plane.path)).expect("directory in place of file");
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
+
+    let report = svc.reconcile_all(ReconcileTrigger::Boot).await;
+
+    assert_eq!(report.failures().len(), 1);
+    assert_eq!(plane.store().len(), 2);
+    assert!(
+        svc.repository()
+            .list_changes(plane.name, 10)
+            .await
+            .expect("audit")
+            .is_empty()
+    );
 }
 
 #[tokio::test]
