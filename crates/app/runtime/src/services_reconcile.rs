@@ -20,13 +20,13 @@
 use std::sync::Arc;
 
 use systemprompt_database::Database;
+use systemprompt_governance::authz::reconcile_composed_bundles;
 use systemprompt_loader::bundle::bootstrap::baked::BASE_SOURCE_NAME;
 use systemprompt_loader::bundle::{BundleCache, cache_root};
 use systemprompt_loader::{ActiveServicesRoot, ServicesProvenance};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
-use systemprompt_governance::authz::reconcile_composed_bundles;
 
 use crate::error::{RuntimeError, RuntimeResult};
 

@@ -21,10 +21,10 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 

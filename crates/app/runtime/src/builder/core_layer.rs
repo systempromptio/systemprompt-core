@@ -27,9 +27,9 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::{Config, Profile};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;

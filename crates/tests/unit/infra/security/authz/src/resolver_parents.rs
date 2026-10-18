@@ -1,8 +1,8 @@
-use systemprompt_identifiers::{MarketplaceId, SkillId};
 use systemprompt_governance::authz::resolver::{ResolveInput, ResolveParent, resolve};
 use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
+use systemprompt_identifiers::{MarketplaceId, SkillId};
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {

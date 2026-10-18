@@ -23,9 +23,9 @@ use std::sync::Arc;
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_database::{Database, DbPool};
+use systemprompt_governance::authz::{YAML_SOURCE, reconcile_services_authz};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{GatewayState, ProviderRegistry};
-use systemprompt_governance::authz::{YAML_SOURCE, reconcile_services_authz};
 
 pub(super) enum ReconcileOutcome {
     Reconciled,

@@ -1,11 +1,11 @@
 //! DB-backed tests that `DbAuditSink` persists the enforcement surface and
 //! the verified client rather than flattening every row to a bare user.
 
-use systemprompt_identifiers::{Actor, AgentId, ClientId, McpServerId, TraceId, UserId};
 use systemprompt_governance::authz::{
     AuthzAuditSink, AuthzContext, AuthzDecision, AuthzRequest, AuthzSource, DbAuditSink, EntityRef,
     GovernanceDecisionRepository,
 };
+use systemprompt_identifiers::{Actor, AgentId, ClientId, McpServerId, TraceId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 
 fn mcp_request(user: &str, server: &str, chain: Vec<Actor>) -> AuthzRequest {

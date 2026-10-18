@@ -16,6 +16,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
@@ -24,7 +25,6 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilt
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};

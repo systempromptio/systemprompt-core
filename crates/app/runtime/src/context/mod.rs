@@ -22,6 +22,8 @@ use systemprompt_database::{
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
+use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::SystemAdmin;
 use systemprompt_marketplace::inventory::PublishGuard;
@@ -31,8 +33,6 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_governance::authz::SharedAuthzHook;
-use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 

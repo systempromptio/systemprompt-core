@@ -1,8 +1,8 @@
 use serde_json::json;
-use systemprompt_identifiers::McpToolName;
 use systemprompt_governance::policy::governed::{
     GovernedInput, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME,
 };
+use systemprompt_identifiers::McpToolName;
 
 fn paths(input: &GovernedInput) -> Vec<(String, String)> {
     input

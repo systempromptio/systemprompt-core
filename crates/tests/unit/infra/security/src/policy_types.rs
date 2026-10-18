@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use serde_json::json;
-use systemprompt_identifiers::{PolicyId, UserId};
 use systemprompt_governance::authz::types::{Decision, MatchedBy};
 use systemprompt_governance::policy::governed::McpToolInput;
 use systemprompt_governance::policy::types::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation,
 };
+use systemprompt_identifiers::{PolicyId, UserId};
 
 #[test]
 fn secret_location_new_stores_fields() {

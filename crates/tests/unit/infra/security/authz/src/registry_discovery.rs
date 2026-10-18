@@ -7,11 +7,11 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzHookContext, AuthzRequest, DenyReason,
     EntityRef, NullAuditSink, SharedAuthzHook, discover_authz_hook,
 };
+use systemprompt_identifiers::{RouteId, TraceId};
 
 #[derive(Debug)]
 struct AllowHook;

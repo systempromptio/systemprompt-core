@@ -17,6 +17,7 @@ use systemprompt_gateway::service::GatewayService;
 use systemprompt_gateway::{
     DispatchInputs, GatewayAudit, GatewayRepositories, GatewayRequestContext,
 };
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_identifiers::{AiRequestId, ContextId, ModelId, ProviderId, SecretName, TraceId};
 use systemprompt_manifest::services::{
     GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
@@ -24,7 +25,6 @@ use systemprompt_manifest::services::{
 };
 use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, RequestOrigin};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };

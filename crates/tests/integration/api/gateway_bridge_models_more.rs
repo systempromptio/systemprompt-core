@@ -30,10 +30,10 @@ use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential
 use tower::ServiceExt;
 
 use super::common::setup_ctx;
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_governance::policy::types::AccessScope;
 
 fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(

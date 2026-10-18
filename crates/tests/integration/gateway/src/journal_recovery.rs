@@ -13,11 +13,11 @@ use systemprompt_gateway::audit::journal::{
     GatewayJournal, flush_on_shutdown, pending, recover, spawn_recovery,
 };
 use systemprompt_gateway::{GatewayAudit, GatewayRepositories, GatewayRequestContext};
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_governance::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 

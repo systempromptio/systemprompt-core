@@ -96,8 +96,8 @@ fn builder_with_marketplace_filter_reflects_in_debug() {
 fn builder_full_chain_all_flags_set() {
     use std::sync::Arc;
     use systemprompt_extension::ExtensionRegistry;
-    use systemprompt_marketplace::AllowAllFilter;
     use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
+    use systemprompt_marketplace::AllowAllFilter;
 
     let builder = AppContextBuilder::new()
         .with_extensions(ExtensionRegistry::new())

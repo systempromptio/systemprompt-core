@@ -17,11 +17,11 @@ use systemprompt_ai::repository::{AiRequestRepository, InsertSafetyFinding};
 use systemprompt_cli::infrastructure::logs::{self, LogsCommands};
 use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{Actor, AiRequestId, ContextId, SessionId, UserId};
-use systemprompt_runtime::DatabaseContext;
 use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
+use systemprompt_identifiers::{Actor, AiRequestId, ContextId, SessionId, UserId};
+use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};
 use uuid::Uuid;
 

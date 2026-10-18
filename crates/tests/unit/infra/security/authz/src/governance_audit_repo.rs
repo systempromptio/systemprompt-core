@@ -7,11 +7,11 @@
 
 use std::sync::LazyLock;
 
-use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
 use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
     list_trace_ids_with_decision,
 };
+use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
 use systemprompt_test_fixtures::{DisposableDb, closed_db_pool, seed_user_row, test_db_pool};
 use uuid::Uuid;
 

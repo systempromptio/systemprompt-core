@@ -7,6 +7,7 @@ use systemprompt_identifiers::{McpServerId, McpToolName};
 
 use rmcp::model::{CallToolResult, ContentBlock};
 use serde_json::json;
+use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_identifiers::{
     Actor, AgentName, AiToolCallId, ContextId, McpExecutionId, SessionId, TraceId, UserId,
 };
@@ -18,7 +19,6 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_test_fixtures::test_db_pool;
 
 const PATTERNS: &str =

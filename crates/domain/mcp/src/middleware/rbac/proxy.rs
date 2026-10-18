@@ -8,10 +8,10 @@
 use std::collections::BTreeMap;
 
 use rmcp::ErrorData as McpError;
+use systemprompt_governance::authz::{AuthzContext, AuthzRequest, EntityRef};
 use systemprompt_identifiers::{Actor, JwtToken, McpServerId, UserId, headers};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
-use systemprompt_governance::authz::{AuthzContext, AuthzRequest, EntityRef};
 
 use super::AuthenticatedRequestContext;
 use super::jwt::validate_scopes_for_permissions;

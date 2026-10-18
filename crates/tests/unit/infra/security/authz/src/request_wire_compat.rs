@@ -2,9 +2,9 @@
 //! fields added after `user_id` must be optional on the wire and derivable
 //! from it. These tests pin that contract in both directions.
 
-use systemprompt_identifiers::{Actor, ActorKind, AgentId, ClientId, RouteId, TraceId, UserId};
 use systemprompt_governance::authz::{AuthzContext, AuthzRequest, EntityRef};
 use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_identifiers::{Actor, ActorKind, AgentId, ClientId, RouteId, TraceId, UserId};
 
 const U1: &str = "00000000-0000-4000-8000-000000000001";
 

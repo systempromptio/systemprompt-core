@@ -24,13 +24,13 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
+use systemprompt_governance::authz::ingestion::IngestReport;
+use systemprompt_governance::authz::{ReconcileReport, reconcile_composed_bundles};
 use systemprompt_loader::bundle::BundleCache;
 use systemprompt_loader::{ActiveServicesRoot, ConfigLoader};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::services::bundle::SignedBundleManifest;
 use systemprompt_runtime::services_reconcile::pending_composed_hash;
-use systemprompt_governance::authz::ingestion::IngestReport;
-use systemprompt_governance::authz::{ReconcileReport, reconcile_composed_bundles};
 
 use crate::context::CommandContext;
 

@@ -4,12 +4,12 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use std::sync::Arc;
-use systemprompt_identifiers::{ScopeDimension, UserId};
-use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_governance::authz::{
     AuthzError, RuleType, ScopeBindingError, SubjectAttributeProvider, SubjectDimension,
     SubjectProviderSet,
 };
+use systemprompt_identifiers::{ScopeDimension, UserId};
+use systemprompt_models::attribution::ScopeBinding;
 
 const PROJECT: RuleType = RuleType::extension_static("project");
 

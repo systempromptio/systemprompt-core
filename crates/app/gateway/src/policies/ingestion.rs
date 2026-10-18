@@ -1,7 +1,8 @@
 //! Bootstrap-time projection of [`GatewayPolicyConfig`] into
 //! `ai_gateway_policies`.
 //!
-//! This mirrors `systemprompt_governance::authz::AccessControlIngestionService`:
+//! This mirrors
+//! `systemprompt_governance::authz::AccessControlIngestionService`:
 //! a domain object parsed from disk is upserted into a typed repository, with
 //! explicit `override_existing` and `delete_orphans` knobs. Direction is fixed
 //! (YAML → DB).

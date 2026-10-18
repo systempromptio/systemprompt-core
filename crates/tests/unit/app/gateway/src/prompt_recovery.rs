@@ -5,13 +5,13 @@ use systemprompt_gateway::protocol::canonical::{
 };
 use systemprompt_gateway::protocol::outbound::PreparedBody;
 use systemprompt_gateway::service::stages::recovery::{PromptRecovery, govern_prompt};
-use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::REDACTION_MARKER;
 use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_governance::policy::{
     AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
 };
+use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 
 pub(super) const KEY: &str = "XRECOVERY-1234567890";
 pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n";

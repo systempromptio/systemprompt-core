@@ -7,9 +7,9 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Result, anyhow};
-use systemprompt_runtime::AppContext;
 use systemprompt_governance::authz::repository::AccessControlRepository;
 use systemprompt_governance::authz::types::EntityKind;
+use systemprompt_runtime::AppContext;
 
 use super::LintArgs;
 use crate::CliConfig;

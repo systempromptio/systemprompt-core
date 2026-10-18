@@ -12,9 +12,9 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_governance::policy::RateWindowRepository;
+use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};

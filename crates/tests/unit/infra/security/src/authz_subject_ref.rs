@@ -5,8 +5,8 @@
 //! here silently stops matching every rule already persisted, so the wire
 //! spellings are asserted literally rather than round-tripped.
 
-use systemprompt_identifiers::{DepartmentId, RoleId, UserId};
 use systemprompt_governance::authz::types::SubjectRef;
+use systemprompt_identifiers::{DepartmentId, RoleId, UserId};
 
 fn json(subject: &SubjectRef) -> serde_json::Value {
     serde_json::to_value(subject).expect("serialise subject")

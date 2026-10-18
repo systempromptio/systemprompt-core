@@ -35,11 +35,11 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 
 fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(

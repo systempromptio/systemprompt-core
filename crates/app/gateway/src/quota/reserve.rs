@@ -24,11 +24,11 @@
 
 use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
+use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
-use systemprompt_governance::authz::SubjectProviderSet;
 use systemprompt_traits::RepositoryError;
 
 use super::AccountingOutcome;

@@ -39,13 +39,13 @@ use std::time::Instant;
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
-use systemprompt_governance::policy::types::AccessScope;
 
 pub use access_log::GatewayAccessLog;
 

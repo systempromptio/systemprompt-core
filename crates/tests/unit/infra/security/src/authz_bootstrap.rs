@@ -8,14 +8,14 @@
 //! Lives outside the `authz` test crate because that crate registers
 //! inventory hooks, which `build_authz_hook` discovers through the pool.
 
+use systemprompt_governance::authz::{
+    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
+    DenyReason, EntityRef, build_authz_hook,
+};
 use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
-};
-use systemprompt_governance::authz::{
-    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
-    DenyReason, EntityRef, build_authz_hook,
 };
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id};
 

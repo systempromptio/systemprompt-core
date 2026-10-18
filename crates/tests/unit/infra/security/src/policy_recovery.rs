@@ -1,4 +1,3 @@
-use systemprompt_identifiers::{CallId, SessionId, UserId};
 use systemprompt_governance::authz::types::Decision;
 use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
 use systemprompt_governance::policy::types::AccessScope;
@@ -6,6 +5,7 @@ use systemprompt_governance::policy::{
     AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
     GovernedTarget, PolicyContext,
 };
+use systemprompt_identifiers::{CallId, SessionId, UserId};
 
 const KEY: &str = "XRECOVERY-1234567890";
 const PATTERNS: &str = "patterns:\n  - id: recovery-key\n    name: Recovery Key\n    regex: 'XRECOVERY-[0-9]+'\n  - id: private-key\n    name: Private Key\n    regex: '-----BEGIN PRIVATE KEY-----'\n    redact_whole_value: true\n  - id: bearer\n    name: Bearer\n    regex: 'Bearer eyJ[A-Za-z0-9_.]+'\n    redact_whole_value: true\n";
@@ -129,9 +129,9 @@ impl systemprompt_governance::policy::GovernancePolicy for CountEvaluations {
         }
     }
 }
-systemprompt_governance::register_governance_policy!("recovery_count_evaluations", |_| Ok(Box::new(
-    CountEvaluations
-)));
+systemprompt_governance::register_governance_policy!("recovery_count_evaluations", |_| Ok(
+    Box::new(CountEvaluations)
+));
 
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {

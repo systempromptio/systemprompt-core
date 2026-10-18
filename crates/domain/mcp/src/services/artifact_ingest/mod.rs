@@ -23,13 +23,13 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Utc};
 use rmcp::model::CallToolResult;
 use serde_json::Value as JsonValue;
+use systemprompt_governance::policy::secrets::SecretScanner;
 use systemprompt_identifiers::{
     AiToolCallId, ArtifactId, McpExecutionId, McpServerId, McpToolName, SkillId, SkillName,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::payload_digest;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_governance::policy::secrets::SecretScanner;
 
 use crate::error::McpDomainResult;
 use crate::repository::{

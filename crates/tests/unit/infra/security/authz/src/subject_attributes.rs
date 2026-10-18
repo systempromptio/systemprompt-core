@@ -1,11 +1,11 @@
 use async_trait::async_trait;
-use systemprompt_identifiers::UserId;
 use systemprompt_governance::authz::AuthzError;
 use systemprompt_governance::authz::subject::{
     ROLE_PRECEDENCE, SharedSubjectAttributeProvider, SubjectAttributeProvider, SubjectAttributes,
     SubjectDimension, dimensions_of, gather_subject_attributes,
 };
 use systemprompt_governance::authz::types::RuleType;
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug)]
 struct StaticProvider {
