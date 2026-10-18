@@ -220,6 +220,8 @@ mod source_sync_failure_recovery;
 #[cfg(test)]
 mod source_sync_fixture;
 #[cfg(test)]
+mod source_sync_native_capture;
+#[cfg(test)]
 mod source_sync_regressions;
 
 #[cfg(test)]

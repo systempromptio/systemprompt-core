@@ -9,22 +9,18 @@ pub(super) fn resolve_ref(
     repository: &str,
     reference: &str,
     credential: Option<&str>,
+    certificate_authority: Option<&Path>,
     deadline: std::time::Instant,
 ) -> Result<String> {
     if is_commit(reference) {
         return Ok(reference.to_owned());
     }
     let peeled = format!("{reference}^{{}}");
+    let mut list = Command::new("git");
+    list.args(["-c", "core.hooksPath=/dev/null"]);
+    trust_certificate_authority(&mut list, certificate_authority)?;
     let output = git(
-        Command::new("git").args([
-            "-c",
-            "core.hooksPath=/dev/null",
-            "ls-remote",
-            "--exit-code",
-            repository,
-            reference,
-            &peeled,
-        ]),
+        list.args(["ls-remote", "--exit-code", repository, reference, &peeled]),
         credential.map(|token| (repository, token)),
         deadline,
     )?;
@@ -62,7 +58,7 @@ pub(super) struct GitCheckout<'a> {
     pub subdirectory: Option<&'a str>,
     pub root: &'a str,
     pub credential: Option<&'a str>,
-    pub certificate_authority: Option<&'a [u8]>,
+    pub certificate_authority: Option<&'a Path>,
     pub deadline: std::time::Instant,
 }
 
@@ -159,20 +155,7 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
     fetch
         .current_dir(temp)
         .args(["-c", "core.hooksPath=/dev/null"]);
-    if let Some(certificate) = certificate_authority {
-        use std::io::Write;
-        let path = temp.join(".systemprompt-ca.pem");
-        let mut options = std::fs::OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        options.open(&path)?.write_all(certificate)?;
-        let path = path.to_str().ok_or(ManagedError::Integrity)?;
-        fetch.args(["-c", &format!("http.sslCAInfo={path}")]);
-    }
+    trust_certificate_authority(&mut fetch, certificate_authority)?;
     fetch.args(["fetch", "--no-tags", "--depth=1", repository, commit]);
     git(
         &mut fetch,
@@ -194,6 +177,14 @@ fn fetch_commit(checkout: &GitCheckout<'_>) -> Result<()> {
         return Err(ManagedError::Integrity);
     }
     require_plain_tree(temp, commit, deadline)
+}
+
+fn trust_certificate_authority(command: &mut Command, path: Option<&Path>) -> Result<()> {
+    if let Some(path) = path {
+        let path = path.to_str().ok_or(ManagedError::Integrity)?;
+        command.args(["-c", &format!("http.sslCAInfo={path}")]);
+    }
+    Ok(())
 }
 
 fn require_plain_tree(temp: &Path, commit: &str, deadline: std::time::Instant) -> Result<()> {
