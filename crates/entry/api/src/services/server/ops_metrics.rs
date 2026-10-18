@@ -118,6 +118,7 @@ pub struct OpsSampler {
 }
 
 impl OpsSampler {
+    #[must_use]
     pub fn new(db: &Database, runs_scheduler: bool) -> Self {
         let write = db.write_pool();
         let read = db.pool();
