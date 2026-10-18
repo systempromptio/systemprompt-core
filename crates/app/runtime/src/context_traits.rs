@@ -85,6 +85,12 @@ impl ExtensionContext for AppContext {
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
     }
+
+    fn config_planes(
+        &self,
+    ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
+        Self::config_planes(self)
+    }
 }
 
 impl HasAnalytics for AppContext {

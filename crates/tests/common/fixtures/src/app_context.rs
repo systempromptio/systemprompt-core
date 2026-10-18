@@ -147,6 +147,14 @@ pub fn fixture_app_context_with(
 }
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
+    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::new())
+}
+
+pub fn fixture_app_context_with_extensions(
+    pool: &DbPool,
+    config: Config,
+    extension_registry: ExtensionRegistry,
+) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
     fixture_app_context_assembled(
@@ -157,6 +165,7 @@ pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<
             marketplace_filter: Arc::new(AllowAllFilter),
             authz_hook: hook,
             user_repository,
+            extension_registry: Arc::new(extension_registry),
         },
     )
 }
@@ -167,6 +176,7 @@ struct FixtureSeams {
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
     user_repository: Arc<systemprompt_users::UserRepository>,
+    extension_registry: Arc<ExtensionRegistry>,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -188,6 +198,7 @@ pub fn fixture_app_context_with_user_repository(
             marketplace_filter,
             authz_hook: hook,
             user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
         },
     )
 }
@@ -225,6 +236,7 @@ fn fixture_app_context_full(
             marketplace_filter,
             authz_hook,
             user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
         },
     )
 }
@@ -239,6 +251,7 @@ fn fixture_app_context_assembled(
         marketplace_filter,
         authz_hook,
         user_repository,
+        extension_registry,
     } = seams;
     let governance = Arc::new(
         systemprompt_security::policy::GovernanceEngine::from_services_root(std::path::Path::new(
@@ -308,7 +321,7 @@ fn fixture_app_context_assembled(
             route_classifier: Arc::new(RouteClassifier::new(None)),
         },
         Plugins {
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry,
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),

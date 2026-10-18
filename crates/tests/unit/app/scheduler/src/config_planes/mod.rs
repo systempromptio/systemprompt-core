@@ -1,3 +1,5 @@
+mod db_plane;
+mod e2e;
 mod fake_plane;
 mod guard;
 mod reconcile_db;

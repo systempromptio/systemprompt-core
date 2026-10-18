@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
+use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{ConfigProvider, DatabaseHandle, FileStorage};
 
 pub trait ExtensionContext: Send + Sync {
@@ -22,6 +23,10 @@ pub trait ExtensionContext: Send + Sync {
 
     fn has_extension(&self, id: &str) -> bool {
         self.get_extension(id).is_some()
+    }
+
+    fn config_planes(&self) -> ConfigPlaneResult<ConfigPlaneSet> {
+        Err(ConfigPlaneError::PlanesUnavailable)
     }
 }
 
