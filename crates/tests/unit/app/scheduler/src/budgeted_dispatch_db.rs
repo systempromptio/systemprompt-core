@@ -42,5 +42,8 @@ async fn a_budgeted_job_runs_its_transactions_under_the_declared_limits() {
         .await
         .expect("find_job")
         .expect("row");
-    assert_eq!(row.last_status.as_deref(), Some(JobStatus::Success.as_str()));
+    assert_eq!(
+        row.last_status.as_deref(),
+        Some(JobStatus::Success.as_str())
+    );
 }

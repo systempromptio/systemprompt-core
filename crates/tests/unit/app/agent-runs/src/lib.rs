@@ -9,9 +9,9 @@
 #[cfg(test)]
 mod a2a;
 #[cfg(test)]
-mod a2a_updates_extra;
-#[cfg(test)]
 mod a2a_repository;
+#[cfg(test)]
+mod a2a_updates_extra;
 #[cfg(test)]
 mod claude_code;
 #[cfg(test)]

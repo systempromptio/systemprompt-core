@@ -26,7 +26,10 @@ fn private_state_dir() -> PathBuf {
         .app_paths
         .storage()
         .data()
-        .join(format!("journal-recovery-{}", uuid::Uuid::new_v4().simple()))
+        .join(format!(
+            "journal-recovery-{}",
+            uuid::Uuid::new_v4().simple()
+        ))
 }
 
 fn repos_in(db: &DbPool, state_dir: &Path) -> GatewayRepositories {
@@ -130,13 +133,19 @@ async fn unreadable_receipts_are_quarantined_and_temp_files_swept() {
     std::fs::write(dir.join("cc.tmp"), b"interrupted").expect("temp file");
     std::fs::write(dir.join("notes.txt"), b"ignored").expect("foreign file");
 
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 2);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        2
+    );
     assert_eq!(recover(&repos.settlement()).await.expect("recover"), 0);
 
     assert_eq!(files_with_suffix(&dir, ".receipt.bad"), 2);
     assert_eq!(files_with_suffix(&dir, ".tmp"), 0);
     assert!(dir.join("notes.txt").exists());
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 0);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        0
+    );
 }
 
 #[tokio::test]
@@ -146,17 +155,26 @@ async fn an_in_flight_request_is_left_alone_then_settled_failed_once_it_ends() {
     let repos = repos_in(&db, &state);
     let (audit, id) = admitted_audit(&db, &repos).await;
 
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 1);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        1
+    );
     assert_eq!(
         recover(&repos.settlement()).await.expect("recover"),
         0,
         "a receipt whose lease is held belongs to a live request"
     );
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 1);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        1
+    );
 
     drop(audit);
     assert_eq!(recover(&repos.settlement()).await.expect("recover"), 1);
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 0);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        0
+    );
     let (status, error) = status_of(&db, &id).await;
     assert_eq!(status, "failed");
     assert!(
@@ -176,7 +194,10 @@ async fn the_shutdown_flush_settles_an_abandoned_receipt() {
     drop(audit);
 
     flush_on_shutdown(&repos.settlement()).await;
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 0);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        0
+    );
     assert_eq!(status_of(&db, &id).await.0, "failed");
 }
 
@@ -210,6 +231,9 @@ async fn the_recovery_task_settles_by_the_shutdown_flush_at_the_latest() {
         tasks.shutdown(std::time::Duration::from_secs(30)).await,
         systemprompt_traits::DrainOutcome::Drained
     );
-    assert_eq!(pending(&repos.settlement().journal).await.expect("count"), 0);
+    assert_eq!(
+        pending(&repos.settlement().journal).await.expect("count"),
+        0
+    );
     assert_eq!(status_of(&db, &id).await.0, "failed");
 }

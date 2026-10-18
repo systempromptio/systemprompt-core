@@ -38,10 +38,7 @@ async fn diff_of_an_unregistered_plane_fails() {
     )
     .await
     .expect_err("an unknown plane has no diff");
-    assert!(
-        format!("{err:#}").contains("no_such_plane_diff"),
-        "{err:#}"
-    );
+    assert!(format!("{err:#}").contains("no_such_plane_diff"), "{err:#}");
 }
 
 #[tokio::test]
@@ -56,7 +53,11 @@ async fn apply_with_a_blank_reason_is_refused_before_any_write() {
 #[tokio::test]
 async fn apply_of_an_unregistered_plane_fails() {
     ensure_test_bootstrap();
-    let result = execute(apply("no_such_plane_apply", "ticket-1", Vec::new()), &config()).await;
+    let result = execute(
+        apply("no_such_plane_apply", "ticket-1", Vec::new()),
+        &config(),
+    )
+    .await;
     assert!(result.is_err());
 }
 

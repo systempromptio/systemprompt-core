@@ -13,12 +13,12 @@ use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::protocol::{
     SendMessageParams, StreamResponse, TaskStatusUpdateEvent,
 };
-use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part, TaskState, TaskStatus};
+use systemprompt_agent::models::a2a::{
+    A2aRequestParams, Message, MessageRole, Part, TaskState, TaskStatus,
+};
 use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle_streaming_path;
 use systemprompt_identifiers::{AgentRunId, ContextId, MessageId, TaskId};
-use systemprompt_traits::{
-    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates,
-};
+use systemprompt_traits::{AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates};
 
 use super::a2a_helpers::{make_handler_state_with_launcher, request_context};
 use crate::repository::{repos, seed_context_and_task, seed_user_and_session};
@@ -60,7 +60,7 @@ impl AgentRunLauncher for ScriptedLauncher {
                 "lookup offline",
             )));
         }
-        Ok((!self.no_run).then(|| AgentRunId::generate()))
+        Ok((!self.no_run).then(AgentRunId::generate))
     }
 
     async fn updates_after(
@@ -139,7 +139,10 @@ async fn run(
     launcher: Arc<ScriptedLauncher>,
     agent_run: Option<serde_json::Value>,
     id: i64,
-) -> (Vec<serde_json::Value>, systemprompt_agent::repository::A2ARepositories) {
+) -> (
+    Vec<serde_json::Value>,
+    systemprompt_agent::repository::A2ARepositories,
+) {
     let pool = test_db_pool().await;
     let repos_handle = repos(&pool);
     let (user, session) = seed_user_and_session(&pool).await;
@@ -167,7 +170,10 @@ async fn a_queued_run_streams_the_task_then_its_frames_then_the_final_status() {
     let launcher = Arc::new(ScriptedLauncher::default());
     launcher.updates.lock().expect("lock").extend([
         AgentRunUpdates {
-            frames: vec![json!({"not": "a stream response"}), status_frame(&ctx, TaskState::Working)],
+            frames: vec![
+                json!({"not": "a stream response"}),
+                status_frame(&ctx, TaskState::Working),
+            ],
             last_seq: 4,
             finished: false,
             final_status: None,
@@ -180,7 +186,12 @@ async fn a_queued_run_streams_the_task_then_its_frames_then_the_final_status() {
         },
     ]);
 
-    let (frames, _repos) = run(Arc::clone(&launcher), Some(json!({"agent": "researcher"})), 21).await;
+    let (frames, _repos) = run(
+        Arc::clone(&launcher),
+        Some(json!({"agent": "researcher"})),
+        21,
+    )
+    .await;
 
     assert_eq!(frames.len(), 3, "task, working, completed: {frames:?}");
     assert!(frames[0]["result"]["task"].is_object(), "{}", frames[0]);
@@ -201,15 +212,19 @@ async fn a_queued_run_streams_the_task_then_its_frames_then_the_final_status() {
 async fn a_terminal_frame_ends_the_stream_without_polling_again() {
     let ctx = ctx_any();
     let launcher = Arc::new(ScriptedLauncher::default());
-    launcher.updates.lock().expect("lock").push_back(AgentRunUpdates {
-        frames: vec![
-            status_frame(&ctx, TaskState::Failed),
-            status_frame(&ctx, TaskState::Working),
-        ],
-        last_seq: 2,
-        finished: false,
-        final_status: None,
-    });
+    launcher
+        .updates
+        .lock()
+        .expect("lock")
+        .push_back(AgentRunUpdates {
+            frames: vec![
+                status_frame(&ctx, TaskState::Failed),
+                status_frame(&ctx, TaskState::Working),
+            ],
+            last_seq: 2,
+            finished: false,
+            final_status: None,
+        });
 
     let (frames, _repos) = run(Arc::clone(&launcher), Some(json!({})), 22).await;
 

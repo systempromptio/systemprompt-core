@@ -36,7 +36,10 @@ fn leak(s: String) -> &'static str {
 }
 
 fn unique(prefix: &str) -> String {
-    format!("{prefix}_{}", &uuid::Uuid::new_v4().simple().to_string()[..12])
+    format!(
+        "{prefix}_{}",
+        &uuid::Uuid::new_v4().simple().to_string()[..12]
+    )
 }
 
 async fn reset(provider: &PostgresProvider, extension: &str, table: &str) {
@@ -95,8 +98,15 @@ async fn a_failing_no_transaction_migration_restores_triggers_and_is_not_recorde
         .await
         .expect_err("the second statement fails");
 
-    assert!(format!("{err:?}").contains("Failed to execute migration 1 (broken)"), "{err:?}");
-    assert_eq!(trigger_enabled(&provider, table).await, "O", "trigger restored after failure");
+    assert!(
+        format!("{err:?}").contains("Failed to execute migration 1 (broken)"),
+        "{err:?}"
+    );
+    assert_eq!(
+        trigger_enabled(&provider, table).await,
+        "O",
+        "trigger restored after failure"
+    );
     let applied = MigrationService::new(&provider)
         .get_applied_migrations(&ExtensionId::new(ext_id))
         .await

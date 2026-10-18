@@ -151,10 +151,14 @@ async fn a_minted_grant_answers_a_bearer_header() {
 
 #[test]
 fn missing_or_blank_fields_name_the_field() {
-    let no_url = connector("grant: client_credentials\nclient_id_secret: cc_id\nclient_secret: cc_secret\n");
+    let no_url =
+        connector("grant: client_credentials\nclient_id_secret: cc_id\nclient_secret: cc_secret\n");
     assert!(matches!(
         MachineGrant::resolve("jira", &no_url, secrets).unwrap_err(),
-        ConnectorGrantError::MissingField { field: "token_url", .. }
+        ConnectorGrantError::MissingField {
+            field: "token_url",
+            ..
+        }
     ));
     let blank_app = connector(
         "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
@@ -162,7 +166,10 @@ fn missing_or_blank_fields_name_the_field() {
     );
     assert!(matches!(
         MachineGrant::resolve("github", &blank_app, secrets).unwrap_err(),
-        ConnectorGrantError::MissingField { field: "app_id", .. }
+        ConnectorGrantError::MissingField {
+            field: "app_id",
+            ..
+        }
     ));
     let no_installation = connector(
         "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
@@ -170,7 +177,10 @@ fn missing_or_blank_fields_name_the_field() {
     );
     assert!(matches!(
         MachineGrant::resolve("github", &no_installation, secrets).unwrap_err(),
-        ConnectorGrantError::MissingField { field: "installation_id", .. }
+        ConnectorGrantError::MissingField {
+            field: "installation_id",
+            ..
+        }
     ));
 }
 
@@ -251,7 +261,10 @@ async fn an_app_installation_signs_a_jwt_and_reads_the_installation_token() {
     Mock::given(method("POST"))
         .and(path("/app/installations/9/access_tokens"))
         .and(header("x-github-api-version", "2022-11-28"))
-        .and(header_regex("authorization", r"^Bearer [\w-]+\.[\w-]+\.[\w-]+$"))
+        .and(header_regex(
+            "authorization",
+            r"^Bearer [\w-]+\.[\w-]+\.[\w-]+$",
+        ))
         .respond_with(
             ResponseTemplate::new(201)
                 .set_body_json(serde_json::json!({"token": "ghs_inst", "expires_at": expires})),
@@ -271,7 +284,10 @@ async fn an_app_installation_signs_a_jwt_and_reads_the_installation_token() {
     let grant = MachineGrant::resolve("github", &c, |name| (name == "pem").then(|| pem.clone()))
         .expect("resolves");
     let key = format!("connector-test:app:{}", server.uri());
-    assert_eq!(grant.authorization(&key).await.expect("mints"), "Bearer ghs_inst");
+    assert_eq!(
+        grant.authorization(&key).await.expect("mints"),
+        "Bearer ghs_inst"
+    );
 }
 
 #[tokio::test]

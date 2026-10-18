@@ -11,7 +11,10 @@ use systemprompt_models::AnalyticsEventBuilder;
 use systemprompt_test_fixtures::unique_instance;
 
 fn consumer_name() -> String {
-    format!("batch_{}", ConnectionId::generate().to_string().replace('-', "_"))
+    format!(
+        "batch_{}",
+        ConnectionId::generate().to_string().replace('-', "_")
+    )
 }
 
 async fn append_n(
@@ -65,7 +68,11 @@ async fn a_batch_claims_skips_redelivers_and_acknowledges() {
         facts.iter().map(|(_, f)| f.data).collect::<Vec<_>>(),
         vec![1, 2]
     );
-    assert!(facts.iter().all(|(_, f)| f.kind == "test.batch" && f.consumer == consumer));
+    assert!(
+        facts
+            .iter()
+            .all(|(_, f)| f.kind == "test.batch" && f.consumer == consumer)
+    );
     batch.rollback().await.expect("rollback");
 
     let again = reader
@@ -85,7 +92,13 @@ async fn a_batch_claims_skips_redelivers_and_acknowledges() {
     assert_eq!(single.fact::<i64>().expect("decode").data, 2);
     single.acknowledge().await.expect("ack one");
 
-    assert!(reader.claim_batch(&consumer, 10, &[]).await.expect("claim").is_none());
+    assert!(
+        reader
+            .claim_batch(&consumer, 10, &[])
+            .await
+            .expect("claim")
+            .is_none()
+    );
     assert!(reader.claim(&consumer).await.expect("claim").is_none());
 }
 
@@ -98,7 +111,11 @@ async fn an_incomplete_fact_contract_is_refused_before_writing() {
     let event = AnalyticsEventBuilder::heartbeat();
     let consumer = consumer_name();
 
-    for (name, kind, version) in [("", "k", 1), (consumer.as_str(), " ", 1), (consumer.as_str(), "k", 0)] {
+    for (name, kind, version) in [
+        ("", "k", 1),
+        (consumer.as_str(), " ", 1),
+        (consumer.as_str(), "k", 0),
+    ] {
         let mut tx = pool.begin().await.expect("begin");
         let fact = ReportingFact {
             consumer: name.to_owned(),

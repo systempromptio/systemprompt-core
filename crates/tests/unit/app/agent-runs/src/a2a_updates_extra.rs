@@ -41,8 +41,15 @@ fn final_status_targets_the_task_and_converts_to_a_status_frame() {
 #[test]
 fn an_artifact_update_converts_to_an_artifact_frame() {
     let text = updates(RunEventPayload::AssistantText { text: "out".into() });
-    let frame = text.into_iter().next().expect("one update").into_stream_response();
-    assert!(matches!(frame, StreamResponse::ArtifactUpdate(_)), "{frame:?}");
+    let frame = text
+        .into_iter()
+        .next()
+        .expect("one update")
+        .into_stream_response();
+    assert!(
+        matches!(frame, StreamResponse::ArtifactUpdate(_)),
+        "{frame:?}"
+    );
 }
 
 #[test]
@@ -72,22 +79,28 @@ fn a_failed_result_without_an_error_says_run_failed() {
 
 #[test]
 fn tool_and_hook_events_stay_in_the_run_log() {
-    assert!(updates(RunEventPayload::ToolUse {
-        tool_use_id: "t1".into(),
-        name: "Bash".into(),
-        input: serde_json::json!({}),
-    })
-    .is_empty());
-    assert!(updates(RunEventPayload::ToolResult {
-        tool_use_id: "t1".into(),
-        content: "ok".into(),
-        is_error: false,
-    })
-    .is_empty());
-    assert!(updates(RunEventPayload::Hook {
-        name: "PreToolUse".into(),
-        decision: HookDecision::Deny,
-        policy: None,
-    })
-    .is_empty());
+    assert!(
+        updates(RunEventPayload::ToolUse {
+            tool_use_id: "t1".into(),
+            name: "Bash".into(),
+            input: serde_json::json!({}),
+        })
+        .is_empty()
+    );
+    assert!(
+        updates(RunEventPayload::ToolResult {
+            tool_use_id: "t1".into(),
+            content: "ok".into(),
+            is_error: false,
+        })
+        .is_empty()
+    );
+    assert!(
+        updates(RunEventPayload::Hook {
+            name: "PreToolUse".into(),
+            decision: HookDecision::Deny,
+            policy: None,
+        })
+        .is_empty()
+    );
 }

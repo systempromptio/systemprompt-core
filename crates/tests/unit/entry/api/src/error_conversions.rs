@@ -79,7 +79,10 @@ fn marketplace_error_maps_every_class() {
         code_of(MarketplaceError::NotFound(MarketplaceId::new("m"))).code,
         ErrorCode::NotFound
     );
-    assert_eq!(code_of(MarketplaceError::NoDefault).code, ErrorCode::NotFound);
+    assert_eq!(
+        code_of(MarketplaceError::NoDefault).code,
+        ErrorCode::NotFound
+    );
     assert_eq!(
         code_of(MarketplaceError::Managed(ManagedError::Unavailable)).code,
         ErrorCode::NotFound
@@ -97,7 +100,10 @@ fn marketplace_error_maps_every_class() {
         ErrorCode::BadRequest
     );
     assert_eq!(
-        code_of(MarketplaceError::Managed(ManagedError::Conflict("x".into()))).code,
+        code_of(MarketplaceError::Managed(ManagedError::Conflict(
+            "x".into()
+        )))
+        .code,
         ErrorCode::ConflictError
     );
     assert_eq!(
@@ -133,8 +139,14 @@ fn user_error_maps_every_class() {
         code_of(UserError::EmailAlreadyExists("a@b".into())).code,
         ErrorCode::ConflictError
     );
-    assert_eq!(code_of(UserError::LegalHold(id())).code, ErrorCode::ConflictError);
-    assert_eq!(code_of(UserError::NotArchived(id())).code, ErrorCode::ConflictError);
+    assert_eq!(
+        code_of(UserError::LegalHold(id())).code,
+        ErrorCode::ConflictError
+    );
+    assert_eq!(
+        code_of(UserError::NotArchived(id())).code,
+        ErrorCode::ConflictError
+    );
     assert_eq!(
         code_of(UserError::RestoreRefused {
             id: id(),
@@ -198,13 +210,31 @@ fn oauth_error_maps_by_kind() {
             OauthError::WebAuthnVerificationFailed("w".into()),
             ErrorCode::BadRequest,
         ),
-        (OauthError::UsernameTaken("n".into()), ErrorCode::ConflictError),
-        (OauthError::EmailRegistered("e".into()), ErrorCode::ConflictError),
-        (OauthError::InvalidClient("c".into()), ErrorCode::Unauthorized),
-        (OauthError::AuthenticationUnavailable, ErrorCode::Unauthorized),
-        (OauthError::InvalidGrant("g".into()), ErrorCode::Unauthorized),
+        (
+            OauthError::UsernameTaken("n".into()),
+            ErrorCode::ConflictError,
+        ),
+        (
+            OauthError::EmailRegistered("e".into()),
+            ErrorCode::ConflictError,
+        ),
+        (
+            OauthError::InvalidClient("c".into()),
+            ErrorCode::Unauthorized,
+        ),
+        (
+            OauthError::AuthenticationUnavailable,
+            ErrorCode::Unauthorized,
+        ),
+        (
+            OauthError::InvalidGrant("g".into()),
+            ErrorCode::Unauthorized,
+        ),
         (OauthError::TokenMissingKid, ErrorCode::Unauthorized),
-        (OauthError::Unauthorized("x".into()), ErrorCode::Unauthorized),
+        (
+            OauthError::Unauthorized("x".into()),
+            ErrorCode::Unauthorized,
+        ),
         (
             OauthError::InvalidTokenLifetime { seconds: -1 },
             ErrorCode::InternalError,
@@ -248,11 +278,23 @@ fn context_extraction_error_maps_every_class() {
             ContextExtractionError::MissingHeader("x".into()),
             ErrorCode::Unauthorized,
         ),
-        (ContextExtractionError::MissingAuthHeader, ErrorCode::Unauthorized),
+        (
+            ContextExtractionError::MissingAuthHeader,
+            ErrorCode::Unauthorized,
+        ),
         (ContextExtractionError::Revoked, ErrorCode::Unauthorized),
-        (ContextExtractionError::MissingSessionId, ErrorCode::Unauthorized),
-        (ContextExtractionError::MissingUserId, ErrorCode::Unauthorized),
-        (ContextExtractionError::MissingContextId, ErrorCode::BadRequest),
+        (
+            ContextExtractionError::MissingSessionId,
+            ErrorCode::Unauthorized,
+        ),
+        (
+            ContextExtractionError::MissingUserId,
+            ErrorCode::Unauthorized,
+        ),
+        (
+            ContextExtractionError::MissingContextId,
+            ErrorCode::BadRequest,
+        ),
         (
             ContextExtractionError::InvalidHeaderValue {
                 header: "h".into(),

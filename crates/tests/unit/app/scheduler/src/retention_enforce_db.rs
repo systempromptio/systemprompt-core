@@ -72,7 +72,10 @@ async fn enforce_deletes_rows_past_their_window_and_keeps_fresh_ones() {
     ] {
         assert!(message.contains(table), "{table} missing from {message}");
     }
-    assert!(!log_exists(&pg, &old).await, "a 4000-day-old log must be deleted");
+    assert!(
+        !log_exists(&pg, &old).await,
+        "a 4000-day-old log must be deleted"
+    );
     assert!(log_exists(&pg, &fresh).await, "a fresh log must survive");
 
     sqlx::query("DELETE FROM logs WHERE id = $1")

@@ -194,11 +194,19 @@ mod byte_range {
     fn suffix_ranges_resolve_to_the_tail_and_clamp_to_the_object() {
         assert_eq!(
             ByteRange::Suffix(3).resolve(10).unwrap(),
-            ServedRange { start: 7, end: 9, size: 10 }
+            ServedRange {
+                start: 7,
+                end: 9,
+                size: 10
+            }
         );
         assert_eq!(
             ByteRange::Suffix(50).resolve(10).unwrap(),
-            ServedRange { start: 0, end: 9, size: 10 }
+            ServedRange {
+                start: 0,
+                end: 9,
+                size: 10
+            }
         );
         assert!(matches!(
             ByteRange::Suffix(0).resolve(10),
@@ -218,7 +226,10 @@ mod byte_range {
         ));
         assert!(ByteRange::Bounded { start: 0, end: 0 }.resolve(0).is_err());
         assert_eq!(
-            ByteRange::Bounded { start: 0, end: 0 }.resolve(1).unwrap().length(),
+            ByteRange::Bounded { start: 0, end: 0 }
+                .resolve(1)
+                .unwrap()
+                .length(),
             1
         );
     }

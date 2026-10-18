@@ -63,7 +63,10 @@ async fn a_ttl_beyond_chrono_range_is_refused_before_anything_is_issued() {
         .issue(request(&user, Duration::MAX, None))
         .await
         .expect_err("an unrepresentable ttl is refused");
-    assert!(matches!(err, AgentRunsError::CredentialTtl { .. }), "got {err:?}");
+    assert!(
+        matches!(err, AgentRunsError::CredentialTtl { .. }),
+        "got {err:?}"
+    );
     assert_eq!(live_keys(&pool, &user).await, 0);
     pool.write_pool().close().await;
     database.drop_now().await;

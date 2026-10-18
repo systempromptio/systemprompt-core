@@ -62,7 +62,10 @@ async fn gcs_object_name_prefixes_and_normalises_the_id() {
     );
     assert!(storage.object_name(&StoredFileId::new("../x")).is_err());
     let rendered = format!("{storage:?}");
-    assert!(rendered.contains("GcsFileStorage") && rendered.contains("tenant"), "{rendered}");
+    assert!(
+        rendered.contains("GcsFileStorage") && rendered.contains("tenant"),
+        "{rendered}"
+    );
 }
 
 #[tokio::test]
@@ -75,8 +78,16 @@ async fn gcs_a_416_with_content_range_reports_that_size() {
         .mount(&server)
         .await;
     let storage = gcs(&server, None);
-    let err = open_err(&storage, &StoredFileId::new("a.bin"), Some(ByteRange::From(50))).await;
-    assert!(matches!(err, FileStorageError::RangeNotSatisfiable { size: 10 }), "{err:?}");
+    let err = open_err(
+        &storage,
+        &StoredFileId::new("a.bin"),
+        Some(ByteRange::From(50)),
+    )
+    .await;
+    assert!(
+        matches!(err, FileStorageError::RangeNotSatisfiable { size: 10 }),
+        "{err:?}"
+    );
 }
 
 #[tokio::test]
@@ -96,8 +107,16 @@ async fn gcs_a_416_without_content_range_is_sized_from_the_object_resource() {
     )
     .await;
     let storage = gcs(&server, None);
-    let err = open_err(&storage, &StoredFileId::new("a.bin"), Some(ByteRange::From(99))).await;
-    assert!(matches!(err, FileStorageError::RangeNotSatisfiable { size: 42 }), "{err:?}");
+    let err = open_err(
+        &storage,
+        &StoredFileId::new("a.bin"),
+        Some(ByteRange::From(99)),
+    )
+    .await;
+    assert!(
+        matches!(err, FileStorageError::RangeNotSatisfiable { size: 42 }),
+        "{err:?}"
+    );
 }
 
 #[tokio::test]
@@ -114,7 +133,10 @@ async fn gcs_metadata_without_content_type_falls_back_to_the_extension() {
         .await
         .expect("metadata");
     assert_eq!(meta.mime_type, "image/png");
-    assert_eq!(meta.updated_at, meta.created_at, "no `updated` means created");
+    assert_eq!(
+        meta.updated_at, meta.created_at,
+        "no `updated` means created"
+    );
     assert_eq!(meta.etag, None);
 }
 
@@ -157,7 +179,10 @@ async fn gcs_metadata_of_a_missing_object_is_not_found() {
         .metadata(&StoredFileId::new("gone.bin"))
         .await
         .expect_err("missing");
-    assert!(matches!(err, FileStorageError::NotFound(ref id) if id == "gone.bin"), "{err:?}");
+    assert!(
+        matches!(err, FileStorageError::NotFound(ref id) if id == "gone.bin"),
+        "{err:?}"
+    );
 }
 
 fn local() -> (TempDir, LocalFileStorage) {
@@ -171,7 +196,10 @@ async fn local_missing_files_are_not_found_for_every_operation() {
     let (_dir, storage) = local();
     let id = StoredFileId::new("files/none.txt");
 
-    assert!(matches!(open_err(&storage, &id, None).await, FileStorageError::NotFound(_)));
+    assert!(matches!(
+        open_err(&storage, &id, None).await,
+        FileStorageError::NotFound(_)
+    ));
     assert!(matches!(
         storage.delete(&id).await.expect_err("delete"),
         FileStorageError::NotFound(_)
@@ -228,7 +256,10 @@ fn backend_debug_names_the_variant_without_credentials() {
         root: PathBuf::from("/srv/files"),
     };
     let rendered = format!("{local:?}");
-    assert!(rendered.contains("Local") && rendered.contains("/srv/files"), "{rendered}");
+    assert!(
+        rendered.contains("Local") && rendered.contains("/srv/files"),
+        "{rendered}"
+    );
 
     let gcs = FileStorageBackend::Gcs {
         params: Box::new(GcsParams::new("bkt", None, true).expect("params")),
@@ -236,5 +267,8 @@ fn backend_debug_names_the_variant_without_credentials() {
         http: reqwest::Client::new(),
     };
     let rendered = format!("{gcs:?}");
-    assert!(rendered.starts_with("Gcs") && rendered.contains("bkt"), "{rendered}");
+    assert!(
+        rendered.starts_with("Gcs") && rendered.contains("bkt"),
+        "{rendered}"
+    );
 }

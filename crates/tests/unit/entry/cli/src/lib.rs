@@ -56,9 +56,9 @@ mod mcp_probe_flows;
 #[cfg(test)]
 mod paths;
 #[cfg(test)]
-mod presentation_startup_renderer;
-#[cfg(test)]
 mod plane_validate_offline;
+#[cfg(test)]
+mod presentation_startup_renderer;
 #[cfg(test)]
 mod presentation_tables;
 #[cfg(test)]

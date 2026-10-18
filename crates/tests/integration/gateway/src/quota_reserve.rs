@@ -124,8 +124,7 @@ async fn two_windows_on_one_bucket_charge_it_once() {
     let db = setup_db().await;
     let user = seed_user(&db).await;
     let windows = [window("user", 3600, Some(5)), window("user", 3600, Some(5))];
-    let reservation =
-        admitted(reserve(&repos(&db), &user, &windows, QuotaFaultMode::Closed).await);
+    let reservation = admitted(reserve(&repos(&db), &user, &windows, QuotaFaultMode::Closed).await);
     assert_eq!(reservation.windows.len(), 1);
     assert_eq!(bucket(&db, &user, 3600).await, (1, 50, 60, 70));
 }
@@ -224,7 +223,13 @@ async fn settle_against_an_unreachable_database_is_faulted() {
     let db = setup_db().await;
     let user = seed_user(&db).await;
     let reservation = admitted(
-        reserve(&repos(&db), &user, &[window("user", 2400, None)], QuotaFaultMode::Closed).await,
+        reserve(
+            &repos(&db),
+            &user,
+            &[window("user", 2400, None)],
+            QuotaFaultMode::Closed,
+        )
+        .await,
     );
     let dead = AiQuotaBucketRepository::new(&dead_pool());
     match settle(&dead, &reservation, QuotaUsage::default()).await {

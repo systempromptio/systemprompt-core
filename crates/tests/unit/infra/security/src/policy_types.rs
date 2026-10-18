@@ -167,8 +167,14 @@ fn secret_location_display_names_kind_path_and_redaction() {
 
 #[test]
 fn access_scope_from_roles_prefers_admin_then_user() {
-    assert_eq!(AccessScope::from_roles(&["user", "admin"]), AccessScope::Admin);
-    assert_eq!(AccessScope::from_roles(&["viewer", "user"]), AccessScope::User);
+    assert_eq!(
+        AccessScope::from_roles(&["user", "admin"]),
+        AccessScope::Admin
+    );
+    assert_eq!(
+        AccessScope::from_roles(&["viewer", "user"]),
+        AccessScope::User
+    );
     assert_eq!(AccessScope::from_roles(&["viewer"]), AccessScope::Unknown);
     assert_eq!(AccessScope::from_roles::<&str>(&[]), AccessScope::Unknown);
     assert_eq!(

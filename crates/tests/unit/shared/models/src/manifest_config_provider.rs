@@ -94,7 +94,11 @@ fn config_provider_serves_every_named_key() {
         ("max_concurrent_streams", "16"),
     ];
     for (key, value) in expect {
-        assert_eq!(ConfigProvider::get(&cfg, key).as_deref(), Some(value), "{key}");
+        assert_eq!(
+            ConfigProvider::get(&cfg, key).as_deref(),
+            Some(value),
+            "{key}"
+        );
     }
     assert_eq!(
         ConfigProvider::get(&cfg, "role"),
@@ -144,5 +148,7 @@ fn random_instance_ids_are_recognised_and_stable_ones_are_not() {
     ] {
         assert!(!is_random_instance_id(stable), "{stable}");
     }
-    assert!(is_random_instance_id("instance-0123456789abcdef0123456789abcdef"));
+    assert!(is_random_instance_id(
+        "instance-0123456789abcdef0123456789abcdef"
+    ));
 }

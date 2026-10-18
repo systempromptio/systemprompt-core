@@ -40,7 +40,10 @@ impl Extension for CurrencyExt {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![SchemaDefinition::new(
             self.table.to_owned(),
-            format!("CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);", self.table),
+            format!(
+                "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY);",
+                self.table
+            ),
         )]
     }
 

@@ -185,6 +185,9 @@ fn the_console_formatter_follows_the_process_wide_switch() {
         serde_json::from_str(lines.next().expect("first line")).expect("json line");
     assert_eq!(first["fields"]["marker"], "as-json");
     let second = lines.next().expect("second line");
-    assert!(serde_json::from_str::<serde_json::Value>(second).is_err(), "{second}");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(second).is_err(),
+        "{second}"
+    );
     assert!(second.contains("second"), "{second}");
 }

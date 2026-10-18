@@ -434,7 +434,10 @@ fn a_leading_supersedes_checksum_is_emitted_and_a_later_one_ignored() {
             "-- @supersedes-checksum: 0123456789abcdef\n\nSELECT 1;\n-- @supersedes-checksum: fedcba9876543210\n",
         )],
     );
-    assert!(body.contains(".superseding(\"0123456789abcdef\")"), "{body}");
+    assert!(
+        body.contains(".superseding(\"0123456789abcdef\")"),
+        "{body}"
+    );
     assert!(!body.contains("fedcba9876543210"), "{body}");
 }
 
@@ -489,7 +492,11 @@ fn files_without_a_migration_extension_are_ignored() {
     let body = run(
         &manifest,
         &out,
-        &[("README", "notes"), ("024_real.sql", "SELECT 1;"), ("025_skipped.txt", "x")],
+        &[
+            ("README", "notes"),
+            ("024_real.sql", "SELECT 1;"),
+            ("025_skipped.txt", "x"),
+        ],
     );
     assert!(body.contains("\"real\""), "{body}");
     assert!(!body.contains("skipped"), "{body}");

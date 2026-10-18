@@ -66,14 +66,20 @@ async fn drain_refreshes_every_key_in_batches_and_empties_the_queue() {
 
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let sink = std::sync::Arc::clone(&seen);
-    let report = drain(&pool, &projection, 2, Duration::from_secs(30), move |_conn, batch| {
-        let sink = std::sync::Arc::clone(&sink);
-        Box::pin(async move {
-            let n = u64::try_from(batch.len()).expect("batch fits");
-            sink.lock().expect("lock").extend(batch);
-            Ok(n)
-        })
-    })
+    let report = drain(
+        &pool,
+        &projection,
+        2,
+        Duration::from_secs(30),
+        move |_conn, batch| {
+            let sink = std::sync::Arc::clone(&sink);
+            Box::pin(async move {
+                let n = u64::try_from(batch.len()).expect("batch fits");
+                sink.lock().expect("lock").extend(batch);
+                Ok(n)
+            })
+        },
+    )
     .await
     .expect("drain");
 
@@ -94,10 +100,16 @@ async fn drain_on_empty_queue_reports_nothing() {
 
     let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let counter = std::sync::Arc::clone(&calls);
-    let report = drain(&pool, &projection, 10, Duration::from_secs(5), move |_conn, _batch| {
-        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        Box::pin(async { Ok(0) })
-    })
+    let report = drain(
+        &pool,
+        &projection,
+        10,
+        Duration::from_secs(5),
+        move |_conn, _batch| {
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(async { Ok(0) })
+        },
+    )
     .await
     .expect("drain");
 
@@ -114,12 +126,18 @@ async fn failed_refresh_rolls_back_and_requeues_one_attempt_dearer() {
     let projection = unique("drain_fail");
     queue(&pool, &projection, &keys(3)).await.expect("queue");
 
-    let report = drain(&pool, &projection, 10, Duration::from_secs(30), |conn, _batch| {
-        Box::pin(async move {
-            sqlx::query("SELECT 1 / 0").execute(&mut *conn).await?;
-            Ok(0)
-        })
-    })
+    let report = drain(
+        &pool,
+        &projection,
+        10,
+        Duration::from_secs(30),
+        |conn, _batch| {
+            Box::pin(async move {
+                sqlx::query("SELECT 1 / 0").execute(&mut *conn).await?;
+                Ok(0)
+            })
+        },
+    )
     .await
     .expect("drain reports, it does not fail");
 
@@ -166,7 +184,14 @@ async fn drain_with_sql_rejects_a_non_identifier_projector() {
     let projection = unique("drain_bad");
     queue(&pool, &projection, &keys(1)).await.expect("queue");
 
-    for bad in ["", "Refresh", "1refresh", "refresh; DROP TABLE x", "a.b", "refresh-x"] {
+    for bad in [
+        "",
+        "Refresh",
+        "1refresh",
+        "refresh; DROP TABLE x",
+        "a.b",
+        "refresh-x",
+    ] {
         let err = drain_with_sql(&pool, &projection, 1, Duration::from_secs(5), bad)
             .await
             .expect_err("bad projector refused");
@@ -176,7 +201,11 @@ async fn drain_with_sql_rejects_a_non_identifier_projector() {
             "{bad:?}: {message}"
         );
     }
-    assert_eq!(depth(&pool, &projection).await.expect("depth"), 1, "queue untouched");
+    assert_eq!(
+        depth(&pool, &projection).await.expect("depth"),
+        1,
+        "queue untouched"
+    );
 
     purge(&pool, &projection).await;
 }

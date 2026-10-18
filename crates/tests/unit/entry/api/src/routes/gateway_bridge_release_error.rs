@@ -50,13 +50,18 @@ fn refusal_without_configured_token_is_upstream_status() {
 fn server_error_is_upstream_status_even_with_token() {
     let resp = upstream_response(500, None);
     let err = ReleaseError::upstream("download", &resp, Some("gh_token"));
-    assert!(matches!(err, ReleaseError::UpstreamStatus { status, .. } if status == StatusCode::INTERNAL_SERVER_ERROR));
+    assert!(
+        matches!(err, ReleaseError::UpstreamStatus { status, .. } if status == StatusCode::INTERNAL_SERVER_ERROR)
+    );
 }
 
 #[test]
 fn configuration_answers_are_404_with_keys() {
     let cases = [
-        (ReleaseError::NotConfigured, "bridge_releases_not_configured"),
+        (
+            ReleaseError::NotConfigured,
+            "bridge_releases_not_configured",
+        ),
         (
             ReleaseError::UnknownPlatform {
                 platform: "p".into(),
@@ -105,7 +110,10 @@ fn checksum_failures_render_bad_gateway() {
 fn unconfigured_token_renders_service_unavailable() {
     let err = ReleaseError::TokenNotConfigured { key: "k".into() };
     assert_eq!(err.error_key(), "release_feed_not_ready");
-    assert_eq!(err.into_response().status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        err.into_response().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
 }
 
 #[test]
@@ -124,5 +132,8 @@ fn token_rejected_renders_service_unavailable() {
         status: StatusCode::UNAUTHORIZED,
         key: "k".into(),
     };
-    assert_eq!(err.into_response().status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(
+        err.into_response().status(),
+        StatusCode::SERVICE_UNAVAILABLE
+    );
 }

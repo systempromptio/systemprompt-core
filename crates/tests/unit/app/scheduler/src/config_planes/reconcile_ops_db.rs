@@ -57,7 +57,12 @@ async fn operations_on_an_unknown_plane_are_refused() {
         SchedulerError::ConfigPlane(ConfigPlaneError::UnknownPlane(_))
     ));
     let err = svc
-        .apply("no_such_plane", ApplyMode::Overwrite, &change(), EntityScope::All)
+        .apply(
+            "no_such_plane",
+            ApplyMode::Overwrite,
+            &change(),
+            EntityScope::All,
+        )
         .await
         .expect_err("unknown");
     assert!(matches!(
@@ -92,7 +97,12 @@ async fn applying_a_plane_whose_declaration_is_missing_is_invalid() {
     let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
 
     let err = svc
-        .apply(plane.name, ApplyMode::Overwrite, &change(), EntityScope::All)
+        .apply(
+            plane.name,
+            ApplyMode::Overwrite,
+            &change(),
+            EntityScope::All,
+        )
         .await
         .expect_err("no declaration");
     assert!(matches!(
@@ -114,7 +124,12 @@ async fn an_overwrite_apply_converges_and_audits_each_change() {
     let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[plane.name])).await;
 
     let applied = svc
-        .apply(plane.name, ApplyMode::Overwrite, &change(), EntityScope::All)
+        .apply(
+            plane.name,
+            ApplyMode::Overwrite,
+            &change(),
+            EntityScope::All,
+        )
         .await
         .expect("apply");
 
@@ -158,7 +173,10 @@ async fn a_moved_declaration_is_corrected_again_and_the_state_follows_its_hash()
     assert_ne!(first.declared_hash, second.declared_hash);
 
     let states = svc.repository().list_states().await.expect("states");
-    let state = states.iter().find(|s| s.plane == plane.name).expect("state");
+    let state = states
+        .iter()
+        .find(|s| s.plane == plane.name)
+        .expect("state");
     assert_eq!(state.declared_hash, second.declared_hash);
 }
 
@@ -182,7 +200,10 @@ async fn a_plane_moved_from_file_to_db_authority_is_recorded_under_db() {
     assert_eq!(row.outcome, PlaneOutcome::InSync);
 
     let states = db_svc.repository().list_states().await.expect("states");
-    let state = states.iter().find(|s| s.plane == plane.name).expect("state");
+    let state = states
+        .iter()
+        .find(|s| s.plane == plane.name)
+        .expect("state");
     assert_eq!(state.authority, "db");
 }
 
@@ -192,7 +213,10 @@ async fn an_authority_key_for_an_unregistered_plane_does_not_stop_the_pass() {
     let plane = Arc::new(FakePlane::new(unique_plane_name("ops_ghost"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
     let mut authority: BTreeMap<String, PlaneAuthority> = BTreeMap::new();
-    authority.insert(unique_plane_name("ops_ghost_key").to_owned(), PlaneAuthority::Db);
+    authority.insert(
+        unique_plane_name("ops_ghost_key").to_owned(),
+        PlaneAuthority::Db,
+    );
     let planes: Vec<Arc<dyn ConfigPlane>> = vec![Arc::clone(&plane) as Arc<dyn ConfigPlane>];
     let set = ConfigPlaneSet::new(planes, authority, root.path().to_path_buf()).expect("set");
     let svc = service(set).await;

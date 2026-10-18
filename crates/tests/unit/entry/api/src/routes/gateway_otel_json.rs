@@ -1,5 +1,5 @@
-use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
 use opentelemetry_proto::tonic::common::v1::KeyValue;
+use opentelemetry_proto::tonic::common::v1::any_value::Value as AV;
 use systemprompt_api::routes::gateway::otel::json::decode_logs;
 
 fn value_of<'a>(attrs: &'a [KeyValue], key: &str) -> Option<&'a AV> {
@@ -55,16 +55,36 @@ fn decodes_metadata_and_drops_everything_else() {
     assert_eq!(record.severity_number, 9);
     assert_eq!(record.trace_id.len(), 16);
     assert_eq!(record.trace_id[0], 0x01);
-    assert_eq!(record.span_id, vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
+    assert_eq!(
+        record.span_id,
+        vec![0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
+    );
     assert!(record.body.is_none());
 
     let attrs = &record.attributes;
-    assert!(matches!(value_of(attrs, "gen_ai.usage.input_tokens"), Some(AV::IntValue(42))));
-    assert!(matches!(value_of(attrs, "gen_ai.usage.output_tokens"), Some(AV::IntValue(7))));
-    assert!(matches!(value_of(attrs, "http.status_code"), Some(AV::DoubleValue(d)) if (*d - 200.5).abs() < f64::EPSILON));
-    assert!(matches!(value_of(attrs, "error.type"), Some(AV::BoolValue(true))));
-    assert!(value_of(attrs, "gen_ai.system").is_none(), "an empty value is dropped");
-    assert!(value_of(attrs, "user.prompt").is_none(), "non-metadata keys are dropped");
+    assert!(matches!(
+        value_of(attrs, "gen_ai.usage.input_tokens"),
+        Some(AV::IntValue(42))
+    ));
+    assert!(matches!(
+        value_of(attrs, "gen_ai.usage.output_tokens"),
+        Some(AV::IntValue(7))
+    ));
+    assert!(
+        matches!(value_of(attrs, "http.status_code"), Some(AV::DoubleValue(d)) if (*d - 200.5).abs() < f64::EPSILON)
+    );
+    assert!(matches!(
+        value_of(attrs, "error.type"),
+        Some(AV::BoolValue(true))
+    ));
+    assert!(
+        value_of(attrs, "gen_ai.system").is_none(),
+        "an empty value is dropped"
+    );
+    assert!(
+        value_of(attrs, "user.prompt").is_none(),
+        "non-metadata keys are dropped"
+    );
     assert_eq!(attrs.len(), 4);
 }
 

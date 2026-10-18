@@ -18,7 +18,10 @@ fn file_source_refresh_below_the_floor_is_rejected() {
     assert!(
         matches!(
             err,
-            ProfileError::RefreshIntervalOutOfRange { field: "secrets.refresh_secs", secs: 59 }
+            ProfileError::RefreshIntervalOutOfRange {
+                field: "secrets.refresh_secs",
+                secs: 59
+            }
         ),
         "{err:?}"
     );
@@ -38,17 +41,27 @@ fn refresh_secs_on_a_non_file_source_is_rejected_with_the_source_name() {
 
 #[test]
 fn external_source_requires_its_block() {
-    let err = parse("source: external\n").validate().expect_err("no block");
-    assert!(matches!(err, ProfileError::ExternalBlockRequired), "{err:?}");
+    let err = parse("source: external\n")
+        .validate()
+        .expect_err("no block");
+    assert!(
+        matches!(err, ProfileError::ExternalBlockRequired),
+        "{err:?}"
+    );
 }
 
 #[test]
 fn external_source_with_a_block_validates_and_keeps_provider_keys() {
-    let cfg = parse("source: external\nexternal:\n  kind: aws-sm\n  region: eu-west-1\n  refresh_secs: 120\n");
+    let cfg = parse(
+        "source: external\nexternal:\n  kind: aws-sm\n  region: eu-west-1\n  refresh_secs: 120\n",
+    );
     cfg.validate().expect("valid external source");
     let external = cfg.external.as_ref().expect("block");
     assert_eq!(external.kind, "aws-sm");
-    assert_eq!(external.config.get("region").and_then(|v| v.as_str()), Some("eu-west-1"));
+    assert_eq!(
+        external.config.get("region").and_then(|v| v.as_str()),
+        Some("eu-west-1")
+    );
     assert_eq!(cfg.source_name(), "external");
 }
 
@@ -89,7 +102,12 @@ fn a_vault_block_on_an_external_source_is_rejected() {
     );
     let err = cfg.validate().expect_err("vault block is foreign");
     assert!(
-        matches!(err, ProfileError::VaultBlockUnexpected { secrets_source: "external" }),
+        matches!(
+            err,
+            ProfileError::VaultBlockUnexpected {
+                secrets_source: "external"
+            }
+        ),
         "{err:?}"
     );
 }
@@ -100,7 +118,12 @@ fn secrets_path_accessor_reports_a_missing_path_for_env() {
     cfg.validate().expect("env needs no path");
     let err = cfg.secrets_path().expect_err("no path configured");
     assert!(
-        matches!(err, ProfileError::SecretsPathRequired { secrets_source: "env" }),
+        matches!(
+            err,
+            ProfileError::SecretsPathRequired {
+                secrets_source: "env"
+            }
+        ),
         "{err:?}"
     );
 }
