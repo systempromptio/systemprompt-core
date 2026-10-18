@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT (\n                EXISTS (\n                    SELECT 1 FROM pg_locks l\n                    WHERE l.locktype = 'advisory'\n                      AND l.granted\n                      AND l.classid = ($1::int)::oid\n                      AND l.objid = (hashtext($2))::oid\n                      AND l.objsubid = 2\n                )\n                OR EXISTS (\n                    SELECT 1 FROM services s\n                    WHERE s.instance_id = $2\n                      AND s.heartbeat_at\n                          >= CURRENT_TIMESTAMP - make_interval(secs => $3::double precision)\n                )\n            ) AS \"alive!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "alive!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1b21a9c6789dcefe87668eda3bc6990aedb418e9434a5fcf4e322589b0bdc271"
+}
