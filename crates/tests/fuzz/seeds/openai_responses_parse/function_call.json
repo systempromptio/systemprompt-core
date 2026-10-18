@@ -1,0 +1,1 @@
+{"id":"resp_2","object":"response","status":"completed","model":"gpt-5","output":[{"type":"function_call","id":"fc_1","call_id":"call_1","name":"search","arguments":"{\"q\":\"rust\"}"}],"usage":{"input_tokens":10,"output_tokens":8}}

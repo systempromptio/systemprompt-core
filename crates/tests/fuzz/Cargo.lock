@@ -2431,21 +2431,34 @@ version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5023804cbe0304cbe06197ac16e645a0a0d0ffa2953bf735c15c2fa0213350"
 dependencies = [
+ "async-trait",
  "base64 0.23.1",
+ "bytes",
  "chrono",
  "futures",
+ "hmac 0.13.0",
+ "http",
+ "http-body",
+ "http-body-util",
  "indexmap",
  "pastey",
  "pin-project-lite",
+ "rand 0.10.3",
  "rmcp-macros",
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
+ "sse-stream",
  "thiserror 2.0.21",
  "tokio",
+ "tokio-stream",
  "tokio-util",
+ "tower-service",
  "tracing",
+ "url",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -3310,6 +3323,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-ai"
+version = "0.70.0"
+dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "chrono",
+ "futures",
+ "inventory",
+ "regex",
+ "reqwest",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "systemprompt-wire",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-client"
 version = "0.70.0"
 dependencies = [
@@ -3407,8 +3451,52 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "systemprompt-agent",
+ "systemprompt-gateway",
  "systemprompt-identifiers",
  "systemprompt-manifest",
+ "systemprompt-wire",
+]
+
+[[package]]
+name = "systemprompt-gateway"
+version = "0.70.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "base64 0.23.1",
+ "bytes",
+ "chacha20poly1305",
+ "chrono",
+ "futures-util",
+ "hex",
+ "http",
+ "inventory",
+ "metrics",
+ "rand 0.10.3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.1",
+ "systemprompt-ai",
+ "systemprompt-client",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-mcp",
+ "systemprompt-models",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "systemprompt-wire",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -3502,6 +3590,45 @@ dependencies = [
  "url",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "systemprompt-mcp"
+version = "0.70.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "bytes",
+ "chrono",
+ "futures",
+ "http",
+ "inventory",
+ "reqwest",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "sse-stream",
+ "systemprompt-client",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "systemprompt-wire",
+ "thiserror 2.0.21",
+ "tokio",
+ "tower-http 0.7.1",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]
