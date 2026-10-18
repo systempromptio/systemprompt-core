@@ -4745,6 +4745,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "xxhash-rust",
+ "zeroize",
 ]
 
 [[package]]
