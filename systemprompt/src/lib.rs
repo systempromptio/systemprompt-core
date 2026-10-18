@@ -134,15 +134,11 @@ pub mod client {
 
 #[cfg(feature = "security")]
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
-pub mod security {
-    pub use systemprompt_security::*;
-}
+pub use systemprompt_security as security;
 
 #[cfg(feature = "security")]
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
-pub mod governance {
-    pub use systemprompt_governance::*;
-}
+pub use systemprompt_governance as governance;
 
 /// Application runtime / `AppContext` wiring. Construct via `AppContextBuilder`
 /// from the prelude.
