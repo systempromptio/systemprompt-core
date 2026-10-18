@@ -54,6 +54,11 @@ impl Extension for DatabaseExtension {
                 "owner_instance_id".into(),
                 "expires_at".into(),
             ]),
+            SchemaDefinition::new(
+                "release_stamps",
+                include_str!("../schema/release_stamps.sql"),
+            )
+            .with_required_columns(vec!["name".into(), "version".into()]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
         ]
     }

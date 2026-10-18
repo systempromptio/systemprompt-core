@@ -99,8 +99,10 @@ pub use lifecycle::{
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PgDbPool, ServiceConfig, ServiceModule, ServiceRepository,
-    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, UpsertServiceProcessInput,
+    InstanceLeaseRepository, PgDbPool, ReleaseGate, ReleaseRun, ReleaseStampError,
+    ReleaseStampRepository, ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus,
+    SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome, UpsertServiceProcessInput,
+    release_key,
 };
 
 pub use admin::{

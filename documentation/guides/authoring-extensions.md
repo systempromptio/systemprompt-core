@@ -216,6 +216,7 @@ Core owns these contracts so an extension never reimplements them against core t
 - **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
 - **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
 - **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`. It stops when a batch comes back short or the deadline passes, and `BatchedRun::into_job_result` reports what remains for the next run.
+- **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds. A binary older than the recorded release never runs it, so a lagging pod in a rolling update cannot redo a newer release's work.
 
 ## How discovery works
 

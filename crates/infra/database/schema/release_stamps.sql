@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS release_stamps (
+    name TEXT PRIMARY KEY,
+    version TEXT NOT NULL,
+    stamped_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
