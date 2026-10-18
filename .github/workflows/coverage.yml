@@ -4,27 +4,28 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Commit SHA or branch to gate. Defaults to the triggering ref."
+        description: "Commit SHA or branch to measure. Defaults to the triggering ref."
         type: string
         required: false
-  # Coverage is a measurement, not a gate. It is the slowest workflow here
-  # (~70 min instrumented build) and it used to be the only required check on
-  # the `main` ruleset, running on the release PR and again on the merge
-  # commit — an hour and more on the release critical path for a number that
-  # never changed the release decision. The PR trigger is gone: the release PR
-  # waits on CI, Quality and Supply Chain, and the push to `main` produces the
-  # published number for the commit that was released, which is the baseline
-  # the ratchet below reads back.
-  #
+  # Coverage is a measurement, not a gate, and not a required check: the
+  # release PR waits on CI, Quality and Supply Chain alone. The push to `main`
+  # produces the published number for the released commit; the push to `next`
+  # is the erosion signal, and the ratchet below reads each branch's own last
+  # successful run back as its baseline.
   push:
     branches: [main, next]
 
 concurrency:
-  # Keyed by event as well as ref: without the event, the release PR's run and
-  # the run on the merge commit could share a bucket and cancel an hour of
-  # instrumented build.
-  group: coverage-${{ inputs.ref || github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
+  # A `main` run measures a released commit and is never discarded, so every
+  # `main` SHA gets a bucket of its own. On `next` the bucket is the branch and
+  # nothing in progress is cancelled: the running measurement always finishes
+  # and advances the ratchet baseline, and of the pushes that land meanwhile
+  # only the newest waits (GitHub replaces a pending run in the same group with
+  # the next one). That bounds `next` to one running plus one queued run, and
+  # the baseline advances every run instead of never — cancel-in-progress
+  # discarded 46 of 59 runs, so the ratchet had almost nothing to compare.
+  group: coverage-${{ github.event_name }}-${{ inputs.ref || (github.ref == 'refs/heads/main' && github.sha) || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -39,28 +40,56 @@ env:
   RUSTUP_MAX_RETRIES: "10"
   CARGO_NET_RETRY: "10"
   CARGO_TERM_COLOR: always
-  RUSTC_WRAPPER: ""
   SQLX_OFFLINE: "true"
-  # Keep only line tables (coverage needs line mapping, not full debuginfo),
-  # disable incremental artifacts, and serialize codegen: the instrumented
-  # cold rebuild of the whole test workspace otherwise peaks past the runner's
-  # RAM and the hosted runner loses communication mid-build.
+  # Continuous mode (%c) must be baked in at build time via the counter
+  # relocation flag. Setting RUSTFLAGS replaces the test workspace's
+  # target.<triple>.rustflags, which drops `-fuse-ld=mold`: mold strips the
+  # profile-runtime constructors and the binaries would write no profraw. This
+  # is also why cargo-llvm-cov (which merges target rustflags back in) is not
+  # used on Linux.
+  RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
+  # Coverage needs line mapping, not full debuginfo. Incremental artifacts are
+  # neither cacheable by sccache nor useful on a one-shot runner.
   CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
   CARGO_INCREMENTAL: "0"
-  # 2 jobs fits the 16GB runner with line-tables-only debuginfo; 1 job made
-  # the --bins --tests instrumented build overrun the job timeout.
-  CARGO_BUILD_JOBS: "2"
-  # The instrumented --bins --tests target tree does not fit the root disk
-  # even after the cleanup step; the runner's second disk at /mnt has ~65GB.
-  # One shared target dir also dedupes dependency builds between the main
-  # workspace (instrumented CLI) and the test workspace.
+  # sccache keys every object on the full rustc argument list, RUSTFLAGS
+  # included, so an instrumented object is only ever served to an instrumented
+  # build and never to CI's uninstrumented one (or the reverse). The old
+  # "sccache returns uninstrumented rlibs" failure was a wrapper that bypassed
+  # the flags, not a key collision. The build jobs below verify the result
+  # rather than trusting it: every shard must produce profraw, and the merge
+  # job refuses to render a number unless every shard's profile arrived.
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: sccache
+  # The runner's second disk at /mnt has ~65GB; the instrumented target tree
+  # does not fit the root disk. Every job uses the same absolute path, so the
+  # binaries metadata recorded at build time resolves unchanged on the shard
+  # and merge runners once the archive is unpacked there.
   CARGO_TARGET_DIR: /mnt/coverage-target
+  # Process-entry files with no in-process seam: twelve CLI ones (serve, deploy
+  # orchestrator/artifacts, tenant create cloud, setup
+  # docker/docker_database/docker_compose, tenant docker container, backup
+  # client/mod, plugins run, agents run), three domain supervisors (a2a_server
+  # standalone, mcp orchestrator daemon, agent orchestration daemon) and one
+  # bridge one (update install linux, which replaces the running executable).
+  # A file qualifies only if it cannot execute in-process at all: merely
+  # lacking a test is not enough, which is why the interactive dialoguer paths
+  # stay in the denominator. Listed file-by-file so testable siblings
+  # (a2a_server/server.rs, backup/extract.rs, policy/audit.rs) still count.
+  # Mirrors the justfile `coverage` recipe — keep both in sync.
+  COVERAGE_IGNORE_REGEX: '(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)'
 
 jobs:
-  coverage:
-    name: Line coverage (cargo-llvm-cov)
+  # The instrumented test workspace, compiled once and packed as a nextest
+  # archive. The shards used to run in one serial loop on one runner (~40 min
+  # of tests behind ~10 min of build); they now fan out over this archive and
+  # none of them compiles anything.
+  build-tests:
+    name: Build instrumented test archive
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 90
+    outputs:
+      groups: ${{ steps.groups.outputs.json }}
     services:
       postgres:
         image: postgres:18
@@ -74,281 +103,349 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
-
+    env:
+      PGPASSWORD: test
+      ADMIN_URL: postgres://test:test@localhost:5432/postgres
+      DATABASE_URL: postgres://test:test@localhost:5432/cov_build
+      # Build scripts and the migrator are instrumented too; their counters
+      # are not part of the measurement.
+      LLVM_PROFILE_FILE: /mnt/discard/%m%c.profraw
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Runner resources
+      # The matrix is read from scripts/test-shard.sh, the single source of
+      # truth for the shard set, so coverage cannot drift from CI's shards.
+      - name: Shard groups
+        id: groups
         run: |
-          echo "cores: $(nproc)"; free -h; df -h /
+          json=$(bash scripts/test-shard.sh --list | jq -Rc 'split(" ") | map(select(length > 0))')
+          test "$(jq length <<<"$json")" -gt 0
+          echo "json=$json" >> "$GITHUB_OUTPUT"
+          echo "shards: $json"
 
-      - name: Free runner disk (instrumented --bins --tests build overflows the default ~14GB)
+      - name: Prepare /mnt and swap
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
-            /usr/local/.ghcup /usr/local/share/boost /usr/local/share/powershell \
-            /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune --all --force >/dev/null 2>&1 || true
-          sudo mkdir -p /mnt/coverage-target /mnt/profraw /mnt/tmp
-          sudo chmod 777 /mnt/coverage-target /mnt/profraw /mnt/tmp
-          df -h / /mnt
+            /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
+          sudo mkdir -p /mnt/coverage-target /mnt/discard /mnt/out
+          sudo chown -R "$USER" /mnt/coverage-target /mnt/discard /mnt/out
+          # Why: codegen is no longer serialised (CARGO_BUILD_JOBS=2 is gone),
+          # and the hosted runner drops its agent connection rather than
+          # OOM-killing a linker when RAM runs out. Swap turns a peak into a
+          # slow link instead of a lost runner.
+          sudo fallocate -l 16G /mnt/coverage-swap
+          sudo chmod 600 /mnt/coverage-swap
+          sudo mkswap /mnt/coverage-swap >/dev/null
+          sudo swapon /mnt/coverage-swap
+          echo "cores: $(nproc)"; free -h; df -h / /mnt
 
       - name: Install libdbus (bridge test bins link keyring -> dbus)
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
 
       - run: rustup show
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          workspaces: |
-            .
-            crates/tests
-      - uses: taiki-e/install-action@nextest
+          tool: nextest@0.9.146
 
+      # Built in debug with the same flags as the archive, so its whole
+      # dependency graph is shared with the test build instead of compiled a
+      # second time under --release. Against the committed .sqlx cache: the
+      # schema it is about to create does not exist yet.
       - name: Build the test-database migrate tool
-        env:
-          # Build the migrate tool against the committed .sqlx cache: the schema
-          # it is about to create does not exist yet, so live query verification
-          # of its core-crate dependencies would fail on a cold build cache.
-          SQLX_OFFLINE: "true"
         run: |
-          cargo build \
-            --manifest-path crates/tests/Cargo.toml \
-            -p systemprompt-test-migrate \
-            --release
-          test -x /mnt/coverage-target/release/systemprompt-test-migrate
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
+          test -x /mnt/coverage-target/debug/systemprompt-test-migrate
 
-      - name: Build instrumented systemprompt binary
-        env:
-          # Continuous mode (%c) must be baked in at build time via the counter
-          # relocation flag; keep RUSTFLAGS identical to the test step so the
-          # CLI binary pools correctly when subprocess tests run it.
-          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
+      - name: Migrate the build database
         run: |
-          mkdir -p "/mnt/profraw"
-          # The crates/tests workspace does not include entry/cli, so the test
-          # run's --bins would not produce this binary; subprocess tests invoke
-          # it via SYSTEMPROMPT_BIN and its counters land in the shared profraw
-          # directory.
-          cargo build -p systemprompt-cli --bin systemprompt
+          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE cov_build;'
+          /mnt/coverage-target/debug/systemprompt-test-migrate
 
-      - name: Build instrumented systemprompt-bridge binary
+      # The test workspace ships no .sqlx cache, so its query! macros validate
+      # against the database migrated above.
+      - name: Build and archive the instrumented test workspace
         env:
-          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
-        run: |
-          # bin/bridge is its own workspace, so neither the main build above nor
-          # the test workspace's --bins produces this binary. The black-box
-          # suite in crates/tests/unit/bridge/cli-subprocess spawns it via
-          # SP_BRIDGE_BIN and skips silently when the path is absent; without
-          # this step those 11 tests never ran and bin/bridge/src/cli measured
-          # 66%. The spawned process inherits LLVM_PROFILE_FILE from the test
-          # step, so its counters land in the shared profraw directory.
-          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
-
-      # One fresh, freshly-migrated database per shard, exactly as ci.yml's
-      # shard matrix and `just test-shard` run them. This job used to run the
-      # whole test workspace against one database, and that was not a
-      # measurement: a user-privacy mutation first delivers the global pending
-      # reporting backlog, bounded at 10 000 rows (reporting_privacy.sql, a
-      # deliberate fail-closed limit), so after ~20k tests on one database the
-      # backlog exceeded the bound and every later user mutation was refused
-      # with `Reporting privacy change bound exceeded` (54000) — 24 red tests
-      # on every 0.53.0 and 0.54.0 SHA, none of them a defect in the code. The
-      # shard set is the measured set: it is what CI runs, with `--bins --tests`
-      # passed through so the integration binaries stay in the denominator.
-      # Continuous-mode profraws (%m%c) merge across nextest invocations, one
-      # file per binary regardless of how many shards produce it.
-      - name: Run instrumented tests (RUSTFLAGS so path deps get instrumented)
-        id: tests
-        env:
-          PGPASSWORD: test
-          ADMIN_URL: postgres://test:test@localhost:5432/postgres
-          COVERAGE_DATABASE_BASE_URL: postgres://test:test@localhost:5432
-          NEXTEST_PROFILE: coverage
-          # Continuous mode: %c makes every process for a given binary mmap and
-          # merge into ONE file keyed by %m (the binary signature), instead of
-          # %p writing a fresh full-counter dump per process. The prior %p-%m
-          # pattern produced 23k profraw files (~100GB) and filled the disk;
-          # %m%c collapses that to one file per instrumented binary.
-          LLVM_PROFILE_FILE: /mnt/profraw/%m%c.profraw
-          RUSTFLAGS: "-C instrument-coverage -C llvm-args=--runtime-counter-relocation"
           SQLX_OFFLINE: "false"
-          SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
-          SP_BRIDGE_BIN: /mnt/coverage-target/debug/systemprompt-bridge
-          # Test tempdirs (generator sites, CLI subprocess fixtures) otherwise
-          # accumulate on the root disk.
-          TMPDIR: /mnt/tmp
         run: |
-          mkdir -p "/mnt/profraw"
-
-          # Inline root-disk watchdog. It MUST live in this step: a background
-          # process started in an earlier step is reaped when that step ends, so
-          # the previous standalone watchdog never actually ran. If root nears
-          # zero the runner agent itself dies and uploads no logs, so snapshot
-          # what is consuming the disk (to the surviving /mnt) and kill the run
-          # before the agent crashes.
-          bash -c '
-            while sleep 15; do
-              avail=$(df --output=avail -BM / | tail -1 | tr -dc 0-9)
-              echo "watchdog: root ${avail}M free"
-              if [ "${avail:-0}" -lt 3072 ]; then
-                { echo "ROOT DISK LOW: ${avail}M free"; date -u;
-                  df -h / /mnt;
-                  echo "--- top root consumers (excl /mnt) ---";
-                  sudo du -xh -d4 / 2>/dev/null | sort -rh | head -40;
-                  echo "--- docker ---";
-                  sudo du -sh /var/lib/docker 2>/dev/null;
-                } > /mnt/tmp/watchdog.log 2>&1
-                sudo pkill -9 -f "cargo|nextest|systemprompt" || true
-                break
-              fi
-            done
-          ' &
-          WATCHDOG=$!
-
-          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
-            -c 'CREATE DATABASE cov_build;'
-          export DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/cov_build"
-          /mnt/coverage-target/release/systemprompt-test-migrate
-          export COVERAGE_BINARIES_METADATA="$GITHUB_WORKSPACE/coverage-binaries.json"
-          export COVERAGE_CARGO_METADATA="$GITHUB_WORKSPACE/coverage-cargo-metadata.json"
+          cargo nextest archive --manifest-path crates/tests/Cargo.toml \
+            --workspace --lib --bins --tests \
+            --archive-file /mnt/out/tests.tar.zst
           cargo metadata --manifest-path crates/tests/Cargo.toml --format-version 1 \
-            > "$COVERAGE_CARGO_METADATA"
+            > /mnt/out/cargo-metadata.json
           cargo nextest list --manifest-path crates/tests/Cargo.toml \
             --workspace --lib --bins --tests --list-type binaries-only \
-            --message-format json > "$COVERAGE_BINARIES_METADATA"
+            --message-format json > /mnt/out/binaries.json
+          cp /mnt/coverage-target/debug/systemprompt-test-migrate /mnt/out/
+          ls -lh /mnt/out; df -h / /mnt
 
-          # nextest runs each test in its own process; continuous mode (%c)
-          # lets those processes share one mmap'd profile per binary instead of
-          # each dumping a full-counter file.
-          FALLBACK_PROFILE_ARCHIVE=$(mktemp -d "/mnt/tmp/preexisting-fallback.XXXXXX")
-          QUARANTINED_PROFILE_COUNT=$(bash scripts/quarantine-fallback-profraw.sh \
-            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_ARCHIVE" \
-            "$GITHUB_WORKSPACE/crates/tests/target" "/mnt/coverage-target")
-          echo "quarantined pre-run fallback profraw count: $QUARANTINED_PROFILE_COUNT ($FALLBACK_PROFILE_ARCHIVE)"
-          FALLBACK_PROFILE_MARKER="$GITHUB_WORKSPACE/coverage-profile-run-start"
-          touch "$FALLBACK_PROFILE_MARKER"
+      - run: sccache --show-stats
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-tests
+          path: /mnt/out/
+          compression-level: 0
+          retention-days: 2
+          if-no-files-found: error
+
+  # The two binaries the subprocess suites spawn. Neither is in the test
+  # workspace (entry/cli is a main-workspace crate, bin/bridge its own
+  # workspace), so they build on a runner of their own, alongside the archive.
+  build-bins:
+    name: Build instrumented systemprompt + bridge
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LLVM_PROFILE_FILE: /mnt/discard/%m%c.profraw
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Prepare /mnt
+        run: |
+          sudo mkdir -p /mnt/coverage-target /mnt/discard /mnt/out
+          sudo chown -R "$USER" /mnt/coverage-target /mnt/discard /mnt/out
+          echo "cores: $(nproc)"; free -h; df -h / /mnt
+      - name: Install libdbus (the bridge links keyring -> dbus)
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      # The black-box bridge suite spawns SP_BRIDGE_BIN and skips silently when
+      # it is absent; without this binary those tests never ran and
+      # bin/bridge/src/cli measured 66%.
+      - name: Build
+        run: |
+          cargo build -p systemprompt-cli --bin systemprompt
+          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge
+          cp /mnt/coverage-target/debug/systemprompt /mnt/coverage-target/debug/systemprompt-bridge /mnt/out/
+          ls -lh /mnt/out
+      - run: sccache --show-stats
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-bins
+          path: /mnt/out/
+          retention-days: 2
+          if-no-files-found: error
+
+  # One fresh, freshly-migrated database per shard, exactly as ci.yml's shard
+  # matrix and `just test-shard` run them. One database for the whole suite was
+  # not a measurement: a user-privacy mutation first delivers the global
+  # pending reporting backlog, bounded at 10 000 rows (reporting_privacy.sql, a
+  # deliberate fail-closed limit), so after ~20k tests the backlog exceeded the
+  # bound and every later user mutation was refused (54000).
+  shard:
+    name: Coverage shard (${{ matrix.group }})
+    needs: [build-tests, build-bins]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ${{ fromJSON(needs.build-tests.outputs.groups) }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      PGPASSWORD: test
+      ADMIN_URL: postgres://test:test@localhost:5432/postgres
+      DATABASE_URL: postgres://test:test@localhost:5432/cov_shard
+      SYSTEMPROMPT_BIN: /mnt/coverage-target/debug/systemprompt
+      SP_BRIDGE_BIN: /mnt/coverage-target/debug/systemprompt-bridge
+      COVERAGE_BINARIES_METADATA: /mnt/dl/binaries.json
+      COVERAGE_CARGO_METADATA: /mnt/dl/cargo-metadata.json
+      NEXTEST_PROFILE: coverage
+      # Test tempdirs (generator sites, CLI subprocess fixtures) otherwise
+      # accumulate on the root disk.
+      TMPDIR: /mnt/tmp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Prepare /mnt
+        run: |
+          sudo mkdir -p /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profraw /mnt/discard /mnt/tmp /mnt/out
+          sudo chown -R "$USER" /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profraw /mnt/discard /mnt/tmp /mnt/out
+      # Toolchain for llvm-profdata and the shard script's `cargo metadata`;
+      # nothing is compiled here.
+      - run: rustup show
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: nextest@0.9.146
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-tests
+          path: /mnt/dl
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-bins
+          path: /mnt/bins
+      # Unpacked at the build job's target path, so the recorded binaries
+      # metadata resolves as-is and the shard script's metadata-reuse path runs
+      # the archive without invoking cargo build.
+      - name: Unpack the archive
+        run: bash scripts/coverage-unpack.sh /mnt/dl /mnt/bins /mnt/coverage-target
+
+      - name: Run shard
+        id: run
+        env:
+          LLVM_PROFILE_FILE: /mnt/profraw/%m%c.profraw
+        run: |
+          group="${{ matrix.group }}"
+          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE cov_shard;'
+          LLVM_PROFILE_FILE=/mnt/discard/%m%c.profraw /mnt/dl/systemprompt-test-migrate
+          # The database dies with the runner, so durability buys nothing.
+          psql "$DATABASE_URL" -c 'ALTER DATABASE cov_shard SET synchronous_commit = off;'
           # Why: see ci.yml — keep port-0 binds out of the bridge proxy candidates.
           sudo sysctl -w net.ipv4.ip_local_reserved_ports=48217-48226
-          failed=()
-          for group in $(bash scripts/test-shard.sh --list); do
-            db="cov_${group//-/_}"
-            echo "::group::shard $group ($db)"
-            psql "$ADMIN_URL" -v ON_ERROR_STOP=1 \
-              -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE);" \
-              -c "CREATE DATABASE \"$db\";"
-            DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" /mnt/coverage-target/release/systemprompt-test-migrate
-            # The database dies with the runner, so durability buys nothing.
-            psql "$COVERAGE_DATABASE_BASE_URL/$db" -c "ALTER DATABASE \"$db\" SET synchronous_commit = off;"
-            target_args=(--bins --tests)
-            if [ "$group" = integration-cli ]; then
-              target_args=(--bins)
-            fi
-            set +e
-            DATABASE_URL="$COVERAGE_DATABASE_BASE_URL/$db" \
-              bash scripts/test-shard.sh "$group" "${target_args[@]}" --no-fail-fast
-            shard_status=$?
-            set -e
-            echo "::endgroup::"
-            if [ "$shard_status" -ne 0 ] && [ "$shard_status" -ne 100 ]; then
-              echo "::error::shard $group did not run to completion (nextest exit $shard_status)"
-              failed+=("$group!$shard_status")
-            elif [ "$shard_status" -eq 100 ]; then
-              echo "::error::shard $group has failing tests"
-              failed+=("$group")
-            fi
-            if [ -f /mnt/tmp/watchdog.log ]; then
-              break
-            fi
-          done
-          kill "$WATCHDOG" 2>/dev/null || true
 
-          FALLBACK_PROFILE_COUNT=$(bash scripts/collect-fallback-profraw.sh \
-            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_MARKER" "/mnt/profraw" \
-            "$GITHUB_WORKSPACE/crates/tests/target" "/mnt/coverage-target")
-          echo "collected fallback profraw count: $FALLBACK_PROFILE_COUNT"
+          FALLBACK_PROFILE_ARCHIVE=$(mktemp -d /mnt/tmp/preexisting-fallback.XXXXXX)
+          bash scripts/quarantine-fallback-profraw.sh \
+            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_ARCHIVE" \
+            "$GITHUB_WORKSPACE/crates/tests/target" /mnt/coverage-target
+          FALLBACK_PROFILE_MARKER=/mnt/tmp/coverage-profile-run-start
+          touch "$FALLBACK_PROFILE_MARKER"
 
-          echo "profraw count: $(find /mnt/profraw -name '*.profraw' | wc -l)"
+          target_args=(--bins --tests)
+          if [ "$group" = integration-cli ]; then
+            target_args=(--bins)
+          fi
+          set +e
+          bash scripts/test-shard.sh "$group" "${target_args[@]}" --no-fail-fast
+          status=$?
+          set -e
+
+          collected=$(bash scripts/collect-fallback-profraw.sh \
+            "$GITHUB_WORKSPACE/crates/tests" "$FALLBACK_PROFILE_MARKER" /mnt/profraw \
+            "$GITHUB_WORKSPACE/crates/tests/target" /mnt/coverage-target)
+          echo "collected fallback profraw count: $collected"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
           df -h / /mnt
 
-          # Downstream render/ratchet/upload steps key off this, not on always():
-          # a shard exits 100 when tests ran and some failed (the counters are
-          # still complete enough to report) but 101 when it failed to compile,
-          # in which case that shard's instrumented binaries never ran and
-          # llvm-cov would render a number missing a whole layer. Every shard
-          # must have run for the number to be a measurement.
-          instrumented=true
-          for entry in "${failed[@]}"; do
-            case "$entry" in *!*) instrumented=false ;; esac
-          done
-          if [ -f /mnt/tmp/watchdog.log ]; then
-            instrumented=false
-          fi
-          echo "instrumented=$instrumented" >> "$GITHUB_OUTPUT"
+          # 0 = passed, 100 = tests ran and some failed: the counters are still
+          # a complete record of what ran. Anything else means the shard did
+          # not run to completion and its profile would understate a layer.
+          case "$status" in
+            0) ;;
+            100) echo "::error::shard $group has failing tests" ;;
+            *) echo "::error::shard $group did not run to completion (nextest exit $status)"; exit 1 ;;
+          esac
 
-          if [ -f /mnt/tmp/watchdog.log ]; then
-            echo "=== watchdog tripped ==="; cat /mnt/tmp/watchdog.log; exit 1
-          fi
-          if [ "${#failed[@]}" -ne 0 ]; then
-            echo "failed shards: ${failed[*]}"
+          count=$(find /mnt/profraw -name '*.profraw' | wc -l)
+          echo "profraw count: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::shard $group produced no profraw: the archive is not instrumented"
             exit 1
           fi
+          LLVM_PROFDATA="$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata"
+          find /mnt/profraw -name '*.profraw' > /mnt/tmp/profraw-list.txt
+          "$LLVM_PROFDATA" merge -sparse -f /mnt/tmp/profraw-list.txt -o "/mnt/out/$group.profdata"
+          ls -lh /mnt/out
 
-      # --ignore-filename-regex below excludes sixteen process-entry files.
-      # Twelve CLI ones (serve, deploy orchestrator/artifacts, tenant create
-      # cloud, setup docker/docker_database/docker_compose, tenant docker
-      # container, backup client/mod, plugins run, agents run), three domain
-      # ones (a2a_server standalone, mcp orchestrator daemon, agent
-      # orchestration daemon) and one bridge one (update install linux, which
-      # replaces the running executable). Each is a supervisor that spawns a
-      # subprocess, binds a listener, drives Docker, or loops until a signal,
-      # and has no seam to drive from a test. A file qualifies only if it
-      # cannot execute in-process at all: merely lacking a test is not enough,
-      # which is why the interactive dialoguer paths (interactive.rs at 84%,
-      # wizard_prompts.rs at 70%) stay in the denominator. Listed file-by-file,
-      # not by directory, so testable
-      # code alongside them still counts — which is why sibling files with
-      # real seams (a2a_server/server.rs, backup/extract.rs, policy/audit.rs)
-      # are deliberately absent. Mirrors the justfile `coverage` recipe
-      # comment — keep both in sync.
-      - name: Merge profdata and render
-        if: ${{ always() && steps.tests.outputs.instrumented == 'true' }}
+      # Uploaded whenever the shard ran to completion, failing tests or not:
+      # the merge job renders the number either way, and a missing profile is
+      # how it knows a shard did not run.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() && (steps.run.outputs.status == '0' || steps.run.outputs.status == '100') }}
+        with:
+          name: coverage-profile-${{ matrix.group }}
+          path: /mnt/out/${{ matrix.group }}.profdata
+          retention-days: 2
+          if-no-files-found: error
+
+      - name: Fail on failing tests
+        if: ${{ steps.run.outputs.status == '100' }}
+        run: exit 1
+
+  report:
+    name: Line coverage (cargo-llvm-cov)
+    needs: [build-tests, build-bins, shard]
+    if: ${{ always() && needs.build-tests.result == 'success' && needs.build-bins.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Prepare /mnt
         run: |
-          LLVM_PROFDATA=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata
-          LLVM_COV=$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov
-          "$LLVM_PROFDATA" merge -sparse \
-            "/mnt/profraw"/*.profraw \
-            -o coverage-merged.profdata
+          sudo mkdir -p /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profiles
+          sudo chown -R "$USER" /mnt/dl /mnt/bins /mnt/coverage-target /mnt/profiles
+      - run: rustup show
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: coverage-profile-*
+          path: /mnt/profiles
+          merge-multiple: true
 
-          BINS=$(jq -r '."rust-binaries"[]."binary-path"' coverage-binaries.json | sort -u)
-          SP_BIN="/mnt/coverage-target/debug/systemprompt"
-          [ -x "$SP_BIN" ] && BINS="$BINS $SP_BIN"
-          BRIDGE_BIN="/mnt/coverage-target/debug/systemprompt-bridge"
-          [ -x "$BRIDGE_BIN" ] && BINS="$BINS $BRIDGE_BIN"
-          OBJ_ARGS=""
-          for b in $BINS; do OBJ_ARGS="$OBJ_ARGS --object $b"; done
+      # A number is only a measurement when every shard's profile is in it: a
+      # shard that failed to run would render a total missing a whole layer,
+      # and Codecov would record it as the branch number. Render, ratchet and
+      # upload all key off this.
+      - name: Every shard reported
+        id: complete
+        run: |
+          instrumented=true
+          for group in $(bash scripts/test-shard.sh --list); do
+            if [ ! -s "/mnt/profiles/$group.profdata" ]; then
+              echo "::error::no profile from shard $group"
+              instrumented=false
+            fi
+          done
+          echo "instrumented=$instrumented" >> "$GITHUB_OUTPUT"
+          test "$instrumented" = true
 
-          # Unfiltered first so we can see raw paths llvm-cov emits.
-          "$LLVM_COV" report --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
-            --summary-only \
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-tests
+          path: /mnt/dl
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: coverage-bins
+          path: /mnt/bins
+      - name: Unpack the archive
+        run: bash scripts/coverage-unpack.sh /mnt/dl /mnt/bins /mnt/coverage-target
+
+      - name: Merge profdata and render
+        run: |
+          LLVM_PROFDATA="$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-profdata"
+          LLVM_COV="$(rustc --print sysroot)/lib/rustlib/x86_64-unknown-linux-gnu/bin/llvm-cov"
+          "$LLVM_PROFDATA" merge -sparse /mnt/profiles/*.profdata -o coverage-merged.profdata
+
+          BINS=$(jq -r '."rust-binaries"[]."binary-path"' /mnt/dl/binaries.json | sort -u)
+          BINS="$BINS /mnt/coverage-target/debug/systemprompt /mnt/coverage-target/debug/systemprompt-bridge"
+          OBJ_ARGS=()
+          for b in $BINS; do
+            test -x "$b" || { echo "::error::object $b missing from the unpacked archive"; exit 1; }
+            OBJ_ARGS+=(--object "$b")
+          done
+
+          "$LLVM_COV" report --instr-profile=coverage-merged.profdata "${OBJ_ARGS[@]}" \
+            --ignore-filename-regex="$COVERAGE_IGNORE_REGEX" --summary-only \
             | tee coverage-summary.txt
-
-          "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
-            --format=text --summary-only \
+          "$LLVM_COV" export --instr-profile=coverage-merged.profdata "${OBJ_ARGS[@]}" \
+            --ignore-filename-regex="$COVERAGE_IGNORE_REGEX" --format=text --summary-only \
             > coverage-summary.json
-
-          "$LLVM_COV" export --instr-profile=coverage-merged.profdata $OBJ_ARGS \
-            --ignore-filename-regex='(\.cargo|rustc|crates/tests|/debug/build/[^/]+/out/|/home/runner/\.cargo|crates/domain/(agent/src/services/(a2a_server/standalone|agent_orchestration/orchestrator/daemon)|mcp/src/services/orchestrator/daemon)\.rs|crates/entry/cli/src/commands/(infrastructure/services/serve|cloud/deploy/pipeline/(orchestrator|artifacts)|cloud/tenant/create/cloud|admin/setup/docker(_database|_compose)?|cloud/tenant/docker/container|cloud/backup/(client|mod)|plugins/run|admin/agents/run)\.rs|bin/bridge/src/update/install/linux\.rs)' \
-            --format=lcov \
+          "$LLVM_COV" export --instr-profile=coverage-merged.profdata "${OBJ_ARGS[@]}" \
+            --ignore-filename-regex="$COVERAGE_IGNORE_REGEX" --format=lcov \
             > lcov.info
 
       - name: Upload coverage artifacts
-        if: ${{ always() && steps.tests.outputs.instrumented == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage
           path: |
@@ -366,10 +463,7 @@ jobs:
       # The ratchet compares against the last *successful* run, so a run that
       # fails cannot advance the baseline: one red run leaves every later run
       # comparing against an ever-older number until the accumulated drift of
-      # many commits trips a threshold meant for one. That is not a regression
-      # signal, it is the absence of one, and reporting it as a failure is how
-      # this gate stayed red for three weeks in August 2026 while nobody could
-      # tell whether coverage was actually falling. Past MAX_BASELINE_AGE_DAYS
+      # many commits trips a threshold meant for one. Past MAX_BASELINE_AGE_DAYS
       # the comparison is therefore abandoned rather than made loosely, and the
       # floor carries the run alone.
       #
@@ -380,21 +474,16 @@ jobs:
       # Raise COVERAGE_FLOOR as coverage climbs; keep it in step with
       # codecov.yml's `project.default.target`.
       - name: Coverage floor and ratchet
-        if: ${{ steps.tests.outputs.instrumented == 'true' }}
+        id: ratchet
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           COVERAGE_FLOOR: "91.5"
           MAX_BASELINE_AGE_DAYS: "10"
         run: |
-          # Baseline against the branch this run is measuring. A `next` run
-          # compared against `main` can never advance the baseline — only a
-          # `main` run can — so every `next` run would find an ever-older
-          # `main` number, trip the staleness guard, and coast on the floor
-          # until the next release. The ratchet would be permanently dormant
-          # between promotes, which is most of the time and exactly the window
-          # it is meant to cover. Run-to-run on `next` is the comparison that
-          # catches a regression while the code is still being written; the
-          # `main` push still measures against `main`.
+          # Baseline against the branch this run is measuring: run-to-run on
+          # `next` catches a regression while the code is still being written;
+          # the `main` push measures against `main`.
           BASELINE_BRANCH="main"
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "next" ]; then
             BASELINE_BRANCH="next"
@@ -407,9 +496,7 @@ jobs:
           PREV_ID="${PREV%% *}"
           PREV_CREATED="${PREV#* }"
           # Exported into this shell, not $GITHUB_ENV: GITHUB_ENV only reaches
-          # LATER steps, and the python below runs in this one. Written there it
-          # would arrive empty, the age check would never fire, and the staleness
-          # guard would silently do nothing — the exact failure it exists to stop.
+          # LATER steps, and the python below runs in this one.
           export COVERAGE_PREV_CREATED=""
           if [ -n "$PREV_ID" ] && [ "$PREV_ID" != "null" ]; then
             echo "baseline: run $PREV_ID from $PREV_CREATED"
@@ -469,23 +556,15 @@ jobs:
               sys.exit("; ".join(failures))
           PY
 
+      # Uploaded whether or not the floor or ratchet tripped: the number is a
+      # complete measurement either way (the step above already guarantees
+      # every shard is in it), and Codecov should show the erosion it flagged.
       - name: Upload coverage to Codecov
-        # Guard on both the instrumented run and the rendered report: hashFiles
-        # alone is not enough, because a workspace that fails to compile still
-        # renders a well-formed all-zero lcov.info, which Codecov then records as
-        # the branch number (0%) instead of leaving the last real one in place.
-        if: ${{ always() && steps.tests.outputs.instrumented == 'true' && hashFiles('lcov.info') != '' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
         with:
           files: lcov.info
           fail_ci_if_error: false
           use_oidc: true
-
-      - name: Disk watchdog report
-        if: always()
-        run: |
-          df -h / /mnt
-          [ -f /mnt/tmp/watchdog.log ] && cat /mnt/tmp/watchdog.log || echo "watchdog never fired"
 
       - name: Job summary
         if: always()
@@ -497,3 +576,9 @@ jobs:
             tail -30 coverage-summary.txt 2>/dev/null || echo "(coverage summary not produced)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Floor or ratchet tripped
+        if: ${{ steps.ratchet.outcome == 'failure' }}
+        run: |
+          echo "::error::coverage floor or ratchet failed; see the 'Coverage floor and ratchet' step"
+          exit 1

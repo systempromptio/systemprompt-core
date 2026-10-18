@@ -123,6 +123,7 @@ scripts/*
 !scripts/test-test-shard.py
 !scripts/collect-fallback-profraw.sh
 !scripts/quarantine-fallback-profraw.sh
+!scripts/coverage-unpack.sh
 !scripts/test-collect-fallback-profraw.py
 # ...and the bounded apt install every CI job that links system libraries runs.
 !scripts/ci-install-system-deps.sh
