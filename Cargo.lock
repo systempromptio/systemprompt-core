@@ -5312,6 +5312,7 @@ dependencies = [
  "chrono",
  "hex",
  "inventory",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml_ng",

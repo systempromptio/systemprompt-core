@@ -1,7 +1,10 @@
 use std::sync::Arc;
 
-use systemprompt_provider_contracts::{ApplyMode, ChangeActor, ChangeRequest, Dependencies};
+use systemprompt_provider_contracts::{
+    ApplyMode, ChangeActor, ChangeRequest, ConfigPlaneError, Dependencies, EntityScope,
+};
 use systemprompt_runtime::{ConfigPlaneSet, EffectiveAuthority};
+use systemprompt_scheduler::SchedulerError;
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 use systemprompt_scheduler::services::{ConfigReconcileService, PlaneOutcome, ReconcileTrigger};
 use systemprompt_test_fixtures::test_db_pool;
@@ -133,7 +136,10 @@ async fn db_authority_seeds_an_empty_projection_once() {
         .await
         .expect("audit");
     assert_eq!(audit.len(), 1);
-    assert_eq!(audit[0].actor, "boot");
+    assert_eq!(
+        (audit[0].actor.as_str(), audit[0].mode.as_str()),
+        ("seed", "seed_if_empty")
+    );
 }
 
 #[tokio::test]
@@ -179,6 +185,14 @@ async fn an_apply_that_does_not_converge_fails_the_plane() {
         state
             .iter()
             .any(|s| s.plane == plane.name && s.outcome == "failed")
+    );
+    assert!(
+        svc.repository()
+            .list_changes(plane.name, 10)
+            .await
+            .expect("audit")
+            .is_empty(),
+        "a rolled-back apply leaves no audit rows"
     );
 }
 
@@ -246,7 +260,7 @@ async fn operator_diff_and_insert_only_apply_record_the_reason() {
         reason: "ticket OPS-1",
     };
     let applied = svc
-        .apply(plane.name, ApplyMode::InsertOnly, &change)
+        .apply(plane.name, ApplyMode::InsertOnly, &change, EntityScope::All)
         .await
         .expect("apply");
 
@@ -306,4 +320,62 @@ async fn exclusive_reconcile_takes_and_releases_the_cluster_lock() {
         .await
         .expect("lock released after the first pass");
     assert_eq!(plane.store().get("a").map(String::as_str), Some("1"));
+}
+
+#[tokio::test]
+async fn seed_if_empty_from_the_cli_leaves_a_populated_plane_alone() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(
+        unique_plane_name("rec_seed_cli"),
+        &[("a", "console")],
+    ));
+    plane.write_declaration(root.path(), &[("a", "1"), ("b", "2")]);
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[plane.name])).await;
+    let change = ChangeRequest {
+        actor: ChangeActor::Cli,
+        reason: "seed attempt",
+    };
+
+    let applied = svc
+        .apply(
+            plane.name,
+            ApplyMode::SeedIfEmpty,
+            &change,
+            EntityScope::All,
+        )
+        .await
+        .expect("apply");
+
+    assert_eq!((applied.changes, applied.remaining_drift), (0, 2));
+    assert!(plane.applied_reasons.lock().expect("lock").is_empty());
+    assert_eq!(plane.store().get("a").map(String::as_str), Some("console"));
+}
+
+#[tokio::test]
+async fn a_scoped_apply_to_a_plane_without_scope_support_is_refused() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(unique_plane_name("rec_scope"), &[]));
+    plane.write_declaration(root.path(), &[("a", "1")]);
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[plane.name])).await;
+    let change = ChangeRequest {
+        actor: ChangeActor::Cli,
+        reason: "scoped",
+    };
+    let keys = vec!["a".to_owned()];
+
+    let err = svc
+        .apply(
+            plane.name,
+            ApplyMode::Overwrite,
+            &change,
+            EntityScope::Entities(&keys),
+        )
+        .await
+        .expect_err("refused");
+
+    assert!(matches!(
+        err,
+        SchedulerError::ConfigPlane(ConfigPlaneError::Unsupported { .. })
+    ));
+    assert!(plane.store().is_empty());
 }

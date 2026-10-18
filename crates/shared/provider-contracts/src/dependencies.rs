@@ -67,9 +67,7 @@ impl Dependencies {
         self.entries
             .get(&TypeId::of::<T>())
             .and_then(|entry| entry.value.downcast_ref::<T>())
-            .ok_or_else(|| MissingDependency {
-                type_name: type_name::<T>(),
-            })
+            .ok_or_else(MissingDependency::of::<T>)
     }
 }
 
@@ -90,6 +88,13 @@ pub struct MissingDependency {
 }
 
 impl MissingDependency {
+    #[must_use]
+    pub fn of<T: Any>() -> Self {
+        Self {
+            type_name: type_name::<T>(),
+        }
+    }
+
     #[must_use]
     pub const fn type_name(&self) -> &'static str {
         self.type_name

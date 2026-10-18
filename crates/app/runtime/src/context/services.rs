@@ -17,7 +17,7 @@ impl AppContext {
     ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
         crate::ConfigPlaneSet::new(
             self.extension_registry().all_config_planes(),
-            self.config().planes.clone(),
+            self.config().planes.authority.clone(),
             std::path::PathBuf::from(&self.config().services_path),
         )
     }

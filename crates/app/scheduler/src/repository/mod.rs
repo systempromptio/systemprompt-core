@@ -23,7 +23,8 @@ mod security;
 
 pub use analytics::AnalyticsRepository;
 pub use config_reconcile::{
-    ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow, PlaneStateUpdate,
+    ConfigChangeRecord, ConfigChangeRow, ConfigReconcileRepository, PlaneStateRow,
+    PlaneStateUpdate, PlaneTransaction,
 };
 pub(crate) use job_lock::JobLockGuard;
 use job_lock::JobLockRepository;

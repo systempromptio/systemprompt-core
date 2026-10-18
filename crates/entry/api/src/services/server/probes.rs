@@ -5,7 +5,9 @@
 //! the in-flight ceiling is saturated, and whenever the database probe fails.
 //! A ready answer carries a `config` block: per declared config plane, the
 //! authority, declaration hash, remaining drift and outcome of the last
-//! reconcile pass. Drift never makes a replica unready.
+//! reconcile pass, and the plane's `effect` (`live`, or `on_restart` when a
+//! change reaches the runtime only after a restart; absent for a plane this
+//! binary does not register). Drift never makes a replica unready.
 //! It also carries `fingerprint`, this replica's configuration fingerprint,
 //! so replicas running different configuration are visible.
 //! A node whose database a newer release has migrated stays ready and says so
@@ -21,7 +23,7 @@ use std::sync::Arc;
 
 use axum::Json;
 use serde_json::json;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
 use super::health::{HEALTH_CHECK_QUERY, HEALTH_PROBE_TIMEOUT};
@@ -86,7 +88,13 @@ pub(crate) async fn handle_readyz(
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 
-    let config = config_block(fingerprint, planes.as_deref().map(AsRef::as_ref)).await;
+    let registered = ctx.config_planes().ok();
+    let config = config_block(
+        fingerprint,
+        planes.as_deref().map(AsRef::as_ref),
+        registered.as_ref(),
+    )
+    .await;
     let schema = ctx.schema_state();
     let ahead = schema.ahead();
     if schema.breaks_this_release() {
@@ -105,6 +113,7 @@ pub(crate) async fn handle_readyz(
 async fn config_block(
     fingerprint: Option<systemprompt_config::ConfigFingerprint>,
     repository: Option<&ConfigReconcileRepository>,
+    registered: Option<&ConfigPlaneSet>,
 ) -> serde_json::Value {
     let Some(repository) = repository else {
         return json!({ "fingerprint": fingerprint, "planes": [] });
@@ -115,6 +124,9 @@ async fn config_block(
             "planes": rows.iter().map(|row| json!({
                 "plane": row.plane,
                 "authority": row.authority,
+                "effect": registered
+                    .and_then(|set| set.find(&row.plane).ok())
+                    .map(|plane| plane.effect().as_str()),
                 "hash": row.declared_hash,
                 "drift_rows": row.drift_rows,
                 "outcome": row.outcome,

@@ -1,6 +1,11 @@
 //! `config_plane_state` and `config_change_audit` access for the config
 //! reconciler, `/readyz` and `admin config planes`.
 //!
+//! [`ConfigReconcileRepository::begin`] opens the write-pool transaction a
+//! plane apply runs in; [`ConfigReconcileRepository::record_changes`] writes
+//! the audit rows into that same transaction, so a change and its audit
+//! commit or roll back together.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,6 +22,8 @@ use super::job_lock::{JobLockGuard, JobLockRepository};
 use crate::error::SchedulerResult;
 
 const RECONCILE_LOCK: &str = "config_reconcile";
+
+pub type PlaneTransaction = sqlx::Transaction<'static, sqlx::Postgres>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PlaneStateRow {
@@ -133,8 +140,15 @@ impl ConfigReconcileRepository {
         .await?)
     }
 
-    pub async fn record_changes(&self, records: &[ConfigChangeRecord<'_>]) -> SchedulerResult<()> {
-        let mut tx = self.write_pool.begin().await?;
+    pub async fn begin(&self) -> SchedulerResult<PlaneTransaction> {
+        Ok(self.write_pool.begin().await?)
+    }
+
+    pub async fn record_changes(
+        &self,
+        tx: &mut PlaneTransaction,
+        records: &[ConfigChangeRecord<'_>],
+    ) -> SchedulerResult<()> {
         for record in records {
             sqlx::query!(
                 r"INSERT INTO config_change_audit
@@ -151,10 +165,9 @@ impl ConfigReconcileRepository {
                 record.reason,
                 record.declared_hash,
             )
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         }
-        tx.commit().await?;
         Ok(())
     }
 

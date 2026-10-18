@@ -1,6 +1,6 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use systemprompt_manifest::profile::ConfigPlanesConfig;
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_provider_contracts::{ConfigPlane, ConfigPlaneError};
 use systemprompt_runtime::{ConfigPlaneSet, EffectiveAuthority};
@@ -9,7 +9,7 @@ use super::fake_plane::{FakePlane, unique_plane_name};
 use super::plane_set;
 
 #[test]
-fn a_declared_plane_defaults_to_file_managed_and_refuses_db_writes() {
+fn a_declared_plane_defaults_to_file_managed_and_refuses_a_writer() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("guard_file"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
@@ -19,23 +19,23 @@ fn a_declared_plane_defaults_to_file_managed_and_refuses_db_writes() {
         set.authority(plane.name).expect("authority"),
         EffectiveAuthority::File
     );
-    assert!(set.is_file_managed(plane.name).expect("managed"));
-    let err = set.ensure_db_writable(plane.name).expect_err("refused");
+    let err = set.writer(plane.name).expect_err("refused");
     assert!(matches!(err, ConfigPlaneError::FileManaged { ref path, .. } if path == plane.path));
+    let api: ApiError = err.into();
+    assert!(matches!(api.code, ErrorCode::ConflictError));
+    assert_eq!(api.error_key.as_deref(), Some("config_plane_file_managed"));
 }
 
 #[test]
-fn a_db_authority_plane_accepts_db_writes_even_with_a_file() {
+fn a_db_authority_plane_mints_a_writer_even_with_a_file() {
     let root = tempfile::tempdir().expect("tempdir");
     let plane = Arc::new(FakePlane::new(unique_plane_name("guard_db"), &[]));
     plane.write_declaration(root.path(), &[("a", "1")]);
     let set = plane_set(root.path(), &[Arc::clone(&plane)], &[plane.name]);
 
-    assert_eq!(
-        set.authority(plane.name).expect("authority"),
-        EffectiveAuthority::Db
-    );
-    set.ensure_db_writable(plane.name).expect("writable");
+    let writer = set.writer(plane.name).expect("writable");
+    assert_eq!(writer.authority(), EffectiveAuthority::Db);
+    assert_eq!(writer.plane().declared_path(), plane.path);
 }
 
 #[test]
@@ -45,10 +45,9 @@ fn a_file_authority_plane_without_its_file_is_undeclared_and_writable() {
     let set = plane_set(root.path(), &[Arc::clone(&plane)], &[]);
 
     assert_eq!(
-        set.authority(plane.name).expect("authority"),
+        set.writer(plane.name).expect("writable").authority(),
         EffectiveAuthority::Undeclared
     );
-    set.ensure_db_writable(plane.name).expect("writable");
 }
 
 #[test]
@@ -56,7 +55,7 @@ fn an_unknown_plane_is_a_typed_error() {
     let root = tempfile::tempdir().expect("tempdir");
     let set = plane_set(root.path(), &[], &[]);
     assert!(matches!(
-        set.ensure_db_writable("nope"),
+        set.writer("nope"),
         Err(ConfigPlaneError::UnknownPlane(name)) if name == "nope"
     ));
 }
@@ -68,7 +67,7 @@ fn duplicate_plane_names_are_refused() {
         Arc::new(FakePlane::new(name, &[])),
         Arc::new(FakePlane::new(name, &[])),
     ];
-    let result = ConfigPlaneSet::new(planes, ConfigPlanesConfig::default(), "/tmp".into());
+    let result = ConfigPlaneSet::new(planes, BTreeMap::new(), "/tmp".into());
     assert!(matches!(result, Err(ConfigPlaneError::DuplicatePlane(n)) if n == name));
 }
 
@@ -80,15 +79,13 @@ fn profile_keys_without_a_registered_plane_are_listed() {
 }
 
 #[test]
-fn file_managed_refusal_maps_to_409_with_a_stable_key() {
-    let api: ApiError = ConfigPlaneError::FileManaged {
-        plane: "groups".into(),
-        path: "access/groups.yaml".into(),
-    }
-    .into();
-    assert!(matches!(api.code, ErrorCode::ConflictError));
-    assert_eq!(api.error_key.as_deref(), Some("config_plane_file_managed"));
-
+fn plane_errors_map_to_stable_http_classes() {
     let unknown: ApiError = ConfigPlaneError::UnknownPlane("x".into()).into();
     assert!(matches!(unknown.code, ErrorCode::NotFound));
+    let unsupported: ApiError = ConfigPlaneError::Unsupported {
+        plane: "x".into(),
+        operation: "export",
+    }
+    .into();
+    assert!(matches!(unsupported.code, ErrorCode::BadRequest));
 }

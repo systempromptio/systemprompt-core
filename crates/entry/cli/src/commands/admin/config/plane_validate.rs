@@ -38,7 +38,7 @@ pub fn plane_declaration_results() -> Vec<ConfigFileInfo> {
     };
     let set = match ConfigPlaneSet::new(
         registry.all_config_planes(),
-        config.planes.clone(),
+        config.planes.authority.clone(),
         PathBuf::from(&config.services_path),
     ) {
         Ok(set) => set,

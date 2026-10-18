@@ -88,7 +88,7 @@ pub enum ConfigCommands {
 
     #[command(
         subcommand,
-        about = "Declared config planes: list, diff and apply (file vs database authority)"
+        about = "Declared config planes: list, diff, export and apply (file vs database authority)"
     )]
     Planes(planes::PlanesCommands),
 }
