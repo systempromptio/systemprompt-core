@@ -78,7 +78,7 @@ impl MetadataServerTokens {
         if !status.is_success() {
             return Err(GcsError::Status {
                 status: status.as_u16(),
-                body: response.text().await?,
+                body: crate::error_body::capped_error_body(response).await?,
             });
         }
         let token: MetadataToken = serde_json::from_slice(&response.bytes().await?)?;

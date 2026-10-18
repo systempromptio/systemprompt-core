@@ -104,7 +104,7 @@ impl S3FileStorage {
         }
         Err(S3Error::Status {
             status: status.as_u16(),
-            body: response.text().await?,
+            body: crate::error_body::capped_error_body(response).await?,
         })
     }
 
