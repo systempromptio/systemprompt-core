@@ -23,7 +23,12 @@ env:
   RUSTUP_MAX_RETRIES: "10"
   CARGO_NET_RETRY: "10"
   CARGO_TERM_COLOR: always
+  # One flag set for every job that compiles, so `build`, `migrator` and
+  # `test-tools` hash to the same sccache objects instead of three disjoint
+  # sets. The test workspace is warning-clean (Quality's all-targets clippy
+  # denies warnings), so it builds under `-D warnings` too.
   RUSTFLAGS: "-D warnings"
+  CARGO_PROFILE_DEV_DEBUG: "0"
   SQLX_OFFLINE: "true"
   # Every Rust job compiles through sccache with the GitHub Actions cache as
   # its backend. Objects are content-hashed, so a lockfile bump invalidates
@@ -38,12 +43,13 @@ jobs:
   fmt:
     name: Format
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       # `just format-check` covers all three workspaces (root, crates/tests,
       # bin/bridge); a bare root `cargo fmt` leaves the bridge unchecked.
       - run: just format-check
@@ -53,84 +59,53 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - run: cargo build --workspace --locked
       - run: sccache --show-stats
 
-  # The test tools every shard needs — the schema migrator from crates/tests
-  # and the `systemprompt` CLI the subprocess fixtures spawn — compiled once and
-  # handed to the shards as an artifact. Before this each of the 14 shards
-  # spent ~10 min compiling the migrator for a migration that takes seconds.
-  # The job mirrors the test job's env exactly so its sccache objects are the
-  # ones the shards then hit.
-  test-tools:
-    name: Test tools (prebuilt)
+  # The schema migrator alone, so the schema ladder starts on it within minutes
+  # instead of waiting for the full test archive (and no longer builds its own).
+  migrator:
+    name: Test migrator
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    env:
-      RUSTFLAGS: ""
-      CARGO_PROFILE_DEV_DEBUG: "0"
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - name: Install system dependencies
-        timeout-minutes: 12
-        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - name: Build migrator and CLI
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - name: Build migrator
         run: |
-          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
-          cargo build -p systemprompt-cli --bin systemprompt
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
           tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
-          mkdir -p test-tools
-          cp "$tests_target/debug/systemprompt-test-migrate" target/debug/systemprompt test-tools/
-      - name: Report test lockfile drift
-        if: always()
-        run: git diff --exit-code -- crates/tests/Cargo.lock
+          mkdir -p test-migrator
+          cp "$tests_target/debug/systemprompt-test-migrate" test-migrator/
       - run: sccache --show-stats
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: test-tools
-          path: test-tools/
+          name: test-migrator
+          path: test-migrator/
           retention-days: 1
           if-no-files-found: error
 
-  test:
-    # The test workspace does not fit one free runner
-    # in a single pass, so it is sharded by test-workspace path prefix: each
-    # shard compiles and runs only its crates (shared core deps come from the
-    # cache). Tests run under cargo-nextest with a per-test timeout, so a hung
-    # or leaking test fails fast and is named instead of starving the runner
-    # until it loses communication. The step-level `timeout-minutes` on "Run
-    # shard" is the backstop for the tests themselves; the job-level one is
-    # wider so a slow rust-cache post-step can never turn a passed shard into
-    # "cancelled" (it did, on 0.51.0).
-    name: Test (${{ matrix.group }})
+  # Everything the shards run, compiled once: the test workspace as a nextest
+  # archive (scripts/test-shard.sh --archive, the union of every shard's
+  # packages), the schema migrator, and the `systemprompt` and bridge binaries
+  # the subprocess fixtures spawn. Before this each of the 16 shards compiled
+  # its own crates (~8 min of compile for ~1 min of tests in integration-cli).
+  # The test workspace has no committed .sqlx cache, so its query macros check
+  # against this job's own freshly migrated database.
+  test-tools:
+    name: Test tools (prebuilt)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
-    needs: test-tools
-    strategy:
-      fail-fast: false
-      matrix:
-        # Group names only; the group→prefix mapping, package selection, and
-        # nextest invocation live in scripts/test-shard.sh so CI and the local
-        # `just test-shard` recipes share one source of truth.
-        group: [shared, infra, domain, app-runtime, app-scheduler, app-agent-runs, app-generator, app-oauth-issuance, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest-1, integration-rest-2, edge]
-    # This job verifies tests pass; linting the (separate) test workspace
-    # is not its job, so it does not inherit the `-D warnings` RUSTFLAGS.
-    # Drop debuginfo: each shard's compile footprint is small enough that
-    # codegen no longer needs serializing. Must stay identical to `test-tools`
-    # or the shards miss its sccache objects.
-    env:
-      RUSTFLAGS: ""
-      CARGO_PROFILE_DEV_DEBUG: "0"
+    timeout-minutes: 75
     services:
       postgres:
         image: postgres:18
@@ -145,7 +120,94 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - name: Free runner disk (the whole test workspace target overflows the default ~14GB)
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/.ghcup /usr/local/share/boost /usr/local/share/powershell \
+            /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY"
+          df -h /
+      - name: Install system dependencies
+        timeout-minutes: 12
+        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-nextest@0.9.140
+      - name: Build migrator, CLI and bridge
+        run: |
+          cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
+          cargo build -p systemprompt-cli --bin systemprompt --locked
+          cargo build --manifest-path bin/bridge/Cargo.toml --bin systemprompt-bridge --locked
+          tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          bridge_target=$(cargo metadata --manifest-path bin/bridge/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          mkdir -p test-tools
+          cp "$tests_target/debug/systemprompt-test-migrate" target/debug/systemprompt \
+             "$bridge_target/debug/systemprompt-bridge" test-tools/
+      - name: Migrate the sqlx check database
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+        run: ./test-tools/systemprompt-test-migrate
+      - name: Archive the test workspace
+        timeout-minutes: 60
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/test
+          SQLX_OFFLINE: "false"
+        run: |
+          bash scripts/test-shard.sh --archive test-tools/tests.tar.zst --locked
+          ls -lh test-tools/
+          df -h /
+      - name: Report test lockfile drift
+        if: always()
+        run: git diff --exit-code -- crates/tests/Cargo.lock
+      - run: sccache --show-stats
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-tools
+          path: test-tools/
+          retention-days: 1
+          if-no-files-found: error
+          # The archive is already zstd; recompressing it only costs time.
+          compression-level: 0
+
+  test:
+    # The test workspace runs sharded by test-workspace path prefix, every
+    # shard from the one archive `test-tools` built, so a shard is a download,
+    # a fresh migrated database and its tests. Tests run under cargo-nextest
+    # with a per-test timeout, so a hung or leaking test fails fast and is
+    # named instead of starving the runner. The step-level `timeout-minutes`
+    # on "Run shard" is the backstop for the tests themselves; the job-level
+    # one is wider so a slow post-step can never turn a passed shard into
+    # "cancelled" (it did, on 0.51.0).
+    name: Test (${{ matrix.group }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: test-tools
+    strategy:
+      fail-fast: false
+      matrix:
+        # Group names only; the group→prefix mapping, package filter, and
+        # nextest invocation live in scripts/test-shard.sh so CI and the local
+        # `just test-shard` recipes share one source of truth.
+        group: [shared, infra, domain, app-runtime, app-scheduler, app-agent-runs, app-generator, app-oauth-issuance, entry-api, entry-cli, bridge, integration-api, integration-cli, integration-rest-1, integration-rest-2, edge]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
 
@@ -153,20 +215,17 @@ jobs:
         run: |
           echo "cores: $(nproc)"; free -h; df -h /
 
-      - name: Install system dependencies
-        # bridge test crates link keyring's linux-native-sync-persistent
-        # backend, which needs libdbus at build time.
-        timeout-minutes: 12
-        run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
-
+      # Why: test-shard.sh reads the package list with `cargo metadata`, which
+      # needs the pinned toolchain; nothing in this job compiles.
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: taiki-e/install-action@nextest
-      - uses: actions/download-artifact@v4
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-nextest@0.9.140
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: test-tools
           path: test-tools/
-      - run: chmod +x test-tools/*
+      - run: chmod +x test-tools/systemprompt test-tools/systemprompt-bridge test-tools/systemprompt-test-migrate
 
       - name: Migrate test database
         env:
@@ -187,26 +246,46 @@ jobs:
         run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=48217-48226
 
       - name: Run shard
-        timeout-minutes: 30
+        timeout-minutes: 25
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
-          SQLX_OFFLINE: "false"
           NEXTEST_PROFILE: ci
-          # Prebuilt by `test-tools`; the shard script skips its own
-          # `cargo build` of the CLI when this is already set.
+          NEXTEST_ARCHIVE_FILE: ${{ github.workspace }}/test-tools/tests.tar.zst
           SYSTEMPROMPT_BIN: ${{ github.workspace }}/test-tools/systemprompt
-        run: bash scripts/test-shard.sh "${{ matrix.group }}"
-      - run: sccache --show-stats
+          SP_BRIDGE_BIN: ${{ github.workspace }}/test-tools/systemprompt-bridge
+        run: |
+          bash scripts/test-shard.sh "${{ matrix.group }}" \
+              --extract-to "$RUNNER_TEMP/nextest" --extract-overwrite
+
+      # The ci profile retries a failed test once. A retry that passes is a
+      # flake, not a pass: every one is surfaced here as an annotation.
+      - name: Report flaky tests
         if: ${{ !cancelled() }}
+        run: |
+          junit=$(find "$RUNNER_TEMP/nextest" -path '*/nextest/ci/junit.xml' -print -quit 2>/dev/null || true)
+          [ -n "$junit" ] || { echo "no junit report"; exit 0; }
+          python3 - "$junit" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          flaky = [
+              f"{case.get('classname')}::{case.get('name')}"
+              for case in ET.parse(sys.argv[1]).iter("testcase")
+              if case.find("flakyFailure") is not None or case.find("flakyError") is not None
+          ]
+          for name in flaky:
+              print(f"::warning title=Flaky test (${{ matrix.group }})::{name} failed, then passed on retry")
+          print(f"{len(flaky)} flaky test(s)")
+          PY
 
   # A database left by each of the two newest releases, upgraded by this tree,
   # must match a fresh install. Only this sees a migration that misbehaves on
   # an established database (0.59.0's events 007 passed everything else).
   schema-ladder:
     name: Schema ladder
+    needs: migrator
     uses: ./.github/workflows/schema-ladder.yml
     with:
       ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      migrator-artifact: test-migrator
 
   # The `main` ruleset's required context: it fails unless every gate above
   # succeeded, so a skipped or cancelled matrix job can never pass as "not
@@ -217,7 +296,8 @@ jobs:
   ci-passed:
     name: ${{ github.event_name == 'pull_request' && 'CI passed' || 'CI passed (push)' }}
     runs-on: ubuntu-latest
-    needs: [fmt, build, test-tools, test, schema-ladder]
+    timeout-minutes: 5
+    needs: [fmt, build, migrator, test-tools, test, schema-ladder]
     if: always()
     steps:
       - run: |
