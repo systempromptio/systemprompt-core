@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- A migration headed `-- @compat: breaking` is a contract migration; an older binary refuses to start against it.
+- `database.pool.max_connections_by_role` and `database.pool.session_max_connections`; the `database_session_url` pool carries `LISTEN`, advisory locks and migrations.
+- Pool acquire timing and projection backlog depth for metrics.
+
+### Changed
+
+- A database a newer release has migrated is reported as ahead instead of refusing to start.
+
+### Fixed
+
+- An install where one extension's schema is ahead still migrates every other extension.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

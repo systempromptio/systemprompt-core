@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `config_reconcile` job reconciles `file`-authoritative config planes, records every correction in `config_change_audit` and reports drift for `db` planes.
+- `scheduler.unlisted_jobs: warn | default | error` handling; a registered job missing from `scheduler.jobs` runs on its `Job::default_schedule()` under `default`.
+- `scheduler_job_runs_total` and `scheduler_job_duration_seconds` metrics.
+- The per-job lock can be taken with a wait, for `infra jobs run`.
+
+### Changed
+
+- **Breaking:** `SchedulerConfig` gains `unlisted_jobs`, defaulting to `default`.
+
+### Fixed
+
+- An unattended reconcile of a `file` plane whose declaration parses to zero entries fails the plane instead of deleting every row.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

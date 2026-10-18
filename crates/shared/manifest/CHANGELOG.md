@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- Profile sections `config_planes.authority`, `server.shutdown`, `observability.log_format`, `secrets.refresh_secs`, `security.api_keys.max_lifetime_days`, `database.pool.max_connections_by_role`/`session_max_connections`, `paths.data`, `storage.backend: s3`, `governance.quota.shared_subject_shards` and `scheduler.unlisted_jobs`.
+- `database_session_url` secret.
+
+### Changed
+
+- **Breaking:** `security.allow_registration` and `security.allow_dynamic_client_registration` default to `false`.
+- **Breaking:** `storage.shared: true` requires `paths.data`; an S3 bucket name containing `_` or `.` requires `path_style: true`.
+- **Breaking:** gateway `hidden_requires_route` defaults to `true`.
+
 ## [0.69.0] - 2026-10-15
 
 ### Changed

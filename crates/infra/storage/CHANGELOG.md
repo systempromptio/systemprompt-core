@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `storage.backend: s3` stores files in an S3-compatible bucket with SigV4 signing.
+
+### Changed
+
+- **Breaking:** `FileStorage::open(id, range)` replaces `retrieve` on every backend and returns metadata with `etag` and a byte stream.
+
+### Fixed
+
+- S3 and GCS downloads are bounded by a read-stall timeout, not a whole-request timeout, so large downloads are no longer cut off after 60 s.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

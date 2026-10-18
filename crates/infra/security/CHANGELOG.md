@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- Shared rate-window counter used by the `rate_limit` policy and gateway `rate_windows`.
+
+### Changed
+
+- **Breaking:** `ChainIndexCache::new`, `RuleBasedHook::new` and `build_authz_hook` take a `CacheEpochs`.
+- The `rate_limit` policy counts a fixed window in Postgres shared by every replica and fails closed when the counter is unavailable.
+
+### Fixed
+
+- Expired rate-window rows are pruned on every charging path.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

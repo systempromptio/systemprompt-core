@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.66.0] - Unreleased
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- W3C `traceparent` parsing and formatting.
+
+## [0.66.0] - 2026-10-13
 
 ### Added
 

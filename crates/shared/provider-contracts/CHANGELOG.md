@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `ConfigPlane` contract, declaration diff and `ConfigPlaneError`.
+- `Job::default_schedule()`.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

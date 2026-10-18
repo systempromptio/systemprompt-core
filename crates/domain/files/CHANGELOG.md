@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- `file_ingestion` runs on every replica.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

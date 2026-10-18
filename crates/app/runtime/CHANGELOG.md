@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `AppContext::cache_epochs()` exposes the injected `CacheEpochs` handle.
+- Config planes registered through `Extension::config_planes()` are assembled into a `ConfigPlaneSet` and reconciled at boot under the cluster-wide `config_reconcile` lock.
+- Schema currency reports `ahead` for a database a newer release has migrated, and `breaking` once a newer `@compat: breaking` migration is applied.
+- `storage.backend: s3` is wired into the file-storage backend.
+
+### Changed
+
+- The governance engine loads from the active composed services root.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

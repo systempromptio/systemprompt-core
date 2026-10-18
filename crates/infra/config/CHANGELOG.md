@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- A configuration fingerprint for `/readyz` and `systemprompt_config_info`.
+- `database_session_url` secret and `paths.data` resolution.
+
+### Changed
+
+- A secrets reload that changes `database_write_url` or `database_session_url` is refused; restart to adopt them.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

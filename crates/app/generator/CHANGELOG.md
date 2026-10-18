@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- Generated output is written to a temporary file and renamed into place.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking
