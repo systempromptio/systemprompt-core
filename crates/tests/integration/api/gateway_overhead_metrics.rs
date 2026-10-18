@@ -80,7 +80,7 @@ async fn dispatch_once(label: &str, stream: bool) -> anyhow::Result<()> {
 #[tokio::test]
 async fn a_buffered_completion_records_one_overhead_and_one_upstream_sample() -> anyhow::Result<()>
 {
-    let handle = install_recorder(&InstanceId::new("metrics-fixture"))?;
+    let handle = install_recorder(&InstanceId::new("metrics-fixture"), &[])?;
     let before = sample_count(&handle.render(), "gateway_overhead_seconds");
 
     dispatch_once("buffered", false).await?;
@@ -116,7 +116,7 @@ async fn a_buffered_completion_records_one_overhead_and_one_upstream_sample() ->
 
 #[tokio::test]
 async fn a_streamed_completion_records_its_sample_once_the_tap_finalises() -> anyhow::Result<()> {
-    let handle = install_recorder(&InstanceId::new("metrics-fixture"))?;
+    let handle = install_recorder(&InstanceId::new("metrics-fixture"), &[])?;
     let before = sample_count(&handle.render(), "gateway_upstream_duration_seconds");
 
     dispatch_once("streamed", true).await?;

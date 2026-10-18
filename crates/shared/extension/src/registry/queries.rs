@@ -1,5 +1,5 @@
 //! Read accessors over the `ExtensionRegistry` for looking up extensions,
-//! assets, and jobs.
+//! assets, jobs, readiness checks and metric descriptors.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,7 +7,9 @@
 use super::ExtensionRegistry;
 use crate::Extension;
 use crate::asset::{AssetDefinition, AssetPaths};
+use crate::context::ExtensionContext;
 use crate::error::LoaderError;
+use crate::health::{MetricDescriptor, ReadinessCheck};
 use std::sync::Arc;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{ConfigPlane, Job};
@@ -198,6 +200,27 @@ impl ExtensionRegistry {
         self.sorted_extensions
             .iter()
             .flat_map(|ext| ext.config_planes())
+            .collect()
+    }
+
+    #[must_use]
+    pub fn all_metrics(&self) -> Vec<MetricDescriptor> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| ext.metrics())
+            .collect()
+    }
+
+    pub fn all_readiness_checks(
+        &self,
+        ctx: &dyn ExtensionContext,
+    ) -> Vec<(&'static str, Arc<dyn ReadinessCheck>)> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| {
+                let id = ext.id();
+                ext.readiness(ctx).into_iter().map(move |check| (id, check))
+            })
             .collect()
     }
 }

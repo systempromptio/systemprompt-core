@@ -25,7 +25,7 @@ async fn app(limit: Arc<LoadShed>, release: Arc<Notify>, entered: Arc<Notify>) -
     let url = test_database_url();
     let pool = test_db_pool().await;
     let ctx = (*test_app_context(&pool, &url)).clone();
-    let handle = install_recorder(&InstanceId::new("load-shed-fixture")).expect("recorder");
+    let handle = install_recorder(&InstanceId::new("load-shed-fixture"), &[]).expect("recorder");
     let slow = axum::routing::get(move || {
         let release = Arc::clone(&release);
         let entered = Arc::clone(&entered);

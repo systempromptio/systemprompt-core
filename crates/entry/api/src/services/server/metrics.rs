@@ -1,5 +1,10 @@
 //! Prometheus recorder installation and HTTP metrics rendering.
 //!
+//! The recorder installs once per process with core's histogram buckets plus
+//! those every extension declares through `Extension::metrics`; each
+//! extension descriptor is described after install so `/metrics` carries its
+//! help text.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -14,6 +19,7 @@ use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use systemprompt_events::{
     A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
 };
+use systemprompt_extension::{MetricDescriptor, MetricKind};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_traits::OwnedTask;
 
@@ -32,7 +38,10 @@ const SSE_CONNECTIONS: &str = "sse_active_connections";
 static RECORDER: OnceLock<PrometheusHandle> = OnceLock::new();
 static RECORDER_INIT: Mutex<()> = Mutex::new(());
 
-pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHandle> {
+pub fn install_recorder(
+    instance_id: &InstanceId,
+    extension_metrics: &[MetricDescriptor],
+) -> anyhow::Result<PrometheusHandle> {
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
@@ -42,7 +51,13 @@ pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHa
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
-    let builder = super::ops_metrics::with_buckets(PrometheusBuilder::new())?;
+    let mut builder = super::ops_metrics::with_buckets(PrometheusBuilder::new())?;
+    for descriptor in extension_metrics {
+        if let MetricKind::Histogram { buckets } = descriptor.kind {
+            builder = builder
+                .set_buckets_for_metric(Matcher::Full(descriptor.name.to_owned()), buckets)?;
+        }
+    }
     let handle = builder
         .add_global_label("instance", instance_id.as_str())
         .set_buckets_for_metric(
@@ -60,7 +75,20 @@ pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHa
         .install_recorder()
         .map_err(|e| anyhow::anyhow!("failed to install Prometheus recorder: {e}"))?;
     describe_metrics();
+    describe_extension_metrics(extension_metrics);
     Ok(RECORDER.get_or_init(|| handle).clone())
+}
+
+fn describe_extension_metrics(extension_metrics: &[MetricDescriptor]) {
+    for descriptor in extension_metrics {
+        match descriptor.kind {
+            MetricKind::Counter => metrics::describe_counter!(descriptor.name, descriptor.help),
+            MetricKind::Gauge => metrics::describe_gauge!(descriptor.name, descriptor.help),
+            MetricKind::Histogram { .. } => {
+                metrics::describe_histogram!(descriptor.name, descriptor.help);
+            },
+        }
+    }
 }
 
 fn describe_metrics() {

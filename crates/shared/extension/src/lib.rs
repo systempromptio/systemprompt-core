@@ -65,6 +65,7 @@ pub mod cost;
 pub mod error;
 pub mod frame_options;
 pub mod gateway_guard;
+pub mod health;
 pub mod metadata;
 pub mod migration;
 pub mod purge;
@@ -82,6 +83,9 @@ pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
     GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
+};
+pub use health::{
+    BoxedReadinessSource, MetricDescriptor, MetricKind, ReadinessCheck, ReadinessFailure,
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;

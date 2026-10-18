@@ -15,6 +15,9 @@
 //! them is `@compat: breaking`: then it answers 503 with `"schema":
 //! "breaking"`. The ahead set is the one the node's schema watch last read,
 //! not the boot snapshot.
+//! Every extension readiness check runs on each probe; one that fails,
+//! errors or overruns the probe timeout answers 503 with the failing checks
+//! under `extensions`, so the probe fails closed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,6 +26,7 @@ use std::sync::Arc;
 
 use axum::Json;
 use serde_json::json;
+use systemprompt_extension::{ReadinessCheck, ReadinessFailure};
 use systemprompt_runtime::{AppContext, ConfigPlaneSet};
 use systemprompt_scheduler::repository::ConfigReconcileRepository;
 
@@ -43,6 +47,7 @@ pub(crate) async fn handle_readyz(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
     shed: Option<axum::Extension<Arc<LoadShed>>>,
     planes: Option<axum::Extension<Arc<ConfigReconcileRepository>>>,
+    readiness: Option<axum::Extension<Arc<ExtensionReadiness>>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
@@ -95,6 +100,14 @@ pub(crate) async fn handle_readyz(
         registered.as_ref(),
     )
     .await;
+    let (extensions_ready, extensions) = match readiness.as_deref() {
+        Some(readiness) => readiness.run().await,
+        None => (true, json!([])),
+    };
+    if !extensions_ready {
+        let body = json!({ "status": "unready", "extensions": extensions });
+        return respond(StatusCode::SERVICE_UNAVAILABLE, body, config);
+    }
     let schema = ctx.schema_state();
     let ahead = schema.ahead();
     if schema.breaks_this_release() {
@@ -102,9 +115,14 @@ pub(crate) async fn handle_readyz(
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, config);
     }
     let body = if ahead.is_empty() {
-        json!({ "status": "ready" })
+        json!({ "status": "ready", "extensions": extensions })
     } else {
-        json!({ "status": "ready", "schema": "ahead", "schema_ahead": ahead })
+        json!({
+            "status": "ready",
+            "schema": "ahead",
+            "schema_ahead": ahead,
+            "extensions": extensions,
+        })
     };
     respond(StatusCode::OK, body, config)
 }
@@ -138,5 +156,67 @@ async fn config_block(
             json!({ "fingerprint": fingerprint, "planes": [], "error": "unavailable" })
         },
         Err(_) => json!({ "fingerprint": fingerprint, "planes": [], "error": "timeout" }),
+    }
+}
+
+/// The readiness checks every registered extension contributed, built once
+/// when the probe routes mount.
+pub(crate) struct ExtensionReadiness {
+    checks: Vec<(&'static str, Arc<dyn ReadinessCheck>)>,
+}
+
+impl ExtensionReadiness {
+    pub(crate) fn from_context(ctx: &AppContext) -> Self {
+        Self {
+            checks: ctx.extension_registry().all_readiness_checks(ctx),
+        }
+    }
+
+    // JSON: the per-check `/readyz` entries are an open JSON array.
+    async fn run(&self) -> (bool, serde_json::Value) {
+        let outcomes =
+            futures_util::future::join_all(self.checks.iter().map(|(extension, check)| {
+                let extension = *extension;
+                async move {
+                    let outcome = tokio::time::timeout(HEALTH_PROBE_TIMEOUT, check.check()).await;
+                    check_entry(extension, check.name(), outcome)
+                }
+            }))
+            .await;
+        let ready = outcomes.iter().all(|(ok, _)| *ok);
+        let entries = outcomes.into_iter().map(|(_, entry)| entry).collect();
+        (ready, serde_json::Value::Array(entries))
+    }
+}
+
+pub(crate) fn readiness_layer(ctx: &AppContext) -> axum::Extension<Arc<ExtensionReadiness>> {
+    axum::Extension(Arc::new(ExtensionReadiness::from_context(ctx)))
+}
+
+fn check_entry(
+    extension: &'static str,
+    check: &'static str,
+    outcome: Result<Result<(), ReadinessFailure>, tokio::time::error::Elapsed>,
+) -> (bool, serde_json::Value) {
+    match outcome {
+        Ok(Ok(())) => (
+            true,
+            json!({ "extension": extension, "check": check, "status": "ok" }),
+        ),
+        Ok(Err(ReadinessFailure::Unready { reason })) => (
+            false,
+            json!({ "extension": extension, "check": check, "status": "unready", "reason": reason }),
+        ),
+        Ok(Err(error)) => {
+            tracing::warn!(extension, check, error = %error, "extension readiness check errored");
+            (
+                false,
+                json!({ "extension": extension, "check": check, "status": "error" }),
+            )
+        },
+        Err(_) => (
+            false,
+            json!({ "extension": extension, "check": check, "status": "timeout" }),
+        ),
     }
 }

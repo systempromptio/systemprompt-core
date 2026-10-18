@@ -476,6 +476,8 @@ mod gateway_bridge_models_more;
 mod gateway_dispatch_more;
 
 #[cfg(test)]
+#[path = "server_extension_readiness.rs"]
+mod server_extension_readiness;
 #[path = "server_readiness_db_loss.rs"]
 mod server_readiness_db_loss;
 #[cfg(test)]
