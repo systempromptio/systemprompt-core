@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** `GET /api/v1/core/oauth/callback` is removed (it could not redeem a code once PKCE became mandatory and no flow reached it), and `/oauth/authorize` echoes the client's `state` verbatim; `StateBindingParams`, `StateBindingRow`, the `find_*_by_redirect_uri*` client lookups, `OauthCleanupCounts::state_bindings` and `token::COOKIE_MAX_AGE_SECONDS` are removed. The `oauth_state_bindings` table is kept unused for rolling updates from 0.70 and is dropped in the next release.
 - **Breaking:** `ConfigPlane::read_current`, `apply` and `export` take the host transaction (`PlaneTx`), `apply` takes an `ApplyRequest`, and `ConfigPlaneSet` lives in `systemprompt-provider-contracts` with `new` taking the authority map; `ConfigPlaneSet::ensure_db_writable` and `is_file_managed` are removed. Migrate by calling `ConfigPlaneSet::writer(plane)` before a console write.
 - **Breaking:** `GovernanceEngine::from_config` and `from_services_root` take the rate-window repository, and a chain that arms a rate window without one fails construction with `GovernanceEngineError::RateWindowsUnavailable`; `charge_rate_windows`, `with_rate_windows` and `RateChargeSubject` are removed. Migrate by passing `Some(RateWindowRepository::new(pool))` and calling `charge_and_evaluate`.
 - **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After` instead of being admitted.
@@ -11,6 +12,8 @@
 
 ### Added
 
+- **Marketplace:** `NativeGitSourceCapture::with_certificate_authority` trusts a private Git host's CA for `ls-remote` and fetch.
+- **CLI:** `admin config planes` runs against a supplied `AppContext` (`planes::run`), and `OpsSampler` exposes one metrics sampling pass.
 - **Config planes:** `ConfigPlane::depends_on` orders planes (boot refuses an unknown dependency or a cycle), `effect` reports whether a change applies live or on restart, `export` renders a plane's rows as a declaration, and scoped apply (`EntityScope`) is available to planes that opt in; `admin config planes export --plane <p> [--out <file>]`, `apply --entity` and `apply --mode seed-if-empty` drive them, and `ExtensionContext::config_planes()` hands an extension the plane set.
 - **Extensions:** `ExtensionContext::instances()` (instance liveness), `leases()` (expiring single-owner leases), `advisory_locks()` (session-pool advisory locks) and `secret(name)` (custom secrets from the profile's secrets source); `Extension::readiness()` contributes named checks to `/readyz`, which answers `503` when one fails, errors or overruns, and `Extension::metrics()` declares metric descriptors and histogram buckets.
 - **Governance:** `GovernanceEngine::charge_and_evaluate` (and `charge`) charges a call's rate windows and evaluates it in one step from a `PolicyRequest`; `RateCounts::charged` builds pre-charged counts for policy tests.
@@ -24,6 +27,7 @@
 
 ### Fixed
 
+- **CLI:** `admin users restore` and `admin users legal-hold` find archived accounts; both previously answered "User not found" for every archived user.
 - **Scheduler:** an enforced `database_cleanup` run no longer deletes system-span log rows as orphans; their sentinel owner is not a user row.
 - **Gateway:** a request that the quota windows refuse (enforce) or whose quota check fails has its `rate_windows` charge refunded.
 - **Storage:** S3 and Cloud Storage error bodies are capped at 2 KiB before they reach error text and logs.
