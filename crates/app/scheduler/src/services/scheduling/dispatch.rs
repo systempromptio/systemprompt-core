@@ -87,7 +87,7 @@ pub(super) async fn execute_job(dispatch: JobDispatch) {
 
     trace!(job_name = %job_name, "Starting job");
 
-    let budget = find_job(&job_name).and_then(|job| job.db_budget());
+    let budget = find_job(&job_name).and_then(JobTrait::db_budget);
     let ctx = make_job_context(actor, db_pool, app_context, budget)
         .with_enforce(enforce)
         .with_parameters(parameters);

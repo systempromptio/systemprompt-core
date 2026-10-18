@@ -13,7 +13,8 @@ use axum::http::Request;
 use systemprompt_api::services::server::builder::discovery_router;
 use systemprompt_api::services::server::readiness::{signal_ready, signal_shutdown};
 use systemprompt_extension::{
-    Extension, ExtensionContext, ExtensionRegistry, ExtensionMetadata, ReadinessCheck, ReadinessFailure,
+    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ReadinessCheck,
+    ReadinessFailure,
 };
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config, test_db_pool,
@@ -74,8 +75,11 @@ async fn readyz(outcome: Outcome) -> Result<(u16, serde_json::Value)> {
     let pool = test_db_pool().await;
     let mut registry = ExtensionRegistry::new();
     registry.register(Arc::new(ReadinessExt(outcome)))?;
-    let ctx =
-        fixture_app_context_with_extensions(&pool, fixture_config(&bootstrap.database_url), registry)?;
+    let ctx = fixture_app_context_with_extensions(
+        &pool,
+        fixture_config(&bootstrap.database_url),
+        registry,
+    )?;
     let app = discovery_router(&ctx);
     signal_ready();
     let response = app

@@ -24,7 +24,7 @@ use systemprompt_traits::{
 use super::service::{INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS};
 use crate::DbPool;
 
-const MAX_LEASE_TTL: Duration = Duration::from_secs(86_400);
+const MAX_LEASE_TTL: Duration = Duration::from_hours(24);
 
 #[derive(Debug, Clone)]
 pub struct InstanceLeaseRepository {

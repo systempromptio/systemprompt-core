@@ -104,7 +104,7 @@ impl ExtensionRegistry {
     #[must_use]
     pub fn api_routers(
         &self,
-        ctx: &dyn crate::ExtensionContext,
+        ctx: &dyn ExtensionContext,
     ) -> Vec<(Arc<dyn Extension>, crate::ExtensionRouter)> {
         self.sorted_extensions
             .iter()

@@ -46,7 +46,7 @@ pub enum StampOutcome<T> {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ReleaseStampError<E: std::error::Error + 'static> {
+pub enum ReleaseStampError<E> {
     #[error("release stamp lock failed")]
     Lock(#[source] CoordinationError),
     #[error("release stamp could not be read or written")]
