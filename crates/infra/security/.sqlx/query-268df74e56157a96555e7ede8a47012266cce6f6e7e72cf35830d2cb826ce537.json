@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH removed AS (\n                DELETE FROM governance_rate_charges\n                WHERE call_id = $1 AND bucket_key = $2\n                RETURNING expires_at\n            )\n            UPDATE governance_rate_windows w\n            SET hits = GREATEST(w.hits - 1, 0)\n            FROM removed r\n            WHERE w.bucket_key = $2 AND w.expires_at = r.expires_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "268df74e56157a96555e7ede8a47012266cce6f6e7e72cf35830d2cb826ce537"
+}

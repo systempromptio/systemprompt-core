@@ -6,6 +6,7 @@
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
+use systemprompt_traits::RepositoryError;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::{GatewayAudit, GatewayRepositories, quota};
@@ -58,36 +59,19 @@ pub(super) async fn enforce_quota(
     audit: &GatewayAudit,
     admission: QuotaAdmission<'_>,
 ) -> Result<(), DispatchError> {
-    let QuotaAdmission {
-        policy,
-        fault_mode,
-        estimate,
-    } = admission;
-    super::rate::enforce_rate_windows(repos, audit, policy, fault_mode).await?;
-    let ctx = &audit.ctx;
-    let windows: Vec<QuotaWindow> = policy
-        .quota_windows
-        .iter()
-        .chain(&ctx.api_key_windows)
-        .cloned()
-        .collect();
-    let outcome = quota::precheck_and_reserve(
-        &repos.quota_buckets,
-        quota::ReserveParams {
-            providers: &repos.subject_providers,
-            subjects: quota::QuotaSubjects {
-                user_id: &ctx.user_id,
-                api_key_id: ctx.attribution.api_key_id.as_ref(),
-                attribution: &ctx.attribution,
-            },
-            windows: &windows,
-            fault_mode,
-            estimate,
-            sharding: repos.quota_sharding,
+    let rate_charges =
+        super::rate::enforce_rate_windows(repos, audit, admission.policy, admission.fault_mode)
+            .await?;
+    let outcome = match reserve(repos, audit, admission).await {
+        Ok(outcome) => outcome,
+        Err(e) => {
+            rate_charges.refund(repos).await;
+            return Err(DispatchError::Recorded(GatewayError::internal(
+                "quota precheck failed",
+                e,
+            )));
         },
-    )
-    .await
-    .map_err(|e| DispatchError::Recorded(GatewayError::internal("quota precheck failed", e)))?;
+    };
     let (decision, reservation) = match outcome {
         quota::ReserveOutcome::Admitted(reservation) => {
             audit.set_quota_reservation(reservation);
@@ -98,24 +82,12 @@ pub(super) async fn enforce_quota(
             reservation,
         } => (decision, reservation),
     };
-    count_denial(&decision, policy);
-    if policy.quota_mode.is_warn() {
-        audit.set_quota_reservation(reservation);
-        tracing::warn!(
-            ai_request_id = %ctx.ai_request_id,
-            user_id = %ctx.user_id,
-            window_seconds = decision.window_seconds,
-            reason = %decision.message,
-            "Gateway quota window exhausted in warn mode; allowing the request"
-        );
-        record_quota_warning(db, audit, &decision.message)
-            .await
-            .map_err(|e| {
-                DispatchError::Recorded(GatewayError::internal("quota warning record failed", e))
-            })?;
-        return Ok(());
-    }
+    count_denial(&decision, admission.policy);
     audit.set_quota_reservation(reservation);
+    if admission.policy.quota_mode.is_warn() {
+        return admit_in_warn_mode(db, audit, &decision).await;
+    }
+    rate_charges.refund(repos).await;
     let msg = decision.message;
     if let Err(e) = audit.fail(&msg).await {
         tracing::warn!(error = %e, "quota audit fail failed");
@@ -125,6 +97,56 @@ pub(super) async fn enforce_quota(
         retry_after_seconds: i32::try_from(decision.detail.retry_after_seconds).unwrap_or(i32::MAX),
         detail: Some(decision.detail),
     }))
+}
+
+async fn reserve(
+    repos: &GatewayRepositories,
+    audit: &GatewayAudit,
+    admission: QuotaAdmission<'_>,
+) -> Result<quota::ReserveOutcome, RepositoryError> {
+    let ctx = &audit.ctx;
+    let windows: Vec<QuotaWindow> = admission
+        .policy
+        .quota_windows
+        .iter()
+        .chain(&ctx.api_key_windows)
+        .cloned()
+        .collect();
+    quota::precheck_and_reserve(
+        &repos.quota_buckets,
+        quota::ReserveParams {
+            providers: &repos.subject_providers,
+            subjects: quota::QuotaSubjects {
+                user_id: &ctx.user_id,
+                api_key_id: ctx.attribution.api_key_id.as_ref(),
+                attribution: &ctx.attribution,
+            },
+            windows: &windows,
+            fault_mode: admission.fault_mode,
+            estimate: admission.estimate,
+            sharding: repos.quota_sharding,
+        },
+    )
+    .await
+}
+
+async fn admit_in_warn_mode(
+    db: &DbPool,
+    audit: &GatewayAudit,
+    decision: &quota::QuotaDecision,
+) -> Result<(), DispatchError> {
+    tracing::warn!(
+        ai_request_id = %audit.ctx.ai_request_id,
+        user_id = %audit.ctx.user_id,
+        window_seconds = decision.window_seconds,
+        reason = %decision.message,
+        "Gateway quota window exhausted in warn mode; allowing the request"
+    );
+    record_quota_warning(db, audit, &decision.message)
+        .await
+        .map_err(|e| {
+            DispatchError::Recorded(GatewayError::internal("quota warning record failed", e))
+        })
 }
 
 fn count_denial(decision: &quota::QuotaDecision, policy: &GatewayPolicySpec) {

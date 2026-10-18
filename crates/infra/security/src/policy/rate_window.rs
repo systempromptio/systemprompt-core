@@ -15,7 +15,9 @@
 //! windows and charges, whichever enforcement point charged it.
 //!
 //! Charging is idempotent per call id: a re-evaluated call reads the position
-//! it was first charged at. A window whose charge fails is absent from
+//! it was first charged at. [`RateWindowRepository::refund`] takes a call's
+//! charge back out of the window it landed in, for a request a later stage
+//! refused before it ran. A window whose charge fails is absent from
 //! [`RateCounts`], and the policy treats an absent count as a violation —
 //! fail-closed under `enforce`, a warning under `warn`.
 //!
@@ -144,6 +146,28 @@ impl RateWindowRepository {
         .fetch_one(&self.pool)
         .await?;
         Ok(u64::try_from(position).unwrap_or(0))
+    }
+
+    pub async fn refund(&self, charge: RateCharge<'_>) -> Result<bool, RepositoryError> {
+        let refunded = sqlx::query!(
+            r#"
+            WITH removed AS (
+                DELETE FROM governance_rate_charges
+                WHERE call_id = $1 AND bucket_key = $2
+                RETURNING expires_at
+            )
+            UPDATE governance_rate_windows w
+            SET hits = GREATEST(w.hits - 1, 0)
+            FROM removed r
+            WHERE w.bucket_key = $2 AND w.expires_at = r.expires_at
+            "#,
+            charge.call_id.as_str(),
+            charge.bucket_key(),
+        )
+        .execute(&self.pool)
+        .await?
+        .rows_affected();
+        Ok(refunded > 0)
     }
 
     pub async fn prune_expired(&self) -> Result<u64, RepositoryError> {
