@@ -3,6 +3,7 @@ mod e2e;
 mod fake_plane;
 mod guard;
 mod reconcile_db;
+mod reconcile_ops_db;
 
 use std::collections::BTreeMap;
 use std::path::Path;
