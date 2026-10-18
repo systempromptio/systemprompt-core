@@ -26,6 +26,8 @@ pub struct BootOptions {
     pub write_url: bool,
     pub mcp_servers_yaml: String,
     pub broken_storage: bool,
+    pub storage_yaml: String,
+    pub extra_secrets: Vec<(String, String)>,
 }
 
 impl Default for BootOptions {
@@ -37,6 +39,8 @@ impl Default for BootOptions {
             write_url: false,
             mcp_servers_yaml: "mcp_servers: {}\n".to_owned(),
             broken_storage: false,
+            storage_yaml: String::new(),
+            extra_secrets: Vec::new(),
         }
     }
 }
@@ -99,13 +103,24 @@ pub fn boot(opts: &BootOptions) -> BootFixture {
     } else {
         String::new()
     };
+    let extra_secrets_json: String = opts
+        .extra_secrets
+        .iter()
+        .map(|(name, value)| {
+            format!(
+                ",\n  {}: {}",
+                serde_json::to_string(name).expect("encode secret name"),
+                serde_json::to_string(value).expect("encode secret value")
+            )
+        })
+        .collect();
     std::fs::write(
         &secrets_path,
         format!(
             "{{\n  \"oauth_at_rest_pepper\": \"{PEPPER}\",\n  \
              \"manifest_signing_secret_seed\": \"{SEED}\",\n  \
              \"encryption_master_key\": \"{MASTER_KEY}\",\n  \
-             \"database_url\": \"{database_url}\"{write_url_json}\n}}\n"
+             \"database_url\": \"{database_url}\"{write_url_json}{extra_secrets_json}\n}}\n"
         ),
     )
     .expect("write secrets.json");
@@ -294,7 +309,7 @@ governance:
       mode: unrestricted
       timeout_ms: 500
       acknowledgement: '{ack}'
-",
+{storage_yaml}",
         system = root.join("system").display(),
         services = root.join("services").display(),
         bin = root.join("bin").display(),
@@ -303,5 +318,6 @@ governance:
         stream_per_second = opts.stream_per_second,
         admin = opts.admin_username,
         ack = UNRESTRICTED_ACKNOWLEDGEMENT,
+        storage_yaml = opts.storage_yaml,
     )
 }
