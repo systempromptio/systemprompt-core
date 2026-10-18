@@ -29,7 +29,7 @@ use systemprompt_manifest::profile::RateLimitsConfig;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::ContextExtractionError;
-use systemprompt_test_fixtures::{fixture_config, test_db_pool};
+use systemprompt_test_fixtures::{closed_db_pool, fixture_config, test_db_pool};
 use systemprompt_users::UserRateLimitBucketRepository;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -393,6 +393,34 @@ async fn an_anonymous_caller_never_touches_the_replica_shared_window() {
         status,
         StatusCode::OK,
         "an anonymous identity is derived from headers and must not be keyed globally"
+    );
+}
+
+#[tokio::test]
+async fn an_unreachable_shared_window_refuses_a_verified_identity_instead_of_admitting_it() {
+    let closed = closed_db_pool().await;
+    let buckets = Arc::new(UserRateLimitBucketRepository::new(&closed));
+    let limits = RateLimitState::new(&config_with(limited()), buckets);
+    let app = ok_router()
+        .with_rate_limit(&limits, 1, SCOPE)
+        .expect("a 1/s limiter must build");
+
+    let resp = app
+        .oneshot(authed_request(context_for(&format!(
+            "dead-{}",
+            Uuid::new_v4().simple()
+        ))))
+        .await
+        .expect("request must complete");
+
+    assert_eq!(
+        resp.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "a counter that cannot be charged must not let the request run unmetered"
+    );
+    assert!(
+        resp.headers().get("retry-after").is_some(),
+        "a fail-closed refusal tells the caller when to retry"
     );
 }
 

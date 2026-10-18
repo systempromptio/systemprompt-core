@@ -206,7 +206,9 @@ that identity, and an unauthenticated request by the client address resolved thr
 `trusted_proxies`. Hop headers from an untrusted peer are ignored, so a caller cannot select its
 own bucket. Identity-keyed budgets are counted in the database and therefore hold across every
 replica; address-keyed throttles are per process, so their effective ceiling scales with the
-replica count.
+replica count. The identity-keyed window fails closed: if the database counter cannot be
+updated, an authenticated request answers `503` with `Retry-After` instead of running unmetered.
+There is no fail-open option; `disabled: true` is the only way to run without the window.
 
 ## `system_admin`
 

@@ -6,6 +6,10 @@
 //! authenticates inside its handlers never puts one there. On those routers
 //! every request is anonymous to this layer and passes straight through.
 //!
+//! The window fails closed: when the bucket cannot be charged, an
+//! authenticated request answers `503` with `Retry-After` rather than
+//! running unmetered.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -45,6 +49,15 @@ fn too_many_requests(now: DateTime<Utc>, start: DateTime<Utc>) -> Response {
         .into_response()
 }
 
+fn limiter_unavailable() -> Response {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        [(header::RETRY_AFTER, GLOBAL_WINDOW_SECS.to_string())],
+        "rate limit unavailable",
+    )
+        .into_response()
+}
+
 pub(super) async fn global_user_rate_limit(
     State(limit): State<GlobalUserLimit>,
     req: Request,
@@ -78,9 +91,9 @@ pub(super) async fn global_user_rate_limit(
                 user_id = %user_id,
                 scope = limit.scope,
                 error = %err,
-                "global user rate limit unavailable; admitting request"
+                "global user rate limit unavailable; refusing request"
             );
-            next.run(req).await
+            limiter_unavailable()
         },
     }
 }
