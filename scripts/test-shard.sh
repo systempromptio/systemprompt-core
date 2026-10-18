@@ -42,7 +42,32 @@ group_prefixes() {
 SHARD_GROUPS="shared infra domain app-runtime app-scheduler app-agent-runs app-generator app-oauth-issuance entry-api entry-cli bridge integration-api integration-cli integration-rest-1 integration-rest-2 edge"
 
 [ "${1:-}" = "--list" ] && { echo $SHARD_GROUPS; exit 0; }
-group="${1:?usage: test-shard.sh <group|--list> [extra nextest args]}"; shift || true
+
+PACKAGE_JSON=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml)
+# Packages whose manifest sits under any of the given prefixes, one per line.
+packages_under() {
+  printf '%s' "$PACKAGE_JSON" | jq -r --arg ps "$1" '
+      ($ps | split(" ") | map(select(length > 0))) as $prefixes
+      | .packages[] | .manifest_path as $m
+      | select($prefixes | any(. as $p | $m | contains($p)))
+      | .name'
+}
+
+# `--archive FILE` builds every shard's test binaries once into a nextest
+# archive; a shard then runs from it with NEXTEST_ARCHIVE_FILE=FILE, selecting
+# its packages with the same filter it would otherwise compile.
+if [ "${1:-}" = "--archive" ]; then
+  archive="${2:?usage: test-shard.sh --archive <file> [extra nextest args]}"; shift 2
+  all_prefixes=""
+  for g in $SHARD_GROUPS; do all_prefixes="$all_prefixes $(group_prefixes "$g")"; done
+  ALL_PKGS=$(packages_under "$all_prefixes" | sort -u | sed 's/^/-p /' | tr '\n' ' ')
+  test -n "$ALL_PKGS" || { echo "no packages matched any shard group" >&2; exit 1; }
+  cargo nextest archive --manifest-path crates/tests/Cargo.toml \
+    --lib --tests $ALL_PKGS --archive-file "$archive" "$@"
+  exit 0
+fi
+
+group="${1:?usage: test-shard.sh <group|--list|--archive FILE> [extra nextest args]}"; shift || true
 
 # integration-rest is still the widest group after the three-way split, so the
 # two CI shards run the same package set under complementary nextest partitions.
@@ -53,17 +78,9 @@ case "$group" in
 esac
 
 prefixes="$(group_prefixes "$group")"
-PACKAGE_JSON=$(cargo metadata --no-deps --format-version 1 --manifest-path crates/tests/Cargo.toml)
-PKGS=$(printf '%s' "$PACKAGE_JSON" | jq -r --arg ps "$prefixes" '
-      ($ps | split(" ") | map(select(length > 0))) as $prefixes
-      | .packages[] | .manifest_path as $m
-      | select($prefixes | any(. as $p | $m | contains($p)))
-      | "-p \(.name)"' | tr '\n' ' ')
-PACKAGE_FILTER=$(printf '%s' "$PACKAGE_JSON" | jq -r --arg ps "$prefixes" '
-      ($ps | split(" ") | map(select(length > 0))) as $prefixes
-      | [.packages[] | .manifest_path as $m
-         | select($prefixes | any(. as $p | $m | contains($p)))
-         | "package(=\(.name))"] | join(" | ")')
+SHARD_PKGS=$(packages_under "$prefixes")
+PKGS=$(printf '%s\n' "$SHARD_PKGS" | sed '/^$/d; s/^/-p /' | tr '\n' ' ')
+PACKAGE_FILTER=$(printf '%s\n' "$SHARD_PKGS" | sed '/^$/d; s/.*/package(=&)/' | paste -sd'|' | sed 's/|/ | /g')
 test -n "$PKGS" || { echo "no packages matched group $group" >&2; exit 1; }
 echo "shard $group: $PKGS"
 
@@ -124,7 +141,14 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-}" ]; then
+# Prebuilt binaries — coverage's reused build metadata or CI's nextest archive —
+# are selected by the shard's package filter instead of cargo target flags.
+prebuilt=()
+if [ -n "${NEXTEST_ARCHIVE_FILE:-}" ]; then
+  test -f "$NEXTEST_ARCHIVE_FILE" || { echo "NEXTEST_ARCHIVE_FILE=$NEXTEST_ARCHIVE_FILE is missing" >&2; exit 2; }
+  prebuilt=(--archive-file "$NEXTEST_ARCHIVE_FILE" --workspace-remap "$ROOT")
+  default_profile=default
+elif [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-}" ]; then
   test -n "${COVERAGE_BINARIES_METADATA:-}" && test -n "${COVERAGE_CARGO_METADATA:-}" || {
     echo "coverage metadata reuse requires both metadata paths" >&2
     exit 2
@@ -133,6 +157,11 @@ if [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-
     echo "coverage metadata reuse files are missing" >&2
     exit 2
   }
+  prebuilt=(--binaries-metadata "$COVERAGE_BINARIES_METADATA" --cargo-metadata "$COVERAGE_CARGO_METADATA")
+  default_profile=coverage
+fi
+
+if [ "${#prebuilt[@]}" -gt 0 ]; then
   reuse_filter="$PACKAGE_FILTER"
   reuse_args=()
   for ((index = 0; index < ${#nextest_args[@]}; index++)); do
@@ -148,9 +177,8 @@ if [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-
       reuse_args+=("$arg")
     fi
   done
-  cargo nextest run --profile "${NEXTEST_PROFILE:-coverage}" \
-    --binaries-metadata "$COVERAGE_BINARIES_METADATA" \
-    --cargo-metadata "$COVERAGE_CARGO_METADATA" \
+  cargo nextest run --profile "${NEXTEST_PROFILE:-$default_profile}" \
+    "${prebuilt[@]}" \
     -E "$reuse_filter" "${PARTITION[@]}" --test-threads "$threads" \
     "${reuse_args[@]}"
 else

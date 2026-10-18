@@ -11,7 +11,7 @@ SHARD = ROOT / "scripts" / "test-shard.sh"
 
 
 class TestShardInvocation(unittest.TestCase):
-    def run_shard(self, group, *args, reuse=False):
+    def run_shard(self, group, *args, reuse=False, archive=False):
         with tempfile.TemporaryDirectory() as directory:
             temp = Path(directory)
             log = temp / "nextest-args"
@@ -23,7 +23,7 @@ class TestShardInvocation(unittest.TestCase):
                 "  printf '%s\\n' '{\"packages\":[{\"name\":\"fixture-tests\",\"manifest_path\":\"/repo/crates/tests/integration/cli/Cargo.toml\"},{\"name\":\"bridge-fixture-tests\",\"manifest_path\":\"/repo/crates/tests/unit/bridge/Cargo.toml\"}]}'\n"
                 "elif [[ \" $* \" == *\" --manifest-path bin/bridge/Cargo.toml \"* ]]; then\n"
                 "  touch \"$BRIDGE_BUILD_MARKER\"\n"
-                "elif [[ \" $* \" == *\" nextest run \"* ]]; then\n"
+                "elif [[ \" $* \" == *\" nextest \"* ]]; then\n"
                 "  printf '%s\\n' \"$@\" > \"$SHARD_ARGS_LOG\"\n"
                 "fi\n"
             )
@@ -46,6 +46,10 @@ class TestShardInvocation(unittest.TestCase):
                 "BRIDGE_BUILD_MARKER": str(temp / "bridge-built"),
                 "TEST_THREADS": "1",
             }
+            if archive:
+                tests_archive = temp / "tests.tar.zst"
+                tests_archive.touch()
+                environment["NEXTEST_ARCHIVE_FILE"] = str(tests_archive)
             if reuse:
                 environment |= {
                     "COVERAGE_BINARIES_METADATA": str(metadata),
@@ -104,6 +108,30 @@ class TestShardInvocation(unittest.TestCase):
             args[args.index("-E") + 1],
             "(package(=bridge-fixture-tests)) & (test(specific))",
         )
+
+    def test_archive_run_selects_packages_and_remaps_the_workspace(self):
+        args = self.run_shard("bridge", "-E", "test(specific)", archive=True)
+        self.assertEqual(args[:2], ["nextest", "run"])
+        self.assertEqual(args[args.index("--profile") + 1], "default")
+        self.assertTrue(args[args.index("--archive-file") + 1].endswith("tests.tar.zst"))
+        self.assertEqual(args[args.index("--workspace-remap") + 1], str(ROOT))
+        self.assertEqual(
+            args[args.index("-E") + 1],
+            "(package(=bridge-fixture-tests)) & (test(specific))",
+        )
+        self.assertNotIn("--manifest-path", args)
+        self.assertNotIn("--lib", args)
+        self.assertNotIn("-p", args)
+
+    def test_archive_build_covers_every_shard_package_once(self):
+        args = self.run_shard("--archive", "out.tar.zst")
+        self.assertEqual(args[:2], ["nextest", "archive"])
+        self.assertEqual(args.count("-p"), 2)
+        self.assertIn("fixture-tests", args)
+        self.assertIn("bridge-fixture-tests", args)
+        self.assertEqual(args.count("--lib"), 1)
+        self.assertEqual(args.count("--tests"), 1)
+        self.assertEqual(args[args.index("--archive-file") + 1], "out.tar.zst")
 
 
 if __name__ == "__main__":

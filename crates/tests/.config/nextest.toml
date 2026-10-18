@@ -294,6 +294,10 @@ slow-timeout = { period = "60s", terminate-after = 3 }
 [profile.ci]
 slow-timeout = { period = "60s", terminate-after = 3 }
 fail-fast = false
+# One retry is a reported safety net, never a pass: a test that fails then
+# passes is marked FLAKY in the output and as <flakyFailure> in junit.xml, and
+# CI's flaky-report step turns every such entry into a warning annotation.
+retries = { backoff = "fixed", count = 1, delay = "1s" }
 failure-output = "immediate-final"
 final-status-level = "slow"
 
