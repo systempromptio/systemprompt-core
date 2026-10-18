@@ -144,3 +144,5 @@ mod projection;
 mod publish_latest;
 #[path = "inventory_scanner.rs"]
 mod scanner;
+#[path = "inventory_baseline.rs"]
+mod baseline;
