@@ -48,6 +48,7 @@ mod sync_types;
 
 mod gateway_sessions_mint;
 
+mod gateway_otel_authed;
 mod gateway_otel_handle;
 mod mcp_registry_handler;
 
