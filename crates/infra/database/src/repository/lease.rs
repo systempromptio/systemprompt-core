@@ -33,7 +33,7 @@ pub struct InstanceLeaseRepository {
 }
 
 struct LeaseRow {
-    lease_key: String,
+    lease_key: LeaseKey,
     owner_instance_id: String,
     acquired_at: DateTime<Utc>,
     expires_at: DateTime<Utc>,
@@ -42,7 +42,7 @@ struct LeaseRow {
 impl LeaseRow {
     fn into_lease(self) -> Lease {
         Lease {
-            key: LeaseKey::new(self.lease_key),
+            key: self.lease_key,
             owner: InstanceId::new(self.owner_instance_id),
             acquired_at: self.acquired_at,
             expires_at: self.expires_at,
@@ -107,7 +107,7 @@ impl LeaseRepository for InstanceLeaseRepository {
                              >= CURRENT_TIMESTAMP - make_interval(secs => $5::double precision)
                    )
                )
-            RETURNING lease_key AS "lease_key!", owner_instance_id AS "owner_instance_id!",
+            RETURNING lease_key AS "lease_key!: LeaseKey", owner_instance_id AS "owner_instance_id!",
                       acquired_at AS "acquired_at!", expires_at AS "expires_at!"
             "#,
             key.as_str(),
@@ -138,7 +138,7 @@ impl LeaseRepository for InstanceLeaseRepository {
         let row = sqlx::query_as!(
             LeaseRow,
             r#"
-            SELECT lease_key, owner_instance_id, acquired_at, expires_at
+            SELECT lease_key AS "lease_key: LeaseKey", owner_instance_id, acquired_at, expires_at
             FROM instance_leases
             WHERE lease_key = $1 AND expires_at > CURRENT_TIMESTAMP
             "#,

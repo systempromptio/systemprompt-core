@@ -31,6 +31,8 @@ pub enum ReadinessFailure {
 }
 
 /// One named readiness signal of an extension, run on every `/readyz`.
+///
+/// Held as `Arc<dyn ReadinessCheck>`, hence `#[async_trait]`.
 #[async_trait]
 pub trait ReadinessCheck: Send + Sync {
     fn name(&self) -> &'static str;

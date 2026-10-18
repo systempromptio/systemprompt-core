@@ -115,7 +115,8 @@ impl Drop for SessionAdvisoryLock {
                 key = %self.key,
                 "advisory lock dropped without explicit release; closing its session"
             );
-            drop(conn.detach());
+            let session = conn.detach();
+            drop(session);
         }
     }
 }
@@ -141,11 +142,13 @@ impl HeldAdvisoryLock for SessionAdvisoryLock {
             Ok(true) => {},
             Ok(false) => {
                 warn!(key = %self.key, "advisory lock was not held at release; closing its session");
-                drop(conn.detach());
+                let session = conn.detach();
+                drop(session);
             },
             Err(error) => {
                 warn!(key = %self.key, %error, "advisory lock release failed; closing its session");
-                drop(conn.detach());
+                let session = conn.detach();
+                drop(session);
             },
         }
     }

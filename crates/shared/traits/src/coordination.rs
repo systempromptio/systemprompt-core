@@ -40,6 +40,9 @@ pub type CoordinationResult<T> = Result<T, CoordinationError>;
 
 /// Liveness of a replica, judged by its boot-time instance claim and the
 /// `services` heartbeat core maintains.
+///
+/// Held as `Arc<dyn InstanceRegistry>` (`DynInstanceRegistry`), hence
+/// `#[async_trait]`.
 #[async_trait]
 pub trait InstanceRegistry: Send + Sync {
     async fn is_alive(&self, instance: &InstanceId) -> CoordinationResult<bool>;
@@ -59,6 +62,9 @@ pub struct Lease {
 /// is no longer alive, or already ours — in which case it extends the
 /// expiry, so a holder heartbeats by claiming again before `ttl` elapses.
 /// `None` means another live replica holds it.
+///
+/// Held as `Arc<dyn LeaseRepository>` (`DynLeaseRepository`), hence
+/// `#[async_trait]`.
 #[async_trait]
 pub trait LeaseRepository: Send + Sync {
     async fn claim(&self, key: &LeaseKey, ttl: Duration) -> CoordinationResult<Option<Lease>>;
@@ -71,6 +77,9 @@ pub trait LeaseRepository: Send + Sync {
 /// A held session-scoped advisory lock. `release` unlocks on the session
 /// that locked; dropping without releasing closes that session, which frees
 /// the lock server-side.
+///
+/// Boxed as `Box<dyn HeldAdvisoryLock>` (`AdvisoryLockGuard`), hence
+/// `#[async_trait]`.
 #[async_trait]
 pub trait HeldAdvisoryLock: Send + Sync + std::fmt::Debug {
     fn key(&self) -> &AdvisoryLockKey;
@@ -82,6 +91,8 @@ pub type AdvisoryLockGuard = Box<dyn HeldAdvisoryLock>;
 
 /// Cluster-wide advisory locks taken on the session pool, in a key space
 /// disjoint from the scheduler's job locks and the instance claims.
+///
+/// Held as `Arc<dyn AdvisoryLocks>`, hence `#[async_trait]`.
 #[async_trait]
 pub trait AdvisoryLocks: Send + Sync {
     async fn try_acquire(

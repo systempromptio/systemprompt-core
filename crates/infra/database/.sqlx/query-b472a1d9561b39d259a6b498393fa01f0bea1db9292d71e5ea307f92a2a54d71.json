@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT lease_key, owner_instance_id, acquired_at, expires_at\n            FROM instance_leases\n            WHERE lease_key = $1 AND expires_at > CURRENT_TIMESTAMP\n            ",
+  "query": "\n            SELECT lease_key AS \"lease_key: LeaseKey\", owner_instance_id, acquired_at, expires_at\n            FROM instance_leases\n            WHERE lease_key = $1 AND expires_at > CURRENT_TIMESTAMP\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "lease_key",
+        "name": "lease_key: LeaseKey",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "45cbd89d05f44e507847aa58a275fca9bf02dadc8f6401ad6aa01dfb4363eb7f"
+  "hash": "b472a1d9561b39d259a6b498393fa01f0bea1db9292d71e5ea307f92a2a54d71"
 }
