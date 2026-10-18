@@ -20,6 +20,8 @@ use std::time::{Duration, Instant};
 
 use metrics_exporter_prometheus::{BuildError, Matcher, PrometheusBuilder};
 use sqlx::PgPool;
+use systemprompt_config::ConfigFingerprint;
+use systemprompt_database::Database;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::services::job_metrics::{
     JOB_DURATION_BUCKETS, SCHEDULER_JOB_DURATION_SECONDS, SCHEDULER_JOB_RUNS_TOTAL,
@@ -91,37 +93,61 @@ pub(super) fn describe() {
 }
 
 pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
-    let write = ctx.db_pool().write_pool();
-    let read = ctx.db_pool().pool();
-    let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
-    let backlog_pool = runs_scheduler.then(|| Arc::clone(&write));
+    let mut sampler = OpsSampler::new(ctx.db_pool(), runs_scheduler);
     ctx.background_tasks()
         .spawn_cancellable("ops_metrics", |cancel| async move {
             let mut tick = tokio::time::interval(SAMPLE_INTERVAL);
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-            let mut backlog_due = Instant::now();
-            let mut seen_projections = HashSet::new();
-            let mut config_info = None;
             loop {
                 tokio::select! {
                     () = cancel.cancelled() => break,
                     _ = tick.tick() => {},
                 }
-                probe_acquire("write", &write).await;
-                if let Some(read) = read.as_ref() {
-                    probe_acquire("read", read).await;
-                }
-                super::config_fingerprint::publish(&mut config_info);
-                metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL)
-                    .absolute(systemprompt_logging::dropped_log_entries());
-                if let Some(pool) = backlog_pool.as_ref()
-                    && Instant::now() >= backlog_due
-                {
-                    backlog_due = Instant::now() + BACKLOG_INTERVAL;
-                    sample_backlog(pool, &mut seen_projections).await;
-                }
+                sampler.sample().await;
             }
         });
+}
+
+pub struct OpsSampler {
+    write: Arc<PgPool>,
+    read: Option<Arc<PgPool>>,
+    backlog_pool: Option<Arc<PgPool>>,
+    backlog_due: Instant,
+    seen_projections: HashSet<String>,
+    config_info: Option<ConfigFingerprint>,
+}
+
+impl OpsSampler {
+    pub fn new(db: &Database, runs_scheduler: bool) -> Self {
+        let write = db.write_pool();
+        let read = db.pool();
+        let read = (!Arc::ptr_eq(&read, &write)).then_some(read);
+        let backlog_pool = runs_scheduler.then(|| Arc::clone(&write));
+        Self {
+            write,
+            read,
+            backlog_pool,
+            backlog_due: Instant::now(),
+            seen_projections: HashSet::new(),
+            config_info: None,
+        }
+    }
+
+    pub async fn sample(&mut self) {
+        probe_acquire("write", &self.write).await;
+        if let Some(read) = self.read.as_ref() {
+            probe_acquire("read", read).await;
+        }
+        super::config_fingerprint::publish(&mut self.config_info);
+        metrics::counter!(LOG_ENTRIES_DROPPED_TOTAL)
+            .absolute(systemprompt_logging::dropped_log_entries());
+        if let Some(pool) = self.backlog_pool.as_ref()
+            && Instant::now() >= self.backlog_due
+        {
+            self.backlog_due = Instant::now() + BACKLOG_INTERVAL;
+            sample_backlog(pool, &mut self.seen_projections).await;
+        }
+    }
 }
 
 async fn probe_acquire(label: &'static str, pool: &PgPool) {

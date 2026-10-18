@@ -20,7 +20,7 @@ mod config_fingerprint;
 pub mod health_detail;
 pub mod lifecycle;
 pub mod metrics;
-mod ops_metrics;
+pub mod ops_metrics;
 mod pool_metrics;
 mod probes;
 pub mod readiness;
