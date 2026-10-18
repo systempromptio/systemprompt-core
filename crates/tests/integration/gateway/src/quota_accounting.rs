@@ -30,7 +30,7 @@ fn shared_journal_dir() -> std::path::PathBuf {
 // Why: `journal::recover` settles every receipt in the journal it is handed,
 // and the bootstrap's journal is shared by every test in the process; a test
 // that asserts recovery counts owns a journal no other test writes to.
-fn private_journal_dir() -> std::path::PathBuf {
+pub(crate) fn private_journal_dir() -> std::path::PathBuf {
     shared_journal_dir().join(format!("recovery-{}", uuid::Uuid::new_v4().simple()))
 }
 
@@ -48,7 +48,7 @@ fn gateway_repos(db: &DbPool) -> systemprompt_gateway::GatewayRepositories {
     gateway_repos_in(db, &shared_journal_dir())
 }
 
-fn gateway_repos_in(
+pub(crate) fn gateway_repos_in(
     db: &DbPool,
     state_dir: &std::path::Path,
 ) -> systemprompt_gateway::GatewayRepositories {
@@ -63,7 +63,7 @@ fn gateway_repos_in(
     )
 }
 
-fn dead_pool() -> DbPool {
+pub(crate) fn dead_pool() -> DbPool {
     let dead = sqlx::postgres::PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(std::time::Duration::from_millis(250))
@@ -75,7 +75,7 @@ fn dead_pool() -> DbPool {
     ))
 }
 
-fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
+pub(crate) fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestContext {
     GatewayRequestContext {
         ai_request_id,
         user_id: user_id.clone(),
@@ -104,7 +104,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
     }
 }
 
-async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
+pub(crate) async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
     let pool = db.pool();
     sqlx::query_scalar("SELECT status FROM ai_requests WHERE id = $1")
         .bind(id.as_str())
@@ -113,7 +113,7 @@ async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
         .expect("status")
 }
 
-fn reservation_for(user_id: &UserId) -> QuotaReservation {
+pub(crate) fn reservation_for(user_id: &UserId) -> QuotaReservation {
     QuotaReservation {
         windows: vec![ReservedWindow {
             subject_kind: "user".to_owned(),

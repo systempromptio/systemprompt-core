@@ -8,6 +8,8 @@
 #[cfg(test)]
 mod audit_concurrency;
 #[cfg(test)]
+mod audit_fail;
+#[cfg(test)]
 mod context_id_derivation;
 #[cfg(test)]
 mod journal_recovery;
