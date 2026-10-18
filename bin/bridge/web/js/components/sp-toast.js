@@ -32,12 +32,10 @@ export class SpToast extends SpElement {
       const msg = (err && err.message) || "error";
       this.action = actionFor(err);
       // Why: a gateway that came back answers this toast as completely as a
-      // fresh sign-in answers the credential one. Without this it outlived the
-      // recovery and kept naming a host we no longer talk to.
+      // fresh sign-in answers the credential one.
       this.gatewayError = Boolean(err && err.scope === "gateway" && err.code === "unreachable");
-      // An error the user has to read must not time out (WCAG 2.2.1). The
-      // `unauthorized` case already had no timeout; every error now behaves the
-      // same way and is dismissed deliberately.
+      // An error the user has to read must not time out (WCAG 2.2.1); every
+      // error is dismissed deliberately.
       this.show(msg, "error", 0);
     });
     // A rejected credential has no timeout, so nothing but the user could

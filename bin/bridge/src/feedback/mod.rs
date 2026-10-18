@@ -54,8 +54,8 @@ pub enum FeedbackError {
     Gateway(#[from] crate::gateway::errors::GatewayError),
 }
 
-/// Which readback check refused an installation. Every variant used to share
-/// one message, which left a failing sync undiagnosable from its bundle.
+/// Which readback check refused an installation; each variant carries its own
+/// message so a failing sync is diagnosable from its bundle.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ReadbackFault {
     #[error("skill id is not a safe path segment")]

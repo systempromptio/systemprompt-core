@@ -29,9 +29,8 @@ function emit(channel, payload) {
 }
 
 // The real envelope, from src/gui/ipc.rs: `ok` is a boolean and the payload
-// travels in `value`. The mock used to resolve with `payload.ok` itself, which
-// only worked because it also built the envelope — a mock that disagrees with
-// the contract cannot evidence the contract.
+// travels in `value`. The mock builds the same envelope, because a mock that
+// disagrees with the contract cannot evidence the contract.
 function reply(id, payload) {
   const bus = ensureBus();
   bus.reply(bus.mount, id, payload);

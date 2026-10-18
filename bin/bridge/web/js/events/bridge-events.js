@@ -5,13 +5,11 @@ const handlers = new Map();
 for (const name of FORWARDED_EVENTS) { handlers.set(name, new Set()); }
 
 // Why: the search box only exists while the Marketplace pane is rendered, so on
-// every other pane this used to swallow the keystroke and do nothing. Switching
-// to the pane first makes the shortcut mean the same thing everywhere it is
+// every other pane the shortcut switches to that pane first, which makes the shortcut mean the same thing everywhere it is
 // advertised.
 function focusSearch() {
   // Why: hidden panels keep their DOM, so testing for the input alone would
-  // "succeed" by focusing a field nobody can see -- which is the shape of the
-  // original bug, just moved.
+  // "succeed" by focusing a field nobody can see.
   const panel = document.getElementById("sp-panel-marketplace");
   if (!panel) { return false; }
   const focusInput = () => {

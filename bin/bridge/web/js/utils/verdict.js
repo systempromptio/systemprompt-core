@@ -1,10 +1,7 @@
 // Renders the verdicts the bridge computes in Rust.
 //
 // This file deliberately contains no logic about what a state *means*. That
-// derivation used to live here, in the Agents list, in the Status summary card,
-// in the overall badge, in the MCP pane and in the Home card — copies that
-// disagreed with each other about the same snapshot. It now happens once, in
-// Rust beside each enum (`src/verdict.rs`), and arrives as `{ tone, code }`.
+// derivation happens once, in Rust beside each enum (`src/verdict.rs`), and arrives as `{ tone, code }`.
 //
 // Every code is a kebab string that is also the FTL key suffix, so each
 // function below is a lookup. If you find yourself adding a conditional on a

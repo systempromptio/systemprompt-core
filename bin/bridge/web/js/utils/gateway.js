@@ -50,9 +50,8 @@ export function gatewayHost(url) {
   try { return new URL((url || "").trim()).host; } catch { return ""; }
 }
 
-// The field used to arrive pre-filled with the brand default and nothing said
-// so; a user with a local gateway running signed in to it before noticing the
-// URL was never theirs. Name the destination, and say when it is a default.
+// Name the destination, and say when it is the brand default rather than a
+// URL the user chose.
 export function renderGatewayTarget(gateway, snap) {
   const host = gatewayHost(gateway);
   if (!host) { return ""; }

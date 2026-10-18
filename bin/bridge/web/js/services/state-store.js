@@ -1,8 +1,5 @@
 // The one copy of the bridge's state snapshot in this page.
 //
-// Every component used to fetch its own snapshot on connect and re-fetch on
-// the events it happened to know about — twenty-two copies of the same call,
-// each with its own error handling, none of them agreeing on when to refresh.
 // This module fetches once, refreshes on every channel the bridge re-emits
 // state for, and hands the same object to every subscriber. Two panes reading
 // the same snapshot cannot disagree about which snapshot they are reading.

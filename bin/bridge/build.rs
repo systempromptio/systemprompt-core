@@ -123,8 +123,8 @@ fn collect_served(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<S
 fn write_web_manifest(staged: &std::path::Path, out_dir: &std::path::Path) {
     // Generate the asset routing table from the staged tree (core + overlay)
     // instead of hand-maintaining a list in assets.rs. Every servable file that
-    // exists after staging is embedded and routable — a newly added module can
-    // no longer 404 at runtime because someone forgot to register it.
+    // exists after staging is embedded and routable, so a module cannot 404 at
+    // runtime for want of registration.
     let mut rels = Vec::new();
     collect_served(staged, staged, &mut rels);
     rels.sort();
