@@ -213,6 +213,7 @@ Core owns these contracts so an extension never reimplements them against core t
 - **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its boot-time instance claim or heartbeats its `services` rows within 90 seconds. Use it instead of querying `services` with a staleness window of your own. `ctx.instance_id()` is this node's identity.
 - **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. Claim again before `ttl` elapses to keep it; a dead owner's lease is forfeit even before it expires. `release` and `holder` complete the set.
 - **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool, never on a pool behind a transaction-mode pooler. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock. The key space is disjoint from the scheduler's job locks.
+- **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
 
 ## How discovery works
 

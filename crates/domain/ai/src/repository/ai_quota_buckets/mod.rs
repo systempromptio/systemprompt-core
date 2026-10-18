@@ -21,6 +21,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod merge;
+mod usage;
+
+pub use usage::{QuotaSubjectUsage, QuotaUsageRepository, QuotaWindowKey};
 
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
