@@ -399,7 +399,7 @@ No outbound network calls are required for governance operation. The binary does
 1. Obtain and verify the new release through your supply-chain process.
 2. Review the [CHANGELOG.md](../../CHANGELOG.md) for the target version; scan for breaking-change entries.
 3. Preview migrations: `systemprompt infra db migrate-plan` (no DB writes). Apply with `systemprompt infra db migrate`.
-4. Rolling restart: replace one replica at a time; wait for `GET /health` to return 200 before proceeding. Use a `preStop` drain (§3.1) to bound request loss during each replacement.
+4. Rolling restart: replace one replica at a time; wait for `GET /health` to return 200 before proceeding. Use a `preStop` drain (§3.1) to bound request loss during each replacement. This applies only when `migrate-plan` reports `rolling-safe: yes`; a batch that is not rolling-safe (such as 0.69 → 0.70, §9.4) needs every older pod stopped first.
 
 **Migrations outside the rollout (Kubernetes).** By default `infra services serve` migrates at boot, serialised across replicas by an advisory lock. To keep schema changes out of pod start-up, set `database: { migrate_on_boot: false }` in the mounted profile (or pass `infra services serve --skip-migrate`) and run the migration as a pre-rollout `Job` (a Helm `pre-upgrade` hook or an Argo `PreSync` hook) using the same image:
 
@@ -422,7 +422,7 @@ A pod that skips migrations still verifies the schema before its domain services
 
 ### 9.2 Rollback
 
-Migrations follow the expand/contract contract (§9.3), so rolling back by one minor is supported:
+Migrations follow the expand/contract contract (§9.3), so rolling back by one minor is supported, except across a batch with a `@compat: breaking` migration (0.70 → 0.69 included), which requires a restore (§9.4):
 
 1. Replace the binary with the previous version.
 2. Rolling restart, draining each replica first.
@@ -462,22 +462,50 @@ The 0.69 → 0.70 upgrade is such a case: 0.70.0's `ai/042` contracts the quota-
 
 ### 9.4 Upgrading from 0.69 to 0.70
 
-The 0.70 batch is not rolling-safe. ai migration `042_quota_bucket_shards` adds `shard` to the `ai_quota_buckets` unique key, so once it has run every quota upsert from a 0.69 pod fails, and `043_quota_bucket_shards_contract` records the batch as `@compat: breaking`, so a 0.69 binary refuses to start against the migrated database. `systemprompt infra db migrate-plan --require-rolling-safe` exits non-zero for it. Every Deployment that runs the image — the gateway Deployment from §3.1 included, which is usually declared with `strategy: RollingUpdate` — must have no 0.69 pod left before the migration runs.
+The 0.70 batch is not rolling-safe. ai migration `042_quota_bucket_shards` adds `shard` to the `ai_quota_buckets` unique key, so once it has run every quota upsert from a 0.69 pod fails, and `043_quota_bucket_shards_contract` records the batch as `@compat: breaking`. Binaries from 0.70 on refuse to start against a database contracted past them; a 0.69 binary cannot read that record (§9.3), so it still starts and then fails every quota write. Nothing stops a stray 0.69 pod but the procedure below. `systemprompt infra db migrate-plan --require-rolling-safe` exits non-zero for it. Every Deployment that runs the image — the gateway Deployment from §3.1 included, which is usually declared with `strategy: RollingUpdate` — must have no 0.69 pod left before the migration runs.
 
-1. **Export every `db`-managed row a declaration should keep.** A config plane is `file`-authoritative by default in 0.70, so the first boot reconciles each plane that has a declaration file and removes rows that exist only in the database (rows created in the console). Before upgrading, run `systemprompt admin config planes export --plane <plane> --out <file>` with the 0.70 CLI against the 0.69 database for each plane you manage in the console, review the output and merge it into the plane's declaration file. A plane you want to keep console-managed is pinned instead with `config_planes.authority.<plane>: db` in the profile. `systemprompt admin config planes diff --plane <plane>` shows what the first reconcile would change.
-2. **Take a backup** (§4.1). Rolling back to 0.69 after the migration requires a restore (§9.2).
-3. **Stop every 0.69 pod.** Scale the gateway, admin and runner Deployments to zero, or switch each to `strategy: { type: Recreate }` for this release only:
+Do the profile and data preparation first, while 0.69 is still serving; nothing in it touches the running pods. The cutover itself needs a short full outage: plan a maintenance window of a few minutes plus the length of the 042 index build.
+
+**Before the window**
+
+1. **Confirm the batch.** With the 0.70 CLI against the 0.69 database, run `systemprompt infra db migrate-plan --profile <name>`. It must print `rolling-safe: no` and list ai `042_quota_bucket_shards` and `043_quota_bucket_shards_contract`. A pipeline gates on `--require-rolling-safe`, which exits non-zero here, and takes the Recreate path below instead of its usual rolling update.
+2. **Export every `db`-managed row a declaration should keep.** A config plane is `file`-authoritative by default in 0.70, so the first boot reconciles each plane that has a declaration file and removes rows that exist only in the database (rows created in the console). For each plane you manage in the console, run `systemprompt admin config planes export --plane <plane> --out <file>` with the 0.70 CLI against the 0.69 database, review the output and merge it into the plane's declaration file. A plane you want to keep console-managed is pinned instead with `config_planes.authority.<plane>: db` in the profile. `systemprompt admin config planes diff --plane <plane>` shows what the first reconcile would change. A deployment whose extensions register no config plane has nothing to export.
+3. **Update the mounted profile.** These are checked at boot, so a 0.70 pod with a stale profile fails to start or behaves differently:
+   - `storage.shared: true` requires `paths.data`, a per-node writable directory (§3.4). Mount an `emptyDir` and point `paths.data` at it in every Deployment. A profile with `storage.backend: gcs` or `storage.shared: false` needs no change.
+   - `scheduler.unlisted_jobs` defaults to `default`, so a job the build registers but `scheduler.jobs` does not name now runs on its default schedule. Run `systemprompt admin config validate --strict` to list them, and name each one (with `enabled: false` to keep it off) or set `scheduler.unlisted_jobs: warn` to keep 0.69 behaviour.
+   - A gateway quota window must set exactly one of `window_seconds` or `calendar`. A window with neither or both denies the requests it governs.
+4. **Take a backup** (§4.1) and confirm it restores. After 043 runs, the only way back to 0.69 is a restore (§9.2).
+
+**The cutover**
+
+5. **Stop every 0.69 pod, in every Deployment that runs the image** — gateway, admin and any runner:
+
+   ```bash
+   kubectl -n <ns> scale deploy/<gateway> deploy/<admin> --replicas=0
+   kubectl -n <ns> wait --for=delete pod -l app.kubernetes.io/name=systemprompt --timeout=300s
+   ```
+
+   A `HorizontalPodAutoscaler` leaves a Deployment at zero replicas alone. A GitOps controller with self-heal (Argo CD `selfHeal`, Flux) does not: it restores the declared replica count within seconds. Suspend auto-sync for the window. Confirm that no pod from the old ReplicaSet is left before going on. A pod in `Terminating` still holds database sessions and will make 042 fail on `lock_timeout`.
+
+   Alternatively, set `strategy: { type: Recreate }` on each Deployment for this release only. Kubernetes then deletes every old pod before creating a new one:
 
    ```yaml
-   # gateway and admin Deployments, for the 0.69 -> 0.70 upgrade
+   # gateway and admin Deployments, for the 0.69 -> 0.70 upgrade only
    spec:
      strategy:
        type: Recreate
    ```
 
-   With migrations in a pre-upgrade Job (§9.1), scale the Deployments to zero before the Job runs; a Helm `pre-upgrade` hook runs while the old pods are still serving, so the scale-down must happen first.
-4. **Migrate** with `systemprompt infra db migrate --profile <name>` (or let the first 0.70 pod migrate at boot).
-5. **Start 0.70** and restore the usual `RollingUpdate` strategy for later upgrades.
+   `Recreate` covers migrate-at-boot only. With migrations in a pre-upgrade Job (§9.1), the Helm `pre-upgrade` or Argo `PreSync` hook runs **before** the Deployment is replaced, while the 0.69 pods are still serving. Scale to zero explicitly first, as above, and run the upgrade only after that.
+6. **Migrate.** Either run the migration Job (§9.1) with the 0.70 image, `systemprompt infra db migrate --profile <name>`, and wait for it to complete, or let the first 0.70 pod migrate at boot. With migrate-at-boot, start a single replica first so one pod takes the migration lock and the rest don't queue behind the 042 index build.
+7. **Start 0.70.** Deploy the 0.70 image with the updated profile and scale back to the usual replica count. Verify before reopening traffic:
+   - every pod is on the 0.70 image: `kubectl -n <ns> get pods -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\n"}{end}'`
+   - `GET /readyz` returns `200` on each replica
+   - `systemprompt infra db migrate-plan --profile <name>` reports nothing pending
+   - one gateway request through an API key with a request quota succeeds, which proves the new `ai_quota_buckets` key is being written
+8. **Restore sync and the strategy.** Re-enable GitOps auto-sync, and revert any `strategy: Recreate` to the usual `RollingUpdate` so later rolling-safe releases roll normally.
+
+**If it fails.** A 0.70 pod that cannot start does not undo 042 and 043. Fix forward on 0.70 where possible. To return to 0.69, keep every pod at zero, restore the step 4 backup (§4.2), and redeploy the 0.69 image. Keep the 0.69 pods at zero until the restore completes: a 0.69 pod pointed at the migrated database starts and serves, but every quota write fails.
 
 **042 and `lock_timeout`.** 042 rebuilds the `ai_quota_buckets` unique constraint, which holds an `ACCESS EXCLUSIVE` lock on the table for the length of the index build. The migration file cannot change, but the runner applies it under the migration `lock_timeout` (10 s): if a session still holds the table — a 0.69 pod that was not stopped, or a long transaction from another tool — the migration fails with `canceling statement due to lock timeout` instead of queueing every quota admission behind it. Stop the remaining sessions and run `infra db migrate` again; the migration is idempotent. On a large `ai_quota_buckets` table the index build itself can exceed the default statement timeout; prune expired windows first, or run the migration attended with `SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS` raised. Do not raise `lock_timeout` in the session to force it through while 0.69 pods serve: they would block on the lock and then fail once the new key is in place.
 
