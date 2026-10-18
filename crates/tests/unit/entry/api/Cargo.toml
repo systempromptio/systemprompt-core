@@ -63,6 +63,8 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-config = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]

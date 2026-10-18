@@ -355,3 +355,65 @@ fn api_http_error_responds_with_mapped_status() {
     let response = ApiHttpError::from(ContentError::Parse("p".into())).into_response();
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }
+
+#[test]
+fn agent_error_maps_not_found_repository_and_internal() {
+    use systemprompt_agent::AgentError;
+    assert_eq!(
+        code_of(AgentError::NotFound("a".into())).code,
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        code_of(AgentError::Repository(repo_not_found())).code,
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        code_of(AgentError::EmptyCorsAllowlist).code,
+        ErrorCode::InternalError
+    );
+}
+
+#[test]
+fn scope_binding_error_maps_dimension_membership_and_lookup() {
+    use systemprompt_identifiers::ScopeDimension;
+    use systemprompt_security::authz::{AuthzError, ScopeBindingError};
+    let dimension = || ScopeDimension::try_new("team").expect("valid dimension");
+    assert_eq!(
+        code_of(ScopeBindingError::UnknownDimension(dimension())).code,
+        ErrorCode::BadRequest
+    );
+    assert_eq!(
+        code_of(ScopeBindingError::NotAMember {
+            dimension: dimension(),
+            value: "red".into(),
+        })
+        .code,
+        ErrorCode::Forbidden
+    );
+    assert_eq!(
+        code_of(ScopeBindingError::Lookup(AuthzError::InvalidRuleType(
+            "x".into()
+        )))
+        .code,
+        ErrorCode::InternalError
+    );
+}
+
+#[test]
+fn bootstrap_and_config_errors_are_internal_without_detail() {
+    use systemprompt_config::{ProfileBootstrapError, SecretsBootstrapError};
+    use systemprompt_loader::ConfigLoadError;
+    use systemprompt_models::errors::GlobalConfigError;
+    let cases = [
+        code_of(ProfileBootstrapError::NotInitialized),
+        code_of(SecretsBootstrapError::NotInitialized),
+        code_of(GlobalConfigError::NotInitialized),
+        code_of(ConfigLoadError::ProfileBootstrap(
+            ProfileBootstrapError::NotInitialized,
+        )),
+    ];
+    for api in cases {
+        assert_eq!(api.code, ErrorCode::InternalError);
+        assert!(!api.message.contains("initialized"), "{}", api.message);
+    }
+}
