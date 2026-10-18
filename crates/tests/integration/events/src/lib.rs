@@ -6,6 +6,9 @@
 #[cfg(test)]
 mod cross_replica;
 
+#[cfg(test)]
+mod durable_batch;
+
 use sqlx::PgPool;
 use std::sync::Arc;
 
