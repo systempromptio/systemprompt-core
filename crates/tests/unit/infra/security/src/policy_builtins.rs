@@ -89,8 +89,7 @@ fn a_prefixless_base64_key_is_caught_by_the_entropy_detector() {
     assert!(!hit.redacted.contains("FIyuuM"));
 }
 
-// Why: the blob that triggered the incident — a protobuf record id returned by
-// a Salesforce MCP tool. Structurally a serialised message, not key material.
+// Why: a protobuf record id returned by a Salesforce MCP tool. Structurally a serialised message, not key material.
 const PROTOBUF_TOOL_PAYLOAD: &str =
     "CAISLwoLaGVsbG8gd29ybGQSC2NvbnRhY3QtaWQxGhNSb3NlIEdvbnphbGV6IE93bmVy";
 
@@ -280,10 +279,9 @@ fn shas_uuids_and_identifiers_do_not_trip_the_entropy_detector() {
 
 // Why: `/` is a token character, so an absolute path is scored whole. A macOS
 // `$TMPDIR` carries a 30-char random segment and the uppercase `/T/` the
-// detector demands, and Claude Code puts those paths in its system prompt —
-// which denied every request from affected Macs on 2026-09-03. The first
-// fixture is the measured 0.8142 shape that actually blocked; the second is
-// the 0.7646 shape that passed only by luck of its random segment.
+// detector demands, and Claude Code puts those paths in its system prompt.
+// The first fixture is a measured 0.8142 shape; the second a 0.7646 shape
+// that differs only in its random segment.
 #[test]
 fn macos_temp_paths_do_not_trip_the_entropy_detector() {
     for text in [
@@ -317,7 +315,7 @@ fn secrets_embedded_in_path_shaped_tokens_are_still_reported() {
 
 // Why: SRI integrity hashes are public metadata that ride along in page
 // markup and tool content; each is dense base64 behind an `algo-` prefix and
-// used to deny every request whose forwarded surface carried one.
+// must not deny a request whose forwarded surface carries one.
 #[test]
 fn sri_integrity_hashes_do_not_trip_the_entropy_detector() {
     for text in [

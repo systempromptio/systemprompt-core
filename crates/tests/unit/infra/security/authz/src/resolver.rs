@@ -347,8 +347,7 @@ fn department_rule_for_another_department_does_not_match() {
     );
 }
 
-// The regression guard for the ladder rewrite: with the dimension left
-// unregistered its rules are inert, which is exactly the pre-change
+// With the dimension left unregistered its rules are inert, matching the
 // behaviour every other case in this file asserts.
 #[test]
 fn unregistered_dimension_rules_are_inert() {

@@ -5,7 +5,7 @@
 //! declares tool use when it emits a tool call. These cells drive the two
 //! upstreams that do not, which is where the tool call is actually lost.
 //!
-//! `GenericStop` is the outage that shipped twice -- a fully-formed call under
+//! `GenericStop` is a fully-formed call under
 //! a plain "stop"/"end_turn", which an OpenAI-contract client reads as a
 //! finished turn before discarding the call. `Truncated` is its mirror: the
 //! correction for the first must not swallow a real `max_tokens` cutoff, or a
@@ -24,7 +24,7 @@ use super::gateway_matrix::{OutWire, Scenario};
 use super::gateway_matrix_inbound::{InWire, assert_declared_tool_use, assert_reported_truncation};
 
 // Why: Gemini's `finishReason: STOP` on a functionCall candidate is the
-// literal input that shipped the outage, and it is the same lie on every
+// canonical generic stop, and it is the same lie on every
 // inbound surface -- only the vocabulary the caller reads it in differs.
 #[tokio::test]
 async fn anthropic_in_gemini_out_buffered_generic_stop_declares_tool_use() -> anyhow::Result<()> {

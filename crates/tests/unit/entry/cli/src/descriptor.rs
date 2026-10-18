@@ -110,9 +110,8 @@ fn test_descriptor_with_remote_eligible() {
 }
 
 /// A remote-eligible command that only reads may fall back to local execution
-/// when routing is unavailable; one that mutates must not. They were a single
-/// boolean, which is why `analytics requests list` refused to run at all when
-/// the tenant store could not be found.
+/// when routing is unavailable; one that mutates must not, so the two are
+/// separate flags.
 #[test]
 fn read_only_and_mutating_are_distinguishable() {
     let reads = CommandDescriptor::FULL.with_read_only();
@@ -212,8 +211,8 @@ fn test_descriptor_hierarchy_none_to_full() {
 }
 
 // Why: the services registry is a process-wide OnceLock and the first
-// installer wins. Production booted with the YAML catalog only because the
-// CLI's plain install ran before the runtime's discovery pass (2026-09-11).
+// installer wins, so a CLI plain install ahead of the runtime's discovery pass
+// would boot a server with the YAML catalog only.
 #[test]
 fn only_the_server_commands_install_the_registry_through_model_discovery() {
     let serve = Commands::Infra(InfraCommands::Services(ServicesCommands::Serve {

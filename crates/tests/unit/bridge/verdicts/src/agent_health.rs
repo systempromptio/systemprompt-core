@@ -1,12 +1,12 @@
 //! Guards on the agent-health verdict — the single derivation that replaced
 //! three divergent JavaScript folds.
 //!
-//! Two classes of guard here. First, the precedence ladder itself, including
-//! the two corrections that motivated the move: a never-probed host is
+//! Two classes of guard here. First, the precedence ladder itself: a
+//! never-probed host is
 //! `Checking`, not `Absent`, and an inconclusive `AppInstallState::Unknown` is
 //! not `NotInstalled`. Second, that the fleet fold cannot contradict the rows
-//! it was folded from — the bug that let the summary card say "all configured"
-//! while the Agents tab said "Not working".
+//! it was folded from: the summary card cannot say "all configured" while the
+//! Agents tab says "Not working".
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -480,10 +480,9 @@ fn failure(emitter: &str, needs_elevation: bool) -> ApplyFailure {
     }
 }
 
-// v0.65.0 shipped an OpenCode card reading Working while its root-owned
-// `opencode.json` still declared models the gateway had since dropped. The
-// model list is now one more key of the desired profile, and its drift
-// arrives as a stale profile like any other.
+// The model list is one more key of the desired profile, so a root-owned
+// `opencode.json` declaring models the gateway has dropped reads as a stale
+// profile like any other, never Working.
 #[test]
 fn a_model_list_behind_the_gateway_offers_update_and_names_the_approval() {
     let px = proxy(ProxyProbeState::Listening);

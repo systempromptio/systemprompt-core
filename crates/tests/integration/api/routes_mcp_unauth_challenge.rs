@@ -1,20 +1,16 @@
-//! Regression guard: unauthenticated requests to `/api/v1/mcp/*` must NOT be
-//! rejected with the generic `caller type 'anon' is not authorized for this
-//! route` 403 emitted by `authz_gate`.
+//! Unauthenticated requests to `/api/v1/mcp/*` must NOT be rejected with the
+//! generic `caller type 'anon' is not authorized for this route` 403 emitted
+//! by `authz_gate`.
 //!
-//! v0.11.0 mounted `/api/v1/mcp/*` under `AuthzPolicy::restricted_to([User,
-//! Admin, Mcp, Service])`, which sits ABOVE the proxy handler that already
-//! handled auth correctly and emits a spec-compliant 401 +
-//! `WWW-Authenticate: Bearer resource_metadata="…"` (RFC 9728). The added gate
-//! short-circuited the request before the proxy could run, collapsing the
-//! response to a generic 403 and breaking every spec-compliant MCP client
-//! (Cowork, Claude Code, etc.) — they only start their OAuth discovery dance
-//! on a 401 carrying the challenge.
+//! The proxy handler answers them with a spec-compliant 401 +
+//! `WWW-Authenticate: Bearer resource_metadata="…"` (RFC 9728). A role gate
+//! mounted above it would short-circuit the request into a generic 403, and
+//! spec-compliant MCP clients (Cowork, Claude Code, etc.) only start OAuth
+//! discovery on a 401 carrying the challenge.
 //!
 //! This test drives the FULL mounted router (the same one `setup_api_server`
 //! ships in production), POSTs to an MCP path with no `Authorization` header,
-//! and asserts the response is NOT the regression body. It would have caught
-//! the v0.11.0 regression at CI time. Pair with the unit test
+//! and asserts the response is NOT the generic 403 body. Pair with the unit test
 //! `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
 
 use std::net::SocketAddr;

@@ -1,12 +1,10 @@
 //! An upstream that answers 200 with a body carrying no turn must reach the
 //! client as a failure, not as a successful empty message.
 //!
-//! Observed live on 2026-09-05 against a Vertex `MaaS` model: two of three
-//! buffered calls returned HTTP 200 with `content: []` and zero tokens, and
-//! the audit row recorded them as completed. The buffered parsers are total,
-//! so an empty body became a well-formed empty response and nothing in the
-//! chain noticed. This cell drives the whole gateway path against a mock that
-//! answers `{}` and pins both halves of the fix: the client gets an error
+//! A Vertex `MaaS` model can return HTTP 200 with `content: []` and zero
+//! tokens. The buffered parsers are total, so such a body parses as a
+//! well-formed empty response. This cell drives the whole gateway path against
+//! a mock that answers `{}` and pins both halves: the client gets an error
 //! status, and the audit row is `failed`.
 
 use anyhow::Result;

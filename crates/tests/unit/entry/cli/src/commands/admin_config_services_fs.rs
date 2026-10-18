@@ -91,8 +91,8 @@ fn setting_the_offset_persists_it_to_the_profile() {
 
 /// Every key present before must still be present, with the same value.
 /// Added keys are tolerated: the round trip materialises serde defaults that
-/// the file previously omitted — `security.id_jag_ttl_secs` is written
-/// explicitly afterwards with the default it already had. That changes the
+/// the input file omits — `security.id_jag_ttl_secs` is written explicitly
+/// with the default it already had. That changes the
 /// file without changing the configuration, so the property to hold is that
 /// nothing is lost or altered, not that the file is byte-identical.
 fn assert_nothing_lost(before: &serde_yaml::Value, after: &serde_yaml::Value, path: &str) {

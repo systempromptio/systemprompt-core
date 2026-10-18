@@ -1,8 +1,7 @@
 //! Verifies that `SessionMiddleware` persists a real anonymous `users` row
 //! when handling skip-tracked traffic (the `/health` endpoint trips
-//! `should_skip_session_tracking`). The middleware previously fabricated a
-//! sentinel `UserId` that violated the `oauth_clients_owner_user_id_fkey`
-//! constraint on register — see migration 010.
+//! `should_skip_session_tracking`), never a sentinel `UserId` that would
+//! violate the `oauth_clients_owner_user_id_fkey` constraint on register.
 
 use anyhow::Result;
 use axum::body::Body;

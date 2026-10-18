@@ -1,7 +1,7 @@
 //! Malformed `tool_choice` must be rejected by every inbound surface.
 //!
 //! Each surface has its own grammar for the field. A value outside that
-//! grammar used to be silently dropped, which let a client bug dispatch a
+//! grammar is refused rather than dropped, so a client bug cannot dispatch a
 //! request the upstream API would have refused.
 
 use bytes::Bytes;

@@ -274,16 +274,12 @@ fn rotating_a_log_that_does_not_exist_is_a_no_op() {
     assert!(!dir.path().join("never-written.log.old").exists());
 }
 
-// Why: this is the test that stops the outage recurring. The MCP spawner and
-// the agent spawner each build a child environment; the inherited-from-parent
-// half is supposed to be identical, and for a long time it silently was not —
-// the agent forwarded the deployment-host marker through a bolt-on and the MCP
-// one did not forward it at all, so every MCP server on a deployed host
-// believed it was somewhere else and tried to route commands to the host it was
-// already on.
+// Why: the MCP spawner and the agent spawner each build a child environment,
+// and the inherited-from-parent half must be identical — an MCP server missing
+// the deployment-host marker believes it is somewhere else and routes commands
+// to the host it is already on.
 //
-// Neither side's own tests could catch that, because a test only ever saw one
-// side. This one fails the moment either grows a variable the other lacks.
+// Each side's own tests only see one side. This one fails the moment either grows a variable the other lacks.
 #[test]
 fn both_spawners_inherit_exactly_the_same_environment() {
     let parent = |name: &str| -> Option<String> {

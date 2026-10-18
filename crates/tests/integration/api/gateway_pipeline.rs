@@ -1014,9 +1014,8 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
 }
 
 // Why: the unit tests cover the detectors in isolation; this covers what a
-// caller actually gets. `ade511b3c` shipped a detector that read trace ids as
-// cards and ordinary English as a jailbreak, and it denied production traffic
-// before anything here failed, because nothing here asserted an absence.
+// caller actually gets, including the absence of findings on trace ids and
+// ordinary English that an over-eager detector would deny.
 //
 // The email is the synchronisation point, not decoration. Polling for "no
 // findings" would pass while the scan was still in flight; polling until the

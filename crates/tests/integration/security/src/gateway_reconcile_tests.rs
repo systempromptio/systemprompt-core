@@ -265,10 +265,9 @@ async fn entity_exists(pg: &PgPool, id: &str) -> bool {
         > 0
 }
 
-// The regression this whole mechanism exists for: a hand-written route id used
-// to be accepted, mint its own catalog row, and leave a grant on a route that
-// can never dispatch. Four such ids sat in roles.yaml across three repos for
-// months because every boot made them look real.
+// A hand-written route id must not be accepted: it would mint its own catalog
+// row and leave a grant on a route that can never dispatch, and every boot
+// would make it look real.
 #[tokio::test]
 async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
     let f = setup().await;

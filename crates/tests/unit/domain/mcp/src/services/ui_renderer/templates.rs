@@ -1013,8 +1013,8 @@ async fn dashboard_section_layout_widths() {
                 }),
         );
     let result = renderer.render(&dashboard_artifact(&dashboard)).unwrap();
-    // Widths are grid spans in twelfths now; `flex-basis` on a grid item did
-    // nothing at all, which is why every declared width used to be ignored.
+    // Widths are grid spans in twelfths; `flex-basis` on a grid item does
+    // nothing.
     assert!(result.html.contains("--section-span: 6"));
     assert!(result.html.contains("--section-span: 4"));
 }

@@ -1,7 +1,7 @@
 //! The bridge manifest records a consumer grant for every published
 //! organisation skill it hands out, and only for those.
 //!
-//! Catalogue reach no longer waits for an explicit grant: a published skill
+//! Catalogue reach does not wait for an explicit grant: a published skill
 //! that survives the per-user marketplace filter is granted by the fetch
 //! itself, so runtime resolution (which still demands an active grant) sees
 //! exactly what the manifest delivered. A skill the filter dropped never

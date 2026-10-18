@@ -224,7 +224,7 @@ async fn holders(port: u16) -> Vec<u32> {
     port_holders(port).await.expect("read port holders")
 }
 
-// Why: agent delete used to kill whatever process held the agent's port.
+// Why: agent delete must kill only a port holder it can prove is the agent.
 #[tokio::test]
 async fn an_unverified_port_holder_is_never_killed() {
     let (_child, child_pid, port) = spawn_listener(None);

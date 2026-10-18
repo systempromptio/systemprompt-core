@@ -265,11 +265,9 @@ fn the_refresh_tick_never_mints_from_an_empty_cache() {
 
 #[test]
 fn an_unreachable_gateway_does_not_latch_and_recovers_by_itself() {
-    // Why: the 2026-09-10 astound incident. A refresh tick fired while the machine
-    // was waking, the PAT exchange could not reach the gateway, and the cache
-    // latched "sign in required" permanently — the latch releases only on a changed
-    // credential, so an unchanged, valid PAT could never clear it. The bridge
-    // served 503s for five hours after the network came back.
+    // Why: a refresh tick can fire while the machine is waking and the gateway
+    // is unreachable. The latch releases only on a changed credential, so
+    // latching here would leave an unchanged, valid PAT unable to clear it.
     with_credentials(2, async {
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_for_refresh = Arc::clone(&counter);

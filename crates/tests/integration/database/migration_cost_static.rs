@@ -3,12 +3,11 @@
 //!
 //! The failure this prevents is not a slow query. Migrations are awaited
 //! before the HTTP listener is bound, so an unmeasured backfill is an
-//! instance that never opens its port: a 3,644-row `UPDATE ai_requests` took
-//! 27 minutes on a production instance because one per-row trigger
-//! re-enqueued the whole client session per row. The author is the only one
+//! instance that never opens its port, and a per-row trigger can stretch a
+//! few thousand rows into minutes. The author is the only one
 //! who can measure that, and `-- @cost:` is where they write it down.
 //!
-//! Migrations that shipped before this gate cannot be annotated — the
+//! Migrations already applied to established databases cannot be annotated — the
 //! checksum is taken over the whole body, so adding a comment makes every
 //! established database refuse to boot. They are listed in
 //! `migration_cost_baseline.txt` instead. That list may only shrink: an entry

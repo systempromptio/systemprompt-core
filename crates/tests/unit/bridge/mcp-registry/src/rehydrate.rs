@@ -82,8 +82,8 @@ fn malformed_fragment_leaves_registry_untouched() {
     });
 }
 
-// Why: a switched account used to forward its fresh token to the previous
-// gateway's MCP upstreams, which answered 401 and signed the bridge out.
+// Why: forwarding a switched account's fresh token to the previous gateway's
+// MCP upstreams would draw a 401 and sign the bridge out.
 #[test]
 fn a_fragment_written_for_another_gateway_is_not_rehydrated() {
     let state = tempfile::tempdir().unwrap();

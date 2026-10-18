@@ -4,9 +4,8 @@
 //! The prerenderer must honor `public = false` the same way the sitemap and
 //! navigation already do: non-public rows must never have static HTML emitted
 //! to `web/dist/`, and a row that transitions `public -> private` must have its
-//! previously-rendered HTML removed. These paths had no coverage — the existing
-//! pipeline tests run against an empty content database, so the public/private
-//! partition and the stale-output cleanup never executed.
+//! earlier-rendered HTML removed. Rows are seeded so the public/private
+//! partition and the stale-output cleanup both execute.
 //!
 //! The assertions deliberately do not depend on a working template registry
 //! (no extension templates are installed here): they pre-create the dist output

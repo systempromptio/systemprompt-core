@@ -450,7 +450,7 @@ async fn a_whole_fleet_checking_at_once_costs_one_github_round_trip() -> anyhow:
     Ok(())
 }
 
-// Why: a GitHub outage previously turned into a 502 for every bridge at once.
+// Why: a GitHub outage must not become a 502 for every bridge at once.
 // The last resolved release is still the right answer — nothing about it
 // changed because GitHub is down.
 #[tokio::test]

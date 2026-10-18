@@ -1,10 +1,10 @@
-//! Regression coverage for the offline extension-config preflight.
+//! Coverage for the offline extension-config preflight.
 //!
 //! `systemprompt_runtime::validate_extension_configs` is the shared validator
 //! the serve boot path and the `cloud deploy` / `cloud doctor` preflight both
-//! run. These tests pin the 0.17.0 incident: a `slack.yaml` left in the old
-//! flat shape (after the schema moved to `map<app-name, SlackAppConfig>`) must
-//! be reported as an error here rather than first crashing the deployed binary.
+//! run. A `slack.yaml` in the flat shape rather than
+//! `map<app-name, SlackAppConfig>` must be reported as an error here rather
+//! than first crashing the deployed binary.
 
 use std::fs;
 

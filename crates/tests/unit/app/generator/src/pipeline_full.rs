@@ -6,7 +6,7 @@
 //! Drives `generate_sitemap`, `generate_feed`, `prerender_content`, and
 //! `prerender_pages` against an empty content database — no rendering
 //! output is expected, the goal is to exercise the loader / config /
-//! IO paths that previously had 0% coverage.
+//! IO paths.
 
 use std::fs;
 use systemprompt_config::paths::AppPaths;

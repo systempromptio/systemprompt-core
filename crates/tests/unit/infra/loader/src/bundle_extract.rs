@@ -4,8 +4,7 @@
 //! This is a security boundary: the archive comes from the network and is
 //! unpacked over the user's services tree. It rejects symlinks, absolute
 //! paths, `..` traversal, and anything outside the allowed top-level
-//! directories. It was at 0% — the guard shipped with nothing asserting it
-//! holds.
+//! directories.
 //!
 //! Each refusal test also asserts that nothing was written, because bailing
 //! after unpacking is not a refusal.

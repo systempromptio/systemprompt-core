@@ -1,9 +1,8 @@
 #![allow(clippy::all)]
 
-// The asset table moved out of the GUI cfg gate (it is pure string handling
+// The asset table sits outside the GUI cfg gate (it is pure string handling
 // with no platform dependency), so these run everywhere — including Linux CI,
-// where the rest of this crate compiles out and the web assets previously got
-// no verification on a PR at all.
+// where the rest of this crate compiles out.
 #[cfg(test)]
 mod assets;
 #[cfg(all(test, any(target_os = "windows", target_os = "macos")))]

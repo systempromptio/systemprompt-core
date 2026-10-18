@@ -2,7 +2,7 @@
 //! registry: extension templates are written to `web/templates/`, content
 //! rows are seeded, and the emitted HTML under `dist/` is asserted exactly.
 //!
-//! This drives the previously-uncovered per-item render pipeline
+//! This drives the per-item render pipeline
 //! (`prerender/render.rs`), the list/parent route (`prerender/list.rs`), the
 //! source orchestration arms in `prerender/content.rs`, and the happy-path
 //! fetch/enrichment in `prerender/fetch.rs`.

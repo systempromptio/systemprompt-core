@@ -1491,9 +1491,8 @@ fn releases_spec(
     .expect("valid bridge_releases spec")
 }
 
-// Why: sp-dev shipped `token_secret: SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN` while
-// the machine only carried `ASTOUND_RELEASE_TOKEN`; every bridge update check
-// on that tenant failed and nothing at boot said why.
+// Why: a `token_secret` naming a secret the machine does not carry fails every
+// bridge update check, so boot must name the missing secret.
 #[test]
 fn a_release_token_secret_that_is_not_configured_is_reported_by_name() {
     let mut gateway = enabled_gateway(vec![]);

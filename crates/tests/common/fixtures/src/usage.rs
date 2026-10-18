@@ -1,10 +1,8 @@
 //! Builders for the token-usage types.
 //!
-//! Every test that asserts on usage or cost used to spell out a struct
-//! literal, so adding one count to `CanonicalUsage` broke unrelated files in
-//! three crates at once. These builders take the fields a test actually cares
-//! about and default the rest, which is what makes a new count a one-line
-//! change to the type rather than a sweep.
+//! These builders take the fields a test actually cares about and default the
+//! rest, so a new count on `CanonicalUsage` is a one-line change to the type
+//! rather than a sweep of struct literals.
 //!
 //! The counts follow the wire convention `CanonicalUsage` documents:
 //! `input_tokens` excludes cache reads, and `reasoning_tokens` is a breakdown

@@ -1,7 +1,7 @@
 //! The interactive identifier prompt for `core content edit`: the candidate
 //! list is fetched on the async path and the scripted selection resolves to
-//! the chosen row. This path used to call `Handle::block_on` from inside the
-//! runtime, which panics, so a passing run here is the regression check.
+//! the chosen row. Calling `Handle::block_on` from inside the runtime would
+//! panic, so a passing run here proves the path stays async.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 

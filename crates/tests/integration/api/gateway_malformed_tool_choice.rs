@@ -3,7 +3,8 @@
 //! The gateway's promise is to behave like the upstream API for the
 //! client-visible payload. A string `tool_choice` on the Anthropic surface is
 //! a client bug; answering it with a 200 spends the caller's quota, writes an
-//! audit row for a request the real API would have refused, and hides the bug.
+//! audit row for a request the real API would have refused, and hides the
+//! client's mistake.
 //! The mock upstream records every hit, so "nothing was dispatched" is an
 //! assertion rather than an inference.
 

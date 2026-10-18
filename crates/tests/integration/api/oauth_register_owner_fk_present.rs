@@ -1,7 +1,6 @@
 //! Verifies migration 010 has installed the
-//! `oauth_clients_owner_user_id_fkey` constraint on the test pool. Catches
-//! the regression where migration 004's `ADD COLUMN IF NOT EXISTS` silently
-//! skipped the FK on legacy databases.
+//! `oauth_clients_owner_user_id_fkey` constraint on the test pool, including
+//! on a database where migration 004's `ADD COLUMN IF NOT EXISTS` skipped it.
 
 use anyhow::Result;
 use systemprompt_test_fixtures::test_db_pool;

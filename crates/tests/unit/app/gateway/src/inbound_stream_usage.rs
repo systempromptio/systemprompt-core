@@ -2,12 +2,10 @@
 //!
 //! Chat Completions reports usage in a trailing chunk of its own, after the
 //! finish chunk and before `[DONE]`, and only when the caller asked for it
-//! with `stream_options.include_usage`. The gateway used to put a `usage`
-//! object on the finish chunk instead -- rendered before the upstream's own
-//! usage chunk had arrived, so every count in it was zero and the real ones,
-//! which the audit row recorded, never reached the caller. The Anthropic
-//! surface had the same defect in a different shape: its terminal
-//! `message_delta` carried a hardcoded `output_tokens: 0`.
+//! with `stream_options.include_usage`. A `usage` object on the finish chunk
+//! would be rendered before the upstream's usage chunk arrived and read zero.
+//! On the Anthropic surface the terminal `message_delta` carries the real
+//! `output_tokens`, never a hardcoded 0.
 
 use bytes::Bytes;
 use systemprompt_gateway::protocol::canonical::{

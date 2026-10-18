@@ -114,8 +114,7 @@ async fn insert_with_id_uses_supplied_id() {
     assert!(repo.get_by_id(&id).await.expect("get").is_some());
 }
 
-// Why: `ON CONFLICT DO NOTHING` used to answer `Ok(id)` whether or not a row
-// was written; a caller that then updates the row would be touching someone
+// Why: `ON CONFLICT DO NOTHING` writes nothing on a duplicate; a caller that then updates the row would be touching someone
 // else's request. A duplicate id is a typed conflict.
 #[tokio::test]
 async fn insert_with_id_reports_a_duplicate_id_instead_of_claiming_success() {

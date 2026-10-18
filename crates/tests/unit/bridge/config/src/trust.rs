@@ -34,7 +34,7 @@ fn a_leftover_pinned_pubkey_key_is_ignored_and_only_the_trust_record_counts() {
     );
 }
 
-// `[sync] pinned_pubkey` alone is no longer a trust source: without a bound
+// `[sync] pinned_pubkey` alone is not a trust source: without a bound
 // record the bridge is unpinned, never trust-on-first-use.
 #[test]
 fn a_bare_pinned_pubkey_key_without_a_trust_record_is_unpinned() {

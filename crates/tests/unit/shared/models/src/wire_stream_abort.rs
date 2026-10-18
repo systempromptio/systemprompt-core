@@ -1,12 +1,10 @@
-//! Mid-stream failures the success-shaped codecs used to drop.
+//! Mid-stream failures delivered in place of a success-shaped chunk.
 //!
 //! Gemini and Chat Completions both report a failure on an already-200
 //! connection by sending an `{"error": ...}` object in place of a normal
 //! chunk, and Gemini reports a blocked prompt as a `promptFeedback` chunk with
-//! no candidate at all. Every branch of both codecs matched on the success
-//! shape, so those chunks parsed as nothing and the stream simply ended: the
-//! turn was audited as truncated and the caller saw a closed socket carrying
-//! no reason. Each case here must reach the canonical model as an
+//! no candidate at all. A codec matching only the success shape would parse
+//! those as nothing and end the stream with no reason. Each case here must reach the canonical model as an
 //! [`CanonicalEvent::Error`], which is what every inbound surface renders as
 //! its own error frame.
 
