@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `ConfigPlaneError` API mapping, answering `409` for a console write to a `file`-authoritative plane.
+
 ## [0.69.0] - 2026-10-15
 
 ### Added

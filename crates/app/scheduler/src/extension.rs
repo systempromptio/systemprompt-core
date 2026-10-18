@@ -33,6 +33,26 @@ impl Extension for SchedulerExtension {
                 "created_at".into(),
             ]),
             SchemaDefinition::new(
+                "config_plane_state",
+                include_str!("../schema/config_plane_state.sql"),
+            )
+            .with_required_columns(vec![
+                "plane".into(),
+                "authority".into(),
+                "outcome".into(),
+            ]),
+            SchemaDefinition::new(
+                "config_change_audit",
+                include_str!("../schema/config_change_audit.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "plane".into(),
+                "entity".into(),
+                "before_value".into(),
+                "after_value".into(),
+            ]),
+            SchemaDefinition::new(
                 "otlp_export_state",
                 include_str!("../schema/otlp_export_state.sql"),
             )

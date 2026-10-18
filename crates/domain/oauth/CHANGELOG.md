@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- **Breaking:** `JtiRevocationCache::new`/`with_capacity` and `JtiRevocationChecker::from_repository` take a `CacheEpochs`; a process with no listening invalidation relay never trusts a cached "not revoked" answer.
+
+### Fixed
+
+- A token revoked while its revocation lookup was in flight is no longer cached as valid.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

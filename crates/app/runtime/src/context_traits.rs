@@ -74,6 +74,14 @@ impl ExtensionContext for AppContext {
         handle
     }
 
+    fn file_storage(&self) -> Arc<dyn systemprompt_traits::FileStorage> {
+        Arc::clone(Self::file_storage(self))
+    }
+
+    fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
+        self.config().instance_id.clone()
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
     }

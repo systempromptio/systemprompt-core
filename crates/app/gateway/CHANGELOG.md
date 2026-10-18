@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- Quota windows accept `calendar: day | week | month` (UTC) and reset at the next calendar boundary.
+- `governance.quota.shared_subject_shards` (default 8) spreads organisation and project windows over several bucket rows; admission checks their sum.
+- Policies accept `rate_windows: [{ window_seconds, subject, max_requests }]`, counted across replicas and refused with `429` and `Retry-After`.
+- `gateway_phase_seconds`, `gateway_streams_in_flight`, `gateway_journal_receipts` and `gateway_streams_aborted_on_shutdown_total` metrics.
+- The outbound `traceparent` is propagated to providers, carrying the sampled flag of a valid inbound one.
+
+### Changed
+
+- **Breaking:** `hidden_requires_route` defaults to `true`.
+- **Breaking:** a quota window must set exactly one of `window_seconds` (at least 1) or `calendar`; a stored window with neither or both is a malformed policy and denies the request. `MalformedPolicy::error` is a `MalformedSpec`.
+- **Breaking:** `PolicyResolver::from_repository` and `GatewayRepositories::new` take a `CacheEpochs`; gateway policies are cached for 5 s in a process with no listening invalidation relay.
+- Thought signatures are looked up in one query and only for Gemini-capable routes.
+- A request whose quota windows resolve to the same bucket row charges that row once.
+- The audit journal is settled once more during shutdown drain.
+
+### Fixed
+
+- When the drain window expires, each open stream ends with one error event in its wire format, and a pass-through stream cut by shutdown or abort ends on a whole SSE frame.
+
 ## [0.68.0] - 2026-10-14
 
 ### Changed

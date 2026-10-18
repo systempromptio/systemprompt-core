@@ -50,6 +50,10 @@ pub(super) async fn dispatch_to_provider(
     let max_tokens = gateway_request.max_tokens;
     let api_key_windows = super::extract::scope::api_key_windows(&principal);
     let is_streaming = gateway_request.stream;
+    let trace_sampled = client_headers
+        .traceparent
+        .as_deref()
+        .and_then(|header| principal.trace_id().sampled_in_traceparent(header));
 
     let gateway_ctx = GatewayRequestContext {
         ai_request_id: rc.ai_request_id.clone(),
@@ -91,6 +95,7 @@ pub(super) async fn dispatch_to_provider(
             inbound,
             forward_headers: client_headers.forward,
             identity_headers: client_headers.identity,
+            trace_sampled,
             governance: rc.ctx.governance_arc(),
         },
     ))

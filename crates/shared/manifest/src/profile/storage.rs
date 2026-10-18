@@ -14,13 +14,16 @@ pub enum StorageBackend {
     #[default]
     Local,
     Gcs,
+    S3,
 }
 
-/// How the `gcs` backend authenticates to Cloud Storage.
+/// How an object-store backend authenticates.
 ///
-/// `workload_identity` asks the GCE/GKE metadata server for the token of the
-/// service account bound to the workload; `{ secret: NAME }` signs with a
-/// service-account key JSON held in the secrets store under `NAME`.
+/// For `gcs`, `workload_identity` asks the GCE/GKE metadata server for the
+/// token of the service account bound to the workload; `{ secret: NAME }` signs
+/// with a service-account key JSON held in the secrets store under `NAME`. For
+/// `s3` only `{ secret: NAME }` applies, naming a JSON object with
+/// `access_key_id`, `secret_access_key` and an optional `session_token`.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(from = "CredentialsRepr", into = "CredentialsRepr")]
 pub enum GcsCredentials {
@@ -69,8 +72,10 @@ impl From<GcsCredentials> for CredentialsRepr {
 /// that root is a mount every replica can see, and boot warns when the
 /// declaration and the observed mount disagree. `backend: gcs` writes to
 /// `bucket` under `prefix`; `bucket`, `prefix`, `public_read` and
-/// `credentials` apply to it alone (credentials default to workload
-/// identity).
+/// `credentials` apply to it and to `s3` (gcs credentials default to
+/// workload identity; s3 requires a secret). `backend: s3` also reads
+/// `endpoint` (default: AWS for `region`), `region` (default `us-east-1`)
+/// and `path_style` (required by most self-hosted S3 implementations).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StorageConfig {
@@ -86,4 +91,10 @@ pub struct StorageConfig {
     pub public_read: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credentials: Option<GcsCredentials>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub endpoint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    #[serde(default)]
+    pub path_style: bool,
 }

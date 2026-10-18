@@ -1,7 +1,8 @@
 //! Streaming A2A message handling over SSE. A message queued as an agent
-//! run answers with one `StreamResponse::Task` frame carrying the `Submitted`
-//! task; a request that cannot stream is answered with one JSON-RPC error
-//! frame. Either way the stream closes after that frame.
+//! run answers with the `Submitted` task and then follows the run's status
+//! and artifact updates until it is terminal ([`super::run_stream`]); a
+//! request that cannot stream is answered with one JSON-RPC error frame and
+//! closes.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,8 +13,8 @@ use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::validation::validate_message_context;
-use crate::models::a2a::StreamResponse;
 use crate::models::a2a::jsonrpc::NumberOrString;
+use crate::models::a2a::{StreamResponse, Task};
 use crate::services::a2a_server::errors::{JsonRpcErrorBuilder, JsonRpcErrorResponse};
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::streaming::{
@@ -67,8 +68,7 @@ pub(super) async fn handle_streaming_request(
                 .await;
         match launched {
             Ok(Some(task)) => {
-                let frame = stream_response_event(StreamResponse::Task(task), &request_id);
-                return Ok(single_event_stream(frame).map(Ok));
+                return Ok(run_stream(task, &state, request_id).await.map(Ok));
             },
             Ok(None) => {},
             Err(failure) => {
@@ -94,6 +94,31 @@ pub(super) async fn handle_streaming_request(
         );
         Ok(error_stream(error, &request_id).map(Ok))
     }
+}
+
+async fn run_stream(
+    task: Task,
+    state: &AgentHandlerState,
+    request_id: NumberOrString,
+) -> ReceiverStream<Event> {
+    let Some(launcher) = state.agent_state.agent_run_launcher().cloned() else {
+        let frame = stream_response_event(StreamResponse::Task(task), &request_id);
+        return single_event_stream(frame);
+    };
+    let run_id = match launcher.run_for_task(&task.id).await {
+        Ok(run_id) => run_id,
+        Err(e) => {
+            tracing::warn!(task_id = %task.id, error = %e, "Agent run lookup failed for stream");
+            None
+        },
+    };
+    super::run_stream::follow_run(
+        task,
+        launcher,
+        run_id,
+        request_id,
+        state.active_tasks.tracker(),
+    )
 }
 
 fn error_stream(error: JsonRpcErrorBuilder, request_id: &NumberOrString) -> ReceiverStream<Event> {

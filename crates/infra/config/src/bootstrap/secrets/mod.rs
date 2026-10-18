@@ -63,7 +63,17 @@ pub use registry::{
     EnvLookup, SecretsSourceFactory, SecretsSourceRegistration, SharedSecretsProvider,
     build_external_provider, process_env_lookup, registered_external_kinds,
 };
-pub use reload::{PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets};
+pub use reload::{
+    PINNED_SECRET_KEYS, ReloadOutcome, SecretsStatus, diff_secrets, refresh_interval_for,
+};
+
+pub const BOOT_REQUIRED_SECRET_KEYS: &[&str] = &[
+    "database_url",
+    "oauth_at_rest_pepper",
+    "manifest_signing_secret_seed",
+    "encryption_master_key",
+];
+pub const SIGNING_KEY_PEM: &str = "signing_key_pem";
 pub use resolve::{ResolvedSource, resolve_source};
 pub use vault::{VaultAttemptFailure, VaultError, VaultKvProvider};
 
@@ -128,13 +138,26 @@ impl SecretsBootstrap {
             .ok_or(SecretsBootstrapError::EncryptionMasterKeyRequired)?;
         decode_master_key(master_key)?;
 
-        let is_deployment_host =
-            systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
-        let is_cloud = ProfileBootstrap::get().is_ok_and(|profile| profile.target.is_cloud());
-        if (is_deployment_host || is_cloud) && secrets.signing_key_pem.is_none() {
+        if Self::signing_key_pem_required() && secrets.signing_key_pem.is_none() {
             return Err(SecretsBootstrapError::SigningKeyPemRequired.into());
         }
         Ok(())
+    }
+
+    #[must_use]
+    pub fn signing_key_pem_required() -> bool {
+        let is_deployment_host =
+            systemprompt_models::subprocess::is_deployment_host(|name| std::env::var(name).ok());
+        is_deployment_host || ProfileBootstrap::get().is_ok_and(|profile| profile.target.is_cloud())
+    }
+
+    #[must_use]
+    pub fn required_secret_keys(signing_key_pem_required: bool) -> Vec<&'static str> {
+        let mut keys = BOOT_REQUIRED_SECRET_KEYS.to_vec();
+        if signing_key_pem_required {
+            keys.push(SIGNING_KEY_PEM);
+        }
+        keys
     }
 
     fn resolved_secrets_file_path() -> ConfigResult<PathBuf> {

@@ -10,7 +10,7 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Vendor-agnostic file storage backends for systemprompt.io AI governance infrastructure. Local-disk and Google Cloud Storage implementations of the FileStorage trait plus the shared-mount probe used by multi-replica deployments."
+description = "Vendor-agnostic file storage backends for systemprompt.io AI governance infrastructure. Local-disk, Google Cloud Storage and S3-compatible implementations of the FileStorage trait plus the shared-mount probe used by multi-replica deployments."
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
@@ -19,6 +19,8 @@ workspace = true
 
 [dependencies]
 tokio = { workspace = true }
+tokio-util = { workspace = true, features = ["io"] }
+futures = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }
@@ -29,6 +31,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+hex = { workspace = true }
 
 systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }

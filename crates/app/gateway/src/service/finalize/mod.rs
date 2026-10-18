@@ -43,6 +43,7 @@ use super::super::protocol::outbound::OutboundOutcome;
 use super::super::signature_cache::ThoughtSignatureCache;
 use super::super::{parse, stream_tap};
 use super::REQUEST_ID_HEADER;
+use crate::audit::phases::{self, GatewayPhase};
 use crate::policies::GatewayPolicySpec;
 
 pub(super) struct FinalizeCtx {
@@ -235,6 +236,7 @@ async fn buffered_completion(
     ctx: stream_tap::TapFinalizeCtx,
     response_scanned: bool,
 ) {
+    let started = std::time::Instant::now();
     match &audit.ctx.gateway_conversation_id {
         Some(conversation) => {
             ctx.repos
@@ -267,6 +269,7 @@ async fn buffered_completion(
         )
         .await;
     }
+    phases::record(GatewayPhase::Finalize, started.elapsed());
 }
 
 pub fn attach_request_id(mut response: Response<Body>, id: &AiRequestId) -> Response<Body> {

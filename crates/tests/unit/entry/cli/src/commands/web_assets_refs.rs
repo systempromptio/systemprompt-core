@@ -18,6 +18,7 @@ fn profile_with_services(services: &Path) -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -46,6 +47,7 @@ fn profile_with_services(services: &Path) -> Profile {
             max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
@@ -55,6 +57,8 @@ fn profile_with_services(services: &Path) -> Profile {
             web_path: None,
             storage: None,
             geoip_database: None,
+            shipped_files: None,
+            data: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_string(),
@@ -64,6 +68,7 @@ fn profile_with_services(services: &Path) -> Profile {
             allowed_resource_audiences: vec![],
             allow_registration: true,
             allow_dynamic_client_registration: true,
+            api_keys: Default::default(),
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

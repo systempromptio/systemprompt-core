@@ -52,6 +52,8 @@ axum = { workspace = true }
 jsonwebtoken = { workspace = true }
 rsa = { workspace = true }
 sqlx = { workspace = true }
+metrics = { workspace = true }
+metrics-util = { workspace = true }
 tower = { workspace = true }
 http = { workspace = true }
 http-body-util = "0.1"

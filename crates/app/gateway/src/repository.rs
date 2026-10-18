@@ -12,9 +12,10 @@ use systemprompt_ai::repository::{
     AiThoughtSignatureRepository,
 };
 use systemprompt_database::DbPool;
-use systemprompt_manifest::profile::AuditConfig;
+use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
 use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
-use systemprompt_traits::{BackgroundTasks, DynContextMaterializer};
+use systemprompt_security::policy::RateWindowRepository;
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};
 use crate::policies::PolicyResolver;
@@ -35,8 +36,10 @@ pub struct GatewayRepositories {
     pub artifact_ingest: Option<Arc<systemprompt_mcp::ArtifactIngest>>,
     pub sessions: Option<systemprompt_traits::DynSessionStore>,
     pub payload_cap_bytes: usize,
+    pub quota_sharding: QuotaConfig,
     pub background: BackgroundTasks,
     pub subject_providers: SubjectProviderSet,
+    pub rate_windows: RateWindowRepository,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -52,6 +55,7 @@ impl GatewayRepositories {
         journal: GatewayJournal,
         context_materializer: DynContextMaterializer,
         background: BackgroundTasks,
+        cache_epochs: CacheEpochs,
     ) -> Self {
         let requests = Arc::new(AiRequestRepository::new(db));
         Self {
@@ -62,7 +66,10 @@ impl GatewayRepositories {
             client_evidence: Arc::new(AiRequestClientEvidenceRepository::new(db)),
             safety_findings: AiSafetyFindingRepository::new(db),
             gateway_policies: AiGatewayPolicyRepository::new(db),
-            policy_resolver: PolicyResolver::from_repository(AiGatewayPolicyRepository::new(db)),
+            policy_resolver: PolicyResolver::from_repository(
+                AiGatewayPolicyRepository::new(db),
+                cache_epochs,
+            ),
             thought_signatures: Arc::new(ThoughtSignatureCache::new(
                 TTL,
                 Arc::new(AiThoughtSignatureRepository::new(db)),
@@ -71,11 +78,13 @@ impl GatewayRepositories {
             artifact_ingest: None,
             sessions: None,
             payload_cap_bytes: AuditConfig::DEFAULT_PAYLOAD_CAP_BYTES,
+            quota_sharding: QuotaConfig::default(),
             background,
             subject_providers: SubjectProviderSet::discover(&AuthzHookContext {
                 pool: db.pool(),
                 sink: Arc::new(NullAuditSink),
             }),
+            rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
         }
     }
 
@@ -88,6 +97,12 @@ impl GatewayRepositories {
     #[must_use]
     pub const fn with_payload_cap(mut self, payload_cap_bytes: usize) -> Self {
         self.payload_cap_bytes = payload_cap_bytes;
+        self
+    }
+
+    #[must_use]
+    pub const fn with_quota_sharding(mut self, quota_sharding: QuotaConfig) -> Self {
+        self.quota_sharding = quota_sharding;
         self
     }
 

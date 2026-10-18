@@ -8,6 +8,7 @@ mod model_filter;
 mod pending;
 mod probe;
 mod profile;
+mod profile_notices;
 mod repair;
 
 pub(crate) use enabled::{on_enabled_set_finished, on_enabled_set_requested};

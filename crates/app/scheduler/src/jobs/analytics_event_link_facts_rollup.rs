@@ -44,6 +44,10 @@ impl Job for AnalyticsEventLinkFactsRollupJob {
         "50 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("50 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let facts = drain_projection(ctx, &FACTS).await?;
         let rollup = drain_projection(ctx, &ROLLUP).await?;

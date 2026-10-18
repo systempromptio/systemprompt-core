@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_traits::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    StoredFileRead,
 };
 use tokio::sync::Mutex;
 
@@ -31,6 +32,7 @@ impl MockFileStorage {
             id: file_id,
             path: format!("mock/{id_str}"),
             mime_type: "application/octet-stream".to_string(),
+            etag: None,
             size_bytes: Some(bytes.len() as i64),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -83,6 +85,7 @@ impl FileStorage for MockFileStorage {
             id: file_id.clone(),
             path: path.to_string_lossy().to_string(),
             mime_type: "application/octet-stream".to_string(),
+            etag: None,
             size_bytes: Some(content.len() as i64),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
@@ -94,13 +97,30 @@ impl FileStorage for MockFileStorage {
         Ok(file_id)
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
-        self.files
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
+        let content = self
+            .files
             .lock()
             .await
             .get(id.as_str())
             .cloned()
-            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
+            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))?;
+        let metadata = self.metadata(id).await?;
+        let served = range.map(|r| r.resolve(content.len() as u64)).transpose()?;
+        let bytes = served.map_or_else(
+            || content.clone(),
+            |r| content[r.start as usize..=r.end as usize].to_vec(),
+        );
+        let chunk: FileStorageResult<bytes::Bytes> = Ok(bytes::Bytes::from(bytes));
+        Ok(StoredFileRead {
+            metadata,
+            range: served,
+            body: Box::pin(futures::stream::iter([chunk])),
+        })
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {

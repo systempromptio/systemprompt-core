@@ -56,6 +56,7 @@ async fn cancelling_a_cluster_job_releases_its_session_lock_for_a_later_dispatch
             jobs: Vec::new(),
             bootstrap_jobs: vec![JobName::new(CANCELLABLE_CLUSTER_JOB)],
             distributed_lock: true,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         },
         Arc::clone(&pool),
         context,

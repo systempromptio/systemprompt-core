@@ -130,15 +130,18 @@ pub enum RuntimeError {
     #[error("storage.credentials names secret '{name}', which the secrets store does not hold")]
     StorageCredentialMissing { name: SecretName },
 
-    #[error("storage.credentials secret '{name}' is not a service-account key: {source}")]
+    #[error("storage.credentials secret '{name}' does not hold the backend's credential: {source}")]
     StorageCredential {
         name: SecretName,
         #[source]
         source: serde_json::Error,
     },
 
-    #[error("storage.backend 'gcs' requires storage.bucket")]
+    #[error("storage backend requires storage.bucket")]
     StorageBucketMissing,
+
+    #[error("storage.backend 's3' requires storage.credentials: {{ secret: NAME }}")]
+    StorageS3CredentialsRequired,
 
     #[error("storage endpoint: {0}")]
     StorageEndpoint(#[source] url::ParseError),
@@ -190,6 +193,18 @@ pub enum RuntimeError {
         fresh: Vec<String>,
         pending: Vec<String>,
         drift: Vec<String>,
+    },
+
+    #[error(
+        "database schema was contracted by a newer release: {} migration(s) marked `@compat: \
+         breaking` [{}] cannot be served by this binary; stop this release's pods and run the \
+         newer one (profile {profile})",
+        .migrations.len(),
+        .migrations.join(", ")
+    )]
+    SchemaBreaksThisRelease {
+        profile: String,
+        migrations: Vec<String>,
     },
 
     #[error("DATABASE_URL is empty")]

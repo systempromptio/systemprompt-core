@@ -47,6 +47,10 @@ impl Job for BackfillRollupsJob {
         "45 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("45 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
         let pool = db_pool.write_pool();

@@ -3868,7 +3868,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.69.0"
+version = "0.70.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
@@ -3939,7 +3939,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.69.0"
+version = "0.70.0"
 dependencies = [
  "chrono",
  "schemars",
@@ -3951,7 +3951,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.69.0"
+version = "0.70.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -3979,23 +3979,26 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.69.0"
+version = "0.70.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "hex",
  "inventory",
  "serde",
  "serde_json",
  "serde_yaml_ng",
+ "sha2 0.11.1",
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.69.0"
+version = "0.70.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "chrono",
  "futures",
  "http",

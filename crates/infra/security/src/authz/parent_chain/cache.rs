@@ -8,7 +8,9 @@
 //! counts plus `MAX(updated_at)` of both tables) and reloads only when it
 //! moved, so a rule change is visible within `recheck` of its `updated_at`
 //! bump and a delete moves the count. The `ttl` forces a reload regardless,
-//! bounding any change the fingerprint cannot see.
+//! bounding any change the fingerprint cannot see. A rule write on any
+//! replica advances the [`CacheDomain::Authz`] epoch, which forces a reload
+//! on the next decision regardless of either bound.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,6 +18,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 use tokio::sync::RwLock;
 
 use super::{ChainSources, ParentChainIndex};
@@ -31,6 +34,7 @@ struct CachedIndex {
     fingerprint: ChainFingerprint,
     loaded_at: Instant,
     checked_at: Instant,
+    epoch: u64,
 }
 
 #[derive(Debug)]
@@ -38,22 +42,23 @@ pub struct ChainIndexCache {
     slot: RwLock<Option<CachedIndex>>,
     ttl: Duration,
     recheck: Duration,
-}
-
-impl Default for ChainIndexCache {
-    fn default() -> Self {
-        Self::new(DEFAULT_TTL, DEFAULT_RECHECK)
-    }
+    epochs: CacheEpochs,
 }
 
 impl ChainIndexCache {
     #[must_use]
-    pub fn new(ttl: Duration, recheck: Duration) -> Self {
+    pub fn new(ttl: Duration, recheck: Duration, epochs: CacheEpochs) -> Self {
         Self {
             slot: RwLock::new(None),
             ttl,
             recheck,
+            epochs,
         }
+    }
+
+    #[must_use]
+    pub fn with_default_bounds(epochs: CacheEpochs) -> Self {
+        Self::new(DEFAULT_TTL, DEFAULT_RECHECK, epochs)
     }
 
     pub async fn get(
@@ -62,9 +67,11 @@ impl ChainIndexCache {
         sources: Arc<ChainSources>,
     ) -> AuthzResult<Arc<ParentChainIndex>> {
         let now = Instant::now();
+        let epoch = self.epochs.current(CacheDomain::Authz);
         let fresh = {
             let slot = self.slot.read().await;
             slot.as_ref()
+                .filter(|cached| cached.epoch == epoch)
                 .filter(|cached| now.duration_since(cached.checked_at) < self.recheck)
                 .map(|cached| Arc::clone(&cached.index))
         };
@@ -74,7 +81,7 @@ impl ChainIndexCache {
 
         {
             let mut slot = self.slot.write().await;
-            if let Some(cached) = slot.as_mut() {
+            if let Some(cached) = slot.as_mut().filter(|cached| cached.epoch == epoch) {
                 if now.duration_since(cached.checked_at) < self.recheck {
                     return Ok(Arc::clone(&cached.index));
                 }
@@ -95,6 +102,7 @@ impl ChainIndexCache {
             fingerprint,
             loaded_at: now,
             checked_at: now,
+            epoch,
         });
         Ok(index)
     }

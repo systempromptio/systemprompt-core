@@ -33,6 +33,7 @@ fn bootstrap_config(jobs: Vec<JobConfig>) -> SchedulerConfig {
         jobs,
         bootstrap_jobs: vec![JobName::new(NODE_JOB)],
         distributed_lock: true,
+        unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     }
 }
 

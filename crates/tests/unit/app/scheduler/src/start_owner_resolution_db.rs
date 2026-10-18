@@ -31,6 +31,7 @@ mod start_owner_resolution_db {
             ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -64,6 +65,7 @@ mod start_owner_resolution_db {
             ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -118,6 +120,7 @@ mod start_lifecycle_db {
             jobs: vec![JobConfig::new(JobName::new("cleanup_inactive_sessions"))],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -145,6 +148,7 @@ mod start_lifecycle_db {
             ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -180,6 +184,7 @@ mod start_lifecycle_db {
             ],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -219,6 +224,7 @@ mod start_lifecycle_db {
             jobs: vec![JobConfig::new(JobName::new(job_name))],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -253,6 +259,7 @@ mod start_lifecycle_db {
             jobs: vec![JobConfig::new(JobName::new(SLOW_JOB)).with_schedule("* * * * * *")],
             bootstrap_jobs: Vec::new(),
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 

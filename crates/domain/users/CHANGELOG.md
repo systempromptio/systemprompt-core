@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `ApiKeyLifetime` caps personal access tokens at `security.api_keys.max_lifetime_days`; a key without an expiry gets the cap and a longer expiry is refused.
+
+### Changed
+
+- **Breaking:** `ApiKeyService::new` takes an `ApiKeyLifetime`.
+- **Breaking:** `UserRepository::insert_service_account` is replaced by the idempotent `ensure_service_account`.
+
+### Fixed
+
+- Existing keys older than the lifetime ceiling are refused.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

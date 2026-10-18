@@ -14,7 +14,7 @@ use std::path::Path;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_manifest::profile::{
-    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     default_resource_audiences,
 };
 use systemprompt_manifest::{
@@ -48,6 +48,7 @@ pub(super) fn server(is_prod: bool) -> ServerConfig {
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: systemprompt_manifest::profile::NodeRole::All,
         max_in_flight: None,
+        shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
         trusted_proxies: Vec::new(),
     }
 }
@@ -70,7 +71,9 @@ pub(super) fn paths(
         ),
         storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
         geoip_database: None,
+        data: None,
         web_path: None,
+        shipped_files: None,
     }
 }
 
@@ -92,6 +95,7 @@ pub(super) fn security(api_external_url: &str) -> SecurityConfig {
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),
         id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
+        api_keys: systemprompt_manifest::profile::ApiKeyPolicyConfig::default(),
     }
 }
 
@@ -120,5 +124,6 @@ pub(super) fn governance(api_internal_url: &str) -> GovernanceConfig {
             },
         }),
         audit: AuditConfig::default(),
+        quota: QuotaConfig::default(),
     }
 }

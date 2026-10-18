@@ -71,6 +71,8 @@ fn the_pinned_set_covers_identity_and_storage_keys() {
         "oauth_at_rest_pepper",
         "manifest_signing_secret_seed",
         "database_url",
+        "database_write_url",
+        "database_session_url",
         "signing_key_pem",
         "jwt_secret",
     ] {

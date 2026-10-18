@@ -62,10 +62,12 @@ pub struct Config {
     pub max_concurrent_streams: usize,
     pub role: crate::profile::NodeRole,
     pub max_in_flight: Option<std::num::NonZeroU32>,
+    pub shutdown: crate::profile::ShutdownConfig,
     pub sitename: String,
     pub database_type: String,
     pub database_url: String,
     pub database_write_url: Option<String>,
+    pub database_session_url: Option<String>,
     pub github_link: String,
     pub github_token: Option<String>,
     pub system_path: String,
@@ -94,6 +96,7 @@ pub struct Config {
     pub use_https: bool,
     pub rate_limits: crate::profile::RateLimitsConfig,
     pub retention: crate::profile::RetentionConfig,
+    pub planes: crate::profile::ConfigPlanesConfig,
     pub cors_allowed_origins: Vec<String>,
     pub trusted_proxies: Vec<ipnet::IpNet>,
     pub is_cloud: bool,
@@ -101,6 +104,7 @@ pub struct Config {
     pub security_headers: SecurityHeadersConfig,
     pub allow_registration: bool,
     pub allow_dynamic_client_registration: bool,
+    pub api_key_max_lifetime_days: Option<u32>,
     pub login_page_url: Option<String>,
     pub system_admin_username: String,
     pub system_admin_email: Option<systemprompt_identifiers::Email>,
@@ -118,10 +122,12 @@ impl std::fmt::Debug for Config {
             .field("max_concurrent_streams", &self.max_concurrent_streams)
             .field("role", &self.role)
             .field("max_in_flight", &self.max_in_flight)
+            .field("shutdown", &self.shutdown)
             .field("sitename", &self.sitename)
             .field("database_type", &self.database_type)
             .field("database_url", &REDACTED)
             .field("database_write_url", &REDACTED)
+            .field("database_session_url", &REDACTED)
             .field("github_link", &self.github_link)
             .field("github_token", &REDACTED)
             .field("system_path", &self.system_path)
@@ -159,6 +165,7 @@ impl std::fmt::Debug for Config {
             .field("use_https", &self.use_https)
             .field("rate_limits", &self.rate_limits)
             .field("retention", &self.retention)
+            .field("planes", &self.planes)
             .field("cors_allowed_origins", &self.cors_allowed_origins)
             .field("trusted_proxies", &self.trusted_proxies)
             .field("is_cloud", &self.is_cloud)
@@ -169,6 +176,7 @@ impl std::fmt::Debug for Config {
                 "allow_dynamic_client_registration",
                 &self.allow_dynamic_client_registration,
             )
+            .field("api_key_max_lifetime_days", &self.api_key_max_lifetime_days)
             .field("login_page_url", &self.login_page_url)
             .field("system_admin_username", &self.system_admin_username)
             .field("system_admin_email", &self.system_admin_email)
@@ -202,6 +210,7 @@ impl ConfigProvider for Config {
             "database_type" => Some(self.database_type.clone()),
             "database_url" => Some(self.database_url.clone()),
             "database_write_url" => self.database_write_url.clone(),
+            "database_session_url" => self.database_session_url.clone(),
             "host" => Some(self.host.clone()),
             "port" => Some(self.port.to_string()),
             "system_path" => Some(self.system_path.clone()),

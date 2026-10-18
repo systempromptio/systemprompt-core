@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- **Breaking:** cloud profiles written by the builders set `allow_registration` and `allow_dynamic_client_registration` to `false`.
+
 ## [0.69.0] - 2026-10-15
 
 ### Fixed

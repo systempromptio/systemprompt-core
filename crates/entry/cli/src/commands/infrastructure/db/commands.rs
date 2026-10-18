@@ -80,8 +80,8 @@ pub enum DbCommands {
             value_parser = crate::shared::parse_extension_id
         )]
         extension: Option<ExtensionId>,
-        #[arg(long, help = "Emit JSON instead of a text table")]
-        json: bool,
+        #[command(flatten)]
+        flags: PlanFlags,
     },
     #[command(
         about = "Detailed introspectable migration status (applied, pending, drift)",
@@ -167,4 +167,16 @@ pub enum MigrationsCommands {
         #[arg(help = "Extension ID", value_parser = crate::shared::parse_extension_id)]
         extension: ExtensionId,
     },
+}
+
+#[derive(Debug, Clone, Copy, clap::Args)]
+pub struct PlanFlags {
+    #[arg(long, help = "Emit JSON instead of a text table")]
+    pub json: bool,
+    #[arg(
+        long,
+        help = "Exit non-zero when a pending migration is marked `@compat: breaking` (the batch \
+                needs old pods stopped first)"
+    )]
+    pub require_rolling_safe: bool,
 }

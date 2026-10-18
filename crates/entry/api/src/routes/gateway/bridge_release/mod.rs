@@ -83,10 +83,11 @@ pub async fn download(
         })?;
 
     if !upstream.status().is_success() {
-        return Err(ReleaseError::UpstreamStatus {
-            stage: "asset fetch",
-            status: upstream.status(),
-        });
+        return Err(ReleaseError::upstream(
+            "asset fetch",
+            &upstream,
+            spec.token_secret.as_deref(),
+        ));
     }
 
     let body = Body::from_stream(upstream.bytes_stream());

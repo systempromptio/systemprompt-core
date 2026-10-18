@@ -8,7 +8,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, StatusCode};
 use bytes::Bytes;
 use std::sync::Arc;
-use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID};
+use systemprompt_identifiers::headers::{GATEWAY_CONVERSATION_ID, SESSION_ID, TRACEPARENT};
 use systemprompt_identifiers::{GatewayConversationId, SessionId};
 use systemprompt_wire::anthropic as wire_anthropic;
 
@@ -112,6 +112,7 @@ fn body_read_error(error: axum::Error) -> RejectionError {
 pub(crate) struct ClientHeaders {
     pub forward: Vec<(String, String)>,
     pub identity: Vec<(String, String)>,
+    pub traceparent: Option<String>,
 }
 
 pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
@@ -121,6 +122,9 @@ pub(super) fn classify_client_headers(headers: &HeaderMap) -> ClientHeaders {
             continue;
         };
         let name = name.as_str();
+        if name == TRACEPARENT {
+            classified.traceparent = Some(value.to_owned());
+        }
         if wire_anthropic::is_forwardable_request_header(name) {
             classified.forward.push((name.to_owned(), value.to_owned()));
         } else if wire_anthropic::is_identity_request_header(name) {

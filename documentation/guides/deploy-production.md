@@ -94,7 +94,7 @@ readinessProbe:
   periodSeconds: 5
 ```
 
-**Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, stops accepting connections, drains in-flight requests and SSE streams for `AXUM_DRAIN_GRACE_MS` (10 s), gives MCP and agent children 5 s to exit, and force-exits 10 s after that (`crates/entry/api/src/services/server/shutdown.rs`). Set the balancer's drain interval or `preStop` delay to at least 10 s and `terminationGracePeriodSeconds` to at least 30 s. A second `SIGTERM` exits at once.
+**Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, keeps accepting for `server.shutdown.pre_stop_delay_secs` (default 0) while endpoints update, then stops accepting and drains in-flight requests and SSE streams for `drain_grace_secs` (default 10). MCP and agent children get `child_grace_secs` (default 5), owned background work — including the final gateway journal settlement — gets `background_grace_secs` (default 5), and the process force-exits `forced_exit_grace_secs` (default 10) after the drain. The server logs the total at boot; set `terminationGracePeriodSeconds` above it, and set `pre_stop_delay_secs` to cover the time your endpoints controller needs instead of a `preStop` `sleep`. A second `SIGTERM` exits at once.
 
 Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
 
@@ -103,7 +103,7 @@ Rolling deploys are safe: replace one replica at a time and wait for `/readyz` t
 ```yaml
 # Two Deployments from one image; the mounted profile differs only in server.role.
 # gateway Deployment: replicas: 4,  profile server.role: gateway
-# admin Deployment:   replicas: 1,  profile server.role: admin
+# admin Deployment:   replicas: 1+, profile server.role: admin (see Scheduler scope below)
 # Route /v1/* and /api/public/gateway to the gateway Service, everything else to admin.
 ```
 
@@ -171,13 +171,14 @@ One image, N replicas, one Postgres primary. Every replica must agree with the o
 - **One identity per replica.** Registry rows, the event outbox and node-scoped scheduler runs are keyed by the instance id. A cloud profile takes it from `HOSTNAME` (the pod name on Kubernetes) and refuses a static `server.instance_id`, because one id shared by several replicas makes each evict the others' MCP registrations. At boot the replica claims its id with a Postgres session advisory lock held for the process lifetime; a second live process with the same id is refused with an error naming the id, and the claim is released automatically when the process exits or its connection drops. It is stamped on every log line, every `ai_requests` row, every Prometheus series (`instance` label) and the `x-served-by` response header.
 - **`server.trusted_proxies` is required on cloud profiles.** Without it every request resolves to the balancer's address and all callers share one rate-limit bucket and one ban target. Validation refuses the profile.
 - **`/metrics` on its own port.** Set `server.metrics_port`; the scrape endpoint is served on that port only and never on the public router. Leave it unset and no metrics endpoint is exposed.
-- **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB); the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node. Alternatively set `storage.backend: gcs` to keep these files in a Cloud Storage bucket every replica reaches; no shared mount is needed and the shared-mount probe is skipped. On GKE, bind the Kubernetes service account to a Google service account with `roles/storage.objectAdmin` on the bucket (annotation `iam.gke.io/gcp-service-account`) and leave `credentials` at `workload_identity`. See [configure.md](configure.md#file-storage).
-- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock. Jobs that write the local filesystem (`content_prerender`, `page_prerender`, `copy_extension_assets`) declare `scope: node` and run on every replica so each serves a current `web/dist`. Override per job in `services.yaml` with `scope: cluster | node`.
+- **Storage.** `paths.storage` holds uploads and generated images. With `storage.shared: true` it must be one mount every replica sees (NFS, EFS, SMB), and `paths.data` must point at a per-node writable volume (an `emptyDir` on node disk is enough) so the gateway journal and scratch trees stay off the shared mount — validation refuses a shared profile without it; the boot probe writes a marker per instance and warns when it finds none from other nodes. With `shared: false` those files are node-local and a request for a file uploaded through another replica is a 404 — acceptable only for a single node. Alternatively set `storage.backend: gcs` to keep these files in a Cloud Storage bucket every replica reaches; no shared mount is needed and the shared-mount probe is skipped. On GKE, bind the Kubernetes service account to a Google service account with `roles/storage.objectAdmin` on the bucket (annotation `iam.gke.io/gcp-service-account`) and leave `credentials` at `workload_identity`. See [configure.md](configure.md#file-storage).
+- **Scheduler scope.** Only `all` and `admin` nodes run the scheduler; a `gateway` node runs none. Jobs are `cluster` by default and run on exactly one replica under an advisory lock (`scheduler.distributed_lock`, on by default). Jobs whose effect is local to the node declare `scope: node` and run on every replica: the renderers (`content_prerender`, `page_prerender`, `copy_extension_assets`) so each serves a current `web/dist`, `managed_inventory_refresh`, and `file_ingestion`, which walks the node's own view of `paths.storage`. Override per job in `services.yaml` with `scope: cluster | node`. A manual `infra jobs run` takes the same lock for a `cluster` job and fails when another replica holds it; `--lock-wait-secs N` waits up to N seconds instead. Several `admin` replicas are therefore safe for the scheduler; what still has to hold is shared storage (or the `gcs` backend) and MCP routing to the replica that owns each child.
+- **Unlisted jobs.** `scheduler.unlisted_jobs` decides what happens to a job the build registers but `scheduler.jobs` does not name: `default` (the default) schedules it on its declared default schedule when the job declares one (the read-model rollups do) and warns about the rest; `warn` only warns; `error` refuses to start the scheduler while any job is unlisted. Name a job with `enabled: false` to keep it off the schedule. `systemprompt admin config validate --strict` fails on unlisted jobs, so a CI check catches a new job before it ships.
 - **Databases.** `database_write_url` is the primary; `database_url` is the nearest replica. Security-critical lookups (session attestation, token and revocation checks, API keys, bans, MCP sessions) always read the primary, so a fresh login is valid in every region at once; listings and analytics read the replica. The cross-replica event relay (`LISTEN`/`NOTIFY`) also runs on the primary.
 - **MCP service registry.** Rows are keyed `(instance_id, name)`; each replica registers, reconciles and reaps only its own children, heartbeats every 15 s, and a scheduler job removes rows whose replica stopped heartbeating for 90 s and no longer holds its identity claim, so a stalled but live replica is never reaped. Replicas may boot concurrently; the post-reconcile registration check retries for up to about a second before failing the boot.
 - **Session-free.** Passkey challenges, MCP proxy session identities and Gemini thought signatures live in Postgres, so no balancer affinity is required.
 
-**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits and AI quotas are global. `web/dist` is rendered per node.
+**Known per-node behaviour.** Anonymous (IP-keyed) HTTP throttles and the analytics anomaly counters are process-local, so their effective thresholds scale with the replica count; user-keyed HTTP limits, AI quotas and the `rate_limit` governance policy (a fixed window per session and user, counted in Postgres) are global. `web/dist` is rendered per node.
 
 ### 3.5 Writable paths and a read-only root filesystem
 
@@ -300,23 +301,87 @@ Recorded series (`crates/entry/api/src/services/server/metrics.rs`, `crates/app/
 | `sse_active_connections` | gauge | `channel` (`context`, `agui`, `a2a`, `analytics`) | live SSE stream counts |
 | `gateway_overhead_seconds` | histogram (1 ms–1 s) | `route` (inbound wire dialect, e.g. `anthropic.messages`), `provider` | time the gateway added to a completed inference request, excluding the provider call |
 | `gateway_upstream_duration_seconds` | histogram (100 ms–120 s) | `route`, `provider` | provider call duration for a completed inference request |
+| `gateway_phase_seconds` | histogram (1 ms–120 s) | `phase` (`admission`, `upstream_first_byte`, `stream`, `finalize`) | where a request's time goes: quota/guards/governance/scanning before dispatch, provider time to headers, the streamed body, and audit/quota settlement |
+| `gateway_streams_in_flight` | gauge | — | streamed gateway response bodies still being written, for their whole lifetime (including a client that disconnects mid-stream); the autoscaling signal, see §7.3 |
+| `db_pool_connections`, `db_pool_size` | gauge | `pool`, `state` | pool occupancy; `used / size` near 1 is pool saturation |
+| `db_pool_acquire_seconds` | histogram (0.5 ms–5 s) | `pool` (`read`, `write`) | a probe acquires one connection every 5 s and records the wait — the queueing a request would see at that moment |
+| `scheduler_job_runs_total` | counter | `job`, `status` (`success`, `idle`, `error`) | scheduled job runs on nodes that run the scheduler |
+| `scheduler_job_duration_seconds` | histogram (10 ms–30 min) | `job` | scheduled job run duration |
+| `projection_backlog_depth` | gauge | `projection` | keys waiting for a projection refresh (sampled every 30 s on scheduler nodes) |
+| `log_entries_dropped_total` | counter | — | log rows the database sink dropped because its queue was full |
+| `cache_invalidations_received_total` | counter | `domain` (`gateway_policy`, `authz`, `jti_revocation`) | cross-replica cache invalidations this replica received (§7.4) |
+| `systemprompt_config_info` | gauge | `profile_sha`, `secret_keys_sha`, `services_sha`, `secrets_generation` | `1` for the configuration this replica runs (§7.4) |
 
 Recommended alerts:
 
 - `http_requests_total` 5xx rate climbing for 5 minutes — warn.
 - p99 of `http_request_duration_seconds` over your SLO for 10 minutes — page.
 - `http_requests_in_flight` near the replica's concurrency ceiling — warn (saturation).
-- p99 of `gateway_overhead_seconds` above 50 ms for 10 minutes — warn: the gateway, not the provider, is adding latency.
+- p99 of `gateway_overhead_seconds` above 50 ms for 10 minutes — warn: the gateway, not the provider, is adding latency. `gateway_phase_seconds{phase="admission"}` shows whether quota and guard writes are the cause.
+- `db_pool_connections{state="used"} / db_pool_size` above 0.9, or p99 of `db_pool_acquire_seconds` above 100 ms — warn: adding replicas will not help while Postgres is the bottleneck.
+- `increase(scheduler_job_runs_total{status="error"}[1h]) > 0` — warn.
+- `projection_backlog_depth` growing for 30 minutes — warn.
+- `rate(http_load_shed_total[5m]) > 0` — warn. Requests shed at the ceiling are refused before `http_requests_total` records them, so an error-budget query must add this counter.
+
+### 7.3 Autoscaling on stream load
+
+`http_requests_in_flight` and `http_in_flight_saturation` count a streamed response only until its headers are sent, so they stay near zero while a gateway pod is busy relaying long streams. `gateway_streams_in_flight` counts each streamed body until it is dropped and is the per-pod load signal to scale on. Expose it through the Prometheus Adapter (or KEDA) and target an average per pod sized to what one replica sustains:
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: systemprompt-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: systemprompt-gateway
+  minReplicas: 3
+  maxReplicas: 30
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: gateway_streams_in_flight
+        target:
+          type: AverageValue
+          averageValue: "200"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+```
+
+```yaml
+# prometheus-adapter rule
+rules:
+  - seriesQuery: 'gateway_streams_in_flight{namespace!="",pod!=""}'
+    resources:
+      overrides:
+        namespace: { resource: namespace }
+        pod: { resource: pod }
+    metricsQuery: 'sum(<<.Series>>{<<.LabelMatchers>>}) by (<<.GroupBy>>)'
+```
+
+Before raising `maxReplicas`, check the database signals above: when the pool is saturated, more gateway pods add load to the bottleneck.
+
+### 7.4 Replica coherence
+
+Every replica reports what it is running. `GET /readyz` carries a `config` object — `profile_sha` (the loaded profile), `secret_keys_sha` (the sorted *names* of the loaded secrets; values and value hashes are never exposed), `secrets_generation`, `secrets_last_reload_at` and, for a bundle-composed services tree, `services_sha` — and `/metrics` publishes the same labels on `systemprompt_config_info`. `count by (profile_sha) (systemprompt_config_info == 1)` returns one series once a rollout has converged; a second value names the replicas still on the old configuration.
+
+Secret reloads (`secrets.refresh_secs` for a `file` source, `secrets.external.refresh_secs` for `external`) run on every replica and every role, `gateway` included, without a cluster lock, so `secrets_generation` advances everywhere within one interval of a rotation.
+
+The gateway policy cache, the authz chain-index cache and the logout (JTI revocation) cache are invalidated across replicas: a statement trigger on the backing table sends `NOTIFY systemprompt_cache` in the writing transaction, and each replica's event bridge drops the matching cache, so a rule change or a logout takes effect on every replica within one notification round trip rather than at the cache TTL. A lost notification falls back to the TTL (60 s), and the bridge invalidates every cache when its listener reconnects. Like the event relay, this needs a session-level `LISTEN` on the primary: it does not pass through a transaction-pooling proxy.
 
 ### 7.2 SIEM integration
 
-Structured logs and audit events are written to Postgres (the `logs` table) and emitted to stdout as JSON. Forward to a SIEM via:
+Structured logs and audit events are written to Postgres (the `logs` table) and to stderr — as JSON lines with `observability.log_format: json`, as `key=value` text otherwise. Forward to a SIEM via:
 
 1. **Logical replication** — preferred for high volume; the SIEM subscribes to the audit tables.
-2. **Structured log egress** — forward stdout JSON via Fluent Bit, Vector, or similar to Splunk / Elastic / Datadog.
+2. **Structured log egress** — set `observability.log_format: json` and forward stderr via Fluent Bit, Vector, or similar to Splunk / Elastic / Datadog.
 3. **Pull-based export** — periodic query by the SIEM against a read-only replica.
 
-Log lines are structured JSON carrying a `trace_id` for correlation; secret-bearing fields (tokens, API keys, authorization headers) are redacted before emission. See [operate.md](operate.md) for the log fields and the OTLP ingest endpoint.
+Log lines carry a `trace_id` for correlation; secret-bearing fields (tokens, API keys, authorization headers) are redacted before emission. See [operate.md](operate.md) for the log fields and the OTLP ingest endpoint.
 
 ## 8. Air-gap deployment
 
@@ -357,13 +422,34 @@ A pod that skips migrations still verifies the schema before its domain services
 
 ### 9.2 Rollback
 
-Migrations are additive-only within a minor version, so rolling back by one minor is supported:
+Migrations follow the expand/contract contract (§9.3), so rolling back by one minor is supported:
 
 1. Replace the binary with the previous version.
 2. Rolling restart, draining each replica first.
 3. Columns added by the newer version are ignored by the older binary.
 
 Rolling back across more than one minor version requires a point-in-time restore from backup (§4.2).
+
+### 9.3 Schema compatibility during a rolling update
+
+During a rolling update the newest release migrates the database while pods of the previous release are still serving. The schema contract that makes this safe is expand/contract:
+
+- **Expand.** A release only adds: new tables, new nullable columns or columns with a default, new indexes, new views and functions. The previous release keeps working against the expanded schema because it never reads what it does not know.
+- **Contract.** Removing or renaming anything a previous release reads happens in a later release, once no live binary depends on it. Such a migration declares itself in its leading comment block:
+
+  ```sql
+  -- @compat: breaking
+  ALTER TABLE example DROP COLUMN legacy_flag;
+  ```
+
+  Any other `@compat:` value fails the build. The runner records the declaration in `extension_migration_compat` before the migration runs, so an older binary — which never saw the file — can read it. A batch containing one is not rolling-safe: stop every older pod (a `Recreate` rollout) before migrating. `systemprompt infra db migrate-plan` prints `rolling-safe: yes | no` and marks each breaking migration; `--require-rolling-safe` exits non-zero when the batch is not, so a pipeline can choose between `RollingUpdate` and `Recreate` without reading SQL.
+
+A binary that finds migrations it does not know — ledger rows numbered past every migration it declares — treats the database as *ahead*, not broken:
+
+- It applies nothing: no declarative DDL and no migrations, so it never rewrites what the newer release installed. A checksum mismatch in an ahead extension is left to the newer release and does not block the boot.
+- It logs the unknown migrations at `WARN` and keeps serving. `/readyz` answers `200` with `"schema": "ahead"` and the list in `schema_ahead`, so the state is visible without failing the probe.
+- The exception is a migration recorded as `@compat: breaking`: an older binary that finds one ahead of it refuses to start, naming the migrations, because the schema it reads has been contracted.
+- A database *behind* the binary (pending migrations, missing tables, or drift in an extension that is not ahead) still fails the boot of a pod that skips migrations, as in §9.1.
 
 ## 10. Reference sizing
 
@@ -377,7 +463,7 @@ Starting points; benchmark against your own workload.
 
 The request hot path is CPU-bound; Postgres becomes the capacity bottleneck before the binary does.
 
-**Overload shedding.** Set `server.max_in_flight` to cap concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"` instead of queueing until the balancer times out; `/livez`, `/readyz`, `/health`, `/api/v1/health` and `/metrics` are exempt, and `/readyz` reports `saturated` so the balancer stops sending new work. Unset (the default) means no ceiling; `0` is rejected. Start near 64 × vCPU for gateway nodes and tune with `http_in_flight_saturation` (fraction of the ceiling in use) and `http_load_shed_total`. A permit covers the handler, not the remainder of a streamed response body, so long SSE streams are bounded by `server.max_concurrent_streams` instead.
+**Overload shedding.** Set `server.max_in_flight` to cap concurrent requests per replica. A request that finds no free permit is refused at once with `503`, `Retry-After: 1` and `error_key: "overloaded"` instead of queueing until the balancer times out; `/livez`, `/readyz`, `/health`, `/api/v1/health` and `/metrics` are exempt, and `/readyz` reports `saturated` so the balancer stops sending new work. Unset (the default) means no ceiling; `0` is rejected. Start near 64 × vCPU for gateway nodes and tune with `http_in_flight_saturation` (fraction of the ceiling in use) and `http_load_shed_total`. A permit covers the handler, not the remainder of a streamed response body; `server.max_concurrent_streams` bounds A2A SSE streams only, and gateway streams are measured by `gateway_streams_in_flight` (§7.3).
 
 ## Next steps
 

@@ -1,12 +1,17 @@
 //! Storage path layout for uploaded and generated files.
 //!
+//! `files` under `paths.storage` is the writable layer (uploads, generated
+//! images, operator overrides); `shipped_files` is the optional read-only
+//! layer an image ships, consulted after it.
+//!
 //! `data` is the one sanctioned root for runtime state the server writes for
 //! itself (the gateway accounting journal), and `data/scratch` the one root
 //! for short-lived working trees (Git checkouts of managed sources, import
 //! staging), so a read-only root filesystem needs no writable `/tmp`. Both
-//! sit under `paths.storage` because that is the mount every deployment
+//! default to `paths.storage/data` because that is the mount every deployment
 //! already makes writable; the profile directory is configuration and may be
-//! mounted read-only.
+//! mounted read-only. `paths.data` moves them to a node-local volume when
+//! `paths.storage` is shared between replicas.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -34,6 +39,7 @@ pub struct StoragePaths {
     video: PathBuf,
     documents: PathBuf,
     uploads: PathBuf,
+    shipped_files: Option<PathBuf>,
 }
 
 impl StoragePaths {
@@ -45,11 +51,15 @@ impl StoragePaths {
 
         let root = PathBuf::from(root);
         let files = root.join(storage::FILES);
+        let data = paths
+            .data
+            .as_ref()
+            .map_or_else(|| root.join(storage::DATA), PathBuf::from);
 
         Ok(Self {
             exports: root.join(storage::EXPORTS),
-            data: root.join(storage::DATA),
-            scratch: root.join(storage::SCRATCH),
+            scratch: data.join("scratch"),
+            data,
             css: files.join("css"),
             js: files.join("js"),
             fonts: files.join("fonts"),
@@ -62,6 +72,7 @@ impl StoragePaths {
             uploads: files.join("uploads"),
             files,
             root,
+            shipped_files: paths.shipped_files.as_ref().map(PathBuf::from),
         })
     }
 
@@ -123,5 +134,9 @@ impl StoragePaths {
 
     pub fn uploads(&self) -> &Path {
         &self.uploads
+    }
+
+    pub fn shipped_files(&self) -> Option<&Path> {
+        self.shipped_files.as_deref()
     }
 }

@@ -11,6 +11,7 @@
 
 mod cache;
 mod responses;
+mod stored;
 
 pub use cache::{
     CACHE_HTML, CACHE_METADATA, CACHE_STATIC_ASSET, CACHE_STATIC_ASSET_REVALIDATE,
@@ -18,7 +19,7 @@ pub use cache::{
 };
 
 use axum::extract::State;
-use axum::http::{HeaderMap, Uri};
+use axum::http::{HeaderMap, Method, Uri};
 use axum::response::IntoResponse;
 use std::sync::Arc;
 use systemprompt_traits::RepositoryError;
@@ -44,6 +45,7 @@ pub struct StaticContentState {
 pub async fn serve_static_content(
     State(state): State<StaticContentState>,
     uri: Uri,
+    method: Method,
     headers: HeaderMap,
     _req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
@@ -55,7 +57,7 @@ pub async fn serve_static_content(
         state.route_classifier.classify(path, "GET"),
         RouteType::StaticAsset { .. }
     ) {
-        return serve_static_asset(path, &dist_dir, &headers).await;
+        return serve_static_asset(&state.ctx, path, &method, &dist_dir, &headers).await;
     }
 
     if path == "/" {
@@ -103,7 +105,9 @@ pub async fn serve_static_content(
 }
 
 async fn serve_static_asset(
+    ctx: &AppContext,
     path: &str,
+    method: &Method,
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
@@ -116,21 +120,31 @@ async fn serve_static_asset(
     };
 
     let files_prefix = format!("{}/", files_config.url_prefix());
-    let stored_file = path.strip_prefix(&files_prefix);
-    let asset_path = stored_file.map_or_else(
-        || dist_dir.join(path.trim_start_matches('/')),
-        |relative_path| files_config.files().join(relative_path),
-    );
+    let Some(relative_path) = path.strip_prefix(&files_prefix) else {
+        let asset_path = dist_dir.join(path.trim_start_matches('/'));
+        if asset_path.is_file() {
+            let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
+            return serve_cached_file(
+                &asset_path,
+                headers,
+                mime_type,
+                asset_cache_policy(&asset_path),
+            )
+            .await;
+        }
+        return ApiHttpError::not_found("Asset not found").into_response();
+    };
 
-    if asset_path.exists() && asset_path.is_file() {
-        let mime_type = systemprompt_models::mime::http_content_type(&asset_path);
-        let cache_control = stored_file
-            .and_then(|_| files_config.cache_control())
-            .unwrap_or_else(|| asset_cache_policy(&asset_path));
-        return serve_cached_file(&asset_path, headers, mime_type, cache_control).await;
-    }
-
-    ApiHttpError::not_found("Asset not found").into_response()
+    stored::serve_files_path(
+        ctx,
+        files_config,
+        stored::FilesRequest {
+            relative_path,
+            method,
+            headers,
+        },
+    )
+    .await
 }
 
 async fn serve_metadata_file(

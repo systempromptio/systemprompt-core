@@ -23,6 +23,8 @@ fn build_paths(bin: &Path) -> BuildPaths {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     })
 }
 

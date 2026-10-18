@@ -18,7 +18,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_traits::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    StoredFileRead,
 };
 use url::Url;
 
@@ -26,6 +27,7 @@ pub use error::GcsError;
 pub use token::{DEFAULT_METADATA_TOKEN_URL, GcsTokenSource, MetadataServerTokens};
 
 use crate::object_id::{id_for, mime_for, relative_path};
+use crate::remote_read::RemoteRead;
 use client::Lookup;
 
 pub const DEFAULT_GCS_ENDPOINT: &str = "https://storage.googleapis.com/";
@@ -112,9 +114,25 @@ impl FileStorage for GcsFileStorage {
         Ok(id)
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
         let name = self.object_name(id)?;
-        self.download(&name).await.map_err(|e| e.into_storage(id))
+        let response = self
+            .download(&name, range)
+            .await
+            .map_err(|e| e.into_storage(id))?;
+        match crate::remote_read::into_read(id, response) {
+            RemoteRead::Read(read) => Ok(read),
+            RemoteRead::Unsatisfiable(Some(size)) => {
+                Err(FileStorageError::RangeNotSatisfiable { size })
+            },
+            RemoteRead::Unsatisfiable(None) => Err(FileStorageError::RangeNotSatisfiable {
+                size: crate::remote_read::stat_size(&self.metadata(id).await?),
+            }),
+        }
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
@@ -152,6 +170,7 @@ impl FileStorage for GcsFileStorage {
                 .content_type
                 .unwrap_or_else(|| mime_for(Path::new(id.as_str())).to_owned()),
             size_bytes,
+            etag: object.etag,
             created_at,
             updated_at: object.updated.unwrap_or(created_at),
         })

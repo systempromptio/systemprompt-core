@@ -6,9 +6,10 @@
 //! `AuthzDecision`. The chain's membership is supplied at construction,
 //! because this crate cannot load the services configuration itself, and is
 //! fixed for the process lifetime; the loaded chain index is held in a
-//! [`ChainIndexCache`] and revalidated against a table fingerprint. Exposed as
-//! a hook so extensions can compose it explicitly with their own ABAC
-//! predicates via [`super::CompositeAuthzHook`]:
+//! [`ChainIndexCache`] and revalidated against a table fingerprint, and each
+//! entity's catalogue row and rules are cached for as long as that index is.
+//! Exposed as a hook so extensions can compose it explicitly with their own
+//! ABAC predicates via [`super::CompositeAuthzHook`]:
 //!
 //! ```ignore
 //! let composite = CompositeAuthzHook::new(vec![
@@ -27,6 +28,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::PgPool;
+use systemprompt_traits::CacheEpochs;
 
 use super::audit::{AuthzAuditSink, AuthzSource};
 use super::error::{AuthzError, AuthzResult};
@@ -34,11 +36,12 @@ use super::hook::AuthzDecisionHook;
 use super::parent_chain::{ChainIndexCache, ChainSources, ParentChainIndex, ResolveBase};
 use super::registry::AuthzHookContext;
 use super::repository::AccessControlRepository;
+use super::rule_based_cache::{EntityRules, EntityRulesCache};
 use super::subject::{
     SharedSubjectAttributeProvider, SubjectDimension, dimensions_of, discover_subject_providers,
     gather_subject_attributes,
 };
-use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason};
+use super::types::{AuthzDecision, AuthzRequest, Decision, DenyReason, EntityKind};
 
 #[derive(Clone)]
 pub struct RuleBasedHook {
@@ -48,6 +51,7 @@ pub struct RuleBasedHook {
     dimensions: Vec<SubjectDimension>,
     sources: Arc<ChainSources>,
     cache: Arc<ChainIndexCache>,
+    entity_cache: Arc<EntityRulesCache>,
 }
 
 impl std::fmt::Debug for RuleBasedHook {
@@ -63,7 +67,12 @@ impl std::fmt::Debug for RuleBasedHook {
 
 impl RuleBasedHook {
     #[must_use]
-    pub fn new(pool: Arc<PgPool>, sink: Arc<dyn AuthzAuditSink>, sources: ChainSources) -> Self {
+    pub fn new(
+        pool: Arc<PgPool>,
+        sink: Arc<dyn AuthzAuditSink>,
+        sources: ChainSources,
+        epochs: CacheEpochs,
+    ) -> Self {
         let providers = discover_subject_providers(&AuthzHookContext {
             pool: Arc::clone(&pool),
             sink: Arc::clone(&sink),
@@ -74,12 +83,29 @@ impl RuleBasedHook {
             dimensions: dimensions_of(&providers),
             providers,
             sources: Arc::new(sources),
-            cache: Arc::new(ChainIndexCache::default()),
+            cache: Arc::new(ChainIndexCache::with_default_bounds(epochs)),
+            entity_cache: Arc::new(EntityRulesCache::default()),
         }
     }
 
     async fn chain_index(&self) -> AuthzResult<Arc<ParentChainIndex>> {
         self.cache.get(&self.repo, Arc::clone(&self.sources)).await
+    }
+
+    async fn entity_rules(
+        &self,
+        index: &Arc<ParentChainIndex>,
+        kind: EntityKind,
+        id: &str,
+    ) -> AuthzResult<Arc<EntityRules>> {
+        if let Some(cached) = self.entity_cache.get(index, kind, id) {
+            return Ok(cached);
+        }
+        let entity = self.repo.get_entity(kind, id).await?;
+        let rules = self.repo.list_rules_for_entity(kind, id).await?;
+        Ok(self
+            .entity_cache
+            .insert(index, kind, id, EntityRules { entity, rules }))
     }
 
     async fn fault(&self, req: &AuthzRequest, error: &AuthzError) -> AuthzDecision {
@@ -111,19 +137,15 @@ impl AuthzDecisionHook for RuleBasedHook {
         let kind = req.entity.kind();
         let id = req.entity.id_str();
 
-        let entity = match self.repo.get_entity(kind, id).await {
-            Ok(row) => row,
-            Err(err) => return self.fault(&req, &err).await,
-        };
-        let rules = match self.repo.list_rules_for_entity(kind, id).await {
-            Ok(rules) => rules,
-            Err(err) => return self.fault(&req, &err).await,
-        };
-
         let index = match self.chain_index().await {
             Ok(index) => index,
             Err(err) => return self.fault(&req, &err).await,
         };
+        let cached = match self.entity_rules(&index, kind, id).await {
+            Ok(cached) => cached,
+            Err(err) => return self.fault(&req, &err).await,
+        };
+        let EntityRules { entity, rules } = cached.as_ref();
 
         let attributes = match gather_subject_attributes(&self.providers, &req.user_id).await {
             Ok(attributes) => attributes,
@@ -133,10 +155,10 @@ impl AuthzDecisionHook for RuleBasedHook {
             kind,
             id,
             ResolveBase {
-                rules: &rules,
+                rules,
                 user_id: &req.user_id,
                 user_roles: &req.roles,
-                default_included: entity.map(|e| e.default_included),
+                default_included: entity.as_ref().map(|e| e.default_included),
                 attributes: &attributes,
                 dimensions: &self.dimensions,
             },

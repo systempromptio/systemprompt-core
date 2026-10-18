@@ -48,7 +48,7 @@ pub(super) fn discover(dir: &Path) -> Vec<DiscoveredMigration> {
         .map(|up| {
             let stem = file_stem(up);
             let (version, end_version, name) = parse_stem(&stem, up);
-            reject_malformed_cost_directive(up);
+            reject_malformed_directives(up);
             assert!(
                 version == end_version,
                 "migration file {} may not name a version range — only a `.tombstone` covers \
@@ -150,14 +150,17 @@ fn supersedes_directive(path: &Path) -> Vec<String> {
         .collect()
 }
 
-// Why: the directive is load-bearing at runtime — the runner derives this
-// migration's statement timeout from `measured` — so a malformed one must
-// stop the build, exactly as a malformed `@supersedes-checksum` does, rather
-// than be silently ignored and leave the migration unbounded.
-fn reject_malformed_cost_directive(path: &Path) {
+// Why: both directives are load-bearing at runtime — the runner derives the
+// statement timeout from `@cost`, and `@compat` decides whether older pods may
+// keep serving — so a malformed one must stop the build, exactly as a
+// malformed `@supersedes-checksum` does, rather than be silently ignored.
+fn reject_malformed_directives(path: &Path) {
     let content = std::fs::read_to_string(path)
         .unwrap_or_else(|e| panic!("failed to read migration {}: {e}", path.display()));
     if let Err(e) = crate::cost::parse(&content) {
+        panic!("migration {}: {e}", path.display());
+    }
+    if let Err(e) = crate::compat::parse(&content) {
         panic!("migration {}: {e}", path.display());
     }
 }

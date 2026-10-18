@@ -12,9 +12,13 @@ mod event_bridge;
 mod heartbeat;
 pub mod reconciliation;
 mod scheduler;
+mod schema_watch;
+mod secrets_refresh;
 
 pub(super) use agents::reconcile_agents;
 pub(super) use event_bridge::start_event_bridge;
 pub(super) use heartbeat::start_registry_heartbeat;
 pub(super) use reconciliation::reconcile_system_services;
 pub(super) use scheduler::initialize_scheduler;
+pub(super) use schema_watch::start_schema_watch;
+pub(super) use secrets_refresh::start_secrets_refresh;

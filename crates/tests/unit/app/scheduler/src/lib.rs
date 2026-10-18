@@ -18,6 +18,8 @@ mod bootstrap_dispatch_db;
 #[cfg(test)]
 mod cancelled_cluster_job_db;
 #[cfg(test)]
+mod config_planes;
+#[cfg(test)]
 mod dispatch_instance_stamp_db;
 #[cfg(test)]
 mod dispatch_scope_db;
@@ -37,6 +39,8 @@ mod jobs;
 mod jobs_db;
 #[cfg(test)]
 mod jobs_seeded_db;
+#[cfg(test)]
+mod manual_run_lock_db;
 #[cfg(test)]
 mod models;
 #[cfg(test)]
@@ -71,5 +75,7 @@ mod supervision;
 mod test_jobs;
 #[cfg(test)]
 mod unit_tests;
+#[cfg(test)]
+mod unlisted_jobs_db;
 #[cfg(test)]
 mod vertex_discovery_lifecycle;

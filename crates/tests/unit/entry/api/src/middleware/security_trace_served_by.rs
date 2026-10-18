@@ -36,10 +36,12 @@ pub(crate) fn test_config() -> Config {
         max_concurrent_streams: 16,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: "postgres://x".to_string(),
         database_write_url: None,
+        database_session_url: None,
         github_link: String::new(),
         github_token: None,
         system_path: "/tmp".to_string(),
@@ -68,6 +70,7 @@ pub(crate) fn test_config() -> Config {
         use_https: false,
         rate_limits: RateLimitsConfig::default(),
         retention: systemprompt_manifest::profile::RetentionConfig::default(),
+        planes: Default::default(),
         cors_allowed_origins: vec![],
         trusted_proxies: vec![],
         is_cloud: false,
@@ -77,6 +80,7 @@ pub(crate) fn test_config() -> Config {
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
         allow_dynamic_client_registration: false,
+        api_key_max_lifetime_days: None,
         login_page_url: None,
     }
 }

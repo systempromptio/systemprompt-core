@@ -268,11 +268,9 @@ mod dead_pool_recording {
         let url = test_database_url();
         let closed = closed_db_pool().await;
         let app_ctx = test_app_context(&closed, &url);
-        let service = JobExecutionService::new(
-            app_ctx,
-            ExtensionRegistry::new(),
-            systemprompt_manifest::SchedulerConfig::with_system_admin(),
-        );
+        let mut config = systemprompt_manifest::SchedulerConfig::with_system_admin();
+        config.distributed_lock = false;
+        let service = JobExecutionService::new(app_ctx, ExtensionRegistry::new(), config);
 
         // The job body and every recording query hit the closed pool; the run
         // still yields a report instead of propagating the DB failure.
@@ -281,5 +279,31 @@ mod dead_pool_recording {
             .await;
         assert!(!report.success);
         assert_eq!(report.message.as_deref(), Some("deliberate test failure"));
+    }
+
+    #[tokio::test]
+    async fn an_unclaimable_lock_fails_the_run_without_running_the_job() {
+        let url = test_database_url();
+        let closed = closed_db_pool().await;
+        let app_ctx = test_app_context(&closed, &url);
+        let service = JobExecutionService::new(
+            app_ctx,
+            ExtensionRegistry::new(),
+            systemprompt_manifest::SchedulerConfig::with_system_admin(),
+        );
+
+        let report = service
+            .run_job(&JobName::new(FAILING_JOB), &HashMap::new())
+            .await;
+        assert!(!report.success);
+        assert!(!report.lock_contended);
+        assert!(
+            report
+                .message
+                .as_deref()
+                .is_some_and(|m| m.contains("distributed lock")),
+            "{:?}",
+            report.message
+        );
     }
 }

@@ -188,8 +188,10 @@ fn build_jwt_extractor(ctx: &AppContext) -> Result<JwtContextExtractor, LoaderEr
             extension: ExtensionId::new("jwt"),
             message: "UserProvider is required for JWT validation".to_owned(),
         })?;
-    let jti_revocation =
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
+    let jti_revocation = JtiRevocationChecker::from_repository(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.cache_epochs().clone(),
+    );
     Ok(JwtContextExtractor::new(
         analytics,
         user_provider,

@@ -49,18 +49,21 @@ fn request_with(headers: &[(header::HeaderName, &str)]) -> Request {
 }
 
 async fn mint_key(pool: &DbPool, user_id: &UserId) -> String {
-    ApiKeyService::new(Arc::new(UserRepository::new(pool)))
-        .issue(IssueApiKeyParams {
-            user_id,
-            name: "gateway-mint",
-            expires_at: None,
-            limits: &systemprompt_users::ApiKeyLimits::default(),
-            scopes: &[],
-            purpose: None,
-        })
-        .await
-        .expect("issue")
-        .secret
+    ApiKeyService::new(
+        Arc::new(UserRepository::new(pool)),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    )
+    .issue(IssueApiKeyParams {
+        user_id,
+        name: "gateway-mint",
+        expires_at: None,
+        limits: &systemprompt_users::ApiKeyLimits::default(),
+        scopes: &[],
+        purpose: None,
+    })
+    .await
+    .expect("issue")
+    .secret
 }
 
 #[tokio::test]
@@ -151,7 +154,10 @@ async fn unknown_api_key_is_unauthorized() {
 #[tokio::test]
 async fn revoked_api_key_no_longer_mints() {
     let h = harness().await;
-    let service = ApiKeyService::new(Arc::new(UserRepository::new(&h.pool)));
+    let service = ApiKeyService::new(
+        Arc::new(UserRepository::new(&h.pool)),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let minted = service
         .issue(IssueApiKeyParams {
             user_id: &h.user_id,

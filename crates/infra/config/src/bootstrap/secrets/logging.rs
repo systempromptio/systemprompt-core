@@ -20,6 +20,10 @@ pub fn build_loaded_secrets_message(secrets: &Secrets) -> String {
             .as_ref()
             .map(|_| "database_write_url"),
         secrets
+            .database_session_url
+            .as_ref()
+            .map(|_| "database_session_url"),
+        secrets
             .external_database_url
             .as_ref()
             .map(|_| "external_database_url"),

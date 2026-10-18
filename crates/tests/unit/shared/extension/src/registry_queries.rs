@@ -139,6 +139,53 @@ impl DatabaseHandle for StubDb {
     }
 }
 
+#[derive(Debug)]
+struct StubFiles;
+
+#[async_trait::async_trait]
+impl systemprompt_traits::FileStorage for StubFiles {
+    async fn store(
+        &self,
+        path: &std::path::Path,
+        _content: &[u8],
+    ) -> systemprompt_traits::FileStorageResult<systemprompt_traits::StoredFileId> {
+        Err(systemprompt_traits::FileStorageError::Validation(
+            path.display().to_string(),
+        ))
+    }
+    async fn open(
+        &self,
+        id: &systemprompt_traits::StoredFileId,
+        _range: Option<systemprompt_traits::ByteRange>,
+    ) -> systemprompt_traits::FileStorageResult<systemprompt_traits::StoredFileRead> {
+        Err(systemprompt_traits::FileStorageError::NotFound(
+            id.to_string(),
+        ))
+    }
+    async fn delete(
+        &self,
+        id: &systemprompt_traits::StoredFileId,
+    ) -> systemprompt_traits::FileStorageResult<()> {
+        Err(systemprompt_traits::FileStorageError::NotFound(
+            id.to_string(),
+        ))
+    }
+    async fn metadata(
+        &self,
+        id: &systemprompt_traits::StoredFileId,
+    ) -> systemprompt_traits::FileStorageResult<systemprompt_traits::StoredFileMetadata> {
+        Err(systemprompt_traits::FileStorageError::NotFound(
+            id.to_string(),
+        ))
+    }
+    async fn exists(
+        &self,
+        _id: &systemprompt_traits::StoredFileId,
+    ) -> systemprompt_traits::FileStorageResult<bool> {
+        Ok(false)
+    }
+}
+
 impl ExtensionContext for StubCtx {
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId {
         systemprompt_identifiers::UserId::new("extension-test-owner")
@@ -148,6 +195,12 @@ impl ExtensionContext for StubCtx {
     }
     fn database(&self) -> Arc<dyn DatabaseHandle> {
         Arc::new(StubDb)
+    }
+    fn file_storage(&self) -> Arc<dyn systemprompt_traits::FileStorage> {
+        Arc::new(StubFiles)
+    }
+    fn instance_id(&self) -> systemprompt_identifiers::InstanceId {
+        systemprompt_identifiers::InstanceId::new("extension-test-instance")
     }
     fn get_extension(&self, _id: &str) -> Option<Arc<dyn Extension>> {
         None

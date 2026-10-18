@@ -113,7 +113,7 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 | GET | `/api/v1/core/oauth/userinfo` | User | OIDC userinfo. |
 | GET | `/api/v1/core/oauth/consent` | User | Render consent state. |
 | POST | `/api/v1/core/oauth/consent` | User | Submit consent decision. |
-| POST | `/api/v1/core/oauth/register` | Public | Dynamic client registration (RFC 7591). Closed by `security.allow_dynamic_client_registration: false` (403; discovery then omits `registration_endpoint`). |
+| POST | `/api/v1/core/oauth/register` | Public | Dynamic client registration (RFC 7591). Open only with `security.allow_dynamic_client_registration: true`; otherwise 403 and discovery omits `registration_endpoint`. |
 | GET | `/api/v1/core/oauth/register/{client_id}` | Registration token | Read a registered client (RFC 7592; `Authorization: Bearer <registration_access_token>`). |
 | PUT | `/api/v1/core/oauth/register/{client_id}` | Registration token | Update a registered client. |
 | DELETE | `/api/v1/core/oauth/register/{client_id}` | Registration token | Delete a registered client. |
@@ -315,6 +315,17 @@ Gateway policies (`services/gateway/policies.yaml`) declare `quota_windows`, eac
 ```
 
 `dimension` is one of `requests`, `input_tokens`, `output_tokens`, `cost_microdollars`; it, `limit` and `used` are `null` when the window could not be evaluated under `quota_fault_mode: closed`. The `Retry-After` header equals `retry_after_seconds`, the time until `resets_at`. Under `quota_mode: warn` the request proceeds and the breach is recorded as a `quota` governance decision. Every breach increments `systemprompt_quota_denials_total{subject_kind, dimension, mode}`.
+
+A window is either `window_seconds` long, aligned to the Unix epoch, or a UTC calendar period declared with `calendar: day`, `calendar: week` (starting Monday) or `calendar: month`, in which case `window_seconds` is not read. A calendar window counts one bucket per period and resets at the next period boundary; its `quota.window_seconds` is the length of the current period (for example `2678400` in a 31-day month) and the message names it `calendar-month`:
+
+```yaml
+quota_windows:
+  - subject: user
+    calendar: month
+    max_cost_microdollars: 50000000
+```
+
+Policies may also declare `rate_windows`, request-rate throttles counted across every replica: `{window_seconds, subject, max_requests}` with `subject` set to `user` or `api_key`. A request past `max_requests` in the current fixed window answers `429` (`rate_limit_error`) with `Retry-After` set to the end of the window, under `quota_mode: warn` as well as `enforce`. An `api_key` window applies only to requests authenticated with a key. If the counter cannot be updated, `quota_fault_mode: closed` answers `503` and `open` admits the request.
 
 ### API key limits and scope bindings
 

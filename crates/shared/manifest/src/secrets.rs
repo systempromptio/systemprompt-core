@@ -40,6 +40,9 @@ pub struct Secrets {
     pub database_write_url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub database_session_url: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_database_url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -83,6 +86,7 @@ impl Drop for Secrets {
         self.signing_key_pem.zeroize();
         self.database_url.zeroize();
         self.database_write_url.zeroize();
+        self.database_session_url.zeroize();
         self.external_database_url.zeroize();
         self.internal_database_url.zeroize();
         self.gemini.zeroize();
@@ -147,6 +151,7 @@ impl Secrets {
             "signing_key_pem" | "SIGNING_KEY_PEM" => self.signing_key_pem.as_ref(),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
+            "database_session_url" | "DATABASE_SESSION_URL" => self.database_session_url.as_ref(),
             "external_database_url" | "EXTERNAL_DATABASE_URL" => {
                 self.external_database_url.as_ref()
             },
@@ -186,6 +191,7 @@ impl Secrets {
             ),
             ("SIGNING_KEY_PEM", &self.signing_key_pem),
             ("DATABASE_WRITE_URL", &self.database_write_url),
+            ("DATABASE_SESSION_URL", &self.database_session_url),
             ("EXTERNAL_DATABASE_URL", &self.external_database_url),
             ("INTERNAL_DATABASE_URL", &self.internal_database_url),
             ("GEMINI_API_KEY", &self.gemini),

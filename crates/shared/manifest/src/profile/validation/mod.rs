@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod config_planes;
 mod network;
 mod observability;
 mod security;
@@ -27,6 +28,7 @@ impl Profile {
         self.validate_database_pool(&mut errors);
         self.validate_trusted_proxies(&mut errors, is_cloud);
         self.validate_instance_identity(&mut errors, is_cloud);
+        self.validate_shutdown(&mut errors);
         self.validate_cors_origins(&mut errors);
         self.validate_rate_limits(&mut errors);
         self.validate_governance(&mut errors, is_cloud);
@@ -35,6 +37,7 @@ impl Profile {
         self.validate_services_sources(&mut errors, is_cloud);
         self.validate_secrets(&mut errors);
         self.validate_observability(&mut errors);
+        self.validate_config_planes(&mut errors);
 
         if errors.is_empty() {
             Ok(())

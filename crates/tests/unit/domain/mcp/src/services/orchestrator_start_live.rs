@@ -39,6 +39,8 @@ fn profile_paths(bootstrap: &TestBootstrap) -> PathsConfig {
         web_path: None,
         storage: Some(bootstrap.storage_path.display().to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 

@@ -59,6 +59,7 @@ impl LocalProfileBuilder {
         Profile {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
+            config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Local,
@@ -72,7 +73,7 @@ impl LocalProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&local_url, Vec::new()),
+            security: security_config(&local_url, Vec::new(), true),
             server: local_server_config(local_url),
             paths: PathsConfig {
                 system: system_path,
@@ -82,7 +83,9 @@ impl LocalProfileBuilder {
                     .to_string(),
                 storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
                 geoip_database: None,
+                data: None,
                 web_path: None,
+                shipped_files: None,
             },
             rate_limits: RateLimitsConfig {
                 disabled: true,
@@ -99,6 +102,7 @@ impl LocalProfileBuilder {
                 source: SecretsSource::File,
                 vault: None,
                 external: None,
+                refresh_secs: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),
@@ -129,6 +133,7 @@ fn local_server_config(local_url: String) -> ServerConfig {
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: systemprompt_manifest::profile::NodeRole::All,
         max_in_flight: None,
+        shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
         trusted_proxies: crate::trusted_proxies::default_local_trusted_proxies(),
     }
 }

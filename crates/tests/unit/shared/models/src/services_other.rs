@@ -163,12 +163,13 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
     let s = SchedulerConfig::with_system_admin();
     assert!(s.enabled);
     assert!(s.distributed_lock);
-    assert_eq!(s.jobs.len(), 4);
+    assert_eq!(s.jobs.len(), 5);
     let names: Vec<&str> = s.jobs.iter().map(|j| j.name.as_str()).collect();
     assert!(names.contains(&"cleanup_anonymous_users"));
     assert!(names.contains(&"cleanup_empty_contexts"));
     assert!(names.contains(&"cleanup_inactive_sessions"));
     assert!(names.contains(&"database_cleanup"));
+    assert!(names.contains(&"config_reconcile"));
     for j in &s.jobs {
         assert!(j.owner.is_none());
         assert_eq!(j.extension.as_ref().map(ExtensionId::as_str), Some("core"));
@@ -180,7 +181,10 @@ fn scheduler_config_with_system_admin_emits_core_cleanup_jobs() {
     }
     assert_eq!(s.bootstrap_jobs, vec!["cleanup_inactive_sessions"]);
     for j in &s.jobs {
-        let deleting = j.name != "cleanup_inactive_sessions";
+        let deleting = !matches!(
+            j.name.as_str(),
+            "cleanup_inactive_sessions" | "config_reconcile"
+        );
         assert_eq!(
             j.enforce, deleting,
             "deleting jobs must default to enforce, non-deleting must not: {}",

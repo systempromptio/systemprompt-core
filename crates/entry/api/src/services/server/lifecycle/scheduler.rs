@@ -3,12 +3,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use std::sync::Arc;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::SchedulerConfig;
-use systemprompt_scheduler::services::{SchedulerHandle, SchedulerService};
+use systemprompt_scheduler::services::{
+    ConfigReconcileService, RECONCILE_LOCK_WAIT, ReconcileTrigger, SchedulerHandle,
+    SchedulerService,
+};
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use crate::services::server::scheduler_health;
@@ -18,6 +21,7 @@ pub(in crate::services::server) async fn initialize_scheduler(
     events: Option<&StartupEventSender>,
 ) -> Result<Option<SchedulerHandle>> {
     events.scheduler_initializing();
+    reconcile_config_planes(ctx).await?;
 
     let config = ConfigLoader::load().map_or_else(
         |e| {
@@ -45,4 +49,31 @@ pub(in crate::services::server) async fn initialize_scheduler(
 
     events.scheduler_ready(startup.scheduled, available_jobs);
     Ok(startup.handle)
+}
+
+async fn reconcile_config_planes(ctx: &AppContext) -> Result<()> {
+    let service = ConfigReconcileService::from_app_context(
+        &Arc::new(ctx.clone()),
+        (*crate::repository::config_plane_state(ctx.db_pool())).clone(),
+    )?;
+    let report = service
+        .reconcile_exclusive(ReconcileTrigger::Boot, RECONCILE_LOCK_WAIT)
+        .await?;
+    let failures: Vec<String> = report
+        .failures()
+        .iter()
+        .map(|p| format!("{}: {}", p.plane, p.error.as_deref().unwrap_or("failed")))
+        .collect();
+    if !failures.is_empty() {
+        bail!(
+            "config planes failed to reconcile at boot: {}",
+            failures.join("; ")
+        );
+    }
+    tracing::info!(
+        planes = report.planes.len(),
+        changes = report.changes(),
+        "config planes reconciled at boot"
+    );
+    Ok(())
 }

@@ -43,12 +43,15 @@
 
 pub mod agent_run_launcher;
 pub use agent_run_launcher::{
-    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, DynAgentRunLauncher,
+    AgentRunLaunch, AgentRunLaunchError, AgentRunLauncher, AgentRunUpdates, DynAgentRunLauncher,
 };
 pub mod ai_providers;
 pub mod analytics;
 pub mod background_tasks;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
+pub mod cache_epoch;
+pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
 pub mod content;
@@ -66,6 +69,7 @@ pub mod repository;
 pub mod runner_service;
 pub use runner_service::RunnerService;
 pub mod storage;
+pub mod stream_drain;
 pub mod tool_executions;
 pub mod validation;
 pub mod validation_report;
@@ -119,7 +123,8 @@ pub use auth::{
 };
 
 pub use storage::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileByteStream, FileStorage, FileStorageError, FileStorageResult, ServedRange,
+    StoredFileId, StoredFileMetadata, StoredFileRead,
 };
 
 pub use ai_providers::{

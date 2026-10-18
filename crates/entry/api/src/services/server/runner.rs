@@ -19,7 +19,7 @@ use systemprompt_traits::{
 
 use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
-    start_registry_heartbeat,
+    start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
 };
 
 pub async fn run_server(
@@ -39,6 +39,8 @@ pub async fn run_server(
 
     start_event_bridge(&ctx);
     start_registry_heartbeat(&ctx);
+    start_secrets_refresh(&ctx);
+    start_schema_watch(&ctx);
     if plan.reconcile_mcp {
         let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
         reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
@@ -63,7 +65,7 @@ pub async fn run_server(
     let addr = ctx.server_address();
 
     early.activate(router);
-    let metrics_listener = start_metrics_listener(&ctx).await?;
+    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler).await?;
     super::readiness::signal_ready();
 
     if let Some(ref tx) = events {
@@ -76,10 +78,24 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
+    let timings = ctx.config().shutdown;
+    tracing::info!(
+        pre_stop_delay_secs = timings.pre_stop_delay_secs,
+        drain_grace_secs = timings.drain_grace_secs,
+        forced_exit_grace_secs = timings.forced_exit_grace_secs,
+        total_budget_secs = timings.total_budget().as_secs(),
+        "Shutdown budget; the orchestrator's termination grace must cover the total"
+    );
     let restart = ctx.shutdown_request().clone();
-    let serve_result = super::shutdown::join_within_drain_grace(early.join(), &restart).await;
+    let serve_result = super::shutdown::join_within_drain_grace(
+        early.join(),
+        &restart,
+        &timings,
+        ctx.background_tasks().stream_drain(),
+    )
+    .await;
 
-    let forced_exit = super::shutdown::arm_forced_exit(restart);
+    let forced_exit = super::shutdown::arm_forced_exit(restart, timings);
     if let Some(listener) = metrics_listener
         && listener.abort_and_join().await.is_some()
     {
@@ -206,12 +222,16 @@ fn create_mcp_orchestrator(
     Ok(Arc::new(manager))
 }
 
-async fn start_metrics_listener(ctx: &AppContext) -> Result<Option<OwnedTask<()>>> {
+async fn start_metrics_listener(
+    ctx: &AppContext,
+    runs_scheduler: bool,
+) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
     };
     let handle = super::metrics::install_recorder(&ctx.config().instance_id)?;
     super::pool_metrics::spawn_sampler(ctx);
+    super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
     Ok(Some(
         super::metrics::serve_metrics_listener(addr, handle).await?,

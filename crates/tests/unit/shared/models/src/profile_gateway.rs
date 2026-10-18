@@ -16,7 +16,7 @@ use systemprompt_wire::canonical::{
     ResponseFormat, Role, SystemBlock, ThinkingConfig,
 };
 
-fn req(model: &str) -> CanonicalRequest {
+pub(crate) fn req(model: &str) -> CanonicalRequest {
     CanonicalRequest {
         model: ModelId::new(model),
         cache_control: None,
@@ -1216,6 +1216,7 @@ pub(crate) fn enabled_gateway(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_provider: None,
         default_model: None,
         allow_unlisted_models: false,
+        hidden_requires_route: true,
         quota_fault_mode: QuotaFaultMode::Open,
         require_scopes: Vec::new(),
         automatic_prompt_caching: true,

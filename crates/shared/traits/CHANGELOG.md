@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `CacheEpochs`, the injected cache-invalidation epoch handle.
+- `FileStorage` range reads and the `StreamDrain` shutdown seam.
+- `AgentRunLauncher::updates_after` and `AgentRunUpdates`.
+
+### Changed
+
+- **Breaking:** `FileStorage::retrieve` is replaced by `open(id, range)`, and `StoredFileMetadata` gains `etag`.
+
+### Removed
+
+- **Breaking:** the free `cache_epoch` and `advance_cache_epoch` functions.
+
 ## [0.67.0] - 2026-10-13
 
 ### Added

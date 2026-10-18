@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- `ensure_context` skips a context touched within the last minute.
+
+### Fixed
+
+- The A2A run stream follower runs on the server's task tracker and is drained at shutdown.
+
 ## [0.66.0] - 2026-10-13
 
 ### Breaking

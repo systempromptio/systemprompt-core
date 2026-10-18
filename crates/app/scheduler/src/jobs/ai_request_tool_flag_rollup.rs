@@ -36,6 +36,10 @@ impl Job for AiRequestToolFlagRollupJob {
         "55 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("55 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
         let report =

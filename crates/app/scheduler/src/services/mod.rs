@@ -10,12 +10,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod config_reconcile;
 mod job_execution;
+pub mod job_metrics;
 pub mod orchestration;
 mod plans;
 pub mod scheduling;
 mod service_management;
 
+pub use config_reconcile::{
+    AppliedPlane, ConfigReconcileService, PlaneDiff, PlaneOutcome, PlaneReport,
+    RECONCILE_LOCK_WAIT, ReconcileReport, ReconcileTrigger,
+};
 pub use job_execution::{
     JobBatchReport, JobExecutionService, JobRunReport, JobSelection, parse_job_parameters,
 };
@@ -28,7 +34,9 @@ pub use orchestration::{
 pub use plans::{
     RestartPlan, RestartScope, RestartTarget, ServiceSnapshot, StartupPlan, StartupRequest,
 };
-pub use scheduling::{SchedulerHandle, SchedulerService, SchedulerStartup, unknown_job_names};
+pub use scheduling::{
+    SchedulerHandle, SchedulerService, SchedulerStartup, unknown_job_names, unlisted_job_names,
+};
 pub use service_management::{
     OrphanCleanupReport, OrphanDisposition, OrphanOutcome, ServiceManagementService,
 };

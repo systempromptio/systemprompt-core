@@ -67,6 +67,7 @@ async fn dispatch(
         jobs,
         bootstrap_jobs: vec![JobName::new(job_name)],
         distributed_lock,
+        unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     };
     let svc = SchedulerService::new(config, Arc::clone(pool), app_ctx);
     svc.run_bootstrap_jobs(None)

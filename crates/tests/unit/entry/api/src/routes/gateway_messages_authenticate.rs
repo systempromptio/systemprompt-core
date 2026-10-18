@@ -29,7 +29,10 @@ async fn harness() -> Harness {
     let extractor = JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     );
     Harness { ctx, extractor }

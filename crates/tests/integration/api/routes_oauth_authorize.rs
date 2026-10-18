@@ -40,10 +40,12 @@ fn ensure_config() {
             max_concurrent_streams: 16,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             sitename: "test".to_owned(),
             database_type: "postgres".to_owned(),
             database_url: "postgres://x".to_owned(),
             database_write_url: None,
+            database_session_url: None,
             github_link: String::new(),
             github_token: None,
             system_path: "/tmp".to_owned(),
@@ -72,6 +74,7 @@ fn ensure_config() {
             use_https: false,
             rate_limits: RateLimitsConfig::default(),
             retention: systemprompt_manifest::profile::RetentionConfig::default(),
+            planes: Default::default(),
             cors_allowed_origins: vec![],
             trusted_proxies: vec![],
             is_cloud: false,
@@ -81,6 +84,7 @@ fn ensure_config() {
             security_headers: SecurityHeadersConfig::default(),
             allow_registration: false,
             allow_dynamic_client_registration: true,
+            api_key_max_lifetime_days: None,
             login_page_url: None,
         });
     });

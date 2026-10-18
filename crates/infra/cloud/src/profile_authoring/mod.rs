@@ -16,8 +16,8 @@ pub use cloud_builder::CloudProfileBuilder;
 pub use local_builder::LocalProfileBuilder;
 
 use systemprompt_manifest::profile::{
-    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, TrustedIssuer,
-    default_resource_audiences,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
+    TrustedIssuer, default_resource_audiences,
 };
 use systemprompt_manifest::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
 use systemprompt_models::auth::JwtAudience;
@@ -55,22 +55,28 @@ fn webhook_governance(api_internal_url: &str) -> GovernanceConfig {
             },
         }),
         audit: AuditConfig::default(),
+        quota: QuotaConfig::default(),
     }
 }
 
-fn security_config(issuer: &str, trusted_issuers: Vec<TrustedIssuer>) -> SecurityConfig {
+fn security_config(
+    issuer: &str,
+    trusted_issuers: Vec<TrustedIssuer>,
+    open_enrolment: bool,
+) -> SecurityConfig {
     SecurityConfig {
         issuer: issuer.to_owned(),
         access_token_expiration: consts::ACCESS_TOKEN_EXPIRATION,
         refresh_token_expiration: consts::REFRESH_TOKEN_EXPIRATION,
         audiences: JwtAudience::standard(),
         allowed_resource_audiences: default_resource_audiences(),
-        allow_registration: true,
-        allow_dynamic_client_registration: true,
+        allow_registration: open_enrolment,
+        allow_dynamic_client_registration: open_enrolment,
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("signing_key.pem"),
         trusted_issuers,
         id_jag_ttl_secs: systemprompt_manifest::profile::DEFAULT_ID_JAG_TTL_SECS,
+        api_keys: systemprompt_manifest::profile::ApiKeyPolicyConfig::default(),
     }
 }
 

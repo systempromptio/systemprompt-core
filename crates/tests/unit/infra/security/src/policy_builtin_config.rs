@@ -41,6 +41,7 @@ impl Call {
             user_id: &self.user,
             input,
             call_id: &self.call,
+            rate_counts: &NO_RATE_COUNTS,
         }
     }
 }
@@ -211,44 +212,5 @@ fn every_instantiated_policy_exposes_a_distinct_operator_facing_name_and_descrip
     assert_eq!(unique, names.len(), "policy names must be distinct");
 }
 
-#[test]
-fn the_rate_limiter_sweeps_stale_buckets_once_the_key_space_grows() {
-    let eng = engine(
-        r#"
-governance:
-  enabled: true
-  policies:
-    - id: rate_limit
-      enabled: true
-      requests_per_window: 1
-      window_secs: 0
-"#,
-    );
-    let target = tool("read_file");
-    let input = args(json!({}));
-
-    // The sweep only runs past the internal bucket threshold; a zero-second
-    // window makes every recorded charge immediately stale, so the sweep must
-    // reclaim them rather than let the limiter deny on its own history.
-    for i in 0..1100 {
-        let call = Call::new(&format!("sweep-user-{i}"));
-        let decision = eng
-            .evaluate(&call.ctx(&target, AccessScope::User, &input))
-            .decision;
-        assert!(
-            matches!(decision, Decision::Allow { .. }),
-            "distinct callers must never share a rate-limit bucket (iteration {i}): {decision:?}"
-        );
-    }
-
-    let repeat = Call::new("sweep-user-repeat");
-    for _ in 0..3 {
-        let decision = eng
-            .evaluate(&repeat.ctx(&target, AccessScope::User, &input))
-            .decision;
-        assert!(
-            matches!(decision, Decision::Allow { .. }),
-            "an expired window must not accumulate charges: {decision:?}"
-        );
-    }
-}
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

@@ -10,6 +10,7 @@ use systemprompt_identifiers::TraceId;
 use systemprompt_logging::LogActor;
 
 use crate::audit::access_log::{TerminalOutcome, log_gateway_terminal};
+use crate::audit::phases::{self, GatewayPhase};
 
 use super::super::audit::GatewayAudit;
 use super::super::service::finalize::record_accounting_outcome;
@@ -119,6 +120,7 @@ pub(super) fn finalize(
     audit.mark_upstream_end();
     let background = audit.background().clone();
     background.spawn("gateway_stream_finalize", async move {
+        let started = std::time::Instant::now();
         capture_signatures(&ctx, &audit, &summary).await;
         if let Some(model) = summary.served_model.as_deref() {
             audit.set_served_model(model).await;
@@ -178,6 +180,7 @@ pub(super) fn finalize(
                 log_terminal(&audit, 200, None);
             },
         }
+        phases::record(GatewayPhase::Finalize, started.elapsed());
     });
 }
 

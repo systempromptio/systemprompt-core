@@ -80,6 +80,21 @@ impl Default for PoolConfig {
     }
 }
 
+pub const DEFAULT_SESSION_MAX_CONNECTIONS: u32 = 10;
+
+impl PoolConfig {
+    #[must_use]
+    pub const fn for_session(self, max_connections: Option<u32>) -> Self {
+        Self {
+            max_connections: match max_connections {
+                Some(max) => max,
+                None => DEFAULT_SESSION_MAX_CONNECTIONS,
+            },
+            ..self
+        }
+    }
+}
+
 #[must_use]
 pub fn build_pool_options(cfg: &PoolConfig) -> PgPoolOptions {
     pool_clock();

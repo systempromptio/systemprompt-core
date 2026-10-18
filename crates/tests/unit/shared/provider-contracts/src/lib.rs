@@ -15,6 +15,8 @@
 #[cfg(test)]
 mod component;
 #[cfg(test)]
+mod config_plane;
+#[cfg(test)]
 mod contracts_misc;
 #[cfg(test)]
 mod dependencies;

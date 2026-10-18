@@ -132,6 +132,8 @@ pub(crate) async fn bundle_router_and_pool() -> anyhow::Result<(Router, DbPool)>
         web_path: None,
         storage: Some(b.storage_path.to_string_lossy().into_owned()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     let ctx = systemprompt_test_fixtures::fixture_app_context_with(
         &pool,

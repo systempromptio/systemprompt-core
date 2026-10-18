@@ -6,6 +6,9 @@
 //! the [`systemprompt_manifest::profile::Profile`] schema. Also prints the
 //! generated `Profile` JSON schema on demand.
 //!
+//! A full validation (no target) also parses every registered config plane's
+//! declaration offline ([`super::plane_validate`]).
+//!
 //! Whenever the scheduler section is in scope, the merged services config is
 //! additionally cross-checked against the registered job catalog, so a job name
 //! no `submit_job!` registers is caught here instead of aborting scheduler
@@ -97,7 +100,9 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
         });
     }
 
-    if let Some(error) = scheduler_catalog_error(&results) {
+    all_valid &= super::plane_validate::append_full_validation(args.target.as_ref(), &mut results);
+
+    if let Some(error) = scheduler_catalog_error(&results, args.strict) {
         all_valid = false;
         for file in &mut results {
             if file.section == "scheduler" && file.error.is_none() {
@@ -169,7 +174,7 @@ fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)
     }
 }
 
-fn scheduler_catalog_error(files: &[ConfigFileInfo]) -> Option<String> {
+fn scheduler_catalog_error(files: &[ConfigFileInfo], strict: bool) -> Option<String> {
     if !files
         .iter()
         .any(|file| file.section == "scheduler" && file.error.is_none())
@@ -178,13 +183,31 @@ fn scheduler_catalog_error(files: &[ConfigFileInfo]) -> Option<String> {
     }
 
     match ConfigLoader::load() {
-        Ok(services) => unknown_jobs_message(
-            &services
+        Ok(services) => {
+            let scheduler = services
                 .scheduler
-                .unwrap_or_else(SchedulerConfig::with_system_admin),
-        ),
+                .unwrap_or_else(SchedulerConfig::with_system_admin);
+            unknown_jobs_message(&scheduler)
+                .or_else(|| strict.then(|| unlisted_jobs_message(&scheduler)).flatten())
+        },
         Err(e) => Some(format!("failed to load merged services config: {e}")),
     }
+}
+
+pub fn unlisted_jobs_message(config: &SchedulerConfig) -> Option<String> {
+    let unlisted = systemprompt_scheduler::unlisted_job_names(config);
+    if unlisted.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "registered job(s) with no scheduler.jobs entry: {}. Add an entry for each (enabled: \
+         false keeps one off the schedule).",
+        unlisted
+            .iter()
+            .map(systemprompt_identifiers::JobName::as_str)
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
 }
 
 pub fn unknown_jobs_message(config: &SchedulerConfig) -> Option<String> {

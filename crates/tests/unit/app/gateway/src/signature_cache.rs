@@ -16,7 +16,6 @@ use systemprompt_gateway::protocol::canonical::{
 };
 use systemprompt_gateway::signature_cache::ThoughtSignatureCache;
 use systemprompt_test_fixtures::test_db_pool;
-use systemprompt_wire::WireProtocol;
 
 const TTL: Duration = Duration::from_secs(60);
 
@@ -66,7 +65,7 @@ impl Harness {
     }
 }
 
-const GEMINI: Option<WireProtocol> = Some(WireProtocol::Gemini);
+const GEMINI: bool = true;
 
 fn conv() -> GatewayConversationId {
     GatewayConversationId::try_new(format!(
@@ -306,23 +305,78 @@ async fn signatures_are_scoped_to_their_conversation() {
 }
 
 #[tokio::test]
-async fn hydration_is_identical_for_every_wire() {
+async fn hydration_is_skipped_when_signatures_are_not_required() {
     let h = Harness::open().await;
-    for wire in [
-        GEMINI,
-        Some(WireProtocol::Anthropic),
-        Some(WireProtocol::OpenAiChat),
-        None,
-    ] {
-        let cache = h.cache();
-        let conv = conv();
-        cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
-        let mut request = request_with(vec![tool_use("call_1", None)]);
-        cache
-            .hydrate_request(&h.user_id, &conv, &mut request, wire)
+    let conv = conv();
+    h.cache().store(&h.user_id, &conv, "call_1", "sig-a").await;
+    let mut request = request_with(vec![tool_use("call_1", None)]);
+    h.cache()
+        .hydrate_request(&h.user_id, &conv, &mut request, false)
+        .await;
+    assert_eq!(signature_of(&request), None);
+}
+
+#[tokio::test]
+async fn persisted_signatures_for_many_tool_uses_hydrate_in_one_pass() {
+    let h = Harness::open().await;
+    let conv = conv();
+    let writer = h.cache();
+    for i in 0..20 {
+        writer
+            .store(&h.user_id, &conv, &format!("call_{i}"), &format!("sig-{i}"))
             .await;
-        assert_eq!(signature_of(&request).as_deref(), Some("sig-a"));
     }
+    let replica = h.cache();
+    let mut request = request_with(
+        (0..20)
+            .map(|i| tool_use(&format!("call_{i}"), None))
+            .chain(std::iter::once(tool_use("call_unknown", None)))
+            .collect(),
+    );
+    replica
+        .hydrate_request(&h.user_id, &conv, &mut request, GEMINI)
+        .await;
+    let signatures: Vec<Option<String>> = request
+        .messages
+        .iter()
+        .flat_map(|m| &m.content)
+        .filter_map(|c| match c {
+            CanonicalContent::ToolUse { signature, .. } => Some(signature.clone()),
+            _ => None,
+        })
+        .collect();
+    let mut expected: Vec<Option<String>> = (0..20).map(|i| Some(format!("sig-{i}"))).collect();
+    expected.push(None);
+    assert_eq!(signatures, expected);
+}
+
+#[tokio::test]
+async fn find_many_returns_only_live_signatures_of_the_scope() {
+    let h = Harness::open().await;
+    let conv = conv();
+    let cache = h.cache();
+    cache.store(&h.user_id, &conv, "live", "sig-live").await;
+    cache.store(&h.user_id, &conv, "stale", "sig-stale").await;
+    h.expire_in_db(&conv, "stale").await;
+    let found = h
+        .repository
+        .find_many(
+            &h.user_id,
+            &conv,
+            &["live".to_owned(), "stale".to_owned(), "absent".to_owned()],
+            TTL,
+        )
+        .await
+        .expect("find many");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found.get("live").map(String::as_str), Some("sig-live"));
+    let other_user = UserId::new(uuid::Uuid::new_v4().to_string());
+    let foreign = h
+        .repository
+        .find_many(&other_user, &conv, &["live".to_owned()], TTL)
+        .await
+        .expect("find many other user");
+    assert!(foreign.is_empty());
 }
 
 #[test]
@@ -417,32 +471,25 @@ fn gemini_hydration_records_hit_and_miss() {
 }
 
 #[test]
-fn non_gemini_hydration_records_nothing() {
-    for wire in [
-        Some(WireProtocol::Anthropic),
-        Some(WireProtocol::OpenAiChat),
-        Some(WireProtocol::OpenAiResponses),
-        None,
-    ] {
-        for outcome in ["hit", "miss"] {
-            let recorded = counter_value(
-                "gateway_signature_hydration_total",
-                ("outcome", outcome),
-                || {
-                    block_on_db(async |h: Harness| {
-                        let cache = h.cache();
-                        let conv = conv();
-                        cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
-                        let mut request =
-                            request_with(vec![tool_use("call_1", None), tool_use("call_2", None)]);
-                        cache
-                            .hydrate_request(&h.user_id, &conv, &mut request, wire)
-                            .await;
-                    });
-                },
-            );
-            assert_eq!(recorded, None);
-        }
+fn hydration_that_is_not_required_records_nothing() {
+    for outcome in ["hit", "miss"] {
+        let recorded = counter_value(
+            "gateway_signature_hydration_total",
+            ("outcome", outcome),
+            || {
+                block_on_db(async |h: Harness| {
+                    let cache = h.cache();
+                    let conv = conv();
+                    cache.store(&h.user_id, &conv, "call_1", "sig-a").await;
+                    let mut request =
+                        request_with(vec![tool_use("call_1", None), tool_use("call_2", None)]);
+                    cache
+                        .hydrate_request(&h.user_id, &conv, &mut request, false)
+                        .await;
+                });
+            },
+        );
+        assert_eq!(recorded, None);
     }
 }
 

@@ -108,6 +108,18 @@ where
     Ok(depth)
 }
 
+pub async fn depths<'e, E>(executor: E) -> Result<Vec<(String, i64)>, RepositoryError>
+where
+    E: PgExecutor<'e>,
+{
+    let rows: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT projection, COUNT(*)::BIGINT FROM projection_backlog GROUP BY projection",
+    )
+    .fetch_all(executor)
+    .await?;
+    Ok(rows)
+}
+
 pub async fn drain<F>(
     pool: &PgPool,
     projection: &str,

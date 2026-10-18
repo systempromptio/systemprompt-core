@@ -10,12 +10,22 @@
 //! releases the tokens and cost. The request count is never returned: an
 //! admitted request is one request whatever its outcome.
 //!
+//! A window keyed by a shared subject is spread over
+//! `QuotaConfig::shared_subject_shards` rows; per-principal (`user`,
+//! `api_key`) windows over `principal_subject_shards`. One random draw per
+//! request picks the shard of every window, the shard is kept on the
+//! [`ReservedWindow`] so settlement lands on the same row, and the ceiling is
+//! checked against the window total across shards. Each shard beyond the
+//! first widens the overshoot bound by up to one reservation per admission
+//! running concurrently on another shard (see `AiQuotaBucketRepository`).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Utc};
 use systemprompt_ai::repository::{AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta};
 use systemprompt_identifiers::{ApiKeyId, UserId};
+use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_security::authz::SubjectProviderSet;
@@ -23,9 +33,10 @@ use systemprompt_traits::RepositoryError;
 
 use super::AccountingOutcome;
 use super::decision::{QuotaDecision, ceiling_decision, fault_decision};
+use super::distinct::distinct_increments;
 use super::estimate::QuotaEstimate;
 use super::subject::{SubjectResolution, resolve_subject};
-use crate::policies::QuotaWindow;
+use crate::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow, USER_QUOTA_SUBJECT, WindowSpan};
 
 /// Who a request's quota windows can be keyed by.
 #[derive(Debug, Clone, Copy)]
@@ -42,6 +53,7 @@ pub struct ReservedWindow {
     pub subject_id: String,
     pub window_seconds: i32,
     pub window_start: DateTime<Utc>,
+    pub shard: i16,
     pub delta: QuotaBucketDelta,
 }
 
@@ -84,13 +96,15 @@ pub struct ReserveParams<'a> {
     pub windows: &'a [QuotaWindow],
     pub fault_mode: QuotaFaultMode,
     pub estimate: QuotaEstimate,
+    pub sharding: QuotaConfig,
 }
 
 struct ResolvedWindow<'w> {
     window: &'w QuotaWindow,
     subject_kind: &'w str,
     subject_id: String,
-    window_start: DateTime<Utc>,
+    span: WindowSpan,
+    shard: i16,
 }
 
 struct ResolvedWindows<'w> {
@@ -106,25 +120,27 @@ async fn resolve_windows<'w>(
     now: DateTime<Utc>,
 ) -> ResolvedWindows<'w> {
     let mut resolved = Vec::with_capacity(params.windows.len());
+    let draw: u16 = rand::random();
     for window in params.windows {
-        let window_start = align_window(now, window.window_seconds);
+        let span = window.span(now);
         match resolve_subject(window, &params.subjects, params.providers).await {
             SubjectResolution::Resolved(subject) => resolved.push(ResolvedWindow {
                 window,
+                shard: pick_shard(&params.sharding, subject.kind, draw),
                 subject_kind: subject.kind,
                 subject_id: subject.id,
-                window_start,
+                span,
             }),
             SubjectResolution::Fault(fault) => {
                 if params.fault_mode.is_closed() {
                     return ResolvedWindows {
                         resolved,
-                        closed_fault: Some(fault_decision(window, fault, window_start, now)),
+                        closed_fault: Some(fault_decision(window, fault, span, now)),
                     };
                 }
                 tracing::warn!(
                     subject = %window.subject,
-                    window_seconds = window.window_seconds,
+                    window = %window.label(),
                     fault,
                     fault_mode = params.fault_mode.as_str(),
                     "Quota window not evaluated; allowing the request"
@@ -153,28 +169,35 @@ pub async fn precheck_and_reserve(
         resolved,
         closed_fault,
     } = resolve_windows(&params, now).await;
-    let increments: Vec<IncrementParams<'_>> = resolved
-        .iter()
-        .map(|r| IncrementParams {
-            subject_kind: r.subject_kind,
-            subject_id: &r.subject_id,
-            window_seconds: r.window.window_seconds,
-            window_start: r.window_start,
-            delta,
-        })
-        .collect();
+    let (increments, slots) = distinct_increments(
+        resolved
+            .iter()
+            .map(|r| IncrementParams {
+                subject_kind: r.subject_kind,
+                subject_id: &r.subject_id,
+                window_seconds: r.span.bucket_seconds,
+                window_start: r.span.start,
+                shard: r.shard,
+                delta,
+            })
+            .collect(),
+    );
     let states = repo.increment_many(&increments).await?;
     let mut reservation = QuotaReservation::default();
-    for (index, (r, state)) in resolved.iter().zip(states).enumerate() {
-        reservation.windows.push(ReservedWindow {
-            subject_kind: r.subject_kind.to_owned(),
-            subject_id: r.subject_id.clone(),
-            window_seconds: r.window.window_seconds,
-            window_start: r.window_start,
-            delta,
-        });
-        if let Some(decision) = ceiling_decision(r.window, state, r.window_start, now) {
-            unreserve(repo, &increments[index + 1..]).await;
+    for (r, &slot) in resolved.iter().zip(&slots) {
+        if slot == reservation.windows.len() {
+            let charged = &increments[slot];
+            reservation.windows.push(ReservedWindow {
+                subject_kind: charged.subject_kind.to_owned(),
+                subject_id: charged.subject_id.to_owned(),
+                window_seconds: charged.window_seconds,
+                window_start: charged.window_start,
+                shard: charged.shard,
+                delta,
+            });
+        }
+        if let Some(decision) = ceiling_decision(r.window, states[slot], r.span, now) {
+            unreserve(repo, &increments[reservation.windows.len()..]).await;
             return Ok(ReserveOutcome::Denied {
                 decision,
                 reservation,
@@ -227,6 +250,7 @@ pub async fn settle(
             subject_id: &window.subject_id,
             window_seconds: window.window_seconds,
             window_start: window.window_start,
+            shard: window.shard,
             delta: QuotaBucketDelta {
                 requests: 0,
                 input_tokens: actual.input_tokens - window.delta.input_tokens,
@@ -256,9 +280,11 @@ pub async fn release(
     settle(repo, reservation, QuotaUsage::default()).await
 }
 
-fn align_window(now: DateTime<Utc>, window_seconds: i32) -> DateTime<Utc> {
-    let secs = now.timestamp();
-    let w = i64::from(window_seconds.max(1));
-    let aligned = (secs / w) * w;
-    Utc.timestamp_opt(aligned, 0).single().unwrap_or(now)
+fn pick_shard(sharding: &QuotaConfig, subject_kind: &str, draw: u16) -> i16 {
+    let shards = if subject_kind == USER_QUOTA_SUBJECT || subject_kind == API_KEY_QUOTA_SUBJECT {
+        sharding.principal_subject_shards
+    } else {
+        sharding.shared_subject_shards
+    };
+    i16::try_from(draw % shards.max(1)).unwrap_or(0)
 }

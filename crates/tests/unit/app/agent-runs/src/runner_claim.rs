@@ -58,7 +58,11 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
         keep: &[],
     };
     let handler = A2aRunHandler::new(
-        RunCredentialService::new(RunCredentialRepositories::new(&pool), "https://issuer.test"),
+        RunCredentialService::new(
+            RunCredentialRepositories::new(&pool),
+            "https://issuer.test",
+            systemprompt_users::ApiKeyLifetime::unbounded(),
+        ),
         config,
     )
     .with_host(Arc::new(host));

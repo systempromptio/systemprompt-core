@@ -20,6 +20,8 @@ fn make_app_paths(tmp: &TempDir) -> AppPaths {
             web_path: Some(p.clone()),
             storage: Some(p),
             geoip_database: None,
+            shipped_files: None,
+            data: None,
         },
         systemprompt_manifest::PathResolution::Canonicalize,
         None,

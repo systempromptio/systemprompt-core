@@ -47,6 +47,55 @@ async fn connect_builds_distinct_write_provider() {
 }
 
 #[tokio::test]
+async fn without_a_session_url_session_features_use_the_write_pool() {
+    let url = test_database_url();
+    let db = Database::connect(&url, Some(&url), &pool_config())
+        .await
+        .expect("connects")
+        .with_session_url(None, &pool_config())
+        .await
+        .expect("no session url");
+
+    assert!(!db.has_session_pool());
+    assert!(Arc::ptr_eq(&db.session_pool(), &db.write_pool()));
+}
+
+#[tokio::test]
+async fn a_session_url_gets_its_own_pool_for_session_features() {
+    let url = test_database_url();
+    let db = Arc::new(
+        Database::connect(&url, None, &pool_config())
+            .await
+            .expect("connects")
+            .with_session_url(Some(&url), &pool_config())
+            .await
+            .expect("session pool"),
+    );
+
+    assert!(db.has_session_pool());
+    assert!(!Arc::ptr_eq(&db.session_pool(), &db.write_pool()));
+    db.test_connection().await.expect("all pools reachable");
+
+    let repo = systemprompt_database::ServiceRepository::new(
+        &db,
+        systemprompt_identifiers::InstanceId::new(format!(
+            "session-claim-{}",
+            uuid::Uuid::new_v4().simple()
+        )),
+    );
+    db.write_pool().close().await;
+    let claim = repo
+        .claim_instance()
+        .await
+        .expect("the claim is taken on the session pool, not the closed main pool");
+    assert!(
+        repo.claim_instance().await.is_err(),
+        "the identity stays exclusive"
+    );
+    claim.release().await;
+}
+
+#[tokio::test]
 async fn debug_and_info_report_postgres_backend() {
     let db = test_database().await;
     assert!(format!("{db:?}").contains("PostgreSQL"));
@@ -150,5 +199,16 @@ async fn validation_helpers_detect_tables_and_columns() {
         !validate_column_exists(&db, "users", "no_such_column_xyz")
             .await
             .expect("query")
+    );
+}
+
+#[test]
+fn the_session_pool_is_sized_on_its_own() {
+    let main = pool_config();
+    assert_eq!(main.for_session(None).max_connections, 10);
+    assert_eq!(main.for_session(Some(3)).max_connections, 3);
+    assert_eq!(
+        main.for_session(Some(3)).statement_cache_capacity,
+        main.statement_cache_capacity
     );
 }

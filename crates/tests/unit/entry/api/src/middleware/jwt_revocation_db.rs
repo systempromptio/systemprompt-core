@@ -19,7 +19,13 @@ use uuid::Uuid;
 
 
 fn checker(pool: &DbPool) -> JtiRevocationChecker {
-    JtiRevocationChecker::from_repository(OAuthRepository::new(pool))
+    checker_with_relay(pool, true)
+}
+
+fn checker_with_relay(pool: &DbPool, live: bool) -> JtiRevocationChecker {
+    let epochs = systemprompt_traits::CacheEpochs::new();
+    epochs.set_relay_live(live);
+    JtiRevocationChecker::from_repository(OAuthRepository::new(pool), epochs)
 }
 
 fn jti() -> AccessTokenId {
@@ -151,6 +157,26 @@ async fn a_token_admitted_before_revocation_keeps_working_until_the_cache_ages_o
         is_revoked_error(&result),
         "a cold checker must see the revocation, proving the admission above \
          was the cache rather than a missing row: {result:?}"
+    );
+}
+
+#[tokio::test]
+async fn without_a_live_relay_a_revocation_is_seen_on_the_next_request() {
+    let pool = test_db_pool().await;
+    let jti = jti();
+
+    let unrelayed = checker_with_relay(&pool, false);
+    unrelayed
+        .ensure_not_revoked(&jti)
+        .await
+        .expect("precondition: the token is admitted before it is revoked");
+
+    revoke(&pool, &jti, 60).await;
+
+    let result = unrelayed.ensure_not_revoked(&jti).await;
+    assert!(
+        is_revoked_error(&result),
+        "with no relay listening the negative answer must not be cached: {result:?}"
     );
 }
 

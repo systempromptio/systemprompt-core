@@ -71,6 +71,7 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 
@@ -355,7 +356,10 @@ fn jwt_extractor(
     let user_provider: Arc<dyn UserProvider> = Arc::new(systemprompt_users::UserService::new(
         Arc::clone(ctx.user_repository()),
     ));
-    let jti = JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
+    let jti = JtiRevocationChecker::from_repository(
+        ctx.oauth_repositories().oauth.clone(),
+        systemprompt_traits::CacheEpochs::new(),
+    );
     let issuer = ctx.config().jwt_issuer.clone();
     Ok(JwtContextExtractor::new(
         analytics,
@@ -370,7 +374,10 @@ async fn authenticate_accepts_seeded_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey@example.invalid").await?;
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,
@@ -400,7 +407,10 @@ async fn authenticate_rejects_unissued_session_for_api_key() -> Result<()> {
     let (pool, ctx) = setup_ctx().await?;
     install_test_signing_key();
     let cred = seed_admin_credential(&pool, "auth-apikey-forged@example.invalid").await?;
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &cred.user_id,

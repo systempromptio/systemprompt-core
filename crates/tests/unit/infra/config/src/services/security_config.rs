@@ -14,6 +14,7 @@ fn security() -> SecurityConfig {
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
         allow_dynamic_client_registration: true,
+        api_keys: Default::default(),
         login_page_url: None,
         signing_key_path: PathBuf::from("signing_key.pem"),
         trusted_issuers: Vec::new(),

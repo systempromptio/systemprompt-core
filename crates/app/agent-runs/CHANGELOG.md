@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `AgentRunLauncher::updates_after` maps a run's events past a `seq` to A2A stream frames and reports the run finished once it is terminal and drained.
+
+### Changed
+
+- **Breaking:** `RunCredentialService::new` takes an `ApiKeyLifetime`, built from `api_key_max_lifetime_days`.
+- The Claude Code host runs in `RunRequest::workspace`, falling back to the run's scratch workspace when the request names none.
+
 ## [0.68.0] - 2026-10-14
 
 ### Added

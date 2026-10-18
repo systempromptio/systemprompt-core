@@ -11,7 +11,7 @@ use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
-    record_decision,
+    RateChargeSubject, record_decision,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -94,7 +94,7 @@ pub(super) struct PromptEvaluation {
     pub(super) recovery_locations: Vec<String>,
 }
 
-pub(super) fn evaluate_prompt(
+pub(super) async fn evaluate_prompt(
     governance: &GovernanceEngine,
     ctx: &GatewayRequestContext,
     request: &mut CanonicalRequest,
@@ -103,6 +103,13 @@ pub(super) fn evaluate_prompt(
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let input = GovernedInput::prompt_parts([]);
+    let rate_counts = governance
+        .charge_rate_windows(RateChargeSubject {
+            session: &session_id,
+            user: &ctx.user_id,
+            call: &call_id,
+        })
+        .await;
     let policy_ctx = PolicyContext {
         target: GovernedTarget::Prompt,
         agent_scope: AgentScope::User {
@@ -114,6 +121,7 @@ pub(super) fn evaluate_prompt(
         user_id: &ctx.user_id,
         input: &input,
         call_id: &call_id,
+        rate_counts: &rate_counts,
     };
     let PromptRecovery {
         evaluation,

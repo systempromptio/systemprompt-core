@@ -88,4 +88,6 @@ mod skill_validator;
 mod secrets_registry;
 
 #[cfg(test)]
+mod secrets_file_refresh;
+#[cfg(test)]
 mod secrets_reload;

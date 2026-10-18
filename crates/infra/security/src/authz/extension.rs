@@ -45,6 +45,9 @@ impl Extension for AuthzExtension {
                 "rule_value".into(),
                 "access".into(),
             ]),
+            SchemaDefinition::sql_only(include_str!(
+                "../../schema/access_control_cache_notify.sql"
+            )),
             SchemaDefinition::new(
                 "governance_decisions",
                 include_str!("../../schema/governance_decisions.sql"),
@@ -68,6 +71,26 @@ impl Extension for AuthzExtension {
                 "args_digest".into(),
                 "requested_by".into(),
                 "status".into(),
+                "expires_at".into(),
+            ]),
+            SchemaDefinition::new(
+                "governance_rate_windows",
+                include_str!("../../schema/governance_rate_windows.sql"),
+            )
+            .with_required_columns(vec![
+                "bucket_key".into(),
+                "window_start".into(),
+                "hits".into(),
+                "expires_at".into(),
+            ]),
+            SchemaDefinition::new(
+                "governance_rate_charges",
+                include_str!("../../schema/governance_rate_charges.sql"),
+            )
+            .with_required_columns(vec![
+                "call_id".into(),
+                "bucket_key".into(),
+                "position".into(),
                 "expires_at".into(),
             ]),
         ]

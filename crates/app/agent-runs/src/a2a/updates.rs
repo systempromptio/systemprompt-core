@@ -7,13 +7,15 @@
 //! is a text artifact per event, and `result` emits its structured output as
 //! a data artifact followed by the final `Completed`/`Failed` status. Other
 //! kinds (tool calls, hooks, stderr) stay in the run's own event log.
+//! [`final_status`] is the terminal frame for a run that ended without a
+//! `result` event.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_agent::models::a2a::protocol::{TaskArtifactUpdateEvent, TaskStatusUpdateEvent};
 use systemprompt_identifiers::{AgentRunId, ArtifactId, ContextId, MessageId, TaskId};
-use systemprompt_models::a2a::{Message, MessageRole, Part, TaskState, TaskStatus};
+use systemprompt_models::a2a::{Message, MessageRole, Part, StreamResponse, TaskState, TaskStatus};
 
 use super::content::{data_part, outcome_artifact_id, run_artifact};
 use crate::event::{RunEvent, RunEventPayload};
@@ -22,6 +24,30 @@ use crate::event::{RunEvent, RunEventPayload};
 pub enum TaskUpdate {
     Status(Box<TaskStatusUpdateEvent>),
     Artifact(Box<TaskArtifactUpdateEvent>),
+}
+
+impl TaskUpdate {
+    #[must_use]
+    pub fn into_stream_response(self) -> StreamResponse {
+        match self {
+            Self::Status(event) => StreamResponse::StatusUpdate(*event),
+            Self::Artifact(event) => StreamResponse::ArtifactUpdate(*event),
+        }
+    }
+}
+
+#[must_use]
+pub fn final_status(task_id: &TaskId, context_id: &ContextId, state: TaskState) -> TaskUpdate {
+    let status = TaskStatus {
+        state,
+        message: None,
+        timestamp: Some(chrono::Utc::now()),
+    };
+    TaskUpdate::Status(Box::new(TaskStatusUpdateEvent::new(
+        task_id.clone(),
+        context_id.clone(),
+        status,
+    )))
 }
 
 struct Target<'a> {

@@ -33,6 +33,35 @@ pub struct ForeignKeyDrift {
 pub struct SchemaInstallReport {
     pub foreign_key_drift: Vec<ForeignKeyDrift>,
     pub residue: SchemaResidue,
+    pub ahead: Vec<SchemaAhead>,
+}
+
+impl SchemaAhead {
+    #[must_use]
+    pub fn from_currency(currency: &super::extension::current::SchemaCurrency) -> Vec<Self> {
+        currency
+            .ahead
+            .iter()
+            .map(|m| Self {
+                extension: m.extension_id.clone(),
+                version: m.version,
+                name: m.name.clone(),
+                breaks_older: currency
+                    .breaking
+                    .iter()
+                    .any(|b| b.extension_id == m.extension_id && b.version == m.version),
+            })
+            .collect()
+    }
+}
+
+/// A ledger row a newer release wrote: the database is ahead of this binary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SchemaAhead {
+    pub extension: ExtensionId,
+    pub version: u32,
+    pub name: String,
+    pub breaks_older: bool,
 }
 
 impl SchemaInstallReport {
@@ -44,5 +73,15 @@ impl SchemaInstallReport {
     #[must_use]
     pub const fn is_tidy(&self) -> bool {
         self.residue.is_empty()
+    }
+
+    #[must_use]
+    pub const fn is_ahead(&self) -> bool {
+        !self.ahead.is_empty()
+    }
+
+    #[must_use]
+    pub fn breaks_this_release(&self) -> bool {
+        self.ahead.iter().any(|m| m.breaks_older)
     }
 }

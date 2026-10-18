@@ -192,7 +192,7 @@ async fn write_sitemap_files(
 async fn write_single_sitemap(web_dir: &Path, urls: &[SitemapUrl]) -> Result<()> {
     let sitemap_xml = build_sitemap_xml(urls);
     let path = web_dir.join("sitemap.xml");
-    fs::write(&path, sitemap_xml).await?;
+    crate::atomic::write_atomic(&path, sitemap_xml.as_bytes()).await?;
 
     tracing::debug!(url_count = urls.len(), "Generated sitemap.xml");
     Ok(())
@@ -217,7 +217,7 @@ async fn write_numbered_sitemap(sitemap_dir: &Path, idx: usize, urls: &[SitemapU
     let filename = format!("sitemap-{}.xml", idx + 1);
     let sitemap_xml = build_sitemap_xml(urls);
     let path = sitemap_dir.join(&filename);
-    fs::write(&path, sitemap_xml).await?;
+    crate::atomic::write_atomic(&path, sitemap_xml.as_bytes()).await?;
     tracing::debug!(filename = %filename, url_count = urls.len(), "Generated sitemap file");
     Ok(())
 }
@@ -229,7 +229,7 @@ async fn write_sitemap_index(
 ) -> Result<()> {
     let index_xml = build_sitemap_index(chunks, base_url);
     let path = web_dir.join("sitemap.xml");
-    fs::write(&path, index_xml).await?;
+    crate::atomic::write_atomic(&path, index_xml.as_bytes()).await?;
     tracing::debug!(file_count = chunks.len(), "Generated sitemap index");
     Ok(())
 }

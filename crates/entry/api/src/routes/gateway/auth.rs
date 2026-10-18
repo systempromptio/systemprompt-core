@@ -78,7 +78,10 @@ pub async fn pat(ctx: AppContext, request: Request) -> Result<Json<AuthResponse>
     let pat_token = extract_bearer(request.headers())
         .ok_or_else(|| ApiHttpError::unauthorized("Missing Authorization: Bearer <pat>"))?;
 
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
     let record = service
         .verify(&pat_token)
         .await?
@@ -177,7 +180,10 @@ async fn mint_device_pat(
         .ok_or_else(|| ApiHttpError::unauthorized("exchange code user no longer exists"))?;
     refuse_service_account(user.is_service_account, &user_id)?;
 
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::from_max_days(ctx.config().api_key_max_lifetime_days),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &user_id,

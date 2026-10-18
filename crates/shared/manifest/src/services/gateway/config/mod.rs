@@ -65,6 +65,8 @@ pub struct GatewayConfigSpec {
     pub default_model: Option<String>,
     #[serde(default)]
     pub allow_unlisted_models: bool,
+    #[serde(default = "default_true")]
+    pub hidden_requires_route: bool,
     #[serde(default)]
     pub quota_fault_mode: QuotaFaultMode,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -122,6 +124,7 @@ impl Default for GatewayConfigSpec {
             default_provider: None,
             default_model: None,
             allow_unlisted_models: false,
+            hidden_requires_route: true,
             quota_fault_mode: QuotaFaultMode::default(),
             require_scopes: Vec::new(),
             automatic_prompt_caching: true,
@@ -150,6 +153,7 @@ impl GatewayConfigSpec {
             default_provider,
             default_model,
             allow_unlisted_models,
+            hidden_requires_route,
             quota_fault_mode,
             require_scopes,
             automatic_prompt_caching,
@@ -165,6 +169,7 @@ impl GatewayConfigSpec {
             default_provider,
             default_model,
             allow_unlisted_models,
+            hidden_requires_route,
             quota_fault_mode,
             require_scopes,
             automatic_prompt_caching,

@@ -140,7 +140,8 @@ impl From<UserError> for ApiHttpError {
             e @ (UserError::Validation(_)
             | UserError::InvalidStatus(_)
             | UserError::InvalidRole(_)
-            | UserError::InvalidRoles(_)) => ApiError::bad_request(e.to_string()),
+            | UserError::InvalidRoles(_)
+            | UserError::ApiKeyLifetimeExceeded { .. }) => ApiError::bad_request(e.to_string()),
             e @ (UserError::MergeUnavailable
             | UserError::PurgeIdentifier { .. }
             | UserError::OwnerReassignment { .. }) => {

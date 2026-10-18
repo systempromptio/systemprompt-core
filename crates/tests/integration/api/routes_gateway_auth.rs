@@ -72,7 +72,10 @@ async fn pat_with_valid_key_issues_bridge_access() -> Result<()> {
     systemprompt_test_fixtures::seed_user_row(&pool, &user, &format!("pat-{uniq}@example.invalid"))
         .await?;
 
-    let service = ApiKeyService::new(Arc::clone(ctx.user_repository()));
+    let service = ApiKeyService::new(
+        Arc::clone(ctx.user_repository()),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let issued = service
         .issue(IssueApiKeyParams {
             user_id: &user,
@@ -164,7 +167,10 @@ async fn provision_oauth_client_without_bearer_is_unauthorized() -> Result<()> {
     let extractor = Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     ));
     let err = auth::provision_oauth_client(extractor, (*ctx).clone(), no_auth_request())
@@ -180,7 +186,10 @@ fn jwt_extractor(
     Ok(Arc::new(JwtContextExtractor::new(
         ctx.session_provider().expect("session provider"),
         ctx.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            ctx.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         ctx.config().jwt_issuer.clone(),
     )))
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `observability.log_format: json` writes JSON log lines.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

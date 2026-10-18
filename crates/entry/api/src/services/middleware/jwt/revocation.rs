@@ -14,6 +14,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::AccessTokenId;
 use systemprompt_models::execution::context::ContextExtractionError;
 use systemprompt_oauth::repository::{JtiRevocationCache, OAuthRepository};
+use systemprompt_traits::CacheEpochs;
 
 #[derive(Clone)]
 pub struct JtiRevocationChecker {
@@ -29,10 +30,10 @@ impl std::fmt::Debug for JtiRevocationChecker {
 }
 
 impl JtiRevocationChecker {
-    pub fn from_repository(repo: OAuthRepository) -> Self {
+    pub fn from_repository(repo: OAuthRepository, epochs: CacheEpochs) -> Self {
         Self {
             repo: Arc::new(repo),
-            cache: Arc::new(JtiRevocationCache::new()),
+            cache: Arc::new(JtiRevocationCache::new(epochs)),
         }
     }
 
@@ -46,13 +47,14 @@ impl JtiRevocationChecker {
             None => {},
         }
 
+        let epoch = self.cache.epoch();
         let revoked = self.repo.is_jti_revoked(jti).await.map_err(|e| {
             ContextExtractionError::DatabaseError {
                 context: "JTI revocation lookup failed".to_owned(),
                 source: e.into(),
             }
         })?;
-        self.cache.record(jti, revoked);
+        self.cache.record(jti, revoked, epoch);
         if revoked {
             Err(ContextExtractionError::Revoked)
         } else {

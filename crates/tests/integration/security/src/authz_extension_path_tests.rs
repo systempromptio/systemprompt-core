@@ -21,6 +21,7 @@ use systemprompt_test_fixtures::{fixture_user_id, test_db_pool};
 
 fn extension_governance() -> GovernanceConfig {
     GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Extension,
@@ -106,6 +107,7 @@ async fn extension_hook_evaluated_and_audited() {
         write_pool.clone(),
         Some(hook),
         ChainSources::default(),
+        systemprompt_traits::CacheEpochs::new(),
     )
     .expect("bootstrap ok");
 

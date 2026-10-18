@@ -33,6 +33,8 @@ fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
         web_path: Some(boot.system_path.join("web").display().to_string()),
         storage: Some(boot.storage_path.display().to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -66,7 +68,10 @@ async fn manifest_is_not_signed_when_the_revocation_read_fails() {
     let extractor = Arc::new(JwtContextExtractor::new(
         healthy.session_provider().expect("session provider"),
         healthy.user_provider().expect("user provider"),
-        JtiRevocationChecker::from_repository(healthy.oauth_repositories().oauth.clone()),
+        JtiRevocationChecker::from_repository(
+            healthy.oauth_repositories().oauth.clone(),
+            systemprompt_traits::CacheEpochs::new(),
+        ),
         healthy.config().jwt_issuer.clone(),
     ));
     let consumer = seed_bridge_credential(&pool, "manifest-policy@example.invalid")

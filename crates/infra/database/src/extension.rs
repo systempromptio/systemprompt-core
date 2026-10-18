@@ -28,6 +28,10 @@ impl Extension for DatabaseExtension {
                 "extension_migrations",
                 include_str!("../schema/extension_migrations.sql"),
             ),
+            SchemaDefinition::new(
+                "extension_migration_compat",
+                include_str!("../schema/extension_migration_compat.sql"),
+            ),
             SchemaDefinition::new("services", include_str!("../schema/services.sql"))
                 .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
             SchemaDefinition::new(

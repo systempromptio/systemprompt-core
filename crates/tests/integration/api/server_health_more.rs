@@ -17,6 +17,7 @@ use systemprompt_api::services::server::lifecycle::reconciliation::cleanup_stale
 use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 use systemprompt_runtime::{AppContext, ShutdownRequest};
 use tower::ServiceExt;
@@ -153,7 +154,7 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
 /// the other's grace window and make the pair flaky.
 #[tokio::test(start_paused = true)]
 async fn drain_grace_bounds_the_drain_and_not_the_server() {
-    let grace = Duration::from_millis(shutdown::AXUM_DRAIN_GRACE_MS);
+    let grace = ShutdownConfig::default().drain_grace();
 
     // Never signalled: the guard must not be a deadline on healthy serving.
     let unsignalled = tokio::time::timeout(
@@ -161,6 +162,8 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
+            &ShutdownConfig::default(),
+            &systemprompt_traits::StreamDrain::default(),
         ),
     )
     .await;
@@ -172,10 +175,14 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // Signalled, then wedged: the drain is abandoned rather than the process.
     // The signal is spawned rather than sent inline because the guard
     // subscribes on first poll, and a broadcast delivers nothing sent earlier.
-    let wedged = tokio::spawn(async {
+    let streams = systemprompt_traits::StreamDrain::default();
+    let watched = streams.clone();
+    let wedged = tokio::spawn(async move {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
+            &ShutdownConfig::default(),
+            &watched,
         )
         .await
     });
@@ -190,17 +197,27 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
         result.is_ok(),
         "abandoning a wedged drain must not fail the run loop"
     );
+    assert!(
+        streams.is_ending(),
+        "open streams are told to end once the drain runs out"
+    );
 }
 
 #[tokio::test(start_paused = true)]
 async fn drain_grace_leaves_room_for_child_termination() {
+    let timings = ShutdownConfig::default();
     assert!(
-        shutdown::AXUM_DRAIN_GRACE_MS > shutdown::CHILD_SHUTDOWN_GRACE_MS,
-        "a drain that consumes the whole budget would strand every child"
+        timings.forced_exit_grace() > timings.child_grace(),
+        "a backstop that fires before the child grace would strand every child"
     );
 
-    let served =
-        shutdown::join_within_drain_grace(async { Ok(()) }, &ShutdownRequest::default()).await;
+    let served = shutdown::join_within_drain_grace(
+        async { Ok(()) },
+        &ShutdownRequest::default(),
+        &ShutdownConfig::default(),
+        &systemprompt_traits::StreamDrain::default(),
+    )
+    .await;
     assert!(served.is_ok(), "a clean drain returns the serve result");
 }
 
@@ -262,6 +279,7 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
     let handle = systemprompt_events::PostgresEventBridge::new(
         ctx.db_pool().write_pool().as_ref().clone(),
         instance_id,
+        systemprompt_traits::CacheEpochs::new(),
     )
     .start();
     let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())

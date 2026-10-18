@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use axum::body::to_bytes;
 use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode, Uri, header};
+use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
 use axum::response::IntoResponse;
 use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
@@ -39,6 +39,8 @@ async fn state_with_dist(
         web_path: Some(web.to_string_lossy().into_owned()),
         storage: Some("/tmp".to_owned()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
     let _ = FilesConfig::init(ctx.app_paths());
@@ -62,6 +64,7 @@ async fn serve(
     let resp = serve_static_content(
         State(state.clone()),
         uri.parse::<Uri>().expect("uri"),
+        Method::GET,
         headers,
         None,
     )

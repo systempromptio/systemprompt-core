@@ -105,7 +105,11 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
             .register(&user, &connection, sender)
             .await
     );
-    let bridge = PostgresEventBridge::new(pool.clone(), instance);
+    let bridge = PostgresEventBridge::new(
+        pool.clone(),
+        instance,
+        systemprompt_traits::CacheEpochs::new(),
+    );
     let router = bridge.router();
     let bridge = bridge.start();
     assert!(

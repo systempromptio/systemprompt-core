@@ -171,6 +171,16 @@ impl SettingsWindow {
         }
     }
 
+    pub fn drag(&self) {
+        if let Err(e) = self.window.drag_window() {
+            tracing::debug!(error = %e, "window drag ignored");
+        }
+    }
+
+    pub fn toggle_maximize(&self) {
+        self.window.set_maximized(!self.window.is_maximized());
+    }
+
     pub fn hide(&self) {
         self.window.set_visible(false);
     }

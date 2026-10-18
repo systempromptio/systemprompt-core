@@ -187,11 +187,11 @@ async fn bind_early(
         return Ok(None);
     }
     let addr = get_api_addr().context("Profile not initialized; cannot determine bind address")?;
-    let early =
-        systemprompt_api::services::server::bind_and_serve(&addr, events.cloned(), shutdown)
-            .await
-            .context("Failed to bind API listener")?;
-    Ok(Some(early))
+    let timings = ProfileBootstrap::get()?.server.shutdown;
+    systemprompt_api::services::server::bind_and_serve(&addr, events.cloned(), shutdown, timings)
+        .await
+        .map(Some)
+        .context("Failed to bind API listener")
 }
 
 #[derive(Debug, Clone, Copy)]

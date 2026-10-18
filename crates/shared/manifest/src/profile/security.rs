@@ -21,7 +21,7 @@ pub fn default_resource_audiences() -> Vec<String> {
 }
 
 const fn default_allow_registration() -> bool {
-    true
+    false
 }
 
 fn default_signing_key_path() -> PathBuf {
@@ -69,6 +69,30 @@ pub struct SecurityConfig {
 
     #[serde(default = "default_id_jag_ttl_secs")]
     pub id_jag_ttl_secs: i64,
+
+    #[serde(default, skip_serializing_if = "ApiKeyPolicyConfig::is_default")]
+    pub api_keys: ApiKeyPolicyConfig,
+}
+
+/// Issuance policy for personal access tokens (`security.api_keys`).
+///
+/// With `max_lifetime_days` set, every issuance path bounds the key: an
+/// omitted expiry becomes the maximum and a longer one is refused. Unset
+/// leaves keys without a lifetime ceiling.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ApiKeyPolicyConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_lifetime_days: Option<u32>,
+}
+
+impl ApiKeyPolicyConfig {
+    #[must_use]
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 /// A federated identity provider trusted for the RFC 8693 token-exchange and

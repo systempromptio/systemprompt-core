@@ -9,6 +9,8 @@ mod audit_metrics;
 #[cfg(test)]
 mod audit_payload;
 #[cfg(test)]
+mod audit_phases;
+#[cfg(test)]
 mod canonical_request;
 #[cfg(test)]
 mod canonical_response;
@@ -80,6 +82,8 @@ mod prompt_cache_control;
 mod prompt_recovery;
 #[cfg(test)]
 mod prompt_recovery_transport;
+#[cfg(test)]
+mod quota_calendar;
 #[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]

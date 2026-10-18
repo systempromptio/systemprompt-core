@@ -34,6 +34,7 @@ fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
         default_provider: None,
         default_model: None,
         allow_unlisted_models: false,
+        hidden_requires_route: true,
         automatic_prompt_caching: true,
         auth_scheme: "bearer".to_owned(),
         inference_path_prefix: "/v1".to_owned(),

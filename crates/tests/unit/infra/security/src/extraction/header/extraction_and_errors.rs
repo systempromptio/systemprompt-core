@@ -37,6 +37,43 @@ fn test_header_extractor_extract_trace_id_generates_unique() {
     );
 }
 
+#[test]
+fn a_traceparent_supplies_the_trace_id_when_x_trace_id_is_absent() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "traceparent",
+        HeaderValue::from_static("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
+    );
+
+    let trace_id = HeaderExtractor::extract_trace_id(&headers);
+    assert_eq!(trace_id.as_str(), "4bf92f3577b34da6a3ce929d0e0e4736");
+}
+
+#[test]
+fn x_trace_id_wins_over_traceparent() {
+    let mut headers = HeaderMap::new();
+    headers.insert("x-trace-id", HeaderValue::from_static("caller-trace"));
+    headers.insert(
+        "traceparent",
+        HeaderValue::from_static("00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"),
+    );
+
+    assert_eq!(
+        HeaderExtractor::extract_trace_id(&headers).as_str(),
+        "caller-trace"
+    );
+}
+
+#[test]
+fn a_malformed_traceparent_falls_back_to_a_generated_id() {
+    let mut headers = HeaderMap::new();
+    headers.insert("traceparent", HeaderValue::from_static("not-a-traceparent"));
+
+    let trace_id = HeaderExtractor::extract_trace_id(&headers);
+    assert_ne!(trace_id.as_str(), "not-a-traceparent");
+    assert_eq!(trace_id.as_str().len(), 36);
+}
+
 const TEST_CTX: &str = "00000000-0000-4000-8000-000000000001";
 
 #[test]

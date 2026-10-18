@@ -8,6 +8,7 @@
 
 use systemprompt_api::services::server::readiness::init_readiness;
 use systemprompt_api::services::server::shutdown;
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_runtime::ShutdownRequest;
 use systemprompt_test_fixtures::{closed_db_pool, ensure_test_bootstrap, test_app_context};
 
@@ -18,6 +19,8 @@ async fn a_server_that_finishes_first_has_its_own_result_returned_unchanged() {
     let outcome = shutdown::join_within_drain_grace(
         async { Err(anyhow::anyhow!("bind lost")) },
         &ShutdownRequest::default(),
+        &ShutdownConfig::default(),
+        &systemprompt_traits::StreamDrain::default(),
     )
     .await;
 

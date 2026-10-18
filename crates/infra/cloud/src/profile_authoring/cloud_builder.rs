@@ -88,6 +88,7 @@ impl CloudProfileBuilder {
         Profile {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
+            config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
             name: self.name,
             display_name,
             target: ProfileType::Cloud,
@@ -101,7 +102,7 @@ impl CloudProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&external, self.trusted_issuers),
+            security: security_config(&external, self.trusted_issuers, false),
             server: ServerConfig {
                 host: consts::CLOUD_HOST.to_owned(),
                 port: consts::DEFAULT_PORT,
@@ -118,16 +119,10 @@ impl CloudProfileBuilder {
                     systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
                 role: systemprompt_manifest::profile::NodeRole::All,
                 max_in_flight: None,
+                shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
                 trusted_proxies: crate::trusted_proxies::default_cloud_trusted_proxies(),
             },
-            paths: PathsConfig {
-                system: container::APP.to_owned(),
-                services: container::SERVICES.to_owned(),
-                bin: container::BIN.to_owned(),
-                storage: Some(container::STORAGE.to_owned()),
-                geoip_database: self.geoip_database,
-                web_path: Some(container::WEB.to_owned()),
-            },
+            paths: cloud_paths(self.geoip_database),
             rate_limits: RateLimitsConfig::default(),
             runtime: cloud_runtime_config(),
             cloud: Some(CloudConfig {
@@ -140,6 +135,7 @@ impl CloudProfileBuilder {
                 source: SecretsSource::Env,
                 vault: None,
                 external: None,
+                refresh_secs: None,
             }),
             extensions: ExtensionsConfig::default(),
             governance: Some(webhook_governance(&internal_url)),
@@ -151,5 +147,18 @@ impl CloudProfileBuilder {
                 email: Some(Email::local_admin()),
             },
         }
+    }
+}
+
+fn cloud_paths(geoip_database: Option<String>) -> PathsConfig {
+    PathsConfig {
+        system: container::APP.to_owned(),
+        services: container::SERVICES.to_owned(),
+        bin: container::BIN.to_owned(),
+        storage: Some(container::STORAGE.to_owned()),
+        geoip_database,
+        data: None,
+        web_path: Some(container::WEB.to_owned()),
+        shipped_files: None,
     }
 }

@@ -2,7 +2,8 @@
 //!
 //! [`ClaudeCode`] builds the invocation ([`args`], [`plugin`]), decodes each
 //! stream-json line ([`stream_json`], [`blocks`]) and classifies the finished
-//! process ([`outcome`]).
+//! process ([`outcome`]). The host runs in [`RunRequest::workspace`], as
+//! Codex does, or the run's scratch workspace when the request names none.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,7 +52,7 @@ impl HeadlessHost for ClaudeCode {
             program: CLAUDE_PROGRAM.to_owned(),
             args: args::claude_args(ctx.request, &files),
             env: args::child_env(ctx),
-            cwd: ctx.layout.workspace.clone(),
+            cwd: working_dir(ctx),
             stdin: None,
         })
     }
@@ -67,6 +68,14 @@ impl HeadlessHost for ClaudeCode {
         request: &RunRequest,
     ) -> RunOutcome {
         outcome::classify(exit, events, request)
+    }
+}
+
+fn working_dir(ctx: &PrepareContext<'_>) -> std::path::PathBuf {
+    if ctx.request.workspace.as_os_str().is_empty() {
+        ctx.layout.workspace.clone()
+    } else {
+        ctx.request.workspace.clone()
     }
 }
 

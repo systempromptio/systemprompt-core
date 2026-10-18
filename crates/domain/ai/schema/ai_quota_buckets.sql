@@ -1,7 +1,7 @@
--- Declares the post-011 target shape: fresh installs stamp migrations
+-- Declares the post-042 target shape: fresh installs stamp migrations
 -- instead of executing them, so this DDL alone must produce the final
 -- schema. Established databases still reach the same shape through
--- migrations 003/011, whose guards tolerate both the legacy user_id
+-- migrations 003/011/042, whose guards tolerate both the legacy user_id
 -- layout and this one.
 CREATE TABLE IF NOT EXISTS ai_quota_buckets (
     id TEXT PRIMARY KEY,
@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS ai_quota_buckets (
     output_tokens BIGINT NOT NULL DEFAULT 0,
     cost_microdollars BIGINT NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    shard SMALLINT NOT NULL DEFAULT 0,
     CONSTRAINT ai_quota_buckets_subject_key
-        UNIQUE (subject_kind, subject_id, window_seconds, window_start)
+        UNIQUE (subject_kind, subject_id, window_seconds, window_start, shard)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_quota_buckets_window ON ai_quota_buckets(window_start);

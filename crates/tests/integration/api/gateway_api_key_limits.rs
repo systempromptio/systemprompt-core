@@ -43,7 +43,10 @@ async fn issue(
     limits: ApiKeyLimits,
     scopes: &[ScopeBinding],
 ) -> UserApiKey {
-    let service = ApiKeyService::new(Arc::new(systemprompt_users::UserRepository::new(pool)));
+    let service = ApiKeyService::new(
+        Arc::new(systemprompt_users::UserRepository::new(pool)),
+        systemprompt_users::ApiKeyLifetime::unbounded(),
+    );
     let minted = service
         .issue(IssueApiKeyParams {
             user_id: user,

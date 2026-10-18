@@ -10,6 +10,15 @@
 //! through the router's *local-only* path — which deliberately does **not**
 //! touch the outbox, so the relay cannot loop.
 //!
+//! The same listener also carries [`CACHE_INVALIDATION_CHANNEL`], whose
+//! payload is a cache domain; see [`super::cache_invalidation`].
+//!
+//! `LISTEN` holds a Postgres session for the bridge's lifetime, so the
+//! listener connects through its own pool
+//! ([`PostgresEventBridge::with_listener_pool`]): a direct, session-capable
+//! connection when the main pool sits behind a transaction-mode pooler.
+//! `NOTIFY` and the outbox writes are ordinary statements on the main pool.
+//!
 //! The notification payload is only the row id (a UUID string) to stay
 //! well under Postgres' ~8 KB `NOTIFY` limit; the event body lives in the
 //! `jsonb` column.
@@ -22,11 +31,14 @@ use std::time::Duration;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgListener;
-use systemprompt_traits::OwnedTask;
+use systemprompt_traits::{CacheEpochs, OwnedTask};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 use super::bridge_handle::{EventBridgeHandle, RelayStatus, StatusCell};
+use super::cache_invalidation::{
+    CACHE_INVALIDATION_CHANNEL, invalidate_all_cache_domains, receive_cache_invalidation,
+};
 
 use super::repository::EventOutboxRepository;
 use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
@@ -50,17 +62,25 @@ fn is_read_only_standby(err: &sqlx::Error) -> bool {
 
 #[derive(Debug, Clone)]
 pub struct PostgresEventBridge {
-    pool: PgPool,
+    listener_pool: PgPool,
     outbox: EventOutboxRepository,
+    epochs: CacheEpochs,
 }
 
 impl PostgresEventBridge {
     #[must_use]
-    pub fn new(pool: PgPool, instance_id: InstanceId) -> Self {
+    pub fn new(pool: PgPool, instance_id: InstanceId, epochs: CacheEpochs) -> Self {
         Self {
             outbox: EventOutboxRepository::new(pool.clone(), instance_id),
-            pool,
+            listener_pool: pool,
+            epochs,
         }
+    }
+
+    #[must_use]
+    pub fn with_listener_pool(mut self, listener_pool: PgPool) -> Self {
+        self.listener_pool = listener_pool;
+        self
     }
 
     #[must_use]
@@ -82,8 +102,10 @@ impl PostgresEventBridge {
     }
 
     async fn open_listener(&self) -> Result<PgListener, sqlx::Error> {
-        let mut listener = PgListener::connect_with(&self.pool).await?;
-        listener.listen(OUTBOX_CHANNEL).await?;
+        let mut listener = PgListener::connect_with(&self.listener_pool).await?;
+        listener
+            .listen_all([OUTBOX_CHANNEL, CACHE_INVALIDATION_CHANNEL])
+            .await?;
         Ok(listener)
     }
 
@@ -114,6 +136,7 @@ impl PostgresEventBridge {
         let mut backoff = RETRY_MIN;
 
         loop {
+            self.epochs.set_relay_live(false);
             status.set(RelayStatus::Reconnecting);
             let mut listener = match self.open_listener().await {
                 Ok(listener) => listener,
@@ -128,6 +151,8 @@ impl PostgresEventBridge {
                 },
             };
             backoff = RETRY_MIN;
+            invalidate_all_cache_domains(&self.epochs);
+            self.epochs.set_relay_live(true);
             status.set(RelayStatus::Listening);
             info!(
                 channel = OUTBOX_CHANNEL,
@@ -139,6 +164,7 @@ impl PostgresEventBridge {
                 break;
             }
         }
+        self.epochs.set_relay_live(false);
         status.set(RelayStatus::Stopped);
         info!("event bridge: stopped");
     }
@@ -153,6 +179,9 @@ impl PostgresEventBridge {
             tokio::select! {
                 () = cancel.cancelled() => return false,
                 notification = listener.recv() => match notification {
+                    Ok(notification) if notification.channel() == CACHE_INVALIDATION_CHANNEL => {
+                        receive_cache_invalidation(&self.epochs, notification.payload());
+                    },
                     Ok(notification) => {
                         self.deliver(&EventOutboxId::new(notification.payload())).await;
                     },

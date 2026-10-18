@@ -217,3 +217,38 @@ fn disjoint_block_and_redact_categories_validate() {
     );
     config.validate().expect("disjoint lists");
 }
+
+fn policy_with_quota_window(yaml: &str) -> GatewayPolicyConfig {
+    serde_yaml::from_str(&format!(
+        "policies:\n  - name: p\n    spec:\n      quota_windows:\n        - {yaml}\n"
+    ))
+    .expect("policy yaml parses")
+}
+
+#[test]
+fn a_quota_window_without_seconds_or_calendar_is_rejected() {
+    let msg = policy_with_quota_window("max_requests: 10")
+        .validate()
+        .expect_err("no span")
+        .to_string();
+    assert!(msg.contains("quota_windows[0]"), "{msg}");
+}
+
+#[test]
+fn a_quota_window_with_seconds_and_calendar_is_rejected() {
+    let msg = policy_with_quota_window("{window_seconds: 60, calendar: day, max_requests: 10}")
+        .validate()
+        .expect_err("ambiguous span")
+        .to_string();
+    assert!(msg.contains("not both"), "{msg}");
+}
+
+#[test]
+fn fixed_and_calendar_quota_windows_validate() {
+    policy_with_quota_window("{window_seconds: 60, max_requests: 10}")
+        .validate()
+        .expect("fixed window");
+    policy_with_quota_window("{calendar: month, max_requests: 10}")
+        .validate()
+        .expect("calendar window");
+}

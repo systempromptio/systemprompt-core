@@ -16,7 +16,9 @@ mod error;
 pub mod failover;
 pub mod finalize;
 mod guards;
+mod opening;
 mod pricing;
+mod rate;
 pub mod resolve;
 pub mod stages;
 
@@ -33,16 +35,18 @@ use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
-use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry, QuotaFaultMode};
+use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
 
 use self::abandon::AbandonGuard;
 use self::admission::commit_admission;
 use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
+use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
+use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
@@ -63,6 +67,7 @@ pub struct DispatchInputs {
     pub inbound: Arc<dyn InboundAdapter>,
     pub forward_headers: Vec<(String, String)>,
     pub identity_headers: Vec<(String, String)>,
+    pub trace_sampled: Option<bool>,
     pub governance: Arc<GovernanceEngine>,
 }
 
@@ -81,6 +86,7 @@ impl GatewayService {
             inbound,
             forward_headers,
             identity_headers,
+            trace_sampled,
             governance,
         } = inputs;
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
@@ -110,6 +116,7 @@ impl GatewayService {
             ctx,
             inbound,
             forward_headers,
+            trace_sampled,
             governance,
         }))
         .await;
@@ -143,6 +150,7 @@ struct OpenedDispatch<'a> {
     ctx: GatewayRequestContext,
     inbound: Arc<dyn InboundAdapter>,
     forward_headers: Vec<(String, String)>,
+    trace_sampled: Option<bool>,
     governance: Arc<GovernanceEngine>,
 }
 
@@ -183,6 +191,7 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
 }
 
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {
+    let admission_started = std::time::Instant::now();
     admit(&opened).await?;
     let OpenedDispatch {
         config,
@@ -200,6 +209,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         ctx,
         inbound,
         forward_headers,
+        trace_sampled,
         governance,
     } = opened;
 
@@ -218,18 +228,25 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
     commit_admission(&audit).await?;
+    crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
-    let outcome = send_with_failover(
-        &mut scanned,
-        FailoverSend {
-            registry,
-            primary: &upstream,
-            forward_headers: &forward_headers,
-            ai_request_id: &ai_request_id,
-            audit: &audit,
-        },
+    let admitted_at = std::time::Instant::now();
+    let outcome = crate::protocol::outbound::trace_context::with_trace(
+        ctx.trace_id.clone(),
+        trace_sampled,
+        Box::pin(send_with_failover(
+            &mut scanned,
+            FailoverSend {
+                registry,
+                primary: &upstream,
+                forward_headers: &forward_headers,
+                ai_request_id: &ai_request_id,
+                audit: &audit,
+            },
+        )),
     )
     .await?;
+    crate::audit::phases::record(GatewayPhase::UpstreamFirstByte, admitted_at.elapsed());
 
     let mut response = finalize(
         outcome,
@@ -248,52 +265,4 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     .await;
     stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
     Ok(attach_request_id(response, &ai_request_id))
-}
-
-async fn dispatch_policy(
-    repos: &super::GatewayRepositories,
-    ctx: &GatewayRequestContext,
-    fault_mode: QuotaFaultMode,
-) -> Result<GatewayPolicySpec, DispatchError> {
-    if ctx.session_id.is_none() {
-        return Err(DispatchError::pre_audit(GatewayError::MissingSession));
-    }
-
-    let policy = repos
-        .policy_resolver
-        .resolve(fault_mode)
-        .await
-        .map_err(DispatchError::pre_audit)?;
-    Ok(policy)
-}
-
-async fn open_audit(
-    repos: &super::GatewayRepositories,
-    ctx: &GatewayRequestContext,
-    request: &CanonicalRequest,
-    raw_body: &Bytes,
-    identity_headers: &[(String, String)],
-) -> Result<Arc<GatewayAudit>, DispatchError> {
-    let audit = Arc::new(GatewayAudit::new(repos, ctx.clone()));
-    if let Err(error) = audit.open(request, raw_body).await {
-        if let Err(settlement_error) = audit
-            .fail("Gateway admission failed before provider dispatch")
-            .await
-        {
-            tracing::error!(%settlement_error, "Could not record failed gateway admission");
-        }
-        return Err(DispatchError::PreAudit(GatewayError::internal(
-            "audit admission failed",
-            error,
-        )));
-    }
-    if !identity_headers.is_empty() {
-        tracing::info!(
-            ai_request_id = %ctx.ai_request_id,
-            user_id = %ctx.user_id,
-            headers = ?identity_headers,
-            "Gateway consumed client identity headers"
-        );
-    }
-    Ok(audit)
 }

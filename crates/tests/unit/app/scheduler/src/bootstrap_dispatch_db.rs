@@ -33,6 +33,7 @@ fn config_with_bootstrap(bootstrap: Vec<String>, distributed_lock: bool) -> Sche
             .map(systemprompt_identifiers::JobName::new)
             .collect(),
         distributed_lock,
+        unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     }
 }
 
@@ -500,6 +501,7 @@ mod bootstrap_owner_arms {
             ],
             bootstrap_jobs: vec![JobName::new(job_name)],
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 
@@ -561,6 +563,7 @@ mod bootstrap_owner_arms {
             ],
             bootstrap_jobs: vec![JobName::new(job_name)],
             distributed_lock: false,
+            unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
         };
         let svc = SchedulerService::new(config, Arc::clone(&pool), app_ctx);
 

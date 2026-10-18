@@ -126,8 +126,8 @@ async fn dispatch_standalone_inspection(
         DbCommands::Migrations { cmd } => admin::execute_migrations_standalone(db_ctx, cmd, config)
             .await
             .map(|()| None),
-        DbCommands::MigratePlan { extension, json } => {
-            admin::execute_migrate_plan_standalone(db_ctx, extension.as_ref(), json, config)
+        DbCommands::MigratePlan { extension, flags } => {
+            admin::execute_migrate_plan_standalone(db_ctx, extension.as_ref(), flags, config)
                 .await
                 .map(|()| None)
         },

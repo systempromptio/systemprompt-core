@@ -7,10 +7,21 @@
 use std::sync::Arc;
 
 use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_traits::CacheEpochs;
 
 use super::AppContext;
 
 impl AppContext {
+    pub fn config_planes(
+        &self,
+    ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
+        crate::ConfigPlaneSet::new(
+            self.extension_registry().all_config_planes(),
+            self.config().planes.clone(),
+            std::path::PathBuf::from(&self.config().services_path),
+        )
+    }
+
     #[must_use]
     pub fn governance(&self) -> &GovernanceEngine {
         &self.subsystems.governance
@@ -19,6 +30,11 @@ impl AppContext {
     #[must_use]
     pub fn governance_arc(&self) -> Arc<GovernanceEngine> {
         Arc::clone(&self.subsystems.governance)
+    }
+
+    #[must_use]
+    pub const fn cache_epochs(&self) -> &CacheEpochs {
+        &self.subsystems.cache_epochs
     }
 
     #[must_use]

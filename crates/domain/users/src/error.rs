@@ -43,6 +43,12 @@ domain_error! {
         #[error("user {id} cannot be restored: not archived, or archived more than {window_days} days ago")]
         RestoreRefused { id: UserId, window_days: u32 },
 
+        #[error("api key expiry {requested} exceeds the {max_days}-day maximum lifetime")]
+        ApiKeyLifetimeExceeded {
+            requested: chrono::DateTime<chrono::Utc>,
+            max_days: u32,
+        },
+
         #[error("account merge is unavailable: no owner reassignments are configured")]
         MergeUnavailable,
 

@@ -12,6 +12,7 @@
 pub mod cli;
 mod database_log;
 mod format;
+mod json_format;
 mod maintenance;
 pub mod output;
 pub mod spans;
@@ -21,6 +22,7 @@ mod throttle;
 pub use cli::CliService;
 pub use database_log::DatabaseLogService;
 pub use format::FilterSystemFields;
+pub use json_format::{ConsoleEventFormat, JsonEventFormat, console_format, set_console_format};
 pub use maintenance::LoggingMaintenanceService;
 pub use output::{
     BufferedNotice, buffer_notice, drain_notices, is_startup_mode, is_structured_output,

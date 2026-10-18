@@ -10,6 +10,8 @@ use crate::models::context::ContextKind;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::RepositoryError;
 
+const CONTEXT_TOUCH_INTERVAL_SECS: f64 = 60.0;
+
 impl ContextRepository {
     pub async fn create_context(
         &self,
@@ -40,8 +42,11 @@ impl ContextRepository {
     }
 
     // Why: the context id derives from caller-supplied metadata, so the
-    // conflict update is scoped to the owning user — another user's call on
-    // the same id must be a no-op rather than a write into their row.
+    // touch is scoped to the owning user — another user's call on the same id
+    // must be a no-op rather than a write into their row. The gateway calls
+    // this on every turn, so an owned row is only rewritten when its
+    // `updated_at` is older than `CONTEXT_TOUCH_INTERVAL_SECS` or it lacks a
+    // session; otherwise the statement writes nothing and flushes no WAL.
     pub async fn ensure_context(
         &self,
         params: &systemprompt_traits::EnsureContextParams<'_>,
@@ -49,35 +54,67 @@ impl ContextRepository {
     ) -> Result<(), RepositoryError> {
         let context_id = params.context_id;
         let user_id = params.user_id;
-        let session_id = params.session_id;
-        let name = params.name;
         let now = Utc::now();
 
-        let result = sqlx::query!(
-            "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \
-             updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $6)
-             ON CONFLICT (context_id) DO UPDATE
-             SET updated_at = EXCLUDED.updated_at,
-                 session_id = COALESCE(user_contexts.session_id, EXCLUDED.session_id)
-             WHERE user_contexts.user_id = EXCLUDED.user_id",
+        let owned = sqlx::query_scalar!(
+            r#"WITH inserted AS (
+                INSERT INTO user_contexts (context_id, user_id, session_id, name, kind,
+                                           created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $6)
+                ON CONFLICT (context_id) DO NOTHING
+                RETURNING 1
+            ), touched AS (
+                UPDATE user_contexts
+                SET updated_at = $6,
+                    session_id = COALESCE(user_contexts.session_id, $3)
+                WHERE context_id = $1
+                  AND user_id = $2
+                  AND NOT EXISTS (SELECT 1 FROM inserted)
+                  AND (updated_at < $6 - make_interval(secs => $7)
+                       OR (session_id IS NULL AND $3::text IS NOT NULL))
+                RETURNING 1
+            )
+            SELECT (EXISTS (SELECT 1 FROM inserted)
+                    OR EXISTS (SELECT 1 FROM touched)
+                    OR EXISTS (SELECT 1 FROM user_contexts
+                               WHERE context_id = $1 AND user_id = $2)) AS "owned!""#,
             context_id.as_str(),
             user_id.as_str(),
-            session_id.map(SessionId::as_str),
-            name,
+            params.session_id.map(SessionId::as_str),
+            params.name,
             kind.as_str(),
-            now
+            now,
+            CONTEXT_TOUCH_INTERVAL_SECS,
         )
-        .execute(&*self.write_pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
-        if result.rows_affected() != 1 {
-            return Err(RepositoryError::not_found(
-                "context",
-                format!("{context_id} for user {user_id}"),
-            ));
+        // Why: a row a concurrent first turn inserted after this statement's
+        // snapshot is invisible to its ownership probe, so a negative answer
+        // is re-read before it becomes a denial.
+        if owned || self.is_context_owned_by(context_id, user_id).await? {
+            return Ok(());
         }
-        Ok(())
+        Err(RepositoryError::not_found(
+            "context",
+            format!("{context_id} for user {user_id}"),
+        ))
+    }
+
+    async fn is_context_owned_by(
+        &self,
+        context_id: &ContextId,
+        user_id: &UserId,
+    ) -> Result<bool, RepositoryError> {
+        let owned = sqlx::query_scalar!(
+            r#"SELECT EXISTS (SELECT 1 FROM user_contexts
+                              WHERE context_id = $1 AND user_id = $2) AS "owned!""#,
+            context_id.as_str(),
+            user_id.as_str(),
+        )
+        .fetch_one(&*self.write_pool)
+        .await?;
+        Ok(owned)
     }
 
     // Why: the legacy context is the one row whose owner may be rebound — it is

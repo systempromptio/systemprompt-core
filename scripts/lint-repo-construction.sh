@@ -53,7 +53,7 @@ ALLOWED_FILES=(
   # scheduler-owned repos (SchedulerRepository, JobRepository,
   # LoggingRepository) have exactly one consuming crate; an AppContext
   # accessor for them is not warranted.
-  crates/app/scheduler/src/services/job_execution.rs
+  crates/app/scheduler/src/services/job_execution/mod.rs
   crates/app/scheduler/src/services/scheduling/mod.rs
   # the logging AnalyticsRepository is an infra repo with no AppContext
   # accessor; the middleware constructs-and-stores it once at server build.

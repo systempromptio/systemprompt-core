@@ -23,6 +23,9 @@
 //!   The runner derives that migration's `statement_timeout` from `measured`,
 //!   so a malformed directive fails the build rather than leaving the migration
 //!   unbounded. See [`crate::cost`].
+//! - A leading `-- @compat: breaking` marks a contract migration the previous
+//!   release cannot run against; any other `@compat:` value fails the build.
+//!   See [`crate::compat`].
 //! - `NNN_<name>.tombstone` / `NNN-MMM_<name>.tombstone` — a spent slot. The
 //!   migration once lived here, shipped, and its file has since been deleted;
 //!   established databases still carry its tracking row. A tombstone declares

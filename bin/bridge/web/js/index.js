@@ -2,9 +2,11 @@ import "/assets/js/components/sp-element.js";
 import { initTheme } from "./theme.js";
 import { init as initI18n } from "./i18n.js";
 import { initBridgeEvents } from "/assets/js/events/bridge-events.js";
+import { initWindowDrag } from "./utils/window-drag.js";
 
 initTheme();
 initBridgeEvents();
+initWindowDrag();
 initI18n().catch((e) => console.warn("i18n init failed", e));
 
 import "/assets/js/components/sp-cloud-status.js";

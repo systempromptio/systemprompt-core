@@ -1,3 +1,4 @@
+use crate::support::ReadAll;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -67,7 +68,7 @@ async fn retrieve_downloads_the_media_with_the_object_name_encoded() {
         .mount(&server)
         .await;
     let bytes = storage(&server, Some("p"))
-        .retrieve(&StoredFileId::new("uploads/a.txt"))
+        .read_all(&StoredFileId::new("uploads/a.txt"))
         .await
         .unwrap();
     assert_eq!(bytes, b"hello");
@@ -152,7 +153,7 @@ async fn a_403_is_a_backend_error_carrying_the_status() {
         .mount(&server)
         .await;
     let err = storage(&server, None)
-        .retrieve(&StoredFileId::new("x.txt"))
+        .read_all(&StoredFileId::new("x.txt"))
         .await
         .unwrap_err();
     let FileStorageError::Backend(source) = err else {
@@ -175,7 +176,7 @@ async fn parent_components_are_refused_before_any_request() {
         .await;
     let s = storage(&server, Some("p"));
     for bad in ["../escape.txt", "a/../../b", "/abs.txt"] {
-        let err = s.retrieve(&StoredFileId::new(bad)).await.unwrap_err();
+        let err = s.read_all(&StoredFileId::new(bad)).await.unwrap_err();
         assert!(
             matches!(err, FileStorageError::Validation(_)),
             "{bad}: {err:?}"

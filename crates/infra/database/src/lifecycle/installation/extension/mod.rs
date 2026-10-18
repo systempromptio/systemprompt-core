@@ -17,8 +17,12 @@
 //! defined migration is stamped as applied without running — in the same
 //! transaction as that extension's structural DDL, so the tables and the
 //! baseline claiming them can never be committed apart.
-//! A session-scoped advisory lock serialises concurrent boots. See
-//! `internal/guides/migrations.md`.
+//! A session-scoped advisory lock serialises concurrent boots.
+//! Under that lock the install first checks whether the database is *ahead*
+//! of this binary (see [`current`]): a newer release owns an ahead extension's
+//! schema, so this binary applies nothing to that extension — no declarative
+//! DDL, no migrations — while every other extension installs as usual, and
+//! the report carries the ahead migrations.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -72,7 +76,24 @@ pub async fn install_extension_schemas_full(
 
     let guard = BootstrapLockGuard::acquire(db).await?;
 
-    let result = run_install(db, &schema_extensions, migration_config).await;
+    let result = match current::schema_currency(db, registry, disabled_extensions).await {
+        Ok(currency) => {
+            let (held_back, active): (Vec<_>, Vec<_>) =
+                schema_extensions.iter().cloned().partition(|ext| {
+                    currency
+                        .ahead
+                        .iter()
+                        .any(|m| m.extension_id.as_str() == ext.id())
+                });
+            run_install(db, &active, &held_back, migration_config)
+                .await
+                .map(|report| SchemaInstallReport {
+                    ahead: super::report::SchemaAhead::from_currency(&currency),
+                    ..report
+                })
+        },
+        Err(e) => Err(e),
+    };
 
     guard.release().await;
 
@@ -124,8 +145,12 @@ async fn fresh_extension_ids(
 async fn run_install(
     db: &dyn DatabaseProvider,
     schema_extensions: &[std::sync::Arc<dyn Extension>],
+    held_back: &[std::sync::Arc<dyn Extension>],
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
+    if schema_extensions.is_empty() {
+        return Ok(SchemaInstallReport::default());
+    }
     let migration_service = MigrationService::new(db).with_config(migration_config);
 
     let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
@@ -213,12 +238,24 @@ async fn run_install(
         apply_seeds(ext.as_ref(), db).await?;
     }
 
-    let owned: Vec<String> = prepared
-        .iter()
-        .flat_map(|p| p.owned_tables.clone())
-        .collect();
-    let ids: Vec<ExtensionId> = prepared.iter().map(|p| p.extension_id.clone()).collect();
-    report.residue = audit_schema_residue(db, &owned, &ids).await?;
+    report.residue = residue_including(db, &prepared, held_back).await?;
 
     Ok(report)
+}
+
+// Why: an ahead extension is held back from the install but still owns its
+// tables and ledger; leaving it out of the audit would report them as residue.
+async fn residue_including(
+    db: &dyn DatabaseProvider,
+    prepared: &[PreparedSchema],
+    held_back: &[std::sync::Arc<dyn Extension>],
+) -> Result<super::undeclared::SchemaResidue, LoaderError> {
+    let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
+    for ext in held_back {
+        held.push(prepare_extension_schema(ext.as_ref())?);
+    }
+    let all = || prepared.iter().chain(&held);
+    let owned: Vec<String> = all().flat_map(|p| p.owned_tables.clone()).collect();
+    let ids: Vec<ExtensionId> = all().map(|p| p.extension_id.clone()).collect();
+    audit_schema_residue(db, &owned, &ids).await
 }

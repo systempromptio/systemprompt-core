@@ -3,7 +3,11 @@
 //! [`PolicyResolver`] loads the global policy rows in ascending
 //! `(priority, name)` order and merges them into a single
 //! [`GatewayPolicySpec`] — each non-empty section overrides the previous, so
-//! the highest-priority row wins. The result is cached for a short TTL.
+//! the highest-priority row wins. The result is cached for a short TTL, and
+//! dropped as soon as a policy write on any replica advances the
+//! [`CacheDomain::GatewayPolicy`] epoch. While no invalidation relay is
+//! listening the TTL drops to a few seconds, since a write elsewhere cannot
+//! reach this cache.
 //!
 //! A DB error is a fault governed by [`QuotaFaultMode`]: under `Open` the
 //! resolver degrades to a permissive policy, which drops quota windows *and*
@@ -11,7 +15,9 @@
 //! [`PolicyUnavailable`] and the request is denied. A malformed spec row is a
 //! fault in either mode: the policy it would have contributed is unknown, so
 //! the resolver returns [`PolicyUnavailable`] rather than merging the rest from
-//! a permissive base.
+//! a permissive base. A row that decodes but declares a quota window with no
+//! span (or two) is malformed in the same way: it never becomes a one-second
+//! bucket.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,10 +28,12 @@ use std::time::{Duration, Instant};
 use systemprompt_ai::repository::AiGatewayPolicyRepository;
 use systemprompt_identifiers::AiGatewayPolicyId;
 use systemprompt_manifest::services::QuotaFaultMode;
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 use super::GatewayPolicySpec;
 
 const CACHE_TTL: Duration = Duration::from_secs(60);
+const UNRELAYED_CACHE_TTL: Duration = Duration::from_secs(5);
 
 #[derive(Debug, thiserror::Error)]
 pub enum PolicyUnavailable {
@@ -43,6 +51,7 @@ pub enum PolicyUnavailable {
 pub struct PolicyResolver {
     repo: Arc<AiGatewayPolicyRepository>,
     cache: Arc<RwLock<Option<CachedEntry>>>,
+    epochs: CacheEpochs,
 }
 
 impl std::fmt::Debug for PolicyResolver {
@@ -55,13 +64,15 @@ impl std::fmt::Debug for PolicyResolver {
 struct CachedEntry {
     spec: GatewayPolicySpec,
     fetched_at: Instant,
+    epoch: u64,
 }
 
 impl PolicyResolver {
-    pub fn from_repository(repo: AiGatewayPolicyRepository) -> Self {
+    pub fn from_repository(repo: AiGatewayPolicyRepository, epochs: CacheEpochs) -> Self {
         Self {
             repo: Arc::new(repo),
             cache: Arc::new(RwLock::new(None)),
+            epochs,
         }
     }
 
@@ -69,9 +80,16 @@ impl PolicyResolver {
         &self,
         fault_mode: QuotaFaultMode,
     ) -> Result<GatewayPolicySpec, PolicyUnavailable> {
+        let epoch = self.epochs.current(CacheDomain::GatewayPolicy);
+        let ttl = if self.epochs.relay_live() {
+            CACHE_TTL
+        } else {
+            UNRELAYED_CACHE_TTL
+        };
         if let Ok(cache) = self.cache.read()
             && let Some(entry) = cache.as_ref()
-            && entry.fetched_at.elapsed() < CACHE_TTL
+            && entry.fetched_at.elapsed() < ttl
+            && entry.epoch == epoch
         {
             return Ok(entry.spec.clone());
         }
@@ -113,6 +131,7 @@ impl PolicyResolver {
             *cache = Some(CachedEntry {
                 spec: spec.clone(),
                 fetched_at: Instant::now(),
+                epoch,
             });
         }
         Ok(spec)
@@ -124,7 +143,26 @@ impl PolicyResolver {
 pub struct MalformedPolicy {
     pub policy_id: AiGatewayPolicyId,
     pub name: String,
-    pub error: serde_json::Error,
+    pub error: MalformedSpec,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum MalformedSpec {
+    #[error(transparent)]
+    Decode(#[from] serde_json::Error),
+    #[error("quota_windows[{index}]: {reason}")]
+    QuotaWindow { index: usize, reason: &'static str },
+}
+
+// JSON: a stored policy row carries its spec as an untyped jsonb column
+fn decode_spec(value: serde_json::Value) -> Result<GatewayPolicySpec, MalformedSpec> {
+    let spec = serde_json::from_value::<GatewayPolicySpec>(value)?;
+    for (index, window) in spec.quota_windows.iter().enumerate() {
+        window
+            .validate_span()
+            .map_err(|reason| MalformedSpec::QuotaWindow { index, reason })?;
+    }
+    Ok(spec)
 }
 
 pub fn merge_policy_rows(
@@ -132,18 +170,19 @@ pub fn merge_policy_rows(
 ) -> Result<GatewayPolicySpec, MalformedPolicy> {
     let mut merged = GatewayPolicySpec::permissive();
     for row in rows {
-        let spec = serde_json::from_value::<GatewayPolicySpec>(row.spec).map_err(|error| {
-            MalformedPolicy {
-                policy_id: row.id,
-                name: row.name,
-                error,
-            }
+        let spec = decode_spec(row.spec).map_err(|error| MalformedPolicy {
+            policy_id: row.id,
+            name: row.name,
+            error,
         })?;
         if !spec.quota_windows.is_empty() || spec.quota_mode.is_warn() {
             merged.quota_mode = spec.quota_mode;
         }
         if !spec.quota_windows.is_empty() {
             merged.quota_windows = spec.quota_windows;
+        }
+        if !spec.rate_windows.is_empty() {
+            merged.rate_windows = spec.rate_windows;
         }
         if !spec.safety.scanners.is_empty()
             || !spec.safety.block_categories.is_empty()

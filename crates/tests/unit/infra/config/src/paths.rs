@@ -9,6 +9,8 @@ fn paths_config_with_storage(storage: &str) -> PathsConfig {
         web_path: None,
         storage: Some(storage.to_owned()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -47,6 +49,32 @@ fn storage_paths_from_profile_ok_when_storage_set() {
 }
 
 #[test]
+fn data_defaults_under_storage_and_moves_with_paths_data() {
+    let defaulted = StoragePaths::from_profile(&paths_config_with_storage("/tmp/storage")).unwrap();
+    assert_eq!(defaulted.data(), std::path::Path::new("/tmp/storage/data"));
+    assert_eq!(
+        defaulted.scratch(),
+        std::path::Path::new("/tmp/storage/data/scratch")
+    );
+
+    let cfg = PathsConfig {
+        data: Some("/var/node-local".to_owned()),
+        ..paths_config_with_storage("/mnt/shared")
+    };
+    let moved = StoragePaths::from_profile(&cfg).unwrap();
+    assert_eq!(moved.root(), std::path::Path::new("/mnt/shared"));
+    assert_eq!(moved.data(), std::path::Path::new("/var/node-local"));
+    assert_eq!(
+        moved.scratch(),
+        std::path::Path::new("/var/node-local/scratch")
+    );
+    assert_eq!(
+        moved.uploads(),
+        std::path::Path::new("/mnt/shared/files/uploads")
+    );
+}
+
+#[test]
 fn storage_paths_from_profile_errors_when_storage_not_set() {
     let cfg = PathsConfig {
         system: "/tmp/system".to_owned(),
@@ -55,6 +83,8 @@ fn storage_paths_from_profile_errors_when_storage_not_set() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     let err = StoragePaths::from_profile(&cfg).unwrap_err();
     assert!(matches!(err, PathError::NotConfigured { field: "storage" }));
@@ -124,6 +154,8 @@ fn paths_config_storage_resolved_none_when_unset() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     assert!(cfg.storage_resolved().is_none());
 }
@@ -143,6 +175,8 @@ mod path_resolution {
             web_path: None,
             storage: Some("/srv/storage".to_owned()),
             geoip_database: None,
+            shipped_files: None,
+            data: None,
         }
     }
 

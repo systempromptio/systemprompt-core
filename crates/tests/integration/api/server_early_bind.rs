@@ -32,6 +32,7 @@ async fn bind_and_serve_swaps_from_starting_to_activated_router() -> anyhow::Res
         "127.0.0.1:0",
         None,
         systemprompt_runtime::ShutdownRequest::default(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
     )
     .await?;
     let base = format!("http://{}", server.local_addr());
@@ -63,6 +64,7 @@ async fn bind_and_serve_fails_when_port_is_taken() -> anyhow::Result<()> {
         &taken.to_string(),
         None,
         systemprompt_runtime::ShutdownRequest::default(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
     )
     .await
     .expect_err("second bind on the same port must fail");
@@ -78,7 +80,13 @@ async fn owned_shutdown_request_drains_listener_when_requested_before_or_after_b
         if request_before_bind {
             shutdown.request("fixture requested before listener wait");
         }
-        let server = bind_and_serve("127.0.0.1:0", None, shutdown.clone()).await?;
+        let server = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            shutdown.clone(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        )
+        .await?;
         let address = server.local_addr();
         if !request_before_bind {
             let response = reqwest::get(format!("http://{address}/health")).await?;
@@ -110,7 +118,13 @@ async fn early_bind_emits_typed_binding_and_listening_events_before_shutdown() -
 
     let shutdown = systemprompt_runtime::ShutdownRequest::default();
     let (tx, mut rx) = futures::channel::mpsc::unbounded();
-    let server = bind_and_serve("127.0.0.1:0", Some(tx), shutdown.clone()).await?;
+    let server = bind_and_serve(
+        "127.0.0.1:0",
+        Some(tx),
+        shutdown.clone(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    )
+    .await?;
     let local = server.local_addr();
     let binding = rx.try_recv().expect("binding event");
     let listening = rx.try_recv().expect("listening event");
@@ -139,7 +153,13 @@ async fn dropped_startup_observer_does_not_prevent_binding_or_shutdown() -> anyh
     let shutdown = systemprompt_runtime::ShutdownRequest::default();
     let (tx, rx) = futures::channel::mpsc::unbounded();
     drop(rx);
-    let server = bind_and_serve("127.0.0.1:0", Some(tx), shutdown.clone()).await?;
+    let server = bind_and_serve(
+        "127.0.0.1:0",
+        Some(tx),
+        shutdown.clone(),
+        systemprompt_manifest::profile::ShutdownConfig::default(),
+    )
+    .await?;
     let address = server.local_addr();
     let response = reqwest::get(format!("http://{address}/readyz")).await?;
     assert_eq!(response.status().as_u16(), 503);
@@ -149,6 +169,37 @@ async fn dropped_startup_observer_does_not_prevent_binding_or_shutdown() -> anyh
     tokio::time::timeout(std::time::Duration::from_secs(5), server.join())
         .await
         .expect("listener drains without startup observer")?;
+    assert!(tokio::net::TcpStream::connect(address).await.is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_pre_stop_delay_keeps_accepting_before_the_listener_drains() -> anyhow::Result<()> {
+    let shutdown = systemprompt_runtime::ShutdownRequest::default();
+    let timings = systemprompt_manifest::profile::ShutdownConfig {
+        pre_stop_delay_secs: 2,
+        ..systemprompt_manifest::profile::ShutdownConfig::default()
+    };
+    let server = bind_and_serve("127.0.0.1:0", None, shutdown.clone(), timings).await?;
+    let address = server.local_addr();
+    let requested_at = std::time::Instant::now();
+    shutdown.request("fixture requested with a pre-stop delay");
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+    let response = reqwest::get(format!("http://{address}/health")).await?;
+    assert_eq!(
+        response.status().as_u16(),
+        200,
+        "connections are still served during the pre-stop delay"
+    );
+
+    tokio::time::timeout(std::time::Duration::from_secs(10), server.join())
+        .await
+        .expect("the listener drains once the delay ends")?;
+    assert!(
+        requested_at.elapsed() >= std::time::Duration::from_secs(2),
+        "the listener stopped before the pre-stop delay elapsed"
+    );
     assert!(tokio::net::TcpStream::connect(address).await.is_err());
     Ok(())
 }

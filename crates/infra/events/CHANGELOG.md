@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Changed
+
+- **Breaking:** `PostgresEventBridge::new` takes a `CacheEpochs`; writes to gateway policies, access-control rules and token revocations notify every replica, which drops its cached copy.
+
 ## [0.63.0] - 2026-10-07
 
 ### Breaking

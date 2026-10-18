@@ -78,6 +78,7 @@ fn ctx<'a>(
         user_id: user,
         input,
         call_id: call,
+        rate_counts: &NO_RATE_COUNTS,
     }
 }
 
@@ -205,3 +206,6 @@ fn enforce_mode_still_denies_and_still_halts() {
 fn the_decision_tag_string_is_the_value_the_check_constraint_allows() {
     assert_eq!(DecisionTag::Warn.as_str(), "warn");
 }
+
+static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
+    systemprompt_security::policy::RateCounts::empty();

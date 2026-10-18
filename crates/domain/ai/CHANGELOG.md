@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- ai migrations `042_quota_bucket_shards` and `043_quota_bucket_shards_contract`; the latter is `@compat: breaking`.
+
+### Changed
+
+- **Breaking:** the `ai_quota_buckets` unique key includes `shard`, and `IncrementParams` gains `shard`.
+- Tool catalogues are filed with `ON CONFLICT DO NOTHING`, so admission no longer locks the shared catalogue row.
+- Thought signatures for a request are looked up in one query.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

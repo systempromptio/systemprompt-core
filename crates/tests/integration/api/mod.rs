@@ -144,6 +144,10 @@ mod server_run_loop;
 mod services_quota_policy;
 
 #[cfg(test)]
+#[path = "services_quota_sharding.rs"]
+mod services_quota_sharding;
+
+#[cfg(test)]
 #[path = "routes_bridge_data.rs"]
 mod routes_bridge_data;
 
@@ -278,6 +282,14 @@ mod health_monitor;
 #[cfg(test)]
 #[path = "static_files_serving.rs"]
 mod static_files_serving;
+
+#[cfg(test)]
+#[path = "static_files_layers.rs"]
+mod static_files_layers;
+
+#[cfg(test)]
+#[path = "gateway_journal_drain.rs"]
+mod gateway_journal_drain;
 
 #[cfg(test)]
 #[path = "gateway_pipeline.rs"]
@@ -584,3 +596,7 @@ mod gateway_scope_routing;
 #[cfg(test)]
 #[path = "gateway_api_key_limits.rs"]
 mod gateway_api_key_limits;
+
+#[cfg(test)]
+#[path = "gateway_rate_windows.rs"]
+mod gateway_rate_windows;

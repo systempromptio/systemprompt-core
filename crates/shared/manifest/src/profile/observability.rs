@@ -12,6 +12,10 @@
 //! two exports of one signal — the job's cron tick is the upper bound on how
 //! often it runs, this the lower bound on how often it ships.
 //!
+//! `log_format` selects how the process writes its own `tracing` events to
+//! stderr: `text` (the default) or `json`, one object per line. Both pass
+//! through the same field redaction.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -24,6 +28,19 @@ use serde::{Deserialize, Serialize};
 pub struct ObservabilityConfig {
     #[serde(default)]
     pub otlp: Option<OtlpExportConfig>,
+
+    #[serde(default)]
+    pub log_format: LogFormat,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum LogFormat {
+    #[default]
+    Text,
+    Json,
 }
 
 impl ObservabilityConfig {

@@ -4,9 +4,15 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use std::sync::Mutex;
 use systemprompt_extension::context::{DynExtensionContext, ExtensionContext};
 use systemprompt_extension::{Extension, ExtensionMetadata};
-use systemprompt_traits::{ConfigProvider, DatabaseHandle};
+
+use systemprompt_identifiers::InstanceId;
+use systemprompt_traits::{
+    ByteRange, ConfigProvider, DatabaseHandle, FileStorage, FileStorageError, FileStorageResult,
+    StoredFileId, StoredFileMetadata, StoredFileRead,
+};
 
 #[derive(Debug, Clone)]
 struct MockConfig;
@@ -66,10 +72,86 @@ impl Extension for TestExtension {
     }
 }
 
+#[derive(Debug, Default)]
+struct MemoryFiles {
+    objects: Mutex<HashMap<String, Vec<u8>>>,
+}
+
+impl MemoryFiles {
+    fn bytes_of(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+        self.objects
+            .lock()
+            .expect("lock")
+            .get(id.as_str())
+            .cloned()
+            .ok_or_else(|| FileStorageError::NotFound(id.to_string()))
+    }
+}
+
+#[async_trait::async_trait]
+impl FileStorage for MemoryFiles {
+    async fn store(
+        &self,
+        path: &std::path::Path,
+        content: &[u8],
+    ) -> FileStorageResult<StoredFileId> {
+        let key = path.display().to_string();
+        self.objects
+            .lock()
+            .expect("lock")
+            .insert(key.clone(), content.to_vec());
+        Ok(StoredFileId::new(key))
+    }
+
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
+        let content = self.bytes_of(id)?;
+        let metadata = self.metadata(id).await?;
+        let served = range.map(|r| r.resolve(content.len() as u64)).transpose()?;
+        let body = served.map_or_else(
+            || content.clone(),
+            |r| content[r.start as usize..=r.end as usize].to_vec(),
+        );
+        let chunk: FileStorageResult<bytes::Bytes> = Ok(bytes::Bytes::from(body));
+        Ok(StoredFileRead {
+            metadata,
+            range: served,
+            body: Box::pin(futures::stream::iter([chunk])),
+        })
+    }
+
+    async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
+        self.objects.lock().expect("lock").remove(id.as_str());
+        Ok(())
+    }
+
+    async fn metadata(&self, id: &StoredFileId) -> FileStorageResult<StoredFileMetadata> {
+        let size = self.bytes_of(id)?.len();
+        Ok(StoredFileMetadata {
+            id: id.clone(),
+            path: id.to_string(),
+            mime_type: "application/octet-stream".to_string(),
+            etag: None,
+            size_bytes: i64::try_from(size).ok(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        })
+    }
+
+    async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {
+        Ok(self.objects.lock().expect("lock").contains_key(id.as_str()))
+    }
+}
+
 struct MockExtensionContext {
     config: Arc<dyn ConfigProvider>,
     database: Arc<dyn DatabaseHandle>,
     extensions: HashMap<String, Arc<dyn Extension>>,
+    files: Arc<MemoryFiles>,
+    instance: InstanceId,
 }
 
 impl ExtensionContext for MockExtensionContext {
@@ -84,6 +166,15 @@ impl ExtensionContext for MockExtensionContext {
         Arc::clone(&self.database)
     }
 
+    fn file_storage(&self) -> Arc<dyn FileStorage> {
+        let files: Arc<dyn FileStorage> = Arc::clone(&self.files) as Arc<dyn FileStorage>;
+        files
+    }
+
+    fn instance_id(&self) -> InstanceId {
+        self.instance.clone()
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extensions.get(id).cloned()
     }
@@ -95,6 +186,8 @@ fn test_extension_context_config() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let config = ctx.config();
@@ -109,6 +202,8 @@ fn test_extension_context_database() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let db = ctx.database();
@@ -121,6 +216,8 @@ fn test_extension_context_database_disconnected() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: false }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let db = ctx.database();
@@ -137,6 +234,8 @@ fn test_extension_context_get_extension_exists() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions,
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let found = ctx.get_extension("test-ext");
@@ -150,6 +249,8 @@ fn test_extension_context_get_extension_not_found() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     assert!(ctx.get_extension("nonexistent").is_none());
@@ -165,6 +266,8 @@ fn test_extension_context_has_extension_true() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions,
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     assert!(ctx.has_extension("my-ext"));
@@ -176,6 +279,8 @@ fn test_extension_context_has_extension_false() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     assert!(!ctx.has_extension("missing-ext"));
@@ -196,6 +301,8 @@ fn test_extension_context_multiple_extensions() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions,
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     assert!(ctx.has_extension("ext-1"));
@@ -219,6 +326,8 @@ fn test_dyn_extension_context_type_alias() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let dyn_ctx: DynExtensionContext = Arc::new(ctx);
@@ -231,6 +340,8 @@ fn test_dyn_extension_context_clone() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let dyn_ctx: DynExtensionContext = Arc::new(ctx);
@@ -248,6 +359,8 @@ fn test_dyn_extension_context_thread_safe() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     let dyn_ctx: DynExtensionContext = Arc::new(ctx);
@@ -272,6 +385,8 @@ fn test_extension_default_router() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
     assert!(ext.router(&ctx).is_none());
 }
@@ -336,6 +451,8 @@ fn test_extension_has_methods() {
         config: Arc::new(MockConfig),
         database: Arc::new(MockDatabase { connected: true }),
         extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
     };
 
     assert!(!ext.has_schemas());
@@ -343,4 +460,42 @@ fn test_extension_has_methods() {
     assert!(!ext.has_jobs());
     assert!(!ext.has_config());
     assert!(!ext.has_tool_providers());
+}
+
+#[tokio::test]
+async fn file_storage_shares_one_backend_across_handles() {
+    let files = Arc::new(MemoryFiles::default());
+    let ctx: DynExtensionContext = Arc::new(MockExtensionContext {
+        config: Arc::new(MockConfig),
+        database: Arc::new(MockDatabase { connected: true }),
+        extensions: HashMap::new(),
+        files: Arc::clone(&files),
+        instance: InstanceId::new("replica-a"),
+    });
+
+    let id = ctx
+        .file_storage()
+        .store(std::path::Path::new("exports/a.json"), b"payload")
+        .await
+        .expect("store");
+    let read = ctx.file_storage().open(&id, None).await.expect("open");
+    let chunks: Vec<_> = futures::StreamExt::collect(read.body).await;
+    let body: Vec<u8> = chunks
+        .into_iter()
+        .flat_map(|chunk| chunk.expect("chunk").to_vec())
+        .collect();
+    assert_eq!(body, b"payload");
+    assert!(files.exists(&id).await.expect("exists"));
+}
+
+#[test]
+fn instance_id_is_the_context_replica() {
+    let ctx: DynExtensionContext = Arc::new(MockExtensionContext {
+        config: Arc::new(MockConfig),
+        database: Arc::new(MockDatabase { connected: true }),
+        extensions: HashMap::new(),
+        files: Arc::new(MemoryFiles::default()),
+        instance: InstanceId::new("replica-a"),
+    });
+    assert_eq!(ctx.instance_id().as_str(), "replica-a");
 }

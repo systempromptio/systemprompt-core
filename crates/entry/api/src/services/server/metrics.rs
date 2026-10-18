@@ -42,7 +42,8 @@ pub fn install_recorder(instance_id: &InstanceId) -> anyhow::Result<PrometheusHa
     if let Some(handle) = RECORDER.get() {
         return Ok(handle.clone());
     }
-    let handle = PrometheusBuilder::new()
+    let builder = super::ops_metrics::with_buckets(PrometheusBuilder::new())?;
+    let handle = builder
         .add_global_label("instance", instance_id.as_str())
         .set_buckets_for_metric(
             Matcher::Full(systemprompt_gateway::GATEWAY_OVERHEAD_SECONDS.to_owned()),
@@ -67,6 +68,8 @@ fn describe_metrics() {
         HTTP_IN_FLIGHT_LIMIT, HTTP_IN_FLIGHT_SATURATION, HTTP_LOAD_SHED_TOTAL,
     };
     super::pool_metrics::describe();
+    super::ops_metrics::describe();
+    super::config_fingerprint::describe();
     metrics::describe_counter!(
         HTTP_LOAD_SHED_TOTAL,
         "Requests refused with 503 because the in-flight ceiling was reached"
@@ -78,6 +81,14 @@ fn describe_metrics() {
     metrics::describe_gauge!(
         HTTP_IN_FLIGHT_SATURATION,
         "Fraction of the in-flight ceiling in use (1.0 = shedding)"
+    );
+    metrics::describe_gauge!(
+        systemprompt_scheduler::services::config_reconcile::CONFIG_DRIFT_ROWS,
+        "Rows of a config plane that differ from its declaration after the last reconcile pass"
+    );
+    metrics::describe_gauge!(
+        systemprompt_scheduler::services::config_reconcile::CONFIG_PLANE_INFO,
+        "1 for the declaration hash a config plane last reconciled against"
     );
     metrics::describe_histogram!(
         HTTP_REQUEST_DURATION_SECONDS,

@@ -119,7 +119,7 @@ A failure at any step propagates as a `RuntimeError` and aborts startup. Configu
 
 ### Shutdown
 
-The API handles Ctrl-C and, on Unix, SIGTERM. It signals shutdown readiness and starts graceful connection draining with a 10-second deadline. Teardown then stops the scheduler and terminates registered child processes; child termination has a 5-second grace period and teardown has a separate 10-second forced-exit deadline. A second shutdown signal exits immediately. Long-lived connections can be interrupted when the drain deadline expires. See `crates/entry/api/src/services/server/shutdown.rs`.
+The API handles Ctrl-C and, on Unix, SIGTERM. It signals shutdown readiness at once, keeps accepting for the profile's `server.shutdown.pre_stop_delay_secs`, then drains connections for `drain_grace_secs`. Teardown then stops the scheduler, terminates registered child processes (`child_grace_secs`) and drains owned background work, including a final gateway journal settlement (`background_grace_secs`), under a separate `forced_exit_grace_secs` deadline. A second shutdown signal exits immediately. Long-lived connections can be interrupted when the drain deadline expires. See `crates/entry/api/src/services/server/shutdown.rs`.
 
 ## See also
 

@@ -5,7 +5,7 @@
 //! touching the domain crates. [`LocalFileStorage`] writes under one root
 //! directory, which may be a local disk or a shared mount visible to every
 //! replica; [`GcsFileStorage`] writes objects to one Google Cloud Storage
-//! bucket.
+//! bucket; [`S3FileStorage`] writes objects to one S3-compatible bucket.
 //!
 //! Storage ids are paths relative to the root (`files/uploads/…`). They are
 //! validated on every call: absolute paths and `..` components are rejected
@@ -16,6 +16,7 @@
 //! - [`local`] — [`LocalFileStorage`] and the id-to-path resolver.
 //! - [`gcs`] — [`GcsFileStorage`], its JSON-API client and the
 //!   [`GcsTokenSource`] it authenticates with.
+//! - [`s3`] — [`S3FileStorage`], signed with AWS Signature Version 4.
 //! - [`probe`] — [`probe_shared_mount`], the boot-time check that a
 //!   `storage.shared` root really is shared between replicas.
 //!
@@ -26,6 +27,8 @@ pub mod gcs;
 pub mod local;
 mod object_id;
 pub mod probe;
+mod remote_read;
+pub mod s3;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -38,6 +41,7 @@ pub use gcs::{
 };
 pub use local::LocalFileStorage;
 pub use probe::{SharedMountReport, probe_shared_mount};
+pub use s3::{DEFAULT_S3_REGION, S3Credentials, S3Error, S3FileStorage, S3Params};
 
 /// The resolved backend [`build_file_storage`] constructs.
 pub enum FileStorageBackend {
@@ -49,6 +53,11 @@ pub enum FileStorageBackend {
         tokens: Arc<dyn GcsTokenSource>,
         http: reqwest::Client,
     },
+    S3 {
+        params: Box<S3Params>,
+        credentials: S3Credentials,
+        http: reqwest::Client,
+    },
 }
 
 impl std::fmt::Debug for FileStorageBackend {
@@ -57,6 +66,10 @@ impl std::fmt::Debug for FileStorageBackend {
             Self::Local { root } => f.debug_struct("Local").field("root", root).finish(),
             Self::Gcs { params, .. } => f
                 .debug_struct("Gcs")
+                .field("params", params)
+                .finish_non_exhaustive(),
+            Self::S3 { params, .. } => f
+                .debug_struct("S3")
                 .field("params", params)
                 .finish_non_exhaustive(),
         }
@@ -72,5 +85,10 @@ pub fn build_file_storage(backend: FileStorageBackend) -> Arc<dyn FileStorage> {
             tokens,
             http,
         } => Arc::new(GcsFileStorage::new(*params, tokens, http)),
+        FileStorageBackend::S3 {
+            params,
+            credentials,
+            http,
+        } => Arc::new(S3FileStorage::new(*params, credentials, http)),
     }
 }

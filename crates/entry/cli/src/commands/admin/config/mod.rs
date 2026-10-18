@@ -15,6 +15,8 @@ pub mod gateway;
 pub mod governance;
 pub mod list;
 pub mod paths;
+pub mod plane_validate;
+pub mod planes;
 pub mod profile_io;
 pub mod provider;
 pub mod rate_limit_types;
@@ -83,6 +85,12 @@ pub enum ConfigCommands {
 
     #[command(subcommand, about = "Profile secrets")]
     Secret(secret::SecretCommands),
+
+    #[command(
+        subcommand,
+        about = "Declared config planes: list, diff and apply (file vs database authority)"
+    )]
+    Planes(planes::PlanesCommands),
 }
 
 pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()> {
@@ -116,5 +124,6 @@ pub async fn execute(command: ConfigCommands, ctx: &CommandContext) -> Result<()
         ConfigCommands::Governance(ref cmd) => governance::execute(cmd, &ctx.cli),
         ConfigCommands::Catalog(ref cmd) => catalog::execute(cmd, &ctx.cli).await,
         ConfigCommands::Secret(ref cmd) => secret::execute(cmd, &ctx.cli).await,
+        ConfigCommands::Planes(cmd) => planes::execute(cmd, &ctx.cli).await,
     }
 }

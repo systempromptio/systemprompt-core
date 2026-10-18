@@ -8,6 +8,9 @@
 mod auth;
 
 #[cfg(test)]
+mod cache_epoch;
+
+#[cfg(test)]
 mod db_value;
 
 #[cfg(test)]

@@ -3,6 +3,12 @@
 //! A key's `purpose` is bound by its issuer (for example `workflow:<id>`) and
 //! is `None` for a person's own key.
 //!
+//! Every key passes through [`ApiKeyLifetime`]: with a ceiling configured, an
+//! omitted expiry becomes `now + max` and an expiry beyond it is refused with
+//! [`UserError::ApiKeyLifetimeExceeded`]. The ceiling also holds for keys
+//! issued before it was configured: [`ApiKeyService::verify`] refuses a key
+//! older than the ceiling, whatever its stored expiry.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -33,14 +39,72 @@ pub struct IssueApiKeyParams<'a> {
     pub purpose: Option<&'a str>,
 }
 
+/// The lifetime ceiling applied to every issued key.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ApiKeyLifetime {
+    max_days: Option<u32>,
+}
+
+impl ApiKeyLifetime {
+    pub const fn unbounded() -> Self {
+        Self { max_days: None }
+    }
+
+    pub const fn from_max_days(max_days: Option<u32>) -> Self {
+        Self { max_days }
+    }
+
+    pub const fn max_days(self) -> Option<u32> {
+        self.max_days
+    }
+
+    pub fn bound(
+        self,
+        requested: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
+    ) -> Result<Option<DateTime<Utc>>> {
+        let Some(max_days) = self.max_days else {
+            return Ok(requested);
+        };
+        let ceiling = now + chrono::TimeDelta::days(i64::from(max_days));
+        match requested {
+            None => Ok(Some(ceiling)),
+            Some(at) if at > ceiling => Err(UserError::ApiKeyLifetimeExceeded {
+                requested: at,
+                max_days,
+            }),
+            Some(at) => Ok(Some(at)),
+        }
+    }
+
+    pub fn admits(self, created_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
+        let Some(max_days) = self.max_days else {
+            return true;
+        };
+        created_at.is_some_and(|at| now < at + chrono::TimeDelta::days(i64::from(max_days)))
+    }
+}
+
+/// Outcome of [`ApiKeyService::ensure`]: the reused live key, or a fresh one
+/// whose secret is available exactly once.
+#[derive(Debug)]
+pub enum EnsuredApiKey {
+    Existing(UserApiKey),
+    Issued(NewApiKey),
+}
+
 #[derive(Debug, Clone)]
 pub struct ApiKeyService {
     repository: Arc<UserRepository>,
+    lifetime: ApiKeyLifetime,
 }
 
 impl ApiKeyService {
-    pub const fn new(repository: Arc<UserRepository>) -> Self {
-        Self { repository }
+    pub const fn new(repository: Arc<UserRepository>, lifetime: ApiKeyLifetime) -> Self {
+        Self {
+            repository,
+            lifetime,
+        }
     }
 
     pub async fn issue(&self, params: IssueApiKeyParams<'_>) -> Result<NewApiKey> {
@@ -53,6 +117,7 @@ impl ApiKeyService {
 
         validate_limits(params.limits)?;
         validate_scopes(params.scopes)?;
+        let expires_at = self.lifetime.bound(params.expires_at, Utc::now())?;
 
         let id = ApiKeyId::generate();
         let (secret, key_prefix, key_hash) = generate_secret();
@@ -65,7 +130,7 @@ impl ApiKeyService {
                 name: trimmed,
                 key_prefix: &key_prefix,
                 key_hash: &key_hash,
-                expires_at: params.expires_at,
+                expires_at,
                 limits: params.limits,
                 scopes: params.scopes,
                 purpose: params.purpose,
@@ -73,6 +138,31 @@ impl ApiKeyService {
             .await?;
 
         Ok(NewApiKey { record, secret })
+    }
+
+    pub async fn ensure(
+        &self,
+        params: IssueApiKeyParams<'_>,
+        renew_before: chrono::TimeDelta,
+    ) -> Result<EnsuredApiKey> {
+        let name = params.name.trim();
+        let now = Utc::now();
+        let renew_at = now + renew_before;
+        let existing = self
+            .repository
+            .list_api_keys_for_user(params.user_id)
+            .await?
+            .into_iter()
+            .find(|key| {
+                key.name == name
+                    && key.is_active(now)
+                    && self.lifetime.admits(key.created_at, renew_at)
+                    && key.expires_at.is_none_or(|at| at > renew_at)
+            });
+        match existing {
+            Some(key) => Ok(EnsuredApiKey::Existing(key)),
+            None => self.issue(params).await.map(EnsuredApiKey::Issued),
+        }
     }
 
     pub async fn verify(&self, presented_secret: &str) -> Result<Option<UserApiKey>> {
@@ -88,7 +178,8 @@ impl ApiKeyService {
             return Ok(None);
         };
 
-        if !record.is_active(Utc::now()) {
+        let now = Utc::now();
+        if !record.is_active(now) || !self.lifetime.admits(record.created_at, now) {
             return Ok(None);
         }
 

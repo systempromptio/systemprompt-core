@@ -1,3 +1,4 @@
+use crate::support::ReadAll;
 use std::path::Path;
 
 use systemprompt_storage::{LocalFileStorage, build_file_storage};
@@ -22,7 +23,7 @@ async fn store_retrieve_metadata_delete_round_trip() {
     assert!(dir.path().join("files/uploads/ctx/images/a.png").is_file());
 
     assert!(storage.exists(&id).await.expect("exists"));
-    assert_eq!(storage.retrieve(&id).await.expect("retrieve"), b"\x89PNG");
+    assert_eq!(storage.read_all(&id).await.expect("retrieve"), b"\x89PNG");
 
     let meta = storage.metadata(&id).await.expect("metadata");
     assert_eq!(meta.id, id);
@@ -33,7 +34,7 @@ async fn store_retrieve_metadata_delete_round_trip() {
     storage.delete(&id).await.expect("delete");
     assert!(!storage.exists(&id).await.expect("exists after delete"));
     assert!(matches!(
-        storage.retrieve(&id).await,
+        storage.read_all(&id).await,
         Err(FileStorageError::NotFound(_))
     ));
     assert!(matches!(

@@ -7,6 +7,7 @@
 mod bridge;
 mod bridge_handle;
 mod broadcaster;
+pub mod cache_invalidation;
 pub mod durable;
 mod repository;
 mod routing;
@@ -16,6 +17,10 @@ pub use bridge_handle::{EventBridgeHandle, RelayStatus};
 pub use broadcaster::{
     A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ConnectionGuard, ContextBroadcaster,
     GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON, standard_keep_alive,
+};
+pub use cache_invalidation::{
+    CACHE_INVALIDATION_CHANNEL, CACHE_INVALIDATIONS_RECEIVED_TOTAL, invalidate_all_cache_domains,
+    receive_cache_invalidation,
 };
 pub use repository::EventsOwnerReassignment;
 pub use routing::{

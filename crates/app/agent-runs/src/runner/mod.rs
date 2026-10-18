@@ -28,6 +28,7 @@ use systemprompt_identifiers::{AgentRunId, UserId};
 use systemprompt_manifest::Config;
 use systemprompt_provider_contracts::JobContext;
 use systemprompt_traits::RunnerService;
+use systemprompt_users::ApiKeyLifetime;
 use tokio_util::sync::CancellationToken;
 
 pub use handler::A2aRunHandler;
@@ -128,7 +129,11 @@ impl RunnerService for A2aRunnerService {
         );
         let repos = AgentRunRepositories::new(&db);
         let handler = A2aRunHandler::new(
-            RunCredentialService::new(repos.credentials, &runner.issuer),
+            RunCredentialService::new(
+                repos.credentials,
+                &runner.issuer,
+                ApiKeyLifetime::from_max_days(config.api_key_max_lifetime_days),
+            ),
             runner,
         );
         let mut claim = ClaimLoop::new(

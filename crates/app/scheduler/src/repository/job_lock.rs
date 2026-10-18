@@ -5,17 +5,23 @@
 //! replicas against one database, every replica's cron fires the same job
 //! on the same tick. [`JobLockRepository::try_acquire`] gives exactly one
 //! replica the right to run a given job: the others observe a held lock and
-//! skip.
+//! skip. [`JobLockRepository::acquire_within`] is the waiting form a manual
+//! run takes, polling the same lock until its deadline.
 //!
 //! Advisory locks are *session-scoped* — the connection that called
 //! `pg_advisory_lock` is the only one that can release it. [`JobLockGuard`]
 //! therefore pins the connection it locked on for the job's whole lifetime
-//! and releases on that same connection.
+//! and releases on that same connection, taken from the session pool so a
+//! transaction-mode pooler in front of the main pool cannot hand the locked
+//! backend to another client.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
+
+use tokio::time::Instant;
 
 use sqlx::pool::PoolConnection;
 use sqlx::{PgPool, Postgres};
@@ -25,6 +31,8 @@ use systemprompt_traits::RepositoryError;
 use tracing::warn;
 
 use crate::error::{SchedulerError, SchedulerResult};
+
+const LOCK_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 // Why: SQLx pool return keeps the session open; Postgres session locks
 // survive until explicit unlock or session closure.
@@ -78,13 +86,13 @@ impl std::fmt::Debug for JobLockGuard {
 
 #[derive(Debug, Clone)]
 pub(crate) struct JobLockRepository {
-    write_pool: Arc<PgPool>,
+    session_pool: Arc<PgPool>,
 }
 
 impl JobLockRepository {
     pub(crate) fn new(db: &DbPool) -> Self {
         Self {
-            write_pool: db.write_pool(),
+            session_pool: db.session_pool(),
         }
     }
 
@@ -92,7 +100,7 @@ impl JobLockRepository {
         &self,
         job_name: &JobName,
     ) -> SchedulerResult<Option<JobLockGuard>> {
-        let mut conn = self.write_pool.acquire().await.map_err(lock_error)?;
+        let mut conn = self.session_pool.acquire().await.map_err(lock_error)?;
 
         let key = sqlx::query_scalar!(
             r#"SELECT hashtext($1)::bigint AS "key!""#,
@@ -116,6 +124,24 @@ impl JobLockRepository {
             }))
         } else {
             Ok(None)
+        }
+    }
+
+    pub(crate) async fn acquire_within(
+        &self,
+        job_name: &JobName,
+        wait: Duration,
+    ) -> SchedulerResult<Option<JobLockGuard>> {
+        let deadline = Instant::now() + wait;
+        loop {
+            if let Some(guard) = self.try_acquire(job_name).await? {
+                return Ok(Some(guard));
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return Ok(None);
+            }
+            tokio::time::sleep(LOCK_POLL_INTERVAL.min(deadline - now)).await;
         }
     }
 }

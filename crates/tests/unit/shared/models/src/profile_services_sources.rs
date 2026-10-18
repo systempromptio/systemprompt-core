@@ -22,6 +22,7 @@ pub(crate) fn local_profile() -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "p".to_owned(),
         display_name: "Profile P".to_owned(),
         target: ProfileType::Local,
@@ -50,6 +51,7 @@ pub(crate) fn local_profile() -> Profile {
             max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },
         paths: PathsConfig {
@@ -59,6 +61,8 @@ pub(crate) fn local_profile() -> Profile {
             web_path: None,
             storage: Some("/tmp/storage".to_owned()),
             geoip_database: None,
+            shipped_files: None,
+            data: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_owned(),
@@ -68,6 +72,7 @@ pub(crate) fn local_profile() -> Profile {
             allowed_resource_audiences: default_resource_audiences(),
             allow_registration: true,
             allow_dynamic_client_registration: true,
+            api_keys: Default::default(),
             login_page_url: None,
             signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],

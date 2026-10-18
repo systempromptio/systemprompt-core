@@ -58,10 +58,12 @@ pub fn fixture_config(database_url: &str) -> Config {
         max_concurrent_streams: 16,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         sitename: "test".to_string(),
         database_type: "postgres".to_string(),
         database_url: database_url.to_string(),
         database_write_url: None,
+        database_session_url: None,
         github_link: String::new(),
         github_token: None,
         system_path: "/tmp".to_string(),
@@ -93,6 +95,7 @@ pub fn fixture_config(database_url: &str) -> Config {
             ..RateLimitsConfig::default()
         },
         retention: systemprompt_manifest::profile::RetentionConfig::default(),
+        planes: Default::default(),
         cors_allowed_origins: vec!["http://localhost:3000".to_string()],
         trusted_proxies: vec![],
         is_cloud: false,
@@ -102,6 +105,7 @@ pub fn fixture_config(database_url: &str) -> Config {
         security_headers: SecurityHeadersConfig::default(),
         allow_registration: false,
         allow_dynamic_client_registration: true,
+        api_key_max_lifetime_days: None,
         login_page_url: None,
     }
 }
@@ -119,6 +123,8 @@ fn tmp_paths() -> PathsConfig {
         web_path: Some("/tmp".to_string()),
         storage: Some("/tmp".to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -311,9 +317,12 @@ fn fixture_app_context_assembled(
             system_admin: Arc::new(fixture_system_admin("admin")),
             authz_hook,
             governance,
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
             ai_service: None,
             artifact_ingest: fixture_artifact_ingest(pool)?,
-            schema_install: Arc::new(systemprompt_database::SchemaInstallReport::default()),
+            schema_install: Arc::new(systemprompt_runtime::SchemaState::from(
+                systemprompt_database::SchemaInstallReport::default(),
+            )),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: systemprompt_events::EventRouter::local_only(),
             geoip_reader: None,

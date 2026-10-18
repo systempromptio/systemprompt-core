@@ -52,6 +52,7 @@ pub fn setup_api_server(ctx: &AppContext, events: Option<&StartupEventSender>) -
 fn register_artifact_scanner(ctx: &AppContext) {
     let resolver = systemprompt_gateway::PolicyResolver::from_repository(
         ctx.ai_repositories().gateway_policies.clone(),
+        ctx.cache_epochs().clone(),
     );
     ctx.artifact_ingest().register_scanner(std::sync::Arc::new(
         systemprompt_gateway::GatewayArtifactScanner::new(resolver),

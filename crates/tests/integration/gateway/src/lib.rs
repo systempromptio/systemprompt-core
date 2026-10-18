@@ -16,4 +16,6 @@ mod quota_accounting;
 #[cfg(test)]
 mod stream_tap_pipeline;
 #[cfg(test)]
+mod stream_tap_raw;
+#[cfg(test)]
 mod support;

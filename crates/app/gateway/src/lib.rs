@@ -39,13 +39,16 @@ pub use artifact_scanner::GatewayArtifactScanner;
 pub use audit::metrics::{
     GATEWAY_OVERHEAD_SECONDS, GATEWAY_UPSTREAM_DURATION_SECONDS, OVERHEAD_BUCKETS, UPSTREAM_BUCKETS,
 };
+pub use audit::phases::{
+    GATEWAY_PHASE_SECONDS, GATEWAY_STREAMS_IN_FLIGHT, GatewayPhase, PHASE_BUCKETS, StreamInFlight,
+};
 pub use audit::{GatewayAudit, GatewayRequestContext};
 pub use captures::CapturedToolUse;
 pub use error::{GatewayAuditError, GatewayAuditResult};
 pub use policies::{
-    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, Finding, FindingSpan, GATEWAY_POLICIES_FILE,
-    GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError, GatewayPolicyIngestionService,
-    GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
+    API_KEY_QUOTA_SUBJECT, CATEGORY_SCANNER_FAILURE, CalendarPeriod, Finding, FindingSpan,
+    GATEWAY_POLICIES_FILE, GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicyError,
+    GatewayPolicyIngestionService, GatewayPolicySpec, HeuristicConfig, HeuristicScanner,
     IngestOptions as GatewayPolicyIngestOptions, IngestReport as GatewayPolicyIngestReport,
     NullScanner, OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine,
     OverrideError, OverrideResolution, OverrideSource, PHASE_REQUEST, PHASE_REQUEST_HISTORY,
@@ -53,7 +56,7 @@ pub use policies::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
     SafetyConfig, SafetyHistoryMode, SafetyMode, SafetyScanner, SafetyScannerRegistration,
     ScanError, ScannerFactory, ScannerFailMode, ScannerSettings, Severity, SystemPromptOverride,
-    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT,
+    SystemPromptOverrideRegistration, USER_QUOTA_SUBJECT, WindowSpan,
     load_from_yaml as load_gateway_policies_from_yaml,
 };
 pub use protocol::{

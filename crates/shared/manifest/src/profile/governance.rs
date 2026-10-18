@@ -39,6 +39,8 @@
 //!       timeout_ms: 500
 //!   audit:
 //!     payload_cap_bytes: 4194304
+//!   quota:
+//!     shared_subject_shards: 8
 //! ```
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -55,6 +57,50 @@ pub struct GovernanceConfig {
     pub authz: Option<AuthzConfig>,
     #[serde(default)]
     pub audit: AuditConfig,
+    #[serde(default)]
+    pub quota: QuotaConfig,
+}
+
+/// Row sharding for gateway quota windows.
+///
+/// A window keyed by a shared subject (anything other than `user` or
+/// `api_key`, e.g. an organization or project) is spread over
+/// `shared_subject_shards` rows so concurrent admissions do not queue on one
+/// row lock; per-principal windows use `principal_subject_shards`. Admission
+/// still checks the summed total, but each extra shard widens the
+/// over-admission bound by up to one concurrent reservation. `1` keeps the
+/// exact single-row behaviour. Both are range-checked by
+/// [`crate::profile::Profile::validate`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct QuotaConfig {
+    #[serde(default = "default_shared_subject_shards")]
+    pub shared_subject_shards: u16,
+    #[serde(default = "default_principal_subject_shards")]
+    pub principal_subject_shards: u16,
+}
+
+impl QuotaConfig {
+    pub const DEFAULT_SHARED_SUBJECT_SHARDS: u16 = 8;
+    pub const DEFAULT_PRINCIPAL_SUBJECT_SHARDS: u16 = 1;
+    pub const MAX_SHARDS: u16 = 64;
+}
+
+impl Default for QuotaConfig {
+    fn default() -> Self {
+        Self {
+            shared_subject_shards: Self::DEFAULT_SHARED_SUBJECT_SHARDS,
+            principal_subject_shards: Self::DEFAULT_PRINCIPAL_SUBJECT_SHARDS,
+        }
+    }
+}
+
+const fn default_shared_subject_shards() -> u16 {
+    QuotaConfig::DEFAULT_SHARED_SUBJECT_SHARDS
+}
+
+const fn default_principal_subject_shards() -> u16 {
+    QuotaConfig::DEFAULT_PRINCIPAL_SUBJECT_SHARDS
 }
 
 /// Retention bounds for the gateway audit trail.

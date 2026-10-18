@@ -63,6 +63,7 @@ fn probe_config(distributed_lock: bool) -> SchedulerConfig {
         jobs: vec![JobConfig::new(JobName::new(TEST_JOB_NAME)).with_schedule("* * * * * *")],
         bootstrap_jobs: vec![],
         distributed_lock,
+        unlisted_jobs: systemprompt_manifest::services::UnlistedJobs::Warn,
     }
 }
 

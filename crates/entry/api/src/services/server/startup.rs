@@ -23,6 +23,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
+use systemprompt_manifest::profile::ShutdownConfig;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::ShutdownRequest;
@@ -55,6 +56,7 @@ pub async fn bind_and_serve(
     addr: &str,
     events: Option<StartupEventSender>,
     shutdown: ShutdownRequest,
+    timings: ShutdownConfig,
 ) -> Result<EarlyServer> {
     if let Some(ref tx) = events
         && tx
@@ -87,7 +89,7 @@ pub async fn bind_and_serve(
             listener,
             outer.into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(super::shutdown::shutdown_signal(shutdown))
+        .with_graceful_shutdown(super::shutdown::shutdown_signal(shutdown, timings))
         .await
         .map_err(Into::into)
     });

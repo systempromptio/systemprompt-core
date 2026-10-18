@@ -136,10 +136,12 @@ fn build_config(
         max_concurrent_streams: profile.server.max_concurrent_streams,
         role: profile.server.role,
         max_in_flight: profile.server.max_in_flight,
+        shutdown: profile.server.shutdown,
         sitename: profile.site.name.clone(),
         database_type: profile.database.db_type.clone(),
         database_url: secrets.database_url.clone(),
         database_write_url: secrets.database_write_url.clone(),
+        database_session_url: secrets.database_session_url.clone(),
         github_link: profile
             .site
             .github_link
@@ -175,6 +177,7 @@ fn build_config(
         use_https: profile.server.use_https,
         rate_limits: profile.rate_limits,
         retention: profile.retention,
+        planes: profile.config_planes.clone(),
         cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
         trusted_proxies: profile.server.trusted_proxies.clone(),
         is_cloud: profile.target.is_cloud(),
@@ -182,6 +185,7 @@ fn build_config(
         security_headers: profile.server.security_headers.clone(),
         allow_registration: profile.security.allow_registration,
         allow_dynamic_client_registration: profile.security.allow_dynamic_client_registration,
+        api_key_max_lifetime_days: profile.security.api_keys.max_lifetime_days,
         login_page_url: profile.security.login_page_url.clone(),
         system_admin_username,
         system_admin_email: profile.system_admin.email.clone(),
@@ -223,8 +227,11 @@ pub fn validate_database_config(config: &Config) -> ConfigResult<()> {
     }
 
     validate_postgres_url(&config.database_url).map_err(ConfigError::InvalidDatabaseUrl)?;
-    if let Some(write_url) = &config.database_write_url {
-        validate_postgres_url(write_url).map_err(ConfigError::InvalidDatabaseUrl)?;
+    for url in [&config.database_write_url, &config.database_session_url]
+        .into_iter()
+        .flatten()
+    {
+        validate_postgres_url(url).map_err(ConfigError::InvalidDatabaseUrl)?;
     }
     Ok(())
 }

@@ -9,6 +9,7 @@
 
 pub(crate) mod budget;
 mod checksum_transition;
+mod compat;
 mod down;
 mod exec;
 mod mark_applied;
@@ -119,6 +120,16 @@ impl<'a> MigrationService<'a> {
         self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;
+        let ahead = ahead_versions(&applied, &migrations);
+        if !ahead.is_empty() {
+            warn!(
+                extension = %ext_id,
+                versions = ?ahead,
+                "Database holds migrations newer than this binary; a newer release owns this \
+                 extension's schema, so this binary applies and verifies nothing for it"
+            );
+            return Ok(MigrationResult::default());
+        }
         self.transition_checksums(ext_id, &migrations, &applied)
             .await?;
         let applied_rows: std::collections::HashMap<u32, &AppliedMigration> =
@@ -181,6 +192,20 @@ pub(crate) fn orphaned_versions(applied: &[AppliedMigration], defined: &[Migrati
         .iter()
         .map(|m| m.version)
         .filter(|version| !declared.contains(version))
+        .collect()
+}
+
+// Why: a ledger row numbered past every migration this binary declares was
+// written by a newer release during a rolling update, not left by a deleted
+// file; with no declared migrations there is no "newer" to compare against.
+pub(crate) fn ahead_versions(applied: &[AppliedMigration], defined: &[Migration]) -> Vec<u32> {
+    let Some(latest) = defined.iter().map(|m| m.version).max() else {
+        return Vec::new();
+    };
+    applied
+        .iter()
+        .map(|m| m.version)
+        .filter(|version| *version > latest)
         .collect()
 }
 

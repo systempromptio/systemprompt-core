@@ -16,6 +16,10 @@
 //! seconds, so a vanished holder is torn down within
 //! [`CLAIM_DEAD_PEER_SECS`].
 //!
+//! The session is detached from the session pool (`database_session_url`
+//! when set), never from a pool that may sit behind a transaction-mode
+//! pooler, which would hand the locked backend to another client.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -101,7 +105,7 @@ impl std::fmt::Debug for InstanceClaim {
 
 impl ServiceRepository {
     pub async fn claim_instance(&self) -> Result<InstanceClaim, InstanceClaimError> {
-        let mut session = self.write_pool.acquire().await?.detach();
+        let mut session = self.session_pool.acquire().await?.detach();
         // Why: idle 10 s + 3 probes 5 s apart bounds a dead peer at
         // CLAIM_DEAD_PEER_SECS; the server-side settings are what free a
         // session whose client host disappeared without closing it.

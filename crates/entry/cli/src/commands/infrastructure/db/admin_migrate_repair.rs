@@ -47,11 +47,17 @@ pub(super) async fn execute_migrate_repair(config: &CliConfig, args: RepairArgs<
             &systemprompt_database::PoolConfig::default(),
         )
         .await
-        .context("Failed to connect to database")?,
+        .context("Failed to connect to database")?
+        .with_session_url(
+            sys_config.database_session_url.as_deref(),
+            &systemprompt_database::PoolConfig::default().for_session(None),
+        )
+        .await
+        .context("Failed to connect to the session database")?,
     );
 
     run_migrate_repair(
-        database.write(),
+        database.session(),
         &ExtensionRegistry::discover()?,
         args,
         config,
@@ -65,7 +71,7 @@ pub(super) async fn execute_migrate_repair_standalone(
     args: RepairArgs<'_>,
 ) -> Result<()> {
     run_migrate_repair(
-        db_ctx.db_pool().write(),
+        db_ctx.db_pool().session(),
         &ExtensionRegistry::discover()?,
         args,
         config,

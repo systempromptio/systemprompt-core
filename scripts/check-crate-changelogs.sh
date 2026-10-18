@@ -31,7 +31,7 @@ MANIFEST="Cargo.toml"
 CURRENT=$(awk '/^\[workspace\.package\]/{p=1;next}/^\[/{p=0}p&&/^version[[:space:]]*=/{gsub(/[[:space:]"]/,"");sub(/^version=/,"");print;exit}' "$MANIFEST")
 [ -n "$CURRENT" ] || { echo "check-crate-changelogs: could not read workspace version" >&2; exit 2; }
 
-TAG=$(git tag -l 'v*' --sort=-v:refname 2>/dev/null | head -1)
+TAG=$(git tag -l 'v*' --sort=-v:refname 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
 [ -n "$TAG" ] || { echo "check-crate-changelogs: no release tag reachable -- unshallow the checkout (fetch-depth: 0)" >&2; exit 2; }
 
 git rev-parse --quiet --verify "$TAG^{commit}" >/dev/null \

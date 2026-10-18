@@ -19,7 +19,7 @@ PKCE is required for the authorization-code flow. Authorization rejects a missin
 
 ## Dynamic client registration
 
-Remote MCP clients register themselves on first connect through RFC 7591 (`POST /api/v1/core/oauth/register`). Registration is open by default because the MCP authorization flow depends on it; `security.allow_dynamic_client_registration: false` closes the endpoint and removes `registration_endpoint` from discovery for deployments that pre-provision clients.
+Remote MCP clients register themselves on first connect through RFC 7591 (`POST /api/v1/core/oauth/register`). Registration is closed by default: `security.allow_dynamic_client_registration: true` opens the endpoint for deployments whose MCP clients register themselves. While it is closed the endpoint answers 403 and discovery omits `registration_endpoint`, so clients must be pre-provisioned.
 
 A self-registered client is bounded at registration time:
 

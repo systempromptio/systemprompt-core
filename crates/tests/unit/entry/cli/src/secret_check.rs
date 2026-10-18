@@ -11,6 +11,7 @@ use systemprompt_cli::admin::config::secret_check::{
 };
 
 const SECRET_VALUE: &str = "sk-do-not-print-this";
+const PEPPER_AND_DB: &[&str] = &["oauth_at_rest_pepper", "database_url"];
 
 fn secrets_file(body: &str) -> (tempfile::TempDir, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -41,7 +42,7 @@ fn a_rendered_report_never_carries_a_value() {
     let report = SecretCheckReport {
         source: "file".to_owned(),
         detail: path.display().to_string(),
-        missing_required: missing_required(&keys),
+        missing_required: missing_required(&keys, PEPPER_AND_DB),
         keys,
         generation: None,
         last_reload_at: None,
@@ -59,28 +60,35 @@ fn a_rendered_report_never_carries_a_value() {
 
 #[test]
 fn a_missing_pepper_is_reported() {
-    let missing = missing_required(&["database_url".to_owned()]);
+    let missing = missing_required(&["database_url".to_owned()], PEPPER_AND_DB);
     assert_eq!(missing, vec!["oauth_at_rest_pepper".to_owned()]);
 }
 
 #[test]
 fn an_internal_database_url_satisfies_the_database_requirement() {
-    let missing = missing_required(&[
-        "oauth_at_rest_pepper".to_owned(),
-        "internal_database_url".to_owned(),
-    ]);
+    let missing = missing_required(
+        &[
+            "oauth_at_rest_pepper".to_owned(),
+            "internal_database_url".to_owned(),
+        ],
+        PEPPER_AND_DB,
+    );
     assert!(missing.is_empty(), "unexpected gaps: {missing:?}");
 }
 
 #[test]
 fn an_upper_case_key_still_counts_as_present() {
-    let missing = missing_required(&["OAUTH_AT_REST_PEPPER".to_owned(), "DATABASE_URL".to_owned()]);
+    let missing = missing_required(
+        &["OAUTH_AT_REST_PEPPER".to_owned(), "DATABASE_URL".to_owned()],
+        PEPPER_AND_DB,
+    );
     assert!(missing.is_empty(), "unexpected gaps: {missing:?}");
 }
 
 #[test]
-fn a_document_with_no_keys_reports_both_gaps() {
-    let missing = missing_required(&[]);
-    assert_eq!(missing.len(), 2);
+fn a_document_with_no_keys_reports_every_boot_required_gap() {
+    let missing = missing_required(&[], systemprompt_config::BOOT_REQUIRED_SECRET_KEYS);
+    assert_eq!(missing.len(), 4);
+    assert!(missing.iter().any(|m| m == "encryption_master_key"));
     assert!(missing.iter().any(|m| m.contains("internal_database_url")));
 }

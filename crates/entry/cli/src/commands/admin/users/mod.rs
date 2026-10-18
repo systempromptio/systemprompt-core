@@ -20,6 +20,7 @@ mod merge;
 mod restore;
 mod role;
 mod search;
+mod service_account;
 mod session;
 mod show;
 mod stats;
@@ -95,6 +96,13 @@ pub enum UsersCommands {
         about = "Personal access token (sp-live-) management"
     )]
     ApiKey(ApiKeyCommands),
+
+    #[command(
+        subcommand,
+        name = "service-account",
+        about = "Service account management"
+    )]
+    ServiceAccount(service_account::ServiceAccountCommands),
 }
 
 pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
@@ -110,6 +118,7 @@ pub async fn execute(cmd: UsersCommands, ctx: &CommandContext) -> Result<()> {
                 | UsersCommands::Bulk(_)
                 | UsersCommands::Webauthn(_)
                 | UsersCommands::ApiKey(_)
+                | UsersCommands::ServiceAccount(_)
         )
     {
         bail!("Write operations require full profile context");
@@ -144,6 +153,7 @@ async fn render_output(cmd: UsersCommands, ctx: &CommandContext) -> Result<Comma
         UsersCommands::Stats => stats::execute(ctx).await,
         UsersCommands::Merge(args) => merge::execute(args, ctx).await,
         UsersCommands::ApiKey(cmd) => apikey::execute(cmd, ctx).await,
+        UsersCommands::ServiceAccount(cmd) => service_account::execute(cmd, ctx).await,
         UsersCommands::Bulk(_)
         | UsersCommands::Role(_)
         | UsersCommands::Session(_)
@@ -188,7 +198,8 @@ impl UsersCommands {
             | Self::Webauthn(webauthn::WebauthnCommands::GenerateSetupToken(_))
             | Self::ApiKey(
                 ApiKeyCommands::Issue(_) | ApiKeyCommands::List(_) | ApiKeyCommands::Revoke(_),
-            ) => DataImpact::Preserving,
+            )
+            | Self::ServiceAccount(_) => DataImpact::Preserving,
         }
     }
 }

@@ -253,6 +253,7 @@ pub fn api_key_windows(principal: &AuthedPrincipal) -> Vec<QuotaWindow> {
         {
             vec![QuotaWindow {
                 window_seconds,
+                calendar: None,
                 subject: API_KEY_QUOTA_SUBJECT.to_owned(),
                 max_requests: limits.max_requests.map(i64::from),
                 max_input_tokens: None,

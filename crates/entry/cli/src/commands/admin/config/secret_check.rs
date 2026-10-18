@@ -5,6 +5,10 @@
 //! the JSON output, or a log line, because the usual reason to run this is a
 //! failing boot on a shared screen.
 //!
+//! The required keys are the ones the boot itself demands
+//! ([`SecretsBootstrap::required_secret_keys`]), so a document that passes this
+//! check is not then refused at startup.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -23,7 +27,6 @@ use systemprompt_manifest::secrets::OAUTH_AT_REST_PEPPER_MIN_LENGTH;
 use crate::CliConfig;
 use crate::shared::{CommandOutput, render_result};
 
-pub const REQUIRED_SECRET_KEYS: &[&str] = &["oauth_at_rest_pepper", "database_url"];
 pub const DATABASE_URL_ALIASES: &[&str] = &["database_url", "internal_database_url"];
 
 #[derive(Debug, Serialize)]
@@ -70,10 +73,12 @@ pub async fn run() -> Result<SecretCheckReport> {
     )
     .context("The profile's secrets configuration is not usable")?;
 
-    let (source, detail, keys) = describe(&resolved, profile_dir).await?;
+    let required =
+        SecretsBootstrap::required_secret_keys(SecretsBootstrap::signing_key_pem_required());
+    let (source, detail, keys) = describe(&resolved, profile_dir, &required).await?;
     let status = SecretsBootstrap::status();
     Ok(SecretCheckReport {
-        missing_required: missing_required(&keys),
+        missing_required: missing_required(&keys, &required),
         source,
         detail,
         keys,
@@ -86,6 +91,7 @@ pub async fn run() -> Result<SecretCheckReport> {
 async fn describe(
     resolved: &ResolvedSource<'_>,
     profile_dir: &Path,
+    required: &[&str],
 ) -> Result<(String, String, Vec<String>)> {
     match resolved {
         ResolvedSource::Vault(cfg) => {
@@ -113,12 +119,12 @@ async fn describe(
         ResolvedSource::SubprocessEnv => Ok((
             "subprocess-env".to_owned(),
             "inherited from the parent process".to_owned(),
-            env_key_names(),
+            env_key_names(required),
         )),
         ResolvedSource::DeploymentHostEnv => Ok((
             "deployment-host-env".to_owned(),
             "provided by the deployment host".to_owned(),
-            env_key_names(),
+            env_key_names(required),
         )),
         ResolvedSource::LocalEnvWithFileFallback(path) | ResolvedSource::File(path) => {
             let resolved_path = resolve_with_home(profile_dir, path);
@@ -143,8 +149,8 @@ pub fn file_key_names(path: &Path) -> Result<Vec<String>> {
     Ok(names)
 }
 
-fn env_key_names() -> Vec<String> {
-    let mut names: Vec<String> = REQUIRED_SECRET_KEYS
+fn env_key_names(required: &[&str]) -> Vec<String> {
+    let mut names: Vec<String> = required
         .iter()
         .chain(DATABASE_URL_ALIASES.iter())
         .filter(|name| std::env::var(name.to_uppercase()).is_ok())
@@ -156,10 +162,10 @@ fn env_key_names() -> Vec<String> {
 }
 
 #[must_use]
-pub fn missing_required(keys: &[String]) -> Vec<String> {
+pub fn missing_required(keys: &[String], required_keys: &[&str]) -> Vec<String> {
     let present = |name: &str| keys.iter().any(|key| key.eq_ignore_ascii_case(name));
     let mut missing = Vec::new();
-    for required in REQUIRED_SECRET_KEYS {
+    for required in required_keys {
         if *required == "database_url" {
             if !DATABASE_URL_ALIASES.iter().any(|alias| present(alias)) {
                 missing.push("database_url (or internal_database_url)".to_owned());

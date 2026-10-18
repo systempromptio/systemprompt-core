@@ -19,6 +19,8 @@ fn make_paths_config(base: &str) -> PathsConfig {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -38,6 +40,7 @@ fn make_server_config() -> ServerConfig {
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         trusted_proxies: Vec::new(),
     }
 }
@@ -51,6 +54,7 @@ fn make_security_config() -> SecurityConfig {
         allowed_resource_audiences: vec![],
         allow_registration: true,
         allow_dynamic_client_registration: true,
+        api_keys: Default::default(),
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
@@ -62,6 +66,7 @@ fn make_profile(name: &str) -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: name.to_string(),
         display_name: format!("Test {name}"),
         target: ProfileType::Local,
@@ -498,6 +503,8 @@ fn paths_config_resolve_relative_to() {
         web_path: Some("web".to_string()),
         storage: Some("storage".to_string()),
         geoip_database: Some("geoip.mmdb".to_string()),
+        shipped_files: None,
+        data: None,
     };
     paths.resolve_relative_to(Path::new("/base"));
     assert!(paths.system.starts_with('/'));
@@ -517,6 +524,8 @@ fn paths_config_resolve_relative_to_preserves_absolute() {
         web_path: None,
         storage: None,
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     paths.resolve_relative_to(Path::new("/base"));
     assert_eq!(paths.system, "/absolute/system");
@@ -923,6 +932,7 @@ fn validate_rejects_governance_webhook_malformed_url() {
     };
     let mut profile = valid_profile("bad-webhook");
     profile.governance = Some(GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,

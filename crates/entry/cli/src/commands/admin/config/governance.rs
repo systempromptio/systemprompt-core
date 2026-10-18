@@ -83,10 +83,10 @@ fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
-    let audit = profile
+    let (audit, quota) = profile
         .governance
         .as_ref()
-        .map(|g| g.audit)
+        .map(|g| (g.audit, g.quota))
         .unwrap_or_default();
 
     profile.governance = Some(GovernanceConfig {
@@ -99,6 +99,7 @@ fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
             },
         }),
         audit,
+        quota,
     });
 
     save_profile(&profile, profile_path)?;

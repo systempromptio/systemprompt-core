@@ -149,7 +149,7 @@ impl GovernedDispatch {
             session_id,
             recovery_count,
             recovery_locations,
-        } = evaluate_prompt(governance, ctx, &mut prepared.request, &mut prepared.body);
+        } = evaluate_prompt(governance, ctx, &mut prepared.request, &mut prepared.body).await;
 
         prepared.recovery_count = recovery_count;
         if recovery_count > 0 {

@@ -4,6 +4,8 @@
 //!
 //! At start it forgets `scheduled_jobs` rows whose job this build no longer
 //! has, so a retired job leaves neither a row nor a line in `jobs list`.
+//! Jobs the build registers but the configuration never names are handled by
+//! `scheduler.unlisted_jobs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +15,7 @@ mod claim;
 mod dispatch;
 mod owners;
 mod registration;
+mod unlisted;
 
 use crate::error::{SchedulerError, SchedulerResult};
 use crate::models::{SchedulerConfig, SkippedJob};
@@ -26,6 +29,9 @@ use systemprompt_traits::{Dependencies, Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
+
+pub(crate) use claim::{ClaimPolicy, claim_policy};
+pub use unlisted::unlisted_job_names;
 
 pub(crate) type RunningJobs = Arc<Mutex<HashSet<JobName>>>;
 
@@ -139,23 +145,23 @@ impl SchedulerService {
         }
     }
 
-    pub async fn start(self) -> SchedulerResult<SchedulerStartup> {
+    pub async fn start(mut self) -> SchedulerResult<SchedulerStartup> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
             return Ok(SchedulerStartup::disabled());
         }
 
-        let resolved = self.resolve_owners(true).await?;
-
         let registered_jobs = Self::discover_jobs();
         self.validate_configured_jobs(&registered_jobs)?;
+        self.adopt_unlisted_jobs(&registered_jobs)?;
+
+        let resolved = self.resolve_owners(true).await?;
 
         debug!(
             discovered = registered_jobs.len(),
             configured = self.config.jobs.len(),
             "Discovered jobs via inventory"
         );
-        self.warn_unscheduled_jobs(&registered_jobs);
         self.forget_retired_jobs(&registered_jobs).await;
 
         let running_jobs: RunningJobs = Arc::new(Mutex::new(HashSet::new()));
@@ -229,27 +235,6 @@ impl SchedulerService {
                     .collect::<Vec<_>>()
                     .join(", "),
             })
-        }
-    }
-
-    fn warn_unscheduled_jobs(
-        &self,
-        registered_jobs: &HashMap<&'static str, &'static dyn JobTrait>,
-    ) {
-        let configured: HashSet<&str> = self
-            .config
-            .jobs
-            .iter()
-            .map(|job| job.name.as_str())
-            .chain(self.config.bootstrap_jobs.iter().map(JobName::as_str))
-            .collect();
-        for (name, job) in registered_jobs {
-            if !configured.contains(name) && job.schedulable() {
-                warn!(
-                    job = %name,
-                    "job is available in this build but has no scheduler.jobs entry; it will never run"
-                );
-            }
         }
     }
 }

@@ -31,7 +31,7 @@ use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
-use systemprompt_traits::{BackgroundTasks, FileStorage};
+use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
 mod context_loaders;
@@ -88,9 +88,10 @@ pub struct Subsystems {
     pub system_admin: Arc<SystemAdmin>,
     pub authz_hook: SharedAuthzHook,
     pub governance: Arc<GovernanceEngine>,
+    pub cache_epochs: CacheEpochs,
     pub ai_service: Option<Arc<systemprompt_ai::AiService>>,
     pub artifact_ingest: Arc<systemprompt_mcp::ArtifactIngest>,
-    pub schema_install: Arc<SchemaInstallReport>,
+    pub schema_install: Arc<crate::SchemaState>,
     pub event_bridge: Arc<OnceLock<EventBridgeHandle>>,
     pub event_router: EventRouter,
     pub geoip_reader: Option<GeoIpReader>,
@@ -261,6 +262,11 @@ impl AppContext {
 
     #[must_use]
     pub fn schema_install(&self) -> &SchemaInstallReport {
+        self.subsystems.schema_install.boot()
+    }
+
+    #[must_use]
+    pub fn schema_state(&self) -> &crate::SchemaState {
         &self.subsystems.schema_install
     }
 

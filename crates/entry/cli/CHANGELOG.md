@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `admin config planes list|diff|apply --reason` and offline plane validation in `admin config validate`; `--strict` fails when a registered job has no `scheduler.jobs` entry.
+- `admin users api-key issue --if-absent [--renew-before-days N] [--secret-file PATH]` and `admin users service-account create`.
+- `infra jobs run` takes the scheduler's per-job lock for cluster jobs, with `--lock-wait-secs`.
+- `infra db migrate-plan --require-rolling-safe` fails a batch that contains a `@compat: breaking` migration.
+
+### Changed
+
+- Generated profiles set `allow_registration` and `allow_dynamic_client_registration` to `false`.
+
+### Fixed
+
+- `admin users api-key issue --secret-file` revokes the new key when the secret file cannot be written.
+
 ## [0.67.0] - 2026-10-13
 
 ### Changed

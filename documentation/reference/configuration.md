@@ -56,6 +56,8 @@ tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 | `db_type` | `type` | string | yes | — | Database backend selector. PostgreSQL is the supported backend. |
 | `external_db_access` | `external_db_access` | bool | no | `false` | When `true`, the platform uses `external_database_url` from the secrets document if present (`secrets.rs:85`). |
 
+| `pool` | `pool` | object | no | engine defaults | Connection-pool sizing: `max_connections` (1–500, default 50), `max_connections_by_role` (`all`, `gateway`, `admin`, `runner`; each 1–500, overrides `max_connections` for that `server.role`), `session_max_connections` (1–500, default 10; sizes the pool `database_session_url` opens), `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`, `statement_cache_capacity`. See [guides/database-connections.md](../guides/database-connections.md). |
+
 The connection string itself is never in `profile.yaml`; it lives in the secrets document as `database_url` (see [Secrets envelope](#secrets-envelope)).
 
 ## `server`
@@ -77,6 +79,19 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `metrics_port` | u16 | no | unset | Serve `GET /metrics` on a second listener bound to `host:metrics_port`. Unset means no metrics endpoint. Must differ from `port`. |
 | `max_concurrent_streams` | usize | no | `256` | Global cap on concurrent A2A SSE streams for this replica (`config/mod.rs:34`). |
 | `trusted_proxies` | list of CIDR string | required on `cloud` | `[]` | Peer CIDRs allowed to set `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`. Empty means every connection is treated as direct and those headers are ignored. A bare address without `/` is read as `/32` (IPv4) or `/128` (IPv6). |
+| `shutdown` | object | no | see below | Shutdown deadlines. |
+
+### `server.shutdown`
+
+`crates/shared/manifest/src/profile/shutdown.rs`. Unknown keys are refused. The server logs `pre_stop_delay_secs + drain_grace_secs + 2 + forced_exit_grace_secs` at boot (the 2 s is the fixed flush window for streams ended by the drain); an orchestrator's termination grace must exceed it.
+
+| Key | Type | Required | Default | Meaning |
+|-----|------|----------|---------|---------|
+| `pre_stop_delay_secs` | u64 | no | `0` | After the termination signal `/readyz` answers `503 draining` while the listener keeps accepting for this long, so endpoints can update before connections are refused. At most `600`. |
+| `drain_grace_secs` | u64 | no | `10` | How long in-flight requests and SSE streams may run once the listener stops accepting. `1`–`86400`. A gateway stream still open when it expires ends itself with a terminal error frame in its wire format ("server is shutting down; retry the request"), counted in `gateway_streams_aborted_on_shutdown_total`, and gets 2 s to flush. |
+| `child_grace_secs` | u64 | no | `5` | How long MCP and agent children get to exit after their signal. Greater than `0`. |
+| `background_grace_secs` | u64 | no | `5` | How long owned background work, including the final gateway journal settlement, gets to finish. Greater than `0`. |
+| `forced_exit_grace_secs` | u64 | no | `10` | Backstop armed after the drain; the process exits non-zero when it fires. Must exceed `child_grace_secs` and `background_grace_secs`. |
 
 ### `server.content_negotiation`
 
@@ -113,6 +128,8 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 | `web_path` | string | no | `<system>/web` | Web asset root (parent of `dist/`). For `target: cloud`, must start with `/app/web` and must not contain `/services/web`. |
 | `storage` | string | no | absent | File storage root. |
 | `geoip_database` | string | no | absent | Path to a MaxMind GeoIP database file. |
+| `shipped_files` | string | no | absent | Read-only directory consulted for `/files/*` after `<storage>/files` and before the storage backend. |
+| `data` | string | no | `<storage>/data` | Node-local root for state the server writes for itself: the gateway accounting journal and `scratch/` working trees. Required when `storage.shared: true`, so each replica keeps its own journal off the shared mount. Must not be empty. |
 
 ## `storage`
 
@@ -120,8 +137,17 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `backend` | `local` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set. It is the seam an object-store backend lands in; no vendor SDK ships today. |
+| `backend` | `local` \| `gcs` \| `s3` | no | `local` | Storage backend for uploads and generated images. `local` writes under `paths.storage`, which must then be set; `gcs` writes to a Cloud Storage bucket; `s3` writes to an S3-compatible bucket. Files in a bucket are served at their `/files/...` URL by every replica. |
 | `shared` | bool | no | `false` | Declare that `paths.storage` is one mount every replica sees. Boot probes the root by writing a per-instance marker and reading it back (failure refuses to boot), and warns when `shared` disagrees with the markers other replicas left. With `false` those files are node-local, which only a single replica can serve. |
+| `bucket` | string | `gcs`, `s3` | — | Bucket name. |
+| `prefix` | string | no | absent | Object-name prefix inside the bucket. |
+| `public_read` | bool | no | `false` | Return the bucket URL as the stored file's public URL. |
+| `credentials` | `workload_identity` \| `{ secret: NAME }` | `s3` | `workload_identity` (`gcs`) | `gcs`: metadata-server identity or a service-account key secret. `s3`: a secret holding `access_key_id`, `secret_access_key` and optional `session_token`. |
+| `endpoint` | URL | no | `https://s3.<region>.amazonaws.com` | `s3` only. |
+| `region` | string | no | `us-east-1` | `s3` only; the SigV4 signing region. |
+| `path_style` | bool | no | `false` | `s3` only; address the bucket as `<endpoint>/<bucket>/<key>`. Required when `bucket` contains `_` or `.`. |
+
+The S3 credentials need `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the prefix, and `s3:ListBucket` on the bucket. Without `s3:ListBucket`, S3 answers a missing key with `403` instead of `404`, so a request for a missing `/files/...` URL returns `500` instead of `404`.
 
 File records hold the path relative to `paths.storage` (for example `files/uploads/contexts/<ctx>/images/<id>.png`); public URLs and the on-disk layout are unchanged.
 
@@ -136,8 +162,9 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 | `refresh_token_expiration` | `jwt_refresh_token_expiration` | i64 (seconds) | yes | — | Refresh token lifetime. |
 | `audiences` | `jwt_audiences` | list of audience | yes | — | Accepted JWT audiences. Each entry is one of `web`, `api`, `a2a`, `mcp`, `internal`, `bridge`, `hook`, or an arbitrary resource string (`auth/enums.rs:10`). |
 | `allowed_resource_audiences` | `allowed_resource_audiences` | list of string | no | `[]` | Additional resource audience identifiers permitted. |
-| `allow_registration` | `allow_registration` | bool | no | `true` | Whether self-service passkey (user) registration is open. |
-| `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `true` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients depend on it; set `false` only when clients are pre-provisioned. |
+| `allow_registration` | `allow_registration` | bool | no | `false` | Whether self-service passkey (user) registration is open. |
+| `allow_dynamic_client_registration` | `allow_dynamic_client_registration` | bool | no | `false` | Whether RFC 7591 dynamic client registration is open. Remote MCP clients that register themselves depend on it; set `true` explicitly when they connect, leave it `false` when clients are pre-provisioned. |
+| `api_keys.max_lifetime_days` | `api_keys.max_lifetime_days` | integer | no | unset | Maximum lifetime of a personal access token, in days (must be greater than 0). Applies to every issuance path (admin API, CLI, bridge sign-in, agent runs): a key issued without an expiry gets the maximum, and a longer expiry is rejected. Unset means no ceiling. |
 | `signing_key_path` | `signing_key_path` | path | no | `signing_key.pem` | Path to the RS256 signing key (PEM). |
 | `trusted_issuers` | `trusted_issuers` | list of object | no | `[]` | Federated issuers accepted in addition to `jwt_issuer`. |
 
@@ -220,6 +247,7 @@ replica count.
 | `secrets_path` | string | for `file` | — | Path to the secrets file, resolved relative to the profile directory (with `~/` home expansion). Required for `source: file`; unused for `source: vault`. |
 | `validation` | enum `strict` \| `warn` \| `skip` | no | `warn` | How a loaded document is checked. It does not govern whether a source may be abandoned: a Vault fetch failure aborts the boot under every mode. |
 | `vault` | object | for `vault` | absent | KV v2 access. Required when `source: vault`, and refused for the other two sources. See [`secrets.vault`](#secretsvault). |
+| `refresh_secs` | u64 | no | absent | `source: file` only. Re-read the secrets file on this interval (minimum `60`), so a rotated Kubernetes Secret mounted as a volume reaches the running process without a restart. Every replica and every role reloads its own store; there is no cluster lock. Pinned keys (`encryption_master_key`, `oauth_at_rest_pepper`, `manifest_signing_secret_seed`, `database_url`, `signing_key_pem`, `jwt_secret`) still require a restart: a reload that changes one is refused. An `external` source sets its interval on `secrets.external.refresh_secs` instead. |
 
 ### `secrets.vault`
 
@@ -312,7 +340,7 @@ loader (`crates/infra/loader/src/config_loader/`):
 | Services key | Conventional file | Type | Meaning |
 |--------------|-------------------|------|---------|
 | `providers` | `services/ai/providers.yaml` | list of provider entries | The provider registry: each upstream's wire protocol, surface, endpoint, `api_key_secret`, extra headers, per-model pricing/capabilities/limits, and governance flags (`crates/shared/manifest/src/services/providers/`). Entries concatenate across includes; a provider name declared twice is a load error. |
-| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
+| `gateway` | `services/ai/gateway.yaml` | object | The provider-facing inference proxy: `enabled`, `routes[]`, `default_provider`, `default_model`, `allow_unlisted_models`, `hidden_requires_route` (default `true`: a catalog model marked `hidden` is served only when a declared route pattern matches it, never through catalog membership or the route synthesised from `default_provider`), `require_scopes` (dimensions every request must resolve a scope value for; see [scope attribution](./http-api.md#scope-attribution)), `auth_scheme`, `inference_path_prefix`, `system_prompt_overrides[]`, `bridge_releases` (`crates/shared/manifest/src/services/gateway/`). First file to declare it wins across includes. |
 
 Both files must be listed in the root aggregator's `includes:` (`services/config/config.yaml`);
 `systemprompt admin setup` writes them from the embedded seed catalog when absent and appends
@@ -362,6 +390,8 @@ its `providers[]` entries into `providers` and expresses each `models[]` entry a
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `authz` | object | no | absent | Authorization hook config. See [`governance.authz.hook`](#governanceauthzhook). |
+| `quota.shared_subject_shards` | integer | no | `8` | Rows a quota window keyed by a shared subject (anything other than `user` or `api_key`) is spread over, 1–64. Admission checks the summed total; each extra shard can admit up to one more concurrent reservation past a ceiling. `1` restores exact single-row accounting. |
+| `quota.principal_subject_shards` | integer | no | `1` | The same for `user` and `api_key` windows, 1–64. |
 
 ### `governance.authz.hook`
 
@@ -390,6 +420,7 @@ governance:
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
 | `otlp` | object | no | absent | The collector. Absent means nothing is exported and the job is a no-op. |
+| `log_format` | enum `text` \| `json` | no | `text` | How the process writes its own log events to **stderr**. `json` writes one object per line (`timestamp`, `level`, `target`, `fields`, `spans`, `instance`) for Fluent Bit, Vector or Loki. Both formats redact the same secret-bearing fields. `runtime.output_format` governs CLI command output only, not this stream. |
 
 ### `observability.otlp`
 
@@ -433,6 +464,7 @@ Secret values are never stored in `profile.yaml`. They live in a separate JSON d
 | `manifest_signing_secret_seed` | `manifest_signing_secret_seed` | string | yes | Standard base64 of exactly 32 random bytes; the Ed25519 manifest signing seed. Never generated at boot: every replica must carry the same value. Mint it with `systemprompt admin identity generate --json`. |
 | `signing_key_pem` | `signing_key_pem` | string | yes on `cloud` and deployment hosts | Standard base64 of the full PKCS#8 PEM text (`-----BEGIN PRIVATE KEY-----` …) of the RSA JWT signing key. Local profiles may point `security.signing_key_path` at a file instead. Mint it with `systemprompt admin identity generate --json`. |
 | `database_write_url` | `database_write_url` | string | no | Separate write endpoint. |
+| `database_session_url` | `database_session_url` | string | no | Direct (unpooled) primary connection for `LISTEN`, session advisory locks and migrations; set it when `database_url` goes through a transaction-mode pooler. See [guides/database-connections.md](../guides/database-connections.md). |
 | `external_database_url` | `external_database_url` | string | no | Used when `database.external_db_access` is `true`. |
 | `internal_database_url` | `internal_database_url` | string | no | Internal connection string. |
 | `gemini` | `gemini` | string | no | Gemini API key. |
@@ -457,6 +489,7 @@ When `secrets.source` is `env` (or a Fly.io container is detected via `FLY_APP_N
 | `manifest_signing_secret_seed` | `MANIFEST_SIGNING_SECRET_SEED` (required) |
 | `signing_key_pem` | `SIGNING_KEY_PEM` (required on deployment hosts) |
 | `database_write_url` | `DATABASE_WRITE_URL` |
+| `database_session_url` | `DATABASE_SESSION_URL` |
 | `external_database_url` | `EXTERNAL_DATABASE_URL` |
 | `internal_database_url` | `INTERNAL_DATABASE_URL` |
 | `gemini` | `GEMINI_API_KEY` |

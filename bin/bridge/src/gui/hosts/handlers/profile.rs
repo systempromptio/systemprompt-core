@@ -16,6 +16,7 @@ use crate::integration::{GeneratedProfile, find_host_by_id};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
+use super::profile_notices::{manual_approval_notice, needs_elevation_notice};
 
 #[derive(Debug, thiserror::Error)]
 #[error(
@@ -85,27 +86,6 @@ pub(crate) fn on_profile_generate_finished(
     finish(app, bridge_result, reply_to);
 }
 
-fn needs_elevation_notice(
-    #[cfg_attr(
-        not(target_os = "windows"),
-        expect(
-            unused_variables,
-            reason = "only the registry-backed host needs elevation"
-        )
-    )]
-    host: &dyn crate::integration::HostApp,
-) -> bool {
-    #[cfg(target_os = "windows")]
-    {
-        host.config_format() == crate::integration::ConfigFormat::Reg
-            && !crate::winproc::is_elevated()
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        false
-    }
-}
-
 // Why: an install that returned Ok has written a file or a hive; whether the
 // host now reads the server list we meant is a separate fact, and the one
 // the user is waiting on. Read it back before reporting success. A profile
@@ -139,18 +119,6 @@ fn verify_managed_servers(
         }),
         _ => Ok(expected),
     }
-}
-
-fn manual_approval_notice(host: &dyn crate::integration::HostApp) -> Option<String> {
-    (cfg!(target_os = "macos") && host.config_format() == crate::integration::ConfigFormat::Plist)
-        .then(|| {
-            format!(
-                "macOS holds the profile until you approve it: open System Settings › General › \
-             Device Management, select the {} profile and click Install. Until then this host \
-             correctly reports no profile.",
-                host.display_name()
-            )
-        })
 }
 
 pub(crate) fn on_profile_install_requested(
@@ -253,19 +221,30 @@ pub(crate) fn on_profile_install_finished(
             }
         },
         Err(e) => {
-            let (code, line) = match e.as_ref() {
+            let (code, line, elevate) = match e.as_ref() {
                 GuiError::HostApp { source, .. }
                     if source.is_refusal() || source.is_permission_denied() =>
                 {
-                    (ErrorCode::Unauthorized, format!("[{host_id}] {source}"))
+                    (
+                        ErrorCode::ElevationRequired,
+                        format!("[{host_id}] {source}"),
+                        true,
+                    )
                 },
                 _ => (
                     ErrorCode::Internal,
                     format!("[{host_id}] profile install failed: {e}"),
+                    false,
                 ),
             };
             app.append_log_error(&line);
-            Err(BridgeError::new(ErrorScope::Host, code, line))
+            let failure = json!([{ "host_id": host_id, "message": line, "needs_elevation": true }]);
+            let err = BridgeError::new(ErrorScope::Host, code, line);
+            Err(if elevate {
+                err.with_detail(json!({ "host_failures": failure }))
+            } else {
+                err
+            })
         },
     };
     app.proxy

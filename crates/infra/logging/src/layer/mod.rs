@@ -14,8 +14,8 @@ mod proxy;
 mod visitor;
 mod writer;
 
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
 
 use tokio::sync::mpsc;
 use tracing::{Event, Subscriber};
@@ -35,16 +35,21 @@ use systemprompt_database::DbPool;
 const CHANNEL_CAPACITY: usize = 8192;
 
 static BACKGROUND_SENDER: OnceLock<mpsc::Sender<LogCommand>> = OnceLock::new();
-static BACKGROUND_DROPPED: AtomicU64 = AtomicU64::new(0);
+static DROPPED: AtomicU64 = AtomicU64::new(0);
+
+#[must_use]
+pub fn dropped_log_entries() -> u64 {
+    DROPPED.load(Ordering::Relaxed)
+}
 
 pub fn enqueue_background(entry: LogEntry) {
     let Some(sender) = BACKGROUND_SENDER.get() else {
-        BACKGROUND_DROPPED.fetch_add(1, Ordering::Relaxed);
+        DROPPED.fetch_add(1, Ordering::Relaxed);
         return;
     };
     let is_error = entry.level == LogLevel::Error;
     if sender.try_send(LogCommand::Entry(Box::new(entry))).is_err() {
-        BACKGROUND_DROPPED.fetch_add(1, Ordering::Relaxed);
+        DROPPED.fetch_add(1, Ordering::Relaxed);
         return;
     }
     if is_error {
@@ -56,27 +61,19 @@ pub fn enqueue_background(entry: LogEntry) {
 
 struct LogChannel {
     sender: mpsc::Sender<LogCommand>,
-    dropped: Arc<AtomicU64>,
 }
 
 impl LogChannel {
     fn new(capacity: usize) -> (Self, mpsc::Receiver<LogCommand>) {
         let (sender, receiver) = mpsc::channel(capacity);
-        let channel = Self {
-            sender,
-            dropped: Arc::new(AtomicU64::new(0)),
-        };
+        let channel = Self { sender };
         (channel, receiver)
     }
 
     fn send(&self, command: LogCommand) {
         if let Err(mpsc::error::TrySendError::Full(_)) = self.sender.try_send(command) {
-            self.dropped.fetch_add(1, Ordering::Relaxed);
+            DROPPED.fetch_add(1, Ordering::Relaxed);
         }
-    }
-
-    fn dropped(&self) -> u64 {
-        self.dropped.load(Ordering::Relaxed)
     }
 }
 
@@ -87,7 +84,7 @@ pub struct DatabaseLayer {
 impl std::fmt::Debug for DatabaseLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DatabaseLayer")
-            .field("dropped", &self.channel.dropped())
+            .field("dropped", &dropped_log_entries())
             .finish_non_exhaustive()
     }
 }

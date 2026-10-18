@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::error::GatewayPolicyError;
-use super::spec::{GatewayPolicySpec, SafetyConfig};
+use super::spec::{GatewayPolicySpec, QuotaWindow, RateWindow, SafetyConfig};
 
 const fn default_enabled() -> bool {
     true
@@ -68,6 +68,8 @@ impl GatewayPolicyConfig {
                 });
             }
             validate_safety_settings(idx, safety)?;
+            validate_quota_windows(idx, &policy.spec.quota_windows)?;
+            validate_rate_windows(idx, &policy.spec.rate_windows)?;
         }
         Ok(())
     }
@@ -103,6 +105,30 @@ fn validate_safety_settings(idx: usize, safety: &SafetyConfig) -> Result<(), Gat
                 reason: "timeout_ms must be at least 1".to_owned(),
             });
         }
+    }
+    Ok(())
+}
+
+fn validate_rate_windows(idx: usize, windows: &[RateWindow]) -> Result<(), GatewayPolicyError> {
+    for (w, window) in windows.iter().enumerate() {
+        if window.window_seconds == 0 || window.max_requests == 0 {
+            return Err(GatewayPolicyError::Invalid {
+                field: format!("policies[{idx}].spec.rate_windows[{w}]"),
+                reason: "window_seconds and max_requests must both be at least 1".to_owned(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn validate_quota_windows(idx: usize, windows: &[QuotaWindow]) -> Result<(), GatewayPolicyError> {
+    for (w, window) in windows.iter().enumerate() {
+        window
+            .validate_span()
+            .map_err(|reason| GatewayPolicyError::Invalid {
+                field: format!("policies[{idx}].spec.quota_windows[{w}]"),
+                reason: reason.to_owned(),
+            })?;
     }
     Ok(())
 }

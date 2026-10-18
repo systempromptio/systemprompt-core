@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `/files/*` streams from `paths.storage`, then `paths.shipped_files`, then the storage backend, with single-range `206`/`416`, `HEAD`, `If-None-Match` and `If-Range`.
+- `/readyz` reports each config plane's authority, hash and drift, the schema state and a per-replica configuration fingerprint; `/metrics` exports `systemprompt_config_drift_rows`, `systemprompt_config_plane_info`, `systemprompt_config_info`, `db_pool_acquire_seconds` and `projection_backlog_depth`.
+- `server.shutdown` timings drive the shutdown sequence.
+- `secrets.refresh_secs` reloads a `file` secrets source on every replica.
+- An inbound W3C `traceparent` sets the request trace id.
+- A bridge-release token GitHub refuses answers `503` naming the secret to rotate.
+
+### Changed
+
+- **Breaking:** `bind_and_serve` takes a `ShutdownConfig`.
+- `/readyz` re-reads the migration ledger every 60 s and answers `503` with `"schema": "breaking"` once a newer `@compat: breaking` migration is applied; a database that is only ahead keeps serving.
+- The scheduler lifecycle applies `scheduler.unlisted_jobs`.
+
+### Fixed
+
+- `/files/*` refuses a path containing `..` or a control character, matches weak, listed and `*` `If-None-Match`, answers `HEAD` from object metadata and sizes a backend `416` from the object.
+
 ## [0.69.0] - 2026-10-15
 
 ### Added

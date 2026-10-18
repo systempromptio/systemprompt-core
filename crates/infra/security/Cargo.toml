@@ -71,6 +71,7 @@ systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-traits = { workspace = true }
 
 [dev-dependencies]
 wiremock = { workspace = true }

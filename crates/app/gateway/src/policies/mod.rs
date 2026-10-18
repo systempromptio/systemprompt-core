@@ -33,7 +33,9 @@ pub use overrides::{
     OverrideAction, OverrideContext, OverrideContextBuilder, OverrideEngine, OverrideError,
     OverrideResolution, OverrideSource, SystemPromptOverride, SystemPromptOverrideRegistration,
 };
-pub use resolver::{MalformedPolicy, PolicyResolver, PolicyUnavailable, merge_policy_rows};
+pub use resolver::{
+    MalformedPolicy, MalformedSpec, PolicyResolver, PolicyUnavailable, merge_policy_rows,
+};
 pub use route_selector::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, RouteSelectorRegistration,
 };
@@ -43,7 +45,8 @@ pub use safety::{
     SafetyScannerRegistration, ScanError, ScannerFactory, Severity,
 };
 pub use spec::{
-    API_KEY_QUOTA_SUBJECT, DEFAULT_SCANNER_TIMEOUT_MS, GatewayPolicySpec, HeuristicConfig,
-    QuotaMode, QuotaWindow, SafetyConfig, SafetyHistoryMode, SafetyMode, ScannerFailMode,
-    ScannerSettings, USER_QUOTA_SUBJECT,
+    API_KEY_QUOTA_SUBJECT, CalendarPeriod, DEFAULT_SCANNER_TIMEOUT_MS, GatewayPolicySpec,
+    HeuristicConfig, QuotaMode, QuotaWindow, RateSubject, RateWindow, SafetyConfig,
+    SafetyHistoryMode, SafetyMode, ScannerFailMode, ScannerSettings, USER_QUOTA_SUBJECT,
+    WindowSpan,
 };

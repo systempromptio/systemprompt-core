@@ -171,6 +171,7 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
+        .layer(config_state_layer(ctx))
         .with_state(ctx.clone())
 }
 
@@ -180,7 +181,15 @@ pub fn probes_router(ctx: &AppContext) -> Router {
         .route("/health", get(handle_health))
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
+        .layer(config_state_layer(ctx))
         .with_state(ctx.clone())
+}
+
+fn config_state_layer(
+    ctx: &AppContext,
+) -> axum::Extension<std::sync::Arc<systemprompt_scheduler::repository::ConfigReconcileRepository>>
+{
+    axum::Extension(crate::repository::config_plane_state(ctx.db_pool()))
 }
 
 pub fn authenticated_discovery_router(ctx: &AppContext) -> Router {

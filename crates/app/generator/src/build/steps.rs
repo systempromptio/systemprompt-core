@@ -41,7 +41,7 @@ async fn copy_css_file(dist_dir: &Path, css_dir: &Path, file_name: &str) -> Resu
 }
 
 async fn do_copy_css(source: &Path, dest: &Path, file_name: &str) -> Result<()> {
-    fs::copy(source, dest)
+    crate::atomic::copy_atomic(source, dest)
         .await
         .map_err(|cause| BuildError::CssOrganizationFailed {
             context: format!("Failed to copy {file_name} to css/"),

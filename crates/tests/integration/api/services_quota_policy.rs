@@ -114,6 +114,7 @@ async fn reserve_with(
     precheck_and_reserve(
         &quota_repo(p),
         ReserveParams {
+            sharding: systemprompt_manifest::profile::QuotaConfig::default(),
             providers: &providers(p),
             subjects: QuotaSubjects {
                 user_id: user,
@@ -330,6 +331,7 @@ async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
         subject_id: user.as_str(),
         window_seconds: 60,
         window_start,
+        shard: 0,
         delta,
     })
     .await
@@ -340,6 +342,7 @@ async fn settle_trues_up_the_reserved_bucket_across_a_window_boundary() {
             subject_id: user.as_str().to_owned(),
             window_seconds: 60,
             window_start,
+            shard: 0,
             delta,
         }],
     };
@@ -385,6 +388,7 @@ async fn an_attributed_scope_keys_its_window_by_the_attributed_value() {
     let outcome = precheck_and_reserve(
         &quota_repo(&p),
         ReserveParams {
+            sharding: systemprompt_manifest::profile::QuotaConfig::default(),
             providers: &providers(&p),
             subjects: QuotaSubjects {
                 user_id: &user,
@@ -637,6 +641,7 @@ async fn policy_resolver_falls_back_when_empty() {
     let p = pool().await;
     let resolver = PolicyResolver::from_repository(
         systemprompt_ai::repository::AiGatewayPolicyRepository::new(&p),
+        systemprompt_traits::CacheEpochs::new(),
     );
     let _spec1 = resolver
         .resolve(QuotaFaultMode::Open)
@@ -687,9 +692,10 @@ fn unreadable_policy_resolver() -> PolicyResolver {
             std::sync::Arc::new(dead.clone()),
             Some(std::sync::Arc::new(dead)),
         ));
-    PolicyResolver::from_repository(systemprompt_ai::repository::AiGatewayPolicyRepository::new(
-        &db,
-    ))
+    PolicyResolver::from_repository(
+        systemprompt_ai::repository::AiGatewayPolicyRepository::new(&db),
+        systemprompt_traits::CacheEpochs::new(),
+    )
 }
 
 fn policy_row(name: &str, spec: serde_json::Value) -> systemprompt_ai::GatewayPolicyRow {
@@ -716,4 +722,25 @@ fn a_malformed_policy_row_fails_the_merge_instead_of_being_skipped() {
     ];
     let err = merge_policy_rows(rows).expect_err("a malformed row must not be dropped");
     assert_eq!(err.name, "typo");
+}
+
+#[test]
+fn a_stored_quota_window_without_a_span_fails_the_merge() {
+    let rows = vec![policy_row(
+        "spanless",
+        serde_json::json!({ "quota_windows": [{ "max_requests": 10 }] }),
+    )];
+    let err = merge_policy_rows(rows).expect_err("a spanless window must not become a 1s bucket");
+    assert_eq!(err.name, "spanless");
+    assert!(err.to_string().contains("quota_windows[0]"), "{err}");
+}
+
+#[test]
+fn a_stored_calendar_window_merges() {
+    let rows = vec![policy_row(
+        "monthly",
+        serde_json::json!({ "quota_windows": [{ "calendar": "month", "max_requests": 10 }] }),
+    )];
+    let merged = merge_policy_rows(rows).expect("calendar window is valid");
+    assert_eq!(merged.quota_windows.len(), 1);
 }

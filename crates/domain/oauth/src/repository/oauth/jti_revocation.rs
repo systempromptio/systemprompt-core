@@ -14,6 +14,7 @@ use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{AccessTokenId, UserId};
+use systemprompt_traits::{CacheDomain, CacheEpochs};
 
 const NEGATIVE_TTL_SECONDS: u64 = 60;
 
@@ -78,15 +79,24 @@ impl OAuthRepository {
 
 #[derive(Debug, Clone, Copy)]
 enum CacheEntry {
-    NotRevoked { inserted_at: Instant },
+    NotRevoked { inserted_at: Instant, epoch: u64 },
     Revoked,
 }
 
-/// In-memory LRU layered in front of `is_jti_revoked`. Negative results
-/// expire after 60s; positive results are sticky (a revoked jti cannot
-/// become un-revoked).
+/// In-memory LRU layered in front of `is_jti_revoked`.
+///
+/// Negative results
+/// expire after 60s, or as soon as a revocation on any replica advances the
+/// [`CacheDomain::JtiRevocation`] epoch; positive results are sticky (a
+/// revoked jti cannot become un-revoked). A negative result is recorded under
+/// the epoch read before its lookup, so a revocation notified while the lookup
+/// was in flight leaves the entry already stale. A negative result is trusted
+/// only while the invalidation relay is live: with no relay listening a
+/// revocation on another replica cannot reach this cache, so every lookup
+/// goes to the database.
 pub struct JtiRevocationCache {
     cache: Mutex<LruCache<AccessTokenId, CacheEntry>>,
+    epochs: CacheEpochs,
 }
 
 impl std::fmt::Debug for JtiRevocationCache {
@@ -97,16 +107,22 @@ impl std::fmt::Debug for JtiRevocationCache {
 
 impl JtiRevocationCache {
     #[must_use]
-    pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_CACHE_CAPACITY)
+    pub fn new(epochs: CacheEpochs) -> Self {
+        Self::with_capacity(DEFAULT_CACHE_CAPACITY, epochs)
     }
 
     #[must_use]
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: usize, epochs: CacheEpochs) -> Self {
         let cap = NonZeroUsize::new(capacity.max(1)).unwrap_or(NonZeroUsize::MIN);
         Self {
             cache: Mutex::new(LruCache::new(cap)),
+            epochs,
         }
+    }
+
+    #[must_use]
+    pub fn epoch(&self) -> u64 {
+        self.epochs.current(CacheDomain::JtiRevocation)
     }
 
     pub fn peek(&self, jti: &AccessTokenId) -> Option<bool> {
@@ -117,8 +133,11 @@ impl JtiRevocationCache {
             .ok()?;
         match guard.get(jti).copied()? {
             CacheEntry::Revoked => Some(true),
-            CacheEntry::NotRevoked { inserted_at } => {
-                if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS) {
+            CacheEntry::NotRevoked { inserted_at, epoch } => {
+                if inserted_at.elapsed() < Duration::from_secs(NEGATIVE_TTL_SECONDS)
+                    && epoch == self.epoch()
+                    && self.epochs.relay_live()
+                {
                     Some(false)
                 } else {
                     guard.pop(jti);
@@ -128,22 +147,17 @@ impl JtiRevocationCache {
         }
     }
 
-    pub fn record(&self, jti: &AccessTokenId, revoked: bool) {
+    pub fn record(&self, jti: &AccessTokenId, revoked: bool, looked_up_at_epoch: u64) {
         if let Ok(mut guard) = self.cache.lock() {
             let entry = if revoked {
                 CacheEntry::Revoked
             } else {
                 CacheEntry::NotRevoked {
                     inserted_at: Instant::now(),
+                    epoch: looked_up_at_epoch,
                 }
             };
             guard.put(jti.clone(), entry);
         }
-    }
-}
-
-impl Default for JtiRevocationCache {
-    fn default() -> Self {
-        Self::new()
     }
 }

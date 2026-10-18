@@ -66,7 +66,7 @@ mod file_storage_default_method {
     use async_trait::async_trait;
     use std::path::Path;
     use systemprompt_traits::storage::{
-        FileStorage, FileStorageResult, StoredFileId, StoredFileMetadata,
+        ByteRange, FileStorage, FileStorageResult, StoredFileId, StoredFileMetadata, StoredFileRead,
     };
 
     struct MinimalStorage;
@@ -77,8 +77,16 @@ mod file_storage_default_method {
             Ok(StoredFileId::new("stored"))
         }
 
-        async fn retrieve(&self, _id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
-            Ok(Vec::new())
+        async fn open(
+            &self,
+            _id: &StoredFileId,
+            _range: Option<ByteRange>,
+        ) -> FileStorageResult<StoredFileRead> {
+            Ok(StoredFileRead {
+                metadata: self.metadata(&StoredFileId::new("x")).await?,
+                range: None,
+                body: Box::pin(futures::stream::empty()),
+            })
         }
 
         async fn delete(&self, _id: &StoredFileId) -> FileStorageResult<()> {
@@ -91,6 +99,7 @@ mod file_storage_default_method {
                 path: "p".to_string(),
                 mime_type: "text/plain".to_string(),
                 size_bytes: None,
+                etag: None,
                 created_at: chrono::Utc::now(),
                 updated_at: chrono::Utc::now(),
             })
@@ -116,5 +125,68 @@ mod file_storage_default_method {
         );
         assert!(storage.exists(&StoredFileId::new("a")).await.unwrap());
         assert!(storage.public_url(&StoredFileId::new("a")).is_none());
+    }
+}
+
+mod byte_range {
+    use systemprompt_traits::{ByteRange, FileStorageError, ServedRange};
+
+    #[test]
+    fn parses_the_three_single_range_forms() {
+        assert_eq!(
+            ByteRange::parse("bytes=0-499"),
+            Some(ByteRange::Bounded { start: 0, end: 499 })
+        );
+        assert_eq!(ByteRange::parse("bytes=500-"), Some(ByteRange::From(500)));
+        assert_eq!(ByteRange::parse("bytes=-200"), Some(ByteRange::Suffix(200)));
+    }
+
+    #[test]
+    fn rejects_multi_inverted_and_malformed_ranges() {
+        for raw in [
+            "bytes=0-1,4-5",
+            "bytes=5-2",
+            "bytes=-",
+            "items=0-1",
+            "bytes=a-b",
+            "",
+        ] {
+            assert_eq!(ByteRange::parse(raw), None, "{raw}");
+        }
+    }
+
+    #[test]
+    fn resolves_against_the_object_size() {
+        let r = ByteRange::Bounded {
+            start: 90,
+            end: 500,
+        }
+        .resolve(100)
+        .unwrap();
+        assert_eq!(
+            r,
+            ServedRange {
+                start: 90,
+                end: 99,
+                size: 100
+            }
+        );
+        assert_eq!(r.length(), 10);
+        assert_eq!(r.content_range(), "bytes 90-99/100");
+        assert!(matches!(
+            ByteRange::From(100).resolve(100),
+            Err(FileStorageError::RangeNotSatisfiable { size: 100 })
+        ));
+        assert!(ByteRange::From(0).resolve(0).is_err());
+    }
+
+    #[test]
+    fn renders_the_request_header() {
+        assert_eq!(ByteRange::Suffix(3).header_value(), "bytes=-3");
+        assert_eq!(ByteRange::From(3).header_value(), "bytes=3-");
+        assert_eq!(
+            ByteRange::Bounded { start: 1, end: 2 }.header_value(),
+            "bytes=1-2"
+        );
     }
 }

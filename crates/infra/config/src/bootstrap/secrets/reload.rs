@@ -6,7 +6,7 @@
 //! exposure the former `OnceLock` had for the single generation it held.
 //! Growth is bounded because a reload only leaks when a value actually
 //! changed, and scheduled reloads run no more often than the 60 s floor on
-//! `secrets.external.refresh_secs`.
+//! `secrets.refresh_secs` (a `file` source) or `secrets.external.refresh_secs`.
 //!
 //! The keys in [`PINNED_SECRET_KEYS`] are fixed for the life of the process:
 //! data sealed, signed or connected with the old value would stop verifying,
@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-use systemprompt_manifest::profile::{MIN_EXTERNAL_REFRESH_SECS, SecretsSource};
+use systemprompt_manifest::profile::{MIN_EXTERNAL_REFRESH_SECS, SecretsConfig, SecretsSource};
 use systemprompt_manifest::secrets::Secrets;
 
 use super::{SecretsBootstrap, SecretsBootstrapError, loader};
@@ -33,6 +33,8 @@ pub const PINNED_SECRET_KEYS: &[&str] = &[
     "oauth_at_rest_pepper",
     "manifest_signing_secret_seed",
     "database_url",
+    "database_write_url",
+    "database_session_url",
     "signing_key_pem",
     "jwt_secret",
 ];
@@ -167,13 +169,27 @@ impl SecretsBootstrap {
 
     #[must_use]
     pub fn refresh_interval() -> Option<Duration> {
-        let config = ProfileBootstrap::get().ok()?.secrets.as_ref()?;
-        if config.source != SecretsSource::External {
-            return None;
-        }
-        let secs = config.external.as_ref()?.refresh_secs?;
-        Some(Duration::from_secs(secs.max(MIN_EXTERNAL_REFRESH_SECS)))
+        refresh_interval_for(ProfileBootstrap::get().ok()?.secrets.as_ref()?)
     }
+
+    pub fn key_names() -> Result<Vec<String>, SecretsBootstrapError> {
+        let active = current().ok_or(SecretsBootstrapError::NotInitialized)?;
+        Ok(as_fields(active)?
+            .into_iter()
+            .filter(|(_, value)| !value.is_null())
+            .map(|(key, _)| key)
+            .collect())
+    }
+}
+
+#[must_use]
+pub fn refresh_interval_for(config: &SecretsConfig) -> Option<Duration> {
+    let secs = match config.source {
+        SecretsSource::File => config.refresh_secs?,
+        SecretsSource::External => config.external.as_ref()?.refresh_secs?,
+        SecretsSource::Env | SecretsSource::Vault => return None,
+    };
+    Some(Duration::from_secs(secs.max(MIN_EXTERNAL_REFRESH_SECS)))
 }
 
 fn record_reload(error: Option<&ConfigError>) {

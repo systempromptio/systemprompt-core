@@ -11,7 +11,9 @@ use systemprompt_cli::CliConfig;
 use systemprompt_cli::admin::config::config_section::{
     ConfigSection, read_yaml_file, write_yaml_file,
 };
-use systemprompt_cli::admin::config::validate::{ValidateArgs, execute, unknown_jobs_message};
+use systemprompt_cli::admin::config::validate::{
+    ValidateArgs, execute, unknown_jobs_message, unlisted_jobs_message,
+};
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
     ContentNegotiationConfig, ExtensionsConfig, PathsConfig, Profile, ProfileDatabaseConfig,
@@ -26,6 +28,7 @@ fn make_profile(services: &Path) -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "test".to_string(),
         display_name: "Test".to_string(),
         target: ProfileType::Local,
@@ -54,6 +57,7 @@ fn make_profile(services: &Path) -> Profile {
             max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
             role: Default::default(),
             max_in_flight: None,
+            shutdown: Default::default(),
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
@@ -63,6 +67,8 @@ fn make_profile(services: &Path) -> Profile {
             web_path: None,
             storage: None,
             geoip_database: None,
+            shipped_files: None,
+            data: None,
         },
         security: SecurityConfig {
             issuer: "https://issuer.test".to_string(),
@@ -72,6 +78,7 @@ fn make_profile(services: &Path) -> Profile {
             allowed_resource_audiences: vec![],
             allow_registration: true,
             allow_dynamic_client_registration: true,
+            api_keys: Default::default(),
             login_page_url: None,
             signing_key_path: PathBuf::from("/tmp/test-signing-key.pem"),
             trusted_issuers: vec![],
@@ -294,4 +301,21 @@ fn validate_names_every_unregistered_scheduler_job() {
     assert!(message.contains("access_control_sync"), "got: {message}");
     assert!(message.contains("content_sync"), "got: {message}");
     assert!(message.contains("infra jobs list"), "got: {message}");
+}
+
+#[test]
+fn strict_validation_names_registered_jobs_the_config_omits() {
+    let config = SchedulerConfig::with_system_admin();
+    let message = unlisted_jobs_message(&config).expect("the built-in set omits the rollups");
+    assert!(message.contains("trace_facts_rollup"), "got: {message}");
+    assert!(!message.contains("database_cleanup"), "got: {message}");
+}
+
+#[test]
+fn strict_validation_passes_once_every_job_is_named() {
+    let mut config = SchedulerConfig::with_system_admin();
+    for name in systemprompt_scheduler::unlisted_job_names(&config) {
+        config.jobs.push(JobConfig::new(name).disabled());
+    }
+    assert!(unlisted_jobs_message(&config).is_none());
 }

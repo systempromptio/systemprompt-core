@@ -74,8 +74,10 @@ fn build_jwt_extractor(ctx: &AppContext) -> anyhow::Result<Arc<JwtContextExtract
     let user_provider = ctx
         .user_provider()
         .ok_or_else(|| anyhow::anyhow!("gateway requires a user provider"))?;
-    let jti_revocation =
-        JtiRevocationChecker::from_repository(ctx.oauth_repositories().oauth.clone());
+    let jti_revocation = JtiRevocationChecker::from_repository(
+        ctx.oauth_repositories().oauth.clone(),
+        ctx.cache_epochs().clone(),
+    );
     Ok(Arc::new(JwtContextExtractor::new(
         sessions,
         user_provider,
@@ -91,16 +93,18 @@ pub fn gateway_repositories(
         ctx.app_paths().storage().data(),
         systemprompt_config::SecretsBootstrap::get()?,
     )?;
-    let payload_cap_bytes = systemprompt_config::ProfileBootstrap::get()?.payload_cap_bytes();
+    let profile = systemprompt_config::ProfileBootstrap::get()?;
     Ok(systemprompt_gateway::GatewayRepositories::new(
         ctx.db_pool(),
         journal,
         ctx.context_materializer(),
         ctx.background_tasks().clone(),
+        ctx.cache_epochs().clone(),
     )
     .with_artifact_ingest(ctx.artifact_ingest_arc())
     .with_session_store(ctx.session_store())
-    .with_payload_cap(payload_cap_bytes))
+    .with_payload_cap(profile.payload_cap_bytes())
+    .with_quota_sharding(profile.quota_config()))
 }
 
 struct GatewayParts {

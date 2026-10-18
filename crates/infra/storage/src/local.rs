@@ -6,11 +6,14 @@
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use systemprompt_traits::{
-    FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    ByteRange, FileStorage, FileStorageError, FileStorageResult, StoredFileId, StoredFileMetadata,
+    StoredFileRead,
 };
 use tokio::fs;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+use tokio_util::io::ReaderStream;
 
 use crate::object_id::{id_for, mime_for, relative_path};
 
@@ -58,6 +61,29 @@ impl std::error::Error for StoredFileIoError {
     }
 }
 
+fn describe(id: &StoredFileId, full: &Path, meta: &std::fs::Metadata) -> StoredFileMetadata {
+    let created_at = meta.created().or_else(|_| meta.modified()).map_or_else(
+        |_| chrono::Utc::now(),
+        chrono::DateTime::<chrono::Utc>::from,
+    );
+    let updated_at = meta
+        .modified()
+        .map_or(created_at, chrono::DateTime::<chrono::Utc>::from);
+    StoredFileMetadata {
+        id: id.clone(),
+        path: id.as_str().to_owned(),
+        mime_type: mime_for(full).to_owned(),
+        size_bytes: i64::try_from(meta.len()).ok(),
+        etag: Some(format!(
+            "\"{:x}-{:x}\"",
+            meta.len(),
+            updated_at.timestamp_nanos_opt().unwrap_or_default()
+        )),
+        created_at,
+        updated_at,
+    }
+}
+
 fn not_found(id: &StoredFileId, err: std::io::Error) -> FileStorageError {
     if err.kind() == std::io::ErrorKind::NotFound {
         FileStorageError::NotFound(id.as_str().to_owned())
@@ -98,9 +124,31 @@ impl FileStorage for LocalFileStorage {
         Ok(id_for(relative))
     }
 
-    async fn retrieve(&self, id: &StoredFileId) -> FileStorageResult<Vec<u8>> {
+    async fn open(
+        &self,
+        id: &StoredFileId,
+        range: Option<ByteRange>,
+    ) -> FileStorageResult<StoredFileRead> {
         let full = self.resolve(id)?;
-        fs::read(&full).await.map_err(|err| not_found(id, err))
+        let mut file = fs::File::open(&full)
+            .await
+            .map_err(|err| not_found(id, err))?;
+        let meta = file.metadata().await?;
+        if !meta.is_file() {
+            return Err(FileStorageError::NotFound(id.as_str().to_owned()));
+        }
+        let size = meta.len();
+        let served = range.map(|r| r.resolve(size)).transpose()?;
+        let (start, len) = served.map_or((0, size), |r| (r.start, r.length()));
+        if start > 0 {
+            file.seek(std::io::SeekFrom::Start(start)).await?;
+        }
+        let body = ReaderStream::new(file.take(len)).map_err(FileStorageError::Io);
+        Ok(StoredFileRead {
+            metadata: describe(id, &full, &meta),
+            range: served,
+            body: Box::pin(body),
+        })
     }
 
     async fn delete(&self, id: &StoredFileId) -> FileStorageResult<()> {
@@ -115,21 +163,10 @@ impl FileStorage for LocalFileStorage {
         let meta = fs::metadata(&full)
             .await
             .map_err(|err| not_found(id, err))?;
-        let created_at = meta.created().or_else(|_| meta.modified()).map_or_else(
-            |_| chrono::Utc::now(),
-            chrono::DateTime::<chrono::Utc>::from,
-        );
-        let updated_at = meta
-            .modified()
-            .map_or(created_at, chrono::DateTime::<chrono::Utc>::from);
-        Ok(StoredFileMetadata {
-            id: id.clone(),
-            path: id.as_str().to_owned(),
-            mime_type: mime_for(&full).to_owned(),
-            size_bytes: i64::try_from(meta.len()).ok(),
-            created_at,
-            updated_at,
-        })
+        if !meta.is_file() {
+            return Err(FileStorageError::NotFound(id.as_str().to_owned()));
+        }
+        Ok(describe(id, &full, &meta))
     }
 
     async fn exists(&self, id: &StoredFileId) -> FileStorageResult<bool> {

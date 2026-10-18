@@ -146,6 +146,8 @@ async fn files_config_validator_validate_when_initialised() {
                 web_path: Some(p.clone()),
                 storage: Some(p),
                 geoip_database: None,
+                shipped_files: None,
+                data: None,
             },
             systemprompt_manifest::PathResolution::Canonicalize,
             None,

@@ -12,6 +12,7 @@ use systemprompt_models::auth::JwtAudience;
 
 fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {
+        quota: Default::default(),
         authz: Some(AuthzConfig {
             hook: AuthzHookConfig {
                 mode: AuthzMode::Webhook,
@@ -40,6 +41,7 @@ fn server_config() -> ServerConfig {
         max_concurrent_streams: systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
         role: Default::default(),
         max_in_flight: None,
+        shutdown: Default::default(),
         trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
     }
 }
@@ -53,6 +55,7 @@ fn security_config() -> SecurityConfig {
         allowed_resource_audiences: default_resource_audiences(),
         allow_registration: true,
         allow_dynamic_client_registration: true,
+        api_keys: Default::default(),
         login_page_url: None,
         signing_key_path: std::path::PathBuf::from("/tmp/test-signing-key.pem"),
         trusted_issuers: vec![],
@@ -68,6 +71,8 @@ fn local_paths() -> PathsConfig {
         web_path: None,
         storage: Some("/tmp/storage".to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -79,6 +84,8 @@ fn cloud_paths() -> PathsConfig {
         web_path: Some("/app/web".to_string()),
         storage: Some("/app/storage".to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     }
 }
 
@@ -86,6 +93,7 @@ pub(crate) fn valid_profile() -> Profile {
     Profile {
         storage: Default::default(),
         observability: Default::default(),
+        config_planes: Default::default(),
         name: "p".to_string(),
         display_name: "Profile P".to_string(),
         target: ProfileType::Local,
@@ -147,6 +155,23 @@ mod storage {
     }
 
     #[test]
+    fn shared_local_storage_requires_a_node_local_data_root() {
+        let mut p = valid_profile();
+        p.storage = StorageConfig {
+            backend: StorageBackend::Local,
+            shared: true,
+            ..StorageConfig::default()
+        };
+        assert!(errors_of(&p).contains("paths.data"));
+
+        p.paths.data = Some("/var/lib/systemprompt/node".to_string());
+        assert!(p.validate().is_ok(), "{:?}", p.validate());
+
+        p.paths.data = Some(String::new());
+        assert!(errors_of(&p).contains("paths.data must not be empty"));
+    }
+
+    #[test]
     fn storage_section_defaults_to_local_unshared() {
         let p = valid_profile();
         assert_eq!(p.storage.backend, StorageBackend::Local);
@@ -155,10 +180,10 @@ mod storage {
 
     #[test]
     fn storage_section_rejects_unknown_backend_and_fields() {
-        let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "s3"}"#)
-            .expect_err("s3 is not a backend");
-        assert!(err.to_string().contains("s3"));
-        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "region": "x"}"#)
+        let err = serde_json::from_str::<StorageConfig>(r#"{"backend": "azure"}"#)
+            .expect_err("azure is not a backend");
+        assert!(err.to_string().contains("azure"));
+        serde_json::from_str::<StorageConfig>(r#"{"backend": "local", "zone": "x"}"#)
             .expect_err("unknown field must be rejected");
         let cfg: StorageConfig =
             serde_json::from_str(r#"{"shared": true}"#).expect("shared alone parses");
@@ -241,6 +266,29 @@ mod security_settings {
     }
 
     #[test]
+    fn zero_api_key_max_lifetime_rejected() {
+        let mut p = valid_profile();
+        p.security.api_keys.max_lifetime_days = Some(0);
+        assert!(errors_of(&p).contains("api_keys.max_lifetime_days must be greater than 0"));
+    }
+
+    #[test]
+    fn positive_api_key_max_lifetime_accepted() {
+        let mut p = valid_profile();
+        p.security.api_keys.max_lifetime_days = Some(90);
+        assert!(!errors_of(&p).contains("max_lifetime_days"));
+    }
+
+    #[test]
+    fn registration_flags_default_closed() {
+        let yaml = "jwt_issuer: https://issuer.test\njwt_access_token_expiration: 3600\njwt_refresh_token_expiration: 86400\njwt_audiences: [api]\n";
+        let security: SecurityConfig = serde_yaml::from_str(yaml).unwrap();
+        assert!(!security.allow_registration);
+        assert!(!security.allow_dynamic_client_registration);
+        assert_eq!(security.api_keys.max_lifetime_days, None);
+    }
+
+    #[test]
     fn missing_hook_audience_rejected() {
         let mut p = valid_profile();
         p.security.allowed_resource_audiences = vec![];
@@ -302,6 +350,16 @@ mod database_pool {
     }
 
     #[test]
+    fn zero_session_max_connections_rejected() {
+        let mut p = valid_profile();
+        p.database.pool = Some(PoolConfig {
+            session_max_connections: Some(0),
+            ..PoolConfig::default()
+        });
+        assert!(errors_of(&p).contains("database.pool.session_max_connections"));
+    }
+
+    #[test]
     fn zero_acquire_timeout_rejected() {
         let mut p = valid_profile();
         p.database.pool = Some(PoolConfig {
@@ -320,6 +378,8 @@ mod database_pool {
             idle_timeout_secs: Some(600),
             max_lifetime_secs: Some(3600),
             statement_cache_capacity: Some(100),
+            max_connections_by_role: None,
+            session_max_connections: Some(10),
         });
         assert!(!errors_of(&p).contains("database.pool"));
     }
@@ -504,6 +564,7 @@ mod governance_validation {
     fn cloud_profile_with_empty_authz_rejected() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: None,
             audit: AuditConfig::default(),
         });
@@ -523,6 +584,7 @@ mod governance_validation {
     fn cloud_unrestricted_without_acknowledgement_rejected() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: Some(AuthzConfig {
                 hook: AuthzHookConfig {
                     mode: AuthzMode::Unrestricted,
@@ -540,6 +602,7 @@ mod governance_validation {
     fn cloud_unrestricted_with_acknowledgement_passes() {
         let mut p = cloud_profile();
         p.governance = Some(GovernanceConfig {
+            quota: Default::default(),
             authz: Some(AuthzConfig {
                 hook: AuthzHookConfig {
                     mode: AuthzMode::Unrestricted,

@@ -67,6 +67,11 @@ pub enum ProfileError {
     )]
     ExternalBlockUnexpected { secrets_source: &'static str },
 
-    #[error("secrets.external.refresh_secs must be at least 60, got {secs}")]
-    RefreshIntervalOutOfRange { secs: u64 },
+    #[error("{field} must be at least 60, got {secs}")]
+    RefreshIntervalOutOfRange { field: &'static str, secs: u64 },
+
+    #[error(
+        "secrets.refresh_secs is only valid with secrets.source 'file', got '{secrets_source}'"
+    )]
+    RefreshSecsUnexpected { secrets_source: &'static str },
 }

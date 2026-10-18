@@ -27,10 +27,10 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_manifest::Config;
+use systemprompt_manifest::{Config, Profile};
 use systemprompt_security::authz::SharedAuthzHook;
 use systemprompt_security::policy::GovernanceEngine;
-use systemprompt_traits::FileStorage;
+use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;
 
@@ -41,6 +41,7 @@ pub(super) struct CoreLayer {
     pub(super) authz_hook: SharedAuthzHook,
     pub(super) governance: Arc<GovernanceEngine>,
     pub(super) file_storage: Arc<dyn FileStorage>,
+    pub(super) cache_epochs: CacheEpochs,
 }
 
 async fn init_services(
@@ -89,15 +90,7 @@ pub(super) async fn init_core(
 
     systemprompt_security::keys::authority::init()?;
 
-    let pool_config = pool_config_from_profile(profile.database.pool.as_ref());
-    let database = Arc::new(
-        Database::connect(
-            &config.database_url,
-            config.database_write_url.as_deref(),
-            &pool_config,
-        )
-        .await?,
-    );
+    let database = connect_database(profile, &config).await?;
 
     validate_write_pool_is_primary(&database).await?;
 
@@ -109,18 +102,25 @@ pub(super) async fn init_core(
     )
     .await?;
 
+    let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
     let authz_hook = systemprompt_security::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
         chain_sources()?,
+        cache_epochs.clone(),
     )?;
 
-    let governance = Arc::new(GovernanceEngine::from_services_root(std::path::Path::new(
-        &profile.paths.services,
-    ))?);
+    let governance = Arc::new(
+        GovernanceEngine::from_services_root(active_root.path.as_path())?.with_rate_windows(
+            systemprompt_security::policy::RateWindowRepository::new(
+                database.write_pool().as_ref().clone(),
+            ),
+        ),
+    );
 
+    systemprompt_logging::set_console_format(profile.observability.log_format);
     systemprompt_logging::init_logging(&database);
 
     if config.database_write_url.is_some() {
@@ -136,6 +136,7 @@ pub(super) async fn init_core(
         authz_hook,
         governance,
         file_storage,
+        cache_epochs,
     })
 }
 
@@ -166,6 +167,7 @@ fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> 
 
 fn pool_config_from_profile(
     profile_pool: Option<&systemprompt_manifest::profile::PoolConfig>,
+    role: systemprompt_manifest::profile::NodeRole,
 ) -> PoolConfig {
     use std::time::Duration;
 
@@ -173,7 +175,7 @@ fn pool_config_from_profile(
     let Some(p) = profile_pool else {
         return cfg;
     };
-    if let Some(max) = p.max_connections {
+    if let Some(max) = p.max_connections_for(role) {
         cfg.max_connections = max;
     }
     if let Some(secs) = p.acquire_timeout_secs {
@@ -211,18 +213,47 @@ pub(super) async fn init_extensions(
 
     let report = if schema.install {
         let report =
-            install_extension_schemas_full(&registry, database.write(), &[], migration_config)
+            install_extension_schemas_full(&registry, database.session(), &[], migration_config)
                 .await?;
+        crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
+        crate::schema_currency::warn_ahead(&report.ahead);
         systemprompt_database::mark_schema_changed();
         report
-    } else {
-        if schema.verify {
-            let profile = ProfileBootstrap::get()?;
+    } else if schema.verify {
+        let profile = ProfileBootstrap::get()?;
+        let ahead =
             crate::schema_currency::assert_schema_current(&registry, database.write(), profile)
                 .await?;
+        SchemaInstallReport {
+            ahead,
+            ..SchemaInstallReport::default()
         }
+    } else {
         SchemaInstallReport::default()
     };
 
     Ok((Arc::new(registry), report))
+}
+
+async fn connect_database(profile: &Profile, config: &Config) -> RuntimeResult<Arc<Database>> {
+    let pool_config = pool_config_from_profile(profile.database.pool.as_ref(), profile.server.role);
+    Ok(Arc::new(
+        Database::connect(
+            &config.database_url,
+            config.database_write_url.as_deref(),
+            &pool_config,
+        )
+        .await?
+        .with_session_url(
+            config.database_session_url.as_deref(),
+            &pool_config.for_session(
+                profile
+                    .database
+                    .pool
+                    .as_ref()
+                    .and_then(|p| p.session_max_connections),
+            ),
+        )
+        .await?,
+    ))
 }

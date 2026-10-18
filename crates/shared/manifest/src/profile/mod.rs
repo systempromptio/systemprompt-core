@@ -12,12 +12,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod cloud;
+mod config_planes;
 mod database;
 mod error;
 mod external_secrets;
 mod governance;
 mod info;
 mod judge;
+mod masking;
 mod node_role;
 mod observability;
 mod oci_reference;
@@ -29,6 +31,7 @@ mod secrets;
 mod security;
 mod server;
 mod services;
+mod shutdown;
 mod site;
 mod storage;
 mod style;
@@ -36,17 +39,20 @@ mod validation;
 mod vault;
 
 pub use cloud::{CloudConfig, CloudValidationMode};
-pub use database::{DatabaseConfig, PoolConfig};
+pub use config_planes::{ConfigPlanesConfig, PlaneAuthority};
+pub use database::{DatabaseConfig, PoolConfig, RoleMaxConnections};
 pub use error::{ProfileError, ProfileResult};
 pub use external_secrets::{ExternalSecretsConfig, MIN_EXTERNAL_REFRESH_SECS};
 pub use governance::{
-    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
+    AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig, QuotaConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
 pub use info::ProfileInfo;
 pub use judge::JudgeProfile;
 pub use node_role::NodeRole;
-pub use observability::{ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal};
+pub use observability::{
+    LogFormat, ObservabilityConfig, OtlpExportConfig, OtlpProtocol, OtlpSignal,
+};
 pub use oci_reference::{OciReference, OciReferenceError};
 pub use paths::{PathsConfig, expand_home, resolve_path, resolve_with_home};
 pub use rate_limits::{
@@ -59,8 +65,8 @@ pub use retention::RetentionConfig;
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::{
-    DEFAULT_ID_JAG_TTL_SECS, GATEWAY_REQUIRED_RESOURCE_AUDIENCES, SecurityConfig, TrustedIssuer,
-    default_resource_audiences,
+    ApiKeyPolicyConfig, DEFAULT_ID_JAG_TTL_SECS, GATEWAY_REQUIRED_RESOURCE_AUDIENCES,
+    SecurityConfig, TrustedIssuer, default_resource_audiences,
 };
 pub use server::{
     ContentNegotiationConfig, FrameOptions, ReferrerPolicy, SecurityHeadersConfig, ServerConfig,
@@ -68,6 +74,9 @@ pub use server::{
 pub use services::{
     BundleVerification, FetchFailurePolicy, HttpsServicesSource, OciServicesSource,
     ServicesProfileConfig, ServicesSource,
+};
+pub use shutdown::{
+    MAX_DRAIN_GRACE_SECS, MAX_PRE_STOP_DELAY_SECS, STREAM_FLUSH_GRACE_SECS, ShutdownConfig,
 };
 pub use site::SiteConfig;
 pub use storage::{GcsCredentials, StorageBackend, StorageConfig};
@@ -172,6 +181,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub observability: ObservabilityConfig,
+
+    #[serde(default)]
+    pub config_planes: ConfigPlanesConfig,
 }
 
 const MOVED_SECTIONS: &[(&str, &str)] = &[
@@ -252,6 +264,12 @@ impl Profile {
             })
     }
 
+    pub fn quota_config(&self) -> QuotaConfig {
+        self.governance
+            .as_ref()
+            .map_or_else(QuotaConfig::default, |governance| governance.quota)
+    }
+
     pub fn profile_style(&self) -> ProfileStyle {
         match self.name.to_lowercase().as_str() {
             "dev" | "development" | "local" => ProfileStyle::Development,
@@ -260,30 +278,5 @@ impl Profile {
             "test" | "testing" => ProfileStyle::Test,
             _ => ProfileStyle::Custom,
         }
-    }
-
-    pub fn mask_secret(value: &str, visible_chars: usize) -> String {
-        if value.is_empty() {
-            return "(not set)".to_owned();
-        }
-        if value.len() <= visible_chars {
-            return "***".to_owned();
-        }
-        format!("{}...", &value[..visible_chars])
-    }
-
-    pub fn mask_database_url(url: &str) -> String {
-        if let Some(at_pos) = url.find('@')
-            && let Some(colon_pos) = url[..at_pos].rfind(':')
-        {
-            let prefix = &url[..=colon_pos];
-            let suffix = &url[at_pos..];
-            return format!("{}***{}", prefix, suffix);
-        }
-        url.to_owned()
-    }
-
-    pub fn is_masked_database_url(url: &str) -> bool {
-        url.contains(":***@") || url.contains(":********@")
     }
 }

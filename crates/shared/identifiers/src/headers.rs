@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub const TRACE_ID: &str = "x-trace-id";
+pub const TRACEPARENT: &str = "traceparent";
 pub const CONTEXT_ID: &str = "x-context-id";
 pub const GATEWAY_CONVERSATION_ID: &str = "x-gateway-conversation-id";
 pub const PROVIDER_REQUEST_ID: &str = "x-provider-request-id";

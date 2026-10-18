@@ -25,6 +25,11 @@ export class SpSetupHealth extends SpElement {
         : (t("setup-health-ran-ok") || "All checks passed."),
       context: t("setup-health-run") || "Re-check",
     }));
+    this.registerAction("sync", (trigger) => runAction(trigger, {
+      run: () => bridge.sync(),
+      success: () => t("sync-done") || "Synced.",
+      context: t("sync-now") || "Sync now",
+    }));
     this.registerAction("toggle-failures", () => {
       this._failuresOnly = !this._failuresOnly;
       this.invalidate();
@@ -59,7 +64,7 @@ export class SpSetupHealth extends SpElement {
     const body = rows.length
       ? rows.map((r) => {
         const action = r.action
-          ? `<button type="button" class="sp-btn-ghost" data-action="repair" data-host="${escapeHtml(r.action.hostId)}">${escapeHtml(r.action.label)}</button>`
+          ? `<button type="button" class="sp-btn-ghost" data-action="${escapeHtml(r.action.kind)}" data-host="${escapeHtml(r.action.hostId)}">${escapeHtml(r.action.label)}</button>`
           : "";
         return `
         <tr data-key="${escapeHtml(`${r.tone}:${r.label}:${r.value}`)}">

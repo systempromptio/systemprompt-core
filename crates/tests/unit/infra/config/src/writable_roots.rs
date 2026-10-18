@@ -16,6 +16,8 @@ fn app_paths(root: &Path) -> AppPaths {
         web_path: Some(root.join("web").display().to_string()),
         storage: Some(root.join("storage").display().to_string()),
         geoip_database: None,
+        shipped_files: None,
+        data: None,
     };
     AppPaths::from_profile(&cfg, PathResolution::Lexical, None).expect("lexical resolve")
 }

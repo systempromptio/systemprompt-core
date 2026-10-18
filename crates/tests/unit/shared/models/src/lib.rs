@@ -78,6 +78,9 @@ mod profile_gateway;
 mod profile_gateway_chains;
 
 #[cfg(test)]
+mod profile_gateway_hidden;
+
+#[cfg(test)]
 mod profile_secrets_vault;
 
 #[cfg(test)]
@@ -95,6 +98,8 @@ mod profile_judge;
 mod profile_observability;
 #[cfg(test)]
 mod profile_server_capacity;
+#[cfg(test)]
+mod profile_server_shutdown;
 
 #[cfg(test)]
 mod oci_reference;
@@ -297,10 +302,18 @@ mod wire_stream_abort;
 mod wire_stream_usage_order;
 
 #[cfg(test)]
+mod profile_config_planes;
+#[cfg(test)]
 mod profile_validation;
 
 #[cfg(test)]
+mod profile_database_scaling;
+
+#[cfg(test)]
 mod profile_storage_gcs;
+
+#[cfg(test)]
+mod profile_storage_s3;
 
 #[cfg(test)]
 mod auth_claims;

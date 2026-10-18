@@ -31,7 +31,7 @@ pub async fn smart_fallback_handler(
         .into_response();
     }
 
-    super::serve_static_content(State(state), uri, headers, req_ctx)
+    super::serve_static_content(State(state), uri, method, headers, req_ctx)
         .await
         .into_response()
 }

@@ -21,6 +21,7 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
@@ -153,6 +154,7 @@ impl AppContextBuilder {
             authz_hook,
             governance,
             file_storage,
+            cache_epochs,
         } = init_core(self.authz_hook).await?;
 
         let (extension_registry, schema_install) = init_extensions(
@@ -190,11 +192,10 @@ impl AppContextBuilder {
             system_admin,
             authz_hook,
             governance,
-            schema_install: Arc::new(schema_install),
+            cache_epochs,
+            schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(OnceLock::new()),
-            event_router: self
-                .event_router
-                .unwrap_or_else(|| outbox_router(&database, &config.instance_id)),
+            event_router: event_router_or_outbox(self.event_router, &database, &config),
             geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
@@ -227,11 +228,17 @@ impl AppContextBuilder {
     }
 }
 
-fn outbox_router(
+fn event_router_or_outbox(
+    configured: Option<EventRouter>,
     database: &systemprompt_database::DbPool,
-    instance_id: &systemprompt_identifiers::InstanceId,
+    config: &Config,
 ) -> EventRouter {
-    EventRouter::with_outbox(database.write_pool().as_ref().clone(), instance_id.clone())
+    configured.unwrap_or_else(|| {
+        EventRouter::with_outbox(
+            database.write_pool().as_ref().clone(),
+            config.instance_id.clone(),
+        )
+    })
 }
 
 fn build_artifact_ingest(
@@ -248,7 +255,7 @@ fn build_artifact_ingest(
 }
 
 async fn build_domain_layer(
-    config: &systemprompt_manifest::Config,
+    config: &Config,
     database: &systemprompt_database::DbPool,
     analytics_repositories: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
 ) -> RuntimeResult<(

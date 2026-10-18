@@ -18,6 +18,7 @@ pub mod gemini;
 pub mod openai_chat;
 pub mod openai_responses;
 pub mod retry;
+pub mod trace_context;
 
 use std::sync::Arc;
 use systemprompt_identifiers::ProviderRequestId;
@@ -131,6 +132,7 @@ pub(crate) async fn send_checked(
     req: reqwest::RequestBuilder,
 ) -> Result<reqwest::Response, UpstreamError> {
     let policy = retry::current_policy();
+    let req = trace_context::stamp(req);
     let (response, _retries) = retry::send_with_retry(provider, req, &policy).await?;
     Ok(response)
 }

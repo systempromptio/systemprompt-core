@@ -246,6 +246,7 @@ async fn replay() -> Result<()> {
             systemprompt_agent::repository::ContextRepository::new(&db),
         )),
         background.clone(),
+        systemprompt_traits::CacheEpochs::new(),
     );
     let cred = seed_admin_credential(
         &db,
@@ -364,6 +365,7 @@ async fn replay() -> Result<()> {
                         inbound: Arc::clone(&inbound),
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                     },
                 ),
@@ -421,6 +423,7 @@ async fn replay() -> Result<()> {
                         inbound,
                         forward_headers: vec![],
                         identity_headers: vec![],
+                        trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
                     },
                 ),

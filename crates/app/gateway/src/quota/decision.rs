@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use systemprompt_ai::repository::QuotaBucketState;
 
-use crate::policies::QuotaWindow;
+use crate::policies::{QuotaWindow, WindowSpan};
 
 /// The ceiling of a quota window that a request breached.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -47,10 +47,10 @@ pub struct QuotaDetail {
 }
 
 impl QuotaDetail {
-    fn new(window: &QuotaWindow, window_start: DateTime<Utc>, now: DateTime<Utc>) -> Self {
-        let resets_at = window_start + Duration::seconds(i64::from(window.window_seconds.max(1)));
+    fn new(window: &QuotaWindow, span: WindowSpan, now: DateTime<Utc>) -> Self {
+        let resets_at = span.end;
         Self {
-            window_seconds: window.window_seconds,
+            window_seconds: span.bucket_seconds,
             subject: window.subject.clone(),
             dimension: None,
             limit: None,
@@ -80,25 +80,26 @@ const EMPTY_STATE: QuotaBucketState = QuotaBucketState {
 pub(super) fn fault_decision(
     window: &QuotaWindow,
     fault: &str,
-    window_start: DateTime<Utc>,
+    span: WindowSpan,
     now: DateTime<Utc>,
 ) -> QuotaDecision {
     QuotaDecision {
         allow: false,
-        window_seconds: window.window_seconds,
+        window_seconds: span.bucket_seconds,
         message: format!(
-            "quota window {}s for subject '{}' could not be evaluated: {fault}",
-            window.window_seconds, window.subject
+            "quota window {} for subject '{}' could not be evaluated: {fault}",
+            window.label(),
+            window.subject
         ),
         state: EMPTY_STATE,
-        detail: QuotaDetail::new(window, window_start, now),
+        detail: QuotaDetail::new(window, span, now),
     }
 }
 
 pub(super) fn ceiling_decision(
     window: &QuotaWindow,
     state: QuotaBucketState,
-    window_start: DateTime<Utc>,
+    span: WindowSpan,
     now: DateTime<Utc>,
 ) -> Option<QuotaDecision> {
     let (dimension, max, used, label, verb, unit) = [
@@ -140,16 +141,17 @@ pub(super) fn ceiling_decision(
         Some(max) if used > max => Some((dimension, max, used, label, verb, unit)),
         _ => None,
     })?;
-    let mut detail = QuotaDetail::new(window, window_start, now);
+    let mut detail = QuotaDetail::new(window, span, now);
     detail.dimension = Some(dimension);
     detail.limit = Some(max);
     detail.used = Some(used);
     Some(QuotaDecision {
         allow: false,
-        window_seconds: window.window_seconds,
+        window_seconds: span.bucket_seconds,
         message: format!(
-            "{label} ceiling exceeded for {} window {}s ({verb} {used}/{max}{unit})",
-            window.subject, window.window_seconds
+            "{label} ceiling exceeded for {} window {} ({verb} {used}/{max}{unit})",
+            window.subject,
+            window.label()
         ),
         state,
         detail,

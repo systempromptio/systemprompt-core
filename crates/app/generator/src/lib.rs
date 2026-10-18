@@ -12,6 +12,8 @@
 //! - [`generate_sitemap`], [`generate_feed`] — emit `sitemap.xml` and
 //!   per-source RSS feeds.
 //! - [`organize_dist_assets`] — post-build CSS/JS file reorganisation.
+//! - [`write_atomic`] / [`copy_atomic`] — temp-file-and-rename publication used
+//!   for every file written into `dist/`.
 //! - [`PublishError`] / [`GeneratorResult`] — the typed error and `Result`
 //!   alias returned by every public function in this crate.
 //! - [`ContentPrerenderJob`], [`PagePrerenderJob`] — scheduled jobs registered
@@ -21,6 +23,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub(crate) mod assets;
+pub mod atomic;
 pub(crate) mod build;
 pub(crate) mod content;
 pub(crate) mod error;
@@ -31,6 +34,7 @@ pub(crate) mod sitemap;
 pub(crate) mod templates;
 
 pub use assets::organize_dist_assets;
+pub use atomic::{copy_atomic, write_atomic};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::{GeneratorResult, PublishError};

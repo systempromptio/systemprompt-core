@@ -59,6 +59,7 @@ fn gateway_repos_in(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
         systemprompt_traits::BackgroundTasks::new(),
+        systemprompt_traits::CacheEpochs::new(),
     )
 }
 
@@ -119,6 +120,7 @@ fn reservation_for(user_id: &UserId) -> QuotaReservation {
             subject_id: user_id.as_str().to_owned(),
             window_seconds: 60,
             window_start: sqlx::types::chrono::Utc::now(),
+            shard: 0,
             delta: systemprompt_ai::repository::QuotaBucketDelta {
                 requests: 1,
                 input_tokens: 0,

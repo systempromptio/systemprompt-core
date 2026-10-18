@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.70.0] - 2026-10-18
+
+### Added
+
+- `Extension::config_planes()` registers `ConfigPlane`s.
+- Migrations headed `-- @compat: breaking` are discovered and marked as contract migrations.
+
+### Changed
+
+- **Breaking:** `ExtensionContext` requires `file_storage()` and `instance_id()`.
+
 ## [0.66.0] - 2026-10-13
 
 ### Added

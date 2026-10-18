@@ -88,6 +88,11 @@ impl Migration {
         self
     }
 
+    #[must_use]
+    pub fn breaks_older(&self) -> bool {
+        crate::compat::parse(self.sql).unwrap_or(false)
+    }
+
     // Why: the digest is persisted in `extension_migrations.checksum` and
     // compared on every boot, so it must be a specified algorithm — std's
     // `DefaultHasher` is documented as free to change between releases.

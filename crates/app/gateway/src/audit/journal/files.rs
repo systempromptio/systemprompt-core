@@ -176,6 +176,18 @@ pub(super) fn quarantine(journal: &GatewayJournal, path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(super) fn count(journal: &GatewayJournal) -> Result<usize> {
+    let root = journal.root();
+    let _lock = lock(root)?;
+    let mut count = 0;
+    for entry in fs::read_dir(root)? {
+        if entry?.path().extension().is_some_and(|x| x == "receipt") {
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 pub(super) fn list(journal: &GatewayJournal) -> Result<Vec<Listed>> {
     let root = journal.root();
     let _lock = lock(root)?;

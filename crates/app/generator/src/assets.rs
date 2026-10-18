@@ -44,9 +44,11 @@ async fn copy_files_by_extension(
 
         if matches_ext && let Some(file_name) = path.file_name() {
             let dest = dest_dir.join(file_name);
-            fs::copy(&path, &dest).await.map_err(|e| {
-                PublishError::io_context(format!("Failed to copy {}", file_name.display()), e)
-            })?;
+            crate::atomic::copy_atomic(&path, &dest)
+                .await
+                .map_err(|e| {
+                    PublishError::io_context(format!("Failed to copy {}", file_name.display()), e)
+                })?;
             copied += 1;
         }
     }

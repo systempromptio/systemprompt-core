@@ -272,3 +272,92 @@ async fn find_prepared_is_none_for_an_unknown_request() {
     let missing = AiRequestId::generate();
     assert!(repo.find_prepared(&missing).await.expect("query").is_none());
 }
+
+async fn hold_catalog_key_share(
+    pool: &systemprompt_database::DbPool,
+    tools: &serde_json::Value,
+) -> sqlx::Transaction<'static, sqlx::Postgres> {
+    let write = pool.write_pool();
+    let mut holder = write.begin().await.expect("begin holder");
+    sqlx::query_scalar!(
+        r#"SELECT 1 AS "one!" FROM ai_tool_catalogs
+           WHERE sha256 = encode(sha256(convert_to($1::jsonb::text, 'UTF8')), 'hex')
+           FOR KEY SHARE"#,
+        tools
+    )
+    .fetch_one(&mut *holder)
+    .await
+    .expect("hold catalog row");
+    holder
+}
+
+#[tokio::test]
+async fn offered_tools_write_does_not_queue_behind_an_open_admission() {
+    let pool = bootstrapped_pool().await;
+    let uid = user();
+    let first = seed_request(&pool, &uid).await;
+    let second = seed_request(&pool, &uid).await;
+    let repo = AiRequestPayloadRepository::new(&pool);
+    let tools = json!([{"name": "lock-probe", "id": AiRequestId::generate().as_str()}]);
+
+    repo.upsert_offered_tools(&first, &tools)
+        .await
+        .expect("seed catalog row");
+    let holder = hold_catalog_key_share(&pool, &tools).await;
+
+    let upsert = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        repo.upsert_offered_tools(&second, &tools),
+    )
+    .await;
+    holder.rollback().await.expect("release holder");
+    upsert
+        .expect("catalog write must not wait on the shared row")
+        .expect("upsert offered tools");
+
+    let read = pool.pool();
+    let digests = sqlx::query_scalar!(
+        r#"SELECT offered_tools_sha256 AS "digest!" FROM ai_request_payloads
+           WHERE ai_request_id IN ($1, $2)"#,
+        first.as_str(),
+        second.as_str()
+    )
+    .fetch_all(read.as_ref())
+    .await
+    .expect("digests");
+    assert_eq!(digests.len(), 2);
+    assert_eq!(digests[0], digests[1]);
+}
+
+#[tokio::test]
+async fn prepared_tools_write_does_not_queue_behind_an_open_admission() {
+    let pool = bootstrapped_pool().await;
+    let uid = user();
+    let first = seed_request(&pool, &uid).await;
+    let second = seed_request(&pool, &uid).await;
+    let repo = AiRequestPayloadRepository::new(&pool);
+    let tools = json!([{"name": "prepared-probe", "id": AiRequestId::generate().as_str()}]);
+
+    repo.upsert_prepared(&first, "body-a", Some(&tools))
+        .await
+        .expect("seed catalog row");
+    let holder = hold_catalog_key_share(&pool, &tools).await;
+
+    let upsert = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        repo.upsert_prepared(&second, "body-b", Some(&tools)),
+    )
+    .await;
+    holder.rollback().await.expect("release holder");
+    upsert
+        .expect("catalog write must not wait on the shared row")
+        .expect("upsert prepared");
+
+    let prepared = repo
+        .find_prepared(&second)
+        .await
+        .expect("find prepared")
+        .expect("prepared row");
+    assert_eq!(prepared.prepared_body_sha256.as_deref(), Some("body-b"));
+    assert_eq!(prepared.prepared_tools, Some(tools));
+}

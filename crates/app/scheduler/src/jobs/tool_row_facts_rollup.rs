@@ -36,6 +36,10 @@ impl Job for ToolRowFactsRollupJob {
         "15 * * * * *"
     }
 
+    fn default_schedule(&self) -> Option<&'static str> {
+        Some("15 * * * * *")
+    }
+
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let db_pool = std::sync::Arc::clone(ctx.get::<DbPool>()?);
         let report =
