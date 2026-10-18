@@ -4,7 +4,10 @@ name: Schema ladder
 # end with the schema a fresh install has. Fresh-install gates cannot see a
 # migration that only misbehaves on an established database; 0.59.0's
 # `infra/events` 007 dropped the only `actor_id` check on every upgrading
-# instance and passed all of them. Called by CI (and so part of `CI passed`);
+# instance and passed all of them. Each rung's own server then boots against
+# the upgraded database (scripts/schema-ladder-boot.sh): it must keep serving
+# and write a quota row, or refuse a schema a `@compat: breaking` migration
+# contracted — the check 0.70.0's ai/042 would have failed. Called by CI (and so part of `CI passed`);
 # dispatch it directly to run one ref against chosen rungs.
 
 on:
@@ -78,7 +81,9 @@ jobs:
     name: Upgrade from ${{ matrix.rung }}
     needs: rungs
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Why: a cold rung builds its whole CLI; the binary cache below makes
+    # every later run of the same tag a migrator-and-boot run.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -114,10 +119,19 @@ jobs:
         run: |
           cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate \
               --target-dir target-ladder
-      - name: Upgrade a ${{ matrix.rung }} database and compare with a fresh install
+      # Why: a release tag never moves, so its built binaries are reusable
+      # verbatim; caching them keeps the rung builds off every run.
+      - uses: actions/cache@v4
+        with:
+          path: ladder-bin
+          key: schema-ladder-bin-${{ runner.os }}-${{ matrix.rung }}-v1
+      - name: Upgrade a ${{ matrix.rung }} database, compare with a fresh install, boot ${{ matrix.rung }} on it
+        timeout-minutes: 75
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/test
           PGPASSWORD: test
+          LADDER_BIN_DIR: ladder-bin
+          LADDER_MOCK_TARGET: target-ladder-mock
         run: |
           bash ladder-tools/scripts/schema-ladder.sh "${{ matrix.rung }}" \
               target-ladder/debug/systemprompt-test-migrate

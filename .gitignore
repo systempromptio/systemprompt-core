@@ -118,6 +118,7 @@ scripts/*
 !scripts/check-gates.txt
 !scripts/publish-crates.sh
 !scripts/schema-ladder.sh
+!scripts/schema-ladder-boot.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
 !scripts/collect-fallback-profraw.sh

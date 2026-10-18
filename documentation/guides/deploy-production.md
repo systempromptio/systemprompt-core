@@ -451,6 +451,15 @@ A binary that finds migrations it does not know — ledger rows numbered past ev
 - The exception is a migration recorded as `@compat: breaking`: an older binary that finds one ahead of it refuses to start, naming the migrations, because the schema it reads has been contracted.
 - A database *behind* the binary (pending migrations, missing tables, or drift in an extension that is not ahead) still fails the boot of a pod that skips migrations, as in §9.1.
 
+Each release is held to this contract before it ships. For each of the two previous releases, the release pipeline installs that release's schema, upgrades it with the candidate, and then boots that release's own server against the result with `serve --skip-migrate`, the pod a rolling update leaves running:
+
+- If none of the candidate's newer migrations is marked `@compat: breaking`, the older server must serve. `/readyz` answers `200`, with `"schema": "ahead"` from releases that can tell, and one gateway request through an API key with a request quota must write its `ai_quota_buckets` row.
+- If one is marked, an older server that reads the compatibility ledger must refuse to start with the contracted-schema error.
+- Releases before 0.70.0 cannot read the ledger, so they cannot refuse. Against such a release the pipeline accepts a failed quota write only when a newer migration declares the break.
+- A failed write that no migration declares fails the release. That failure means a contract migration was shipped as an expansion, and the remedy is a new migration carrying the marker.
+
+The 0.69 → 0.70 upgrade is such a case: 0.70.0's `ai/042` contracts the quota-window key, and `ai/043` records the break.
+
 ### 9.4 Upgrading from 0.69 to 0.70
 
 The 0.70 batch is not rolling-safe. ai migration `042_quota_bucket_shards` adds `shard` to the `ai_quota_buckets` unique key, so once it has run every quota upsert from a 0.69 pod fails, and `043_quota_bucket_shards_contract` records the batch as `@compat: breaking`, so a 0.69 binary refuses to start against the migrated database. `systemprompt infra db migrate-plan --require-rolling-safe` exits non-zero for it. Every Deployment that runs the image — the gateway Deployment from §3.1 included, which is usually declared with `strategy: RollingUpdate` — must have no 0.69 pod left before the migration runs.
