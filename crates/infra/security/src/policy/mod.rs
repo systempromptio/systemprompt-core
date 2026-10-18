@@ -47,7 +47,7 @@ pub use audit::{
 };
 pub use builtin::{ApprovalSettings, SECRET_SCAN_ID};
 pub use config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
-pub use engine::{Evaluation, GovernanceEngine, GovernanceEngineError, RateChargeSubject};
+pub use engine::{ChargedCall, Evaluation, GovernanceEngine, GovernanceEngineError};
 pub use governed::{
     GovernedInput, GovernedString, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME, PromptPart,
     UNKNOWN_TARGET_NAME,
@@ -57,4 +57,6 @@ pub use registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 pub use secrets::{
     EntropyConfig, SecretPattern, SecretPatternError, SecretScanner, SignatureExemptions,
 };
-pub use types::{AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation};
+pub use types::{
+    AgentScope, GovernancePolicy, PolicyContext, PolicyRequest, RateLimitWindow, SecretLocation,
+};

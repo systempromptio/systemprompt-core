@@ -8,14 +8,14 @@
 //! deny. The walk itself lives in `chain`.
 //!
 //! Policies hold no request state. Rate windows are counted in Postgres
-//! (see [`super::rate_window`]): an enforcement point calls
-//! [`GovernanceEngine::charge_rate_windows`] before evaluating, and every
-//! replica charges the same counter. The engine is built once at the
-//! composition root ([`GovernanceEngine::from_services_root`] plus
-//! [`GovernanceEngine::with_rate_windows`]) and injected into every
-//! enforcement point. [`GovernanceEngine::from_config`] builds a chain with no
-//! counter store; its rate windows are never charged, so an enabled
-//! `rate_limit` policy reports the missing count as a violation.
+//! (see [`super::rate_window`]): an enforcement point hands a
+//! [`super::PolicyRequest`] to [`GovernanceEngine::charge_and_evaluate`] (or
+//! [`GovernanceEngine::charge`] when it evaluates the charged call itself),
+//! so every replica charges the same counter and no caller can evaluate an
+//! uncharged call by forgetting a step. The engine is built once at the
+//! composition root ([`GovernanceEngine::from_services_root`]) and injected
+//! into every enforcement point. A chain that arms a rate window without a
+//! [`super::RateWindowRepository`] is a construction error.
 //!
 //! [`GovernanceEngine::evaluate_with_prompt_recovery`] is the opt-in variant
 //! for prompt targets: when a policy denies with a located secret leak, the
@@ -27,18 +27,21 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod chain;
+mod charge;
+
+pub use charge::ChargedCall;
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use systemprompt_identifiers::{CallId, PolicyId, SessionId, UserId};
+use systemprompt_identifiers::PolicyId;
 use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
 use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
 use super::governed::GovernedInput;
-use super::rate_window::{RateCharge, RateCounts, RateWindowRepository};
+use super::rate_window::RateWindowRepository;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
@@ -70,6 +73,11 @@ pub enum GovernanceEngineError {
         #[source]
         source: GovernanceConfigError,
     },
+    #[error(
+        "governance policy `{id}` counts a rate window, but the engine was built without a \
+         rate-window repository"
+    )]
+    RateWindowsUnavailable { id: PolicyId },
 }
 
 struct ChainEntry {
@@ -81,13 +89,6 @@ pub struct GovernanceEngine {
     enabled: bool,
     entries: Vec<ChainEntry>,
     rate_windows: Option<RateWindowRepository>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct RateChargeSubject<'a> {
-    pub session: &'a SessionId,
-    pub user: &'a UserId,
-    pub call: &'a CallId,
 }
 
 impl std::fmt::Debug for GovernanceEngine {
@@ -108,7 +109,10 @@ impl std::fmt::Debug for GovernanceEngine {
 }
 
 impl GovernanceEngine {
-    pub fn from_services_root(services_root: &Path) -> Result<Self, GovernanceEngineError> {
+    pub fn from_services_root(
+        services_root: &Path,
+        rate_windows: Option<RateWindowRepository>,
+    ) -> Result<Self, GovernanceEngineError> {
         let path = services_root.join("governance/config.yaml");
         let config = GovernanceConfig::load(&path).map_err(|source| {
             GovernanceEngineError::ConfigRejected {
@@ -116,10 +120,13 @@ impl GovernanceEngine {
                 source,
             }
         })?;
-        Self::from_config(&config)
+        Self::from_config(&config, rate_windows)
     }
 
-    pub fn from_config(config: &GovernanceConfig) -> Result<Self, GovernanceEngineError> {
+    pub fn from_config(
+        config: &GovernanceConfig,
+        rate_windows: Option<RateWindowRepository>,
+    ) -> Result<Self, GovernanceEngineError> {
         if !config.enabled {
             tracing::warn!(
                 "governance is DISABLED by config: no scope, secret, blocklist or rate-limit \
@@ -144,6 +151,7 @@ impl GovernanceEngine {
             })?;
             if config.enabled {
                 reject_toothless_enforcement(cfg, instance.as_ref())?;
+                reject_uncounted_rate_window(cfg, instance.as_ref(), rate_windows.as_ref())?;
             }
             entries.push(ChainEntry {
                 config: cfg.clone(),
@@ -171,46 +179,8 @@ impl GovernanceEngine {
         Ok(Self {
             enabled: config.enabled,
             entries,
-            rate_windows: None,
+            rate_windows,
         })
-    }
-
-    #[must_use]
-    pub fn with_rate_windows(mut self, repository: RateWindowRepository) -> Self {
-        self.rate_windows = Some(repository);
-        self
-    }
-
-    pub async fn charge_rate_windows(&self, subject: RateChargeSubject<'_>) -> RateCounts {
-        let mut counts = RateCounts::empty();
-        if !self.enabled {
-            return counts;
-        }
-        let Some(repository) = self.rate_windows.as_ref() else {
-            return counts;
-        };
-        let call = subject.call;
-        let subject = format!("{}:{}", subject.session.as_str(), subject.user.as_str());
-        for entry in self.entries.iter().filter(|e| e.config.enabled) {
-            let Some(window) = entry.instance.rate_window() else {
-                continue;
-            };
-            let charge = RateCharge {
-                policy_id: &entry.config.id,
-                window_secs: window.seconds,
-                subject: &subject,
-                call_id: call,
-            };
-            match repository.charge(charge).await {
-                Ok(position) => counts.record(entry.config.id.clone(), position),
-                Err(error) => tracing::error!(
-                    %error,
-                    policy_id = %entry.config.id,
-                    "rate window charge failed; the policy fails closed for this call"
-                ),
-            }
-        }
-        counts
     }
 
     #[must_use]
@@ -271,4 +241,15 @@ fn reject_toothless_enforcement(
         });
     }
     Ok(())
+}
+
+fn reject_uncounted_rate_window(
+    cfg: &PolicyConfig,
+    instance: &dyn GovernancePolicy,
+    rate_windows: Option<&RateWindowRepository>,
+) -> Result<(), GovernanceEngineError> {
+    if !cfg.enabled || rate_windows.is_some() || instance.rate_window().is_none() {
+        return Ok(());
+    }
+    Err(GovernanceEngineError::RateWindowsUnavailable { id: cfg.id.clone() })
 }

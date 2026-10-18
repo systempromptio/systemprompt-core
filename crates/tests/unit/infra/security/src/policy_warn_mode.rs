@@ -83,7 +83,11 @@ fn ctx<'a>(
 }
 
 fn evaluate(yaml: &str) -> systemprompt_security::policy::Evaluation {
-    let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap();
+    let engine = GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap();
     let sid = SessionId::generate();
     let uid = UserId::new("warn-user");
     let input = GovernedInput::tool_arguments(McpToolInput::new(json!({})));

@@ -60,7 +60,8 @@ fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
 #[test]
 fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
     let config = GovernanceConfig::parse(POLICY).unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-user");
@@ -135,7 +136,8 @@ systemprompt_security::register_governance_policy!("recovery_count_evaluations",
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
     let config = GovernanceConfig::parse("governance:\n  policies:\n    - id: recovery_count_evaluations\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n    - id: rate_limit\n      requests_per_window: 0\n").unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-counter-user");
@@ -201,7 +203,8 @@ fn a_policy_without_located_findings_never_offers_recovery() {
         "governance:\n  policies:\n    - id: recovery_leak_without_findings\n",
     )
     .unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-opaque-user");

@@ -81,7 +81,11 @@ fn ctx<'a>(
 }
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 fn entry_result(
@@ -151,7 +155,8 @@ fn unknown_config_id_rejects_engine_construction() {
         "governance:\n  policies:\n    - id: no_such_policy\n    - id: t_allow\n",
     )
     .unwrap();
-    let error = GovernanceEngine::from_config(&config).unwrap_err();
+    let error =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap_err();
     assert!(matches!(
         error,
         systemprompt_security::policy::GovernanceEngineError::UnknownPolicyId { id }
@@ -259,7 +264,11 @@ fn the_master_switch_defaults_to_on_when_the_key_is_absent() {
 
 #[test]
 fn default_config_builds_the_four_builtins_enabled() {
-    let e = GovernanceEngine::from_config(&GovernanceConfig::defaults()).unwrap();
+    let e = GovernanceEngine::from_config(
+        &GovernanceConfig::defaults(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap();
     for id in ["secret_scan", "scope_check", "tool_blocklist", "rate_limit"] {
         let (cfg, _) = e
             .policies()

@@ -17,7 +17,11 @@ pub(super) const KEY: &str = "XRECOVERY-1234567890";
 pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n";
 
 pub(super) fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 pub(super) fn govern(
@@ -34,11 +38,10 @@ fn govern_at(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
 ) -> PromptRecovery {
-    let mut counts = systemprompt_security::policy::RateCounts::empty();
-    counts.record(
+    let counts = systemprompt_security::policy::RateCounts::charged([(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
-    );
+    )]);
     govern_counted(engine, &counts, request, body)
 }
 

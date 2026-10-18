@@ -123,13 +123,12 @@ pub(super) async fn init_core(
         cache_epochs.clone(),
     )?;
 
-    let governance = Arc::new(
-        GovernanceEngine::from_services_root(active_root.path.as_path())?.with_rate_windows(
-            systemprompt_security::policy::RateWindowRepository::new(
-                database.write_pool().as_ref().clone(),
-            ),
-        ),
-    );
+    let governance = Arc::new(GovernanceEngine::from_services_root(
+        active_root.path.as_path(),
+        Some(systemprompt_security::policy::RateWindowRepository::new(
+            database.write_pool().as_ref().clone(),
+        )),
+    )?);
 
     systemprompt_logging::set_console_format(profile.observability.log_format);
     systemprompt_logging::init_logging(&database);

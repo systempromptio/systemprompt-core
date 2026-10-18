@@ -2,7 +2,7 @@
 //!
 //! [`GovernancePolicy::evaluate`][super::GovernancePolicy::evaluate] is pure
 //! and sync, so counting happens before the chain runs: the enforcement point
-//! calls [`GovernanceEngine::charge_rate_windows`][super::GovernanceEngine::charge_rate_windows],
+//! calls [`GovernanceEngine::charge`][super::GovernanceEngine::charge],
 //! which charges every enabled rate window in Postgres and hands the
 //! resulting [`RateCounts`] to the policy through
 //! [`PolicyContext::rate_counts`][super::PolicyContext::rate_counts]. Every
@@ -45,7 +45,16 @@ impl RateCounts {
         }
     }
 
-    pub fn record(&mut self, policy_id: PolicyId, position: u64) {
+    #[must_use]
+    pub fn charged(positions: impl IntoIterator<Item = (PolicyId, u64)>) -> Self {
+        let mut counts = Self::empty();
+        for (policy_id, position) in positions {
+            counts.record(policy_id, position);
+        }
+        counts
+    }
+
+    pub(crate) fn record(&mut self, policy_id: PolicyId, position: u64) {
         self.positions.retain(|(id, _)| *id != policy_id);
         self.positions.push((policy_id, position));
     }

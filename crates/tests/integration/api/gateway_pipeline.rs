@@ -316,6 +316,7 @@ fn governance_inputs(
     dispatch.governance = Arc::new(
         GovernanceEngine::from_config(
             &GovernanceConfig::parse(yaml).expect("valid governance fixture"),
+            Some(systemprompt_test_fixtures::offline_rate_windows()),
         )
         .expect("governance fixture builds"),
     );

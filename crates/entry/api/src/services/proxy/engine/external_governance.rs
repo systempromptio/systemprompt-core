@@ -15,7 +15,7 @@ use systemprompt_security::policy::governed::McpToolInput;
 use systemprompt_security::policy::types::AccessScope;
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput, GovernedTarget,
-    PolicyContext, PrincipalSnapshot, RateChargeSubject, record_decision,
+    PolicyRequest, PrincipalSnapshot, record_decision,
 };
 
 pub(super) async fn enforce(
@@ -92,29 +92,22 @@ async fn evaluate_tool(
         .as_ref()
         .map(|user| user.roles.clone())
         .unwrap_or_default();
-    let rate_counts = ctx
-        .governance()
-        .charge_rate_windows(RateChargeSubject {
-            session: request.session_id(),
-            user: request.user_id(),
-            call: call_id,
+    ctx.governance()
+        .charge_and_evaluate(PolicyRequest {
+            target: GovernedTarget::Tool {
+                tool: target.clone(),
+            },
+            agent_scope: AgentScope::User {
+                user_id: request.user_id().clone(),
+            },
+            access_scope: access_scope(request),
+            roles: &roles,
+            session_id: request.session_id(),
+            user_id: request.user_id(),
+            input,
+            call_id,
         })
-        .await;
-    ctx.governance().evaluate(&PolicyContext {
-        target: GovernedTarget::Tool {
-            tool: target.clone(),
-        },
-        agent_scope: AgentScope::User {
-            user_id: request.user_id().clone(),
-        },
-        access_scope: access_scope(request),
-        roles: &roles,
-        session_id: request.session_id(),
-        user_id: request.user_id(),
-        input,
-        call_id,
-        rate_counts: &rate_counts,
-    })
+        .await
 }
 
 fn access_scope(request: &RequestContext) -> AccessScope {

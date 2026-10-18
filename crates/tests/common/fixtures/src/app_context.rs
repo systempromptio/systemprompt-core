@@ -254,9 +254,12 @@ fn fixture_app_context_assembled(
         extension_registry,
     } = seams;
     let governance = Arc::new(
-        systemprompt_security::policy::GovernanceEngine::from_services_root(std::path::Path::new(
-            &paths.services,
-        ))?,
+        systemprompt_security::policy::GovernanceEngine::from_services_root(
+            std::path::Path::new(&paths.services),
+            Some(systemprompt_security::policy::RateWindowRepository::new(
+                pool.write_pool().as_ref().clone(),
+            )),
+        )?,
     );
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
@@ -359,12 +362,25 @@ pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::Arti
     )))
 }
 
+// A counter store that never answers: built without a runtime, so a sync
+// test can arm a rate window; every charge through it fails closed.
+pub fn offline_rate_windows() -> systemprompt_security::policy::RateWindowRepository {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .acquire_timeout(std::time::Duration::from_millis(50))
+        .idle_timeout(None)
+        .max_lifetime(None)
+        .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
+        .expect("lazy pool construction is infallible for a well-formed URL");
+    systemprompt_security::policy::RateWindowRepository::new(pool)
+}
+
 // The vendor-neutral warn-only chain: what a deployment without a
 // `<services>/governance/config.yaml` boots with.
 pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
     Arc::new(
         systemprompt_security::policy::GovernanceEngine::from_config(
             &systemprompt_security::policy::GovernanceConfig::defaults(),
+            Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
     )

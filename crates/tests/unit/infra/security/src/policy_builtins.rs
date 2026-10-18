@@ -8,7 +8,8 @@ use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
-    GovernanceEngine::from_config(&config).expect("registered test governance policies")
+    GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+        .expect("registered test governance policies")
 }
 
 fn scanner(yaml: &str) -> SecretScanner {
@@ -191,7 +192,11 @@ fn invalid_pattern_definitions_fail_engine_startup() {
             "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        {patterns}\n"
         );
         if let Ok(config) = GovernanceConfig::parse(&yaml) {
-            assert!(GovernanceEngine::from_config(&config).is_err(), "{yaml}");
+            assert!(
+                GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+                    .is_err(),
+                "{yaml}"
+            );
         }
     }
 }
@@ -520,12 +525,10 @@ fn rate_decision(
 }
 
 fn counts_at(position: u64) -> systemprompt_security::policy::RateCounts {
-    let mut counts = systemprompt_security::policy::RateCounts::empty();
-    counts.record(
+    systemprompt_security::policy::RateCounts::charged([(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
-    );
-    counts
+    )])
 }
 
 #[test]
@@ -1058,8 +1061,11 @@ governance:
       when: 'not a list'
     exempt_scopes: ['admin']
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("a malformed patterns entry rejects the policy configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("a malformed patterns entry rejects the policy configuration");
         assert!(
             matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "require_approval"),
             "{err}"
@@ -1080,8 +1086,11 @@ governance:
         op: gt
         value: 'not a number'
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("an operand the operator cannot use rejects the configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("an operand the operator cannot use rejects the configuration");
         assert!(err.to_string().contains("expected_revenue"), "{err}");
     }
 
@@ -1095,8 +1104,11 @@ governance:
     patterns: [note_add]
     exempt_scopes: ['superuser']
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("an unknown scope rejects the configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("an unknown scope rejects the configuration");
         assert!(err.to_string().contains("superuser"), "{err}");
     }
 
@@ -1261,8 +1273,11 @@ governance:
     enabled: true
     mode: enforce
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(TOOTHLESS).unwrap())
-            .expect_err("enforce mode with nothing to detect is silent non-enforcement");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(TOOTHLESS).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("enforce mode with nothing to detect is silent non-enforcement");
         assert!(
             matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "secret_scan"),
             "{err}"
@@ -1279,15 +1294,21 @@ governance:
     enabled: true
     mode: enforce
 ";
-        let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(DISABLED).unwrap())
-            .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
+        let engine = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(DISABLED).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
         assert!(!engine.enforces_prompt_secrets());
     }
 
     #[test]
     fn a_warn_mode_secret_scan_with_no_patterns_still_builds() {
-        GovernanceEngine::from_config(&GovernanceConfig::defaults())
-            .expect("the documented warn-only defaults carry an empty catalog");
+        GovernanceEngine::from_config(
+            &GovernanceConfig::defaults(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("the documented warn-only defaults carry an empty catalog");
     }
 
     #[test]
@@ -1303,8 +1324,11 @@ governance:
       name: Demo Key
       regex: 'XDEMO-[0-9]+'
 ";
-        GovernanceEngine::from_config(&GovernanceConfig::parse(ARMED).unwrap())
-            .expect("an armed enforce scanner is fine");
+        GovernanceEngine::from_config(
+            &GovernanceConfig::parse(ARMED).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("an armed enforce scanner is fine");
     }
 }
 

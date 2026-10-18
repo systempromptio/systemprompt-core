@@ -173,6 +173,43 @@ impl PolicyContext<'_> {
     }
 }
 
+/// One governed call before its rate windows are charged.
+///
+/// [`super::GovernanceEngine::charge`] and
+/// [`super::GovernanceEngine::charge_and_evaluate`] turn it into a
+/// [`PolicyContext`]; only the engine sets [`PolicyContext::rate_counts`] on
+/// the enforcement path.
+#[derive(Debug, Clone)]
+pub struct PolicyRequest<'a> {
+    pub target: GovernedTarget,
+    pub agent_scope: AgentScope,
+    pub access_scope: AccessScope,
+    pub roles: &'a [String],
+    pub session_id: &'a SessionId,
+    pub user_id: &'a UserId,
+    pub input: &'a GovernedInput,
+    pub call_id: &'a CallId,
+}
+
+impl<'a> PolicyRequest<'a> {
+    pub(crate) fn with_counts<'b>(&'b self, rate_counts: &'b RateCounts) -> PolicyContext<'b>
+    where
+        'a: 'b,
+    {
+        PolicyContext {
+            target: self.target.clone(),
+            agent_scope: self.agent_scope.clone(),
+            access_scope: self.access_scope,
+            roles: self.roles,
+            session_id: self.session_id,
+            user_id: self.user_id,
+            input: self.input,
+            call_id: self.call_id,
+            rate_counts,
+        }
+    }
+}
+
 /// A unit of governance evaluation for one governed call — an MCP tool call or
 /// a submitted prompt, per [`PolicyContext::target`].
 ///

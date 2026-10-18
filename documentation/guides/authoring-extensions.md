@@ -205,6 +205,11 @@ trait itself. Extensions that participate in gateway request governance addition
 implement `GatewayRequestGuard` (`crates/shared/extension/src/gateway_guard.rs:62`) and
 register it with `register_gateway_guard`.
 
+## Runtime seams
+
+Core owns these contracts so an extension never reimplements them against core tables:
+
+- **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs, so a caller cannot evaluate an uncharged call. A chain that arms `rate_limit` without a rate-window repository refuses to build.
 
 ## How discovery works
 

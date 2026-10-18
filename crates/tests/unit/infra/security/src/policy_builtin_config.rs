@@ -6,7 +6,11 @@ use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContex
 use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 struct Call {

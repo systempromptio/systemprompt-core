@@ -10,8 +10,8 @@ use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
-    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext, PrincipalSnapshot,
-    RateChargeSubject, record_decision,
+    Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyRequest, PrincipalSnapshot,
+    record_decision,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -103,31 +103,25 @@ pub(super) async fn evaluate_prompt(
     let session_id = ctx.session_id.clone().unwrap_or_else(SessionId::system);
     let call_id = CallId::new(ctx.ai_request_id.as_str());
     let input = GovernedInput::prompt_parts([]);
-    let rate_counts = governance
-        .charge_rate_windows(RateChargeSubject {
-            session: &session_id,
-            user: &ctx.user_id,
-            call: &call_id,
+    let charged = governance
+        .charge(PolicyRequest {
+            target: GovernedTarget::Prompt,
+            agent_scope: AgentScope::User {
+                user_id: ctx.user_id.clone(),
+            },
+            access_scope: ctx.access_scope,
+            roles: &[],
+            session_id: &session_id,
+            user_id: &ctx.user_id,
+            input: &input,
+            call_id: &call_id,
         })
         .await;
-    let policy_ctx = PolicyContext {
-        target: GovernedTarget::Prompt,
-        agent_scope: AgentScope::User {
-            user_id: ctx.user_id.clone(),
-        },
-        access_scope: ctx.access_scope,
-        roles: &[],
-        session_id: &session_id,
-        user_id: &ctx.user_id,
-        input: &input,
-        call_id: &call_id,
-        rate_counts: &rate_counts,
-    };
     let PromptRecovery {
         evaluation,
         recovery_count,
         recovery_locations,
-    } = govern_prompt(governance, &policy_ctx, request, body);
+    } = govern_prompt(governance, &charged.context(), request, body);
 
     PromptEvaluation {
         evaluation,

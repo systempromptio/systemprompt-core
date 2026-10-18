@@ -1,6 +1,7 @@
 //! The `rate_limit` policy counted in PostgreSQL: two engines standing in for
 //! two replicas share one budget, a re-evaluated call keeps its position, and
-//! an engine with no counter store fails closed.
+//! an engine with no counter store is refused at construction and one whose
+//! store is unreachable fails closed.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -8,24 +9,24 @@ use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
 use systemprompt_security::authz::types::{Decision, DenyReason};
 use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_security::policy::types::{AccessScope, AgentScope};
 use systemprompt_security::policy::{
-    GovernanceConfig, GovernanceEngine, RateChargeSubject, RateCounts, RateWindowRepository,
+    GovernanceConfig, GovernanceEngine, GovernanceEngineError, PolicyRequest, RateWindowRepository,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
 const LIMIT_3: &str = "governance:\n  policies:\n    - id: rate_limit\n      requests_per_window: 3\n      window_secs: 3600\n";
 const LIMIT_3_WARN: &str = "governance:\n  policies:\n    - id: rate_limit\n      mode: warn\n      requests_per_window: 3\n      window_secs: 3600\n";
 
-fn bare_engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+fn engine_with(yaml: &str, rate_windows: Option<RateWindowRepository>) -> GovernanceEngine {
+    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), rate_windows).unwrap()
 }
 
 async fn replica(yaml: &str) -> GovernanceEngine {
     ensure_test_bootstrap();
     let db = test_db_pool().await;
     let pool = db.pool();
-    bare_engine(yaml).with_rate_windows(RateWindowRepository::new((*pool).clone()))
+    engine_with(yaml, Some(RateWindowRepository::new((*pool).clone())))
 }
 
 struct Caller {
@@ -44,19 +45,8 @@ impl Caller {
     }
 
     async fn call(&self, engine: &GovernanceEngine, call: &CallId) -> Decision {
-        let counts = engine
-            .charge_rate_windows(RateChargeSubject {
-                session: &self.session,
-                user: &self.user,
-                call: call,
-            })
-            .await;
-        self.evaluate(engine, call, &counts)
-    }
-
-    fn evaluate(&self, engine: &GovernanceEngine, call: &CallId, counts: &RateCounts) -> Decision {
         engine
-            .evaluate(&PolicyContext {
+            .charge_and_evaluate(PolicyRequest {
                 target: GovernedTarget::Tool {
                     tool: McpToolName::try_new("read_file").unwrap(),
                 },
@@ -69,8 +59,8 @@ impl Caller {
                 user_id: &self.user,
                 input: &self.input,
                 call_id: call,
-                rate_counts: counts,
             })
+            .await
             .decision
     }
 }
@@ -150,9 +140,28 @@ async fn caller_noise(engine: &GovernanceEngine, caller: &Caller) {
     caller.call(engine, &CallId::generate()).await;
 }
 
+#[test]
+fn an_engine_without_a_counter_store_is_a_construction_error() {
+    for yaml in [LIMIT_3, LIMIT_3_WARN] {
+        let error = GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), None)
+            .unwrap_err();
+        assert!(
+            matches!(&error, GovernanceEngineError::RateWindowsUnavailable { id } if id == "rate_limit"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn a_chain_without_rate_windows_builds_without_a_counter_store() {
+    let yaml = "governance:\n  policies:\n    - id: rate_limit\n      enabled: false\n    - id: tool_blocklist\n";
+    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap(), None)
+        .expect("a disabled rate window needs no counter store");
+}
+
 #[tokio::test]
-async fn an_engine_without_a_counter_store_fails_closed() {
-    let engine = bare_engine(LIMIT_3);
+async fn an_unreachable_counter_store_fails_closed() {
+    let engine = engine_with(LIMIT_3, Some(crate::offline_rate_windows()));
     let caller = Caller::new();
     let decision = caller.call(&engine, &CallId::generate()).await;
     assert!(matches!(

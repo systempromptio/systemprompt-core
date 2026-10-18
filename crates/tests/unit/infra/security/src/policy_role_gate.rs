@@ -27,7 +27,11 @@ governance:
 "#;
 
 fn decide(name: &str, scope: AccessScope, roles: &[String]) -> Decision {
-    let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(YAML).unwrap()).unwrap();
+    let engine = GovernanceEngine::from_config(
+        &GovernanceConfig::parse(YAML).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap();
     let session = SessionId::generate();
     let user = UserId::new("role-gate-user");
     let call = CallId::generate();
