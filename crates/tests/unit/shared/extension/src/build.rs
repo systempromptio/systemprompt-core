@@ -419,3 +419,78 @@ fn a_descending_tombstone_range_is_rejected() {
     let out = TempDir::new().expect("out tmp");
     run(&manifest, &out, &[("070-068_backwards.tombstone", "")]);
 }
+
+#[test]
+fn a_leading_supersedes_checksum_is_emitted_and_a_later_one_ignored() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    let body = run(
+        &manifest,
+        &out,
+        &[(
+            "020_fix.sql",
+            "-- @supersedes-checksum: 0123456789abcdef\n\nSELECT 1;\n-- @supersedes-checksum: fedcba9876543210\n",
+        )],
+    );
+    assert!(body.contains(".superseding(\"0123456789abcdef\")"), "{body}");
+    assert!(!body.contains("fedcba9876543210"), "{body}");
+}
+
+#[test]
+#[should_panic(expected = "16-hex-digit checksum")]
+fn a_malformed_supersedes_checksum_stops_the_build() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[("021_fix.sql", "-- @supersedes-checksum: nothex\nSELECT 1;")],
+    );
+}
+
+#[test]
+#[should_panic(expected = "`@cost` does not take")]
+fn a_malformed_cost_directive_stops_the_build() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[("022_cost.sql", "-- @cost: speed=fast\nSELECT 1;")],
+    );
+}
+
+#[test]
+#[should_panic(expected = "`@compat` takes only `breaking`")]
+fn a_malformed_compat_directive_stops_the_build() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    run(
+        &manifest,
+        &out,
+        &[("023_compat.sql", "-- @compat: additive\nSELECT 1;")],
+    );
+}
+
+#[test]
+fn files_without_a_migration_extension_are_ignored() {
+    let _lock = env_lock();
+    let _guard = EnvGuard::capture();
+    let manifest = TempDir::new().expect("manifest tmp");
+    let out = TempDir::new().expect("out tmp");
+    let body = run(
+        &manifest,
+        &out,
+        &[("README", "notes"), ("024_real.sql", "SELECT 1;"), ("025_skipped.txt", "x")],
+    );
+    assert!(body.contains("\"real\""), "{body}");
+    assert!(!body.contains("skipped"), "{body}");
+}
