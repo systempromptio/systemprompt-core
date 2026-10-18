@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-18
+
+### Removed
+
+- **Breaking:** the `authz` and `policy` modules, `CompositeAuthzHook` and the `register_{authz_hook,governance_policy,role_directory,subject_attribute_provider}!` macros are in `systemprompt-governance`. Migrate by depending on it and changing the import paths.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

@@ -30,7 +30,8 @@ Developer / Agent
     │
     ▼
 ┌──────────────────────────────────────────────┐
-│ Governance Pipeline (App / Domain)           │
+│ Governance Pipeline (Infra / App / Domain)   │
+│   crates/infra/governance,                   │
 │   crates/app/runtime, crates/domain/ai,      │
 │   crates/domain/mcp, crates/domain/agent,    │
 │   crates/domain/marketplace,                 │
@@ -116,7 +117,7 @@ Each threat is mapped to the component where it originates, the mitigation in co
 | Outbound telemetry to the vendor | whole binary | None is sent: no crash reporting, usage pings or update checks; every outbound connection is operator-configured. See [SECURITY.md § Telemetry](../../SECURITY.md#telemetry). | Operator-configured destinations (providers, OTLP collector, cloud profile, bridge release repository) are governed by egress policy, not by the binary. |
 | Caller identity leaking to an upstream provider | `crates/entry/api/src/services/gateway/` | The caller's own credential is **never** forwarded upstream — the gateway substitutes the deployment's provider key, resolved by name from the secrets store against the matched route (`gateway/service/resolve.rs:82-92`). `strip_caller_identity` (`stages/outbound.rs:45`) unconditionally removes `metadata.user_id` from the canonical request, and the passthrough lane does the same, so an end-user identifier cannot reach a provider the caller did not choose. Forwarded headers are an explicit allowlist. | Prompt content itself still crosses TB5 by design; that is the governed action, recorded in the audit trail. |
 | PHI / regulated content accidentally persisted | `crates/domain/ai` | Gateway audit paths persist request messages and can retain response and wire payloads in PostgreSQL. | Apply access, retention and deletion policies to request payload tables and backups. |
-| Cross-tenant data bleed | `crates/infra/security/src/authz/`, repository queries, handler boundary | Isolation today rests on three mechanisms: per-`user_id` filtering in repository queries; the authz resolver, which is deny-overrides and treats a declared ruleset as authoritative and closed at each level of the parent chain, returning `UnknownEntity` rather than a generic deny for unregistered entities (`authz/resolver.rs:94-110`); and subject-keyed quota buckets. Handler-boundary RBAC is enforced for MCP in `crates/domain/mcp/src/middleware/rbac.rs`. | Core has no connection-scoping layer (no per-request Postgres settings are applied to a transaction) and **no RLS policies ship in any migration**, so core provides **no row-level tenant isolation**. Deployments requiring hard multi-tenant separation should run one instance per tenant. Test cross-tenant access across repository queries and configured integrations. |
+| Cross-tenant data bleed | `crates/infra/governance/src/authz/`, repository queries, handler boundary | Isolation today rests on three mechanisms: per-`user_id` filtering in repository queries; the authz resolver, which is deny-overrides and treats a declared ruleset as authoritative and closed at each level of the parent chain, returning `UnknownEntity` rather than a generic deny for unregistered entities (`authz/resolver.rs:94-110`); and subject-keyed quota buckets. Handler-boundary RBAC is enforced for MCP in `crates/domain/mcp/src/middleware/rbac.rs`. | Core has no connection-scoping layer (no per-request Postgres settings are applied to a transaction) and **no RLS policies ship in any migration**, so core provides **no row-level tenant isolation**. Deployments requiring hard multi-tenant separation should run one instance per tenant. Test cross-tenant access across repository queries and configured integrations. |
 
 ### 4.5 Denial of Service
 

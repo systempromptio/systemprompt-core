@@ -9,6 +9,7 @@
 - **Breaking:** `GovernanceEngine::from_config` and `from_services_root` take the rate-window repository, and a chain that arms a rate window without one fails construction with `GovernanceEngineError::RateWindowsUnavailable`; `charge_rate_windows`, `with_rate_windows` and `RateChargeSubject` are removed. Migrate by passing `Some(RateWindowRepository::new(pool))` and calling `charge_and_evaluate`.
 - **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After`.
 - **Breaking:** a Cloud Storage object's ETag is its quoted generation on both `HEAD` and `GET`, so ETags cached by clients change once.
+- **Breaking:** authz and policy moved to `systemprompt-governance`: `systemprompt_security::{authz, policy, CompositeAuthzHook}` and the `register_{authz_hook,governance_policy,role_directory,subject_attribute_provider}!` macros are now under `systemprompt_governance`, and the facade exposes them as `systemprompt::governance` behind the same `security` feature. Migrate by depending on `systemprompt-governance` and changing the import paths. The `authz` extension id, its tables and its migrations are unchanged, so deployed databases need no action.
 
 ### Added
 
