@@ -84,6 +84,9 @@ mod profile_gateway_hidden;
 mod profile_secrets_vault;
 
 #[cfg(test)]
+mod profile_secrets_refresh;
+
+#[cfg(test)]
 mod profile_services_sources;
 
 #[cfg(test)]
