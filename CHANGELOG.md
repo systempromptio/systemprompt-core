@@ -20,7 +20,7 @@
 ### Changed
 
 - **CI:** the schema ladder boots each of the two previous releases' own server against the upgraded database; it must serve and write a quota row, or refuse a `@compat: breaking` schema, and a failed quota write that no breaking marker declares fails the release.
-- **Docs:** `documentation/guides/deploy-production.md` §9.4 is the 0.69 → 0.70 recreate upgrade runbook, and `documentation/concepts/config-planes.md` covers plane authority, the writer token and the export path.
+- **Docs:** `documentation/guides/deploy-production.md` §9.4 is the 0.69 → 0.70 recreate upgrade runbook, and `documentation/concepts/config-authority.md` covers plane authority, the writer token and the export path.
 
 ### Fixed
 
