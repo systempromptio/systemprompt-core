@@ -235,21 +235,3 @@ async fn delete_client_returns_bool() {
             .expect("delete again")
     );
 }
-
-#[tokio::test]
-async fn find_client_by_redirect_uri_facade() {
-    let ctx = setup().await;
-    let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
-    let uri = format!("https://ru-{}.invalid/cb", Uuid::new_v4().simple());
-    let mut params = create_params(&client_id, &ctx.owner);
-    params.redirect_uris = vec![uri.clone()];
-    ctx.repo.create_client(params).await.expect("create");
-
-    let scoped = ctx
-        .repo
-        .find_client_by_redirect_uri_with_scope(&uri, &["openid"])
-        .await
-        .expect("find scoped")
-        .expect("present");
-    assert_eq!(scoped.client_id, client_id);
-}

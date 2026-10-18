@@ -1,5 +1,5 @@
 //! The browser session cookie and the redirect that sets it, shared by the
-//! OAuth browser-client callback and the SSO callbacks.
+//! SSO callbacks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -196,10 +196,6 @@ mod session_middleware_persists_anon;
 mod routes_mcp_unauth_challenge;
 
 #[cfg(test)]
-#[path = "routes_oauth_callback.rs"]
-mod routes_oauth_callback;
-
-#[cfg(test)]
 #[path = "routes_oauth_webauthn_complete.rs"]
 mod routes_oauth_webauthn_complete;
 
@@ -433,10 +429,6 @@ mod routes_oauth_introspect_revoke;
 #[cfg(test)]
 #[path = "routes_oauth_userinfo.rs"]
 mod routes_oauth_userinfo;
-
-#[cfg(test)]
-#[path = "routes_oauth_callback_flow.rs"]
-mod routes_oauth_callback_flow;
 
 #[cfg(test)]
 #[path = "routes_oauth_webauthn.rs"]

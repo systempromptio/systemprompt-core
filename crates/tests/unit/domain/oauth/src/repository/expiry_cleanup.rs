@@ -124,36 +124,6 @@ async fn delete_expired_oauth_codes_removes_used_and_expired_codes() {
 }
 
 #[tokio::test]
-async fn delete_expired_oauth_state_bindings_removes_expired_rows() {
-    let (repo, pg) = repo_and_pool().await;
-    let hash = unique("state_hash");
-    sqlx::query(
-        "INSERT INTO oauth_state_bindings (state_token_hash, return_to, client_id, redirect_uri, \
-         expires_at) VALUES ($1, '/', 'cleanup-client', 'https://cb.test', NOW() - INTERVAL '1 \
-         hour')",
-    )
-    .bind(&hash)
-    .execute(&pg)
-    .await
-    .expect("insert state binding fixture");
-
-    let deleted = repo
-        .delete_expired_state_bindings()
-        .await
-        .expect("delete expired bindings");
-    assert!(deleted >= 1);
-
-    let exists = sqlx::query_scalar::<_, bool>(
-        "SELECT EXISTS(SELECT 1 FROM oauth_state_bindings WHERE state_token_hash = $1)",
-    )
-    .bind(&hash)
-    .fetch_one(&pg)
-    .await
-    .expect("binding existence probe");
-    assert!(!exists);
-}
-
-#[tokio::test]
 async fn delete_expired_oauth_jti_revocations_removes_expired_rows() {
     let (repo, pg) = repo_and_pool().await;
     let (user_id, _) = seed_user_and_client(&pg).await;
@@ -245,14 +215,6 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
     .await
     .expect("insert code fixture");
     sqlx::query(
-        "INSERT INTO oauth_state_bindings (state_token_hash, return_to, client_id, redirect_uri, \
-         expires_at) VALUES ('sweep_state', '/', 'cleanup-client', 'https://cb.test', $1)",
-    )
-    .bind(expired)
-    .execute(&*pg)
-    .await
-    .expect("insert state binding fixture");
-    sqlx::query(
         "INSERT INTO oauth_jti_revocations (jti, user_id, exp) VALUES ('sweep_jti', $1, $2)",
     )
     .bind(&user_id)
@@ -288,7 +250,6 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
         OauthCleanupCounts {
             codes: 1,
             tokens: 1,
-            state_bindings: 1,
             jti_revocations: 1,
             id_jag_replays: 1,
             bridge_exchange_codes: 1,
@@ -297,7 +258,7 @@ async fn delete_expired_sweeps_every_table_and_totals_the_counts() {
             sso_replays: 0,
         }
     );
-    assert_eq!(counts.total(), 6);
+    assert_eq!(counts.total(), 5);
     assert_eq!(surviving_tokens, vec!["sweep_live_token".to_owned()]);
 }
 

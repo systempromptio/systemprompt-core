@@ -22,9 +22,6 @@ mod client_tests;
 mod jti_revocation_tests;
 
 #[cfg(test)]
-mod state_binding_tests;
-
-#[cfg(test)]
 mod token_tests;
 
 #[cfg(test)]

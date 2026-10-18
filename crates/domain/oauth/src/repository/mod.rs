@@ -22,7 +22,6 @@ pub use exchange_code::CreateExchangeCodeParams;
 pub use oauth::{
     AuthCodeParams, AuthCodeValidationResult, JtiRevocationCache, MintAuthCodeParams,
     OAuthRepository, PostgresReplayGuard, RefreshTokenParams, SsoStateParams, SsoStateRow,
-    StateBindingParams, StateBindingRow,
 };
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
