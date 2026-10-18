@@ -117,7 +117,7 @@ fn values_are_type_range_and_enum_checked() {
         DesktopPolicyError::Range(_)
     ));
     assert!(matches!(
-        err(json!({"defaultModelEffort": "max"})),
+        err(json!({"defaultModelEffort": "extreme"})),
         DesktopPolicyError::EnumValue(_)
     ));
     assert!(matches!(
