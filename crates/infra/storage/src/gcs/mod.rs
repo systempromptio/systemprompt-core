@@ -124,8 +124,17 @@ impl FileStorage for GcsFileStorage {
             .download(&name, range)
             .await
             .map_err(|e| e.into_storage(id))?;
+        let etag = client::generation_etag(
+            response
+                .headers()
+                .get(client::GENERATION_HEADER)
+                .and_then(|v| v.to_str().ok()),
+        );
         match crate::remote_read::into_read(id, response) {
-            RemoteRead::Read(read) => Ok(read),
+            RemoteRead::Read(mut read) => {
+                read.metadata.etag = etag;
+                Ok(read)
+            },
             RemoteRead::Unsatisfiable(Some(size)) => {
                 Err(FileStorageError::RangeNotSatisfiable { size })
             },
@@ -170,7 +179,7 @@ impl FileStorage for GcsFileStorage {
                 .content_type
                 .unwrap_or_else(|| mime_for(Path::new(id.as_str())).to_owned()),
             size_bytes,
-            etag: object.etag,
+            etag: client::generation_etag(object.generation.as_deref()),
             created_at,
             updated_at: object.updated.unwrap_or(created_at),
         })
