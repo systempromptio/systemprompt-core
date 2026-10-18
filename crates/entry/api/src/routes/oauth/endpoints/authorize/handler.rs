@@ -11,8 +11,8 @@ use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };
 use super::validation::{
-    RegisteredRedirect, SelfOrigins, resolve_registered_redirect,
-    validate_authorize_request, validate_oauth_parameters,
+    RegisteredRedirect, SelfOrigins, resolve_registered_redirect, validate_authorize_request,
+    validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::extractors::OAuthRepo;
