@@ -61,7 +61,7 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
-      # libdbus-sys through pkg-config; ubuntu-latest no longer ships
+      # libdbus-sys through pkg-config; ubuntu-latest does not ship
       # libdbus-1-dev.
       - name: Install system dependencies
         timeout-minutes: 12
@@ -141,8 +141,8 @@ jobs:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       # Why: the Windows leg is the Quality critical path and is compile-bound.
-      # The cache is saved even when a check fails (the next push is usually
-      # the fix and needs the same deps), and only from `next`, whose caches
+      # The cache is saved even when a check fails (the next push usually
+      # needs the same deps), and only from `next`, whose caches
       # every PR and push can read; PR runs would otherwise evict it.
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:

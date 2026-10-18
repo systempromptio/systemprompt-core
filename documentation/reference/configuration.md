@@ -34,8 +34,8 @@ The top-level `Profile` struct and every nested config struct in this document c
 
 `target` accepts the lowercase values `local` and `cloud` (`profile/mod.rs:91`).
 
-Two keys that used to be top-level profile sections are rejected with a message naming their
-new home: `providers` and `gateway`. See [Provider catalog and gateway — moved to the services
+Two keys belong to the services tree and are rejected in a profile with a message naming
+their home: `providers` and `gateway`. See [Provider catalog and gateway — moved to the services
 tree](#provider-catalog-and-gateway--moved-to-the-services-tree).
 
 ## `site`
@@ -327,16 +327,15 @@ See [`concepts/extensions.md`](../concepts/extensions.md) for the extension mode
 
 ## Provider catalog and gateway — moved to the services tree
 
-`providers:` and `gateway:` are no longer profile sections. A profile that still carries either
+`providers:` and `gateway:` are not profile sections. A profile that still carries either
 key fails to parse with `ProfileError::MovedToServices`, which names the key and the file it
 belongs in (`crates/shared/manifest/src/profile/mod.rs`). The reason is what the two sections
 are: a model catalog (providers, models, pricing, capabilities, limits) and the routes onto it
 change only when the product changes, carry no credential, and are identical across every
 environment — implementation configuration, like agents and MCP servers, not deployment
-configuration. In the profile they were the ~950 lines every environment hand-copied and
-drifted.
+configuration; in a profile they would be copied by hand into every environment and drift.
 
-Both now live under `paths.services` and are loaded, merged, and validated by the services
+Both live under `paths.services` and are loaded, merged, and validated by the services
 loader (`crates/infra/loader/src/config_loader/`):
 
 | Services key | Conventional file | Type | Meaning |

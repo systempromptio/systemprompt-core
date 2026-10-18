@@ -242,8 +242,8 @@ fn fallible_receiver(receiver: &Expr) -> bool {
 const TRACING_LEVELS: &[&str] = &["trace", "debug", "info", "warn", "error"];
 
 // Why: a network or database result whose error is discarded on the way to a
-// constant message is exactly how a provider's `403 unauthorized_client`
-// spent a day looking like an outage; the closure must say what it saw.
+// constant message hides the cause (a provider's `403 unauthorized_client`
+// reads as an outage); the closure must say what it saw.
 const BOUNDARY_METHODS: [&str; 11] = [
     "send",
     "json",

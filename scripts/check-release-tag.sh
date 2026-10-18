@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Every released version must carry its tag.
 #
-# 0.34.0 was published to crates.io and never tagged. Nothing noticed: the
-# build, clippy, every shard and the whole of CI pass against a missing tag,
-# and under the next-branch flow the tag is always a separate manual step --
-# cut on `main` after the release PR merges, before publishing.
-# The cost lands later, when the only way left to answer
-# "which commit is this published version?" is to download the .crate and diff
-# it against candidate commits.
+# The build, clippy, every shard and the whole of CI pass against a missing tag,
+# and under the next-branch flow the tag is a separate manual step -- cut on
+# `main` after the release PR merges, before publishing. Without it, the only
+# way to answer "which commit is this published version?" is to download the
+# .crate and diff it against candidate commits.
 #
 # The invariant, checked with no network and no registry call: a version that
 # appears in CHANGELOG.md and is *older* than the workspace version must have a

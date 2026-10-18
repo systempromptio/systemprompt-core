@@ -2,10 +2,9 @@
 # The bridge GUI never decides what a state *means*. Every state on the wire
 # ships beside a verdict the bridge computed (`src/verdict.rs`); the front end
 # renders `tone` and looks `code` up in the catalogue. A JavaScript branch on a
-# state's *name* is the bug class this gate exists for: the Home card once
-# tested the MCP auth state against a variant that did not exist and told
-# users four healthy servers were broken, while Status -- reading the same
-# snapshot with its own copy of the derivation -- said they were fine.
+# state's *name* is a second copy of the derivation, free to test against a
+# variant that does not exist and to disagree with another pane reading the
+# same snapshot.
 #
 # Rule: no comparison of a `.state`, `.kind`, `.phase`, `.level` or
 # `.app_installed` field against a string literal, and no `switch` on one,
