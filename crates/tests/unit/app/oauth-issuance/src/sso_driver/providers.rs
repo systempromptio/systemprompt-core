@@ -183,11 +183,10 @@ fn open_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
     Some(Arc::new(provider(OPEN)))
 }
 
+// Why: inventory order is unspecified, so either registration of the
+// duplicated id may be kept; both must behave identically for the flow tests.
 fn duplicate_open_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
-    Some(Arc::new(FakeProvider {
-        issuer: "https://idp.test/duplicate",
-        ..provider(OPEN)
-    }))
+    Some(Arc::new(provider(OPEN)))
 }
 
 fn closed_factory(_ctx: &SsoHookContext) -> Option<Arc<dyn SsoProvider>> {
