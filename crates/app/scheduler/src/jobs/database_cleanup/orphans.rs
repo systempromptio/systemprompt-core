@@ -25,8 +25,15 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
         |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(Box::new(e));
     // Why: `logs` and `users` have different owners, so the orphan set is
     // computed by asking each: the log owners seen, minus the users that
-    // still exist.
-    let seen = logs.distinct_log_user_ids().await.map_err(internal)?;
+    // still exist. System-span rows are owned by a sentinel no user row
+    // backs, and are never orphans.
+    let seen: Vec<_> = logs
+        .distinct_log_user_ids()
+        .await
+        .map_err(internal)?
+        .into_iter()
+        .filter(|id| id.as_str() != systemprompt_logging::SYSTEM_LOG_OWNER)
+        .collect();
     let orphans = users
         .missing_ids(&seen)
         .await

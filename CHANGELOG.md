@@ -74,6 +74,7 @@
 
 ### Fixed
 
+- **Scheduler:** an enforced `database_cleanup` run no longer deletes system-span log rows as orphans; their sentinel owner is not a user row.
 - **Gateway:** a request that the quota windows refuse (enforce) or whose quota check fails has its `rate_windows` charge refunded.
 - **Storage:** S3 and Cloud Storage error bodies are capped at 2 KiB before they reach error text and logs.
 - **Config planes:** a non-converging apply rolls back instead of leaving a partial write, and a stale `systemprompt_config_plane_info` series is zeroed under the authority it was recorded with.

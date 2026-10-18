@@ -51,7 +51,7 @@ pub use repository::{
 pub use services::CliService;
 pub use services::{
     BufferedNotice, ConsoleEventFormat, DatabaseLogService, FilterSystemFields, JsonEventFormat,
-    LogThrottle, LoggingMaintenanceService, SystemSpan, buffer_notice, console_format,
+    LogThrottle, LoggingMaintenanceService, SYSTEM_LOG_OWNER, SystemSpan, buffer_notice, console_format,
     drain_notices, is_startup_mode, is_structured_output, mark_structured_emitted,
     reset_structured_emitted, set_console_format, set_startup_mode, set_structured_output,
     structured_was_emitted,
