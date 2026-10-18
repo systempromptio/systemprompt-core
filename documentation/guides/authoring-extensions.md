@@ -214,6 +214,7 @@ Core owns these contracts so an extension never reimplements them against core t
 - **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. Claim again before `ttl` elapses to keep it; a dead owner's lease is forfeit even before it expires. `release` and `holder` complete the set.
 - **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool, never on a pool behind a transaction-mode pooler. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock. The key space is disjoint from the scheduler's job locks.
 - **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
+- **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
 
 ## How discovery works
 

@@ -1,9 +1,11 @@
 //! Service layer: provider abstraction, owned [`Database`] handle,
-//! transaction helpers, batch execution, and CLI display traits.
+//! budgeted job transactions, transaction helpers, batch execution, and CLI
+//! display traits.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod budgeted;
 pub mod database;
 pub mod display;
 pub mod executor;
@@ -12,6 +14,7 @@ pub mod provider;
 pub mod schema_linter;
 pub mod transaction;
 
+pub use budgeted::BudgetedDb;
 pub use database::{Database, DatabaseExt, DbPool};
 pub use display::DatabaseCliDisplay;
 pub use executor::SqlExecutor;

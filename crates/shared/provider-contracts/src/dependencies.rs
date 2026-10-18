@@ -14,7 +14,7 @@
 //!
 //! | Context | Types |
 //! |---------|-------|
-//! | `JobContext` (scheduler) | `DbPool`, `Arc<AppContext>`, `Arc<AppPaths>` |
+//! | `JobContext` (scheduler) | `DbPool`, `BudgetedDb`, `Arc<AppContext>`, `Arc<AppPaths>` |
 //! | prerender contexts (generator) | `DbPool`, `ContentConfigRaw` |
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

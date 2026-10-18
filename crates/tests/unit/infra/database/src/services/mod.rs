@@ -1,3 +1,4 @@
+mod budgeted_db;
 mod connection;
 mod conversion;
 mod database;

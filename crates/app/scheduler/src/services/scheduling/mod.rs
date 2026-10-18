@@ -22,10 +22,10 @@ use crate::models::{SchedulerConfig, SkippedJob};
 use crate::repository::SchedulerRepository;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use systemprompt_database::DbPool;
+use systemprompt_database::{BudgetedDb, DbPool};
 use systemprompt_identifiers::{Actor, JobName, UserId};
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{Dependencies, Job as JobTrait, JobContext};
+use systemprompt_traits::{DbBudget, Dependencies, Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::JobScheduler;
 use tracing::{debug, info, warn};
@@ -243,9 +243,11 @@ pub(crate) fn make_job_context(
     actor: Actor,
     db_pool: DbPool,
     app_context: Arc<AppContext>,
+    budget: Option<DbBudget>,
 ) -> JobContext {
     let dependencies = Dependencies::new()
         .with(Arc::clone(app_context.app_paths_arc()))
+        .with(BudgetedDb::new(Arc::clone(&db_pool), budget))
         .with(db_pool)
         .with(app_context);
     JobContext::new(actor, dependencies)

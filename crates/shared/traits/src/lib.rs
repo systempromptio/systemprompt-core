@@ -76,7 +76,7 @@ pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    Dependencies, Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError,
+    DbBudget, Dependencies, Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError,
     ProviderResult, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent,
     ToolContext, ToolDefinition, ToolInventory, ToolProvider, ToolProviderError,
     ToolProviderResult, submit_job,

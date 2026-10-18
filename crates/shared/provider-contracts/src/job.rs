@@ -16,10 +16,14 @@
 //! `unlisted_jobs: default` it is scheduled even when the configuration does
 //! not name it.
 //!
+//! [`Job::db_budget`] declares the statement, lock and memory limits the
+//! job's run transactions carry; see [`crate::DbBudget`].
+//!
 //! A job reaches the host's handles through [`JobContext::get`]: the scheduler
-//! inserts `DbPool`, `Arc<AppContext>` and `Arc<AppPaths>` into the context's
-//! [`Dependencies`], and `ctx.get::<DbPool>()?` inside `execute` either yields
-//! the pool or fails the run with [`crate::ProviderError::MissingDependency`].
+//! inserts `DbPool`, `BudgetedDb`, `Arc<AppContext>` and `Arc<AppPaths>` into
+//! the context's [`Dependencies`], and `ctx.get::<DbPool>()?` inside `execute`
+//! either yields the pool or fails the run with
+//! [`crate::ProviderError::MissingDependency`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -222,6 +226,10 @@ pub trait Job: Send + Sync + 'static {
     }
 
     fn default_schedule(&self) -> Option<&'static str> {
+        None
+    }
+
+    fn db_budget(&self) -> Option<crate::DbBudget> {
         None
     }
 }
