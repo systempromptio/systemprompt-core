@@ -23,11 +23,10 @@ env:
   RUSTUP_MAX_RETRIES: "10"
   CARGO_NET_RETRY: "10"
   CARGO_TERM_COLOR: always
-  # One flag set for every job that compiles, so `build`, `migrator` and
-  # `test-tools` hash to the same sccache objects instead of three disjoint
-  # sets. The test workspace is warning-clean (Quality's all-targets clippy
-  # denies warnings), so it builds under `-D warnings` too.
-  RUSTFLAGS: "-D warnings"
+  # One flag set for every compiling job here and in quality.yml and
+  # schema-ladder.yml, so they hash to the same sccache objects. Warnings are
+  # denied by Quality's clippy (`-D warnings`) and rustdoc, not by RUSTFLAGS.
+  RUSTFLAGS: ""
   CARGO_PROFILE_DEV_DEBUG: "0"
   SQLX_OFFLINE: "true"
   # Every Rust job compiles through sccache with the GitHub Actions cache as
@@ -136,7 +135,7 @@ jobs:
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-nextest@0.9.140
+          tool: cargo-nextest@0.9.146
       - name: Build migrator, CLI and bridge
         run: |
           cargo build --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate --locked
@@ -220,7 +219,7 @@ jobs:
       - run: rustup show
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-nextest@0.9.140
+          tool: cargo-nextest@0.9.146
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: test-tools
