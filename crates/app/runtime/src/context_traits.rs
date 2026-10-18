@@ -82,6 +82,18 @@ impl ExtensionContext for AppContext {
         self.config().instance_id.clone()
     }
 
+    fn instances(&self) -> systemprompt_traits::DynInstanceRegistry {
+        let concrete = Arc::clone(self.service_repository());
+        let registry: systemprompt_traits::DynInstanceRegistry = concrete;
+        registry
+    }
+
+    fn leases(&self) -> systemprompt_traits::DynLeaseRepository {
+        let concrete = Arc::clone(&self.coordination_repositories().leases);
+        let leases: systemprompt_traits::DynLeaseRepository = concrete;
+        leases
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
     }

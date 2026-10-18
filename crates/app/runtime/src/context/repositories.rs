@@ -10,7 +10,7 @@ use systemprompt_agent::repository::A2ARepositories;
 use systemprompt_ai::repository::AiRepositories;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_content::repository::ContentRepositories;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{CoordinationRepositories, ServiceRepository};
 use systemprompt_files::FileRepository;
 use systemprompt_marketplace::managed::ManagedRepository;
 use systemprompt_mcp::repository::McpSessionRepository;
@@ -38,6 +38,10 @@ impl AppContext {
 
     pub const fn service_repository(&self) -> &Arc<ServiceRepository> {
         &self.data.service_repository
+    }
+
+    pub const fn coordination_repositories(&self) -> &Arc<CoordinationRepositories> {
+        &self.data.coordination
     }
 
     pub const fn ai_repositories(&self) -> &Arc<AiRepositories> {

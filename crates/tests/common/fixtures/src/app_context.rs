@@ -305,6 +305,10 @@ fn fixture_app_context_assembled(
             user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                 pool,
+                instance_id.clone(),
+            )),
+            coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+                pool,
                 instance_id,
             )),
             ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)),

@@ -58,6 +58,7 @@ pub mod content;
 pub use content::{ContentCatalogStats, DynContentCatalogStats};
 pub mod context;
 pub mod context_provider;
+pub mod coordination;
 pub mod domain_config;
 pub mod extension_error;
 pub mod jwt;
@@ -91,6 +92,12 @@ pub use systemprompt_identifiers::{
 };
 
 pub use repository::{BoxedSource, ConstraintKind, RepositoryError};
+
+pub use coordination::{
+    AdvisoryLockGuard, AdvisoryLocks, CoordinationError, CoordinationResult, DynAdvisoryLocks,
+    DynInstanceRegistry, DynLeaseRepository, HeldAdvisoryLock, InstanceRegistry, Lease,
+    LeaseRepository, UnavailableCoordination,
+};
 
 pub use ownership::{DynOwnerReassignment, OwnerReassignment, ReassignedRows};
 pub use tool_executions::{

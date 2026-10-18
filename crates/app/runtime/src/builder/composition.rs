@@ -22,6 +22,7 @@ pub(super) fn build_data_plane(
         oauth_repositories: repositories.oauth,
         user_repository: repositories.users,
         service_repository: repositories.services,
+        coordination: repositories.coordination,
         ai_repositories: repositories.ai,
         analytics_repositories: repositories.analytics,
         file_repository: repositories.files,
@@ -48,6 +49,7 @@ pub(super) struct RepositoryBundles {
     oauth: Arc<systemprompt_oauth::repository::OAuthRepositories>,
     pub(super) users: Arc<systemprompt_users::UserRepository>,
     services: Arc<systemprompt_database::ServiceRepository>,
+    coordination: Arc<systemprompt_database::CoordinationRepositories>,
     pub(super) ai: Arc<systemprompt_ai::repository::AiRepositories>,
     analytics: Arc<systemprompt_analytics::repository::AnalyticsRepositories>,
     files: Arc<systemprompt_files::FileRepository>,
@@ -110,6 +112,10 @@ pub(super) fn build_repositories(
         )),
         users: Arc::new(systemprompt_users::UserRepository::new(database)),
         services: Arc::new(systemprompt_database::ServiceRepository::new(
+            database,
+            instance_id.clone(),
+        )),
+        coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
             database,
             instance_id,
         )),

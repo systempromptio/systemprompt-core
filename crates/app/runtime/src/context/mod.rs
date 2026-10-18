@@ -16,7 +16,9 @@ use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_content::repository::ContentRepositories;
-use systemprompt_database::{DbPool, SchemaInstallReport, ServiceRepository};
+use systemprompt_database::{
+    CoordinationRepositories, DbPool, SchemaInstallReport, ServiceRepository,
+};
 use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::FileRepository;
@@ -60,6 +62,7 @@ pub struct DataPlane {
     pub oauth_repositories: Arc<OAuthRepositories>,
     pub user_repository: Arc<UserRepository>,
     pub service_repository: Arc<ServiceRepository>,
+    pub coordination: Arc<CoordinationRepositories>,
     pub ai_repositories: Arc<AiRepositories>,
     pub analytics_repositories: Arc<AnalyticsRepositories>,
     pub file_repository: Arc<FileRepository>,

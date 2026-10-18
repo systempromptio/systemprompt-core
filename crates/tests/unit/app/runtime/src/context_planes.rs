@@ -73,6 +73,10 @@ async fn plane_debug_impls_flag_optional_members() {
             &pool,
             test_instance.clone(),
         )),
+        coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+            &pool,
+            test_instance.clone(),
+        )),
         ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
         analytics_repositories: Arc::new(
             systemprompt_test_fixtures::fixture_analytics_repositories(&pool)

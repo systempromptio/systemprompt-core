@@ -45,6 +45,15 @@ impl Extension for DatabaseExtension {
             ]),
             SchemaDefinition::new("trace_facts", include_str!("../schema/trace_facts.sql"))
                 .with_required_columns(vec!["trace_id".into(), "first_at".into(), "status".into()]),
+            SchemaDefinition::new(
+                "instance_leases",
+                include_str!("../schema/instance_leases.sql"),
+            )
+            .with_required_columns(vec![
+                "lease_key".into(),
+                "owner_instance_id".into(),
+                "expires_at".into(),
+            ]),
             SchemaDefinition::sql_only(include_str!("../schema/functions.sql")),
         ]
     }

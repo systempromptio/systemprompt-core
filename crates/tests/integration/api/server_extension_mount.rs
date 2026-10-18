@@ -182,6 +182,10 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                     &pool,
                     test_instance.clone(),
                 )),
+                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+                    &pool,
+                    test_instance.clone(),
+                )),
                 ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,
                 file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),

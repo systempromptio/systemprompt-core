@@ -138,7 +138,7 @@ pub use extension::ExtensionId;
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
-pub use instance::InstanceId;
+pub use instance::{AdvisoryLockKey, InstanceId, LeaseKey};
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use locale::LocaleCode;

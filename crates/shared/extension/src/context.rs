@@ -1,12 +1,21 @@
 //! Runtime context handed to extensions during router resolution.
 //!
+//! Beyond config, database and storage, the context carries the
+//! cross-replica seams core owns: [`ExtensionContext::instances`] answers
+//! whether a replica is alive and [`ExtensionContext::leases`] hands out
+//! expiring single-owner claims. A context without a database refuses them
+//! through [`UnavailableCoordination`].
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
-use systemprompt_traits::{ConfigProvider, DatabaseHandle, FileStorage};
+use systemprompt_traits::{
+    ConfigProvider, DatabaseHandle, DynInstanceRegistry, DynLeaseRepository, FileStorage,
+    UnavailableCoordination,
+};
 
 pub trait ExtensionContext: Send + Sync {
     fn system_owner_id(&self) -> systemprompt_identifiers::UserId;
@@ -18,6 +27,14 @@ pub trait ExtensionContext: Send + Sync {
     fn file_storage(&self) -> Arc<dyn FileStorage>;
 
     fn instance_id(&self) -> InstanceId;
+
+    fn instances(&self) -> DynInstanceRegistry {
+        Arc::new(UnavailableCoordination)
+    }
+
+    fn leases(&self) -> DynLeaseRepository {
+        Arc::new(UnavailableCoordination)
+    }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;
 

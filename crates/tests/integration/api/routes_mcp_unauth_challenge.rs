@@ -105,6 +105,10 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                     &pool,
                     test_instance.clone(),
                 )),
+                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+                    &pool,
+                    test_instance.clone(),
+                )),
                 ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(&pool)),
                 analytics_repositories,
                 file_repository: Arc::new(systemprompt_files::FileRepository::new(&pool)),

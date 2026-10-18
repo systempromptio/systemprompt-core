@@ -210,6 +210,8 @@ register it with `register_gateway_guard`.
 Core owns these contracts so an extension never reimplements them against core tables:
 
 - **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs, so a caller cannot evaluate an uncharged call. A chain that arms `rate_limit` without a rate-window repository refuses to build.
+- **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its boot-time instance claim or heartbeats its `services` rows within 90 seconds. Use it instead of querying `services` with a staleness window of your own. `ctx.instance_id()` is this node's identity.
+- **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. Claim again before `ttl` elapses to keep it; a dead owner's lease is forfeit even before it expires. `release` and `holder` complete the set.
 
 ## How discovery works
 

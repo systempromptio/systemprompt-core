@@ -426,3 +426,27 @@ fn ids_and_get_round_trip_over_many() {
         assert_eq!(k, v);
     }
 }
+
+#[tokio::test]
+async fn a_context_without_coordination_refuses_liveness_and_leases() {
+    let ctx = StubCtx;
+    let liveness = ctx
+        .instances()
+        .is_alive(&systemprompt_identifiers::InstanceId::new("peer"))
+        .await;
+    assert!(matches!(
+        liveness,
+        Err(systemprompt_traits::CoordinationError::Unavailable { .. })
+    ));
+    let lease = ctx
+        .leases()
+        .claim(
+            &systemprompt_identifiers::LeaseKey::new("lease"),
+            std::time::Duration::from_secs(30),
+        )
+        .await;
+    assert!(matches!(
+        lease,
+        Err(systemprompt_traits::CoordinationError::Unavailable { .. })
+    ));
+}
