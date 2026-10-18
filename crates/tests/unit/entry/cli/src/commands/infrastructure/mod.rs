@@ -4,6 +4,7 @@ mod db_app_ctx;
 mod db_commands_db;
 mod db_doctor_repair_lifecycle;
 mod db_migrate_fresh_db;
+mod db_migrate_install_paths_db;
 mod db_migrate_repair_db;
 mod db_migrate_status_collision_orphan;
 mod db_migration_drift_db;

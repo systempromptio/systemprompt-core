@@ -107,3 +107,19 @@ async fn profile_migrate_runs_against_the_profile_database() {
         .await
         .expect("the profile database is already installed, so migrate is a no-op");
 }
+
+#[tokio::test]
+async fn verbose_profile_migrate_reports_its_target_and_stays_a_no_op() {
+    ensure_test_bootstrap();
+    let ctx = CommandContext::new(
+        text_config().with_verbosity(systemprompt_cli::VerbosityLevel::Verbose),
+        EnvOverrides::default(),
+    );
+
+    execute(command(&["migrate"]), &ctx)
+        .await
+        .expect("a verbose migrate against the installed profile database succeeds");
+    execute(command(&["migrate-plan", "--require-rolling-safe"]), &ctx)
+        .await
+        .expect("the installed profile database has nothing pending");
+}
