@@ -19,7 +19,7 @@ use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_oauth::services::SessionCreationError;
 use systemprompt_oauth::{OauthError, OauthErrorKind};
-use systemprompt_security::authz::{AuthzError, ScopeBindingError};
+use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
 use systemprompt_traits::RepositoryError;
 use systemprompt_users::UserError;
 

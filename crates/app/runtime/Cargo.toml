@@ -47,6 +47,7 @@ systemprompt-files = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-marketplace = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-agent = { workspace = true }

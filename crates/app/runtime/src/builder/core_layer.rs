@@ -28,8 +28,8 @@ use systemprompt_database::{
 };
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_security::authz::SharedAuthzHook;
-use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;
@@ -115,7 +115,7 @@ pub(super) async fn init_core(
 
     let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
-    let authz_hook = systemprompt_security::authz::build_authz_hook(
+    let authz_hook = systemprompt_governance::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
@@ -125,7 +125,7 @@ pub(super) async fn init_core(
 
     let governance = Arc::new(GovernanceEngine::from_services_root(
         active_root.path.as_path(),
-        Some(systemprompt_security::policy::RateWindowRepository::new(
+        Some(systemprompt_governance::policy::RateWindowRepository::new(
             database.write_pool().as_ref().clone(),
         )),
     )?);
@@ -168,9 +168,9 @@ pub async fn discover_vertex_models(
     .await
 }
 
-fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {
+fn chain_sources() -> RuntimeResult<systemprompt_governance::authz::ChainSources> {
     let services = systemprompt_loader::ServicesBootstrap::get()?;
-    Ok(systemprompt_security::authz::ChainSources::from_services(
+    Ok(systemprompt_governance::authz::ChainSources::from_services(
         services,
     ))
 }

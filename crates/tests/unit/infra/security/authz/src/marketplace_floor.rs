@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_identifiers::ModelId;
-use systemprompt_security::authz::AuthzContext;
+use systemprompt_governance::authz::AuthzContext;
 
 fn floor() -> BTreeMap<String, serde_json::Value> {
     let mut f = BTreeMap::new();
@@ -45,8 +45,8 @@ mod resolution {
         MarketplaceConfig, MarketplaceVisibility, PluginAuthor, ServicesConfig,
     };
     use systemprompt_models::plugin::PluginComponentRef;
-    use systemprompt_security::authz::member_attribute_floor;
-    use systemprompt_security::authz::types::EntityKind;
+    use systemprompt_governance::authz::member_attribute_floor;
+    use systemprompt_governance::authz::types::EntityKind;
 
     fn marketplace(id: &str) -> MarketplaceConfig {
         MarketplaceConfig {

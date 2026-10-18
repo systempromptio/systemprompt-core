@@ -20,7 +20,7 @@ use systemprompt_marketplace::{
     KeepSetsSubject, MarketplaceCandidate, MarketplaceMembership, keep_sets,
 };
 use systemprompt_models::bridge::manifest::{PluginEntry, SkillEntry};
-use systemprompt_security::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
+use systemprompt_governance::authz::{AccessControlRepository, NO_SUBJECT_ATTRIBUTES};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 use uuid::Uuid;
 

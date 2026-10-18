@@ -11,7 +11,7 @@ use std::str::FromStr;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::RuleId;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     Access, AccessControlRepository, EntityKind, RuleType, UpsertRuleParams,
 };
 use systemprompt_test_fixtures::test_db_pool;

@@ -13,8 +13,8 @@ use systemprompt_ai::repository::{
 };
 use systemprompt_database::DbPool;
 use systemprompt_manifest::profile::{AuditConfig, QuotaConfig};
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
-use systemprompt_security::policy::RateWindowRepository;
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::policy::RateWindowRepository;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, DynContextMaterializer};
 
 use crate::audit::journal::{GatewayJournal, Settlement};

@@ -17,7 +17,7 @@
 use std::time::Duration;
 
 use systemprompt_identifiers::{CallId, McpServerId, McpToolName, SessionId, TraceId, UserId};
-use systemprompt_security::policy::{
+use systemprompt_governance::policy::{
     ApprovalOutcome, ApprovalRepository, ApprovalStatus, ApprovalVerdict, NewApprovalRequest,
     args_digest, wait_for_decision,
 };

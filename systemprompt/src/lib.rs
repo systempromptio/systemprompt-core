@@ -19,7 +19,7 @@
 //! | `events` | `systemprompt-events` | In-process event bus and SSE plumbing. |
 //! | `storage` | `systemprompt-storage` | File storage backends and the shared-mount probe. |
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
-//! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
+//! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding with custom extensions. |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
@@ -136,6 +136,12 @@ pub mod client {
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub mod security {
     pub use systemprompt_security::*;
+}
+
+#[cfg(feature = "security")]
+#[cfg_attr(docsrs, doc(cfg(feature = "security")))]
+pub mod governance {
+    pub use systemprompt_governance::*;
 }
 
 /// Application runtime / `AppContext` wiring. Construct via `AppContextBuilder`

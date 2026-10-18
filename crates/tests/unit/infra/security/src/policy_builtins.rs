@@ -1,10 +1,10 @@
 use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::secrets::{SecretHit, SecretScanner};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::secrets::{SecretHit, SecretScanner};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
@@ -501,7 +501,7 @@ const RATE_LIMIT_2: &str = "governance:\n  policies:\n    - id: rate_limit\n    
 
 fn rate_decision(
     e: &GovernanceEngine,
-    counts: &systemprompt_security::policy::RateCounts,
+    counts: &systemprompt_governance::policy::RateCounts,
 ) -> Decision {
     let session = SessionId::generate();
     let user = UserId::new("u-rate");
@@ -523,8 +523,8 @@ fn rate_decision(
     e.evaluate(&ctx).decision
 }
 
-fn counts_at(position: u64) -> systemprompt_security::policy::RateCounts {
-    systemprompt_security::policy::RateCounts::charged([(
+fn counts_at(position: u64) -> systemprompt_governance::policy::RateCounts {
+    systemprompt_governance::policy::RateCounts::charged([(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
     )])
@@ -567,9 +567,9 @@ fn rate_limit_fails_closed_without_a_charged_count() {
 
 mod require_approval {
     use super::{Call, args, engine, tool};
-    use systemprompt_security::authz::types::Decision;
-    use systemprompt_security::policy::types::AccessScope;
-    use systemprompt_security::policy::{
+    use systemprompt_governance::authz::types::Decision;
+    use systemprompt_governance::policy::types::AccessScope;
+    use systemprompt_governance::policy::{
         ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
         GovernanceEngineError,
     };
@@ -1231,7 +1231,7 @@ governance:
 }
 
 mod approval_digest {
-    use systemprompt_security::policy::args_digest;
+    use systemprompt_governance::policy::args_digest;
 
     #[test]
     fn key_order_does_not_change_the_digest() {
@@ -1259,7 +1259,7 @@ mod approval_digest {
 }
 
 mod secret_scan_enforcement {
-    use systemprompt_security::policy::{
+    use systemprompt_governance::policy::{
         GovernanceConfig, GovernanceEngine, GovernanceEngineError,
     };
 
@@ -1331,5 +1331,5 @@ governance:
     }
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

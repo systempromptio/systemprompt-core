@@ -15,7 +15,7 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
 use systemprompt_models::execution::context::ExecutionContext;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityKind, EntityRef, SharedAuthzHook,
     member_attribute_floor,
 };

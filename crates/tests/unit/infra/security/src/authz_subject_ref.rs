@@ -6,7 +6,7 @@
 //! spellings are asserted literally rather than round-tripped.
 
 use systemprompt_identifiers::{DepartmentId, RoleId, UserId};
-use systemprompt_security::authz::types::SubjectRef;
+use systemprompt_governance::authz::types::SubjectRef;
 
 fn json(subject: &SubjectRef) -> serde_json::Value {
     serde_json::to_value(subject).expect("serialise subject")

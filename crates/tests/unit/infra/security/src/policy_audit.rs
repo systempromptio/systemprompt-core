@@ -1,9 +1,9 @@
 use systemprompt_identifiers::{
     AgentId, CallId, McpToolName, PluginId, PolicyId, SessionId, SkillId, UserId,
 };
-use systemprompt_security::authz::types::{Decision, EntityRef, MatchedBy};
-use systemprompt_security::policy::types::AccessScope;
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::{Decision, EntityRef, MatchedBy};
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{
     ApproverStamp, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     PrincipalSnapshot, record_decision,
 };
@@ -188,7 +188,7 @@ async fn deny_decision_records_the_first_failing_policy() {
     let pool = test_db_pool().await;
     let mut audit = unique_audit();
     audit.decision = Decision::Deny {
-        reason: systemprompt_security::authz::types::DenyReason::NotAssigned {
+        reason: systemprompt_governance::authz::types::DenyReason::NotAssigned {
             entity: EntityRef::Skill(SkillId::new("writer")),
             user_id: UserId::new("u1"),
             roles: vec!["viewer".to_owned()],
@@ -236,7 +236,7 @@ async fn deny_without_a_failing_chain_entry_records_unknown() {
     let pool = test_db_pool().await;
     let mut audit = unique_audit();
     audit.decision = Decision::Deny {
-        reason: systemprompt_security::authz::types::DenyReason::NotAssigned {
+        reason: systemprompt_governance::authz::types::DenyReason::NotAssigned {
             entity: EntityRef::Skill(SkillId::new("writer")),
             user_id: UserId::new("u1"),
             roles: vec!["viewer".to_owned()],

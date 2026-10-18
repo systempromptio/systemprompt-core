@@ -17,7 +17,7 @@ use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 

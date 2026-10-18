@@ -1,6 +1,6 @@
 use systemprompt_identifiers::{MarketplaceId, SkillId};
-use systemprompt_security::authz::resolver::{ResolveInput, ResolveParent, resolve};
-use systemprompt_security::authz::types::{
+use systemprompt_governance::authz::resolver::{ResolveInput, ResolveParent, resolve};
+use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
 use systemprompt_test_fixtures::fixture_user_id;
@@ -44,7 +44,7 @@ fn own_allow_wins_over_parent() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -77,7 +77,7 @@ fn own_deny_overrides_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -112,7 +112,7 @@ fn parent_allow_cascades_when_own_absent() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -147,7 +147,7 @@ fn parent_deny_overrides_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -191,7 +191,7 @@ fn nearer_parent_allow_beats_farther_parent_deny() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -222,7 +222,7 @@ fn own_default_included_allows_before_parent_default() {
         user_roles: &roles,
         default_included: Some(true),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -253,7 +253,7 @@ fn parent_default_included_allows_when_own_default_off() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -284,7 +284,7 @@ fn unknown_entity_when_nothing_matches_and_own_default_none() {
         user_roles: &roles,
         default_included: None,
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -318,7 +318,7 @@ fn parent_default_allows_even_when_own_default_none() {
         user_roles: &roles,
         default_included: None,
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -351,7 +351,7 @@ fn non_matching_own_ruleset_does_not_inherit_parent_allow() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -386,7 +386,7 @@ fn non_matching_own_ruleset_ignores_parent_default_included() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -421,7 +421,7 @@ fn matching_own_ruleset_still_allows() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -455,7 +455,7 @@ fn empty_own_ruleset_still_inherits() {
         user_roles: &roles,
         default_included: Some(false),
         parents: &parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
 
@@ -488,7 +488,7 @@ fn resolve_child(
         user_roles: roles,
         default_included: own_default,
         parents,
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     })
 }

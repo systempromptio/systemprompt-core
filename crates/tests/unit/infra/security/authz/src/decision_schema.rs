@@ -4,10 +4,10 @@
 //! variant appears in the column's CHECK allow-list so extending the enum
 //! without extending the constraint fails this test.
 
-use systemprompt_security::authz::DecisionTag;
+use systemprompt_governance::authz::DecisionTag;
 
 const SCHEMA_SQL: &str =
-    include_str!("../../../../../../infra/security/schema/governance_decisions.sql");
+    include_str!("../../../../../../infra/governance/schema/governance_decisions.sql");
 
 fn all_variants() -> [DecisionTag; 2] {
     [DecisionTag::Allow, DecisionTag::Deny]

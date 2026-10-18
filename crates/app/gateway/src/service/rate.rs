@@ -18,7 +18,7 @@
 use chrono::Utc;
 use systemprompt_identifiers::{CallId, PolicyId};
 use systemprompt_manifest::services::QuotaFaultMode;
-use systemprompt_security::policy::RateCharge;
+use systemprompt_governance::policy::RateCharge;
 
 use super::{DispatchError, GatewayError, GuardUnavailable, QuotaExceeded};
 use crate::GatewayRepositories;

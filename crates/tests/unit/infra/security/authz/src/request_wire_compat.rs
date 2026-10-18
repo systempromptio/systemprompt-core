@@ -3,8 +3,8 @@
 //! from it. These tests pin that contract in both directions.
 
 use systemprompt_identifiers::{Actor, ActorKind, AgentId, ClientId, RouteId, TraceId, UserId};
-use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::authz::{AuthzContext, AuthzRequest, EntityRef};
+use systemprompt_governance::policy::types::AccessScope;
 
 const U1: &str = "00000000-0000-4000-8000-000000000001";
 

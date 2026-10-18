@@ -19,7 +19,7 @@ use systemprompt_cli::{CliConfig, CommandContext, EnvOverrides, OutputFormat};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{Actor, AiRequestId, ContextId, SessionId, UserId};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
 use systemprompt_test_fixtures::{seed_user_row, test_database_url, test_db_pool, unique_user_id};

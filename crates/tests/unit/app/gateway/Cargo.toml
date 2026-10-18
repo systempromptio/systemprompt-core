@@ -18,6 +18,7 @@ systemprompt-identifiers = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-wire = { workspace = true }
 anyhow = { workspace = true }
 axum = { workspace = true }

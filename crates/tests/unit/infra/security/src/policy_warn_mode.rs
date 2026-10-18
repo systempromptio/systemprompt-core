@@ -1,14 +1,14 @@
 use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DecisionTag, DenyReason, MatchedBy};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{
+use systemprompt_governance::authz::types::{Decision, DecisionTag, DenyReason, MatchedBy};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext,
 };
-use systemprompt_security::policy::{
+use systemprompt_governance::policy::{
     ChainEntryResult, GovernanceConfig, GovernanceConfigError, GovernanceEngine, PolicyMode,
 };
-use systemprompt_security::register_governance_policy;
+use systemprompt_governance::register_governance_policy;
 
 #[derive(Debug)]
 struct WarnModeDeny;
@@ -82,7 +82,7 @@ fn ctx<'a>(
     }
 }
 
-fn evaluate(yaml: &str) -> systemprompt_security::policy::Evaluation {
+fn evaluate(yaml: &str) -> systemprompt_governance::policy::Evaluation {
     let engine = GovernanceEngine::from_config(
         &GovernanceConfig::parse(yaml).unwrap(),
         Some(crate::offline_rate_windows()),
@@ -96,7 +96,7 @@ fn evaluate(yaml: &str) -> systemprompt_security::policy::Evaluation {
 }
 
 fn entry_result(
-    evaluation: &systemprompt_security::policy::Evaluation,
+    evaluation: &systemprompt_governance::policy::Evaluation,
     id: &str,
 ) -> ChainEntryResult {
     evaluation
@@ -211,5 +211,5 @@ fn the_decision_tag_string_is_the_value_the_check_constraint_allows() {
     assert_eq!(DecisionTag::Warn.as_str(), "warn");
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

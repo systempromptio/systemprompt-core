@@ -21,6 +21,7 @@ systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-traits = { workspace = true }
 uuid = { workspace = true }
 sqlx = { workspace = true }

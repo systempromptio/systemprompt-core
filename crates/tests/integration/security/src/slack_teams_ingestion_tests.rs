@@ -15,7 +15,7 @@ use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId, TeamsTen
 use systemprompt_manifest::services::{
     SlackAppConfig, SlackAuthzConfig, TeamsAppConfig, TeamsAuthzConfig,
 };
-use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
+use systemprompt_governance::authz::{AccessControlIngestionService, IngestOptions};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

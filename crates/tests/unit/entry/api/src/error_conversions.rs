@@ -418,7 +418,7 @@ fn agent_error_maps_not_found_repository_and_internal() {
 #[test]
 fn scope_binding_error_maps_dimension_membership_and_lookup() {
     use systemprompt_identifiers::ScopeDimension;
-    use systemprompt_security::authz::{AuthzError, ScopeBindingError};
+    use systemprompt_governance::authz::{AuthzError, ScopeBindingError};
     let dimension = || ScopeDimension::try_new("team").expect("valid dimension");
     assert_eq!(
         code_of(ScopeBindingError::UnknownDimension(dimension())).code,

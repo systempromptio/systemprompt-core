@@ -16,7 +16,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::error::IdValidationError;
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_users::{ApiKeyLifetime, ApiKeyLimits, ApiKeyService, UserRepository};
 
 mod issue;

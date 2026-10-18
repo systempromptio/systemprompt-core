@@ -57,5 +57,6 @@ systemprompt-manifest = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-wire = { workspace = true }

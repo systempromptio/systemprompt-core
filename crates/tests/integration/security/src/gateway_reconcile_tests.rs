@@ -27,8 +27,8 @@ use systemprompt_manifest::services::{
     GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, synthesize_route_id,
 };
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_security::authz::resolver::{ResolveInput, resolve};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
+use systemprompt_governance::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
     DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
     reconcile_gateway_entities_exact,
@@ -198,7 +198,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: Some(entity.default_included),
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
     assert!(
@@ -224,7 +224,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: bogus_entity.map(|e| e.default_included),
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
     assert!(

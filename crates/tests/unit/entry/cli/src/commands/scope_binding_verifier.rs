@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use systemprompt_identifiers::{ScopeDimension, UserId};
 use systemprompt_models::attribution::ScopeBinding;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzError, RuleType, ScopeBindingError, SubjectAttributeProvider, SubjectDimension,
     SubjectProviderSet,
 };

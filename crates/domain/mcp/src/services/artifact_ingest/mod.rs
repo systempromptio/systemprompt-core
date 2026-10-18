@@ -29,7 +29,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::payload_digest;
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
-use systemprompt_security::policy::secrets::SecretScanner;
+use systemprompt_governance::policy::secrets::SecretScanner;
 
 use crate::error::McpDomainResult;
 use crate::repository::{

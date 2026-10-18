@@ -24,7 +24,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
+use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
@@ -236,7 +236,7 @@ fn event_router_or_outbox(
 
 fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
-    governance: &systemprompt_security::policy::GovernanceEngine,
+    governance: &systemprompt_governance::policy::GovernanceEngine,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {
     let ingest = systemprompt_mcp::ArtifactIngest::from_db(
         database,

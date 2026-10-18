@@ -12,7 +12,7 @@ use systemprompt_gateway::service::finalize::record_accounting_outcome;
 use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::policy::types::AccessScope;
 
 use crate::support::{minimal_request, seed_user, setup_db};
 use systemprompt_models::origin::{

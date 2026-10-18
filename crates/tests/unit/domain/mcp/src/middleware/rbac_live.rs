@@ -13,7 +13,7 @@ use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_mcp::middleware::{AuthResult, enforce_rbac_from_registry};
 use systemprompt_models::RequestContext as SysRequestContext;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AllowAllHook, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyAllHook, DenyReason,
     SharedAuthzHook,
 };

@@ -14,7 +14,7 @@ use systemprompt_models::attribution::{AttributionSource, RequestAttribution};
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
 

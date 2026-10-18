@@ -17,7 +17,7 @@ use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
 use systemprompt_test_fixtures::seed_admin_credential;
@@ -56,7 +56,7 @@ impl SubjectAttributeProvider for ProjectProvider {
     }
 }
 
-systemprompt_security::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
+systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
     ProjectProvider
 ));
 

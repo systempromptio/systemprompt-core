@@ -8,7 +8,7 @@ use systemprompt_api::routes::gateway::messages::{
     GatewayAuthzRequestInput, build_gateway_authz_request,
 };
 use systemprompt_identifiers::{ContextId, ModelId, RouteId, TraceId, UserId};
-use systemprompt_security::authz::{AuthzContext, EntityRef};
+use systemprompt_governance::authz::{AuthzContext, EntityRef};
 
 #[test]
 fn forwards_roles_and_attributes_to_authz_request() {

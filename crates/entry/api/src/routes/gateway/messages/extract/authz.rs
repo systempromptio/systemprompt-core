@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::{
     Actor, ClientId, ContextId, ModelId, RouteId, SessionId, TraceId, UserId,
 };
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzRequest, EntityRef, SharedAuthzHook,
 };
 

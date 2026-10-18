@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{McpServerId, RouteId, TraceId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AllowAllHook, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason,
     EntityRef,
 };

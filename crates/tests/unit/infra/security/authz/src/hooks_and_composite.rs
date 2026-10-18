@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use systemprompt_identifiers::{RouteId, TraceId, UserId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AllowAllHook, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, AuthzSource,
     CompositeAuthzHook, DenyAllHook, DenyReason, EntityRef,
 };

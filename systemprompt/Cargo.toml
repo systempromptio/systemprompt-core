@@ -59,7 +59,7 @@ loader = ["dep:systemprompt-loader"]
 events = ["dep:systemprompt-events"]
 storage = ["dep:systemprompt-storage"]
 client = ["dep:systemprompt-client"]
-security = ["dep:systemprompt-security"]
+security = ["dep:systemprompt-security", "dep:systemprompt-governance"]
 
 # CLI entry point for product binaries (standalone, use 'full' for everything)
 cli = ["dep:systemprompt-cli"]
@@ -133,6 +133,7 @@ systemprompt-events = { workspace = true, optional = true }
 systemprompt-storage = { workspace = true, optional = true }
 systemprompt-client = { workspace = true, optional = true }
 systemprompt-security = { workspace = true, optional = true }
+systemprompt-governance = { workspace = true, optional = true }
 
 # Application
 systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }

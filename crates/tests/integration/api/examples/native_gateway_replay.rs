@@ -24,7 +24,7 @@ use systemprompt_manifest::services::{
 };
 use systemprompt_models::origin::{ClientAttestation, ClientEvidence, ClientKind, RequestOrigin};
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, seed_admin_credential, test_app_context, test_db_pool,
 };

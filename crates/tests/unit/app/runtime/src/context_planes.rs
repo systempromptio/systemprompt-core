@@ -13,7 +13,7 @@ use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {

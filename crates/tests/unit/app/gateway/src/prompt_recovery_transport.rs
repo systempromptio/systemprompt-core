@@ -9,7 +9,7 @@ use systemprompt_gateway::protocol::outbound::openai_responses::OpenAiResponsesO
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_manifest::services::GatewayRoute;
-use systemprompt_security::authz::types::Decision;
+use systemprompt_governance::authz::types::Decision;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

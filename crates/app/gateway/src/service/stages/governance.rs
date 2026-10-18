@@ -7,8 +7,8 @@ use std::borrow::Cow;
 
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::{
     AgentScope, AuditOrigin, AuditTarget, ChainEntryOutcome, ChainEntryResult, DecisionAudit,
     Evaluation, GovernanceEngine, GovernedInput, GovernedTarget, PolicyRequest, PrincipalSnapshot,
     record_decision,

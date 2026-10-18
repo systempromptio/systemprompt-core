@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_traits::CacheEpochs;
 
 use super::AppContext;

@@ -10,10 +10,10 @@ use std::borrow::Cow;
 use systemprompt_identifiers::{CallId, McpToolName, ServiceName};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::{Decision, DenyReason};
-use systemprompt_security::policy::governed::McpToolInput;
-use systemprompt_security::policy::types::AccessScope;
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::McpToolInput;
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{
     AgentScope, AuditOrigin, AuditTarget, DecisionAudit, Evaluation, GovernedInput, GovernedTarget,
     PolicyRequest, PrincipalSnapshot, record_decision,
 };

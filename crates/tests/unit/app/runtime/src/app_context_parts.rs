@@ -65,7 +65,7 @@ fn builder_with_extension_registry_reflects_in_debug() {
 #[test]
 fn builder_with_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
-    use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+    use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     let hook = AllowAllHook::new(Arc::new(NullAuditSink));
     let builder = AppContextBuilder::new().with_authz_hook(hook);
     let dbg = format!("{builder:?}");
@@ -75,7 +75,7 @@ fn builder_with_authz_hook_reflects_in_debug() {
 #[test]
 fn builder_with_shared_authz_hook_reflects_in_debug() {
     use std::sync::Arc;
-    use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+    use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
     let hook: SharedAuthzHook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let builder = AppContextBuilder::new().with_shared_authz_hook(hook);
     let dbg = format!("{builder:?}");
@@ -97,7 +97,7 @@ fn builder_full_chain_all_flags_set() {
     use std::sync::Arc;
     use systemprompt_extension::ExtensionRegistry;
     use systemprompt_marketplace::AllowAllFilter;
-    use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+    use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 
     let builder = AppContextBuilder::new()
         .with_extensions(ExtensionRegistry::new())

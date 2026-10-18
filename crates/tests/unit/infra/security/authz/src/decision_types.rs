@@ -2,10 +2,10 @@ use std::borrow::Cow;
 
 use serde_json;
 use systemprompt_identifiers::{AgentId, McpToolName, RouteId, SecretPatternId, UserId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzDecision, Decision, DecisionTag, DenyReason, EntityRef, MatchedBy,
 };
-use systemprompt_security::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
+use systemprompt_governance::policy::types::{AccessScope, RateLimitWindow, SecretLocation};
 
 #[test]
 fn decision_tag_as_str() {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     NO_SUBJECT_ATTRIBUTES, ParentChainIndex, allowed_ids,
 };

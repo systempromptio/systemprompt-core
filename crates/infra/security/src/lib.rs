@@ -24,13 +24,6 @@
 //!   token, with a process-wide token cache.
 //! - Bridge manifest signing ([`manifest_signing`]) with Ed25519 keys.
 //! - Lightweight scanner / bot detection ([`services`]).
-//! - Authorization decision plane ([`authz`]) — deny-overrides resolver,
-//!   `access_control_rules` repository, and `AuthzDecisionHook` extension
-//!   surface shared by the gateway and MCP enforcement sites.
-//! - Governed-call plane ([`policy`]) — the `GovernanceEngine` policy chain
-//!   (secret scan, scope check, blocklist, rate limit + extension-registered
-//!   policies) with per-entry audit tracing into `governance_decisions`.
-//!
 //! - Upstream-credential plane ([`credential`]) — a stored secret is parsed
 //!   once into a `ProviderCredential`, which answers for its own scope
 //!   (project, region, principal) and its own auth header; [`google`] is one
@@ -62,7 +55,6 @@
 
 pub mod at_rest;
 pub mod auth;
-pub mod authz;
 pub mod connector_grant;
 pub mod credential;
 pub mod error;
@@ -72,14 +64,12 @@ pub mod jwt;
 pub mod keys;
 pub mod manifest_signing;
 pub mod oauth_wire;
-pub mod policy;
 pub mod services;
 pub mod session;
 
 pub use at_rest::{AtRestHashError, hmac_sha256, hmac_sha256_hex};
 
 pub use auth::{AuthValidationService, HookTokenValidator, ValidatedHookClaims};
-pub use authz::CompositeAuthzHook;
 pub use error::{
     AuthError, AuthResult, JwtError, JwtResult, ManifestSigningError, ManifestSigningResult,
 };

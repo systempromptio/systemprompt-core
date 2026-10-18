@@ -17,7 +17,7 @@ use serde_json::Value;
 use sqlx::{Acquire, Postgres, Transaction};
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_models::origin::ClientEvidence;
-use systemprompt_security::policy::{DecisionAudit, record_decision_with};
+use systemprompt_governance::policy::{DecisionAudit, record_decision_with};
 use systemprompt_traits::RepositoryError;
 
 use super::AiRequestRepository;

@@ -18,7 +18,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::TextArtifact;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::mcp::ExecutionSource;
-use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner};
+use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner};
 use systemprompt_test_fixtures::test_db_pool;
 
 const PATTERNS: &str =

@@ -24,7 +24,7 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilt
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
@@ -205,7 +205,7 @@ pub fn fixture_app_context_with_user_repository(
 
 // Build a fixture context with an explicit authorization hook — used by tests
 // that need to drive the `Deny` branch (pass a
-// [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
+// [`DenyAllHook`](systemprompt_governance::authz::DenyAllHook)).
 pub fn fixture_app_context_with_hook(
     pool: &DbPool,
     database_url: &str,
@@ -254,9 +254,9 @@ fn fixture_app_context_assembled(
         extension_registry,
     } = seams;
     let governance = Arc::new(
-        systemprompt_security::policy::GovernanceEngine::from_services_root(
+        systemprompt_governance::policy::GovernanceEngine::from_services_root(
             std::path::Path::new(&paths.services),
-            Some(systemprompt_security::policy::RateWindowRepository::new(
+            Some(systemprompt_governance::policy::RateWindowRepository::new(
                 pool.write_pool().as_ref().clone(),
             )),
         )?,
@@ -368,22 +368,22 @@ pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::Arti
 
 // A counter store that never answers: built without a runtime, so a sync
 // test can arm a rate window; every charge through it fails closed.
-pub fn offline_rate_windows() -> systemprompt_security::policy::RateWindowRepository {
+pub fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepository {
     let pool = sqlx::postgres::PgPoolOptions::new()
         .acquire_timeout(std::time::Duration::from_millis(50))
         .idle_timeout(None)
         .max_lifetime(None)
         .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
         .expect("lazy pool construction is infallible for a well-formed URL");
-    systemprompt_security::policy::RateWindowRepository::new(pool)
+    systemprompt_governance::policy::RateWindowRepository::new(pool)
 }
 
 // The vendor-neutral warn-only chain: what a deployment without a
 // `<services>/governance/config.yaml` boots with.
-pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
+pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::GovernanceEngine> {
     Arc::new(
-        systemprompt_security::policy::GovernanceEngine::from_config(
-            &systemprompt_security::policy::GovernanceConfig::defaults(),
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
             Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::DbPool;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     Access, AccessControlRepository, ChainIndexCache, ChainSources, EntityKind, RuleType,
     UpsertRuleParams,
 };

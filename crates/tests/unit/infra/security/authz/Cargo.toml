@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit and integration tests for the authz module of systemprompt-security (resolver, hook plumbing, runtime install)"
+description = "Unit and integration tests for the authz module of systemprompt-governance (resolver, hook plumbing, runtime install)"
 publish = false
 
 [lints]
@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
-systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }

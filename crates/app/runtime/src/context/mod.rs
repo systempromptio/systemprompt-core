@@ -31,8 +31,8 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
-use systemprompt_security::authz::SharedAuthzHook;
-use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 

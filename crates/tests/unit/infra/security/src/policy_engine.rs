@@ -1,12 +1,12 @@
 use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason, MatchedBy};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{
+use systemprompt_governance::authz::types::{Decision, DenyReason, MatchedBy};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext,
 };
-use systemprompt_security::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
-use systemprompt_security::register_governance_policy;
+use systemprompt_governance::policy::{ChainEntryResult, GovernanceConfig, GovernanceEngine};
+use systemprompt_governance::register_governance_policy;
 
 #[derive(Debug)]
 struct StaticAllow;
@@ -89,7 +89,7 @@ fn engine(yaml: &str) -> GovernanceEngine {
 }
 
 fn entry_result(
-    evaluation: &systemprompt_security::policy::Evaluation,
+    evaluation: &systemprompt_governance::policy::Evaluation,
     id: &str,
 ) -> ChainEntryResult {
     evaluation
@@ -159,7 +159,7 @@ fn unknown_config_id_rejects_engine_construction() {
         GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap_err();
     assert!(matches!(
         error,
-        systemprompt_security::policy::GovernanceEngineError::UnknownPolicyId { id }
+        systemprompt_governance::policy::GovernanceEngineError::UnknownPolicyId { id }
         if id == "no_such_policy"
     ));
 }
@@ -295,8 +295,8 @@ fn skipped_entries_carry_zero_duration() {
     assert!(skipped.duration_ms.abs() < f64::EPSILON);
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();
 
 #[test]
 fn from_services_root_without_a_config_falls_back_to_the_warn_only_defaults() {
@@ -329,7 +329,7 @@ fn from_services_root_names_the_rejected_file() {
     assert!(
         matches!(
             &err,
-            systemprompt_security::policy::GovernanceEngineError::ConfigRejected { path, .. }
+            systemprompt_governance::policy::GovernanceEngineError::ConfigRejected { path, .. }
             if path.ends_with("governance/config.yaml")
         ),
         "{err}"

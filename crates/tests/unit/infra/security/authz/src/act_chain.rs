@@ -1,7 +1,7 @@
 //! Tests that the act-chain plumbing reaches the governance audit row.
 
 use systemprompt_identifiers::{Actor, ActorKind, RouteId, TraceId, UserId};
-use systemprompt_security::authz::{AuthzContext, AuthzRequest, EntityRef};
+use systemprompt_governance::authz::{AuthzContext, AuthzRequest, EntityRef};
 
 fn request_with_chain(chain: Vec<Actor>) -> AuthzRequest {
     AuthzRequest {

@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{RouteId, TraceId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzHookContext, AuthzRequest, DenyReason,
     EntityRef, NullAuditSink, SharedAuthzHook, discover_authz_hook,
 };
@@ -39,8 +39,8 @@ impl AuthzDecisionHook for DenyHook {
     }
 }
 
-systemprompt_security::register_authz_hook!(|_ctx| Arc::new(AllowHook) as SharedAuthzHook);
-systemprompt_security::register_authz_hook!(|_ctx| Arc::new(DenyHook) as SharedAuthzHook);
+systemprompt_governance::register_authz_hook!(|_ctx| Arc::new(AllowHook) as SharedAuthzHook);
+systemprompt_governance::register_authz_hook!(|_ctx| Arc::new(DenyHook) as SharedAuthzHook);
 
 fn context() -> AuthzHookContext {
     let pool = sqlx::PgPool::connect_lazy("postgres://unused:unused@127.0.0.1:1/unused")

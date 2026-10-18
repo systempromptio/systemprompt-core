@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::json;
 use systemprompt_identifiers::{McpToolName, ModelId, RouteId, TraceId, UserId};
-use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
+use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 
 fn make_request(ctx: AuthzContext) -> AuthzRequest {
     AuthzRequest {

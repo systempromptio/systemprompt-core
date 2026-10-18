@@ -8,7 +8,7 @@
 use std::sync::LazyLock;
 
 use systemprompt_identifiers::{Actor, ContextId, SessionId, TraceId, UserId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
     list_trace_ids_with_decision,
 };

@@ -1,6 +1,6 @@
 use serde_json::json;
 use systemprompt_identifiers::McpToolName;
-use systemprompt_security::policy::governed::{
+use systemprompt_governance::policy::governed::{
     GovernedInput, GovernedTarget, McpToolInput, PROMPT_TARGET_NAME,
 };
 
@@ -100,7 +100,7 @@ fn a_secret_in_a_forwarded_part_is_reported_at_that_part() {
             "token ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789".to_owned(),
         ),
     ]);
-    let scanner = systemprompt_security::policy::SecretScanner::from_policy_yaml(
+    let scanner = systemprompt_governance::policy::SecretScanner::from_policy_yaml(
         &serde_yaml::from_str("patterns: []\n").unwrap(),
     )
     .unwrap();

@@ -1,7 +1,7 @@
 use systemprompt_identifiers::RouteId;
-use systemprompt_security::authz::resolver::{ResolveInput, resolve};
-use systemprompt_security::authz::subject::{SubjectAttributes, SubjectDimension};
-use systemprompt_security::authz::types::{
+use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
+use systemprompt_governance::authz::subject::{SubjectAttributes, SubjectDimension};
+use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
 use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
@@ -34,7 +34,7 @@ fn input<'a>(
         user_roles,
         default_included,
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     }
 }

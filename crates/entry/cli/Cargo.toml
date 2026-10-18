@@ -51,6 +51,7 @@ systemprompt-files = { workspace = true }
 systemprompt-scheduler = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }

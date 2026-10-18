@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use systemprompt_identifiers::{MarketplaceId, PluginId, SkillId};
 use systemprompt_manifest::services::{PluginAuthor, PluginConfig};
 use systemprompt_models::plugin::PluginComponentRef;
-use systemprompt_security::authz::types::{Access, AccessRule, Decision, MatchedBy, RuleType};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::types::{Access, AccessRule, Decision, MatchedBy, RuleType};
+use systemprompt_governance::authz::{
     ChainSources, EntityKind, EntityRef, LoadedParent, MarketplaceSource, ParentChainIndex,
     ResolveBase,
 };
@@ -124,7 +124,7 @@ fn decide(index: &ParentChainIndex, kind: EntityKind, id: &str, roles: &[&str]) 
             user_id: &user,
             user_roles: &roles,
             default_included: Some(false),
-            attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+            attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
             dimensions: &[],
         },
     )
@@ -432,7 +432,7 @@ fn entity_level_deny_beats_every_owning_marketplace() {
             user_id: &user,
             user_roles: &roles,
             default_included: Some(true),
-            attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+            attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
             dimensions: &[],
         },
     );

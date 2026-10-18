@@ -7,10 +7,10 @@
 
 use serde_json::json;
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{AccessScope, AgentScope};
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope};
+use systemprompt_governance::policy::{
     GovernanceConfig, GovernanceEngine, GovernanceEngineError, PolicyRequest, RateWindowRepository,
 };
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};

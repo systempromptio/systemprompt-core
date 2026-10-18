@@ -3,7 +3,7 @@
 //! These cover the pure CPU/serde paths only — DB-backed ingestion is
 //! exercised separately under `crates/tests/integration/`.
 
-use systemprompt_security::authz::AccessControlConfig;
+use systemprompt_governance::authz::AccessControlConfig;
 
 const VALID_YAML: &str = r#"
 rules:

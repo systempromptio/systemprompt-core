@@ -17,6 +17,7 @@ members = [
     "crates/infra/events",
     "crates/infra/storage",
     "crates/infra/security",
+    "crates/infra/governance",
     "crates/infra/cloud",
     "crates/infra/loader",
     # Domain layer
@@ -313,6 +314,7 @@ systemprompt-config = { path = "crates/infra/config", version = "0.70.0" }
 systemprompt-events = { path = "crates/infra/events", version = "0.70.0" }
 systemprompt-storage = { path = "crates/infra/storage", version = "0.70.0" }
 systemprompt-security = { path = "crates/infra/security", version = "0.70.0" }
+systemprompt-governance = { path = "crates/infra/governance", version = "0.70.0" }
 systemprompt-cloud = { path = "crates/infra/cloud", version = "0.70.0" }
 systemprompt-loader = { path = "crates/infra/loader", version = "0.70.0" }
 systemprompt-users = { path = "crates/domain/users", version = "0.70.0" }

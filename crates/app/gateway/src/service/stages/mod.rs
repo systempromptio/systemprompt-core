@@ -12,8 +12,8 @@ mod scanned;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
 use systemprompt_manifest::services::GatewayConfig;
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::{ChainEntryResult, GovernanceEngine, SECRET_SCAN_ID};
 use systemprompt_wire::ModelLimits;
 
 pub(in crate::service) use self::governance::record_quota_warning;

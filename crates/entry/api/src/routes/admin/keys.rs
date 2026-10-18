@@ -16,7 +16,7 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
 use crate::error::ApiHttpError;

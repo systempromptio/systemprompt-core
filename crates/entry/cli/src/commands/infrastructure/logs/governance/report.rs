@@ -22,7 +22,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_ai::AiSafetyFindingRepository;
 use systemprompt_identifiers::UserId;
-use systemprompt_security::authz::list_governance_warnings;
+use systemprompt_governance::authz::list_governance_warnings;
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;

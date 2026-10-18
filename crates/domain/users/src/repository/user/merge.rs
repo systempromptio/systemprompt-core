@@ -12,8 +12,8 @@
 
 use sqlx::{Acquire, Postgres, Transaction};
 use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_security::authz::types::DecisionTag;
-use systemprompt_security::authz::{GovernanceDecisionRecord, insert_governance_decision};
+use systemprompt_governance::authz::types::DecisionTag;
+use systemprompt_governance::authz::{GovernanceDecisionRecord, insert_governance_decision};
 
 use crate::error::Result;
 use crate::repository::UserRepository;

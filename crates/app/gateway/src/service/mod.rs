@@ -51,7 +51,7 @@ use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
-use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_governance::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";

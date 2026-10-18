@@ -27,7 +27,7 @@ use serde_json::json;
 use systemprompt_identifiers::{Actor, AgentName, SessionId, TraceId};
 use systemprompt_oauth::OauthError;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
+use systemprompt_governance::authz::{AuthzContext, AuthzDecision, AuthzRequest, EntityRef};
 use systemprompt_traits::SenderIdentity;
 use systemprompt_users::UserError;
 

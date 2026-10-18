@@ -10,7 +10,7 @@ use systemprompt_identifiers::{Actor, ApiKeyId, ClientId, JwtToken, SessionId, T
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_models::execution::ContextExtractionError;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_users::{API_KEY_PREFIX, ApiKeyLimits, ApiKeyService};
 
 use super::error::RejectionError;

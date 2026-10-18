@@ -13,7 +13,7 @@ use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
 };
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
     DenyReason, EntityRef, build_authz_hook,
 };
@@ -266,7 +266,7 @@ mod extension_mode {
     use super::*;
     use async_trait::async_trait;
     use std::sync::Arc;
-    use systemprompt_security::authz::{AuthzDecisionHook, CompositeAuthzHook, SharedAuthzHook};
+    use systemprompt_governance::authz::{AuthzDecisionHook, CompositeAuthzHook, SharedAuthzHook};
 
     #[derive(Debug)]
     struct AlwaysAllow;

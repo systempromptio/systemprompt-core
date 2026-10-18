@@ -45,7 +45,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
-use systemprompt_security::policy::types::AccessScope;
+use systemprompt_governance::policy::types::AccessScope;
 
 pub use access_log::GatewayAccessLog;
 

@@ -110,11 +110,11 @@ mod support;
 mod upstream_error;
 
 #[cfg(test)]
-pub(crate) fn offline_rate_windows() -> systemprompt_security::policy::RateWindowRepository {
+pub(crate) fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepository {
     let pool = sqlx::postgres::PgPoolOptions::new()
         .idle_timeout(None)
         .max_lifetime(None)
         .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
         .unwrap();
-    systemprompt_security::policy::RateWindowRepository::new(pool)
+    systemprompt_governance::policy::RateWindowRepository::new(pool)
 }

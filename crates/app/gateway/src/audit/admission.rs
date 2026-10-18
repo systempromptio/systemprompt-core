@@ -17,7 +17,7 @@ use systemprompt_ai::models::AiRequestRecord;
 use systemprompt_ai::repository::{
     AdmissionWrite, InsertSafetyFinding, PreparedDigest, RequestMessageRow, UpsertPayloadParams,
 };
-use systemprompt_security::policy::DecisionAudit;
+use systemprompt_governance::policy::DecisionAudit;
 
 use super::GatewayAudit;
 use super::payload::PayloadCapture;

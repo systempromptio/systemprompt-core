@@ -35,7 +35,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::EntityRef;
+use systemprompt_governance::authz::EntityRef;
 use systemprompt_slack::events::{EventsApiEnvelope, InteractionPayload, SlashCommand};
 use systemprompt_traits::SenderIdentity;
 

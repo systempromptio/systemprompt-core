@@ -1,7 +1,7 @@
 //! `RegisteredEntities`: which literal ids ingestion and the admin write paths
 //! accept, per kind.
 
-use systemprompt_security::authz::{EntityKind, RegisteredEntities};
+use systemprompt_governance::authz::{EntityKind, RegisteredEntities};
 
 #[test]
 fn an_unenforced_kind_permits_any_id() {
