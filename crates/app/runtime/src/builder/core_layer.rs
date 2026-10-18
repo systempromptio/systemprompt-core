@@ -62,11 +62,13 @@ async fn init_services(
     Ok(services)
 }
 
-pub(super) async fn init_core(
-    authz_hook_override: Option<SharedAuthzHook>,
-) -> RuntimeResult<CoreLayer> {
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()?;
+async fn resolve_services_root(
+    profile: &Profile,
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<(
+    &'static systemprompt_loader::ActiveServicesRoot,
+    Arc<AppPaths>,
+)> {
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
         |name| secrets.get(name).cloned(),
@@ -80,6 +82,15 @@ pub(super) async fn init_core(
     )?);
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
+    Ok((active_root, app_paths))
+}
+
+pub(super) async fn init_core(
+    authz_hook_override: Option<SharedAuthzHook>,
+) -> RuntimeResult<CoreLayer> {
+    let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()?;
+    let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
