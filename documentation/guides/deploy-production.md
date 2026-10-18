@@ -96,7 +96,7 @@ readinessProbe:
 
 **Graceful shutdown.** On `SIGTERM` the process flips `/readyz` to `503` immediately, keeps accepting for `server.shutdown.pre_stop_delay_secs` (default 0) while endpoints update, then stops accepting and drains in-flight requests and SSE streams for `drain_grace_secs` (default 10). MCP and agent children get `child_grace_secs` (default 5), owned background work — including the final gateway journal settlement — gets `background_grace_secs` (default 5), and the process force-exits `forced_exit_grace_secs` (default 10) after the drain. The server logs the total at boot; set `terminationGracePeriodSeconds` above it, and set `pre_stop_delay_secs` to cover the time your endpoints controller needs instead of a `preStop` `sleep`. A second `SIGTERM` exits at once.
 
-Rolling deploys are safe: replace one replica at a time and wait for `/readyz` to answer `200` before moving on.
+Rolling deploys are safe within a release line: replace one replica at a time and wait for `/readyz` to answer `200` before moving on. An upgrade whose migration batch is not rolling-safe (§9.3), such as 0.69 → 0.70 (§9.4), needs a `Recreate` rollout instead.
 
 **Node roles.** `server.role` splits the platform across Deployments. `all` (the default) serves everything. `gateway` serves the AI gateway (`/v1/*`, `/api/public/gateway`), the bridge consumer surface, OAuth, well-known and health routes, and runs no scheduler, MCP servers or agents, so it scales horizontally on request load alone. `admin` serves everything except the gateway and the bridge consumer surface, and runs the scheduler and the MCP and agent processes. A gateway node renders no `web/dist` and does not serve the static site. `runner` serves only the health, liveness and readiness probes (and the metrics port), runs no scheduler, MCP servers or agents, and starts the long-running services extensions declare with `Extension::runner_services`, for work such as executing workflow steps.
 
@@ -450,6 +450,27 @@ A binary that finds migrations it does not know — ledger rows numbered past ev
 - It logs the unknown migrations at `WARN` and keeps serving. `/readyz` answers `200` with `"schema": "ahead"` and the list in `schema_ahead`, so the state is visible without failing the probe.
 - The exception is a migration recorded as `@compat: breaking`: an older binary that finds one ahead of it refuses to start, naming the migrations, because the schema it reads has been contracted.
 - A database *behind* the binary (pending migrations, missing tables, or drift in an extension that is not ahead) still fails the boot of a pod that skips migrations, as in §9.1.
+
+### 9.4 Upgrading from 0.69 to 0.70
+
+The 0.70 batch is not rolling-safe. ai migration `042_quota_bucket_shards` adds `shard` to the `ai_quota_buckets` unique key, so once it has run every quota upsert from a 0.69 pod fails, and `043_quota_bucket_shards_contract` records the batch as `@compat: breaking`, so a 0.69 binary refuses to start against the migrated database. `systemprompt infra db migrate-plan --require-rolling-safe` exits non-zero for it. Every Deployment that runs the image — the gateway Deployment from §3.1 included, which is usually declared with `strategy: RollingUpdate` — must have no 0.69 pod left before the migration runs.
+
+1. **Export every `db`-managed row a declaration should keep.** A config plane is `file`-authoritative by default in 0.70, so the first boot reconciles each plane that has a declaration file and removes rows that exist only in the database (rows created in the console). Before upgrading, run `systemprompt admin config planes export <plane> --out <file>` with the 0.70 CLI against the 0.69 database for each plane you manage in the console, review the output and merge it into the plane's declaration file. A plane you want to keep console-managed is pinned instead with `config_planes.authority.<plane>: db` in the profile. `systemprompt admin config planes diff --plane <plane>` shows what the first reconcile would change.
+2. **Take a backup** (§4.1). Rolling back to 0.69 after the migration requires a restore (§9.2).
+3. **Stop every 0.69 pod.** Scale the gateway, admin and runner Deployments to zero, or switch each to `strategy: { type: Recreate }` for this release only:
+
+   ```yaml
+   # gateway and admin Deployments, for the 0.69 -> 0.70 upgrade
+   spec:
+     strategy:
+       type: Recreate
+   ```
+
+   With migrations in a pre-upgrade Job (§9.1), scale the Deployments to zero before the Job runs; a Helm `pre-upgrade` hook runs while the old pods are still serving, so the scale-down must happen first.
+4. **Migrate** with `systemprompt infra db migrate --profile <name>` (or let the first 0.70 pod migrate at boot).
+5. **Start 0.70** and restore the usual `RollingUpdate` strategy for later upgrades.
+
+**042 and `lock_timeout`.** 042 rebuilds the `ai_quota_buckets` unique constraint, which holds an `ACCESS EXCLUSIVE` lock on the table for the length of the index build. The migration file cannot change, but the runner applies it under the migration `lock_timeout` (10 s): if a session still holds the table — a 0.69 pod that was not stopped, or a long transaction from another tool — the migration fails with `canceling statement due to lock timeout` instead of queueing every quota admission behind it. Stop the remaining sessions and run `infra db migrate` again; the migration is idempotent. On a large `ai_quota_buckets` table the index build itself can exceed the default statement timeout; prune expired windows first, or run the migration attended with `SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS` raised. Do not raise `lock_timeout` in the session to force it through while 0.69 pods serve: they would block on the lock and then fail once the new key is in place.
 
 ## 10. Reference sizing
 
