@@ -87,6 +87,9 @@ mod profile_secrets_vault;
 mod profile_secrets_refresh;
 
 #[cfg(test)]
+mod manifest_config_provider;
+
+#[cfg(test)]
 mod profile_services_sources;
 
 #[cfg(test)]
