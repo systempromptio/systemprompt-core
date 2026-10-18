@@ -28,12 +28,9 @@
 //! `X-Forwarded-For`, so a proxy is in the path, but its address is absent
 //! from `server.trusted_proxies`, and every client behind it then resolves to
 //! one address and shares one rate-limit bucket, one ban entry and one set of
-//! abuse heuristics. Until 2026-09-22 this was additionally gated on the peer
-//! being in a private range, on the assumption that a misconfigured proxy is
-//! always a local one. A reverse proxy on a host network has a public address,
-//! so the one deployment that most needed the warning never got it: a
-//! production instance refused every bridge sign-in for weeks with a saturated
-//! shared bucket and logged nothing. Whether the peer is public or private has
+//! abuse heuristics. The warning is not gated on the peer being in a private
+//! range: a reverse proxy on a host network has a public address. Whether the
+//! peer is public or private has
 //! no bearing on whether the operator wants to know.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -3,12 +3,10 @@
 //!
 //! Migrations run before the dependent phase that recreates declarative
 //! triggers, so every trigger live during a migration belongs to the
-//! *previous* release — and often to another extension. On a 0.58 → 0.60
-//! upgrade core ai 032's `UPDATE ai_requests` ran astound's
-//! `feedback_capture` once per row and hit its `statement_timeout`; web 093
-//! then fired the same trigger after core analytics 015 had dropped the table
-//! its function writes, and failed outright. The extension that retires those
-//! triggers migrates after core, so no ordering of migrations fixes this: the
+//! *previous* release — and often to another extension, whose per-row work
+//! can push a bulk write past its `statement_timeout`, or whose function
+//! writes a table core already dropped. The extension that retires such
+//! triggers may migrate after core, so no ordering of migrations fixes this: the
 //! runner has to suspend them.
 //!
 //! Suspension is `ALTER TABLE … DISABLE TRIGGER`, which needs table

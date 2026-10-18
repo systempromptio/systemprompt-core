@@ -5,9 +5,8 @@
 //! retirement is split across two of them — core drops a table, another
 //! extension drops the triggers whose functions write it — the table goes
 //! first and every write in between fails. A database that skips releases
-//! runs both halves in one boot (0.58 → 0.60: core analytics 015 dropped
-//! `analytics_ingestion_producers`, astound web 093 then fired
-//! `feedback_capture` into it). Retirements run here instead, ahead of every
+//! runs both halves in one boot, and a downstream trigger then fires into a
+//! table core already dropped. Retirements run here instead, ahead of every
 //! migration, so a retired object is gone before anything can fire it.
 //!
 //! Only `DROP … IF EXISTS` of triggers, functions, procedures and views is

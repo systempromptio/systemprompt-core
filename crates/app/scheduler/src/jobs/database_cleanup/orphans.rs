@@ -1,11 +1,9 @@
 //! The two orphan passes that run before the retention windows: log rows whose
 //! owning user is gone, and AI requests left `pending` by a lost settlement.
 //!
-//! `fail_orphaned_pending` already existed but ran only from
-//! `journal::recover()`, which fires at boot, so a long-lived server never
-//! closed a `pending` row whose settlement was lost — three such rows had been
-//! open for six days on the 2026-09-22 customer instance. This job is its
-//! second, regular caller.
+//! `journal::recover()` runs `fail_orphaned_pending` only at boot, so a
+//! long-lived server needs this job as its second, regular caller to close a
+//! `pending` row whose settlement was lost.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

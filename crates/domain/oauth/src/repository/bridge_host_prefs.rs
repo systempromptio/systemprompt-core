@@ -13,8 +13,7 @@
 //!   a separate table precisely so a model-filter override never perturbs the
 //!   enable-state "no rows means all" heuristic above.
 //!
-//! Rows written by earlier releases may name a host that no longer exists
-//! (`cowork`). Such a row is skipped with a warning rather than failing the
+//! A stored row may name a host the bridge does not define (`cowork`). Such a row is skipped with a warning rather than failing the
 //! read: it selects no host the bridge can run, but it still counts as a
 //! stored enable preference, so it never turns "some hosts" into "all hosts".
 //!

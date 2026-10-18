@@ -113,8 +113,8 @@ struct ResolvedWindows<'w> {
 }
 
 // Why: subjects are resolved before any bucket is touched so every window
-// can be reserved in one statement; a closed fault stops resolution where
-// the per-window loop used to stop reserving.
+// can be reserved in one statement; a closed fault stops resolution at the
+// first window it applies to.
 async fn resolve_windows<'w>(
     params: &ReserveParams<'w>,
     now: DateTime<Utc>,

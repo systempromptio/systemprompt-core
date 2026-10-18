@@ -15,9 +15,8 @@ CREATE TABLE IF NOT EXISTS governance_decisions (
     act_chain JSONB NOT NULL DEFAULT '[]'::jsonb,
     context_id TEXT NOT NULL,
     task_id TEXT,
-    -- The request-plane correlator. Enforcement sites without a session (MCP,
-    -- server-attach RBAC) previously borrowed session_id to carry this, which
-    -- made the trace join depend on an overloaded column; it is its own key now.
+    -- The request-plane correlator, its own key so enforcement sites without a
+    -- session (MCP, server-attach RBAC) never overload session_id.
     trace_id TEXT,
     client_id TEXT,
     -- The client's tool_use_id, when the host supplied one.
@@ -35,10 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_governance_decisions_actor ON governance_decision
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_context ON governance_decisions(context_id);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_trace ON governance_decisions(trace_id);
 
--- Adopted from the astound web extension, which created these out-of-tree
--- against a core table because the per-policy rollups and windowed rankings
--- that need them live downstream. Declared here so a fresh database gets them
--- with the table rather than on a later extension migration run.
+-- Serve the per-policy rollups and windowed rankings downstream extensions
+-- run; declared here so a fresh database gets them with the table.
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_policy_created ON governance_decisions(policy, created_at);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_tool_name ON governance_decisions(tool_name);
 CREATE INDEX IF NOT EXISTS idx_governance_decisions_client ON governance_decisions(client_id);

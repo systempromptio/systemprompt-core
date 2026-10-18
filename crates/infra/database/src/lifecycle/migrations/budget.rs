@@ -3,8 +3,7 @@
 //! Migrations are awaited inside the runtime builder, before the HTTP
 //! listener is bound, so a statement that does not finish is not a slow
 //! boot — it is an instance that never opens its port, with one log line
-//! written before it started and nothing after. A production instance spent
-//! 27 minutes there on a 3,644-row `UPDATE`, and the only signal was silence.
+//! written before it started and nothing after.
 //!
 //! So every migration runs under a `statement_timeout` and a `lock_timeout`.
 //! The default is deliberately generous: too tight a bound turns a legitimate

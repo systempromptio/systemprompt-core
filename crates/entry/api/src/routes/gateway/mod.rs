@@ -20,9 +20,8 @@
 //! user as a rejected token rather than as the rate limit it is.
 //!
 //! The access log layer is outside both limiters so that a refused request
-//! still produces a record. It sat inside the limiter until 2026-09-22, which
-//! is why an instance that was 429ing every sign-in showed nothing at all in
-//! its logs.
+//! still produces a record; an instance 429ing every sign-in shows it in its
+//! logs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
