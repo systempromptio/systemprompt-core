@@ -33,7 +33,7 @@ use systemprompt_provider_contracts::{
 use systemprompt_runtime::{AppContext, ConfigPlaneSet, EffectiveAuthority};
 
 use crate::error::{SchedulerError, SchedulerResult};
-use crate::repository::{ConfigReconcileRepository, PlaneStateUpdate};
+use crate::repository::{ConfigReconcileRepository, PlaneStateRow, PlaneStateUpdate};
 
 pub use metrics::{CONFIG_DRIFT_ROWS, CONFIG_PLANE_INFO};
 pub use report::{
@@ -104,11 +104,8 @@ impl ConfigReconcileService {
         for key in self.planes.unregistered_authority_keys() {
             tracing::warn!(plane = %key, "config_planes.authority names a plane no extension registers");
         }
-        let previous: HashMap<String, Option<String>> = match self.repository.list_states().await {
-            Ok(rows) => rows
-                .into_iter()
-                .map(|r| (r.plane, r.declared_hash))
-                .collect(),
+        let previous: HashMap<String, PlaneStateRow> = match self.repository.list_states().await {
+            Ok(rows) => rows.into_iter().map(|r| (r.plane.clone(), r)).collect(),
             Err(error) => {
                 tracing::warn!(error = %error, "config_plane_state could not be read");
                 HashMap::new()
@@ -117,10 +114,7 @@ impl ConfigReconcileService {
         let mut report = ReconcileReport::default();
         for plane in self.planes.planes() {
             let plane_report = self.reconcile_plane(plane.as_ref(), trigger).await;
-            metrics::record(
-                &plane_report,
-                previous.get(&plane_report.plane).and_then(Option::as_deref),
-            );
+            metrics::record(&plane_report, previous.get(&plane_report.plane));
             self.persist(&plane_report).await;
             report.planes.push(plane_report);
         }
