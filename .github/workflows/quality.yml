@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
       - run: node --import ./bin/bridge/web/dev/tests/resolve-assets.mjs --test bin/bridge/web/dev/tests/*.test.mjs
@@ -67,7 +67,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
       - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
@@ -104,7 +104,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Migrate disposable database
         env:
           SQLX_OFFLINE: "true"
@@ -178,7 +178,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - run: cargo doc --workspace --no-deps --all-features --locked
       - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
       - run: sccache --show-stats
@@ -204,7 +204,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-schema
         if: ${{ !cancelled() }}
@@ -259,7 +259,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-discarded-results
         if: ${{ !cancelled() }}
@@ -306,7 +306,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-bridge-lints-sync
         if: ${{ !cancelled() }}
@@ -351,7 +351,7 @@ jobs:
       - name: Install system dependencies
         timeout-minutes: 14
         run: bash scripts/ci-install-system-deps.sh ripgrep
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
@@ -414,7 +414,7 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@d86e0fa8f147d6539442c26a61ebba8becc19489 # 1.96.0
-      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
