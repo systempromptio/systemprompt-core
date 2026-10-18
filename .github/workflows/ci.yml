@@ -250,6 +250,7 @@ jobs:
           SYSTEMPROMPT_BIN: ${{ github.workspace }}/test-tools/systemprompt
           SP_BRIDGE_BIN: ${{ github.workspace }}/test-tools/systemprompt-bridge
         run: |
+          mkdir -p "$RUNNER_TEMP/nextest"
           bash scripts/test-shard.sh "${{ matrix.group }}" \
               --extract-to "$RUNNER_TEMP/nextest" --extract-overwrite
 
