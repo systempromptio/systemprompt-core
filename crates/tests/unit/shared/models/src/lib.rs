@@ -90,6 +90,9 @@ mod profile_secrets_refresh;
 mod manifest_config_provider;
 
 #[cfg(test)]
+mod desktop_policy_validation;
+
+#[cfg(test)]
 mod profile_services_sources;
 
 #[cfg(test)]
