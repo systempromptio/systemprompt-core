@@ -146,7 +146,7 @@ done
 prebuilt=()
 if [ -n "${NEXTEST_ARCHIVE_FILE:-}" ]; then
   test -f "$NEXTEST_ARCHIVE_FILE" || { echo "NEXTEST_ARCHIVE_FILE=$NEXTEST_ARCHIVE_FILE is missing" >&2; exit 2; }
-  prebuilt=(--archive-file "$NEXTEST_ARCHIVE_FILE" --workspace-remap "$ROOT")
+  prebuilt=(--archive-file "$NEXTEST_ARCHIVE_FILE" --workspace-remap "$ROOT" --config-file "$ROOT/crates/tests/.config/nextest.toml")
   default_profile=default
 elif [ -n "${COVERAGE_BINARIES_METADATA:-}" ] || [ -n "${COVERAGE_CARGO_METADATA:-}" ]; then
   test -n "${COVERAGE_BINARIES_METADATA:-}" && test -n "${COVERAGE_CARGO_METADATA:-}" || {
