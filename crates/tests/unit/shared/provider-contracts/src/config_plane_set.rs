@@ -165,3 +165,43 @@ fn a_plane_tx_hands_back_only_the_type_the_host_inserted() {
     tx.get::<String>().expect("inserted type").push('!');
     assert_eq!(handle, "tx!");
 }
+
+#[test]
+fn trait_defaults_are_live_unscoped_and_diff_by_snapshot() {
+    let plane = StubPlane {
+        name: "defaults",
+        path: "defaults.yaml",
+        deps: &[],
+    };
+    assert_eq!(
+        plane.effect(),
+        systemprompt_provider_contracts::PlaneEffect::Live
+    );
+    assert!(!plane.supports_scoped_apply());
+
+    let mut declared = PlaneSnapshot::new();
+    declared.insert("a".to_owned(), "1".to_owned());
+    declared.insert("b".to_owned(), "2".to_owned());
+    let mut current = PlaneSnapshot::new();
+    current.insert("a".to_owned(), "1".to_owned());
+    current.insert("c".to_owned(), "3".to_owned());
+    let state = DeclaredState::from_entries(declared.clone());
+
+    let rows = plane.diff(&state, &current);
+    assert_eq!(
+        rows,
+        systemprompt_provider_contracts::diff_snapshots(&declared, &current)
+    );
+    assert_eq!(rows.len(), 2, "b missing and c extra: {rows:?}");
+    assert!(plane.diff(&state, &declared).is_empty());
+}
+
+#[test]
+fn plane_context_exposes_the_root_and_its_dependencies() {
+    let deps = systemprompt_provider_contracts::Dependencies::new().with(7_u32);
+    let root = Path::new("/srv/services");
+    let ctx = PlaneContext::new(root, &deps);
+    assert_eq!(ctx.services_root(), root);
+    assert_eq!(*ctx.get::<u32>().expect("u32 present"), 7);
+    assert!(ctx.get::<String>().is_err());
+}
