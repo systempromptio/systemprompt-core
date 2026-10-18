@@ -22,6 +22,10 @@ pub const STAMP_PANIC_JOB: &str = "sp_test_stamp_panic_job";
 pub const CANCELLABLE_CLUSTER_JOB: &str = "sp_test_cancellable_cluster_job";
 pub const WORKING_JOB: &str = "sp_test_working_job";
 pub const IDLE_JOB: &str = "sp_test_idle_job";
+pub const BUDGETED_JOB: &str = "sp_test_budgeted_job";
+
+pub static BUDGETED_JOB_SETTINGS: std::sync::Mutex<Vec<(String, String, String)>> =
+    std::sync::Mutex::new(Vec::new());
 
 pub static SLOW_JOB_STARTS: AtomicU64 = AtomicU64::new(0);
 pub static NODE_JOB_RUNS: AtomicU64 = AtomicU64::new(0);
@@ -293,3 +297,49 @@ systemprompt_provider_contracts::submit_job!(&EmptyScheduleJob);
 systemprompt_provider_contracts::submit_job!(&CancellableClusterJob);
 systemprompt_provider_contracts::submit_job!(&WorkingJob);
 systemprompt_provider_contracts::submit_job!(&IdleJob);
+systemprompt_provider_contracts::submit_job!(&BudgetedJob);
+
+struct BudgetedJob;
+
+#[async_trait]
+impl Job for BudgetedJob {
+    fn name(&self) -> &'static str {
+        BUDGETED_JOB
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    fn db_budget(&self) -> Option<systemprompt_traits::DbBudget> {
+        Some(
+            systemprompt_traits::DbBudget::new(std::time::Duration::from_secs(7))
+                .with_lock_timeout(std::time::Duration::from_secs(3))
+                .with_work_mem_kb(2048),
+        )
+    }
+
+    async fn execute(
+        &self,
+        ctx: &JobContext,
+    ) -> systemprompt_provider_contracts::ProviderResult<JobResult> {
+        let db = ctx
+            .get::<systemprompt_database::BudgetedDb>()
+            .expect("dispatch injects a BudgetedDb");
+        let mut tx = db.begin().await.expect("budgeted transaction");
+        let row: (String, String, String) = sqlx::query_as(
+            "SELECT current_setting('statement_timeout'), current_setting('lock_timeout'), \
+             current_setting('work_mem')",
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .expect("read budget settings");
+        tx.rollback().await.expect("rollback");
+        BUDGETED_JOB_SETTINGS.lock().expect("lock").push(row);
+        Ok(JobResult::success().with_stats(1, 0))
+    }
+}
