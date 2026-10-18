@@ -61,3 +61,7 @@ mod cascade_delete;
 #[cfg(test)]
 #[path = "../batch_atomicity.rs"]
 mod batch_atomicity;
+
+#[cfg(test)]
+#[path = "../projection_queue.rs"]
+mod projection_queue;
