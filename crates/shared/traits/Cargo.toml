@@ -43,3 +43,4 @@ xxhash-rust = { workspace = true }
 sqlx = { workspace = true, optional = true }
 tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync"] }
 tokio-util = { workspace = true }
+zeroize = { workspace = true }

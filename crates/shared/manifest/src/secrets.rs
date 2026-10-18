@@ -164,15 +164,19 @@ impl Secrets {
             "github" | "GITHUB_TOKEN" => self.github.as_ref(),
             "moonshot" | "MOONSHOT_API_KEY" | "kimi" | "KIMI_API_KEY" => self.moonshot.as_ref(),
             "qwen" | "QWEN_API_KEY" | "dashscope" | "DASHSCOPE_API_KEY" => self.qwen.as_ref(),
-            other => self.custom.get(other).or_else(|| {
-                let alternate = if other.chars().any(char::is_uppercase) {
-                    other.to_lowercase()
-                } else {
-                    other.to_uppercase()
-                };
-                self.custom.get(&alternate)
-            }),
+            other => self.custom_secret(other),
         }
+    }
+
+    pub fn custom_secret(&self, key: &str) -> Option<&String> {
+        self.custom.get(key).or_else(|| {
+            let alternate = if key.chars().any(char::is_uppercase) {
+                key.to_lowercase()
+            } else {
+                key.to_uppercase()
+            };
+            self.custom.get(&alternate)
+        })
     }
 
     pub fn to_subprocess_env(&self) -> Vec<(String, String)> {

@@ -450,3 +450,11 @@ async fn a_context_without_coordination_refuses_liveness_and_leases() {
         Err(systemprompt_traits::CoordinationError::Unavailable { .. })
     ));
 }
+
+#[test]
+fn a_context_without_secrets_hands_out_none_and_never_prints_a_value() {
+    assert!(StubCtx.secret("encryption_master_key").is_none());
+    let secret = systemprompt_traits::ExtensionSecret::new("s3cr3t".to_owned());
+    assert_eq!(secret.expose(), "s3cr3t");
+    assert!(!format!("{secret:?}").contains("s3cr3t"));
+}

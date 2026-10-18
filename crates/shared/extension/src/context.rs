@@ -7,6 +7,11 @@
 //! takes session-scoped locks on the session pool. A context without a
 //! database refuses all three through [`UnavailableCoordination`].
 //!
+//! [`ExtensionContext::secret`] reads an operator-provisioned custom secret
+//! from the platform secrets document, so an extension never reads its
+//! credentials from the process environment; [`ExtensionContext::instance_id`]
+//! is the node identity in place of `HOSTNAME`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,7 +20,7 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
     ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
-    FileStorage, UnavailableCoordination,
+    ExtensionSecret, FileStorage, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -39,6 +44,10 @@ pub trait ExtensionContext: Send + Sync {
 
     fn advisory_locks(&self) -> DynAdvisoryLocks {
         Arc::new(UnavailableCoordination)
+    }
+
+    fn secret(&self, _name: &str) -> Option<ExtensionSecret> {
+        None
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn crate::Extension>>;

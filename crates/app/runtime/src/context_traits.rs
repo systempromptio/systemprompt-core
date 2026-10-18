@@ -100,6 +100,19 @@ impl ExtensionContext for AppContext {
         locks
     }
 
+    fn secret(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        let secrets = match systemprompt_config::SecretsBootstrap::get() {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                tracing::warn!(%error, secret = name, "extension secret requested before secrets loaded");
+                return None;
+            },
+        };
+        secrets
+            .custom_secret(name)
+            .map(|value| systemprompt_traits::ExtensionSecret::new(value.clone()))
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
     }
