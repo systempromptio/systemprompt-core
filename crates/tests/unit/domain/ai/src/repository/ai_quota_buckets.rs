@@ -266,3 +266,26 @@ async fn concurrent_sharded_reservations_lose_no_increment() {
     assert_eq!(total.requests, 32);
     assert_eq!(total.cost_microdollars, 320);
 }
+
+#[tokio::test]
+async fn increment_many_sums_shared_buckets_and_reports_each_in_input_order() {
+    let (repo, _pool) = test_repo().await;
+    let a = format!("org-{}", uuid::Uuid::new_v4());
+    let b = format!("org-{}", uuid::Uuid::new_v4());
+
+    let states = repo
+        .increment_many(&[
+            org_increment(&a, 0, 1, 100),
+            org_increment(&b, 0, 1, 10),
+            org_increment(&a, 0, 2, 200),
+        ])
+        .await
+        .expect("one statement for two buckets");
+
+    assert_eq!(states.len(), 3);
+    assert_eq!((states[0].requests, states[0].cost_microdollars), (1, 100));
+    assert_eq!((states[1].requests, states[1].cost_microdollars), (1, 10));
+    assert_eq!((states[2].requests, states[2].cost_microdollars), (3, 300));
+
+    assert!(repo.increment_many(&[]).await.expect("empty").is_empty());
+}
