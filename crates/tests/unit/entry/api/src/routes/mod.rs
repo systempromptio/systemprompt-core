@@ -19,6 +19,7 @@ mod gateway_auth_shapes;
 mod gateway_authz_request;
 mod gateway_bridge_device;
 mod gateway_bridge_instance_hosts;
+mod gateway_bridge_release_error;
 mod gateway_bridge_release_feed;
 mod gateway_bridge_release_sums;
 mod gateway_extract_credential;
