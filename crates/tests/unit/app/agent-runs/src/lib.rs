@@ -9,15 +9,21 @@
 #[cfg(test)]
 mod a2a;
 #[cfg(test)]
+mod a2a_updates_extra;
+#[cfg(test)]
 mod a2a_repository;
 #[cfg(test)]
 mod claude_code;
+#[cfg(test)]
+mod claude_code_prepare;
 #[cfg(test)]
 mod codex_cli;
 #[cfg(test)]
 mod codex_cli_outcome;
 #[cfg(test)]
 mod credentials;
+#[cfg(test)]
+mod credentials_extra;
 #[cfg(test)]
 mod event_serde;
 #[cfg(test)]
