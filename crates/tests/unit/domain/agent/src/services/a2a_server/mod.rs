@@ -14,6 +14,7 @@ mod message_persistence;
 mod message_processor;
 mod planned_tool_execution;
 mod request_dispatch;
+mod agent_run_stream;
 mod request_handler;
 mod request_list_tasks;
 mod request_non_streaming;
