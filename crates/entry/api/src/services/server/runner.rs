@@ -21,6 +21,7 @@ use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
     start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
 };
+use super::routes::role::LifecyclePlan;
 
 pub async fn run_server(
     ctx: AppContext,
@@ -37,25 +38,7 @@ pub async fn run_server(
     let plan = super::routes::role::lifecycle_plan(ctx.config().role);
     tracing::info!(role = %ctx.config().role, "node role");
 
-    start_event_bridge(&ctx);
-    start_registry_heartbeat(&ctx);
-    start_secrets_refresh(&ctx);
-    start_schema_watch(&ctx);
-    if plan.reconcile_mcp {
-        let mcp_orchestrator = create_mcp_orchestrator(&ctx)?;
-        reconcile_system_services(&ctx, &mcp_orchestrator, events.as_ref()).await?;
-    }
-    if plan.reconcile_agents {
-        run_agents_phase(&ctx, events.as_ref()).await?;
-    }
-    let scheduler_handle = if plan.scheduler {
-        run_scheduler_phase(&ctx, events.as_ref()).await?
-    } else {
-        None
-    };
-    if plan.runner_services {
-        start_runner_services(&ctx);
-    }
+    let scheduler_handle = start_role_phases(&ctx, plan, events.as_ref()).await?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
@@ -78,6 +61,50 @@ pub async fn run_server(
 
     systemprompt_logging::set_startup_mode(false);
 
+    serve_until_shutdown(
+        &ctx,
+        early,
+        metrics_listener,
+        scheduler_handle,
+        instance_claim,
+    )
+    .await
+}
+
+async fn start_role_phases(
+    ctx: &AppContext,
+    plan: LifecyclePlan,
+    events: Option<&StartupEventSender>,
+) -> Result<Option<SchedulerHandle>> {
+    start_event_bridge(ctx);
+    start_registry_heartbeat(ctx);
+    start_secrets_refresh(ctx);
+    start_schema_watch(ctx);
+    if plan.reconcile_mcp {
+        let mcp_orchestrator = create_mcp_orchestrator(ctx)?;
+        reconcile_system_services(ctx, &mcp_orchestrator, events).await?;
+    }
+    if plan.reconcile_agents {
+        run_agents_phase(ctx, events).await?;
+    }
+    let scheduler_handle = if plan.scheduler {
+        run_scheduler_phase(ctx, events).await?
+    } else {
+        None
+    };
+    if plan.runner_services {
+        start_runner_services(ctx);
+    }
+    Ok(scheduler_handle)
+}
+
+async fn serve_until_shutdown(
+    ctx: &AppContext,
+    early: super::startup::EarlyServer,
+    metrics_listener: Option<OwnedTask<()>>,
+    scheduler_handle: Option<SchedulerHandle>,
+    instance_claim: systemprompt_database::InstanceClaim,
+) -> Result<()> {
     let timings = ctx.config().shutdown;
     tracing::info!(
         pre_stop_delay_secs = timings.pre_stop_delay_secs,
@@ -101,7 +128,7 @@ pub async fn run_server(
     {
         tracing::debug!("Metrics listener had already stopped on the shutdown signal");
     }
-    super::shutdown::drain(&ctx, scheduler_handle).await;
+    super::shutdown::drain(ctx, scheduler_handle).await;
     instance_claim.release().await;
     forced_exit.abort();
 
