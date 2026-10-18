@@ -14,6 +14,7 @@ use systemprompt_identifiers::UserId;
 
 use super::UserService;
 use crate::error::{Result, UserError};
+use crate::models::User;
 use crate::repository::{ArchiveOutcome, ArchiveParams, ArchiveState, PurgeCount};
 
 impl UserService {
@@ -36,6 +37,10 @@ impl UserService {
 
     pub async fn set_legal_hold(&self, id: &UserId, hold: bool) -> Result<()> {
         self.repository.set_legal_hold(id, hold).await
+    }
+
+    pub async fn find_by_reference_any_status(&self, reference: &str) -> Result<Option<User>> {
+        self.repository.find_by_reference_any_status(reference).await
     }
 
     pub async fn find_archive_state(&self, id: &UserId) -> Result<Option<ArchiveState>> {

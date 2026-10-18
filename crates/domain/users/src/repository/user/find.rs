@@ -76,6 +76,27 @@ impl UserRepository {
         Ok(row)
     }
 
+    pub async fn find_by_reference_any_status(&self, reference: &str) -> Result<Option<User>> {
+        let row = sqlx::query_as!(
+            UserRow,
+            r#"
+            SELECT id, name, email, full_name, display_name, status, email_verified,
+                   roles, avatar_url, is_bot, is_scanner, created_at, updated_at, account_kind
+            FROM users
+            WHERE id = $1 OR email = $1 OR name = $1
+            ORDER BY (id = $1) DESC, (email = $1) DESC, created_at ASC
+            LIMIT 1
+            "#,
+            reference
+        )
+        .fetch_optional(&*self.pool)
+        .await?
+        .map(User::try_from)
+        .transpose()?;
+
+        Ok(row)
+    }
+
     pub async fn list_by_role(&self, role: UserRole) -> Result<Vec<User>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let rows = sqlx::query_as!(
