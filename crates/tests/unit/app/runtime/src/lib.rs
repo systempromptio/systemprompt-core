@@ -23,6 +23,8 @@ mod context;
 #[cfg(test)]
 mod context_loaders_extra;
 #[cfg(test)]
+mod context_traits;
+#[cfg(test)]
 mod context_loaders_paths;
 #[cfg(test)]
 mod context_planes;
