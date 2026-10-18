@@ -18,6 +18,7 @@ mod admin_config_dispatcher_fs;
 mod admin_config_gateway;
 mod admin_config_governance_fs;
 mod admin_config_planes_exec;
+mod admin_config_planes_registered;
 mod admin_config_secret_atomic_fs;
 mod admin_config_sections;
 mod admin_config_services_fs;

@@ -114,18 +114,22 @@ struct PlaneListRow {
 
 pub async fn execute(command: PlanesCommands, config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
-    let service = ConfigReconcileService::from_app_context(
-        &ctx,
-        systemprompt_scheduler::repository::ConfigReconcileRepository::new(ctx.db_pool()),
-    )?;
-    let output = match command {
-        PlanesCommands::List => list(&service).await?,
-        PlanesCommands::Diff(args) => diff(&service, &args.plane).await?,
-        PlanesCommands::Apply(args) => apply(&service, &args).await?,
-        PlanesCommands::Export(args) => export(&service, &args).await?,
-    };
+    let output = run(command, &ctx).await?;
     render_result(&output, config);
     Ok(())
+}
+
+pub async fn run(command: PlanesCommands, ctx: &Arc<AppContext>) -> Result<CommandOutput> {
+    let service = ConfigReconcileService::from_app_context(
+        ctx,
+        systemprompt_scheduler::repository::ConfigReconcileRepository::new(ctx.db_pool()),
+    )?;
+    match command {
+        PlanesCommands::List => list(&service).await,
+        PlanesCommands::Diff(args) => diff(&service, &args.plane).await,
+        PlanesCommands::Apply(args) => apply(&service, &args).await,
+        PlanesCommands::Export(args) => export(&service, &args).await,
+    }
 }
 
 async fn list(service: &ConfigReconcileService) -> Result<CommandOutput> {
