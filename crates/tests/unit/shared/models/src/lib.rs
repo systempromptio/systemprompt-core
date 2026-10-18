@@ -93,6 +93,9 @@ mod manifest_config_provider;
 mod desktop_policy_validation;
 
 #[cfg(test)]
+mod marketplace_mirror_wire;
+
+#[cfg(test)]
 mod profile_services_sources;
 
 #[cfg(test)]
