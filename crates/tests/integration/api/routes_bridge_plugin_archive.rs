@@ -22,7 +22,11 @@ fn authed_get(uri: &str, token: &str) -> Request<Body> {
 
 async fn current_sha(app: axum::Router, token: &str) -> anyhow::Result<String> {
     let resp = app.oneshot(authed_get("/bridge/manifest", token)).await?;
-    anyhow::ensure!(resp.status() == StatusCode::OK, "manifest: {}", resp.status());
+    anyhow::ensure!(
+        resp.status() == StatusCode::OK,
+        "manifest: {}",
+        resp.status()
+    );
     let envelope: serde_json::Value =
         serde_json::from_slice(&to_bytes(resp.into_body(), 4 * 1024 * 1024).await?)?;
     let payload: serde_json::Value = serde_json::from_str(
@@ -59,8 +63,8 @@ fn entry_paths(gz: &[u8]) -> anyhow::Result<Vec<String>> {
 }
 
 #[tokio::test]
-async fn archive_for_the_current_digest_is_an_immutable_tarball_of_the_bundle()
--> anyhow::Result<()> {
+async fn archive_for_the_current_digest_is_an_immutable_tarball_of_the_bundle() -> anyhow::Result<()>
+{
     let (app, pool) = bundle_router_and_pool().await?;
     let cred = seed_admin_credential(
         &pool,
@@ -70,15 +74,22 @@ async fn archive_for_the_current_digest_is_an_immutable_tarball_of_the_bundle()
     let sha = current_sha(app.clone(), cred.jwt.as_str()).await?;
     let uri = format!("/bridge/plugins/cov-plugin/archive/{sha}");
 
-    let first = app.clone().oneshot(authed_get(&uri, cred.jwt.as_str())).await?;
+    let first = app
+        .clone()
+        .oneshot(authed_get(&uri, cred.jwt.as_str()))
+        .await?;
     assert_eq!(first.status(), StatusCode::OK);
     let headers = first.headers().clone();
     assert_eq!(
-        headers.get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()),
+        headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok()),
         Some("application/gzip")
     );
     assert_eq!(
-        headers.get(header::CACHE_CONTROL).and_then(|v| v.to_str().ok()),
+        headers
+            .get(header::CACHE_CONTROL)
+            .and_then(|v| v.to_str().ok()),
         Some("private, max-age=31536000, immutable")
     );
     assert_eq!(
@@ -104,7 +115,10 @@ async fn archive_for_the_current_digest_is_an_immutable_tarball_of_the_bundle()
         "the digest compares case-insensitively"
     );
     let second_bytes = to_bytes(second.into_body(), 16 * 1024 * 1024).await?;
-    assert_eq!(first_bytes, second_bytes, "the memo serves the same packing");
+    assert_eq!(
+        first_bytes, second_bytes,
+        "the memo serves the same packing"
+    );
     Ok(())
 }
 

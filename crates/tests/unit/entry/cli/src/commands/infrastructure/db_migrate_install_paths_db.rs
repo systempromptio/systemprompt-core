@@ -43,7 +43,7 @@ async fn ctx(url: &str, verbose: bool) -> CommandContext {
 
 async fn exec(url: &str, sql: &str, extension: &str, version: i32) -> u64 {
     let pool = sqlx::PgPool::connect(url).await.unwrap();
-    let affected = sqlx::query(sql)
+    let affected = sqlx::query(sqlx::AssertSqlSafe(sql.to_owned()))
         .bind(extension)
         .bind(version)
         .execute(&pool)
@@ -88,11 +88,17 @@ async fn drift_refuses_the_install_with_a_hint_and_repair_drift_heals_it() {
         .expect_err("drift refuses a plain install");
     let text = format!("{err:#}");
     assert!(text.contains("Schema installation failed"), "{text}");
-    assert!(text.contains("--repair-drift"), "the hint names the fix: {text}");
+    assert!(
+        text.contains("--repair-drift"),
+        "the hint names the fix: {text}"
+    );
 
-    db::execute(parse(&["migrate", "--repair-drift"]), &ctx(&url, true).await)
-        .await
-        .expect("repair-drift re-applies and retries");
+    db::execute(
+        parse(&["migrate", "--repair-drift"]),
+        &ctx(&url, true).await,
+    )
+    .await
+    .expect("repair-drift re-applies and retries");
     assert_eq!(checksum(&url, "logging", 3).await, original);
 
     db.drop_now().await;
@@ -109,14 +115,20 @@ async fn a_pending_breaking_migration_is_planned_and_fails_the_rolling_safe_gate
         43,
     )
     .await;
-    assert_eq!(removed, 1, "the fixture must leave exactly one migration pending");
+    assert_eq!(
+        removed, 1,
+        "the fixture must leave exactly one migration pending"
+    );
 
     db::execute(parse(&["migrate-plan"]), &ctx(&url, false).await)
         .await
         .expect("a text plan renders pending rows");
-    db::execute(parse(&["migrate-plan", "ai", "--json"]), &ctx(&url, false).await)
-        .await
-        .expect("a json plan renders pending rows");
+    db::execute(
+        parse(&["migrate-plan", "ai", "--json"]),
+        &ctx(&url, false).await,
+    )
+    .await
+    .expect("a json plan renders pending rows");
 
     let err = db::execute(
         parse(&["migrate-plan", "--require-rolling-safe"]),
@@ -126,7 +138,10 @@ async fn a_pending_breaking_migration_is_planned_and_fails_the_rolling_safe_gate
     .expect_err("a breaking pending migration is not rolling-safe");
     let text = err.to_string();
     assert!(text.contains("not rolling-safe"), "{text}");
-    assert!(text.contains("ai:043"), "names the breaking migration: {text}");
+    assert!(
+        text.contains("ai:043"),
+        "names the breaking migration: {text}"
+    );
 
     db.drop_now().await;
 }

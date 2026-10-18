@@ -108,6 +108,7 @@ pub(super) fn spawn_samplers(ctx: &AppContext, runs_scheduler: bool) {
         });
 }
 
+#[derive(Debug)]
 pub struct OpsSampler {
     write: Arc<PgPool>,
     read: Option<Arc<PgPool>>,

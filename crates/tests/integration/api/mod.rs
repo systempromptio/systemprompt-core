@@ -378,6 +378,7 @@ mod routes_content_negotiation;
 #[cfg(test)]
 #[path = "routes_bridge_plugin_archive.rs"]
 mod routes_bridge_plugin_archive;
+#[cfg(test)]
 #[path = "routes_bridge_plugin_file.rs"]
 mod routes_bridge_plugin_file;
 

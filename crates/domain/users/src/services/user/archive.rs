@@ -40,7 +40,9 @@ impl UserService {
     }
 
     pub async fn find_by_reference_any_status(&self, reference: &str) -> Result<Option<User>> {
-        self.repository.find_by_reference_any_status(reference).await
+        self.repository
+            .find_by_reference_any_status(reference)
+            .await
     }
 
     pub async fn find_archive_state(&self, id: &UserId) -> Result<Option<ArchiveState>> {

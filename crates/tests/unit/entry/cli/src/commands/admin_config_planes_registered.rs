@@ -211,7 +211,11 @@ async fn apply_writes_the_declaration_and_a_scoped_apply_touches_only_its_entiti
     )
     .await
     .expect("scoped apply");
-    assert!(rendered(&scoped).contains("1 entities changed"), "{}", rendered(&scoped));
+    assert!(
+        rendered(&scoped).contains("1 entities changed"),
+        "{}",
+        rendered(&scoped)
+    );
     assert_eq!(stored(&h).get("a").map(String::as_str), Some("1"));
     assert!(!stored(&h).contains_key("b"), "b was outside the scope");
 
@@ -249,11 +253,13 @@ async fn seed_if_empty_leaves_a_populated_plane_alone() {
 #[tokio::test]
 async fn export_prints_writes_and_refuses_to_clobber_without_force() {
     let h = harness(None, &[("k", "v")]).await;
-    let export = |out: Option<std::path::PathBuf>, force: bool| PlanesCommands::Export(ExportArgs {
-        plane: h.plane.name.to_owned(),
-        out,
-        force,
-    });
+    let export = |out: Option<std::path::PathBuf>, force: bool| {
+        PlanesCommands::Export(ExportArgs {
+            plane: h.plane.name.to_owned(),
+            out,
+            force,
+        })
+    };
 
     let printed = run(export(None, false), &h.ctx).await.expect("print");
     assert!(rendered(&printed).contains("k=v"), "{}", rendered(&printed));
@@ -290,6 +296,10 @@ async fn export_of_an_empty_plane_writes_nothing() {
     )
     .await
     .expect("empty export");
-    assert!(rendered(&out).contains("nothing written"), "{}", rendered(&out));
+    assert!(
+        rendered(&out).contains("nothing written"),
+        "{}",
+        rendered(&out)
+    );
     assert!(!target.exists());
 }

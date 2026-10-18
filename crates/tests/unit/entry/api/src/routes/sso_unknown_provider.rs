@@ -85,10 +85,18 @@ async fn form_callback_for_an_unknown_provider_refuses_as_unavailable() {
 #[tokio::test]
 async fn start_and_metadata_for_an_unknown_provider_are_not_found() {
     let app = app().await;
-    for uri in ["/no-such-idp/start?redirect=/admin", "/no-such-idp/metadata"] {
+    for uri in [
+        "/no-such-idp/start?redirect=/admin",
+        "/no-such-idp/metadata",
+    ] {
         let resp = app
             .clone()
-            .oneshot(Request::builder().uri(uri).body(Body::empty()).expect("request"))
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .body(Body::empty())
+                    .expect("request"),
+            )
             .await
             .expect("response");
         assert_eq!(resp.status(), StatusCode::NOT_FOUND, "{uri}");
@@ -101,6 +109,12 @@ fn binder_is_read_from_any_cookie_header_and_absent_otherwise() {
     assert_eq!(binder_from_headers(&headers), None);
     headers.append(header::COOKIE, "theme=dark".parse().expect("header"));
     assert_eq!(binder_from_headers(&headers), None);
-    headers.append(header::COOKIE, "a=1; sp_sso_bind=bound-value".parse().expect("header"));
-    assert_eq!(binder_from_headers(&headers).as_deref(), Some("bound-value"));
+    headers.append(
+        header::COOKIE,
+        "a=1; sp_sso_bind=bound-value".parse().expect("header"),
+    );
+    assert_eq!(
+        binder_from_headers(&headers).as_deref(),
+        Some("bound-value")
+    );
 }

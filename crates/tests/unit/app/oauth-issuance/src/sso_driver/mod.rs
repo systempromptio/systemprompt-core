@@ -109,7 +109,7 @@ async fn start(driver: &SsoDriver, id: &str, return_to: Option<&str>) -> Started
 
 fn refusal_reason(outcome: &FinishOutcome) -> &'static str {
     match outcome {
-        FinishOutcome::Refused { reason, .. } => *reason,
+        FinishOutcome::Refused { reason, .. } => reason,
         FinishOutcome::Success { .. } => panic!("expected a refusal, got {outcome:?}"),
     }
 }
