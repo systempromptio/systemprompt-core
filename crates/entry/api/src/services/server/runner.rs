@@ -30,7 +30,7 @@ pub async fn run_server(
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
 
-    let instance_claim = claim_replica_identity(&ctx)
+    let instance_claim = super::replica_identity::claim(&ctx)
         .await
         .context("replica identity")?;
     tracing::info!(instance_id = %instance_claim.instance_id(), "replica identity claimed");
@@ -276,31 +276,4 @@ async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
     }
     systemprompt_gateway::audit::journal::spawn_recovery(settlement, ctx.background_tasks());
     Ok(())
-}
-
-// Why: a redeployed host reuses its HOSTNAME, and the session of the process
-// it replaced holds the claim until the server's keepalive probes declare it
-// dead; waiting past that window tells a vanished holder from a live one.
-async fn claim_replica_identity(
-    ctx: &AppContext,
-) -> Result<systemprompt_database::InstanceClaim, systemprompt_database::InstanceClaimError> {
-    let window = std::time::Duration::from_secs(systemprompt_database::CLAIM_DEAD_PEER_SECS * 3);
-    let deadline = std::time::Instant::now() + window;
-    let mut backoff = std::time::Duration::from_secs(1);
-    loop {
-        match ctx.service_repository().claim_instance().await {
-            Err(systemprompt_database::InstanceClaimError::Claimed { instance_id })
-                if std::time::Instant::now() + backoff < deadline =>
-            {
-                tracing::warn!(
-                    instance_id = %instance_id,
-                    retry_in_ms = backoff.as_millis(),
-                    "replica identity held by another session; waiting for a dead holder to be reaped"
-                );
-                tokio::time::sleep(backoff).await;
-                backoff = (backoff * 2).min(std::time::Duration::from_secs(8));
-            },
-            outcome => return outcome,
-        }
-    }
 }

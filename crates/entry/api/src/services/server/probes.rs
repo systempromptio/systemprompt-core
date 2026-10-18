@@ -93,7 +93,7 @@ pub(crate) async fn handle_readyz(
         return respond(StatusCode::SERVICE_UNAVAILABLE, body, bare);
     }
 
-    let registered = ctx.config_planes().ok();
+    let registered = registered_planes(&ctx);
     let config = config_block(
         fingerprint,
         planes.as_deref().map(AsRef::as_ref),
@@ -159,8 +159,6 @@ async fn config_block(
     }
 }
 
-/// The readiness checks every registered extension contributed, built once
-/// when the probe routes mount.
 pub(crate) struct ExtensionReadiness {
     checks: Vec<(&'static str, Arc<dyn ReadinessCheck>)>,
 }
@@ -189,10 +187,21 @@ impl ExtensionReadiness {
     }
 }
 
+fn registered_planes(ctx: &AppContext) -> Option<ConfigPlaneSet> {
+    match ctx.config_planes() {
+        Ok(planes) => Some(planes),
+        Err(error) => {
+            tracing::warn!(%error, "config plane set unavailable for /readyz");
+            None
+        },
+    }
+}
+
 pub(crate) fn readiness_layer(ctx: &AppContext) -> axum::Extension<Arc<ExtensionReadiness>> {
     axum::Extension(Arc::new(ExtensionReadiness::from_context(ctx)))
 }
 
+// JSON: one entry of the outgoing `/readyz` extensions array.
 fn check_entry(
     extension: &'static str,
     check: &'static str,

@@ -24,6 +24,7 @@ mod ops_metrics;
 mod pool_metrics;
 mod probes;
 pub mod readiness;
+mod replica_identity;
 pub mod routes;
 pub mod runner;
 pub mod scheduler_health;
