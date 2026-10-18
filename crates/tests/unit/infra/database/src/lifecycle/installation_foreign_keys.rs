@@ -50,7 +50,8 @@ async fn forget_migrations(db: &systemprompt_database::DbPool, ext_id: &str) {
 }
 
 // Why: `parent` can already exist without the composite unique index that
-// migration 001 adds, so an inline key fails in the structural phase and only a key deferred past 001 can succeed.
+// migration 001 adds, so an inline key fails in the structural phase and only a
+// key deferred past 001 can succeed.
 #[tokio::test]
 async fn legacy_table_without_referenced_unique_gets_fk_after_migration_adds_index() {
     let (provider, db) = provider_and_db().await;

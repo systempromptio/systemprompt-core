@@ -279,7 +279,8 @@ fn rotating_a_log_that_does_not_exist_is_a_no_op() {
 // the deployment-host marker believes it is somewhere else and routes commands
 // to the host it is already on.
 //
-// Each side's own tests only see one side. This one fails the moment either grows a variable the other lacks.
+// Each side's own tests only see one side. This one fails the moment either
+// grows a variable the other lacks.
 #[test]
 fn both_spawners_inherit_exactly_the_same_environment() {
     let parent = |name: &str| -> Option<String> {

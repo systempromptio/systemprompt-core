@@ -6,8 +6,8 @@
 //! *previous* release — and often to another extension, whose per-row work
 //! can push a bulk write past its `statement_timeout`, or whose function
 //! writes a table core already dropped. The extension that retires such
-//! triggers may migrate after core, so no ordering of migrations fixes this: the
-//! runner has to suspend them.
+//! triggers may migrate after core, so no ordering of migrations fixes this:
+//! the runner has to suspend them.
 //!
 //! Suspension is `ALTER TABLE … DISABLE TRIGGER`, which needs table
 //! ownership, not `session_replication_role`, which needs superuser and is

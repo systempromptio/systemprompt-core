@@ -13,10 +13,10 @@
 //! something a parser can do — the author is the one who can measure it, and
 //! [`CostDirective`] is where they say so.
 //!
-//! [`HOT_TABLES`] is the core-shipped list: every one of them grows with traffic while none is
-//! ever pruned to a bounded size. It is passed in rather than read directly so
-//! an installation can add the tables it owns — core cannot know about a
-//! downstream repo's hottest table.
+//! [`HOT_TABLES`] is the core-shipped list: every one of them grows with
+//! traffic while none is ever pruned to a bounded size. It is passed in rather
+//! than read directly so an installation can add the tables it owns — core
+//! cannot know about a downstream repo's hottest table.
 //!
 //! Two consumers, one detector, and they read it over different populations.
 //!

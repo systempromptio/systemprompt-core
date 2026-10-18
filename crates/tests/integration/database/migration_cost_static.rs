@@ -7,8 +7,8 @@
 //! few thousand rows into minutes. The author is the only one
 //! who can measure that, and `-- @cost:` is where they write it down.
 //!
-//! Migrations already applied to established databases cannot be annotated — the
-//! checksum is taken over the whole body, so adding a comment makes every
+//! Migrations already applied to established databases cannot be annotated —
+//! the checksum is taken over the whole body, so adding a comment makes every
 //! established database refuse to boot. They are listed in
 //! `migration_cost_baseline.txt` instead. That list may only shrink: an entry
 //! whose file is gone is itself a failure, so it cannot quietly rot, and a

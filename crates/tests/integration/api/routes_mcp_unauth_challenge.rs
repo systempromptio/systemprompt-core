@@ -10,8 +10,8 @@
 //!
 //! This test drives the FULL mounted router (the same one `setup_api_server`
 //! ships in production), POSTs to an MCP path with no `Authorization` header,
-//! and asserts the response is NOT the generic 403 body. Pair with the unit test
-//! `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
+//! and asserts the response is NOT the generic 403 body. Pair with the unit
+//! test `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
 
 use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};

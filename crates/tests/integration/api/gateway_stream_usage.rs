@@ -4,8 +4,8 @@
 //! and the contract answers it with a usage-only chunk after the finish chunk
 //! and before `[DONE]`. A usage object on the finish chunk would be rendered
 //! before the upstream's usage arrived and read zero while the audit row
-//! carried the real counts. These cells drive a real dispatch and read the counts off
-//! the frames the caller actually receives.
+//! carried the real counts. These cells drive a real dispatch and read the
+//! counts off the frames the caller actually receives.
 
 use std::sync::Arc;
 

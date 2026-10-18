@@ -89,7 +89,8 @@ fn a_prefixless_base64_key_is_caught_by_the_entropy_detector() {
     assert!(!hit.redacted.contains("FIyuuM"));
 }
 
-// Why: a protobuf record id returned by a Salesforce MCP tool. Structurally a serialised message, not key material.
+// Why: a protobuf record id returned by a Salesforce MCP tool. Structurally a
+// serialised message, not key material.
 const PROTOBUF_TOOL_PAYLOAD: &str =
     "CAISLwoLaGVsbG8gd29ybGQSC2NvbnRhY3QtaWQxGhNSb3NlIEdvbnphbGV6IE93bmVy";
 
