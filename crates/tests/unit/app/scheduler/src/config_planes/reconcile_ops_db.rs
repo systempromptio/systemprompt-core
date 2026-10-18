@@ -229,3 +229,38 @@ async fn an_authority_key_for_an_unregistered_plane_does_not_stop_the_pass() {
         .expect("plane");
     assert_eq!(row.outcome, PlaneOutcome::Corrected);
 }
+
+#[tokio::test]
+async fn an_exclusive_reconcile_gives_up_when_another_replica_holds_the_lock() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let plane = Arc::new(FakePlane::new(unique_plane_name("ops_lock_held"), &[]));
+    plane.write_declaration(root.path(), &[("a", "1")]);
+    let svc = service(plane_set(root.path(), &[Arc::clone(&plane)], &[])).await;
+    let other_replica = systemprompt_test_fixtures::test_pg_pool().await;
+    let mut held = other_replica.acquire().await.expect("connection");
+    sqlx::query("SELECT pg_advisory_lock(hashtext('config_reconcile')::bigint)")
+        .execute(held.as_mut())
+        .await
+        .expect("hold the reconcile lock");
+
+    let outcome = svc
+        .reconcile_exclusive(
+            ReconcileTrigger::Boot,
+            std::time::Duration::from_millis(300),
+        )
+        .await;
+
+    sqlx::query("SELECT pg_advisory_unlock(hashtext('config_reconcile')::bigint)")
+        .execute(held.as_mut())
+        .await
+        .expect("release the reconcile lock");
+    let err = outcome.expect_err("the lock is held elsewhere");
+    assert!(
+        matches!(err, SchedulerError::ReconcileLockTimeout { waited_secs: 0 }),
+        "got {err:?}"
+    );
+    assert!(
+        plane.store().is_empty(),
+        "nothing is applied without the lock"
+    );
+}
