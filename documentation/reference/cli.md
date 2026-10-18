@@ -135,7 +135,7 @@ systemprompt infra logs traces
 |------------|------------------|---------|
 | `admin users` | `list`, `show`, `search`, `create`, `update`, `delete`, `count`, `export`, `stats`, `merge`, `roles`, `sessions`, `bans`, `webauthn` | User management and IP banning. |
 | `admin agents` | `list`, `show`, `validate`, `create`, `edit`, `delete`, `status`, `logs`, `running`, `send`, `task`, `tools`, `run` | Agent management and A2A interaction. |
-| `admin config` | — | Configuration management and rate limits. |
+| `admin config` | — | Configuration management, rate limits, and declared config planes (`planes list`, `diff`, `export`, `apply`, see [config planes](../concepts/config-planes.md)). |
 | `admin setup` | — | Interactive setup wizard for local development. |
 | `admin bootstrap` | — | Idempotently ensure the platform admin user exists. |
 | `admin session` | `info` (alias `current`), `switch`, `list`, `create`, `remove` | CLI session and profile switching. |
