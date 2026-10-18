@@ -10,9 +10,13 @@ mod audit_concurrency;
 #[cfg(test)]
 mod context_id_derivation;
 #[cfg(test)]
+mod journal_recovery;
+#[cfg(test)]
 mod payload_truncation;
 #[cfg(test)]
 mod quota_accounting;
+#[cfg(test)]
+mod quota_reserve;
 #[cfg(test)]
 mod stream_tap_pipeline;
 #[cfg(test)]
