@@ -24,16 +24,25 @@ env:
   CARGO_NET_RETRY: "10"
   CARGO_TERM_COLOR: always
   SQLX_OFFLINE: "true"
+  # Why: sccache keys a compilation on its flags, so jobs that differ only in
+  # RUSTFLAGS or debug level share nothing. Every Rust job here (and ci.yml's
+  # test-tools/test jobs) builds with the same RUSTFLAGS, debug level and
+  # incremental setting; warnings are denied through clippy's `-D warnings`
+  # and RUSTDOCFLAGS instead.
+  RUSTFLAGS: ""
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_INCREMENTAL: "0"
 
 jobs:
   bridge-web:
     name: Bridge web regression tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
       - run: node --import ./bin/bridge/web/dev/tests/resolve-assets.mjs --test bin/bridge/web/dev/tests/*.test.mjs
@@ -41,14 +50,14 @@ jobs:
   lint:
     name: Clippy lint baseline
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # sccache (GitHub Actions cache backend) shares content-hashed objects
     # across every Linux Rust job in CI and Quality; see ci.yml.
     env:
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
-      CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # `just lint` covers bin/bridge, whose keyring backend pulls
@@ -58,24 +67,22 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - uses: extractions/setup-just@v4
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: cargo clippy --workspace --all-targets --all-features --keep-going --locked -- -D warnings
       - run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
       - run: sccache --show-stats
 
   lint-tests:
-    name: Test workspace all-targets clippy
+    name: Test workspace all-targets clippy + rustdoc
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       SQLX_OFFLINE: "false"
       DATABASE_URL: postgres://test:test@localhost:5432/test
       CARGO_BUILD_JOBS: "2"
-      CARGO_PROFILE_DEV_DEBUG: "0"
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
-      CARGO_INCREMENTAL: "0"
     services:
       postgres:
         image: postgres:18
@@ -90,19 +97,27 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - name: Install system dependencies
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - name: Migrate disposable database
         env:
           SQLX_OFFLINE: "true"
         run: cargo run --locked --manifest-path crates/tests/Cargo.toml -p systemprompt-test-migrate
       - run: cargo clippy --manifest-path crates/tests/Cargo.toml --workspace --all-targets --all-features --keep-going --locked -- -D warnings
+      # The third leg of `just doc-check`. It runs here rather than in `docs`
+      # because the test workspace's `query!` fixtures need the migrated
+      # database this job already has, and clippy has just checked its deps.
+      - name: Rustdoc, test workspace (warnings as errors)
+        if: ${{ !cancelled() }}
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --manifest-path crates/tests/Cargo.toml --workspace --no-deps --locked
       - run: sccache --show-stats
         if: ${{ !cancelled() }}
 
@@ -121,13 +136,20 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: Swatinem/rust-cache@v2
+      # Why: the Windows leg is the Quality critical path and is compile-bound.
+      # The cache is saved even when a check fails (the next push is usually
+      # the fix and needs the same deps), and only from `next`, whose caches
+      # every PR and push can read; PR runs would otherwise evict it.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: bin/bridge
+          shared-key: bridge-native
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/next' }}
       - name: Clippy (native target)
         timeout-minutes: 20
         run: cargo clippy --manifest-path bin/bridge/Cargo.toml --all-targets --all-features --keep-going --locked -- -D warnings
@@ -142,13 +164,13 @@ jobs:
   docs:
     name: Rustdoc (warnings as errors)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       RUSTDOCFLAGS: "-D warnings"
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
-      CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
@@ -156,41 +178,34 @@ jobs:
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
       - run: rustup show
-      - uses: mozilla-actions/sccache-action@v0.0.9
-      - run: cargo doc --workspace --no-deps --all-features
-      - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - run: cargo doc --workspace --no-deps --all-features --locked
+      - run: cargo doc --manifest-path bin/bridge/Cargo.toml --no-deps --locked
       - run: sccache --show-stats
 
-  source-gates:
-    name: Schema / SQL / comment / header / typed-ID linters
+  # The source gates run as four parallel jobs (the single sequential job was
+  # ~9m on the critical path). Each gate step carries `!cancelled()`: without
+  # it a job stops at its first failing gate and every gate below it goes dark
+  # -- a standing i18n failure once hid check-crate-changelogs that way --
+  # while a superseding push still cancels the run. The union of the jobs'
+  # `just` steps is asserted equal to scripts/check-gates.txt in
+  # source-gates-release.
+  source-gates-sql:
+    name: "Source gates: schema / SQL / layers / headers"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
     steps:
-      # fetch-depth: 0 because check-crate-changelogs diffs each crate against
-      # the newest release tag. A shallow checkout has neither the tag nor the
-      # history, and every crate would read as unchanged -- a gate that passes
-      # because it could not run. It exits 2 rather than 0 in that case, so this
-      # is what keeps it green for the right reason.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-      # bridge-bindings-check compiles the bridge to run the ts-rs export, so
-      # this job needs the keyring backend's libdbus-sys like every other job
-      # that builds it -- without it the gate fails on a missing `dbus-1.pc`
-      # and says nothing about bindings.
       - name: Install system dependencies
         timeout-minutes: 14
-        run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
-      - uses: extractions/setup-just@v4
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-machete
-      # Why: without a condition, the job stops at the first failing gate and
-      # the rest never execute — so one standing-red gate silently switches off
-      # every gate below it. A standing i18n failure would have taken
-      # check-crate-changelogs and lint-bridge-js-imports dark, the two most
-      # likely to catch the work that caused it. `!cancelled()` rather than
-      # `always()` so a superseding push still cancels the run.
+        run: bash scripts/ci-install-system-deps.sh ripgrep
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-schema
         if: ${{ !cancelled() }}
       - run: just lint-extensions
@@ -215,20 +230,37 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-layers
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-lints-sync
+      - run: just lint-env-vars
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-css-tokens
+      - run: just lint-authoritative-reads
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-i18n
+      - run: just lint-native-test-deps
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-js-imports
+      - run: just sqlx-audit-caches
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-no-window
+      - run: just lint-repo-construction
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-verdicts
+      - run: just lint-field-copy-from
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-typed-warnings
+      - run: just lint-repo-hygiene
         if: ${{ !cancelled() }}
+
+  source-gates-errors:
+    name: "Source gates: error handling / tasks / contracts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - name: Install system dependencies
+        timeout-minutes: 14
+        run: bash scripts/ci-install-system-deps.sh ripgrep
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just lint-discarded-results
         if: ${{ !cancelled() }}
       - run: just lint-fail-open
@@ -247,20 +279,6 @@ jobs:
         if: ${{ !cancelled() }}
       - run: cargo test --locked --manifest-path scripts/rust-contracts/Cargo.toml
         if: ${{ !cancelled() }}
-      - run: just lint-bridge-layers
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-globals
-        if: ${{ !cancelled() }}
-      - run: just lint-bridge-file-size
-        if: ${{ !cancelled() }}
-      - run: just lint-env-vars
-        if: ${{ !cancelled() }}
-      - run: just lint-authoritative-reads
-        if: ${{ !cancelled() }}
-      - run: just lint-native-test-deps
-        if: ${{ !cancelled() }}
-      - run: just sqlx-audit-caches
-        if: ${{ !cancelled() }}
       - run: just lint-silent-skips
         if: ${{ !cancelled() }}
       - run: just lint-json-value
@@ -269,10 +287,75 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-ledger-reads
         if: ${{ !cancelled() }}
+
+  source-gates-bridge:
+    name: "Source gates: bridge"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      # bridge-bindings-check compiles the bridge to run the ts-rs export, so
+      # this job needs the keyring backend's libdbus-sys like every other job
+      # that builds it -- without it the gate fails on a missing `dbus-1.pc`
+      # and says nothing about bindings.
+      - name: Install system dependencies
+        timeout-minutes: 14
+        run: bash scripts/ci-install-system-deps.sh ripgrep libdbus-1-dev pkg-config
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - run: just lint-bridge-lints-sync
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-css-tokens
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-i18n
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-js-imports
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-no-window
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-verdicts
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-typed-warnings
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-layers
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-globals
+        if: ${{ !cancelled() }}
+      - run: just lint-bridge-file-size
+        if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
         if: ${{ !cancelled() }}
-      - run: just lint-repo-construction
-        if: ${{ !cancelled() }}
+
+  source-gates-release:
+    name: "Source gates: release / versions / gate parity"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      # fetch-depth: 0 because check-crate-changelogs diffs each crate against
+      # the newest release tag. A shallow checkout has neither the tag nor the
+      # history, and every crate would read as unchanged -- a gate that passes
+      # because it could not run. It exits 2 rather than 0 in that case, so this
+      # is what keeps it green for the right reason.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Install system dependencies
+        timeout-minutes: 14
+        run: bash scripts/ci-install-system-deps.sh ripgrep
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-machete@0.9.2
       - run: python3 scripts/test-release-proof.py
         if: ${{ !cancelled() }}
       - run: python3 scripts/test-test-shard.py
@@ -287,27 +370,23 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just check-lockfile-registry
         if: ${{ !cancelled() }}
-      - run: just lint-field-copy-from
-        if: ${{ !cancelled() }}
-      - run: just lint-repo-hygiene
-        if: ${{ !cancelled() }}
       - run: just machete
         if: ${{ !cancelled() }}
       # Why: scripts/check-gates.txt is the local gate list (`just check-gates`);
-      # this job is the CI one. Per-step `!cancelled()` guards give each gate its
+      # the source-gates-* jobs are the CI one. Per-step `!cancelled()` guards give each gate its
       # own red/green line, so the two lists are asserted equal instead. A gate
-      # listed in the file must appear here as a step, and a step here must be
+      # listed in the file must appear in one of them as a step, and a step there must be
       # in the file.
       - name: Local and CI gate lists match
         if: ${{ !cancelled() }}
         run: |
           want=$(grep -v '^$' scripts/check-gates.txt | sort -u)
-          have=$(awk '/^  source-gates:/ { on = 1; next } on && /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
+          have=$(awk '/^  source-gates-[a-z]+:$/ { on = 1; next } /^  [a-z-]+:$/ { on = 0 } on' .github/workflows/quality.yml \
                  | grep -oE '^ *- run: just [a-z0-9-]+$' | awk '{ print $NF }' | sort -u)
           release_only="bridge-bindings-check check-crate-changelogs check-release-tag machete"
           have=$(comm -23 <(echo "$have") <(echo "$release_only" | tr ' ' '\n' | sort))
           if ! diff <(echo "$want") <(echo "$have"); then
-              echo "::error::scripts/check-gates.txt and quality.yml source-gates list different gates (< file only, > CI only)"
+              echo "::error::scripts/check-gates.txt and the quality.yml source-gates-* jobs list different gates (< file only, > CI only)"
               exit 1
           fi
           echo "gate lists match ($(echo "$want" | wc -l) gates)"
@@ -315,6 +394,7 @@ jobs:
   msrv:
     name: MSRV check (Rust 1.96)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # `rust-toolchain.toml` pins nightly and a toolchain FILE outrides rustup's
     # default, so installing 1.96.0 and running a bare `cargo check` silently
     # checked the nightly instead — this job passed for its whole life without
@@ -325,17 +405,16 @@ jobs:
       RUSTUP_TOOLCHAIN: "1.96.0"
       SCCACHE_GHA_ENABLED: "true"
       RUSTC_WRAPPER: sccache
-      CARGO_INCREMENTAL: "0"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       # bin/bridge's linux keyring backend pulls libdbus-sys via pkg-config.
       - name: Install system dependencies
         timeout-minutes: 12
         run: bash scripts/ci-install-system-deps.sh libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@1.96.0
-      - uses: mozilla-actions/sccache-action@v0.0.9
+      - uses: dtolnay/rust-toolchain@d86e0fa8f147d6539442c26a61ebba8becc19489 # 1.96.0
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
       - name: Assert the toolchain under test really is the MSRV
         run: |
           want="$(grep -m1 '^rust-version' Cargo.toml | cut -d'"' -f2)"
@@ -354,11 +433,12 @@ jobs:
   file-size:
     name: Source file size guard
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
-      - uses: extractions/setup-just@v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
       - run: just file-size
 
   # The `main` ruleset's required context, PR runs only; push runs post
@@ -366,7 +446,8 @@ jobs:
   quality-passed:
     name: ${{ github.event_name == 'pull_request' && 'Quality passed' || 'Quality passed (push)' }}
     runs-on: ubuntu-latest
-    needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
+    timeout-minutes: 5
+    needs: [bridge-web, lint, lint-tests, bridge-native, docs, source-gates-sql, source-gates-errors, source-gates-bridge, source-gates-release, msrv, file-size]
     if: always()
     steps:
       - run: |

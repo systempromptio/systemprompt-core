@@ -32,8 +32,9 @@ jobs:
   checks:
     name: Quality gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Verify merged promotion proof
@@ -45,6 +46,7 @@ jobs:
     name: Build ${{ matrix.target }}
     needs: checks
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -61,7 +63,7 @@ jobs:
             runner: windows-latest
             asset: systemprompt-bridge-x86_64-pc-windows-msvc.exe
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.inputs.bridge_tag || github.ref }}
       - name: Install libdbus (linux)
@@ -84,7 +86,7 @@ jobs:
           exit 1
       - run: rustup show
       - run: rustup target add ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: bin/bridge
           key: ${{ matrix.target }}
@@ -100,7 +102,7 @@ jobs:
         run: |
           Copy-Item "bin/bridge/target/${{ matrix.target }}/release/systemprompt-bridge.exe" "${{ matrix.asset }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
@@ -111,13 +113,14 @@ jobs:
     name: Sign & publish
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Resolve tag
         id: tag
         run: echo "tag=${{ github.event.inputs.bridge_tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           path: dist
           merge-multiple: true
@@ -127,7 +130,7 @@ jobs:
         run: sha256sum systemprompt-bridge-* > SHA256SUMS
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
 
       - name: Sign artifacts (keyless)
         working-directory: dist

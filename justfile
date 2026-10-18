@@ -176,8 +176,8 @@ lint-field-copy-from:
 
 # Every source gate, listed in scripts/check-gates.txt and run to completion by
 # scripts/check-gates.sh (one red gate cannot hide the rest; a summary names
-# every failure). quality.yml's `source-gates` job runs each listed recipe as
-# its own step and asserts that its step list equals that file — a gate added
+# every failure). quality.yml's `source-gates-*` jobs run each listed recipe as
+# its own step, and source-gates-release asserts their union equals that file — a gate added
 # there without a CI step fails the job, and a CI step for a gate not listed
 # there fails it too. `check-release-tag`, `check-crate-changelogs`, `machete` and
 # `bridge-bindings-check` are release-shaped (full history, cargo-machete, a
