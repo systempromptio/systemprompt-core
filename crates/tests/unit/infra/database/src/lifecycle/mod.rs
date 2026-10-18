@@ -7,6 +7,7 @@ mod installation_foreign_keys;
 mod migration_run_failures;
 mod migration_triggers;
 mod migrations;
+mod retirements;
 mod schema_currency_db;
 mod validation_db;
 mod validation_failure_boundaries;
