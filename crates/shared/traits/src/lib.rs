@@ -76,10 +76,10 @@ pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    DbBudget, Dependencies, Job, JobContext, JobResult, JobScope, MissingDependency, ProviderError,
-    ProviderResult, ServerListingFailure, ToolCallRequest, ToolCallResult, ToolContent,
-    ToolContext, ToolDefinition, ToolInventory, ToolProvider, ToolProviderError,
-    ToolProviderResult, submit_job,
+    BatchPlan, BatchedRun, DbBudget, Dependencies, Job, JobContext, JobResult, JobScope,
+    MissingDependency, ProviderError, ProviderResult, ServerListingFailure, ToolCallRequest,
+    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
+    ToolProviderError, ToolProviderResult, run_batched, submit_job,
 };
 
 pub use context::{

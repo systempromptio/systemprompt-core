@@ -215,6 +215,7 @@ Core owns these contracts so an extension never reimplements them against core t
 - **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool, never on a pool behind a transaction-mode pooler. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock. The key space is disjoint from the scheduler's job locks.
 - **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
 - **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
+- **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`. It stops when a batch comes back short or the deadline passes, and `BatchedRun::into_job_result` reports what remains for the next run.
 
 ## How discovery works
 

@@ -53,6 +53,7 @@ mod extender;
 mod frame_options;
 mod frontmatter;
 mod job;
+mod job_batch;
 mod job_budget;
 mod page;
 mod page_prerenderer;
@@ -78,6 +79,7 @@ pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, Templa
 pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use job::{Job, JobContext, JobResult, JobScope};
+pub use job_batch::{BatchPlan, BatchedRun, run_batched};
 pub use job_budget::DbBudget;
 pub use page::{PageContext, PageDataProvider};
 pub use page_prerenderer::{

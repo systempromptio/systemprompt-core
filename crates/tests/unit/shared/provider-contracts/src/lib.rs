@@ -27,6 +27,8 @@ mod extender;
 #[cfg(test)]
 mod job;
 #[cfg(test)]
+mod job_batch;
+#[cfg(test)]
 mod page;
 #[cfg(test)]
 mod page_prerenderer;
