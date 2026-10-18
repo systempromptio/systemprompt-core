@@ -94,6 +94,12 @@ impl ExtensionContext for AppContext {
         leases
     }
 
+    fn advisory_locks(&self) -> systemprompt_traits::DynAdvisoryLocks {
+        let concrete = Arc::clone(&self.coordination_repositories().locks);
+        let locks: systemprompt_traits::DynAdvisoryLocks = concrete;
+        locks
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
     }

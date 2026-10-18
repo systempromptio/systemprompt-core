@@ -97,9 +97,10 @@ pub use lifecycle::{
     validate_write_pool_is_primary,
 };
 pub use repository::{
-    CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, INSTANCE_CLAIM_CLASS,
-    INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError, InstanceLeaseRepository, PgDbPool,
-    ServiceConfig, ServiceModule, ServiceRepository, ServiceStatus, UpsertServiceProcessInput,
+    CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
+    INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
+    InstanceLeaseRepository, PgDbPool, ServiceConfig, ServiceModule, ServiceRepository,
+    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, UpsertServiceProcessInput,
 };
 
 pub use admin::{

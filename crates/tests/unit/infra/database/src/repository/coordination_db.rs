@@ -1,6 +1,6 @@
 //! DB-backed tests for the coordination seams: replica liveness judged by the
-//! instance claim and the `services` heartbeat, and expiring single-owner
-//! leases that a dead owner forfeits.
+//! instance claim and the `services` heartbeat, expiring single-owner leases
+//! that a dead owner forfeits, and session-scoped advisory locks.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -9,9 +9,9 @@ use systemprompt_database::{
     CoordinationRepositories, CreateServiceInput, Database, DbPool, PoolConfig, ServiceModule,
     ServiceRepository, ServiceStatus,
 };
-use systemprompt_identifiers::{InstanceId, LeaseKey, ServiceName};
+use systemprompt_identifiers::{AdvisoryLockKey, InstanceId, LeaseKey, ServiceName};
 use systemprompt_test_fixtures::test_database_url;
-use systemprompt_traits::{CoordinationError, InstanceRegistry, LeaseRepository};
+use systemprompt_traits::{AdvisoryLocks, CoordinationError, InstanceRegistry, LeaseRepository};
 
 fn unique(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::new_v4().simple())
@@ -320,4 +320,67 @@ async fn a_ttl_outside_one_second_to_one_day_is_refused() {
             "{error}"
         );
     }
+}
+
+#[tokio::test]
+async fn an_advisory_lock_is_exclusive_until_released() {
+    let db = db_pool().await;
+    let first = replica(&db);
+    let second = replica(&db);
+    let key = AdvisoryLockKey::new(unique("lock"));
+
+    let guard = first
+        .coordination
+        .locks
+        .try_acquire(&key)
+        .await
+        .expect("lock")
+        .expect("a free lock is granted");
+    assert_eq!(guard.key(), &key);
+    assert!(
+        second
+            .coordination
+            .locks
+            .acquire_within(&key, Duration::from_millis(300))
+            .await
+            .expect("lock")
+            .is_none(),
+        "a held lock is not granted to another session"
+    );
+
+    guard.release().await;
+    let next = second
+        .coordination
+        .locks
+        .try_acquire(&key)
+        .await
+        .expect("lock")
+        .expect("a released lock is free");
+    next.release().await;
+}
+
+#[tokio::test]
+async fn dropping_an_advisory_lock_frees_it() {
+    let db = db_pool().await;
+    let first = replica(&db);
+    let second = replica(&db);
+    let key = AdvisoryLockKey::new(unique("lock"));
+
+    let guard = first
+        .coordination
+        .locks
+        .try_acquire(&key)
+        .await
+        .expect("lock")
+        .expect("granted");
+    drop(guard);
+
+    let next = second
+        .coordination
+        .locks
+        .acquire_within(&key, Duration::from_secs(5))
+        .await
+        .expect("lock")
+        .expect("a dropped lock's session is closed, freeing it");
+    next.release().await;
 }

@@ -7,11 +7,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod advisory_lock;
 pub mod base;
 pub mod coordination;
 pub mod lease;
 pub mod service;
 
+pub use advisory_lock::{EXTENSION_LOCK_CLASS, SessionAdvisoryLock, SessionAdvisoryLocks};
 pub use base::PgDbPool;
 pub use coordination::CoordinationRepositories;
 pub use lease::InstanceLeaseRepository;

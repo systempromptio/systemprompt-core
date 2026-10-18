@@ -2,9 +2,10 @@
 //!
 //! Beyond config, database and storage, the context carries the
 //! cross-replica seams core owns: [`ExtensionContext::instances`] answers
-//! whether a replica is alive and [`ExtensionContext::leases`] hands out
-//! expiring single-owner claims. A context without a database refuses them
-//! through [`UnavailableCoordination`].
+//! whether a replica is alive, [`ExtensionContext::leases`] hands out
+//! expiring single-owner claims, and [`ExtensionContext::advisory_locks`]
+//! takes session-scoped locks on the session pool. A context without a
+//! database refuses all three through [`UnavailableCoordination`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +14,8 @@ use std::sync::Arc;
 use systemprompt_identifiers::InstanceId;
 use systemprompt_provider_contracts::{ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet};
 use systemprompt_traits::{
-    ConfigProvider, DatabaseHandle, DynInstanceRegistry, DynLeaseRepository, FileStorage,
-    UnavailableCoordination,
+    ConfigProvider, DatabaseHandle, DynAdvisoryLocks, DynInstanceRegistry, DynLeaseRepository,
+    FileStorage, UnavailableCoordination,
 };
 
 pub trait ExtensionContext: Send + Sync {
@@ -33,6 +34,10 @@ pub trait ExtensionContext: Send + Sync {
     }
 
     fn leases(&self) -> DynLeaseRepository {
+        Arc::new(UnavailableCoordination)
+    }
+
+    fn advisory_locks(&self) -> DynAdvisoryLocks {
         Arc::new(UnavailableCoordination)
     }
 
