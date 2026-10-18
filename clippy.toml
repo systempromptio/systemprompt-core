@@ -6,11 +6,13 @@
 avoid-breaking-exported-api = false
 msrv = "1.96"
 
+# RATCHET: cognitive_complexity and too_many_lines are `deny`. Both thresholds
+# may only go down.
+#
 # COGNITIVE COMPLEXITY - Keep code simple and maintainable.
 # Clippy charges for every `?` and early return, so idiomatic async/Result code
-# scores roughly double a conventional cognitive-complexity metric. 65 is an
-# outlier gate, not a target; lower it by hand when the tail is cleaned up.
-cognitive-complexity-threshold = 65
+# scores roughly double a conventional cognitive-complexity metric.
+cognitive-complexity-threshold = 62
 
 # TYPE COMPLEXITY - Avoid overly complex types
 type-complexity-threshold = 250
