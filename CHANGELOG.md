@@ -19,10 +19,14 @@
 - **Breaking:** a gateway quota window must set exactly one of `window_seconds` (at least 1) or `calendar`; a window with neither or both is rejected in YAML and treated as a malformed policy, which denies the request, when read from the database.
 - **Breaking:** cloud profiles written by the CLI set `allow_registration` and `allow_dynamic_client_registration` to `false`.
 - **Breaking:** `bind_and_serve` takes a `ShutdownConfig`, and `SchedulerConfig` gains `unlisted_jobs`; struct literals must name the new fields.
+- **Breaking:** `ConfigPlane::read_current`, `apply` and `export` take the host transaction (`PlaneTx`), `apply` takes an `ApplyRequest`, and `ConfigPlaneSet` lives in `systemprompt-provider-contracts` with `new` taking the authority map; `ConfigPlaneSet::ensure_db_writable` and `is_file_managed` are removed. Migrate by calling `ConfigPlaneSet::writer(plane)` before a console write.
+- **Breaking:** `GovernanceEngine::from_config` and `from_services_root` take the rate-window repository, and a chain that arms a rate window without one fails construction with `GovernanceEngineError::RateWindowsUnavailable`; `charge_rate_windows`, `with_rate_windows` and `RateChargeSubject` are removed. Migrate by passing `Some(RateWindowRepository::new(pool))` and calling `charge_and_evaluate`.
+- **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After` instead of being admitted.
+- **Breaking:** a Cloud Storage object's ETag is its quoted generation on both `HEAD` and `GET`, so ETags cached by clients change once.
 
 ### Added
 
-- **Config planes:** extensions register `ConfigPlane`s through `Extension::config_planes()`, and `config_planes.authority` sets each plane to `file` (default) or `db`. A `file` plane is reconciled to its declaration at boot and by the `config_reconcile` job, every correction is recorded with its before and after values in `config_change_audit`, and `ConfigPlaneSet::ensure_db_writable` lets an extension refuse console writes to it with 409; a `db` plane is seeded when empty and its drift is reported.
+- **Config planes:** extensions register `ConfigPlane`s through `Extension::config_planes()`, and `config_planes.authority` sets each plane to `file` (default) or `db`. A `file` plane is reconciled to its declaration at boot and by the `config_reconcile` job, every correction is recorded with its before and after values in `config_change_audit` in the same transaction as the write, and a console write needs a `PlaneWriter` from `ConfigPlaneSet::writer`, which is refused with 409 for a `file` plane; a `db` plane is seeded when empty (`ApplyMode::SeedIfEmpty`) and its drift is reported.
 - **Config planes:** `admin config planes list|diff|apply --reason` applies a plane headless, `admin config validate` parses every plane's declaration offline, `/readyz` reports each plane's authority, hash and drift, and `/metrics` exports `systemprompt_config_drift_rows` and `systemprompt_config_plane_info`.
 - **Security:** `security.api_keys.max_lifetime_days` caps every personal access token; a key without an expiry gets the cap and a longer expiry is refused.
 - **CLI:** `admin users api-key issue --if-absent [--renew-before-days N] [--secret-file PATH]` and `admin users service-account create` provision idempotently.
@@ -44,8 +48,16 @@
 
 - **Database:** `database.pool.session_max_connections` (default 10) sizes the `database_session_url` pool.
 
+- **Config planes:** `ConfigPlane::depends_on` orders planes (boot refuses an unknown dependency or a cycle), `effect` reports whether a change applies live or on restart, `export` renders a plane's rows as a declaration, and scoped apply (`EntityScope`) is available to planes that opt in; `admin config planes export --plane <p> [--out <file>]`, `apply --entity` and `apply --mode seed-if-empty` drive them, and `ExtensionContext::config_planes()` hands an extension the plane set.
+- **Extensions:** `ExtensionContext::instances()` (instance liveness), `leases()` (expiring single-owner leases), `advisory_locks()` (session-pool advisory locks) and `secret(name)` (custom secrets from the profile's secrets source); `Extension::readiness()` contributes named checks to `/readyz`, which answers `503` when one fails, errors or overruns, and `Extension::metrics()` declares metric descriptors and histogram buckets.
+- **Governance:** `GovernanceEngine::charge_and_evaluate` (and `charge`) charges a call's rate windows and evaluates it in one step from a `PolicyRequest`; `RateCounts::charged` builds pre-charged counts for policy tests.
+- **AI:** `QuotaUsageRepository` reads a subject's window usage summed across shards.
+- **Scheduler:** `Job::db_budget()` applies `statement_timeout` and `work_mem` as `SET LOCAL` to transactions opened through the job context's `BudgetedDb`; `run_batched` bounds a batched delete loop; `ReleaseStampRepository::run_once` runs work once per release across the cluster.
+
 ### Changed
 
+- **CI:** the schema ladder boots each of the two previous releases' own server against the upgraded database; it must serve and write a quota row, or refuse a `@compat: breaking` schema, and a failed quota write that no breaking marker declares fails the release.
+- **Docs:** `documentation/guides/deploy-production.md` §9.4 is the 0.69 → 0.70 recreate upgrade runbook, and `documentation/concepts/config-planes.md` covers plane authority, the writer token and the export path.
 - **Gateway:** the `rate_limit` policy counts a fixed window in Postgres shared by every replica and fails closed when the counter is unavailable.
 - **Cache:** writes to gateway policies, access-control rules and token revocations notify every replica, which drops its cached copy.
 - **Gateway:** tool catalogues are filed without locking the shared row, thought signatures are looked up in one query and only for Gemini-capable routes, and `ensure_context` skips a context touched within the last minute.
@@ -62,6 +74,9 @@
 
 ### Fixed
 
+- **Gateway:** a request that the quota windows refuse (enforce) or whose quota check fails has its `rate_windows` charge refunded.
+- **Storage:** S3 and Cloud Storage error bodies are capped at 2 KiB before they reach error text and logs.
+- **Config planes:** a non-converging apply rolls back instead of leaving a partial write, and a stale `systemprompt_config_plane_info` series is zeroed under the authority it was recorded with.
 - **API:** `/files/*` refuses a path containing `..` or a control character.
 - **API:** `/files/*` honours `If-Range`, matches weak, listed and `*` `If-None-Match`, answers `HEAD` from object metadata without downloading the body, and sizes a backend `416` from the object.
 - **Storage:** S3 and GCS downloads streamed through `/files` are bounded by a read-stall timeout, not a whole-request timeout, so large downloads are no longer cut off after 60 s.
