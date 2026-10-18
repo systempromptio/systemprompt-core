@@ -58,6 +58,8 @@ mod plans;
 #[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]
+mod registration_db;
+#[cfg(test)]
 mod repository_db;
 #[cfg(test)]
 mod retention_enforce_db;
