@@ -81,9 +81,7 @@ env:
 
 jobs:
   # The instrumented test workspace, compiled once and packed as a nextest
-  # archive. The shards used to run in one serial loop on one runner (~40 min
-  # of tests behind ~10 min of build); they now fan out over this archive and
-  # none of them compiles anything.
+  # archive; the shards fan out over it and compile nothing.
   build-tests:
     name: Build instrumented test archive
     runs-on: ubuntu-latest
@@ -131,10 +129,9 @@ jobs:
             /usr/local/.ghcup "$AGENT_TOOLSDIRECTORY"
           sudo mkdir -p /mnt/coverage-target /mnt/discard /mnt/out
           sudo chown -R "$USER" /mnt/coverage-target /mnt/discard /mnt/out
-          # Why: codegen is no longer serialised (CARGO_BUILD_JOBS=2 is gone),
-          # and the hosted runner drops its agent connection rather than
-          # OOM-killing a linker when RAM runs out. Swap turns a peak into a
-          # slow link instead of a lost runner.
+          # Why: a hosted runner drops its agent connection rather than
+          # OOM-killing a linker when RAM runs out; swap turns a parallel
+          # codegen peak into a slow link.
           sudo fallocate -l 16G /mnt/coverage-swap
           sudo chmod 600 /mnt/coverage-swap
           sudo mkswap /mnt/coverage-swap >/dev/null

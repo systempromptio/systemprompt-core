@@ -4,10 +4,10 @@
 
 ### Breaking
 
-- **Breaking:** `GET /api/v1/core/oauth/callback` is removed (it could not redeem a code once PKCE became mandatory and no flow reached it), and `/oauth/authorize` echoes the client's `state` verbatim; `StateBindingParams`, `StateBindingRow`, the `find_*_by_redirect_uri*` client lookups, `OauthCleanupCounts::state_bindings` and `token::COOKIE_MAX_AGE_SECONDS` are removed. The `oauth_state_bindings` table is kept unused for rolling updates from 0.70 and is dropped in the next release.
+- **Breaking:** `GET /api/v1/core/oauth/callback` is removed, and `/oauth/authorize` echoes the client's `state` verbatim; `StateBindingParams`, `StateBindingRow`, the `find_*_by_redirect_uri*` client lookups, `OauthCleanupCounts::state_bindings` and `token::COOKIE_MAX_AGE_SECONDS` are removed. The `oauth_state_bindings` table is kept unused for rolling updates from 0.70 and is dropped in the next release.
 - **Breaking:** `ConfigPlane::read_current`, `apply` and `export` take the host transaction (`PlaneTx`), `apply` takes an `ApplyRequest`, and `ConfigPlaneSet` lives in `systemprompt-provider-contracts` with `new` taking the authority map; `ConfigPlaneSet::ensure_db_writable` and `is_file_managed` are removed. Migrate by calling `ConfigPlaneSet::writer(plane)` before a console write.
 - **Breaking:** `GovernanceEngine::from_config` and `from_services_root` take the rate-window repository, and a chain that arms a rate window without one fails construction with `GovernanceEngineError::RateWindowsUnavailable`; `charge_rate_windows`, `with_rate_windows` and `RateChargeSubject` are removed. Migrate by passing `Some(RateWindowRepository::new(pool))` and calling `charge_and_evaluate`.
-- **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After` instead of being admitted.
+- **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After`.
 - **Breaking:** a Cloud Storage object's ETag is its quoted generation on both `HEAD` and `GET`, so ETags cached by clients change once.
 
 ### Added
@@ -27,11 +27,11 @@
 
 ### Fixed
 
-- **CLI:** `admin users restore` and `admin users legal-hold` find archived accounts; both previously answered "User not found" for every archived user.
-- **Scheduler:** an enforced `database_cleanup` run no longer deletes system-span log rows as orphans; their sentinel owner is not a user row.
+- **CLI:** `admin users restore` and `admin users legal-hold` resolve archived accounts by id, email or name.
+- **Scheduler:** an enforced `database_cleanup` run keeps system-span log rows; only rows owned by a missing user are orphans.
 - **Gateway:** a request that the quota windows refuse (enforce) or whose quota check fails has its `rate_windows` charge refunded.
 - **Storage:** S3 and Cloud Storage error bodies are capped at 2 KiB before they reach error text and logs.
-- **Config planes:** a non-converging apply rolls back instead of leaving a partial write, and a stale `systemprompt_config_plane_info` series is zeroed under the authority it was recorded with.
+- **Config planes:** a non-converging apply rolls back as one transaction, and a stale `systemprompt_config_plane_info` series is zeroed under the authority it was recorded with.
 
 ## [0.70.0] - 2026-10-18
 

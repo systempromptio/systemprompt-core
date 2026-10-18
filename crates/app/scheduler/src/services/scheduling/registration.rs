@@ -3,9 +3,7 @@
 //! Registration is fault-isolated per job: a job that fails to upsert, parse
 //! its schedule, or join the cron scheduler is collected as a [`SkippedJob`],
 //! recorded as an `ERROR` in the `logs` table, and the remaining jobs are
-//! registered as normal. Before this, one bad entry aborted the loop and every
-//! later job was silently dropped — and, because the error reached the server
-//! lifecycle, took the whole boot with it.
+//! registered as normal; one bad entry never stops the others or the boot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

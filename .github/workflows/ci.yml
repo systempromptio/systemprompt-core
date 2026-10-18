@@ -31,9 +31,8 @@ env:
   SQLX_OFFLINE: "true"
   # Every Rust job compiles through sccache with the GitHub Actions cache as
   # its backend. Objects are content-hashed, so a lockfile bump invalidates
-  # only the crates that changed (rust-cache keyed the whole target/ on both
-  # lockfiles and went cold on every bump, x14 shards) and one cache serves
-  # every shard. Incremental artifacts are not cacheable, so they are off.
+  # only the crates that changed and one cache serves every job. Incremental
+  # artifacts are not cacheable, so they are off.
   SCCACHE_GHA_ENABLED: "true"
   RUSTC_WRAPPER: sccache
   CARGO_INCREMENTAL: "0"
@@ -68,8 +67,8 @@ jobs:
       - run: cargo build --workspace --locked
       - run: sccache --show-stats
 
-  # The schema migrator alone, so the schema ladder starts on it within minutes
-  # instead of waiting for the full test archive (and no longer builds its own).
+  # The schema migrator alone, so the schema ladder starts on it without
+  # waiting for the full test archive.
   migrator:
     name: Test migrator
     runs-on: ubuntu-latest
@@ -97,9 +96,7 @@ jobs:
   # Everything the shards run, compiled once: the test workspace as a nextest
   # archive (scripts/test-shard.sh --archive, the union of every shard's
   # packages), the schema migrator, and the `systemprompt` and bridge binaries
-  # the subprocess fixtures spawn. Before this each of the 16 shards compiled
-  # its own crates (~8 min of compile for ~1 min of tests in integration-cli).
-  # The test workspace has no committed .sqlx cache, so its query macros check
+  # the subprocess fixtures spawn. The test workspace has no committed .sqlx cache, so its query macros check
   # against this job's own freshly migrated database.
   test-tools:
     name: Test tools (prebuilt)
