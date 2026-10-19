@@ -114,7 +114,7 @@ class TestShardInvocation(unittest.TestCase):
         self.assertEqual(args[:2], ["nextest", "run"])
         self.assertEqual(args[args.index("--profile") + 1], "default")
         self.assertTrue(args[args.index("--archive-file") + 1].endswith("tests.tar.zst"))
-        self.assertEqual(args[args.index("--workspace-remap") + 1], str(ROOT))
+        self.assertEqual(args[args.index("--workspace-remap") + 1], str(ROOT / "crates" / "tests"))
         self.assertEqual(
             args[args.index("-E") + 1],
             "(package(=bridge-fixture-tests)) & (test(specific))",

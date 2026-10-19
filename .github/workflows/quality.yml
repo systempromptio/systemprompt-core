@@ -458,7 +458,7 @@ jobs:
           fetch-depth: 0
       - run: rustup show
       - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
-      - run: cargo install cargo-semver-checks --locked --version 0.41.0
+      - run: cargo install cargo-semver-checks --locked --version 0.51.0
       - name: Semver report against the last release tag
         run: bash scripts/semver-report.sh target/semver-report.md
       - if: always()

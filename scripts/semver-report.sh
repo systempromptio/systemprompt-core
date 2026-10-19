@@ -29,14 +29,21 @@ cargo semver-checks check-release --workspace "${excludes[@]}" \
 status=$?
 
 failed="$(grep -cE '^\s*--- failure ' "$log" || true)"
+unbuilt="$(grep -oE "failed to build rustdoc for crate [a-z0-9_-]+" "$log" | awk '{print $NF}' | sort -u | paste -sd' ' -)"
 {
     echo "# Semver report against \`$baseline\`"
     echo
     if [ "$status" -eq 0 ]; then
         echo "No semver-breaking changes detected in published crates."
+    elif [ "$failed" -eq 0 ]; then
+        echo "**cargo-semver-checks failed without a finding (exit $status)**; the report is incomplete."
     else
         echo "**${failed} breaking finding(s)** (cargo-semver-checks exit $status)."
         echo "Every finding needs a \`### Breaking\` entry in CHANGELOG.md."
+    fi
+    if [ -n "$unbuilt" ]; then
+        echo
+        echo "**Not checked** (rustdoc failed): $unbuilt"
     fi
     echo
     echo '<details><summary>cargo-semver-checks output</summary>'
