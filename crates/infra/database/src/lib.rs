@@ -92,7 +92,8 @@ pub use lifecycle::{
     SchemaInstallReport, SchemaResidue, SlotCollision, SplitCreateTable, TombstonedSlot,
     UndeclaredTable, audit_migration_cost, audit_one, audit_schema_residue, backfill_statements,
     check_migration_references, check_trigger_routines, install_extension_schemas_full,
-    is_retirement, replica_status, schema_currency, split_create_table_foreign_keys,
+    is_retirement, projection_tables, replica_status, schema_currency,
+    split_create_table_foreign_keys,
     validate_column_exists, validate_database_connection, validate_table_exists,
     validate_write_pool_is_primary,
 };

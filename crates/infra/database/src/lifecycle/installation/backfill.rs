@@ -17,11 +17,21 @@
 //! relation>` is not reported. An unparseable body yields nothing, since
 //! `check_migration_references` already refuses it with the parse error.
 //!
+//! A `DELETE` from `projection_backlog`, or from a projection's own fact
+//! table, is cleanup rather than backfill: it removes rows the base schema's
+//! projector would no longer produce, and a fresh install never had them.
+//! [`projection_tables`] derives that set from the base schema — every
+//! projection a schema queues through `queue_projection_backlog('<name>', …)`
+//! whose name is also a table the base schema creates — and
+//! [`BackfillStatement::is_projection_cleanup`] applies it.
+//!
 //! Both repositories' static gates (`no_backfill_after_floor`) use this one
 //! detector so "backfill" means the same thing on each side.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::collections::BTreeSet;
 
 use pg_query::NodeEnum;
 use pg_query::protobuf::{self, Node};
@@ -36,6 +46,53 @@ pub struct BackfillStatement {
     pub position: usize,
     pub target: String,
     pub form: &'static str,
+}
+
+impl BackfillStatement {
+    #[must_use]
+    pub fn is_projection_cleanup(&self, projection_tables: &BTreeSet<String>) -> bool {
+        self.form == "DELETE"
+            && (self.target == PROJECTION_BACKLOG || projection_tables.contains(&self.target))
+    }
+}
+
+#[must_use]
+pub fn projection_tables<'a>(schemas: impl IntoIterator<Item = &'a str>) -> BTreeSet<String> {
+    let mut queued = BTreeSet::new();
+    let mut created = BTreeSet::new();
+    for sql in schemas {
+        queued.extend(queued_projections(sql));
+        created.extend(created_tables(sql));
+    }
+    queued.intersection(&created).cloned().collect()
+}
+
+// Why: the queueing calls sit inside PL/pgSQL bodies, which pg_query keeps
+// as opaque strings, so the projection names are read from the text.
+fn queued_projections(sql: &str) -> Vec<String> {
+    const CALL: &str = "queue_projection_backlog(";
+    sql.match_indices(CALL)
+        .filter_map(|(at, _)| {
+            let rest = sql[at + CALL.len()..].trim_start().strip_prefix('\'')?;
+            let end = rest.find('\'')?;
+            Some(rest[..end].to_owned())
+        })
+        .collect()
+}
+
+fn created_tables(sql: &str) -> Vec<String> {
+    let Ok(parsed) = pg_query::parse(sql) else {
+        return Vec::new();
+    };
+    parsed
+        .protobuf
+        .stmts
+        .iter()
+        .filter_map(|raw| match raw.stmt.as_ref()?.node.as_ref()? {
+            NodeEnum::CreateStmt(stmt) => Some(stmt.relation.as_ref()?.relname.clone()),
+            _ => None,
+        })
+        .collect()
 }
 
 #[must_use]

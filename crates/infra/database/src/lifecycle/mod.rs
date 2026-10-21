@@ -19,7 +19,8 @@ pub use installation::{
     OrphanMigrationLedger, PROJECTION_BACKLOG, SchemaAhead, SchemaCurrency, SchemaInstallReport,
     SchemaResidue, SplitCreateTable, UndeclaredTable, audit_migration_cost, audit_one,
     audit_schema_residue, backfill_statements, check_migration_references, check_trigger_routines,
-    install_extension_schemas_full, schema_currency, split_create_table_foreign_keys,
+    install_extension_schemas_full, projection_tables, schema_currency,
+    split_create_table_foreign_keys,
 };
 pub use migrations::{
     AppliedMigration, BaselineStamp, ChecksumDrift, ExtensionMigrationStatus, FreshnessCheck,
