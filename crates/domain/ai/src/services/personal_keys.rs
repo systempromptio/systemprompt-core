@@ -120,12 +120,80 @@ async fn verify_upstream(
         .send()
         .await
         .map_err(|_e| unverified("no response".to_owned()))?;
-    let status = response.status();
-    if status.is_success() {
-        return Ok(());
+    let status = response.status().as_u16();
+    if matches!(status, 404 | 405) {
+        return probe_completion(&client, &call, entry, user_id).await;
     }
-    if matches!(status.as_u16(), 401 | 403) {
-        return Err(rejected());
+    classify(status, false).map_err(|verdict| verdict.into_error(entry))
+}
+
+// Why: OpenCode Go serves no `/models` listing (404) and answers a malformed
+// body with a 500 before it checks the key, so the only request that proves a
+// key there is a well-formed one-token completion; a bad key is then a 401.
+async fn probe_completion(
+    client: &reqwest::Client,
+    call: &super::upstream::UpstreamCall,
+    entry: &ProviderEntry,
+    user_id: &str,
+) -> Result<(), PersonalKeyError> {
+    let Some(model) = entry.models.iter().find(|m| !m.hidden) else {
+        return Err(Verdict::Unverified("no model to probe".to_owned()).into_error(entry));
+    };
+    let upstream_model = model.effective_upstream_model(model.id.as_str());
+    // JSON: provider request body — a one-token probe in the upstream wire format.
+    let body = serde_json::json!({
+        "model": upstream_model,
+        "max_tokens": 1,
+        "messages": [{"role": "user", "content": "ping"}],
+    });
+    let session = format!(
+        "ses_keycheck_{}",
+        user_id
+            .chars()
+            .filter(char::is_ascii_alphanumeric)
+            .take(20)
+            .collect::<String>()
+    );
+    let forward = vec![("x-opencode-session".to_owned(), session)];
+    let mut request = client
+        .post(call.url(entry.wire, upstream_model, false))
+        .body(body.to_string());
+    for (name, value) in call.headers_forwarding(entry.wire, &forward) {
+        request = request.header(name, value);
     }
-    Err(unverified(status.as_u16().to_string()))
+    let status = request
+        .send()
+        .await
+        .map_err(|_e| Verdict::Unverified("no response".to_owned()).into_error(entry))?
+        .status()
+        .as_u16();
+    classify(status, true).map_err(|verdict| verdict.into_error(entry))
+}
+
+enum Verdict {
+    Rejected,
+    Unverified(String),
+}
+
+impl Verdict {
+    fn into_error(self, entry: &ProviderEntry) -> PersonalKeyError {
+        match self {
+            Self::Rejected => PersonalKeyError::Rejected(provider_label(entry)),
+            Self::Unverified(status) => PersonalKeyError::Unverified {
+                provider: provider_label(entry),
+                status,
+            },
+        }
+    }
+}
+
+// A completion probe that got past authentication proves the key even when
+// the upstream then refuses the request itself (bad request, rate limited).
+fn classify(status: u16, completion: bool) -> Result<(), Verdict> {
+    match status {
+        200..=299 => Ok(()),
+        401 | 403 => Err(Verdict::Rejected),
+        400 | 422 | 429 if completion => Ok(()),
+        other => Err(Verdict::Unverified(other.to_string())),
+    }
 }
