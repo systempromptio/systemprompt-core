@@ -264,7 +264,10 @@ fn a_scheduled_attempt_is_not_due_again_within_the_interval() {
 
     in_sandbox(&state, || {
         let gate = UpdateGate::default();
-        drop(gate.begin(Trigger::Schedule).expect("the first scheduled attempt is due"));
+        drop(
+            gate.begin(Trigger::Schedule)
+                .expect("the first scheduled attempt is due"),
+        );
         let again = gate.begin(Trigger::Schedule);
         assert!(
             matches!(again, Err(Skipped::NotDue)),

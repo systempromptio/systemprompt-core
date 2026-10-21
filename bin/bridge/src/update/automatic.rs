@@ -6,18 +6,18 @@
 //! after the machine sleeps, looking for any newer release. The proxy heartbeat
 //! raises [`Trigger::Unsupported`] when the gateway reports this bridge below
 //! its floor, which is the only trigger a headless (Linux) bridge has. Every
-//! trigger passes the same [`UpdateGate::begin`] gate — org policy, due time, single
-//! flight — and the same [`Permit`] steps, so the platforms differ only in
-//! who raises the trigger, never in what an attempt does.
+//! trigger passes the same [`UpdateGate::begin`] gate — org policy, due time,
+//! single flight — and the same [`Permit`] steps, so the platforms differ only
+//! in who raises the trigger, never in what an attempt does.
 //!
 //! An attempt stages: it verifies the target is writable before any network
 //! call, downloads and verifies the artifact, and swaps it over the install.
 //! It never relaunches; the next natural launch runs the new version
 //! ([`AutoUpdatePolicy::Staged`]).
 //!
-//! [`UpdateGate::begin`] tests the gate before the policy read, so the GUI's one-second
-//! tick does not touch the last-sync sentinel until an attempt is due, and
-//! again after it, because the read runs without the lock held.
+//! [`UpdateGate::begin`] tests the gate before the policy read, so the GUI's
+//! one-second tick does not touch the last-sync sentinel until an attempt is
+//! due, and again after it, because the read runs without the lock held.
 //! `Permit::check` checks writability first: an install that cannot be
 //! replaced (a macOS app run from its disk image or App Translocation, a
 //! root-owned binary) fails there with the platform's fix, before any
