@@ -6,7 +6,8 @@
 //! therefore also holds an exclusive lock on `sync.lock` in the bridge metadata
 //! directory, so two processes never apply plugins, write host policy or
 //! rewrite the sentinel at the same time. A second process waits for the first
-//! and then syncs against what it left.
+//! and then syncs against what it left. The lock is held for the length of
+//! one sync; the OS releases it when the handle drops.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,7 +20,6 @@ use crate::config::paths;
 
 const LOCK_FILE: &str = "sync.lock";
 
-/// Held for the length of one sync; the OS releases the lock when it drops.
 #[derive(Debug)]
 pub(super) struct ProcessLock {
     _file: File,

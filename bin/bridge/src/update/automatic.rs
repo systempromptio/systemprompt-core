@@ -15,6 +15,15 @@
 //! It never relaunches; the next natural launch runs the new version
 //! ([`AutoUpdatePolicy::Staged`]).
 //!
+//! [`begin`] tests the gate before the policy read, so the GUI's one-second
+//! tick does not touch the last-sync sentinel until an attempt is due, and
+//! again after it, because the read runs without the lock held.
+//! `Permit::check` checks writability first: an install that cannot be
+//! replaced (a macOS app run from its disk image or App Translocation, a
+//! root-owned binary) fails there with the platform's fix, before any
+//! download. [`run`] is a whole attempt with no progress reporting, for
+//! callers without a UI.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -84,11 +93,6 @@ static GATE: Mutex<Gate> = Mutex::new(Gate {
     last_attempt: None,
 });
 
-/// Claims the single automatic-update slot for `trigger`.
-///
-/// The gate is tested before the policy read, so the GUI's one-second tick
-/// does not touch the last-sync sentinel until an attempt is due, and again
-/// after it, because the read runs without the lock held.
 pub fn begin(trigger: Trigger) -> Result<Permit, Skipped> {
     lock_gate().admits(trigger)?;
     let decision = auto_update_policy();
@@ -139,11 +143,6 @@ impl Permit {
         self.trigger
     }
 
-    /// The newer release to stage, or `None` when this bridge is current.
-    ///
-    /// Writability is checked first: an install that cannot be replaced (a
-    /// macOS app run from its disk image or App Translocation, a root-owned
-    /// binary) fails here with the platform's fix, before any download.
     pub async fn check(
         &self,
         client: &GatewayClient,
@@ -183,7 +182,6 @@ impl Permit {
     }
 }
 
-/// A whole attempt with no progress reporting, for callers without a UI.
 pub async fn run(
     trigger: Trigger,
     client: &GatewayClient,
