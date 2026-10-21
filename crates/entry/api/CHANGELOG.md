@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.72.0] - 2026-10-22
+
+### Added
+
+- **Breaking:** the bridge release `latest` endpoint takes `refresh=true` to bypass the release cache (`ReleaseFeed::resolve_fresh`); `LatestQuery` gains `refresh`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

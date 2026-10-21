@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.72.0] - 2026-10-22
+
+### Added
+
+- `InboundAdapter::indexes_tool_calls_by_ordinal` (defaulted to `false`); the OpenAI Chat adapter renumbers streamed `tool_calls` from 0.
+
+### Changed
+
+- An Anthropic passthrough forwards the client's history as sent only when it is strictly paired; otherwise the normalised history is sent.
+
+### Fixed
+
+- OpenAI Chat clients receive thinking as `reasoning_content` (buffered and streamed), and `prompt_tokens`/`total_tokens` include cached prompt tokens.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

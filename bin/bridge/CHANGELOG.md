@@ -1,9 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [0.72.0] - 2026-10-22
 
 ### Changed
 
+- **Cowork:** the org session whose directory names the deployment organization wins, then `cowork.session_org_dir`; an ambiguous set carries its candidates and the Claude Desktop row offers a picker that pins one (`cowork_plugins::{usable_sessions, choose_session}`).
+- **Providers:** a personal-key provider with no stored key shows "<provider>: add your key" with a link to Settings > Personal subscriptions.
+- **Update:** a manual check (GUI and CLI) bypasses the gateway's release cache.
 - **Self-update:** one routine, `update::automatic`, now owns every unattended update. It had two paths that disagreed. The GUI checked every 6 h for any newer release and only staged it, but it guessed read-only installs from the path. The heartbeat only reacted to a below-floor bridge, relaunched a second copy (despite `AutoUpdatePolicy::Staged` promising no unattended restart), skipped the read-only guard and could retry on every 30 s tick. Both are now triggers (`Schedule`, `Wake`, `Unsupported`) through one gate, `automatic::begin`, which applies the org policy and the due time (6 h scheduled, 30 min below the floor, immediately on wake) and allows one attempt at a time. A `Permit` runs one sequence: writability preflight before any network call, then check, download, verify and swap. It never relaunches. The heartbeat stages off its own tick instead of blocking it. On macOS, an install the user cannot replace (run from the .dmg, App Translocation, or an administrator-owned app) now reports why and how to fix it from the real write probe, replacing the path guess (`update::read_only_launch` is removed). **Breaking:** `update::run_automatic` and `update::spawn_installed` are removed; use `update::automatic::run` and `update::spawn_successor`. `UiEvent::UpdateCheckFinished` gains `automatic`.
 - **Sync:** sync could run in two processes at once. `BridgeContext::sync_lock` only serialised syncs inside one process, but sync also runs from the OS scheduler's `sync` task and `sync --watch`, which share no memory with the GUI. Two of them could apply plugins, write host policy and rewrite the sentinel concurrently. Every sync and registry refresh now also holds an exclusive OS file lock on `sync.lock` in the bridge metadata directory (`sync::process_lock`): a second process waits, then syncs against what the first left. The installation-receipt retry moved out from under both locks, so a slow gateway no longer adds up to 10 s to every sync while it holds them.
 

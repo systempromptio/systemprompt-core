@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.72.0] - 2026-10-22
+
+### Changed
+
+- `projection_tables` takes `impl IntoIterator<Item = S>` with `S: AsRef<str>`, so it accepts owned or borrowed schema text and builds under `single_use_lifetimes`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

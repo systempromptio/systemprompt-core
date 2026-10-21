@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.72.0] - 2026-10-22
+
+### Breaking
+
+- `systemprompt_api::routes::gateway::bridge_release::LatestQuery` gains `refresh`, so struct literals need the new field (`false` keeps the cached lookup).
+
+### Added
+
+- **Wire:** `canonical::normalize_turns` (with `TurnMerge` and `INTERRUPTED_TOOL_RESULT`) is the one turn-normalisation pass that runs before every upstream encoder. It merges consecutive same-side turns and puts tool results first in a merged user turn. It answers an unanswered `tool_use` with a synthetic error result and drops a tool result that answers no `tool_use` of the preceding turn. `anthropic::upstream_messages`, `anthropic::history_is_strict` and `openai_chat::history_is_strict` are exposed.
+- **API:** `GET /v1/bridge/latest?refresh=true` bypasses the release cache (`ReleaseFeed::resolve_fresh`).
+- **Tests:** a turn-normalisation fuzz target with client-shaped seed corpora, property tests over generated histories, and a gateway replay test of an interrupted tool round trip.
+
+### Changed
+
+- **Gateway:** an Anthropic passthrough forwards the client's history as sent only when every `tool_use` is answered by the next turn. Otherwise the normalised history is sent, which strict Anthropic-compatible upstreams accept.
+- **Bridge:** the Cowork session is resolved by the deployment organization first, then `cowork.session_org_dir`. When the set is ambiguous, the Claude Desktop row offers a picker that pins one session. A personal-key provider with no stored key shows an "add your key" action that links to Settings. A manual update check (GUI or CLI) asks the gateway to bypass its release cache.
+
+### Fixed
+
+- **Gateway:** OpenAI Chat clients receive thinking as `reasoning_content` (buffered and streamed), and streamed `tool_calls` are indexed from 0 per choice. `prompt_tokens` and `total_tokens` include cached prompt tokens.
+- **Wire:** tool results that follow an Anthropic server-tool turn are kept.
+- **Database:** `projection_tables` takes any `AsRef<str>` schema iterator, so consumers build at the MSRV under `single_use_lifetimes`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Breaking
