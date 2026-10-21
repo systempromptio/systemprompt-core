@@ -208,8 +208,9 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
             _ => {},
         }
     }
+    // Why: OpenAI emits reasoning, then the message, then the calls; the
+    // function_call_output items must follow the calls with nothing between.
     input.extend(reasoning_items);
-    input.extend(tool_calls);
     if !text.is_empty() {
         input.push(json!({
             "type": "message",
@@ -217,6 +218,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
             "content": [{ "type": "output_text", "text": text }],
         }));
     }
+    input.extend(tool_calls);
 }
 
 // JSON: OpenAI Responses API request body; upstream JSON is the contract.

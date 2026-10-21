@@ -15,6 +15,7 @@ mod headers;
 mod parse;
 mod sse;
 mod strict;
+mod turns;
 
 pub use beta::{
     ANTHROPIC_BETA_HEADER, AnthropicBeta, BETA_GATED_FIELDS, BetaGatedField, BetaHeader,
@@ -30,15 +31,13 @@ pub use headers::{
 };
 pub use parse::{buffered_defect, parse_response};
 pub use sse::AnthropicStreamState;
+pub use turns::{history_is_strict, upstream_messages};
 
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
 
-use blocks::{BlockAudience, canonical_message_to_anthropic};
-
 use crate::canonical::{
-    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig, TurnMerge,
-    normalize_turns,
+    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -50,13 +49,7 @@ pub fn build_request_body(
     limits: Option<ModelLimits>,
     // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 ) -> Value {
-    // Why: strict Anthropic-compatible upstreams (DeepSeek, MiniMax) do not
-    // merge consecutive user turns the way the Messages API does, so the
-    // history is normalised to strict alternation with every tool_use paired.
-    let messages: Vec<Value> = normalize_turns(&request.messages, TurnMerge::UserSide)
-        .iter()
-        .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
-        .collect();
+    let messages = upstream_messages(&request.messages);
 
     let mut obj = Map::new();
     obj.insert("model".into(), Value::String(upstream_model.to_owned()));

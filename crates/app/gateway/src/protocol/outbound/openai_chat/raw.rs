@@ -25,6 +25,14 @@ pub fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<Bytes> {
     let Ok(Value::Object(mut obj)) = serde_json::from_slice::<Value>(raw) else {
         return None;
     };
+    // Why: an unanswered or orphaned tool call is rejected upstream; the
+    // canonical rebuild repairs it, so only a strictly paired history passes.
+    if !obj
+        .get("messages")
+        .is_some_and(systemprompt_wire::openai_chat::history_is_strict)
+    {
+        return None;
+    }
     obj.insert(
         "model".to_owned(),
         Value::String(ctx.upstream_model.to_owned()),

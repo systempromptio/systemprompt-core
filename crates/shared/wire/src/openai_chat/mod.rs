@@ -29,10 +29,12 @@ mod request;
 mod response;
 mod stream_delta;
 mod streaming;
+mod turns;
 
 pub use request::build_request_body;
 pub use response::{buffered_defect, parse_response};
 pub use streaming::sse_to_canonical_events;
+pub use turns::history_is_strict;
 
 use crate::ModelLimits;
 use crate::canonical::CanonicalRequest;
