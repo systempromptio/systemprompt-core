@@ -1769,7 +1769,9 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
         serde_json::json!(["minimax-new"])
     );
     assert!(
-        !withdrawn["modelPicker"].to_string().contains(GEMINI_SURFACE_MODEL),
+        !withdrawn["modelPicker"]
+            .to_string()
+            .contains(GEMINI_SURFACE_MODEL),
         "a Gemini-surface provider never contributes a Claude Code picker row"
     );
     let _ = (&pat_dir, &server);
@@ -1838,7 +1840,9 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
         "the second sync refreshed the profile-derived owned picker rows"
     );
     assert!(
-        !after["modelPicker"].to_string().contains(GEMINI_SURFACE_MODEL),
+        !after["modelPicker"]
+            .to_string()
+            .contains(GEMINI_SURFACE_MODEL),
         "a Gemini-surface provider never contributes a Claude Code picker row"
     );
     assert_eq!(
