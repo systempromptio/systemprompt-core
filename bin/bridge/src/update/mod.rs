@@ -148,6 +148,18 @@ pub async fn check(
     Ok((status, manifest))
 }
 
+/// [`check`] for a person who clicked "Check for updates": the gateway skips
+/// its release cache, so a release published minutes ago is seen.
+pub async fn check_now(
+    client: &GatewayClient,
+    bearer: &BearerToken,
+) -> Result<(UpdateStatus, ReleaseManifest), UpdateError> {
+    let platform = platform_slug().ok_or(UpdateError::UnsupportedPlatform)?;
+    let manifest = client.fetch_latest_release_fresh(bearer, platform).await?;
+    let status = compare(crate::brand::brand().version, &manifest)?;
+    Ok((status, manifest))
+}
+
 pub fn compare(local: &str, manifest: &ReleaseManifest) -> Result<UpdateStatus, UpdateError> {
     let remote_version = semver::Version::parse(&manifest.version).map_err(|source| {
         UpdateError::BadRemoteVersion {

@@ -198,7 +198,7 @@ pub(crate) fn on_update_restart_requested(app: &mut GuiApp, event_loop: &dyn Act
 
 async fn check(http: reqwest::Client) -> Result<UpdateUiState, GuiError> {
     let (client, bearer) = client_and_bearer(http).await?;
-    let (status, _) = update::check(&client, &bearer).await?;
+    let (status, _) = update::check_now(&client, &bearer).await?;
     Ok(UpdateUiState::from(&status))
 }
 

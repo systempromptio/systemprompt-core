@@ -194,6 +194,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
                 unconfigured_providers: &unconfigured,
+                missing_personal_keys: &[],
                 compatible_models: &[],
             },
             has_download_url: host
@@ -241,6 +242,7 @@ fn recompute(doc: &Value) -> Option<Value> {
                 checked: false,
                 available: false,
                 unconfigured_providers: &[],
+                missing_personal_keys: &[],
                 compatible_models: &[],
             },
             has_download_url: false,

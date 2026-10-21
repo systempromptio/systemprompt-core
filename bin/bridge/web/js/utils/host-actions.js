@@ -10,6 +10,7 @@
 // drift apart on error handling or on the probe that follows.
 
 import { bridge } from "/assets/js/bridge.js";
+import { pickCoworkSession } from "/assets/js/utils/cowork-session-picker.js";
 
 export class HostActionError extends Error {
   /** @param {"generate"|"install"|"probe"} stage */
@@ -98,6 +99,14 @@ async function watchForApproval(hostId) {
   }
 }
 
+/** Settings → Personal subscriptions, where the user stores their own key. */
+export function openPersonalKeys() {
+  document.querySelector('.sp-rail-tab[data-tab="settings"]')?.click();
+  requestAnimationFrame(() => {
+    document.querySelector("sp-personal-keys")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
+}
+
 export async function openDeviceManagement(hostId) {
   await bridge.openDeviceManagement();
   watchForApproval(hostId);
@@ -125,6 +134,8 @@ export async function runHostAction(kind, host) {
     case "open":     return openHost(id);
     case "download": return downloadHost(host);
     case "enrol":    return bridge.agentEnrol(id);
+    case "add-personal-key": return openPersonalKeys();
+    case "pick-cowork-session": return pickCoworkSession();
     default:         return undefined;
   }
 }

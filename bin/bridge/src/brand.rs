@@ -44,15 +44,36 @@ pub struct BrandAssets {
 
 pub const COMPAT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// Why: a white-label brand ships patch releases of its own on a core minor,
+// so only a minor or major drift means the footer, heartbeat and release notes
+// disagree about which bridge this is.
 pub fn warn_if_version_drifts() {
     let brand = brand();
-    if brand.version != COMPAT_VERSION {
+    if brand.version == COMPAT_VERSION {
+        return;
+    }
+    if same_minor(brand.version, COMPAT_VERSION) {
+        tracing::debug!(
+            displayed = %brand.version,
+            wire = %COMPAT_VERSION,
+            "brand version differs from the bridge library version within the same minor"
+        );
+    } else {
         tracing::warn!(
             displayed = %brand.version,
             wire = %COMPAT_VERSION,
             "brand version differs from the bridge library version; pin the brand crate to the \
              core release so the footer, heartbeat and release notes agree"
         );
+    }
+}
+
+/// True when two versions share major and minor (`0.71.3` and `0.71.0`).
+#[must_use]
+pub fn same_minor(a: &str, b: &str) -> bool {
+    match (semver::Version::parse(a), semver::Version::parse(b)) {
+        (Ok(a), Ok(b)) => a.major == b.major && a.minor == b.minor,
+        _ => false,
     }
 }
 

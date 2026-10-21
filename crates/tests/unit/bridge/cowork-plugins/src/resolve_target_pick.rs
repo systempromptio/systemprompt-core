@@ -78,7 +78,7 @@ fn several_usable_orgs_without_personal_are_ambiguous() {
     // the operator must name the session via `cowork.session_org_dir`.
     assert!(matches!(
         pick_target(&candidates),
-        Err(ResolveTargetError::Ambiguous)
+        Err(ResolveTargetError::Ambiguous { .. })
     ));
 }
 

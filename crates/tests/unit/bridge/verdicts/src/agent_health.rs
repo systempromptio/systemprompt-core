@@ -60,6 +60,7 @@ const fn inputs<'a>(
             checked: true,
             available: true,
             unconfigured_providers: &[],
+            missing_personal_keys: &[],
             compatible_models: &[],
         },
         has_download_url: true,
@@ -230,6 +231,7 @@ fn no_usable_model_is_reported_before_proxy_health() {
             checked: true,
             available: false,
             unconfigured_providers: &providers,
+            missing_personal_keys: &[],
             compatible_models: &[],
         },
         ..inputs(Some(&snap), &px)

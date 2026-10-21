@@ -29,6 +29,11 @@ pub(super) struct SessionLoginArgs {
 }
 
 #[derive(Debug, Deserialize)]
+pub(super) struct CoworkSessionArgs {
+    pub(super) path: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub(super) struct HostIdArgs {
     #[serde(rename = "hostId")]
     pub(super) host_id: HostKind,

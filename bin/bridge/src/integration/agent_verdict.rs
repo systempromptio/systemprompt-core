@@ -89,6 +89,8 @@ pub enum AgentReason {
     Unverifiable { detail: String },
     Absent,
     NoKey { providers: String },
+    PersonalKeyMissing { providers: String },
+    CoworkSessionAmbiguous,
     NoModels,
     ProxyDown { probe: ProxyProbeState },
     NeverProbed,
@@ -116,6 +118,23 @@ pub enum AgentAction {
     RemoveLeftover,
     OfferAgain,
     ShowProfileFile,
+    AddPersonalKey,
+    PickCoworkSession,
+}
+
+impl AgentVerdict {
+    /// Several Cowork org sessions are usable and none names this
+    /// organization: only the person can say which one is theirs.
+    #[must_use]
+    pub fn with_cowork_session_ambiguous(self) -> Self {
+        Self {
+            state: AgentState::Attention,
+            tone: AgentState::Attention.tone(),
+            reason: AgentReason::CoworkSessionAmbiguous,
+            action: Some(AgentAction::PickCoworkSession),
+            ..self
+        }
+    }
 }
 
 /// The verdict for one agent, plus the three facts the GUI renders around it.

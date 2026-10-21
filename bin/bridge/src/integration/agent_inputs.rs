@@ -138,6 +138,7 @@ pub struct HostModelViewRef<'a> {
     pub checked: bool,
     pub available: bool,
     pub unconfigured_providers: &'a [String],
+    pub missing_personal_keys: &'a [String],
     pub compatible_models: &'a [String],
 }
 
@@ -147,6 +148,7 @@ impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRe
             checked: v.checked,
             available: v.available,
             unconfigured_providers: &v.unconfigured_providers,
+            missing_personal_keys: &v.missing_personal_keys,
             compatible_models: &v.compatible_models,
         }
     }

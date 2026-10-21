@@ -99,6 +99,19 @@ pub fn verdict(input: &HostHealthInputs<'_>) -> AgentVerdict {
         return finish(state, failed.0, failed.1);
     }
 
+    // Why: a personal-subscription provider (OpenCode Go) is advertised but
+    // serves nothing until the user stores their own key, and only the user
+    // can do that — so it gets its own reason and a button to Settings.
+    if input.models.checked && !input.models.missing_personal_keys.is_empty() {
+        return finish(
+            AgentState::Attention,
+            AgentReason::PersonalKeyMissing {
+                providers: input.models.missing_personal_keys.join(", "),
+            },
+            Some(AgentAction::AddPersonalKey),
+        );
+    }
+
     if input.models.checked && !input.models.available {
         let reason = if input.models.unconfigured_providers.is_empty() {
             AgentReason::NoModels

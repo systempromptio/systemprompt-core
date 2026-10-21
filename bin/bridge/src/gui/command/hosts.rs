@@ -12,7 +12,8 @@ use crate::gui::hosts::handlers::PersonalKeyOp;
 use crate::wire::ipc::BridgeError;
 
 use super::args::{
-    HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs, PersonalKeyArgs,
+    CoworkSessionArgs, HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs,
+    PersonalKeyArgs,
 };
 use super::{CommandOutcome, parse, send};
 
@@ -75,6 +76,12 @@ pub(super) fn host_dispatch(
             }),
             reply_id,
         ),
+        "cowork.sessions" => CommandOutcome::Sync(
+            crate::integration::cowork_plugins::usable_sessions()
+                .map(|sessions| serde_json::json!({ "sessions": sessions }))
+                .map_err(|e| BridgeError::internal(e.to_string())),
+        ),
+        "cowork.chooseSession" => choose_cowork_session(app, args),
         "host.proxy.probe" => {
             send(
                 app,
@@ -84,6 +91,19 @@ pub(super) fn host_dispatch(
         },
         _ => return None,
     })
+}
+
+// JSON: webview IPC args — decoded per command with `parse::<T>`.
+fn choose_cowork_session(app: &GuiApp, args: Value) -> CommandOutcome {
+    let chosen = parse::<CoworkSessionArgs>(args).and_then(|a| {
+        crate::integration::cowork_plugins::choose_session(std::path::Path::new(&a.path))
+            .map_err(|e| BridgeError::invalid_args(e.to_string()))
+    });
+    if chosen.is_ok() {
+        app.append_log("Cowork session chosen — syncing to enable the org plugins");
+        send(app, UiEvent::SyncRequested { reply_to: None });
+    }
+    CommandOutcome::Sync(chosen.map(|()| serde_json::json!({ "ok": true })))
 }
 
 fn personal_key(

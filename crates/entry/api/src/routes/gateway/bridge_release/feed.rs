@@ -94,8 +94,33 @@ impl ReleaseFeed {
         spec: &BridgeReleasesSpec,
         platform: &str,
     ) -> Result<ResolvedRelease, ReleaseError> {
-        let asset = self.resolve_asset(spec, platform).await?;
-        let sha256 = self.resolve_digest(spec, platform, &asset).await?;
+        self.resolve_with(spec, platform, false).await
+    }
+
+    /// Resolves against GitHub even when the cache is fresh: a person who
+    /// clicked "Check for updates" asked about now, not five minutes ago. The
+    /// result refreshes the cache, and an upstream failure still falls back to
+    /// the last known release.
+    pub async fn resolve_fresh(
+        &self,
+        spec: &BridgeReleasesSpec,
+        platform: &str,
+    ) -> Result<ResolvedRelease, ReleaseError> {
+        self.resolve_with(spec, platform, true).await
+    }
+
+    async fn resolve_with(
+        &self,
+        spec: &BridgeReleasesSpec,
+        platform: &str,
+        bypass_cache: bool,
+    ) -> Result<ResolvedRelease, ReleaseError> {
+        let asset = self
+            .resolve_asset_with(spec, platform, bypass_cache)
+            .await?;
+        let sha256 = self
+            .resolve_digest(spec, platform, &asset, bypass_cache)
+            .await?;
         Ok(ResolvedRelease {
             manifest: ReleaseManifest {
                 version: asset.version.clone(),
@@ -112,7 +137,16 @@ impl ReleaseFeed {
         spec: &BridgeReleasesSpec,
         platform: &str,
     ) -> Result<ResolvedAsset, ReleaseError> {
-        if let Some(fresh) = self.assets.fresh(platform, self.ttl()).await {
+        self.resolve_asset_with(spec, platform, false).await
+    }
+
+    async fn resolve_asset_with(
+        &self,
+        spec: &BridgeReleasesSpec,
+        platform: &str,
+        bypass_cache: bool,
+    ) -> Result<ResolvedAsset, ReleaseError> {
+        if !bypass_cache && let Some(fresh) = self.assets.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
         match self.resolve_asset_upstream(spec, platform).await {
@@ -140,8 +174,9 @@ impl ReleaseFeed {
         spec: &BridgeReleasesSpec,
         platform: &str,
         asset: &ResolvedAsset,
+        bypass_cache: bool,
     ) -> Result<String, ReleaseError> {
-        if let Some(fresh) = self.digests.fresh(platform, self.ttl()).await {
+        if !bypass_cache && let Some(fresh) = self.digests.fresh(platform, self.ttl()).await {
             return Ok(fresh);
         }
         let published = asset

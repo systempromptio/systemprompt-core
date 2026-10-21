@@ -98,6 +98,9 @@ pub struct HostModelView {
     pub checked: bool,
     pub available: bool,
     pub unconfigured_providers: Vec<String>,
+    /// Personal-subscription providers this host could use once the user
+    /// stores their own key, by display name.
+    pub missing_personal_keys: Vec<String>,
 }
 
 #[must_use]
@@ -114,6 +117,14 @@ pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> Ho
         }
         if !provider.configured {
             view.unconfigured_providers.push(provider.name.clone());
+            if provider.personal_key {
+                view.missing_personal_keys.push(
+                    provider
+                        .display_name
+                        .clone()
+                        .unwrap_or_else(|| provider.name.clone()),
+                );
+            }
         } else if !provider.models.is_empty() {
             view.available = true;
         }

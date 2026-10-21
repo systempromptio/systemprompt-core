@@ -82,7 +82,7 @@ async fn run(ctx: &BridgeContext, args: &Args) -> ExitCode {
     };
 
     let client = ctx.gateway_client(gateway.clone());
-    let (status, manifest) = match update::check(&client, &bearer.token).await {
+    let (status, manifest) = match update::check_now(&client, &bearer.token).await {
         Ok(pair) => pair,
         Err(e) => {
             diag(&format!("update check failed: {e}"));

@@ -9,14 +9,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod choose;
 pub(crate) mod emit;
 mod prune;
+pub mod resolve;
 pub(crate) mod settings;
 mod upsert;
 
-pub use emit::{
-    CoworkTarget, EmitReport, ResolveTargetError, apply_enable, clear_all, pick_target,
-    resolve_target,
+pub use choose::{ChooseSessionError, CoworkSessionChoice, choose_session, usable_sessions};
+pub use emit::{CoworkTarget, EmitReport, apply_enable, clear_all};
+pub use resolve::{
+    ResolveTargetError, dir_names_org, match_org, pick_target, pick_target_for_org, resolve_target,
 };
 
 pub use settings::{
