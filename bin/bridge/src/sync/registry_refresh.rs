@@ -32,6 +32,7 @@ pub async fn refresh_registry_for(
 
 pub async fn refresh_registry(bridge: &BridgeContext) -> Result<usize, SyncError> {
     let _operation = bridge.sync_lock.lock().await;
+    let _across_processes = super::process_lock::acquire().await?;
     let allow_tofu = matches!(
         config::pinned_pubkey_state(),
         Ok(config::PinnedPubkeyState::Unpinned)

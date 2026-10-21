@@ -1,8 +1,8 @@
 use std::io::Read as _;
+use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_bridge::update::{
-    AutoUpdateDecision, auto_update_policy, automatic_enabled, run_automatic,
-};
+use systemprompt_bridge::update::automatic::{self, AutomaticError, Outcome, Skipped, Trigger};
+use systemprompt_bridge::update::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
 
 use sha2::{Digest as _, Sha256};
 use systemprompt_identifiers::ValidatedUrl;
@@ -64,6 +64,17 @@ fn release_server(version: &str) -> MockServer {
     })
 }
 
+// Why: `Wake` has no minimum gap, so each attempt below is due regardless of
+// what an earlier attempt in the same process recorded.
+fn run_once(gateway: &ValidatedUrl) -> Result<Outcome, AutomaticError> {
+    let client = GatewayClient::new(gateway.clone(), reqwest::Client::new());
+    block_on(automatic::run(
+        Trigger::Wake,
+        &client,
+        &BearerToken::new("bearer"),
+    ))
+}
+
 fn requests(server: &MockServer) -> Vec<wiremock::Request> {
     block_on(server.received_requests()).unwrap_or_default()
 }
@@ -88,14 +99,17 @@ fn a_disabled_policy_stops_the_update_before_the_gateway_is_contacted() {
     let server = release_server("99.0.0");
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
     seed_last_sync(&state, &gateway, "disabled");
-    let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
         assert!(
             !automatic_enabled(),
             "a delivered `disabled` policy turns updates off"
         );
-        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
+        let refused = run_once(&gateway);
+        assert!(
+            matches!(refused, Err(AutomaticError::Skipped(Skipped::Policy(_)))),
+            "policy refuses before any attempt: {refused:?}"
+        );
     });
 
     assert!(
@@ -110,14 +124,14 @@ fn a_gateway_with_no_newer_release_fetches_once_and_installs_nothing() {
     let server = release_server("0.0.1");
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
     seed_last_sync(&state, &gateway, "staged");
-    let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
         assert!(
             automatic_enabled(),
             "a delivered `staged` policy leaves updates on"
         );
-        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
+        let outcome = run_once(&gateway).expect("a current bridge is not an error");
+        assert_eq!(outcome, Outcome::Current);
     });
 
     let seen = requests(&server);
@@ -147,10 +161,13 @@ fn a_gateway_that_cannot_answer_leaves_the_installed_binary_alone() {
     });
     let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
     seed_last_sync(&state, &gateway, "staged");
-    let http = reqwest::Client::new();
 
     in_sandbox(&state, || {
-        block_on(run_automatic(&gateway, &BearerToken::new("bearer"), &http));
+        let failed = run_once(&gateway);
+        assert!(
+            matches!(failed, Err(AutomaticError::Update(_))),
+            "an unanswered manifest read is an update error: {failed:?}"
+        );
     });
 
     assert_eq!(
@@ -176,7 +193,7 @@ fn an_unsynced_bridge_withholds_automatic_updates() {
 }
 
 #[test]
-fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
+fn a_staged_policy_rejects_a_bad_artifact_without_staging() {
     let state = TempDir::new().expect("state");
     let server = block_on(async {
         let server = MockServer::start().await;
@@ -210,11 +227,11 @@ fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
     });
 
     in_sandbox(&state, || {
-        block_on(run_automatic(
-            &gateway,
-            &BearerToken::new("bearer"),
-            &reqwest::Client::new(),
-        ));
+        let failed = run_once(&gateway);
+        assert!(
+            matches!(failed, Err(AutomaticError::Update(_))),
+            "a mismatched digest is an update error: {failed:?}"
+        );
     });
 
     assert_eq!(
@@ -235,4 +252,47 @@ fn a_staged_policy_rejects_a_bad_artifact_without_staging_or_relaunching() {
                 .is_none(),
         "a mismatched artifact leaves no staged executable"
     );
+}
+
+#[test]
+fn a_scheduled_attempt_is_not_due_again_within_the_interval() {
+    let state = TempDir::new().expect("state");
+    let server = release_server("0.0.1");
+    let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
+
+    in_sandbox(&state, || {
+        drop(automatic::begin(Trigger::Schedule).expect("the first scheduled attempt is due"));
+        let again = automatic::begin(Trigger::Schedule);
+        assert!(
+            matches!(again, Err(Skipped::NotDue)),
+            "a second scheduled attempt inside the interval is skipped: {again:?}"
+        );
+        assert!(
+            automatic::begin(Trigger::Wake).is_ok(),
+            "waking from sleep is always due"
+        );
+    });
+}
+
+#[test]
+fn only_one_automatic_attempt_runs_at_a_time() {
+    let state = TempDir::new().expect("state");
+    let server = release_server("0.0.1");
+    let gateway = ValidatedUrl::try_new(&server.uri()).expect("gateway url");
+    seed_last_sync(&state, &gateway, "staged");
+
+    in_sandbox(&state, || {
+        let held = automatic::begin(Trigger::Wake).expect("the slot is free");
+        let blocked = automatic::begin(Trigger::Unsupported);
+        assert!(
+            matches!(blocked, Err(Skipped::InFlight)),
+            "the heartbeat cannot start an attempt while the GUI holds one: {blocked:?}"
+        );
+        drop(held);
+        assert!(
+            automatic::begin(Trigger::Wake).is_ok(),
+            "dropping the permit frees the slot"
+        );
+    });
 }

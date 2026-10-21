@@ -238,8 +238,12 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         UiEvent::ProfileFetchFinished { result, reply_to } => {
             handlers::profile::on_profile_fetch_finished(app, *result, reply_to);
         },
-        UiEvent::UpdateCheckFinished { result, reply_to } => {
-            handlers::update::on_update_check_finished(app, result, reply_to);
+        UiEvent::UpdateCheckFinished {
+            result,
+            reply_to,
+            automatic,
+        } => {
+            handlers::update::on_update_check_finished(app, result, reply_to, automatic);
         },
         UiEvent::UpdateInstallFinished { result, reply_to } => {
             handlers::update::on_update_install_finished(app, result, reply_to);

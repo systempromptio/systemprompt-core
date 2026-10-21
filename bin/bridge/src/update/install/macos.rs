@@ -19,8 +19,12 @@ pub(super) fn preflight() -> Result<PathBuf, UpdateError> {
     Ok(bundle)
 }
 
-pub(super) const READ_ONLY_HINT: &str =
-    "move the app to /Applications and try again — it cannot update in place from a disk image";
+// Why: macOS mounts a disk image read-only and runs a quarantined app from a
+// randomised read-only App Translocation path, and an app an administrator
+// installed is not writable by a standard user; the writability probe fails on
+// all three, and the fix is the same.
+const READ_ONLY_HINT: &str = "quit the app, drag it into /Applications (enter an administrator \
+     password if asked) and open it from there — it cannot update itself where it is";
 
 pub(super) fn apply(staged: &Path, bundle: PathBuf) -> Result<PathBuf, UpdateError> {
     let workdir = staged.with_extension("unpack");

@@ -1,55 +1,109 @@
-//! GUI self-update handlers: check, install, restart.
+//! GUI self-update handlers: the scheduled trigger, and the tray's check,
+//! install and restart.
+//!
+//! The scheduled path only raises [`Trigger::Schedule`] / [`Trigger::Wake`];
+//! what an unattended update is allowed to do lives in
+//! [`crate::update::automatic`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use std::time::{Duration, Instant};
 use winit::event_loop::ActiveEventLoop;
-
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{InstalledUpdate, ReplyId, UiEvent};
-use crate::gui::{GuiApp, emit};
+use crate::gui::{GuiApp, UiEventProxy, emit};
+use crate::update::automatic::{self, Permit, Trigger};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
-const AUTO_UPDATE_INTERVAL: Duration = Duration::from_hours(6);
-
-// Why: staging only — the check leads to a download and an on-disk swap, never
-// a restart. Called from the one-second event-loop pass, so the policy read,
-// which touches the last-sync sentinel, sits behind the interval test.
-pub(crate) fn maybe_auto_check(app: &mut GuiApp, woke_from_sleep: bool) {
-    if app.auto_update_pending {
-        return;
-    }
-    let due = woke_from_sleep
-        || app
-            .last_update_check_at
-            .is_none_or(|at| at.elapsed() >= AUTO_UPDATE_INTERVAL);
-    if !due {
-        return;
-    }
+// Why: called from the one-second event-loop pass; `automatic::begin` owns the
+// due time, org policy and single flight, so this only raises the trigger.
+pub(crate) fn maybe_auto_check(app: &GuiApp, woke_from_sleep: bool) {
     let snap = app.state.snapshot();
     if !snap.signed_in() || snap.update.in_progress() || snap.update.can_restart() {
         return;
     }
-    if !update::auto_update_policy().stages() {
+    let trigger = if woke_from_sleep {
+        Trigger::Wake
+    } else {
+        Trigger::Schedule
+    };
+    let Ok(permit) = automatic::begin(trigger) else {
         return;
+    };
+    let proxy = app.proxy.clone();
+    let http = app.ctx.http.clone();
+    app.ctx.spawn(stage_automatically(permit, http, proxy));
+}
+
+async fn stage_automatically(permit: Permit, http: reqwest::Client, proxy: UiEventProxy) {
+    let checked = async {
+        let (client, bearer) = client_and_bearer(http).await?;
+        let manifest = permit.check(&client, &bearer).await?;
+        Ok::<_, GuiError>((client, bearer, manifest))
     }
-    app.last_update_check_at = Some(Instant::now());
-    if let Some(message) = update::read_only_launch() {
-        tracing::warn!(reason = %message, "automatic update withheld: the install is read-only");
-        app.append_log(format!("automatic update withheld: {message}"));
-        app.state
-            .set_update_state(UpdateUiState::Failed { message });
-        app.refresh_ui();
-        emit::emit_state(app);
-        return;
+    .await;
+    let (client, bearer, manifest) = match checked {
+        Ok((client, bearer, Some(manifest))) => (client, bearer, manifest),
+        Ok((_, _, None)) => {
+            proxy.send_event(UiEvent::UpdateCheckFinished {
+                result: Ok(UpdateUiState::Current),
+                reply_to: None,
+                automatic: true,
+            });
+            return;
+        },
+        Err(e) => {
+            proxy.send_event(UiEvent::UpdateCheckFinished {
+                result: Err(Arc::new(e)),
+                reply_to: None,
+                automatic: true,
+            });
+            return;
+        },
+    };
+    proxy.send_event(UiEvent::UpdateCheckFinished {
+        result: Ok(UpdateUiState::Available {
+            version: manifest.version.clone(),
+            notes_url: manifest.notes_url.clone(),
+        }),
+        reply_to: None,
+        automatic: true,
+    });
+    let on_progress = progress_reporter(proxy.clone(), manifest.version.clone());
+    let result = permit
+        .stage(&client, &bearer, &manifest, &on_progress)
+        .await
+        .map(|path| InstalledUpdate {
+            version: manifest.version,
+            path,
+        })
+        .map_err(|e| Arc::new(GuiError::from(e)));
+    proxy.send_event(UiEvent::UpdateInstallFinished {
+        result,
+        reply_to: None,
+    });
+}
+
+fn progress_reporter(
+    proxy: UiEventProxy,
+    version: String,
+) -> impl Fn(update::DownloadProgress) + Send + Sync {
+    move |p: update::DownloadProgress| {
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "fraction() is clamped to 0.0..=1.0, so the product fits u8"
+        )]
+        let percent = (p.fraction() * 100.0) as u8;
+        proxy.send_event(UiEvent::UpdateProgress {
+            version: version.clone(),
+            percent,
+        });
     }
-    app.auto_update_pending = true;
-    on_update_check_requested(app, None);
 }
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -58,7 +112,11 @@ pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
         let result = check(http).await.map_err(Arc::new);
-        proxy.send_event(UiEvent::UpdateCheckFinished { result, reply_to });
+        proxy.send_event(UiEvent::UpdateCheckFinished {
+            result,
+            reply_to,
+            automatic: false,
+        });
     });
 }
 
@@ -66,8 +124,8 @@ pub(crate) fn on_update_check_finished(
     app: &mut GuiApp,
     result: Result<UpdateUiState, Arc<GuiError>>,
     reply_to: ReplyId,
+    automatic: bool,
 ) {
-    let automatic = app.auto_update_pending;
     // Why: a tray click has no reply channel — the toast and the activity
     // log are the only places the person who clicked can see the answer.
     let manual = reply_to.is_none() && !automatic;
@@ -83,7 +141,14 @@ pub(crate) fn on_update_check_finished(
                 );
             }
         },
-        Ok(state) => app.state.set_update_state(state.clone()),
+        Ok(state) => {
+            if automatic && let Some(version) = state.version() {
+                app.append_log(format!(
+                    "{version} is available; staging it for the next restart"
+                ));
+            }
+            app.state.set_update_state(state.clone());
+        },
         Err(e) => {
             let message = format!("{e:#}");
             tracing::warn!(error = %message, automatic, "update check failed");
@@ -102,17 +167,9 @@ pub(crate) fn on_update_check_finished(
             }
         },
     }
-    let staging = std::mem::take(&mut app.auto_update_pending)
-        && app.state.snapshot().update.can_install()
-        && update::auto_update_policy().stages();
     app.refresh_ui();
     emit::emit_state(app);
     reply(app, reply_to, result, "update check");
-    if staging {
-        app.append_log("a newer release is available; staging it for the next restart");
-        app.proxy
-            .send_event(UiEvent::UpdateInstallRequested { reply_to: None });
-    }
 }
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -139,20 +196,7 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let progress_proxy = proxy.clone();
-        let progress_version = version.clone();
-        let on_progress = move |p: update::DownloadProgress| {
-            #[expect(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "fraction() is clamped to 0.0..=1.0, so the product fits u8"
-            )]
-            let percent = (p.fraction() * 100.0) as u8;
-            progress_proxy.send_event(UiEvent::UpdateProgress {
-                version: progress_version.clone(),
-                percent,
-            });
-        };
+        let on_progress = progress_reporter(proxy.clone(), version.clone());
         let result = install(&version, http, &on_progress)
             .await
             .map_err(Arc::new);

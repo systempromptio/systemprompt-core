@@ -149,8 +149,6 @@ pub(crate) struct GuiApp {
     pub(crate) settings_window: Option<SettingsWindow>,
     pub(crate) last_proxy_stats_tick: Instant,
     pub(crate) last_event_loop_pass: Instant,
-    pub(crate) last_update_check_at: Option<Instant>,
-    pub(crate) auto_update_pending: bool,
     pub(crate) last_saved_geometry: Option<crate::window_state::WindowGeometry>,
     // JSON: webview IPC envelope, the last `state.changed` projection compared before re-emitting
     pub(crate) last_semantic_state: Option<serde_json::Value>,
@@ -176,8 +174,6 @@ impl GuiApp {
             settings_window: None,
             last_proxy_stats_tick: Instant::now(),
             last_event_loop_pass: Instant::now(),
-            last_update_check_at: None,
-            auto_update_pending: false,
             last_saved_geometry: None,
             last_semantic_state: None,
             current_mount: None,
