@@ -43,9 +43,9 @@ pub fn upstream_messages(messages: &[CanonicalMessage]) -> Vec<Value> {
     out
 }
 
-/// Whether `messages` alternate roles and every `tool_use` is answered by
-/// exactly the next turn's `tool_result` blocks.
 #[must_use]
+// JSON: the client's own Anthropic `messages` array, checked before
+// passthrough.
 pub fn history_is_strict(messages: &Value) -> bool {
     let Some(messages) = messages.as_array() else {
         return false;
@@ -84,6 +84,7 @@ pub fn history_is_strict(messages: &Value) -> bool {
     true
 }
 
+// JSON: one Anthropic Messages API message; upstream JSON is the contract.
 fn blocks(message: &Value) -> &[Value] {
     message
         .get("content")

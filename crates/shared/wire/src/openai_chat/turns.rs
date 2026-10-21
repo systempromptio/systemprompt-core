@@ -15,6 +15,8 @@ use std::collections::BTreeSet;
 use serde_json::Value;
 
 #[must_use]
+// JSON: the client's own Chat Completions `messages` array, checked before
+// passthrough.
 pub fn history_is_strict(messages: &Value) -> bool {
     let Some(messages) = messages.as_array() else {
         return false;

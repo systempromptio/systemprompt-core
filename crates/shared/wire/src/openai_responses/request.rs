@@ -208,8 +208,7 @@ fn render_assistant_message(msg: &CanonicalMessage, input: &mut Vec<Value>) {
             _ => {},
         }
     }
-    // Why: OpenAI emits reasoning, then the message, then the calls; the
-    // function_call_output items must follow the calls with nothing between.
+    // Why: OpenAI requires function_call_output to follow its calls directly.
     input.extend(reasoning_items);
     if !text.is_empty() {
         input.push(json!({
