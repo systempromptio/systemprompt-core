@@ -37,7 +37,8 @@ use serde_json::{Map, Value, json};
 use blocks::{BlockAudience, canonical_message_to_anthropic};
 
 use crate::canonical::{
-    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig,
+    CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig, TurnMerge,
+    normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -49,11 +50,10 @@ pub fn build_request_body(
     limits: Option<ModelLimits>,
     // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 ) -> Value {
-    // Why: a mid-history system message is harness context (Claude Code's
-    // environment block and available-skills listing); the block mapper
-    // renders it as a user turn, which the Messages API accepts consecutively.
-    let messages: Vec<Value> = request
-        .messages
+    // Why: strict Anthropic-compatible upstreams (DeepSeek, MiniMax) do not
+    // merge consecutive user turns the way the Messages API does, so the
+    // history is normalised to strict alternation with every tool_use paired.
+    let messages: Vec<Value> = normalize_turns(&request.messages, TurnMerge::UserSide)
         .iter()
         .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
         .collect();

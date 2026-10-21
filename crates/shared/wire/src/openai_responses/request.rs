@@ -12,7 +12,7 @@ use serde_json::{Map, Value, json};
 
 use crate::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
-    ResponseFormat, Role, SearchConfig,
+    ResponseFormat, Role, SearchConfig, TurnMerge, normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -24,7 +24,7 @@ pub fn build_request_body(
     // JSON: OpenAI Responses API request body; upstream JSON is the contract.
 ) -> Value {
     let mut input: Vec<Value> = Vec::new();
-    for msg in &request.messages {
+    for msg in &normalize_turns(&request.messages, TurnMerge::UserAndTool) {
         match msg.role {
             Role::Tool => render_tool_message(msg, &mut input),
             Role::Assistant => render_assistant_message(msg, &mut input),

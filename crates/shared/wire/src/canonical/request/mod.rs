@@ -8,6 +8,7 @@
 
 mod content;
 mod options;
+mod turns;
 
 pub use content::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, ImageDetail, ImageSource, Role,
@@ -17,6 +18,7 @@ pub use options::{
     CanonicalTool, CanonicalToolChoice, ReasoningEffort, ResponseFormat, SearchConfig,
     ThinkingConfig,
 };
+pub use turns::{INTERRUPTED_TOOL_RESULT, TurnMerge, normalize_turns};
 
 use crate::inspect::ForwardedSurface;
 use serde_json::Value;
