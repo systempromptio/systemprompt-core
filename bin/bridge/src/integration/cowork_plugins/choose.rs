@@ -33,7 +33,7 @@ pub struct CoworkSessionChoice {
 pub fn usable_sessions() -> Result<Vec<CoworkSessionChoice>, ResolveTargetError> {
     let mut candidates = enumerate_candidates()?.unwrap_or_default();
     candidates.retain(|(_, p)| p.join(paths::COWORK_PLUGINS_SUBDIR).is_dir());
-    candidates.sort_by(|a, b| b.0.cmp(&a.0));
+    candidates.sort_by_key(|(mtime, _)| std::cmp::Reverse(*mtime));
     Ok(candidates
         .into_iter()
         .map(|(mtime, path)| CoworkSessionChoice {

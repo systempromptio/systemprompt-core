@@ -172,13 +172,13 @@ fn normalized(id: &str) -> String {
 }
 
 /// True when a session directory name names `org`: the same UUID, or one is
-/// a prefix of the other at least [`MIN_ORG_PREFIX`] characters long.
+/// a prefix of the other at least eight characters long.
 #[must_use]
 pub fn dir_names_org(dir_name: &str, org: &str) -> bool {
     let dir = normalized(dir_name);
     let org = normalized(org);
     let shorter = dir.len().min(org.len());
-    shorter >= MIN_ORG_PREFIX && (org.starts_with(&dir) || dir.starts_with(&org))
+    shorter >= MIN_ORG_PREFIX && dir.get(..shorter) == org.get(..shorter)
 }
 
 /// The one usable candidate whose directory names `org`, if exactly one does.
