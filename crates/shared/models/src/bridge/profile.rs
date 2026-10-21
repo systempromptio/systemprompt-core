@@ -41,6 +41,8 @@ pub struct AdvertisedLimits {
     pub max_output_tokens: u32,
 }
 
+/// One advertised provider and whether it can serve requests.
+///
 /// A provider whose credential secret is absent is flagged
 /// (`configured = false`) rather than dropped silently. A `personal_key`
 /// provider is served only from a key the user stores for themselves (a

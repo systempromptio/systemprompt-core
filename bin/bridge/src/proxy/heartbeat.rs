@@ -64,15 +64,14 @@ pub async fn run_loop(
             continue;
         }
         waiting_for_sign_in = false;
-        if let Err(err) = send_one(
-            cfg.gateway_base.as_ref(),
-            token_cache.as_ref(),
-            session.as_ref(),
-            stats.as_ref(),
-            &client,
-            &mut staging,
-        )
-        .await
+        let tick = Tick {
+            gateway_base: cfg.gateway_base.as_ref(),
+            token_cache: token_cache.as_ref(),
+            session: session.as_ref(),
+            stats: stats.as_ref(),
+            client: &client,
+        };
+        if let Err(err) = send_one(tick, &mut staging).await
         {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
         }
@@ -98,14 +97,25 @@ fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
     }
 }
 
+struct Tick<'a> {
+    gateway_base: &'a ValidatedUrl,
+    token_cache: &'a TokenCache,
+    session: &'a SessionContext,
+    stats: &'a ProxyStats,
+    client: &'a reqwest::Client,
+}
+
 async fn send_one(
-    gateway_base: &ValidatedUrl,
-    token_cache: &TokenCache,
-    session: &SessionContext,
-    stats: &ProxyStats,
-    client: &reqwest::Client,
+    tick: Tick<'_>,
     staging: &mut tokio::task::JoinSet<()>,
 ) -> Result<(), HeartbeatError> {
+    let Tick {
+        gateway_base,
+        token_cache,
+        session,
+        stats,
+        client,
+    } = tick;
     let token = token_cache
         .current(HEARTBEAT_AUTH_THRESHOLD_SECS)
         .await
