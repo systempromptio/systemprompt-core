@@ -52,8 +52,6 @@ fn advertised_limits(
         .collect()
 }
 
-/// Whether `entry` can serve a request: its deployment secret is present, or,
-/// for a `credential: user` provider, the caller has stored a personal key.
 fn entry_configured(
     entry: &ProviderEntry,
     secret_present: &impl Fn(&str) -> bool,
@@ -83,9 +81,11 @@ pub fn provider_health_for_user(
         .advertised_providers()
         .map(|entry| {
             let configured = entry_configured(entry, secret_present, personal_keys);
-            let config_issue = (!configured).then(|| match entry.platform_secret() {
-                Some(secret) => format!("API key secret '{}' is not configured", secret.as_str()),
-                None => "personal key not added — add your own key in Settings".to_owned(),
+            let config_issue = (!configured).then(|| {
+                entry.platform_secret().map_or_else(
+                    || "personal key not added — add your own key in Settings".to_owned(),
+                    |secret| format!("API key secret '{}' is not configured", secret.as_str()),
+                )
             });
             ProviderHealth {
                 name: entry.name.as_str().to_owned(),
@@ -163,9 +163,6 @@ pub fn build(
     build_for_user(params, secret_present, &BTreeSet::new())
 }
 
-/// [`build`] for one caller: a `credential: user` provider counts as
-/// configured, and its models as servable, only when `personal_keys` (the
-/// providers this caller stored a key for) names it.
 #[must_use]
 pub fn build_for_user(
     params: BridgeProfileParams<'_>,
