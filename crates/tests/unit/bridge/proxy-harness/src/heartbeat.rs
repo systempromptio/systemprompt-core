@@ -13,6 +13,7 @@ use systemprompt_bridge::proxy::ProxyStats;
 use systemprompt_bridge::proxy::heartbeat::run_loop;
 use systemprompt_bridge::proxy::session::SessionContext;
 use systemprompt_bridge::proxy::token_cache::TokenCache;
+use systemprompt_bridge::update::automatic::UpdateGate;
 use systemprompt_identifiers::ValidatedUrl;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -106,6 +107,7 @@ fn heartbeat_posts_payload_with_bearer() {
             Arc::clone(&session),
             Arc::clone(&stats),
             reqwest::Client::new(),
+            UpdateGate::default(),
         ));
 
         let received = wait_for_requests(&server, 1).await;
@@ -154,6 +156,7 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
             Arc::new(SessionContext::new()),
             Arc::new(ProxyStats::default()),
             reqwest::Client::new(),
+            UpdateGate::default(),
         ));
 
         wait_for_requests(&server, 1).await;
@@ -207,6 +210,7 @@ fn heartbeat_server_error_keeps_looping() {
             Arc::new(SessionContext::new()),
             Arc::new(ProxyStats::default()),
             reqwest::Client::new(),
+            UpdateGate::default(),
         ));
 
         let received = wait_for_requests(&server, 2).await;
@@ -231,6 +235,7 @@ fn heartbeat_without_credentials_sends_nothing() {
             Arc::new(SessionContext::new()),
             Arc::new(ProxyStats::default()),
             reqwest::Client::new(),
+            UpdateGate::default(),
         ));
 
         for _ in 0..5 {

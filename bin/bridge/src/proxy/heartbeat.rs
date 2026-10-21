@@ -19,6 +19,7 @@ use crate::config::SharedRuntimeConfig;
 use crate::proxy::server::ProxyStats;
 use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
+use crate::update::automatic::UpdateGate;
 
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
@@ -41,6 +42,7 @@ pub async fn run_loop(
     session: Arc<SessionContext>,
     stats: Arc<ProxyStats>,
     client: reqwest::Client,
+    update_gate: UpdateGate,
 ) {
     let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -70,6 +72,7 @@ pub async fn run_loop(
             session: session.as_ref(),
             stats: stats.as_ref(),
             client: &client,
+            update_gate: &update_gate,
         };
         if let Err(err) = send_one(tick, &mut staging).await {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
@@ -102,6 +105,7 @@ struct Tick<'a> {
     session: &'a SessionContext,
     stats: &'a ProxyStats,
     client: &'a reqwest::Client,
+    update_gate: &'a UpdateGate,
 }
 
 async fn send_one(
@@ -114,6 +118,7 @@ async fn send_one(
         session,
         stats,
         client,
+        update_gate,
     } = tick;
     let token = token_cache
         .current(HEARTBEAT_AUTH_THRESHOLD_SECS)
@@ -162,6 +167,7 @@ async fn send_one(
         );
         // Why: a staging download can take minutes; the heartbeat keeps its pace.
         staging.spawn(stage_required_release(
+            update_gate.clone(),
             gateway_base.clone(),
             token.token.clone(),
             client.clone(),
@@ -171,6 +177,7 @@ async fn send_one(
 }
 
 async fn stage_required_release(
+    update_gate: UpdateGate,
     gateway_base: ValidatedUrl,
     bearer: crate::ids::BearerToken,
     http: reqwest::Client,
@@ -178,7 +185,7 @@ async fn stage_required_release(
     use crate::update::automatic::{self, AutomaticError, Outcome, Skipped, Trigger};
 
     let client = crate::gateway::GatewayClient::new(gateway_base, http);
-    match automatic::run(Trigger::Unsupported, &client, &bearer).await {
+    match automatic::run(&update_gate, Trigger::Unsupported, &client, &bearer).await {
         Ok(Outcome::Staged { version, .. }) => {
             tracing::info!(%version, "required bridge release staged for the next launch");
         },

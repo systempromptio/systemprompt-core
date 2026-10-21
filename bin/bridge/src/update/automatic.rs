@@ -6,7 +6,7 @@
 //! after the machine sleeps, looking for any newer release. The proxy heartbeat
 //! raises [`Trigger::Unsupported`] when the gateway reports this bridge below
 //! its floor, which is the only trigger a headless (Linux) bridge has. Every
-//! trigger passes the same [`begin`] gate — org policy, due time, single
+//! trigger passes the same [`UpdateGate::begin`] gate — org policy, due time, single
 //! flight — and the same [`Permit`] steps, so the platforms differ only in
 //! who raises the trigger, never in what an attempt does.
 //!
@@ -15,7 +15,7 @@
 //! It never relaunches; the next natural launch runs the new version
 //! ([`AutoUpdatePolicy::Staged`]).
 //!
-//! [`begin`] tests the gate before the policy read, so the GUI's one-second
+//! [`UpdateGate::begin`] tests the gate before the policy read, so the GUI's one-second
 //! tick does not touch the last-sync sentinel until an attempt is due, and
 //! again after it, because the read runs without the lock held.
 //! `Permit::check` checks writability first: an install that cannot be
@@ -28,7 +28,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use super::{DownloadProgress, UpdateError, UpdateStatus, apply, check, install};
@@ -58,7 +58,7 @@ impl Trigger {
     }
 }
 
-/// Why [`begin`] declined to start an attempt.
+/// Why [`UpdateGate::begin`] declined to start an attempt.
 #[derive(Debug, thiserror::Error)]
 pub enum Skipped {
     #[error("automatic updates are off: {}", .0.describe())]
@@ -83,32 +83,47 @@ pub enum Outcome {
     Staged { version: String, path: PathBuf },
 }
 
+#[derive(Debug)]
 struct Gate {
     in_flight: bool,
     last_attempt: Option<Instant>,
 }
 
-static GATE: Mutex<Gate> = Mutex::new(Gate {
-    in_flight: false,
-    last_attempt: None,
-});
+/// The single automatic-update slot of this process, built once by
+/// `BridgeContext::start` and shared by every trigger.
+#[derive(Debug, Clone)]
+pub struct UpdateGate(Arc<Mutex<Gate>>);
 
-pub fn begin(trigger: Trigger) -> Result<Permit, Skipped> {
-    lock_gate().admits(trigger)?;
-    let decision = auto_update_policy();
-    if !decision.stages() {
-        return Err(Skipped::Policy(decision));
+impl Default for UpdateGate {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(Gate {
+            in_flight: false,
+            last_attempt: None,
+        })))
     }
-    let mut gate = lock_gate();
-    gate.admits(trigger)?;
-    gate.in_flight = true;
-    gate.last_attempt = Some(Instant::now());
-    drop(gate);
-    Ok(Permit { trigger })
 }
 
-fn lock_gate() -> std::sync::MutexGuard<'static, Gate> {
-    GATE.lock().unwrap_or_else(PoisonError::into_inner)
+impl UpdateGate {
+    pub fn begin(&self, trigger: Trigger) -> Result<Permit, Skipped> {
+        self.lock().admits(trigger)?;
+        let decision = auto_update_policy();
+        if !decision.stages() {
+            return Err(Skipped::Policy(decision));
+        }
+        let mut gate = self.lock();
+        gate.admits(trigger)?;
+        gate.in_flight = true;
+        gate.last_attempt = Some(Instant::now());
+        drop(gate);
+        Ok(Permit {
+            trigger,
+            gate: self.clone(),
+        })
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Gate> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
 }
 
 impl Gate {
@@ -127,13 +142,12 @@ impl Gate {
 #[derive(Debug)]
 pub struct Permit {
     trigger: Trigger,
+    gate: UpdateGate,
 }
 
 impl Drop for Permit {
     fn drop(&mut self) {
-        GATE.lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .in_flight = false;
+        self.gate.lock().in_flight = false;
     }
 }
 
@@ -183,11 +197,12 @@ impl Permit {
 }
 
 pub async fn run(
+    gate: &UpdateGate,
     trigger: Trigger,
     client: &GatewayClient,
     bearer: &BearerToken,
 ) -> Result<Outcome, AutomaticError> {
-    let permit = begin(trigger)?;
+    let permit = gate.begin(trigger)?;
     let Some(manifest) = permit.check(client, bearer).await? else {
         return Ok(Outcome::Current);
     };

@@ -12,9 +12,9 @@ use crate::gui::error::GuiError;
 use crate::gui::events::{InstalledUpdate, UiEvent};
 use crate::gui::{GuiApp, UiEventProxy};
 use crate::update::UpdateUiState;
-use crate::update::automatic::{self, Permit, Trigger};
+use crate::update::automatic::{Permit, Trigger};
 
-// Why: called from the one-second event-loop pass; `automatic::begin` owns the
+// Why: called from the one-second event-loop pass; `UpdateGate::begin` owns the
 // due time, org policy and single flight, so this only raises the trigger.
 pub(crate) fn maybe_auto_check(app: &GuiApp, woke_from_sleep: bool) {
     let snap = app.state.snapshot();
@@ -26,7 +26,7 @@ pub(crate) fn maybe_auto_check(app: &GuiApp, woke_from_sleep: bool) {
     } else {
         Trigger::Schedule
     };
-    let Ok(permit) = automatic::begin(trigger) else {
+    let Ok(permit) = app.ctx.update_gate.begin(trigger) else {
         return;
     };
     let proxy = app.proxy.clone();

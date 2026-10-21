@@ -1,7 +1,9 @@
 use std::io::Read as _;
 use systemprompt_bridge::gateway::GatewayClient;
 use systemprompt_bridge::ids::BearerToken;
-use systemprompt_bridge::update::automatic::{self, AutomaticError, Outcome, Skipped, Trigger};
+use systemprompt_bridge::update::automatic::{
+    self, AutomaticError, Outcome, Skipped, Trigger, UpdateGate,
+};
 use systemprompt_bridge::update::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
 
 use sha2::{Digest as _, Sha256};
@@ -64,11 +66,10 @@ fn release_server(version: &str) -> MockServer {
     })
 }
 
-// Why: `Wake` has no minimum gap, so each attempt below is due regardless of
-// what an earlier attempt in the same process recorded.
 fn run_once(gateway: &ValidatedUrl) -> Result<Outcome, AutomaticError> {
     let client = GatewayClient::new(gateway.clone(), reqwest::Client::new());
     block_on(automatic::run(
+        &UpdateGate::default(),
         Trigger::Wake,
         &client,
         &BearerToken::new("bearer"),
@@ -262,14 +263,15 @@ fn a_scheduled_attempt_is_not_due_again_within_the_interval() {
     seed_last_sync(&state, &gateway, "staged");
 
     in_sandbox(&state, || {
-        drop(automatic::begin(Trigger::Schedule).expect("the first scheduled attempt is due"));
-        let again = automatic::begin(Trigger::Schedule);
+        let gate = UpdateGate::default();
+        drop(gate.begin(Trigger::Schedule).expect("the first scheduled attempt is due"));
+        let again = gate.begin(Trigger::Schedule);
         assert!(
             matches!(again, Err(Skipped::NotDue)),
             "a second scheduled attempt inside the interval is skipped: {again:?}"
         );
         assert!(
-            automatic::begin(Trigger::Wake).is_ok(),
+            gate.begin(Trigger::Wake).is_ok(),
             "waking from sleep is always due"
         );
     });
@@ -283,15 +285,16 @@ fn only_one_automatic_attempt_runs_at_a_time() {
     seed_last_sync(&state, &gateway, "staged");
 
     in_sandbox(&state, || {
-        let held = automatic::begin(Trigger::Wake).expect("the slot is free");
-        let blocked = automatic::begin(Trigger::Unsupported);
+        let gate = UpdateGate::default();
+        let held = gate.begin(Trigger::Wake).expect("the slot is free");
+        let blocked = gate.begin(Trigger::Unsupported);
         assert!(
             matches!(blocked, Err(Skipped::InFlight)),
             "the heartbeat cannot start an attempt while the GUI holds one: {blocked:?}"
         );
         drop(held);
         assert!(
-            automatic::begin(Trigger::Wake).is_ok(),
+            gate.begin(Trigger::Wake).is_ok(),
             "dropping the permit frees the slot"
         );
     });

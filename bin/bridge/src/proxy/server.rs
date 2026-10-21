@@ -140,6 +140,7 @@ pub fn start_with_listener(
     let drained = Arc::new(AtomicBool::new(false));
 
     let tasks = Arc::new(crate::tasks::TaskOwner::new(rt, ctx.deps.activity.clone()));
+    let update_gate = ctx.deps.update_gate.clone();
     tasks.spawn(run_listener(
         listener,
         ctx,
@@ -152,6 +153,7 @@ pub fn start_with_listener(
         session,
         Arc::clone(&stats),
         client,
+        update_gate,
     ));
     tasks.spawn(crate::proxy::comms::run_loop(
         runtime_config,
