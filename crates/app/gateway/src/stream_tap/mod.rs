@@ -27,7 +27,9 @@ use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_traits::StreamDrainWatch;
 use systemprompt_wire::error::WireStreamError;
 
-use self::accumulator::{Summary, TapState, accumulate_event, extract_summary, snapshot};
+use self::accumulator::{
+    Summary, TapState, accumulate_event, extract_summary, snapshot, with_tool_ordinal,
+};
 use self::finalize::finalize;
 use super::audit::GatewayAudit;
 use super::audit::phases::StreamInFlight;
@@ -145,10 +147,15 @@ impl Stream for TappedStream {
                     let is_message_stop = matches!(event, CanonicalEvent::MessageStop { .. });
                     let terminal = matches!(event, CanonicalEvent::ContentBlockStop { .. })
                         || (is_message_stop && !self.message_stop_rendered);
-                    let snap = self.state.lock().map_or(None, |mut s| {
+                    let ordinal_indexed = self.inbound.indexes_tool_calls_by_ordinal();
+                    let (snap, renumbered) = self.state.lock().map_or((None, None), |mut s| {
                         accumulate_event(&mut s, &event);
-                        terminal.then(|| snapshot(&s))
+                        let renumbered = ordinal_indexed
+                            .then(|| with_tool_ordinal(&s, &event))
+                            .flatten();
+                        (terminal.then(|| snapshot(&s)), renumbered)
                     });
+                    let event = renumbered.unwrap_or(event);
                     let terminal_suppressed = is_message_stop && self.message_stop_rendered;
                     if is_message_stop {
                         self.message_stop_rendered = true;
