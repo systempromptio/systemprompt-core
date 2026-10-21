@@ -114,17 +114,14 @@ async fn verify_upstream(
             request = request.header(name, value);
         }
     }
-    let response = request
-        .send()
-        .await
-        .map_err(|error| {
-            tracing::warn!(
-                provider = %entry.name.as_str(),
-                %error,
-                "Personal key check got no response"
-            );
-            unverified("no response".to_owned())
-        })?;
+    let response = request.send().await.map_err(|error| {
+        tracing::warn!(
+            provider = %entry.name.as_str(),
+            %error,
+            "Personal key check got no response"
+        );
+        unverified("no response".to_owned())
+    })?;
     let status = response.status().as_u16();
     if matches!(status, 404 | 405) {
         return probe_completion(&client, &call, entry, user_id).await;

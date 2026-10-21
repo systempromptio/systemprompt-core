@@ -12,11 +12,11 @@
 
 use std::sync::Arc;
 
-use axum::routing::{get, put};
-use axum::{Json, Router};
 use axum::extract::Path;
 use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
+use axum::routing::{get, put};
+use axum::{Json, Router};
 use systemprompt_ai::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 use systemprompt_ai::{
     PersonalKeyError, personal_provider, personal_providers, store_personal_key,

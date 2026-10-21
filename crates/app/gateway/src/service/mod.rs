@@ -41,12 +41,12 @@ use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
 
 use self::abandon::AbandonGuard;
 use self::admission::commit_admission;
+use self::client_session::with_client_session;
 use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
-use self::client_session::with_client_session;
 use self::resolve::{ResolvedUpstream, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::phases::GatewayPhase;

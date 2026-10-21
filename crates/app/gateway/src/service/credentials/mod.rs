@@ -84,8 +84,8 @@ pub async fn resolve(
                 provider: name.to_owned(),
             })
         })?;
-    let target = UpstreamTarget::resolve_personal(provider, &key, &owner.user_id)
-        .map_err(pre_audit)?;
+    let target =
+        UpstreamTarget::resolve_personal(provider, &key, &owner.user_id).map_err(pre_audit)?;
     let call = target.call().await.map_err(pre_audit)?;
     Ok((call, BillingSource::UserKey))
 }
