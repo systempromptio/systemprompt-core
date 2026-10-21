@@ -51,6 +51,7 @@ impl TraceRepository {
         let model = filter.model.as_deref();
         let provider = filter.provider.as_deref();
         let user = filter.user.as_deref();
+        let billing_source = filter.billing_source.as_deref();
         let limit = filter.limit;
         let rows = sqlx::query!(
             r#"
@@ -69,7 +70,8 @@ impl TraceRepository {
             cost_microdollars as "cost_microdollars!",
             latency_ms,
             status as "status!",
-            finish_reason
+            finish_reason,
+            billing_source as "billing_source!"
         FROM ai_requests
         WHERE ($1::timestamptz IS NULL OR created_at >= $1)
           AND ($2::text IS NULL OR model ILIKE $2)
@@ -77,6 +79,7 @@ impl TraceRepository {
           AND ($4::text IS NULL OR user_id = $4)
           AND ($6::timestamptz IS NULL OR created_at < $6)
           AND ($7::timestamptz IS NULL OR (created_at, id) < ($7, $8))
+          AND ($9::text IS NULL OR billing_source = $9)
         ORDER BY created_at DESC, id DESC
         LIMIT $5
         "#,
@@ -87,7 +90,8 @@ impl TraceRepository {
             limit,
             until,
             before_at,
-            before_id
+            before_id,
+            billing_source
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -114,6 +118,7 @@ impl TraceRepository {
                 latency_ms: r.latency_ms,
                 status: r.status,
                 finish_reason: r.finish_reason,
+                billing_source: r.billing_source,
             })
             .collect())
     }

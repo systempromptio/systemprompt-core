@@ -17,6 +17,7 @@ pub struct AiRequestFilter {
     pub model: Option<String>,
     pub provider: Option<String>,
     pub user: Option<String>,
+    pub billing_source: Option<String>,
 }
 
 impl AiRequestFilter {
@@ -29,6 +30,7 @@ impl AiRequestFilter {
             model: None,
             provider: None,
             user: None,
+            billing_source: None,
         }
     }
 
@@ -51,6 +53,7 @@ impl AiRequestFilter {
         with_model(model) -> String,
         with_provider(provider) -> String,
         with_user(user) -> String,
+        with_billing_source(billing_source) -> String,
     }
 }
 
@@ -142,6 +145,7 @@ pub struct AiRequestListItem {
     pub latency_ms: Option<i32>,
     pub status: String,
     pub finish_reason: Option<String>,
+    pub billing_source: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

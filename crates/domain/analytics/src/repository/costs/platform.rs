@@ -132,6 +132,39 @@ impl CostAnalyticsRepository {
         .map_err(Into::into)
     }
 
+    // Why: the hourly rollup carries no billing source, so this split reads
+    // `ai_requests` itself; `user_key` cost is an estimate of what a member's
+    // own subscription absorbed, never platform spend.
+    pub async fn get_breakdown_by_billing_source(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            SELECT
+                billing_source as "name!",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
+                COUNT(*)::bigint as "requests!",
+                COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
+            FROM ai_requests
+            WHERE created_at >= $1 AND created_at < $2
+              AND NOT synthetic
+            GROUP BY billing_source
+            ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
     pub async fn get_breakdown_by_user(
         &self,
         start: DateTime<Utc>,

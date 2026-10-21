@@ -52,6 +52,13 @@ pub struct ListArgs {
 
     #[arg(long, help = "Filter by user id (exact match)")]
     pub user: Option<String>,
+
+    #[arg(
+        long,
+        value_parser = ["platform", "user_key"],
+        help = "Filter by who the upstream bills: 'platform' or 'user_key' (a member's own key)"
+    )]
+    pub billing_source: Option<String>,
 }
 
 crate::define_pool_command!(ListArgs => CommandOutput, no_config);
@@ -84,6 +91,9 @@ async fn execute_with_pool_inner(
     }
     if let Some(user) = args.user {
         filter = filter.with_user(user);
+    }
+    if let Some(billing_source) = args.billing_source {
+        filter = filter.with_billing_source(billing_source);
     }
 
     let service = TraceQueryService::new(TraceRepository::new(Arc::clone(pool)));
@@ -126,6 +136,7 @@ async fn execute_with_pool_inner(
                 model: r.model.unwrap_or_else(|| "-".to_owned()),
                 tokens,
                 cost: format!("${cost_dollars:.6}"),
+                billing: r.billing_source,
                 latency_ms: r.latency_ms.map(i64::from),
                 status: r.status,
                 finish: r.finish_reason.unwrap_or_else(|| "-".to_owned()),

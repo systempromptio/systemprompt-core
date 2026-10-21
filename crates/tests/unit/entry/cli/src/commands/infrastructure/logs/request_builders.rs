@@ -21,6 +21,7 @@ fn sample_row() -> RequestListRow {
         model: "claude".to_owned(),
         tokens: "10/20".to_owned(),
         cost: "$0.000100".to_owned(),
+        billing: "platform".to_owned(),
         latency_ms: Some(42),
         status: "success".to_owned(),
         finish: "end_turn".to_owned(),
