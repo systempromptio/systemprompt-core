@@ -61,17 +61,7 @@ pub(super) async fn resolve_upstream<'a>(
         ai_request_id,
         owner,
     } = query;
-    if !config.is_model_exposed(registry, request.model.as_str()) {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            model = %request.model,
-            "Gateway denied: model not exposed by gateway policy or registry"
-        );
-        return Err(DispatchError::pre_audit(PolicyDenied(format!(
-            "model '{}' is not permitted by gateway policy",
-            request.model
-        ))));
-    }
+    ensure_model_exposed(config, registry, request, ai_request_id)?;
 
     let matched = config.resolve_route(registry, request).ok_or_else(|| {
         DispatchError::pre_audit(GatewayError::NoRoute {
@@ -83,15 +73,7 @@ pub(super) async fn resolve_upstream<'a>(
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-    let engine = RouteSelectorEngine::global();
-    let (route, selector) = if engine.has_selectors() {
-        match engine.refine(matched.as_ref(), request).await {
-            Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
-            None => (matched, None),
-        }
-    } else {
-        (matched, None)
-    };
+    let (route, selector) = refine_route(matched, request).await;
 
     let selection = route.chain_for(attribution);
     if let ChainSelection::Unmapped { dimension, value } = selection {
@@ -134,6 +116,40 @@ pub(super) async fn resolve_upstream<'a>(
     bound.deployments = deployments;
     bound.scoped = scoped;
     Ok(bound)
+}
+
+fn ensure_model_exposed(
+    config: &GatewayConfig,
+    registry: &ProviderRegistry,
+    request: &CanonicalRequest,
+    ai_request_id: &AiRequestId,
+) -> Result<(), DispatchError> {
+    if config.is_model_exposed(registry, request.model.as_str()) {
+        return Ok(());
+    }
+    tracing::warn!(
+        ai_request_id = %ai_request_id,
+        model = %request.model,
+        "Gateway denied: model not exposed by gateway policy or registry"
+    );
+    Err(DispatchError::pre_audit(PolicyDenied(format!(
+        "model '{}' is not permitted by gateway policy",
+        request.model
+    ))))
+}
+
+async fn refine_route<'a>(
+    matched: Cow<'a, GatewayRoute>,
+    request: &CanonicalRequest,
+) -> (Cow<'a, GatewayRoute>, Option<String>) {
+    let engine = RouteSelectorEngine::global();
+    if !engine.has_selectors() {
+        return (matched, None);
+    }
+    match engine.refine(matched.as_ref(), request).await {
+        Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
+        None => (matched, None),
+    }
 }
 
 fn plan_chain(
