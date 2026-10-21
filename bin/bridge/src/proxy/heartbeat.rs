@@ -71,8 +71,7 @@ pub async fn run_loop(
             stats: stats.as_ref(),
             client: &client,
         };
-        if let Err(err) = send_one(tick, &mut staging).await
-        {
+        if let Err(err) = send_one(tick, &mut staging).await {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
         }
     }
