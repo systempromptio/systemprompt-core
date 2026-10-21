@@ -43,7 +43,7 @@ struct DetailRow {
 struct ListRow {
     id: AiRequestId,
     created_at: DateTime<Utc>,
-    trace_id: Option<String>,
+    trace_id: Option<TraceId>,
     user_id: UserId,
     actor_kind: String,
     actor_id: String,
@@ -68,7 +68,7 @@ impl From<ListRow> for AiRequestListItem {
         Self {
             id: r.id,
             created_at: r.created_at,
-            trace_id: r.trace_id.map(TraceId::new),
+            trace_id: r.trace_id,
             user_id: r.user_id,
             actor_kind: r.actor_kind,
             actor_id: r.actor_id,
@@ -110,7 +110,7 @@ impl TraceRepository {
         SELECT
             id as "id!: AiRequestId",
             created_at as "created_at!",
-            trace_id,
+            trace_id as "trace_id: TraceId",
             user_id as "user_id!: UserId",
             actor_kind as "actor_kind!",
             actor_id as "actor_id!",
