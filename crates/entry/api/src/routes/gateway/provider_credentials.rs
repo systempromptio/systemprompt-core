@@ -11,14 +11,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::Json;
 use axum::extract::Path;
 use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_ai::UpstreamTarget;
 use systemprompt_ai::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
+use systemprompt_ai::{
+    PersonalKeyError, personal_provider, personal_providers, store_personal_key,
+};
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_models::bridge::profile::{
@@ -30,9 +31,6 @@ use super::bridge_error::{BridgeError, authenticate_bridge};
 use crate::error::ApiHttpError;
 use crate::services::middleware::JwtContextExtractor;
 
-const VERIFY_TIMEOUT: Duration = Duration::from_secs(10);
-const MAX_KEY_BYTES: usize = 4096;
-
 pub async fn list(
     jwt_extractor: Arc<JwtContextExtractor>,
     ctx: AppContext,
@@ -43,7 +41,7 @@ pub async fn list(
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key listing failed", e))?;
-    let rows = personal_providers()?
+    let rows = personal_providers_now()?
         .iter()
         .map(|entry| {
             let meta = stored.iter().find(|m| m.provider == entry.name.as_str());
@@ -62,26 +60,19 @@ pub async fn set(
 ) -> Result<Json<ProviderCredentialStatus>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
-    let entry = personal_provider(&provider)?;
-    let key = body.api_key.trim();
-    if key.is_empty() || key.len() > MAX_KEY_BYTES {
-        return Err(BridgeError::PersonalKeyRejected(provider_label(&entry)).into());
-    }
-    verify_upstream(&entry, key, claims.user_id.as_str()).await?;
-    let label = body
-        .label
-        .as_deref()
-        .map(str::trim)
-        .filter(|l| !l.is_empty());
-    let meta = repository(&ctx)
-        .set_key(&claims.user_id, entry.name.as_str(), key, label)
-        .await
-        .map_err(|e| BridgeError::internal("personal key could not be stored", e))?;
-    tracing::info!(
-        user_id = %claims.user_id,
-        provider = %entry.name.as_str(),
-        "Personal provider key stored"
-    );
+    let services = ServicesBootstrap::get()
+        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
+    let entry = personal_provider(&services.providers, &provider).map_err(key_error)?;
+    let meta = store_personal_key(
+        ctx.db_pool(),
+        &services.providers,
+        &claims.user_id,
+        &provider,
+        &body.api_key,
+        body.label.as_deref(),
+    )
+    .await
+    .map_err(key_error)?;
     Ok(Json(status_row(&entry, Some(&meta))))
 }
 
@@ -92,7 +83,9 @@ pub async fn delete(
     Path(provider): Path<String>,
 ) -> Result<StatusCode, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&jwt_extractor, &headers).await?;
-    let entry = personal_provider(&provider)?;
+    let services = ServicesBootstrap::get()
+        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
+    let entry = personal_provider(&services.providers, &provider).map_err(key_error)?;
     let removed = repository(&ctx)
         .delete_key(&claims.user_id, entry.name.as_str())
         .await
@@ -111,30 +104,23 @@ fn repository(ctx: &AppContext) -> UserProviderCredentialRepository {
     UserProviderCredentialRepository::new(ctx.db_pool())
 }
 
-fn personal_providers() -> Result<Vec<ProviderEntry>, BridgeError> {
+fn personal_providers_now() -> Result<Vec<ProviderEntry>, BridgeError> {
     let services = ServicesBootstrap::get()
         .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
-    Ok(services
-        .providers
-        .providers
-        .iter()
-        .filter(|entry| entry.is_user_credential())
-        .cloned()
-        .collect())
+    Ok(personal_providers(&services.providers))
 }
 
-fn personal_provider(name: &str) -> Result<ProviderEntry, BridgeError> {
-    personal_providers()?
-        .into_iter()
-        .find(|entry| entry.name.as_str() == name)
-        .ok_or_else(|| BridgeError::NotPersonalProvider(name.to_owned()))
-}
-
-fn provider_label(entry: &ProviderEntry) -> String {
-    entry
-        .display_name
-        .clone()
-        .unwrap_or_else(|| entry.name.as_str().to_owned())
+fn key_error(error: PersonalKeyError) -> BridgeError {
+    match error {
+        PersonalKeyError::NotPersonalProvider(name) => BridgeError::NotPersonalProvider(name),
+        PersonalKeyError::Rejected(provider) => BridgeError::PersonalKeyRejected(provider),
+        PersonalKeyError::Unverified { provider, status } => {
+            BridgeError::PersonalKeyUnverified { provider, status }
+        },
+        PersonalKeyError::Internal(source) => {
+            BridgeError::internal("personal key could not be stored", source)
+        },
+    }
 }
 
 fn status_row(
@@ -150,47 +136,4 @@ fn status_row(
         verified_at: meta.and_then(|m| m.verified_at),
         last_used_at: meta.and_then(|m| m.last_used_at),
     }
-}
-
-// Why: OpenCode Go and every OpenAI- or Anthropic-compatible upstream answer
-// `GET {endpoint}/models` for any valid key and 401/403 for a bad one, so it
-// proves the key without spending a token of the subscription.
-async fn verify_upstream(
-    entry: &ProviderEntry,
-    key: &str,
-    user_id: &str,
-) -> Result<(), BridgeError> {
-    let unverified = |status: String| BridgeError::PersonalKeyUnverified {
-        provider: provider_label(entry),
-        status,
-    };
-    let target = UpstreamTarget::resolve_personal(entry, key, user_id)
-        .map_err(|_e| BridgeError::PersonalKeyRejected(provider_label(entry)))?;
-    let call = target
-        .call()
-        .await
-        .map_err(|_e| BridgeError::PersonalKeyRejected(provider_label(entry)))?;
-    let url = format!("{}/models", call.endpoint().trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .timeout(VERIFY_TIMEOUT)
-        .build()
-        .map_err(|e| BridgeError::internal("verification client unavailable", e))?;
-    let mut request = client.get(&url);
-    for (name, value) in call.headers(entry.wire) {
-        if !name.eq_ignore_ascii_case("content-type") {
-            request = request.header(name, value);
-        }
-    }
-    let response = request
-        .send()
-        .await
-        .map_err(|_e| unverified("no response".to_owned()))?;
-    let status = response.status();
-    if status.is_success() {
-        return Ok(());
-    }
-    if matches!(status.as_u16(), 401 | 403) {
-        return Err(BridgeError::PersonalKeyRejected(provider_label(entry)));
-    }
-    Err(unverified(status.as_u16().to_string()))
 }

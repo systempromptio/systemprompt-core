@@ -88,4 +88,7 @@ pub use repository::{
     UpsertPayloadParams,
 };
 
+pub use services::personal_keys::{
+    PersonalKeyError, personal_provider, personal_providers, provider_label, store_personal_key,
+};
 pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};
