@@ -6,6 +6,7 @@
 mod enabled;
 mod model_filter;
 mod pending;
+mod personal_keys;
 mod probe;
 mod profile;
 mod profile_notices;
@@ -14,6 +15,8 @@ mod repair;
 pub(crate) use enabled::{on_enabled_set_finished, on_enabled_set_requested};
 pub(crate) use model_filter::{on_model_filter_set_finished, on_model_filter_set_requested};
 pub(crate) use pending::{note_install_pending, on_restart_requested};
+pub use personal_keys::PersonalKeyOp;
+pub(crate) use personal_keys::{on_personal_key_finished, on_personal_key_requested};
 pub(crate) use probe::{
     ProbeResult, on_probe_finished, on_probe_requested, on_proxy_probe_finished,
     on_proxy_probe_requested,

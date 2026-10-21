@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
+use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
@@ -138,7 +140,11 @@ pub async fn pubkey() -> Result<Json<PubkeyResponse>, ApiHttpError> {
     Ok(Json(PubkeyResponse { pubkey }))
 }
 
-pub async fn profile() -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
+pub async fn profile(
+    jwt_extractor: Arc<JwtContextExtractor>,
+    ctx: systemprompt_runtime::AppContext,
+    headers: HeaderMap,
+) -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
     let profile =
         ProfileBootstrap::get().map_err(|e| BridgeError::unavailable("profile not ready", e))?;
     let services = ServicesBootstrap::get()
@@ -160,7 +166,8 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
 
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| BridgeError::unavailable("secrets not ready", e))?;
-    let response = bridge_profile::build(
+    let personal_keys = personal_keys(&jwt_extractor, &ctx, &headers).await?;
+    let response = bridge_profile::build_for_user(
         bridge_profile::BridgeProfileParams {
             inference_gateway_base_url,
             auth_scheme: gateway.auth_scheme.clone(),
@@ -170,9 +177,28 @@ pub async fn profile() -> Result<Json<BridgeProfileResponse>, ApiHttpError> {
             gateway: Some(gateway),
         },
         |name| secrets.get(name).is_some_and(|k| !k.is_empty()),
+        &personal_keys,
     );
 
     Ok(Json(response))
+}
+
+// Why: the profile predates per-user credentials and is fetched before
+// sign-in completes, so an anonymous or stale caller still gets the
+// deployment's view; only a verified caller sees their personal providers.
+async fn personal_keys(
+    jwt_extractor: &JwtContextExtractor,
+    ctx: &systemprompt_runtime::AppContext,
+    headers: &HeaderMap,
+) -> Result<BTreeSet<String>, ApiHttpError> {
+    let Ok((claims, _user)) = authenticate_bridge(jwt_extractor, headers).await else {
+        return Ok(BTreeSet::new());
+    };
+    let stored = UserProviderCredentialRepository::new(ctx.db_pool())
+        .list_metadata(&claims.user_id)
+        .await
+        .map_err(|e| BridgeError::internal("personal key lookup failed", e))?;
+    Ok(stored.into_iter().map(|meta| meta.provider).collect())
 }
 
 pub fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {

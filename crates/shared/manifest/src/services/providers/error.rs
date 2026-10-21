@@ -43,6 +43,12 @@ pub enum ProviderRegistryError {
     )]
     ReservedExtraHeader { provider: String, header: String },
 
+    #[error(
+        "provider registry entry '{provider}' has no api_key_secret; a `credential: platform` \
+         provider is served from the deployment secret it names"
+    )]
+    MissingApiKeySecret { provider: String },
+
     #[error("provider registry model id or alias '{id}' is declared more than once")]
     DuplicateModel { id: ModelId },
 

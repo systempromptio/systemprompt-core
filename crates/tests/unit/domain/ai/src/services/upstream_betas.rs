@@ -39,7 +39,7 @@ fn first_party(accepted: Option<&[&str]>) -> ProviderEntry {
 fn vertex(secret: &str, accepted: Option<&[&str]>) -> ProviderEntry {
     let mut entry = first_party(accepted);
     entry.endpoint = VERTEX_TEMPLATE.to_owned();
-    entry.api_key_secret = SecretName::new(secret);
+    entry.api_key_secret = Some(SecretName::new(secret));
     entry
 }
 

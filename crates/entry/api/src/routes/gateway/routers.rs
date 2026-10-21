@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 
@@ -19,6 +19,7 @@ use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesIn
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
     bridge_profile_usage, bridge_release, bridge_stream, bridge_whoami, messages, otel,
+    provider_credentials,
 };
 
 pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -182,9 +183,18 @@ pub(super) fn bridge_profile_routes(
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
+    let ctx_profile = ctx.clone();
+    let jwt_profile = Arc::clone(jwt_extractor);
     Router::new()
         .route("/bridge/pubkey", get(bridge::pubkey))
-        .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/profile",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_profile);
+                let context = ctx_profile.clone();
+                async move { bridge::profile(extractor, context, headers).await }
+            }),
+        )
         .route(
             "/bridge/whoami",
             get(move |headers| {
@@ -268,6 +278,42 @@ pub(super) fn bridge_session_routes(
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_stream);
                 async move { bridge_stream::handle(extractor, headers).await }
+            }),
+        )
+}
+
+pub(super) fn provider_credential_routes(
+    ctx: &AppContext,
+    jwt_extractor: &Arc<JwtContextExtractor>,
+) -> Router {
+    let ctx_list = ctx.clone();
+    let ctx_set = ctx.clone();
+    let ctx_delete = ctx.clone();
+    let jwt_list = Arc::clone(jwt_extractor);
+    let jwt_set = Arc::clone(jwt_extractor);
+    let jwt_delete = Arc::clone(jwt_extractor);
+    Router::new()
+        .route(
+            "/me/provider-credentials",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_list);
+                let context = ctx_list.clone();
+                async move { provider_credentials::list(extractor, context, headers).await }
+            }),
+        )
+        .route(
+            "/me/provider-credentials/{provider}",
+            put(move |headers, path, body| {
+                let extractor = Arc::clone(&jwt_set);
+                let context = ctx_set.clone();
+                async move {
+                    provider_credentials::set(extractor, context, headers, path, body).await
+                }
+            })
+            .delete(move |headers, path| {
+                let extractor = Arc::clone(&jwt_delete);
+                let context = ctx_delete.clone();
+                async move { provider_credentials::delete(extractor, context, headers, path).await }
             }),
         )
 }

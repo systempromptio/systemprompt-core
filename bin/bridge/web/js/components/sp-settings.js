@@ -6,6 +6,7 @@ import { t } from "/assets/js/i18n.js";
 import { setTheme } from "/assets/js/theme.js";
 import { gatewayUrlError, loadPrefs } from "/assets/js/utils/settings-prefs.js";
 import { renderSettingsPaths, renderSettingsAppearance, renderSettingsSecurity } from "/assets/js/components/settings-sections.js";
+import "/assets/js/components/sp-personal-keys.js";
 
 export class SpSettings extends SpElement {
   constructor() {
@@ -65,6 +66,7 @@ export class SpSettings extends SpElement {
     return `
       ${banner}
       ${renderSettingsPaths(this)}
+      <sp-personal-keys></sp-personal-keys>
       ${renderSettingsAppearance()}
       ${renderSettingsSecurity(this)}
       <div class="sp-row">

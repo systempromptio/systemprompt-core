@@ -9,8 +9,10 @@ use serde_json::{Map, Value};
 pub const ANTHROPIC_VERSION: &str = "2023-06-01";
 
 // Why: Anthropic beta body fields require their corresponding `anthropic-beta`
-// headers.
-const FORWARD_PREFIXES: &[&str] = &["anthropic-"];
+// headers. OpenCode Go meters a subscription per `x-opencode-session`; the
+// upstream call relays a non-`anthropic-*` name only to a provider whose
+// `forward_headers` lists it.
+const FORWARD_PREFIXES: &[&str] = &["anthropic-", "x-opencode-"];
 
 const IDENTITY_PREFIXES: &[&str] = &["x-claude-code-", "x-stainless-", "x-systemprompt-"];
 

@@ -437,6 +437,14 @@ const COMMANDS = {
     touch(host);
     return {};
   },
+  "personalKeys.list": () => [{ provider: "opencode-go", display_name: "OpenCode Go", configured: false }],
+  "personalKeys.set": ({ provider, apiKey }) => {
+    if (!apiKey || apiKey.length < 8) {
+      throw { scope: "gateway", code: "invalid_args", message: "OpenCode Go rejected the key", detail: { reason: "key_rejected" } };
+    }
+    return { provider, display_name: "OpenCode Go", configured: true };
+  },
+  "personalKeys.remove": ({ provider }) => ({ provider }),
   "host.enabled.set": ({ hostId, enabled }) => {
     if (!hostById(hostId)) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
     if (!enabled) { state.host_apps = state.host_apps.filter((h) => h.id !== hostId); }

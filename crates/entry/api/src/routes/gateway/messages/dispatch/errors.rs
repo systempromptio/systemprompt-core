@@ -73,6 +73,11 @@ fn render_error(error: &GatewayError) -> Option<Response<Body>> {
             ERROR_TYPE_PERMISSION,
             &forbidden.message,
         )),
+        GatewayError::PersonalKeyRequired { .. } => Some(build_error_response(
+            error.status(),
+            ERROR_TYPE_PERMISSION,
+            &error.to_string(),
+        )),
         GatewayError::PromptRepair(repair) => {
             Some(build_prompt_repair(&repair.message, &repair.locations))
         },
@@ -128,6 +133,9 @@ fn classify_dispatch_error_ref(error: &GatewayError) -> RejectionError {
         GatewayError::Quota(quota) => RejectionError::client(status, quota.message.clone()),
         GatewayError::GuardForbidden(forbidden) => {
             RejectionError::client(status, forbidden.message.clone())
+        },
+        GatewayError::PersonalKeyRequired { .. } => {
+            RejectionError::client(status, error.to_string())
         },
         GatewayError::GuardUnavailable(_) => {
             RejectionError::server(status, "request guard unavailable")

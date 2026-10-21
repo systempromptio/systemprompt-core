@@ -47,7 +47,7 @@ fn service_account(token_uri: &str) -> String {
 fn vertex_entry(secret: &str) -> ProviderEntry {
     let mut entry = seed("anthropic");
     entry.endpoint = VERTEX_TEMPLATE.to_owned();
-    entry.api_key_secret = SecretName::new(secret);
+    entry.api_key_secret = Some(SecretName::new(secret));
     entry
 }
 

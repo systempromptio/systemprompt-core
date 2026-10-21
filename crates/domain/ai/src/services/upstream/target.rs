@@ -30,11 +30,36 @@ pub struct UpstreamTarget {
     cache_key: String,
     extra_headers: Vec<(String, String)>,
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
+    user_agent: Option<String>,
+    forward_headers: Vec<String>,
 }
 
 impl UpstreamTarget {
     pub fn resolve(entry: &ProviderEntry, secret: &str) -> Result<Self, UpstreamTargetError> {
-        let secret_name = entry.api_key_secret.as_str();
+        let secret_name = entry
+            .api_key_secret
+            .as_ref()
+            .map_or_else(|| entry.name.as_str(), |name| name.as_str());
+        Self::resolve_keyed(entry, secret, secret_name)
+    }
+
+    /// Binds `entry` to a key one user stored for themselves. The token cache
+    /// key names the user, so a credential minted for one caller is never
+    /// presented for another.
+    pub fn resolve_personal(
+        entry: &ProviderEntry,
+        key: &str,
+        user_id: &str,
+    ) -> Result<Self, UpstreamTargetError> {
+        let cache_key = format!("user:{user_id}:{}", entry.name.as_str());
+        Self::resolve_keyed(entry, key, &cache_key)
+    }
+
+    fn resolve_keyed(
+        entry: &ProviderEntry,
+        secret: &str,
+        secret_name: &str,
+    ) -> Result<Self, UpstreamTargetError> {
         let credential = ProviderCredential::parse(secret).map_err(|source| {
             UpstreamTargetError::MalformedCredential {
                 secret: secret_name.to_owned(),
@@ -71,13 +96,23 @@ impl UpstreamTarget {
             cache_key: secret_name.to_owned(),
             extra_headers,
             accepted_betas: entry.accepted_betas.clone(),
+            user_agent: entry.user_agent.clone(),
+            forward_headers: entry
+                .forward_headers
+                .iter()
+                .map(|name| name.to_ascii_lowercase())
+                .collect(),
         })
     }
 
     pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
-        let secret_name = entry.api_key_secret.as_str();
+        let Some(secret_name) = entry.platform_secret().map(|name| name.as_str()) else {
+            return Err(UpstreamTargetError::UserCredentialProvider {
+                provider: entry.name.as_str().to_owned(),
+            });
+        };
         let secret =
             secrets
                 .get(secret_name)
@@ -103,7 +138,9 @@ impl UpstreamTarget {
             auth,
             self.extra_headers.clone(),
         )
-        .with_accepted_betas(self.accepted_betas.clone()))
+        .with_accepted_betas(self.accepted_betas.clone())
+        .with_user_agent(self.user_agent.clone())
+        .with_forward_headers(self.forward_headers.clone()))
     }
 
     #[must_use]

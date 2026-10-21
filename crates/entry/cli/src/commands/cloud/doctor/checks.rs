@@ -123,13 +123,10 @@ pub fn check_provider_secrets<S: BuildHasher>(
     let missing: Vec<String> = registry
         .providers
         .iter()
-        .filter(|provider| !secret_present(secrets, provider.api_key_secret.as_str()))
-        .map(|provider| {
-            format!(
-                "{} (needs `{}`)",
-                provider.name.as_str(),
-                provider.api_key_secret.as_str()
-            )
+        .filter_map(|provider| {
+            let secret = provider.platform_secret()?;
+            (!secret_present(secrets, secret.as_str()))
+                .then(|| format!("{} (needs `{}`)", provider.name.as_str(), secret.as_str()))
         })
         .collect();
 

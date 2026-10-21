@@ -168,8 +168,9 @@ pub fn check_provider(
                 suggestion: None,
             });
         },
+        Some(entry) if entry.is_user_credential() => {},
         Some(entry) => {
-            let secret_name = entry.api_key_secret.as_str();
+            let secret_name = entry.api_key_secret.as_ref().map_or("", |s| s.as_str());
             let key_present = sources
                 .secrets
                 .and_then(|s| s.get(secret_name))

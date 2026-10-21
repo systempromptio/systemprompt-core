@@ -27,6 +27,7 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayUpstreamRegistry;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
+use super::credentials::{BillingSource, KeyOwner};
 use super::{DispatchError, GatewayError, PolicyDenied};
 
 pub(super) struct ResolvedUpstream<'a> {
@@ -37,6 +38,8 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<GatewayRoute>,
     pub(super) scoped: bool,
+    pub(super) billing: BillingSource,
+    pub(super) owner: KeyOwner,
 }
 
 pub(super) async fn resolve_upstream<'a>(
@@ -45,6 +48,7 @@ pub(super) async fn resolve_upstream<'a>(
     request: &CanonicalRequest,
     attribution: &RequestAttribution,
     ai_request_id: &AiRequestId,
+    owner: KeyOwner,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     if !config.is_model_exposed(registry, request.model.as_str()) {
         tracing::warn!(
@@ -108,8 +112,11 @@ pub(super) async fn resolve_upstream<'a>(
     let mut bound = bind_route(
         registry,
         Cow::Owned(primary),
-        request.model.as_str(),
-        ai_request_id,
+        BindTarget {
+            requested_model: request.model.as_str(),
+            ai_request_id,
+            owner,
+        },
         route_match_descriptor,
     )
     .await?;
@@ -167,6 +174,19 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     let Some(view) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
+    // Why: a personal subscription and a deployment secret bill different
+    // accounts; a failover hop between them would move a request onto a bill
+    // nobody chose, so a chain only fails over within one credential source.
+    if view
+        .resolve(registry)
+        .is_some_and(|entry| entry.is_user_credential() != primary.provider.is_user_credential())
+    {
+        return Err(DispatchError::pre_audit(PolicyDenied(format!(
+            "deployment '{}' bills a different credential source than '{}'",
+            view.provider.as_str(),
+            primary.provider.name.as_str()
+        ))));
+    }
     let failover = format!("failover:{}", hop.hops.join("->"));
     let descriptor = Some(match primary.route_match_descriptor.as_deref() {
         Some(existing) => format!("{existing};{failover}"),
@@ -175,21 +195,34 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     bind_route(
         registry,
         Cow::Owned(view),
-        requested_model,
-        ai_request_id,
+        BindTarget {
+            requested_model,
+            ai_request_id,
+            owner: primary.owner.clone(),
+        },
         descriptor,
     )
     .await
     .map(Some)
 }
 
+struct BindTarget<'r> {
+    requested_model: &'r str,
+    ai_request_id: &'r AiRequestId,
+    owner: KeyOwner,
+}
+
 async fn bind_route<'a>(
     registry: &'a ProviderRegistry,
     route: Cow<'a, GatewayRoute>,
-    requested_model: &str,
-    ai_request_id: &AiRequestId,
+    target: BindTarget<'_>,
     route_match_descriptor: Option<String>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
+    let BindTarget {
+        requested_model,
+        ai_request_id,
+        owner,
+    } = target;
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::pre_audit(GatewayError::UndeclaredProvider {
             route: route.effective_id().to_string(),
@@ -199,7 +232,7 @@ async fn bind_route<'a>(
 
     enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
 
-    let call = super::credentials::resolve(provider).await?;
+    let (call, billing) = super::credentials::resolve(provider, &owner).await?;
 
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())
@@ -217,6 +250,8 @@ async fn bind_route<'a>(
         route_match_descriptor,
         deployments: Vec::new(),
         scoped: false,
+        billing,
+        owner,
     })
 }
 

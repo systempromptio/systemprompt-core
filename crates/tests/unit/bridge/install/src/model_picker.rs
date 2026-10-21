@@ -19,6 +19,8 @@ fn provider(configured: bool, models: &[&str]) -> ProviderHealth {
         configured,
         models: models.iter().map(|model| (*model).to_owned()).collect(),
         config_issue: (!configured).then(|| "credential absent".to_owned()),
+        display_name: None,
+        personal_key: false,
     }
 }
 

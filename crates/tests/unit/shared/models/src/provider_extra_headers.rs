@@ -20,7 +20,10 @@ fn anthropic_with(headers: &[(&str, &str)]) -> ProviderRegistry {
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com/v1".to_owned(),
-            api_key_secret: SecretName::new("anthropic"),
+            api_key_secret: Some(SecretName::new("anthropic")),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: headers
                 .iter()

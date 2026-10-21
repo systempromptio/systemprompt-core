@@ -8,9 +8,12 @@ use serde_json::Value;
 use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
+use crate::gui::hosts::handlers::PersonalKeyOp;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
-use super::args::{HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs};
+use super::args::{
+    HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs, PersonalKeyArgs,
+};
 use super::{CommandOutcome, parse, send};
 
 // JSON: webview IPC args — decoded per command with `parse::<T>`.
@@ -52,6 +55,26 @@ pub(super) fn host_dispatch(
             },
             Err(e) => CommandOutcome::Sync(Err(e)),
         },
+        "personalKeys.list" => personal_key(app, Ok(PersonalKeyOp::List), reply_id),
+        "personalKeys.set" => personal_key(
+            app,
+            parse::<PersonalKeyArgs>(args).and_then(|a| match a.api_key {
+                Some(api_key) => Ok(PersonalKeyOp::Set {
+                    provider: a.provider,
+                    api_key,
+                    label: a.label,
+                }),
+                None => Err(BridgeError::invalid_args("apiKey is required")),
+            }),
+            reply_id,
+        ),
+        "personalKeys.remove" => personal_key(
+            app,
+            parse::<PersonalKeyArgs>(args).map(|a| PersonalKeyOp::Remove {
+                provider: a.provider,
+            }),
+            reply_id,
+        ),
         "host.proxy.probe" => {
             send(
                 app,
@@ -142,6 +165,26 @@ pub(super) fn agent_dispatch(
         },
         _ => return None,
     })
+}
+
+fn personal_key(
+    app: &GuiApp,
+    op: Result<PersonalKeyOp, BridgeError>,
+    reply_id: ReplyId,
+) -> CommandOutcome {
+    match op {
+        Ok(op) => {
+            send(
+                app,
+                UiEvent::Host(HostUiEvent::PersonalKeyRequested {
+                    op,
+                    reply_to: reply_id,
+                }),
+            );
+            CommandOutcome::Async
+        },
+        Err(e) => CommandOutcome::Sync(Err(e)),
+    }
 }
 
 // JSON: webview IPC args — decoded per command with `parse::<T>`.

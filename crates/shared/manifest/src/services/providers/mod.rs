@@ -125,7 +125,17 @@ pub struct ProviderEntry {
 
     pub endpoint: String,
 
-    pub api_key_secret: SecretName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key_secret: Option<SecretName>,
+
+    #[serde(default, skip_serializing_if = "ProviderCredentialSource::is_platform")]
+    pub credential: ProviderCredentialSource,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub forward_headers: Vec<String>,
 
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
@@ -140,7 +150,60 @@ pub struct ProviderEntry {
     pub governance: ModelGovernance,
 }
 
+/// Whose credential serves a provider.
+///
+/// `platform` providers are served from the deployment secret named by
+/// `api_key_secret`. `user` providers are served only from a key the calling
+/// user stored for themselves (a personal subscription), never from a
+/// deployment secret, so one person's subscription is never spent on another.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderCredentialSource {
+    #[default]
+    Platform,
+    User,
+}
+
+impl ProviderCredentialSource {
+    #[must_use]
+    pub const fn is_platform(&self) -> bool {
+        matches!(self, Self::Platform)
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Platform => "platform",
+            Self::User => "user",
+        }
+    }
+}
+
 impl ProviderEntry {
+    #[must_use]
+    pub const fn is_user_credential(&self) -> bool {
+        matches!(self.credential, ProviderCredentialSource::User)
+    }
+
+    /// The deployment secret serving this provider; `None` for a
+    /// `credential: user` provider, which no deployment secret may serve.
+    #[must_use]
+    pub fn platform_secret(&self) -> Option<&SecretName> {
+        match self.credential {
+            ProviderCredentialSource::Platform => self.api_key_secret.as_ref(),
+            ProviderCredentialSource::User => None,
+        }
+    }
+
+    #[must_use]
+    pub fn forwards_header(&self, name: &str) -> bool {
+        self.forward_headers
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(name))
+    }
+
     #[must_use]
     pub fn find_model(&self, requested: &str) -> Option<&ProviderModel> {
         self.models.iter().find(|m| m.matches(requested))
@@ -259,6 +322,17 @@ impl ProviderRegistry {
                 source,
             })?;
             if let Some(header) = headers::reserved_name(provider.extra_headers.keys()) {
+                return Err(ProviderRegistryError::ReservedExtraHeader {
+                    provider: provider.name.as_str().to_owned(),
+                    header: header.to_owned(),
+                });
+            }
+            if provider.credential.is_platform() && provider.api_key_secret.is_none() {
+                return Err(ProviderRegistryError::MissingApiKeySecret {
+                    provider: provider.name.as_str().to_owned(),
+                });
+            }
+            if let Some(header) = headers::reserved_name(provider.forward_headers.iter()) {
                 return Err(ProviderRegistryError::ReservedExtraHeader {
                     provider: provider.name.as_str().to_owned(),
                     header: header.to_owned(),

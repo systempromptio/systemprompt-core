@@ -92,8 +92,20 @@ impl GatewayService {
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
-        let upstream =
-            resolve_upstream(config, registry, &request, &ctx.attribution, &ai_request_id).await?;
+        let owner = credentials::KeyOwner {
+            db: db.clone(),
+            user_id: ctx.user_id.clone(),
+        };
+        let upstream = resolve_upstream(
+            config,
+            registry,
+            &request,
+            &ctx.attribution,
+            &ai_request_id,
+            owner,
+        )
+        .await?;
+        let forward_headers = with_client_session(forward_headers, ctx.session_id.as_ref());
         let pricing = dispatch_pricing(&request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);
@@ -156,6 +168,9 @@ struct OpenedDispatch<'a> {
 
 async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
     let audit = &opened.audit;
+    if opened.upstream.billing == credentials::BillingSource::UserKey {
+        audit.bill_to_user_key();
+    }
     audit
         .pin_pricing(opened.pricing)
         .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;
@@ -228,6 +243,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
     commit_admission(&audit).await?;
+    audit.record_billing_source().await;
     crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
     let admitted_at = std::time::Instant::now();
@@ -265,4 +281,25 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     .await;
     stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
     Ok(attach_request_id(response, &ai_request_id))
+}
+
+const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
+
+// Why: OpenCode Go meters a subscription per `x-opencode-session`, and a
+// client that sends none (the bridge folds it into the chat body) would read
+// as one session per request. The derived value is stable per gateway session
+// and reaches only a provider whose `forward_headers` lists the header.
+fn with_client_session(
+    mut forward: Vec<(String, String)>,
+    session_id: Option<&systemprompt_identifiers::SessionId>,
+) -> Vec<(String, String)> {
+    let present = forward
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case(OPENCODE_SESSION_HEADER));
+    if let (false, Some(session)) = (present, session_id) {
+        let digest = crate::audit::payload::digest_hex(session.as_str().as_bytes());
+        let derived = format!("ses_{}", digest.get(..26).unwrap_or(&digest));
+        forward.push((OPENCODE_SESSION_HEADER.to_owned(), derived));
+    }
+    forward
 }

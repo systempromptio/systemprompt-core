@@ -4,7 +4,7 @@
 //! (`ai_requests`, `ai_request_messages`, `ai_tool_calls`,
 //! `ai_request_payloads`, `ai_request_client_evidence`, `ai_quota_buckets`,
 //! `ai_safety_findings`, `ai_gateway_policies`,
-//! `ai_gateway_thought_signatures`).
+//! `ai_gateway_thought_signatures`, `user_provider_credentials`).
 //!
 //! All repositories return [`systemprompt_traits::RepositoryError`]. Services
 //! are the only callers — repositories never execute application logic.
@@ -21,6 +21,7 @@ pub mod ai_safety_findings;
 pub mod ai_usage_anomaly;
 pub mod ownership;
 pub mod thought_signatures;
+pub mod user_provider_credentials;
 
 use systemprompt_database::DbPool;
 
@@ -42,6 +43,7 @@ pub use ai_safety_findings::{
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
+pub use user_provider_credentials::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 
 #[derive(Debug, Clone)]
 pub struct AiRepositories {

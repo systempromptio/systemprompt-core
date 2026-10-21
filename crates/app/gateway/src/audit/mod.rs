@@ -96,6 +96,7 @@ pub struct GatewayAudit {
     quota_buckets: AiQuotaBucketRepository,
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
     admission: Mutex<Option<admission::PendingAdmission>>,
+    user_key_billing: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Debug, Default)]
@@ -125,6 +126,7 @@ impl GatewayAudit {
             quota_buckets: repos.quota_buckets.clone(),
             quota_reservation: Mutex::new(None),
             admission: Mutex::new(None),
+            user_key_billing: std::sync::atomic::AtomicBool::new(false),
         }
     }
 

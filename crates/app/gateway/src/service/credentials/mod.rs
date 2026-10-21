@@ -20,11 +20,40 @@
 
 pub mod google;
 
+use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
 
-use super::DispatchError;
+use super::{DispatchError, GatewayError};
+
+/// Whose account an upstream call bills, recorded as
+/// `ai_requests.billing_source`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BillingSource {
+    Platform,
+    UserKey,
+}
+
+impl BillingSource {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Platform => "platform",
+            Self::UserKey => "user_key",
+        }
+    }
+}
+
+/// The caller a `credential: user` provider is served for: their stored key
+/// is the only credential such a provider may present.
+#[derive(Debug, Clone)]
+pub struct KeyOwner {
+    pub db: DbPool,
+    pub user_id: UserId,
+}
 
 pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, CredentialError> {
     let scope = CredentialScope {
@@ -34,9 +63,31 @@ pub fn fill_project(endpoint: &str, project: Option<&str>) -> Result<String, Cre
     fill_endpoint(endpoint, &scope)
 }
 
-pub(super) async fn resolve(provider: &ProviderEntry) -> Result<UpstreamCall, DispatchError> {
-    let target = UpstreamTarget::from_secrets(provider).map_err(pre_audit)?;
-    target.call().await.map_err(pre_audit)
+pub async fn resolve(
+    provider: &ProviderEntry,
+    owner: &KeyOwner,
+) -> Result<(UpstreamCall, BillingSource), DispatchError> {
+    if !provider.is_user_credential() {
+        let target = UpstreamTarget::from_secrets(provider).map_err(pre_audit)?;
+        let call = target.call().await.map_err(pre_audit)?;
+        return Ok((call, BillingSource::Platform));
+    }
+    let name = provider.name.as_str();
+    let key = UserProviderCredentialRepository::new(&owner.db)
+        .find_key(&owner.user_id, name)
+        .await
+        .map_err(|e| {
+            DispatchError::pre_audit(GatewayError::internal("personal key lookup failed", e))
+        })?
+        .ok_or_else(|| {
+            DispatchError::pre_audit(GatewayError::PersonalKeyRequired {
+                provider: name.to_owned(),
+            })
+        })?;
+    let target = UpstreamTarget::resolve_personal(provider, &key, owner.user_id.as_str())
+        .map_err(pre_audit)?;
+    let call = target.call().await.map_err(pre_audit)?;
+    Ok((call, BillingSource::UserKey))
 }
 
 fn pre_audit(error: UpstreamTargetError) -> DispatchError {

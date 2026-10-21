@@ -138,7 +138,10 @@ pub(super) fn provider_registry(
             wire,
             surface,
             endpoint: endpoint.to_owned(),
-            api_key_secret: SecretName::new(API_KEY_SECRET),
+            api_key_secret: Some(SecretName::new(API_KEY_SECRET)),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: HashMap::new(),
             accepted_betas: None,
@@ -825,7 +828,7 @@ async fn missing_api_key_secret_is_pre_audit_error() -> anyhow::Result<()> {
         WireProtocol::Anthropic,
         ApiSurface::Anthropic,
     );
-    registry.providers[0].api_key_secret = SecretName::new("definitely_absent_secret_key");
+    registry.providers[0].api_key_secret = Some(SecretName::new("definitely_absent_secret_key"));
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 

@@ -80,9 +80,9 @@ pub use plugin::{
     PluginAuthor, PluginConfig, PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
 };
 pub use providers::{
-    DiscoveryReport, DocumentedLaunchStage, ProviderEntry, ProviderModel, ProviderRegistry,
-    ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS, VertexRateCard,
-    VertexRateCardEntry,
+    DiscoveryReport, DocumentedLaunchStage, ProviderCredentialSource, ProviderEntry, ProviderModel,
+    ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
+    VertexRateCard, VertexRateCardEntry,
 };
 pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};

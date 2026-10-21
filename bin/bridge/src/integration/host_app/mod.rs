@@ -85,6 +85,7 @@ pub struct GeneratedProfile {
 pub enum HostAppKind {
     DesktopApp,
     CliTool,
+    DesktopAndCli,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]

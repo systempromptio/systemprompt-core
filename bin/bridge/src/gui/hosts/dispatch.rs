@@ -86,5 +86,13 @@ pub(crate) fn handle(app: &mut GuiApp, event: HostUiEvent) {
         HostUiEvent::UnattendedRepairFinished { host_id, report } => {
             handlers::on_unattended_repair_finished(app, host_id, &report);
         },
+        HostUiEvent::PersonalKeyRequested { op, reply_to } => {
+            handlers::on_personal_key_requested(app, op, reply_to);
+        },
+        HostUiEvent::PersonalKeyFinished {
+            result,
+            resync,
+            reply_to,
+        } => handlers::on_personal_key_finished(app, result, resync, reply_to),
     }
 }
