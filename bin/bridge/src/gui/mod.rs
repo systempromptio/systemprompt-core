@@ -7,6 +7,7 @@ pub mod command;
 pub mod dispatch;
 pub mod emit;
 pub mod error;
+mod event_kind;
 pub mod events;
 pub mod first_run;
 pub mod handlers;
