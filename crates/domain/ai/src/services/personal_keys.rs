@@ -51,14 +51,25 @@ pub fn personal_provider(
         .ok_or_else(|| PersonalKeyError::NotPersonalProvider(name.to_owned()))
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct PersonalKeyRequest<'a> {
+    pub user_id: &'a UserId,
+    pub provider: &'a str,
+    pub key: &'a str,
+    pub label: Option<&'a str>,
+}
+
 pub async fn store_personal_key(
     credentials: &UserProviderCredentialRepository,
     registry: &ProviderRegistry,
-    user_id: &UserId,
-    provider: &str,
-    key: &str,
-    label: Option<&str>,
+    request: PersonalKeyRequest<'_>,
 ) -> Result<UserProviderCredentialMeta, PersonalKeyError> {
+    let PersonalKeyRequest {
+        user_id,
+        provider,
+        key,
+        label,
+    } = request;
     let entry = personal_provider(registry, provider)?;
     let key = key.trim();
     if key.is_empty() || key.len() > MAX_KEY_BYTES {

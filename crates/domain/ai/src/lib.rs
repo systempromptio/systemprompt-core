@@ -89,6 +89,7 @@ pub use repository::{
 };
 
 pub use services::personal_keys::{
-    PersonalKeyError, personal_provider, personal_providers, provider_label, store_personal_key,
+    PersonalKeyError, PersonalKeyRequest, personal_provider, personal_providers, provider_label,
+    store_personal_key,
 };
 pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};

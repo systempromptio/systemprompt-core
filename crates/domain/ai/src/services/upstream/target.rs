@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_identifiers::{ProviderId, UserId};
+use systemprompt_identifiers::{ProviderId, SecretName, UserId};
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 use systemprompt_wire::anthropic::AnthropicBeta;
@@ -105,7 +105,7 @@ impl UpstreamTarget {
     pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
-        let Some(secret_name) = entry.platform_secret().map(|name| name.as_str()) else {
+        let Some(secret_name) = entry.platform_secret().map(SecretName::as_str) else {
             return Err(UpstreamTargetError::UserCredentialProvider {
                 provider: entry.name.as_str().to_owned(),
             });

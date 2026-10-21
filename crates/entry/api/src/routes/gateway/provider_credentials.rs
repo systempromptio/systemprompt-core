@@ -19,7 +19,7 @@ use axum::routing::{get, put};
 use axum::{Json, Router};
 use systemprompt_ai::repository::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 use systemprompt_ai::{
-    PersonalKeyError, personal_provider, personal_providers, store_personal_key,
+    PersonalKeyError, PersonalKeyRequest, personal_provider, personal_providers, store_personal_key,
 };
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::ProviderEntry;
@@ -67,10 +67,12 @@ pub async fn set(
     let meta = store_personal_key(
         repository(&ctx),
         &services.providers,
-        &claims.user_id,
-        &provider,
-        &body.api_key,
-        body.label.as_deref(),
+        PersonalKeyRequest {
+            user_id: &claims.user_id,
+            provider: &provider,
+            key: &body.api_key,
+            label: body.label.as_deref(),
+        },
     )
     .await
     .map_err(key_error)?;

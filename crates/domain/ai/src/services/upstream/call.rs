@@ -64,7 +64,7 @@ impl UpstreamCall {
     pub fn forwards(&self, wire: WireProtocol, name: &str) -> bool {
         let lower = name.to_ascii_lowercase();
         (wire == WireProtocol::Anthropic && lower.starts_with(ANTHROPIC_HEADER_PREFIX))
-            || self.forward_headers.iter().any(|allowed| *allowed == lower)
+            || self.forward_headers.contains(&lower)
     }
 
     #[must_use]
