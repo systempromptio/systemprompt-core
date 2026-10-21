@@ -26,9 +26,11 @@ use super::content::{CanonicalContent, CanonicalMessage, Role};
 
 pub const INTERRUPTED_TOOL_RESULT: &str = "tool call interrupted";
 
-/// Which non-assistant roles a wire folds into one user turn: `UserSide`
-/// (Anthropic, Gemini) folds system, tool and user alike; `UserAndTool`
-/// (the `OpenAI` wires) keeps a mid-history system message as its own item.
+/// Which non-assistant roles a wire folds into one user turn.
+///
+/// `UserSide` (Anthropic, Gemini) folds system, tool and user alike;
+/// `UserAndTool` (the `OpenAI` wires) keeps a mid-history system message as
+/// its own item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TurnMerge {
     UserSide,
