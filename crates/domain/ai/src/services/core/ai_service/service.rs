@@ -152,6 +152,14 @@ impl AiService {
                 continue;
             };
 
+            // Why: a personal-subscription provider is served only through the
+            // gateway, per caller, from that caller's stored key; the
+            // in-process service has no caller to bind one to.
+            if entry.is_user_credential() {
+                tracing::debug!(provider = %name, "personal-key provider left to the gateway");
+                continue;
+            }
+
             // Why: a provider without a usable credential cannot serve a
             // request; registering it would fail every call at the wire
             // instead of at boot, so it is withheld and reported.
