@@ -9,10 +9,10 @@
 //! ids are left to discovery, which carries their real pricing and labels.
 //!
 //! Only Anthropic-surface providers contribute rows: Claude Code stays on the
-//! Claude family and its Anthropic-wire peers, while OpenAI- and Google-surface
-//! catalogs (DeepSeek, OpenCode Go) belong to the hosts that speak them. A
-//! personal-subscription provider never contributes: its terms admit only the
-//! clients it names.
+//! Claude family and its Anthropic-wire peers, while `OpenAI`- and
+//! Google-surface catalogs (`DeepSeek`, `OpenCode` Go) belong to the hosts that
+//! speak them. A personal-subscription provider never contributes: its terms
+//! admit only the clients it names.
 //!
 //! This is Claude Code only. Claude Desktop's `inferenceModels` policy must
 //! stay Anthropic-only (`crate::install::mdm::policy` enforces it); Desktop

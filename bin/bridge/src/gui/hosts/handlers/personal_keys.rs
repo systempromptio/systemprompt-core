@@ -1,9 +1,9 @@
-//! Personal provider keys (personal subscriptions such as OpenCode Go): list,
+//! Personal provider keys (personal subscriptions such as `OpenCode` Go): list,
 //! store and remove the signed-in user's keys through the gateway.
 //!
 //! A stored or removed key changes which models the gateway profile serves
 //! this user, so a successful write re-runs sync, which rewrites every host
-//! config (OpenCode's `opencode.json` among them) from the fresh profile.
+//! config (`OpenCode`'s `opencode.json` among them) from the fresh profile.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
