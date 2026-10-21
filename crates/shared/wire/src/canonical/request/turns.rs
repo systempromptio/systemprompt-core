@@ -112,6 +112,7 @@ fn tool_use_ids(msg: &CanonicalMessage) -> Vec<String> {
 fn repair_tool_pairing(messages: Vec<CanonicalMessage>, merge: TurnMerge) -> Vec<CanonicalMessage> {
     let mut out: Vec<CanonicalMessage> = Vec::with_capacity(messages.len() + 1);
     let mut pending: Vec<String> = Vec::new();
+    let mut server_tools = false;
     for mut msg in messages {
         match merge.side(msg.role) {
             Side::Assistant => {
@@ -119,9 +120,10 @@ fn repair_tool_pairing(messages: Vec<CanonicalMessage>, merge: TurnMerge) -> Vec
                     out.push(interrupted_turn(&pending));
                 }
                 pending = tool_use_ids(&msg);
+                server_tools = has_server_tool_block(&msg);
             },
             Side::User => {
-                answer_pending(&mut msg.content, &pending);
+                answer_pending(&mut msg.content, &pending, server_tools);
                 pending.clear();
             },
             Side::System => {
@@ -139,11 +141,20 @@ fn repair_tool_pairing(messages: Vec<CanonicalMessage>, merge: TurnMerge) -> Vec
     out
 }
 
-fn answer_pending(content: &mut Vec<CanonicalContent>, pending: &[String]) {
+// Why: an Anthropic server tool (tool search, web search) pairs its own
+// blocks upstream, so a result after one is not provably orphaned and is kept.
+fn has_server_tool_block(msg: &CanonicalMessage) -> bool {
+    msg.content
+        .iter()
+        .any(|part| matches!(part, CanonicalContent::AnthropicToolBlock { .. }))
+}
+
+fn answer_pending(content: &mut Vec<CanonicalContent>, pending: &[String], keep_unpaired: bool) {
     let mut answered: HashSet<String> = HashSet::new();
     content.retain(|part| match part {
         CanonicalContent::ToolResult { tool_use_id, .. } => {
-            pending.contains(tool_use_id) && answered.insert(tool_use_id.clone())
+            (pending.contains(tool_use_id) || keep_unpaired)
+                && answered.insert(tool_use_id.clone())
         },
         _ => true,
     });
