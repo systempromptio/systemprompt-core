@@ -68,7 +68,6 @@ pub fn warn_if_version_drifts() {
     }
 }
 
-/// True when two versions share major and minor (`0.71.3` and `0.71.0`).
 #[must_use]
 pub fn same_minor(a: &str, b: &str) -> bool {
     match (semver::Version::parse(a), semver::Version::parse(b)) {

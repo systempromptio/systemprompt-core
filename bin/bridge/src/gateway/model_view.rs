@@ -98,8 +98,6 @@ pub struct HostModelView {
     pub checked: bool,
     pub available: bool,
     pub unconfigured_providers: Vec<String>,
-    /// Personal-subscription providers this host could use once the user
-    /// stores their own key, by display name.
     pub missing_personal_keys: Vec<String>,
 }
 

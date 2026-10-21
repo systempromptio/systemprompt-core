@@ -49,8 +49,6 @@ pub fn usable_sessions() -> Result<Vec<CoworkSessionChoice>, ResolveTargetError>
         .collect())
 }
 
-/// Pins `path` as the Cowork session. Only a session [`usable_sessions`]
-/// lists is accepted, so the webview cannot point the bridge anywhere else.
 pub fn choose_session(path: &Path) -> Result<(), ChooseSessionError> {
     let wanted = path.display().to_string();
     if !usable_sessions()?.iter().any(|c| c.path == wanted) {

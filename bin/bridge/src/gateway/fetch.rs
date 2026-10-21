@@ -172,8 +172,6 @@ impl GatewayClient {
         self.fetch_release(bearer, platform, false).await
     }
 
-    /// The latest release as of now: asks the gateway to bypass its release
-    /// cache, for a check the person started by hand.
     pub async fn fetch_latest_release_fresh(
         &self,
         bearer: &BearerToken,

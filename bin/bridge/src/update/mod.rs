@@ -148,8 +148,6 @@ pub async fn check(
     Ok((status, manifest))
 }
 
-/// [`check`] for a person who clicked "Check for updates": the gateway skips
-/// its release cache, so a release published minutes ago is seen.
 pub async fn check_now(
     client: &GatewayClient,
     bearer: &BearerToken,

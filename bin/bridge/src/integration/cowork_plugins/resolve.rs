@@ -18,8 +18,6 @@ use crate::fsutil;
 
 use super::emit::CoworkTarget;
 
-/// The shortest org-id prefix accepted as naming an org: Cowork abbreviates
-/// org directories to the first UUID group.
 const MIN_ORG_PREFIX: usize = 8;
 
 /// Why the Cowork session directory could not be resolved: the machine has
@@ -65,8 +63,6 @@ pub fn resolve_target() -> Result<Option<CoworkTarget>, ResolveTargetError> {
     Ok(pick_target(&candidates)?.map(target_for))
 }
 
-/// Every Cowork org-session directory on this machine with its mtime, or
-/// `None` when Cowork has never created its session tree.
 pub fn enumerate_candidates() -> Result<Option<Vec<(SystemTime, PathBuf)>>, ResolveTargetError> {
     let Some(sessions_root) = paths::cowork3p_sessions_root() else {
         return Ok(None);
@@ -171,8 +167,6 @@ fn normalized(id: &str) -> String {
         .collect()
 }
 
-/// True when a session directory name names `org`: the same UUID, or one is
-/// a prefix of the other at least eight characters long.
 #[must_use]
 pub fn dir_names_org(dir_name: &str, org: &str) -> bool {
     let dir = normalized(dir_name);
@@ -181,7 +175,6 @@ pub fn dir_names_org(dir_name: &str, org: &str) -> bool {
     shorter >= MIN_ORG_PREFIX && dir.get(..shorter) == org.get(..shorter)
 }
 
-/// The one usable candidate whose directory names `org`, if exactly one does.
 #[must_use]
 pub fn match_org(candidates: &[(SystemTime, PathBuf)], org: &str) -> Option<PathBuf> {
     let mut matching = candidates.iter().map(|(_, p)| p).filter(|p| {
@@ -194,7 +187,6 @@ pub fn match_org(candidates: &[(SystemTime, PathBuf)], org: &str) -> Option<Path
     Some(first.clone())
 }
 
-/// [`pick_target`], preferring the session that names this organization.
 pub fn pick_target_for_org(
     candidates: &[(SystemTime, PathBuf)],
     org: Option<&str>,

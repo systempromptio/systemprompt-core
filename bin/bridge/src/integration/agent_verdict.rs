@@ -123,8 +123,6 @@ pub enum AgentAction {
 }
 
 impl AgentVerdict {
-    /// Several Cowork org sessions are usable and none names this
-    /// organization: only the person can say which one is theirs.
     #[must_use]
     pub fn with_cowork_session_ambiguous(self) -> Self {
         Self {
