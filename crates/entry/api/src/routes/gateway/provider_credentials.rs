@@ -12,7 +12,8 @@
 
 use std::sync::Arc;
 
-use axum::Json;
+use axum::routing::{get, put};
+use axum::{Json, Router};
 use axum::extract::Path;
 use axum::extract::rejection::JsonRejection;
 use axum::http::{HeaderMap, StatusCode};
@@ -136,4 +137,35 @@ fn status_row(
         verified_at: meta.and_then(|m| m.verified_at),
         last_used_at: meta.and_then(|m| m.last_used_at),
     }
+}
+
+pub(super) fn routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
+    let ctx_list = ctx.clone();
+    let ctx_set = ctx.clone();
+    let ctx_delete = ctx.clone();
+    let jwt_list = Arc::clone(jwt_extractor);
+    let jwt_set = Arc::clone(jwt_extractor);
+    let jwt_delete = Arc::clone(jwt_extractor);
+    Router::new()
+        .route(
+            "/me/provider-credentials",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_list);
+                let context = ctx_list.clone();
+                async move { list(extractor, context, headers).await }
+            }),
+        )
+        .route(
+            "/me/provider-credentials/{provider}",
+            put(move |headers, path, body| {
+                let extractor = Arc::clone(&jwt_set);
+                let context = ctx_set.clone();
+                async move { set(extractor, context, headers, path, body).await }
+            })
+            .delete(move |headers, path| {
+                let extractor = Arc::clone(&jwt_delete);
+                let context = ctx_delete.clone();
+                async move { delete(extractor, context, headers, path).await }
+            }),
+        )
 }

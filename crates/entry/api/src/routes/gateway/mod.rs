@@ -59,7 +59,7 @@ use systemprompt_traits::AppContext as _;
 use self::access_log::log_gateway_request;
 use self::routers::{
     bridge_auth_routes, bridge_profile_routes, bridge_release_routes, bridge_session_routes,
-    inference_routes, otel_routes, provider_credential_routes,
+    inference_routes, otel_routes,
 };
 use crate::services::middleware::{
     JtiRevocationChecker, JwtContextExtractor, RateLimitState, RouterExt,
@@ -121,7 +121,7 @@ fn gateway_parts(ctx: &AppContext) -> anyhow::Result<GatewayParts> {
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
-            .merge(provider_credential_routes(ctx, &jwt_extractor))
+            .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))
             .route("/models", get(models::list))
