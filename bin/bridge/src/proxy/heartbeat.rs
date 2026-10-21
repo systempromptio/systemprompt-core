@@ -46,8 +46,14 @@ pub async fn run_loop(
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     interval.tick().await;
     let mut waiting_for_sign_in = false;
+    let mut staging = tokio::task::JoinSet::new();
     loop {
         interval.tick().await;
+        while let Some(finished) = staging.try_join_next() {
+            if let Err(error) = finished {
+                tracing::error!(%error, "required-release staging task did not complete");
+            }
+        }
         let cfg = runtime_config.load_full();
         flush_feedback(cfg.gateway_base.as_str(), Arc::clone(&session)).await;
         if token_cache.sign_in_required() {
@@ -64,6 +70,7 @@ pub async fn run_loop(
             session.as_ref(),
             stats.as_ref(),
             &client,
+            &mut staging,
         )
         .await
         {
@@ -97,6 +104,7 @@ async fn send_one(
     session: &SessionContext,
     stats: &ProxyStats,
     client: &reqwest::Client,
+    staging: &mut tokio::task::JoinSet<()>,
 ) -> Result<(), HeartbeatError> {
     let token = token_cache
         .current(HEARTBEAT_AUTH_THRESHOLD_SECS)
@@ -144,7 +152,7 @@ async fn send_one(
             "gateway reports this bridge as unsupported",
         );
         // Why: a staging download can take minutes; the heartbeat keeps its pace.
-        tokio::spawn(stage_required_release(
+        staging.spawn(stage_required_release(
             gateway_base.clone(),
             token.token.clone(),
             client.clone(),
