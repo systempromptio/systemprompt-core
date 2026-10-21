@@ -3,7 +3,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{AiRequestId, TraceId, UserId};
 
 use super::{Result, TraceRepository};
@@ -40,56 +39,6 @@ struct DetailRow {
     evidence_sdk_arch: Option<String>,
 }
 
-struct ListRow {
-    id: AiRequestId,
-    created_at: DateTime<Utc>,
-    trace_id: Option<TraceId>,
-    user_id: UserId,
-    actor_kind: String,
-    actor_id: String,
-    client_kind: String,
-    client_attestation: String,
-    provider: Option<String>,
-    model: Option<String>,
-    input_tokens: Option<i32>,
-    output_tokens: Option<i32>,
-    cache_read_tokens: Option<i32>,
-    cache_creation_tokens: Option<i32>,
-    reasoning_tokens: Option<i32>,
-    cost_microdollars: i64,
-    latency_ms: Option<i32>,
-    status: String,
-    finish_reason: Option<String>,
-    billing_source: String,
-}
-
-impl From<ListRow> for AiRequestListItem {
-    fn from(r: ListRow) -> Self {
-        Self {
-            id: r.id,
-            created_at: r.created_at,
-            trace_id: r.trace_id,
-            user_id: r.user_id,
-            actor_kind: r.actor_kind,
-            actor_id: r.actor_id,
-            client_kind: r.client_kind,
-            client_attestation: r.client_attestation,
-            provider: r.provider,
-            model: r.model,
-            input_tokens: r.input_tokens,
-            output_tokens: r.output_tokens,
-            cache_read_tokens: r.cache_read_tokens,
-            cache_creation_tokens: r.cache_creation_tokens,
-            reasoning_tokens: r.reasoning_tokens,
-            cost_microdollars: r.cost_microdollars,
-            latency_ms: r.latency_ms,
-            status: r.status,
-            finish_reason: r.finish_reason,
-            billing_source: r.billing_source,
-        }
-    }
-}
-
 impl TraceRepository {
     pub async fn list_ai_requests(
         &self,
@@ -105,7 +54,7 @@ impl TraceRepository {
         let billing_source = filter.billing_source.as_deref();
         let limit = filter.limit;
         let rows = sqlx::query_as!(
-            ListRow,
+            AiRequestListItem,
             r#"
         SELECT
             id as "id!: AiRequestId",
@@ -148,7 +97,7 @@ impl TraceRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(AiRequestListItem::from).collect())
+        Ok(rows)
     }
 
     pub async fn find_ai_request_detail(&self, id: &str) -> Result<Option<AiRequestDetail>> {
