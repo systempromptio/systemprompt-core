@@ -43,14 +43,24 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) owner: KeyOwner,
 }
 
+pub(super) struct UpstreamQuery<'r> {
+    pub(super) request: &'r CanonicalRequest,
+    pub(super) attribution: &'r RequestAttribution,
+    pub(super) ai_request_id: &'r AiRequestId,
+    pub(super) owner: KeyOwner,
+}
+
 pub(super) async fn resolve_upstream<'a>(
     config: &'a GatewayConfig,
     registry: &'a ProviderRegistry,
-    request: &CanonicalRequest,
-    attribution: &RequestAttribution,
-    ai_request_id: &AiRequestId,
-    owner: KeyOwner,
+    query: UpstreamQuery<'_>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
+    let UpstreamQuery {
+        request,
+        attribution,
+        ai_request_id,
+        owner,
+    } = query;
     if !config.is_model_exposed(registry, request.model.as_str()) {
         tracing::warn!(
             ai_request_id = %ai_request_id,

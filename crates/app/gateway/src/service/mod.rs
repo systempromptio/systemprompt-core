@@ -47,7 +47,7 @@ use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
-use self::resolve::{ResolvedUpstream, resolve_upstream};
+use self::resolve::{ResolvedUpstream, UpstreamQuery, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
@@ -102,10 +102,12 @@ impl GatewayService {
         let upstream = resolve_upstream(
             config,
             registry,
-            &request,
-            &ctx.attribution,
-            &ai_request_id,
-            owner,
+            UpstreamQuery {
+                request: &request,
+                attribution: &ctx.attribution,
+                ai_request_id: &ai_request_id,
+                owner,
+            },
         )
         .await?;
         let forward_headers = with_client_session(forward_headers, ctx.session_id.as_ref());
