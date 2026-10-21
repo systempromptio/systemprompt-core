@@ -12,6 +12,12 @@
 - **Breaking:** `systemprompt_gateway::service::resolve::{describe_route_match, enforce_route_requirements}` moved to `service::route_match`; `install_recorder` takes the extensions' `MetricDescriptor`s.
 - **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After`.
 - **Breaking:** a Cloud Storage object's ETag is its quoted generation on both `HEAD` and `GET`, so ETags cached by clients change once.
+- **Breaking:** the exhaustive error enums for personal-key providers gain variants: `UpstreamTargetError::UserCredentialProvider` (`systemprompt-ai`), `GatewayError::PersonalKeyRequired` (`systemprompt-gateway`), `ProviderRegistryError::MissingApiKeySecret` (`systemprompt-manifest`, a `credential: platform` provider without `api_key_secret`) and `BridgeError::{NotPersonalProvider, PersonalKeyRejected, PersonalKeyUnverified}` (`systemprompt-api`), so exhaustive matches need the new arms.
+- **Breaking:** `systemprompt_api::routes::gateway::bridge::profile` takes the `JwtContextExtractor`, the `AppContext` and the request `HeaderMap`, and `routes::oauth::endpoints::callback` (with `handle_callback` and `CallbackQuery`) is removed along with the route. Migrate by mounting the router `systemprompt-api` builds rather than calling the handlers directly.
+- **Breaking:** the OAuth state-binding repository surface is removed: `OAuthRepository::{store_state_binding, consume_state_binding, find_client_by_redirect_uri_with_scope}`, `ClientRepository::{find_by_redirect_uri, find_by_redirect_uri_with_scope}` and `OauthCleanupRepository::delete_expired_state_bindings`. Migrate by resolving clients with `ClientRepository::find_by_client_id`.
+- **Breaking:** `ConfigReconcileService::apply` takes an `EntityScope` (pass `EntityScope::All` for the previous whole-plane apply), and `PlaneDiff` gains `effect`, so struct literals need the new field.
+- **Breaking:** `AiRequestFilter` gains `billing_source`, so struct literals need the new field (`None` keeps the previous unfiltered list).
+- **Breaking:** the `admin config planes` CLI types change: `PlanesCommands` gains `Export`, `ModeArg` gains `SeedIfEmpty`, `ApplyArgs` gains `entities` and `RequestListRow` gains `billing`, so exhaustive matches and struct literals of these types need the new arms and fields.
 
 ### Added
 
