@@ -11,6 +11,7 @@
 pub mod abandon;
 mod admission;
 pub mod chain_plan;
+mod client_session;
 pub mod credentials;
 mod error;
 pub mod failover;
@@ -20,6 +21,7 @@ mod opening;
 mod pricing;
 mod rate;
 pub mod resolve;
+pub mod route_match;
 pub mod stages;
 
 pub use self::error::{
@@ -44,6 +46,7 @@ use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
+use self::client_session::with_client_session;
 use self::resolve::{ResolvedUpstream, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::phases::GatewayPhase;
@@ -281,25 +284,4 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     .await;
     stages::recovery::attach_recovery_count(&mut response, scanned.recovery_count());
     Ok(attach_request_id(response, &ai_request_id))
-}
-
-const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
-
-// Why: OpenCode Go meters a subscription per `x-opencode-session`, and a
-// client that sends none (the bridge folds it into the chat body) would read
-// as one session per request. The derived value is stable per gateway session
-// and reaches only a provider whose `forward_headers` lists the header.
-fn with_client_session(
-    mut forward: Vec<(String, String)>,
-    session_id: Option<&systemprompt_identifiers::SessionId>,
-) -> Vec<(String, String)> {
-    let present = forward
-        .iter()
-        .any(|(name, _)| name.eq_ignore_ascii_case(OPENCODE_SESSION_HEADER));
-    if let (false, Some(session)) = (present, session_id) {
-        let digest = crate::audit::payload::digest_hex(session.as_str().as_bytes());
-        let derived = format!("ses_{}", digest.get(..26).unwrap_or(&digest));
-        forward.push((OPENCODE_SESSION_HEADER.to_owned(), derived));
-    }
-    forward
 }

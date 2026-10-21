@@ -8,7 +8,7 @@
 //! reason is recorded under its own tag, and a route chosen by more than one
 //! reason keeps all of them.
 
-use systemprompt_gateway::service::resolve::describe_route_match;
+use systemprompt_gateway::service::route_match::describe_route_match;
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_manifest::services::{GatewayRoute, RouteRequirements};
 
