@@ -13,6 +13,7 @@
 
 ### Added
 
+- **Gateway:** a provider declared `credential: user` serves each member on their own subscription key. `store_personal_key` seals and verifies a key (against `/models`, or a one-token probe where the upstream has none) into `user_provider_credentials`, the gateway resolves it per request, and every request records its `billing_source`. `ai_usage_rollup_hourly` carries the personal-key request, token and cost totals, so the cost breakdown splits platform from member spend, and the CLI request list and cost breakdown show the billing source. Claude Code's model picker lists only Anthropic-surface, platform-keyed providers.
 - **Marketplace:** `NativeGitSourceCapture::with_certificate_authority` trusts a private Git host's CA for `ls-remote` and fetch.
 - **CLI:** `admin config planes` runs against a supplied `AppContext` (`planes::run`), and `OpsSampler` exposes one metrics sampling pass.
 - **Config planes:** `ConfigPlane::depends_on` orders planes (boot refuses an unknown dependency or a cycle), `effect` reports whether a change applies live or on restart, `export` renders a plane's rows as a declaration, and scoped apply (`EntityScope`) is available to planes that opt in; `admin config planes export --plane <p> [--out <file>]`, `apply --entity` and `apply --mode seed-if-empty` drive them, and `ExtensionContext::config_planes()` hands an extension the plane set.
