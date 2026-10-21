@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- `x-opencode-*` headers are relayed upstream to a provider whose `forward_headers` lists them.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

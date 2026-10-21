@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- Providers accept `credential: platform | user`, `user_agent` and `forward_headers`; `ProviderEntry::is_user_credential`, `platform_secret` and `forwards_header`.
+- `Secrets::custom_secret` reads a custom secret from the profile's secrets source.
+
+### Changed
+
+- **Breaking:** `ProviderEntry::api_key_secret` is `Option<SecretName>` and `ProviderEntry` gains `credential`, `user_agent` and `forward_headers`.
+- **Breaking:** `profile::PlaneAuthority` is re-exported from `systemprompt-provider-contracts`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

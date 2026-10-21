@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Removed
+
+- **Breaking:** the state-binding repository (`StateBindingParams`, `StateBindingRow`, `store_state_binding`, `consume_state_binding`), the `find_*_by_redirect_uri*` client lookups, `delete_expired_state_bindings` with `OauthCleanupCounts::state_bindings`, and `token::COOKIE_MAX_AGE_SECONDS`. The `oauth_state_bindings` table is kept unused for rolling updates from 0.70.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

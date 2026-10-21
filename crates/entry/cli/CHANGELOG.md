@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `admin config planes export --plane <p> [--out <file>]`, `apply --entity` and `apply --mode seed-if-empty`; `planes::run` executes against a supplied `AppContext`.
+- `infra logs request list` shows a billing column and takes `--billing-source platform|user_key`; `analytics costs breakdown --by billing-source` splits platform from member spend.
+
+### Fixed
+
+- `admin users restore` and `admin users legal-hold` resolve archived accounts by id, email or name.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

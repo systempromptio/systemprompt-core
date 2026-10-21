@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `ProviderCredentialStatus` and `SetProviderCredentialRequest` for `/v1/me/provider-credentials`.
+
+### Changed
+
+- **Breaking:** `ProviderHealth` gains `display_name` and `personal_key`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

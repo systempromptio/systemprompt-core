@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `UserService::find_by_reference_any_status` resolves an id, email or name across every status, archived accounts included.
+
+### Changed
+
+- Governance types are imported from `systemprompt-governance`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

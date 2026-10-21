@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- Comments describe current behaviour; no functional change.
+
 ## [0.70.0] - 2026-10-18
 
 ### Changed

@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `user_provider_credentials` (migration 044) holds each member's sealed personal key; `UserProviderCredentialRepository` sets, finds, lists and deletes them.
+- `store_personal_key` (taking a `PersonalKeyRequest`), `personal_providers`, `personal_provider` and `provider_label`: a key is verified against `/models`, or a one-token completion where the upstream has none (`401`/`403` rejects it), then sealed and stored.
+- `AiRequestRepository::update_billing_source`; `ai_usage_rollup_hourly` carries `user_key_request_count`, `user_key_tokens` and `user_key_cost_microdollars`, and migration 045 queues every hour holding a personal-key request for a rebuild.
+- `QuotaUsageRepository` reads a subject's window usage summed across shards.
+- `UpstreamCall::with_user_agent` / `with_forward_headers` and `UpstreamTarget::resolve_personal`.
+
+### Changed
+
+- **Breaking:** `AiRepositories` gains `quota_usage` and `user_provider_credentials`.
+- The in-process `AiService` skips a `credential: user` provider at boot.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

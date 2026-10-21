@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- **Breaking:** a Cloud Storage object's ETag is its quoted generation on both `HEAD` and `GET`.
+
+### Fixed
+
+- S3 and Cloud Storage error bodies are capped at 2 KiB before they reach error text and logs.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

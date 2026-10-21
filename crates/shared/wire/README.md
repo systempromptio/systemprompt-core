@@ -13,7 +13,7 @@ Defines the canonical AI request, response and event model and the per-protocol 
 
 ```toml
 [dependencies]
-systemprompt-wire = "0.70"
+systemprompt-wire = "0.71"
 ```
 
 ## Module map

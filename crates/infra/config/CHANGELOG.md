@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- The provider catalog skips `credential: user` providers and reads a deployment key only through `ProviderEntry::platform_secret`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

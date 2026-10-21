@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Fixed
+
+- The logs trigger queues a `system:scheduler:*` row for the trace facts projection only when it is an `ERROR`; migration 012 drops the backlog keys and fact rows of non-error scheduler ticks.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

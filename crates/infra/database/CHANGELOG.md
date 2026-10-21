@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `InstanceLeaseRepository` (expiring single-owner leases, migration 004), `SessionAdvisoryLocks` (session-pool advisory locks) and `CoordinationRepositories` bundling them.
+- `ReleaseStampRepository::run_once` runs work once per release across the cluster (migration 005).
+- `BudgetedDb` opens transactions with a job's `SET LOCAL` budget.
+- `projection_tables` and `BackfillStatement::is_projection_cleanup`.
+
+### Changed
+
+- The backfill-floor check accepts a `DELETE` from `projection_backlog` or from a projection fact table the base schema creates; other backfills after the floor remain flagged.
+- The extension schema install runs in separate phases.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added
