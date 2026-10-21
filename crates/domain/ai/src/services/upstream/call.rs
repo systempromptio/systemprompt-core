@@ -54,17 +54,12 @@ impl UpstreamCall {
         self
     }
 
-    /// Inbound header names (lowercase) this provider receives verbatim, on
-    /// top of the `anthropic-*` set an Anthropic-wire upstream always gets.
     #[must_use]
     pub fn with_forward_headers(mut self, forward_headers: Vec<String>) -> Self {
         self.forward_headers = forward_headers;
         self
     }
 
-    /// Whether an inbound header reaches this upstream: the `anthropic-*`
-    /// set only on the Anthropic wire, anything else only when the provider
-    /// lists it in `forward_headers`.
     #[must_use]
     pub fn forwards(&self, wire: WireProtocol, name: &str) -> bool {
         let lower = name.to_ascii_lowercase();

@@ -43,8 +43,6 @@ impl GatewayAudit {
         .await
     }
 
-    /// Marks the request billed to the caller's personal key: quota settles no
-    /// cost for it. Called before admission so every settlement path sees it.
     pub fn bill_to_user_key(&self) {
         self.user_key_billing.store(true, Ordering::Relaxed);
     }
@@ -54,7 +52,6 @@ impl GatewayAudit {
         self.user_key_billing.load(Ordering::Relaxed)
     }
 
-    /// Stamps `billing_source = 'user_key'` on the admitted row.
     pub async fn record_billing_source(&self) {
         if !self.billed_to_user_key() {
             return;

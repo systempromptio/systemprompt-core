@@ -42,7 +42,9 @@ pub struct AdvertisedLimits {
 }
 
 /// A provider whose credential secret is absent is flagged
-/// (`configured = false`) rather than dropped silently.
+/// (`configured = false`) rather than dropped silently. A `personal_key`
+/// provider is served only from a key the user stores for themselves (a
+/// personal subscription); `configured` then means this user has stored one.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealth {
     pub name: String,
@@ -54,8 +56,6 @@ pub struct ProviderHealth {
     pub config_issue: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    /// Served only from a key the user stores for themselves (a personal
-    /// subscription); `configured` then means this user has stored one.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub personal_key: bool,
 }
