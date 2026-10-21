@@ -219,9 +219,10 @@ fn render_response_is_chat_completion_shape() {
     assert_eq!(call["id"], "t1");
     assert_eq!(call["function"]["name"], "fn");
     assert_eq!(call["function"]["arguments"], "{\"a\":1}");
-    assert_eq!(v["usage"]["prompt_tokens"], 10);
+    // prompt_tokens includes the 3 cached tokens, as Chat Completions counts them.
+    assert_eq!(v["usage"]["prompt_tokens"], 13);
     assert_eq!(v["usage"]["completion_tokens"], 5);
-    assert_eq!(v["usage"]["total_tokens"], 15);
+    assert_eq!(v["usage"]["total_tokens"], 18);
     assert_eq!(v["usage"]["prompt_tokens_details"]["cached_tokens"], 3);
 }
 
@@ -333,7 +334,7 @@ fn render_stream_tail_emits_usage_then_done() {
     assert!(s.ends_with("data: [DONE]\n\n"), "{s}");
     let v = chunk_json(&bytes);
     assert_eq!(v["choices"].as_array().expect("choices").len(), 0);
-    assert_eq!(v["usage"]["prompt_tokens"], 10);
+    assert_eq!(v["usage"]["prompt_tokens"], 13);
     assert_eq!(v["usage"]["completion_tokens"], 5);
 }
 

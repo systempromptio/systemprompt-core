@@ -44,8 +44,12 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
     );
     clamp_max_tokens(&mut obj, ctx.model_limits);
     // Why: Anthropic-compatible upstreams (DeepSeek, MiniMax) reject a history
-    // the Messages API would merge; only a strictly paired one is forwarded as sent.
-    if !obj.get("messages").is_some_and(anthropic::history_is_strict) {
+    // the Messages API would merge; only a strictly paired one is forwarded as
+    // sent.
+    if !obj
+        .get("messages")
+        .is_some_and(anthropic::history_is_strict)
+    {
         obj.insert(
             "messages".to_owned(),
             Value::Array(anthropic::upstream_messages(&ctx.request.messages)),

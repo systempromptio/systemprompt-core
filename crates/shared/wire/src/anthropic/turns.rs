@@ -18,12 +18,29 @@ use super::blocks::{BlockAudience, canonical_message_to_anthropic};
 use crate::canonical::{CanonicalMessage, TurnMerge, normalize_turns};
 
 #[must_use]
-// JSON: Anthropic Messages API `messages` entries; upstream JSON is the contract.
+// JSON: Anthropic Messages API `messages` entries; upstream JSON is the
+// contract.
 pub fn upstream_messages(messages: &[CanonicalMessage]) -> Vec<Value> {
-    normalize_turns(messages, TurnMerge::UserSide)
+    let mut out: Vec<Value> = Vec::new();
+    for message in normalize_turns(messages, TurnMerge::UserSide)
         .iter()
         .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
-        .collect()
+    {
+        // Why: an assistant turn holding only unsigned thinking renders to
+        // nothing upstream, which would leave its neighbours as two user turns.
+        match out.last_mut() {
+            Some(last) if last.get("role") == message.get("role") => {
+                if let (Some(into), Some(from)) = (
+                    last.get_mut("content").and_then(Value::as_array_mut),
+                    message.get("content").and_then(Value::as_array),
+                ) {
+                    into.extend(from.iter().cloned());
+                }
+            },
+            _ => out.push(message),
+        }
+    }
+    out
 }
 
 /// Whether `messages` alternate roles and every `tool_use` is answered by

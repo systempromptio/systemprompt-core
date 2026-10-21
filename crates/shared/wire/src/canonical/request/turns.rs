@@ -153,8 +153,7 @@ fn answer_pending(content: &mut Vec<CanonicalContent>, pending: &[String], keep_
     let mut answered: HashSet<String> = HashSet::new();
     content.retain(|part| match part {
         CanonicalContent::ToolResult { tool_use_id, .. } => {
-            (pending.contains(tool_use_id) || keep_unpaired)
-                && answered.insert(tool_use_id.clone())
+            (pending.contains(tool_use_id) || keep_unpaired) && answered.insert(tool_use_id.clone())
         },
         _ => true,
     });

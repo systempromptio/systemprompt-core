@@ -5,5 +5,6 @@ mod serde_roundtrip;
 mod sse_framing;
 mod stop_reason_mapping;
 mod task_state_machine;
+mod turn_normalisation;
 mod usage_cost;
 mod wire_parse_no_panic;

@@ -90,10 +90,13 @@ pub(super) fn finish_reason(stop_reason: Option<CanonicalStopReason>) -> &'stati
 // JSON: OpenAI Chat Completions response/chunk — rendered from the canonical
 // response.
 pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
+    // Why: Chat Completions counts cached prompt tokens inside `prompt_tokens`;
+    // canonical `input_tokens` excludes them, as Anthropic's usage does.
+    let prompt = usage.input_tokens + usage.cache_read_tokens + usage.cache_creation_tokens;
     json!({
-        "prompt_tokens": usage.input_tokens,
+        "prompt_tokens": prompt,
         "completion_tokens": usage.output_tokens,
-        "total_tokens": usage.input_tokens + usage.output_tokens,
+        "total_tokens": prompt + usage.output_tokens,
         "prompt_tokens_details": { "cached_tokens": usage.cache_read_tokens },
         // Why: OpenAI includes reasoning tokens in completion_tokens; they are not an additional
         // total.

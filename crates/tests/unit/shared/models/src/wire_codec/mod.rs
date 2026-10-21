@@ -18,6 +18,7 @@ mod empty_body;
 mod gemini;
 mod openai_chat;
 mod openai_responses;
+mod turns;
 mod unparsable_body;
 mod upstream_dialect;
 
@@ -98,6 +99,25 @@ fn tool_use(signature: Option<&str>) -> CanonicalContent {
         input: json!({"q": "rust"}),
         signature: signature.map(str::to_owned),
         cache_control: None,
+    }
+}
+
+// The assistant turn that issues `ids` as `lookup` calls. Every encoder pairs
+// tool results with the calls of the turn before them and drops any result
+// that answers none, so a test about rendering a result opens with its call.
+fn assistant_calls(ids: &[&str]) -> CanonicalMessage {
+    CanonicalMessage {
+        role: Role::Assistant,
+        content: ids
+            .iter()
+            .map(|id| CanonicalContent::ToolUse {
+                id: (*id).to_owned(),
+                name: "lookup".to_owned(),
+                input: json!({"q": "rust"}),
+                signature: None,
+                cache_control: None,
+            })
+            .collect(),
     }
 }
 

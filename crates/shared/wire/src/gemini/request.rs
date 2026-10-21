@@ -14,8 +14,8 @@ use super::wire::{
     GeminiSystemInstruction, GeminiTool, GeminiToolConfig,
 };
 use crate::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ResponseFormat, Role,
-    TurnMerge, normalize_turns,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ResponseFormat,
+    Role, TurnMerge, normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};

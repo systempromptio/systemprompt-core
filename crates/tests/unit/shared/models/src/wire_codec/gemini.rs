@@ -9,7 +9,7 @@ use systemprompt_wire::canonical::{
 use systemprompt_wire::{ModelLimits, gemini};
 
 use super::{
-    base_request, claude_code_shaped_tool, image_url, plain_tool, tool_use,
+    assistant_calls, base_request, claude_code_shaped_tool, image_url, plain_tool, tool_use,
     tool_with_unsupported_keywords,
 };
 
@@ -583,33 +583,38 @@ fn tool_result_message(
 #[test]
 fn gemini_tool_result_error_flattens_text_into_error_payload() {
     let mut req = base_request();
-    req.messages = vec![tool_result_message(true, None, &["boom", "again"])];
+    req.messages = vec![
+        assistant_calls(&["call_1"]),
+        tool_result_message(true, None, &["boom", "again"]),
+    ];
     let body = gemini::build_request_body(&req, None);
-    let part = &body["contents"][0]["parts"][0]["functionResponse"];
-    assert_eq!(part["name"], "call_1");
+    let part = &body["contents"][1]["parts"][0]["functionResponse"];
+    assert_eq!(part["name"], "lookup");
     assert_eq!(part["response"]["error"], "boom\nagain");
-    assert_eq!(body["contents"][0]["role"], "user");
+    assert_eq!(body["contents"][1]["role"], "user");
 }
 
 #[test]
 fn gemini_tool_result_prefers_structured_content_over_text() {
     let mut req = base_request();
-    req.messages = vec![tool_result_message(
-        false,
-        Some(json!({"rows": [1, 2]})),
-        &["ignored text"],
-    )];
+    req.messages = vec![
+        assistant_calls(&["call_1"]),
+        tool_result_message(false, Some(json!({"rows": [1, 2]})), &["ignored text"]),
+    ];
     let body = gemini::build_request_body(&req, None);
-    let response = &body["contents"][0]["parts"][0]["functionResponse"]["response"];
+    let response = &body["contents"][1]["parts"][0]["functionResponse"]["response"];
     assert_eq!(response["result"], json!({"rows": [1, 2]}));
 }
 
 #[test]
 fn gemini_tool_result_without_structure_flattens_text_result() {
     let mut req = base_request();
-    req.messages = vec![tool_result_message(false, None, &["line one", "line two"])];
+    req.messages = vec![
+        assistant_calls(&["call_1"]),
+        tool_result_message(false, None, &["line one", "line two"]),
+    ];
     let body = gemini::build_request_body(&req, None);
-    let response = &body["contents"][0]["parts"][0]["functionResponse"]["response"];
+    let response = &body["contents"][1]["parts"][0]["functionResponse"]["response"];
     assert_eq!(response["result"], "line one\nline two");
 }
 
@@ -637,14 +642,15 @@ fn gemini_carries_system_messages_as_user_text_and_replays_thinking_as_thought_p
     ];
     let body = gemini::build_request_body(&req, None);
     let contents = body["contents"].as_array().expect("contents array");
-    assert_eq!(contents.len(), 3);
+    // The two consecutive model turns merge into one, keeping part order.
+    assert_eq!(contents.len(), 2);
     assert_eq!(contents[0]["role"], "user");
     assert_eq!(contents[0]["parts"][0]["text"], "sys");
     let thought = &contents[1]["parts"][0];
     assert_eq!(thought["text"], "hidden chain");
     assert_eq!(thought["thought"], true);
     assert_eq!(thought["thoughtSignature"], "tsig==");
-    assert_eq!(contents[2]["parts"][0]["text"], "visible");
+    assert_eq!(contents[1]["parts"][1]["text"], "visible");
 }
 
 // Claude Code sends its environment block — the available-skills listing
@@ -1106,32 +1112,35 @@ fn gemini_folds_text_beside_function_responses_into_the_results_in_order() {
 #[test]
 fn gemini_folds_surplus_text_onto_the_last_function_response() {
     let mut req = base_request();
-    req.messages = vec![CanonicalMessage {
-        role: Role::User,
-        content: vec![
-            CanonicalContent::ToolResult {
-                tool_use_id: "call_a".to_owned(),
-                content: vec![CanonicalContent::text("a".to_owned())],
-                is_error: false,
-                structured_content: Some(serde_json::json!({"ok": true})),
-                meta: None,
-                cache_control: None,
-            },
-            CanonicalContent::ToolResult {
-                tool_use_id: "call_b".to_owned(),
-                content: vec![CanonicalContent::text("b".to_owned())],
-                is_error: false,
-                structured_content: None,
-                meta: None,
-                cache_control: None,
-            },
-            CanonicalContent::text("body a".to_owned()),
-            CanonicalContent::text("body b".to_owned()),
-            CanonicalContent::text("trailing".to_owned()),
-        ],
-    }];
+    req.messages = vec![
+        assistant_calls(&["call_a", "call_b"]),
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call_a".to_owned(),
+                    content: vec![CanonicalContent::text("a".to_owned())],
+                    is_error: false,
+                    structured_content: Some(serde_json::json!({"ok": true})),
+                    meta: None,
+                    cache_control: None,
+                },
+                CanonicalContent::ToolResult {
+                    tool_use_id: "call_b".to_owned(),
+                    content: vec![CanonicalContent::text("b".to_owned())],
+                    is_error: false,
+                    structured_content: None,
+                    meta: None,
+                    cache_control: None,
+                },
+                CanonicalContent::text("body a".to_owned()),
+                CanonicalContent::text("body b".to_owned()),
+                CanonicalContent::text("trailing".to_owned()),
+            ],
+        },
+    ];
     let body = gemini::build_request_body(&req, None);
-    let parts = body["contents"][0]["parts"].as_array().expect("parts");
+    let parts = body["contents"][1]["parts"].as_array().expect("parts");
     assert_eq!(parts.len(), 2);
     assert_eq!(
         parts[0]["functionResponse"]["response"]["context"], "body a",

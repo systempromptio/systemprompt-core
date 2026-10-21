@@ -11,7 +11,8 @@ use systemprompt_wire::canonical::{
 use systemprompt_wire::{ModelLimits, anthropic};
 
 use super::{
-    base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords, user_message,
+    assistant_calls, base_request, image_url, plain_tool, tool_use, tool_with_unsupported_keywords,
+    user_message,
 };
 
 #[test]
@@ -71,31 +72,35 @@ fn anthropic_system_blocks_keep_their_cache_breakpoints() {
 #[test]
 fn anthropic_content_blocks_carry_cache_control() {
     let mut req = base_request();
-    req.messages = vec![user_message(vec![
-        CanonicalContent::text("context"),
-        CanonicalContent::Text {
-            text: "breakpoint".to_owned(),
-            cache_control: Some(CacheControl::EPHEMERAL),
-        },
-        CanonicalContent::ToolResult {
-            tool_use_id: "call_1".to_owned(),
-            content: vec![CanonicalContent::text("ok")],
-            is_error: false,
-            structured_content: None,
-            meta: None,
-            cache_control: Some(CacheControl::with_ttl(CacheTtl::FiveMinutes)),
-        },
-    ])];
+    req.messages = vec![
+        assistant_calls(&["call_1"]),
+        user_message(vec![
+            CanonicalContent::text("context"),
+            CanonicalContent::Text {
+                text: "breakpoint".to_owned(),
+                cache_control: Some(CacheControl::EPHEMERAL),
+            },
+            CanonicalContent::ToolResult {
+                tool_use_id: "call_1".to_owned(),
+                content: vec![CanonicalContent::text("ok")],
+                is_error: false,
+                structured_content: None,
+                meta: None,
+                cache_control: Some(CacheControl::with_ttl(CacheTtl::FiveMinutes)),
+            },
+        ]),
+    ];
     let body = anthropic::build_request_body(&req, "upstream", None);
-    let blocks = body["messages"][0]["content"]
+    let blocks = body["messages"][1]["content"]
         .as_array()
         .expect("content array");
-    assert_eq!(blocks[0].get("cache_control"), None);
-    assert_eq!(blocks[1]["cache_control"], json!({ "type": "ephemeral" }));
+    // The tool result leads its turn; every breakpoint rides along unchanged.
     assert_eq!(
-        blocks[2]["cache_control"],
+        blocks[0]["cache_control"],
         json!({ "type": "ephemeral", "ttl": "5m" })
     );
+    assert_eq!(blocks[1].get("cache_control"), None);
+    assert_eq!(blocks[2]["cache_control"], json!({ "type": "ephemeral" }));
 }
 
 #[test]

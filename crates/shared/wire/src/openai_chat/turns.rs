@@ -10,7 +10,8 @@
 
 use std::collections::BTreeSet;
 
-// JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic JSON.
+// JSON: protocol boundary — OpenAI Chat Completions wire format is dynamic
+// JSON.
 use serde_json::Value;
 
 #[must_use]

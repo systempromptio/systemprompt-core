@@ -10,6 +10,8 @@ mod audit_concurrency;
 #[cfg(test)]
 mod audit_fail;
 #[cfg(test)]
+mod ba6f9208_replay;
+#[cfg(test)]
 mod context_id_derivation;
 #[cfg(test)]
 mod journal_recovery;
