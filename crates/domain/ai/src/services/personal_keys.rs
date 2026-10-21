@@ -10,7 +10,6 @@
 
 use std::time::Duration;
 
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
 
@@ -32,7 +31,6 @@ pub enum PersonalKeyError {
     Internal(#[source] systemprompt_traits::BoxedSource),
 }
 
-/// The registry's `credential: user` providers, in declaration order.
 #[must_use]
 pub fn personal_providers(registry: &ProviderRegistry) -> Vec<ProviderEntry> {
     registry
@@ -53,10 +51,8 @@ pub fn personal_provider(
         .ok_or_else(|| PersonalKeyError::NotPersonalProvider(name.to_owned()))
 }
 
-/// Verifies `key` against the provider upstream, then seals and stores it as
-/// `user_id`'s key for `provider`. The key never appears in an error or log.
 pub async fn store_personal_key(
-    db: &DbPool,
+    credentials: &UserProviderCredentialRepository,
     registry: &ProviderRegistry,
     user_id: &UserId,
     provider: &str,
@@ -68,10 +64,12 @@ pub async fn store_personal_key(
     if key.is_empty() || key.len() > MAX_KEY_BYTES {
         return Err(PersonalKeyError::Rejected(provider_label(&entry)));
     }
-    verify_upstream(&entry, key, user_id.as_str()).await?;
+    verify_upstream(&entry, key, user_id).await?;
     let label = label.map(str::trim).filter(|l| !l.is_empty());
-    let meta = UserProviderCredentialRepository::new(db)
-        .set_key(user_id, entry.name.as_str(), key, label)
+    let sealed = systemprompt_security::at_rest::seal(key)
+        .map_err(|e| PersonalKeyError::Internal(e.into()))?;
+    let meta = credentials
+        .set_key(user_id, entry.name.as_str(), &sealed, label)
         .await
         .map_err(|e| PersonalKeyError::Internal(e.into()))?;
     tracing::info!(
@@ -96,7 +94,7 @@ pub fn provider_label(entry: &ProviderEntry) -> String {
 async fn verify_upstream(
     entry: &ProviderEntry,
     key: &str,
-    user_id: &str,
+    user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
     let rejected = || PersonalKeyError::Rejected(provider_label(entry));
     let unverified = |status: String| PersonalKeyError::Unverified {
@@ -119,7 +117,14 @@ async fn verify_upstream(
     let response = request
         .send()
         .await
-        .map_err(|_e| unverified("no response".to_owned()))?;
+        .map_err(|error| {
+            tracing::warn!(
+                provider = %entry.name.as_str(),
+                %error,
+                "Personal key check got no response"
+            );
+            unverified("no response".to_owned())
+        })?;
     let status = response.status().as_u16();
     if matches!(status, 404 | 405) {
         return probe_completion(&client, &call, entry, user_id).await;
@@ -134,7 +139,7 @@ async fn probe_completion(
     client: &reqwest::Client,
     call: &super::upstream::UpstreamCall,
     entry: &ProviderEntry,
-    user_id: &str,
+    user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
     let Some(model) = entry.models.iter().find(|m| !m.hidden) else {
         return Err(Verdict::Unverified("no model to probe".to_owned()).into_error(entry));
@@ -149,6 +154,7 @@ async fn probe_completion(
     let session = format!(
         "ses_keycheck_{}",
         user_id
+            .as_str()
             .chars()
             .filter(char::is_ascii_alphanumeric)
             .take(20)
@@ -164,7 +170,14 @@ async fn probe_completion(
     let status = request
         .send()
         .await
-        .map_err(|_e| Verdict::Unverified("no response".to_owned()).into_error(entry))?
+        .map_err(|error| {
+            tracing::warn!(
+                provider = %entry.name.as_str(),
+                %error,
+                "Personal key probe got no response"
+            );
+            Verdict::Unverified("no response".to_owned()).into_error(entry)
+        })?
         .status()
         .as_u16();
     classify(status, true).map_err(|verdict| verdict.into_error(entry))
@@ -187,7 +200,7 @@ impl Verdict {
     }
 }
 
-// A completion probe that got past authentication proves the key even when
+// Why: a completion probe that got past authentication proves the key even when
 // the upstream then refuses the request itself (bad request, rate limited).
 fn classify(status: u16, completion: bool) -> Result<(), Verdict> {
     match status {

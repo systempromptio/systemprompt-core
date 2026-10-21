@@ -93,7 +93,7 @@ impl GatewayService {
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
         let owner = credentials::KeyOwner {
-            db: db.clone(),
+            credentials: repos.user_provider_credentials.clone(),
             user_id: ctx.user_id.clone(),
         };
         let upstream = resolve_upstream(

@@ -64,7 +64,7 @@ pub async fn set(
         .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
     let entry = personal_provider(&services.providers, &provider).map_err(key_error)?;
     let meta = store_personal_key(
-        ctx.db_pool(),
+        repository(&ctx),
         &services.providers,
         &claims.user_id,
         &provider,
@@ -100,8 +100,8 @@ pub async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn repository(ctx: &AppContext) -> UserProviderCredentialRepository {
-    UserProviderCredentialRepository::new(ctx.db_pool())
+fn repository(ctx: &AppContext) -> &UserProviderCredentialRepository {
+    &ctx.ai_repositories().user_provider_credentials
 }
 
 fn personal_providers_now() -> Result<Vec<ProviderEntry>, BridgeError> {

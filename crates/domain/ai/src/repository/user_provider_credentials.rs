@@ -1,8 +1,9 @@
 //! Repository for `user_provider_credentials`: provider keys a user stored for
 //! themselves (personal subscriptions).
 //!
-//! The key is sealed with [`systemprompt_security::at_rest`] before it is
-//! written and opened only by [`UserProviderCredentialRepository::find_key`],
+//! The key arrives sealed with [`systemprompt_security::at_rest`]
+//! (`crate::store_personal_key` seals it) and is opened only by
+//! [`UserProviderCredentialRepository::find_key`],
 //! the gateway's dispatch path. Every other read returns metadata alone, so no
 //! listing, log or API response can carry a stored key.
 //!
@@ -40,18 +41,13 @@ impl UserProviderCredentialRepository {
         Self { write_pool }
     }
 
-    /// Seals and stores `key` as the user's credential for `provider`,
-    /// replacing any earlier one; the caller has already verified it upstream.
     pub async fn set_key(
         &self,
         user_id: &UserId,
         provider: &str,
-        key: &str,
+        sealed: &str,
         label: Option<&str>,
     ) -> Result<UserProviderCredentialMeta, RepositoryError> {
-        let sealed = systemprompt_security::at_rest::seal(key).map_err(|e| {
-            RepositoryError::invalid_argument("encryption_master_key", e.to_string())
-        })?;
         let nonce = sealed.get(..NONCE_HEX_CHARS).unwrap_or_default();
         let row = sqlx::query_as!(
             UserProviderCredentialMeta,
@@ -70,7 +66,7 @@ impl UserProviderCredentialRepository {
             "#,
             user_id.as_str(),
             provider,
-            sealed.as_str(),
+            sealed,
             nonce,
             label,
         )
@@ -79,9 +75,6 @@ impl UserProviderCredentialRepository {
         Ok(row)
     }
 
-    /// Opens the user's key for `provider` and stamps it used. A row that no
-    /// longer opens (the master key rolled) reads as absent, so the caller is
-    /// asked to store the key again rather than sent upstream with garbage.
     pub async fn find_key(
         &self,
         user_id: &UserId,

@@ -54,6 +54,7 @@ pub struct AiRepositories {
     pub quota_usage: QuotaUsageRepository,
     pub safety_findings: AiSafetyFindingRepository,
     pub thought_signatures: AiThoughtSignatureRepository,
+    pub user_provider_credentials: UserProviderCredentialRepository,
 }
 
 impl AiRepositories {
@@ -66,6 +67,7 @@ impl AiRepositories {
             quota_usage: QuotaUsageRepository::new(db),
             safety_findings: AiSafetyFindingRepository::new(db),
             thought_signatures: AiThoughtSignatureRepository::new(db),
+            user_provider_credentials: UserProviderCredentialRepository::new(db),
         }
     }
 }

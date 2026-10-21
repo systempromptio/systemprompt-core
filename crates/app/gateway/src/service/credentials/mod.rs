@@ -22,7 +22,6 @@ pub mod google;
 
 use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_ai::{UpstreamCall, UpstreamTarget, UpstreamTargetError};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialError, CredentialScope, fill_endpoint};
@@ -51,7 +50,7 @@ impl BillingSource {
 /// is the only credential such a provider may present.
 #[derive(Debug, Clone)]
 pub struct KeyOwner {
-    pub db: DbPool,
+    pub credentials: UserProviderCredentialRepository,
     pub user_id: UserId,
 }
 
@@ -73,7 +72,8 @@ pub async fn resolve(
         return Ok((call, BillingSource::Platform));
     }
     let name = provider.name.as_str();
-    let key = UserProviderCredentialRepository::new(&owner.db)
+    let key = owner
+        .credentials
         .find_key(&owner.user_id, name)
         .await
         .map_err(|e| {
@@ -84,7 +84,7 @@ pub async fn resolve(
                 provider: name.to_owned(),
             })
         })?;
-    let target = UpstreamTarget::resolve_personal(provider, &key, owner.user_id.as_str())
+    let target = UpstreamTarget::resolve_personal(provider, &key, &owner.user_id)
         .map_err(pre_audit)?;
     let call = target.call().await.map_err(pre_audit)?;
     Ok((call, BillingSource::UserKey))

@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_identifiers::ProviderId;
+use systemprompt_identifiers::{ProviderId, UserId};
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 use systemprompt_wire::anthropic::AnthropicBeta;
@@ -43,26 +43,23 @@ impl UpstreamTarget {
         Self::resolve_keyed(entry, secret, secret_name)
     }
 
-    /// Binds `entry` to a key one user stored for themselves. The token cache
-    /// key names the user, so a credential minted for one caller is never
-    /// presented for another.
     pub fn resolve_personal(
         entry: &ProviderEntry,
         key: &str,
-        user_id: &str,
+        user_id: &UserId,
     ) -> Result<Self, UpstreamTargetError> {
-        let cache_key = format!("user:{user_id}:{}", entry.name.as_str());
+        let cache_key = format!("user:{}:{}", user_id.as_str(), entry.name.as_str());
         Self::resolve_keyed(entry, key, &cache_key)
     }
 
     fn resolve_keyed(
         entry: &ProviderEntry,
         secret: &str,
-        secret_name: &str,
+        credential_label: &str,
     ) -> Result<Self, UpstreamTargetError> {
         let credential = ProviderCredential::parse(secret).map_err(|source| {
             UpstreamTargetError::MalformedCredential {
-                secret: secret_name.to_owned(),
+                secret: credential_label.to_owned(),
                 source,
             }
         })?;
@@ -72,7 +69,7 @@ impl UpstreamTarget {
         {
             return Err(UpstreamTargetError::ApiKeyOnVertex {
                 provider: entry.name.as_str().to_owned(),
-                secret: secret_name.to_owned(),
+                secret: credential_label.to_owned(),
             });
         }
         let endpoint = fill_endpoint(&entry.endpoint, &credential.scope()).map_err(|source| {
@@ -93,7 +90,7 @@ impl UpstreamTarget {
             hosting: entry.hosting(),
             endpoint,
             credential,
-            cache_key: secret_name.to_owned(),
+            cache_key: credential_label.to_owned(),
             extra_headers,
             accepted_betas: entry.accepted_betas.clone(),
             user_agent: entry.user_agent.clone(),

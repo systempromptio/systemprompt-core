@@ -9,7 +9,7 @@ use std::sync::Arc;
 use systemprompt_ai::repository::{
     AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestClientEvidenceRepository,
     AiRequestPayloadRepository, AiRequestRepository, AiSafetyFindingRepository,
-    AiThoughtSignatureRepository,
+    AiThoughtSignatureRepository, UserProviderCredentialRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
@@ -40,6 +40,7 @@ pub struct GatewayRepositories {
     pub background: BackgroundTasks,
     pub subject_providers: SubjectProviderSet,
     pub rate_windows: RateWindowRepository,
+    pub user_provider_credentials: UserProviderCredentialRepository,
 }
 
 impl std::fmt::Debug for GatewayRepositories {
@@ -85,6 +86,7 @@ impl GatewayRepositories {
                 sink: Arc::new(NullAuditSink),
             }),
             rate_windows: RateWindowRepository::new(db.write_pool().as_ref().clone()),
+            user_provider_credentials: UserProviderCredentialRepository::new(db),
         }
     }
 

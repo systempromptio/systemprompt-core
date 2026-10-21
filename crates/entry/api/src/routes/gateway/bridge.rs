@@ -10,7 +10,6 @@ use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
-use systemprompt_ai::repository::UserProviderCredentialRepository;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
@@ -194,7 +193,9 @@ async fn personal_keys(
     let Ok((claims, _user)) = authenticate_bridge(jwt_extractor, headers).await else {
         return Ok(BTreeSet::new());
     };
-    let stored = UserProviderCredentialRepository::new(ctx.db_pool())
+    let stored = ctx
+        .ai_repositories()
+        .user_provider_credentials
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key lookup failed", e))?;
