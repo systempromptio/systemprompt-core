@@ -142,6 +142,9 @@ pub struct HostModelViewRef<'a> {
     pub compatible_models: &'a [String],
 }
 
+// Why: lint-ok: field-copy-from — `HostModelViewRef` is the borrowed, `Copy`
+// view the verdict takes so fixtures can build it from slices; the owned
+// `HostModelView` is what the gateway profile produces.
 impl<'a> From<&'a crate::gateway::model_view::HostModelView> for HostModelViewRef<'a> {
     fn from(v: &'a crate::gateway::model_view::HostModelView) -> Self {
         Self {

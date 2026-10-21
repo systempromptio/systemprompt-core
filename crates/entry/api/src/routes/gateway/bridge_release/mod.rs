@@ -47,7 +47,6 @@ pub const CACHE_TTL: Duration = Duration::from_secs(300);
 #[derive(Debug, Deserialize)]
 pub struct LatestQuery {
     pub platform: String,
-    /// Set by a manual "Check for updates": bypass the release cache.
     #[serde(default)]
     pub refresh: bool,
 }

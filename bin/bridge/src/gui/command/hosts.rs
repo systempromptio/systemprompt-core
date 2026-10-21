@@ -9,7 +9,7 @@ use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::hosts::handlers::PersonalKeyOp;
-use crate::wire::ipc::BridgeError;
+use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::args::{
     CoworkSessionArgs, HostEnabledArgs, HostIdArgs, HostInstallArgs, HostModelFilterArgs,
@@ -79,7 +79,9 @@ pub(super) fn host_dispatch(
         "cowork.sessions" => CommandOutcome::Sync(
             crate::integration::cowork_plugins::usable_sessions()
                 .map(|sessions| serde_json::json!({ "sessions": sessions }))
-                .map_err(|e| BridgeError::internal(e.to_string())),
+                .map_err(|e| {
+                    BridgeError::from_error(ErrorScope::Internal, ErrorCode::Internal, &e)
+                }),
         ),
         "cowork.chooseSession" => choose_cowork_session(app, args),
         "host.proxy.probe" => {
@@ -97,7 +99,7 @@ pub(super) fn host_dispatch(
 fn choose_cowork_session(app: &GuiApp, args: Value) -> CommandOutcome {
     let chosen = parse::<CoworkSessionArgs>(args).and_then(|a| {
         crate::integration::cowork_plugins::choose_session(std::path::Path::new(&a.path))
-            .map_err(|e| BridgeError::invalid_args(e.to_string()))
+            .map_err(|e| BridgeError::from_error(ErrorScope::Internal, ErrorCode::InvalidArgs, &e))
     });
     if chosen.is_ok() {
         app.append_log("Cowork session chosen — syncing to enable the org plugins");

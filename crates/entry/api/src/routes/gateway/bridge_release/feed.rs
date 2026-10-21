@@ -97,10 +97,8 @@ impl ReleaseFeed {
         self.resolve_with(spec, platform, false).await
     }
 
-    /// Resolves against GitHub even when the cache is fresh: a person who
-    /// clicked "Check for updates" asked about now, not five minutes ago. The
-    /// result refreshes the cache, and an upstream failure still falls back to
-    /// the last known release.
+    // Why: whoever clicked "Check for updates" asked about now, not five
+    // minutes ago; an upstream failure still falls back to the last release.
     pub async fn resolve_fresh(
         &self,
         spec: &BridgeReleasesSpec,
