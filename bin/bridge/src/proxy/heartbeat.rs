@@ -36,14 +36,31 @@ struct HeartbeatPayload<'a> {
     tokens_out_total: i64,
 }
 
-pub async fn run_loop(
-    runtime_config: SharedRuntimeConfig,
-    token_cache: Arc<TokenCache>,
-    session: Arc<SessionContext>,
-    stats: Arc<ProxyStats>,
-    client: reqwest::Client,
-    update_gate: UpdateGate,
-) {
+/// What the heartbeat loop runs against, built from the proxy's own state.
+pub struct HeartbeatDeps {
+    pub runtime_config: SharedRuntimeConfig,
+    pub token_cache: Arc<TokenCache>,
+    pub session: Arc<SessionContext>,
+    pub stats: Arc<ProxyStats>,
+    pub client: reqwest::Client,
+    pub update_gate: UpdateGate,
+}
+
+impl std::fmt::Debug for HeartbeatDeps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HeartbeatDeps").finish_non_exhaustive()
+    }
+}
+
+pub async fn run_loop(deps: HeartbeatDeps) {
+    let HeartbeatDeps {
+        runtime_config,
+        token_cache,
+        session,
+        stats,
+        client,
+        update_gate,
+    } = deps;
     let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     interval.tick().await;

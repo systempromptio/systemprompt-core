@@ -10,7 +10,7 @@ use systemprompt_bridge::config::{RuntimeConfig, SharedRuntimeConfig};
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::ProxyStats;
-use systemprompt_bridge::proxy::heartbeat::run_loop;
+use systemprompt_bridge::proxy::heartbeat::{HeartbeatDeps, run_loop};
 use systemprompt_bridge::proxy::session::SessionContext;
 use systemprompt_bridge::proxy::token_cache::TokenCache;
 use systemprompt_bridge::update::automatic::UpdateGate;
@@ -101,14 +101,14 @@ fn heartbeat_posts_payload_with_bearer() {
         let stats = Arc::new(ProxyStats::default());
         stats.forwarded_total.store(7, Ordering::Relaxed);
 
-        let handle = tokio::spawn(run_loop(
-            runtime_config(&server.uri()),
-            counting_cache(Arc::clone(&refresh_calls)),
-            Arc::clone(&session),
-            Arc::clone(&stats),
-            reqwest::Client::new(),
-            UpdateGate::default(),
-        ));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: counting_cache(Arc::clone(&refresh_calls)),
+            session: Arc::clone(&session),
+            stats: Arc::clone(&stats),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
 
         let received = wait_for_requests(&server, 1).await;
         handle.abort();
@@ -150,14 +150,14 @@ fn heartbeat_401_latches_sign_in_and_stops_the_loop() {
 
         let refresh_calls = Arc::new(AtomicU32::new(0));
         let cache = counting_cache(Arc::clone(&refresh_calls));
-        let handle = tokio::spawn(run_loop(
-            runtime_config(&server.uri()),
-            Arc::clone(&cache),
-            Arc::new(SessionContext::new()),
-            Arc::new(ProxyStats::default()),
-            reqwest::Client::new(),
-            UpdateGate::default(),
-        ));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: Arc::clone(&cache),
+            session: Arc::new(SessionContext::new()),
+            stats: Arc::new(ProxyStats::default()),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
 
         wait_for_requests(&server, 1).await;
         // Why: wiremock records the request before the loop has read the 401,
@@ -204,14 +204,14 @@ fn heartbeat_server_error_keeps_looping() {
             .await;
 
         let refresh_calls = Arc::new(AtomicU32::new(0));
-        let handle = tokio::spawn(run_loop(
-            runtime_config(&server.uri()),
-            counting_cache(refresh_calls),
-            Arc::new(SessionContext::new()),
-            Arc::new(ProxyStats::default()),
-            reqwest::Client::new(),
-            UpdateGate::default(),
-        ));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: counting_cache(refresh_calls),
+            session: Arc::new(SessionContext::new()),
+            stats: Arc::new(ProxyStats::default()),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
 
         let received = wait_for_requests(&server, 2).await;
         handle.abort();
@@ -229,14 +229,14 @@ fn heartbeat_without_credentials_sends_nothing() {
             .mount(&server)
             .await;
 
-        let handle = tokio::spawn(run_loop(
-            runtime_config(&server.uri()),
-            empty_cache(),
-            Arc::new(SessionContext::new()),
-            Arc::new(ProxyStats::default()),
-            reqwest::Client::new(),
-            UpdateGate::default(),
-        ));
+        let handle = tokio::spawn(run_loop(HeartbeatDeps {
+            runtime_config: runtime_config(&server.uri()),
+            token_cache: empty_cache(),
+            session: Arc::new(SessionContext::new()),
+            stats: Arc::new(ProxyStats::default()),
+            client: reqwest::Client::new(),
+            update_gate: UpdateGate::default(),
+        }));
 
         for _ in 0..5 {
             tokio::time::sleep(std::time::Duration::from_secs(31)).await;

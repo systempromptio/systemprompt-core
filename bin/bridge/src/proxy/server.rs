@@ -147,14 +147,14 @@ pub fn start_with_listener(
         shutdown_rx,
         Arc::clone(&drained),
     ));
-    tasks.spawn(heartbeat::run_loop(
-        Arc::clone(&runtime_config),
-        Arc::clone(&token_cache),
+    tasks.spawn(heartbeat::run_loop(heartbeat::HeartbeatDeps {
+        runtime_config: Arc::clone(&runtime_config),
+        token_cache: Arc::clone(&token_cache),
         session,
-        Arc::clone(&stats),
+        stats: Arc::clone(&stats),
         client,
         update_gate,
-    ));
+    }));
     tasks.spawn(crate::proxy::comms::run_loop(
         runtime_config,
         token_cache,
