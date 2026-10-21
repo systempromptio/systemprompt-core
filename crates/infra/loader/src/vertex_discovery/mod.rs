@@ -175,7 +175,9 @@ fn plan<'a>(
         if !sources.iter().any(|s| s.matches_provider(entry)) {
             continue;
         }
-        let secret_name = entry.api_key_secret.clone();
+        let Some(secret_name) = entry.platform_secret().cloned() else {
+            continue;
+        };
         let Some(value) = secret(secret_name.as_str()) else {
             continue;
         };

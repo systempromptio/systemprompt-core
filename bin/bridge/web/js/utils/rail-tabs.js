@@ -1,12 +1,10 @@
 // The rail's tab set, glyphs and keyboard shortcuts.
 //
 // This is the single source of truth for what panes exist and what they are
-// called. `sp-crumb` used to keep a second, hardcoded, English-only copy that
-// was missing an entry; it is gone.
+// called; nothing else keeps a copy.
 
 /**
- * The platform's modifier prefix. Windows and Linux users were shown macOS's
- * Command glyph for shortcuts they have to press Ctrl for.
+ * The platform's modifier prefix: the Command glyph on macOS, Ctrl elsewhere.
  */
 export function modKey() {
   return document.body.classList.contains("is-platform-macos") ? "\u2318" : "Ctrl+";

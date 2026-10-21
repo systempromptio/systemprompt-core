@@ -27,6 +27,8 @@ mod context_loaders_paths;
 #[cfg(test)]
 mod context_planes;
 #[cfg(test)]
+mod context_traits;
+#[cfg(test)]
 mod database_context;
 #[cfg(test)]
 mod database_context_live;
@@ -47,6 +49,8 @@ mod managed_inventory_lifecycle;
 #[cfg(test)]
 mod schema_behind_error;
 #[cfg(test)]
+mod schema_currency_boot;
+#[cfg(test)]
 mod schema_state;
 #[cfg(test)]
 mod services_reconcile_decision;
@@ -56,6 +60,8 @@ mod services_reconcile_fetched;
 mod shutdown_request;
 #[cfg(test)]
 mod startup_validation;
+#[cfg(test)]
+mod storage_backends;
 #[cfg(test)]
 mod trace;
 #[cfg(test)]

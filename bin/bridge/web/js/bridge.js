@@ -29,9 +29,8 @@ export function invoke(cmd, args, opts) {
   return new Promise((resolve, reject) => {
     const id = nextId++;
     const timeoutMs = opts && opts.timeoutMs;
-    // Why: a reply that never lands used to leave the promise pending for the
-    // life of the window, and a pane waiting on it stayed on its skeleton with
-    // nothing to click. A deadline turns that into an error the pane can retry.
+    // Why: a reply that never lands would leave the promise pending for the
+    // life of the window; a deadline turns that into an error the pane can retry.
     const timer = timeoutMs
       ? setTimeout(() => {
         if (!bus.pending.delete(id)) { return; }
@@ -84,6 +83,9 @@ export const bridge = {
   mcpAuthProbe:         (serverId)          => invoke("mcp.auth.probe", serverId ? { serverId } : {}),
   hostModelFilterSet:   (hostId, protocols) => invoke("host.model-filter.set", { hostId, protocols }),
   hostEnabledSet:       (hostId, enabled)   => invoke("host.enabled.set", { hostId, enabled }),
+  personalKeysList:     ()                  => invoke("personalKeys.list", {}, READ_TIMEOUT),
+  personalKeySet:       (provider, apiKey, label) => invoke("personalKeys.set", { provider, apiKey, label }, { timeoutMs: 30_000 }),
+  personalKeyRemove:    (provider)          => invoke("personalKeys.remove", { provider }),
   agentUninstall:       (hostId)            => invoke("agent.uninstall", { hostId }),
   agentOpenConfig:      (hostId)            => invoke("agent.openConfig", { hostId }),
   agentOpen:            (hostId)            => invoke("agent.open", { hostId }),

@@ -188,3 +188,73 @@ async fn a_trigger_writing_a_dropped_relation_refuses_the_boot() {
         .await
         .expect("cleanup");
 }
+
+#[tokio::test]
+async fn a_migration_dropping_a_suspended_trigger_skips_its_restore() {
+    let provider = test_provider().await;
+    reset(&provider, "trg_dropped", "trg_dropped_t").await;
+    let ext = StubExtension {
+        id: "trg_dropped",
+        migrations: vec![Migration::new(
+            1,
+            "retire_foreign",
+            "UPDATE trg_dropped_t SET v = 1;\nDROP TRIGGER trg_dropped_t_foreign ON trg_dropped_t;",
+        )],
+    };
+    MigrationService::new(&provider)
+        .run_pending_migrations(&ext)
+        .await
+        .expect("a trigger the migration dropped is not restored");
+
+    let state = trigger_state(&provider, "trg_dropped_t").await;
+    assert_eq!(
+        state,
+        vec![("trg_dropped_t_disabled".to_owned(), "D".to_owned())]
+    );
+}
+
+#[tokio::test]
+async fn a_schema_qualified_write_suspends_and_restores_its_triggers() {
+    let provider = test_provider().await;
+    reset(&provider, "trg_qualified", "trg_qualified_t").await;
+    let ext = StubExtension {
+        id: "trg_qualified",
+        migrations: vec![Migration::new(
+            1,
+            "backfill",
+            "UPDATE public.trg_qualified_t SET v = 2;",
+        )],
+    };
+    MigrationService::new(&provider)
+        .run_pending_migrations(&ext)
+        .await
+        .expect("the qualified write does not fire the stale trigger");
+
+    let state = trigger_state(&provider, "trg_qualified_t").await;
+    assert!(state.contains(&("trg_qualified_t_foreign".to_owned(), "O".to_owned())));
+}
+
+#[tokio::test]
+async fn a_failed_no_transaction_migration_still_restores_its_triggers() {
+    let provider = test_provider().await;
+    reset(&provider, "trg_notx_fail", "trg_notx_fail_t").await;
+    let ext = StubExtension {
+        id: "trg_notx_fail",
+        migrations: vec![Migration::new_no_transaction(
+            1,
+            "backfill",
+            "-- @no-transaction\nUPDATE trg_notx_fail_t SET v = 1 / (v - v);",
+        )],
+    };
+    MigrationService::new(&provider)
+        .run_pending_migrations(&ext)
+        .await
+        .expect_err("division by zero fails the migration");
+
+    let state = trigger_state(&provider, "trg_notx_fail_t").await;
+    assert!(
+        state.contains(&("trg_notx_fail_t_foreign".to_owned(), "O".to_owned())),
+        "{state:?}"
+    );
+    assert!(state.contains(&("trg_notx_fail_t_disabled".to_owned(), "D".to_owned())));
+}

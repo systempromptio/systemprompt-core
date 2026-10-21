@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM instance_leases WHERE lease_key = $1 AND owner_instance_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "718652dc02745304258a35e09d2e1246a775bce2c1f5056df9f1417f14f9d3a0"
+}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- Governance types are imported from `systemprompt-governance`.
+
 ## [0.68.0] - 2026-10-14
 
 ### Changed

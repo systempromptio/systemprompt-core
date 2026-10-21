@@ -20,12 +20,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod credential;
 mod discovery_report;
 mod error;
 mod headers;
 mod rate_card;
+mod validate;
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
@@ -33,9 +35,9 @@ use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing};
 use systemprompt_models::providers::{ApiSurface, without_context_variant};
 use systemprompt_wire::anthropic::AnthropicBeta;
-use systemprompt_wire::hosting::names_a_project_literally;
 use systemprompt_wire::{Hosting, ModelLimits, WireProtocol};
 
+pub use credential::ProviderCredentialSource;
 pub use discovery_report::DiscoveryReport;
 pub use error::{ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
 pub use rate_card::{
@@ -125,7 +127,17 @@ pub struct ProviderEntry {
 
     pub endpoint: String,
 
-    pub api_key_secret: SecretName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key_secret: Option<SecretName>,
+
+    #[serde(default, skip_serializing_if = "ProviderCredentialSource::is_platform")]
+    pub credential: ProviderCredentialSource,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub forward_headers: Vec<String>,
 
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub extra_headers: HashMap<String, String>,
@@ -141,6 +153,26 @@ pub struct ProviderEntry {
 }
 
 impl ProviderEntry {
+    #[must_use]
+    pub const fn is_user_credential(&self) -> bool {
+        matches!(self.credential, ProviderCredentialSource::User)
+    }
+
+    #[must_use]
+    pub const fn platform_secret(&self) -> Option<&SecretName> {
+        match self.credential {
+            ProviderCredentialSource::Platform => self.api_key_secret.as_ref(),
+            ProviderCredentialSource::User => None,
+        }
+    }
+
+    #[must_use]
+    pub fn forwards_header(&self, name: &str) -> bool {
+        self.forward_headers
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(name))
+    }
+
     #[must_use]
     pub fn find_model(&self, requested: &str) -> Option<&ProviderModel> {
         self.models.iter().find(|m| m.matches(requested))
@@ -231,64 +263,5 @@ impl ProviderRegistry {
             .filter(|model| !model.hidden)
             .map(|model| model.id.as_str().to_owned())
             .collect()
-    }
-
-    pub fn validate(&self) -> ProviderRegistryResult<()> {
-        let trusted = systemprompt_models::net::trusted_http_hosts_from_env();
-        let mut seen_providers: HashSet<&str> = HashSet::with_capacity(self.providers.len());
-        let mut seen_models: HashSet<&str> = HashSet::new();
-
-        for provider in &self.providers {
-            if !seen_providers.insert(provider.name.as_str()) {
-                return Err(ProviderRegistryError::DuplicateProvider {
-                    name: provider.name.as_str().to_owned(),
-                });
-            }
-            if provider.endpoint.is_empty() {
-                return Err(ProviderRegistryError::EmptyEndpoint {
-                    name: provider.name.as_str().to_owned(),
-                });
-            }
-            systemprompt_models::net::validate_outbound_url_with_trust(
-                &provider.endpoint,
-                &trusted,
-            )
-            .map_err(|source| ProviderRegistryError::BlockedEndpoint {
-                provider: provider.name.as_str().to_owned(),
-                endpoint: provider.endpoint.clone(),
-                source,
-            })?;
-            if let Some(header) = headers::reserved_name(provider.extra_headers.keys()) {
-                return Err(ProviderRegistryError::ReservedExtraHeader {
-                    provider: provider.name.as_str().to_owned(),
-                    header: header.to_owned(),
-                });
-            }
-            if names_a_project_literally(&provider.endpoint) {
-                return Err(ProviderRegistryError::LiteralProjectInEndpoint {
-                    provider: provider.name.as_str().to_owned(),
-                    endpoint: provider.endpoint.clone(),
-                });
-            }
-
-            for model in &provider.models {
-                if model.id.as_str().is_empty() {
-                    return Err(ProviderRegistryError::EmptyModelId {
-                        provider: provider.name.clone(),
-                    });
-                }
-                if !seen_models.insert(model.id.as_str()) {
-                    return Err(ProviderRegistryError::DuplicateModel {
-                        id: model.id.clone(),
-                    });
-                }
-                for alias in &model.aliases {
-                    if !seen_models.insert(alias.as_str()) {
-                        return Err(ProviderRegistryError::DuplicateModel { id: alias.clone() });
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 }

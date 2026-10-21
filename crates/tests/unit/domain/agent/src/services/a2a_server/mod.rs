@@ -1,4 +1,5 @@
 pub(crate) mod a2a_helpers;
+mod agent_run_stream;
 mod ai_executor;
 mod artifact_builder;
 mod broadcast;

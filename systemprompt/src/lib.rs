@@ -19,7 +19,7 @@
 //! | `events` | `systemprompt-events` | In-process event bus and SSE plumbing. |
 //! | `storage` | `systemprompt-storage` | File storage backends and the shared-mount probe. |
 //! | `client` | `systemprompt-client` | HTTP API client used by the CLI. |
-//! | `security` | `systemprompt-security` | JWT, scope/RBAC, secret scanning, rate limit. |
+//! | `security` | `systemprompt-security`, `systemprompt-governance` | JWT, scope/RBAC, secret scanning, rate limit. |
 //! | `cli` | `systemprompt-cli` (which depends on `systemprompt-api`, so it compiles the `api` crate graph) | The `systemprompt` CLI as a library entry point. |
 //! | `runtime` | `cli` + `systemprompt-extension` | `RuntimeBuilder` for embedding with custom extensions. |
 //! | `analytics` | `systemprompt-analytics` | Request, conversation, agent, tool, and cost metrics without the rest of `full`. |
@@ -29,7 +29,7 @@
 //! | `full` | `api`, `mcp`, `cloud`, `cli`, `config`, `logging`, `loader`, `events`, `storage`, `client`, `security`, `analytics`, and the domain crates (`agent`, `ai`, `mcp`, `oauth`, `users`, `content`, `marketplace`, `scheduler`, `generator`, `files`) | Building a product binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! ```toml
-//! systemprompt = { version = "0.70.0", features = ["full"] }
+//! systemprompt = { version = "0.71.0", features = ["full"] }
 //! ```
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
@@ -134,9 +134,11 @@ pub mod client {
 
 #[cfg(feature = "security")]
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
-pub mod security {
-    pub use systemprompt_security::*;
-}
+pub use systemprompt_security as security;
+
+#[cfg(feature = "security")]
+#[cfg_attr(docsrs, doc(cfg(feature = "security")))]
+pub use systemprompt_governance as governance;
 
 /// Application runtime / `AppContext` wiring. Construct via `AppContextBuilder`
 /// from the prelude.

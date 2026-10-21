@@ -1,6 +1,7 @@
 //! Request-rate windows on gateway admission: a per-user window refuses the
 //! request past its limit with 429 and `Retry-After` even under quota warn
-//! mode, and an `api_key` window never charges a request made without a key.
+//! mode, an `api_key` window never charges a request made without a key, and
+//! a request quota refuses gives its rate-window charge back.
 
 use axum::body::to_bytes;
 use systemprompt_api::routes::gateway::messages::dispatch::map_dispatch_error;
@@ -161,6 +162,48 @@ async fn an_api_key_window_does_not_charge_a_keyless_request() -> anyhow::Result
     for _ in 0..3 {
         assert_eq!(fx.dispatch(&registry).await?, http::StatusCode::OK);
     }
+    server.verify().await;
+    fx.finish().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_quota_refusal_refunds_the_rate_window_charge() -> anyhow::Result<()> {
+    let fx = fixture(
+        "rate_win_refund",
+        serde_json::json!({
+            "quota_mode": "enforce",
+            "quota_windows": [{"window_seconds": 3600, "max_requests": 1}],
+            "rate_windows": [{"window_seconds": 3600, "subject": "user", "max_requests": 5}]
+        }),
+    )
+    .await?;
+    let server = upstream(1).await;
+    let registry = registry(&server);
+
+    assert_eq!(fx.dispatch(&registry).await?, http::StatusCode::OK);
+    let error = fx
+        .dispatch(&registry)
+        .await
+        .expect_err("the second request exceeds the quota window");
+    let response = map_dispatch_error(error).expect("a quota denial renders a response");
+    assert_eq!(response.status(), http::StatusCode::TOO_MANY_REQUESTS);
+
+    let (hits, charges): (i64, i64) = sqlx::query_as(
+        "SELECT \
+           (SELECT COALESCE(SUM(hits), 0)::bigint FROM governance_rate_windows \
+            WHERE bucket_key LIKE 'gateway_rate_user:%'), \
+           (SELECT COUNT(*) FROM governance_rate_charges \
+            WHERE bucket_key LIKE 'gateway_rate_user:%')",
+    )
+    .fetch_one(fx.pool.pool().as_ref())
+    .await?;
+    assert_eq!(
+        (hits, charges),
+        (1, 1),
+        "only the request that reached the upstream spends request-rate budget"
+    );
+
     server.verify().await;
     fx.finish().await;
     Ok(())

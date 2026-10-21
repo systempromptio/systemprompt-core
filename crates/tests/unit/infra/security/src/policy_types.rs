@@ -1,12 +1,12 @@
 use std::str::FromStr;
 
 use serde_json::json;
-use systemprompt_identifiers::{PolicyId, UserId};
-use systemprompt_security::authz::types::{Decision, MatchedBy};
-use systemprompt_security::policy::governed::McpToolInput;
-use systemprompt_security::policy::types::{
+use systemprompt_governance::authz::types::{Decision, MatchedBy};
+use systemprompt_governance::policy::governed::McpToolInput;
+use systemprompt_governance::policy::types::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext, RateLimitWindow, SecretLocation,
 };
+use systemprompt_identifiers::{PolicyId, UserId};
 
 #[test]
 fn secret_location_new_stores_fields() {
@@ -151,4 +151,46 @@ fn governance_policy_metadata() {
     assert_eq!(p.name(), "allow-all");
     assert_eq!(p.description(), "always allows");
     assert_eq!(p.id().as_str(), "test-allow");
+}
+
+#[test]
+fn secret_location_display_names_kind_path_and_redaction() {
+    assert_eq!(
+        SecretLocation::new("tool_argument", "headers.auth", "sk-***").to_string(),
+        "tool_argument.headers.auth (sk-***)"
+    );
+    assert_eq!(
+        SecretLocation::new("prompt", "", "ghp_***").to_string(),
+        "prompt (ghp_***)"
+    );
+}
+
+#[test]
+fn access_scope_from_roles_prefers_admin_then_user() {
+    assert_eq!(
+        AccessScope::from_roles(&["user", "admin"]),
+        AccessScope::Admin
+    );
+    assert_eq!(
+        AccessScope::from_roles(&["viewer", "user"]),
+        AccessScope::User
+    );
+    assert_eq!(AccessScope::from_roles(&["viewer"]), AccessScope::Unknown);
+    assert_eq!(AccessScope::from_roles::<&str>(&[]), AccessScope::Unknown);
+    assert_eq!(
+        AccessScope::from_roles(&["Admin".to_owned()]),
+        AccessScope::Unknown,
+        "role names are matched exactly"
+    );
+}
+
+#[test]
+fn governance_policy_defaults_contribute_no_scanner_findings_or_window() {
+    let p = AllowPolicy;
+    let input = systemprompt_governance::policy::governed::GovernedInput::ToolArguments {
+        arguments: McpToolInput::new(json!({ "token": "sk-live-abc" })),
+    };
+    assert!(p.secret_scanner().is_none());
+    assert!(p.prompt_secret_findings(&input).is_none());
+    assert!(p.rate_window().is_none());
 }

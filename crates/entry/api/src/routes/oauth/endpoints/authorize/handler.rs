@@ -1,9 +1,8 @@
 //! Authorization-endpoint request handlers.
 //!
 //! Implements the GET and POST `/authorize` flow: CSRF/state handling,
-//! parameter validation, open-redirect-safe server-state issuance, and
-//! rendering the `WebAuthn` challenge form. Password authentication is rejected
-//! in favour of the `WebAuthn` flow.
+//! parameter validation, and rendering the `WebAuthn` challenge form. Password
+//! authentication is rejected in favour of the `WebAuthn` flow.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,8 +11,8 @@ use super::response_builder::{
     convert_form_to_query, generate_webauthn_form, is_user_consent_granted,
 };
 use super::validation::{
-    RegisteredRedirect, SelfOrigins, ValidatedAuthorizeRequest, resolve_registered_redirect,
-    validate_authorize_request, validate_oauth_parameters,
+    RegisteredRedirect, SelfOrigins, resolve_registered_redirect, validate_authorize_request,
+    validate_oauth_parameters,
 };
 use super::{AuthorizeQuery, AuthorizeRequest};
 use crate::routes::oauth::extractors::OAuthRepo;
@@ -24,40 +23,8 @@ use axum::response::{Html, IntoResponse, Response};
 use systemprompt_manifest::Config;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::{OAuthRepository, StateBindingParams};
-use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_oauth::services::validation::CsrfToken;
 use tracing::instrument;
-
-fn same_origin_return_path(client_state: &str) -> Option<String> {
-    let raw = client_state.trim();
-    if raw.is_empty()
-        || !raw.starts_with('/')
-        || raw.starts_with("//")
-        || raw.starts_with("/\\")
-        || raw.contains('\n')
-        || raw.contains('\r')
-    {
-        return None;
-    }
-    Some(raw.to_owned())
-}
-
-async fn issue_server_state(
-    repo: &OAuthRepository,
-    return_to: &str,
-    params: &AuthorizeQuery,
-) -> Result<String, OAuthHttpError> {
-    let server_state = generate_secure_token("state");
-    let redirect_uri = params.redirect_uri.as_deref().unwrap_or("");
-    let binding = StateBindingParams::builder(&server_state, &params.client_id, redirect_uri)
-        .with_return_to(return_to)
-        .build();
-    repo.store_state_binding(binding)
-        .await
-        .map_err(|e| internal::server_error("Failed to persist authorization state", e))?;
-    Ok(server_state)
-}
 
 fn require_csrf_token(params: &AuthorizeQuery) -> Result<CsrfToken, OAuthHttpError> {
     match params.state.as_deref() {
@@ -141,22 +108,6 @@ fn authorize_query_string(params: &AuthorizeQuery) -> String {
         .join("&")
 }
 
-async fn render_webauthn_form(
-    repo: &OAuthRepository,
-    params: &AuthorizeQuery,
-    csrf_token: &CsrfToken,
-    validated: &ValidatedAuthorizeRequest,
-) -> Result<Response, OAuthHttpError> {
-    let form_state = match same_origin_return_path(csrf_token.as_str()) {
-        Some(return_to) => issue_server_state(repo, &return_to, params).await?,
-        None => csrf_token.as_str().to_owned(),
-    };
-    let mut form_params = params.clone();
-    form_params.state = Some(form_state);
-    let webauthn_form = generate_webauthn_form(&form_params, validated);
-    Ok(Html(webauthn_form).into_response())
-}
-
 #[instrument(skip(repo, _req_ctx, params), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
     State(state): State<OAuthState>,
@@ -176,7 +127,7 @@ pub async fn handle_authorize_get(
         "Authorization request received"
     );
 
-    let csrf_token = require_csrf_token(&params)?;
+    require_csrf_token(&params)?;
     let redirect = resolve_registered_redirect(&repo, &params).await?;
     let attach = |err| RegisteredRedirect::attach_if_registered(redirect.as_ref(), err);
 
@@ -208,7 +159,7 @@ pub async fn handle_authorize_get(
                 return Ok(redirect);
             }
 
-            render_webauthn_form(&repo, &params, &csrf_token, &validated).await
+            Ok(Html(generate_webauthn_form(&params, &validated)).into_response())
         },
         Err(error) => {
             tracing::info!(

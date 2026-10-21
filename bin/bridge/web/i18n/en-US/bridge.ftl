@@ -649,6 +649,7 @@ setup-health-label-not-checked = not checked yet
 host-profile-absent = no configuration profile
 agent-kind-cli-tool = Command line
 agent-kind-desktop-app = Desktop app
+agent-kind-desktop-and-cli = Desktop app & CLI
 settings-schedule-not-installed = Manual — sync from the Marketplace pane
 
 update-phase-downloading = Downloading { $percent }%
@@ -659,3 +660,20 @@ mcp-tools-unavailable = Tools are listed once the server authenticates.
 mcp-desktop-unlisted = { $slug }: sign in to list its tools
 mcp-desktop-unlisted-fix = Sign in and list tools
 marketplace-detail-auth = Authentication
+
+## Settings — personal subscriptions
+personal-keys-heading = Personal subscriptions
+personal-keys-hint = Use your own subscription key for these providers. Each key is verified, stored encrypted, and used only for your requests.
+personal-keys-placeholder = Paste your API key
+personal-keys-save = Test & save
+personal-keys-remove = Remove
+personal-keys-badge-active = Key active
+personal-keys-badge-missing = No key
+personal-keys-badge-failed = Failed
+personal-keys-fix-sign-in = Sign in
+personal-keys-fix-reenter = Re-enter key
+personal-keys-fix-refresh = Refresh list
+personal-keys-fix-retry = Try again
+personal-keys-error-generic = The gateway did not answer.
+toast-personal-key-saved = Key verified and saved. Your agents are being updated.
+toast-personal-key-removed = Key removed.

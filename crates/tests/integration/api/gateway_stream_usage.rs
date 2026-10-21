@@ -2,11 +2,10 @@
 //!
 //! `stream_options.include_usage` is what OpenCode and the OpenAI SDKs send,
 //! and the contract answers it with a usage-only chunk after the finish chunk
-//! and before `[DONE]`. The gateway used to answer it on the finish chunk
-//! instead, rendered before the upstream's usage had arrived, so every count
-//! the caller read was zero while the audit row for the same request carried
-//! the real ones. These cells drive a real dispatch and read the counts off
-//! the frames the caller actually receives.
+//! and before `[DONE]`. A usage object on the finish chunk would be rendered
+//! before the upstream's usage arrived and read zero while the audit row
+//! carried the real counts. These cells drive a real dispatch and read the
+//! counts off the frames the caller actually receives.
 
 use std::sync::Arc;
 

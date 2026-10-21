@@ -85,10 +85,9 @@ fn clear_xdg() {
     unsafe { std::env::remove_var("XDG_DATA_HOME") }
 }
 
-// The install suite used to cover this incidentally, by pinning an unwritable
-// system root so its assertions landed on the user scope. That decoy could not
-// survive macOS, where the system scope is taken unconditionally, so the
-// behaviour it depended on is asserted directly here instead.
+// Asserted directly rather than through the install suite: macOS takes the
+// system scope unconditionally, so an unwritable system root cannot steer
+// those assertions onto the user scope there.
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 #[test]
 fn an_unwritable_system_root_falls_back_to_the_user_scope() {

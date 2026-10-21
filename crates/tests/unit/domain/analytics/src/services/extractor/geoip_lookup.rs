@@ -3,8 +3,8 @@
 //!
 //! The fixture is `GeoIP2-City-Test.mmdb` from the MaxMind-DB test corpus;
 //! 89.160.20.128 is its canonical Swedish (SE, Linköping) test address.
-//! The client IP is now injected already-resolved via `caller_ip`; the
-//! extractor no longer parses it from headers.
+//! The client IP is injected already-resolved via `caller_ip`; the extractor
+//! does not parse it from headers.
 
 use std::net::IpAddr;
 use std::sync::Arc;

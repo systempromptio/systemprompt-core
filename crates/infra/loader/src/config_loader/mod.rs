@@ -263,10 +263,13 @@ fn demote_providers_without_credentials(config: &mut ServicesConfig) {
     };
 
     for provider in &mut config.providers.providers {
-        if !provider.surface.is_advertised() {
+        if !provider.surface.is_advertised() || provider.is_user_credential() {
             continue;
         }
-        if secrets.get(provider.api_key_secret.as_str()).is_some() {
+        if provider
+            .platform_secret()
+            .is_some_and(|name| secrets.get(name.as_str()).is_some())
+        {
             continue;
         }
         tracing::warn!(

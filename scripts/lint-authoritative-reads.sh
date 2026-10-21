@@ -27,7 +27,6 @@ SENSITIVE_FILES=(
     crates/domain/oauth/src/repository/oauth/auth_code/mod.rs
     crates/domain/oauth/src/repository/webauthn.rs
     crates/domain/oauth/src/repository/oauth/id_jag_replay.rs
-    crates/domain/oauth/src/repository/oauth/state_binding.rs
     crates/domain/oauth/src/repository/exchange_code.rs
 )
 

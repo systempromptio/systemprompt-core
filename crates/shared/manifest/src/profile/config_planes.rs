@@ -13,26 +13,7 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum PlaneAuthority {
-    #[default]
-    File,
-    Db,
-}
-
-impl PlaneAuthority {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::File => "file",
-            Self::Db => "db",
-        }
-    }
-}
+pub use systemprompt_provider_contracts::PlaneAuthority;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]

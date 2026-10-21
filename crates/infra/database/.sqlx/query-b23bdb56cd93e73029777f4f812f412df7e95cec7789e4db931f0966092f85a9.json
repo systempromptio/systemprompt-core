@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO release_stamps (name, version, stamped_at)\n             VALUES ($1, $2, CURRENT_TIMESTAMP)\n             ON CONFLICT (name) DO UPDATE SET version = EXCLUDED.version,\n                                              stamped_at = EXCLUDED.stamped_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b23bdb56cd93e73029777f4f812f412df7e95cec7789e4db931f0966092f85a9"
+}

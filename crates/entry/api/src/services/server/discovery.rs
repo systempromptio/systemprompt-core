@@ -17,7 +17,7 @@ use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
 use super::health_detail::handle_health_detail;
-use super::probes::{handle_livez, handle_readyz};
+use super::probes::{handle_livez, handle_readyz, readiness_layer};
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -172,6 +172,7 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
         .layer(config_state_layer(ctx))
+        .layer(readiness_layer(ctx))
         .with_state(ctx.clone())
 }
 
@@ -182,6 +183,7 @@ pub fn probes_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::LIVEZ, get(handle_livez))
         .route(ApiPaths::READYZ, get(handle_readyz))
         .layer(config_state_layer(ctx))
+        .layer(readiness_layer(ctx))
         .with_state(ctx.clone())
 }
 

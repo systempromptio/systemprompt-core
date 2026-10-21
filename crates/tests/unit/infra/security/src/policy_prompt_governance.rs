@@ -8,18 +8,22 @@
 //! budget rather than one per plane.
 
 use serde_json::json;
-use systemprompt_identifiers::{CallId, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{
     ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernanceEngineError, PROMPT_TARGET_NAME,
 };
+use systemprompt_identifiers::{CallId, SessionId, UserId};
 
 const EXTRA_PATTERN: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: demo-key\n          name: Demo Key\n          regex: 'XDEMO-[0-9]+'\n";
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 fn prompt_ctx<'a>(
@@ -121,7 +125,9 @@ fn a_prompt_target_names_itself_in_the_audit_row() {
 #[test]
 fn a_missing_services_governance_config_builds_the_warn_only_defaults() {
     let root = tempfile::tempdir().unwrap();
-    let engine = GovernanceEngine::from_services_root(root.path()).expect("defaults");
+    let engine =
+        GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
+            .expect("defaults");
     assert!(
         !engine.enforces_prompt_secrets(),
         "the default chain is warn-only, so prompt secrets are not enforced"
@@ -137,7 +143,9 @@ fn a_rejected_services_governance_config_refuses_the_engine() {
         "enabled: [not, a, bool]",
     )
     .unwrap();
-    let err = GovernanceEngine::from_services_root(root.path()).expect_err("rejected");
+    let err =
+        GovernanceEngine::from_services_root(root.path(), Some(crate::offline_rate_windows()))
+            .expect_err("rejected");
     assert!(
         matches!(err, GovernanceEngineError::ConfigRejected { .. }),
         "{err}"
@@ -182,5 +190,5 @@ fn secret_scanning_is_not_gated_on_the_target_kind() {
     ));
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

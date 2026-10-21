@@ -48,7 +48,7 @@ ALLOWED_FILES=(
   # the services-tree authz reconcile is called from the CLI, a services
   # refresh and a boot step; it takes a pool because none of those three has an
   # AppContext to take the repository from.
-  crates/infra/security/src/authz/reconcile.rs
+  crates/infra/governance/src/authz/reconcile.rs
   crates/infra/logging/src/services/maintenance.rs
   # scheduler-owned repos (SchedulerRepository, JobRepository,
   # LoggingRepository) have exactly one consuming crate; an AppContext

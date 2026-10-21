@@ -25,29 +25,31 @@ jobs:
   deny:
     name: cargo deny
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: extractions/setup-just@v4
-      - uses: taiki-e/install-action@v2
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-deny
+          tool: cargo-deny@0.20.2
       - run: just deny
 
   audit:
     name: cargo audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
-      - uses: extractions/setup-just@v4
-      - uses: taiki-e/install-action@v2
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-audit
+          tool: cargo-audit@0.22.2
       - run: just audit
 
   # The `main` ruleset's required context, PR runs only; push runs post
@@ -55,6 +57,7 @@ jobs:
   supply-chain-passed:
     name: ${{ github.event_name == 'pull_request' && 'Supply Chain passed' || 'Supply Chain passed (push)' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [deny, audit]
     if: always()
     steps:

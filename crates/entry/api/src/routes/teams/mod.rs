@@ -30,11 +30,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use systemprompt_config::SecretsBootstrap;
+use systemprompt_governance::authz::EntityRef;
 use systemprompt_identifiers::{TeamsAppId, TeamsConversationId, TeamsTenantId};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_manifest::services::TeamsAppConfig;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::EntityRef;
 use systemprompt_teams::activities::Activity;
 use systemprompt_teams::client::TeamsClient;
 

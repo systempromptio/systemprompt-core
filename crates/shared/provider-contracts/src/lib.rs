@@ -53,6 +53,8 @@ mod extender;
 mod frame_options;
 mod frontmatter;
 mod job;
+mod job_batch;
+mod job_budget;
 mod page;
 mod page_prerenderer;
 mod rss;
@@ -65,9 +67,10 @@ pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
 };
 pub use config_plane::{
-    ApplyMode, ApplyOutcome, ChangeActor, ChangeRequest, ConfigPlane, ConfigPlaneError,
-    ConfigPlaneResult, DeclaredState, DriftKind, DriftRow, PlaneContext, PlaneSnapshot,
-    diff_snapshots,
+    ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ConfigPlane,
+    ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet, DeclaredState, DriftKind, DriftRow,
+    EffectiveAuthority, EntityScope, PlaneAuthority, PlaneContext, PlaneEffect, PlaneSnapshot,
+    PlaneTx, PlaneWriter, diff_snapshots,
 };
 pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use dependencies::{Dependencies, MissingDependency};
@@ -76,6 +79,8 @@ pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, Templa
 pub use frame_options::FrameOptions;
 pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use job::{Job, JobContext, JobResult, JobScope};
+pub use job_batch::{BatchPlan, BatchedRun, run_batched};
+pub use job_budget::DbBudget;
 pub use page::{PageContext, PageDataProvider};
 pub use page_prerenderer::{
     DynPagePrerenderer, PagePrepareContext, PagePrerenderer, PageRenderSpec,

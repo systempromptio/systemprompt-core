@@ -2,7 +2,7 @@ name: Coverage (bridge, native)
 
 # Measures line coverage of the platform-gated `bin/bridge/src/gui` tree (and the
 # OS-specific keystore/registry/MDM backends) on macOS and Windows, where that
-# code actually compiles. The nightly Linux `coverage.yml` job already instruments
+# code actually compiles. The Linux `coverage.yml` workflow already instruments
 # the cross-platform bridge surface (the bridge is a path dependency of the
 # crates/tests workspace), but `gui/` is `#[cfg(any(target_os = "windows",
 # target_os = "macos"))]` and is configured out on Linux, so it never appears
@@ -19,8 +19,10 @@ on:
     - cron: "41 6 * * 1"
 
 concurrency:
+  # A weekly measurement: a second dispatch queues behind the first instead of
+  # discarding a half-finished native build.
   group: coverage-bridge-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -47,19 +49,19 @@ jobs:
         os: [macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - run: rustup show
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: |
             .
             crates/tests
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
         with:
-          tool: cargo-llvm-cov,nextest
+          tool: cargo-llvm-cov@0.9.1,nextest@0.9.146
 
       # A nextest `-E` filter selects which tests run, not what cargo builds, so
       # it cannot keep a package out of the graph. Two kinds of bridge test
@@ -115,7 +117,7 @@ jobs:
 
       - name: Upload coverage artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-bridge-${{ matrix.os }}
           path: |

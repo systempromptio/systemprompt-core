@@ -92,4 +92,14 @@ pub enum HostUiEvent {
         host_id: HostKind,
         report: crate::integration::reapply::Report,
     },
+    PersonalKeyRequested {
+        op: crate::gui::hosts::handlers::PersonalKeyOp,
+        reply_to: ReplyId,
+    },
+    PersonalKeyFinished {
+        // JSON: webview IPC reply — the provider rows or the stored row.
+        result: Result<serde_json::Value, crate::wire::ipc::BridgeError>,
+        resync: bool,
+        reply_to: ReplyId,
+    },
 }

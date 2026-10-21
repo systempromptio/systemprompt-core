@@ -1,11 +1,9 @@
 //! The two orphan passes that run before the retention windows: log rows whose
 //! owning user is gone, and AI requests left `pending` by a lost settlement.
 //!
-//! `fail_orphaned_pending` already existed but ran only from
-//! `journal::recover()`, which fires at boot, so a long-lived server never
-//! closed a `pending` row whose settlement was lost — three such rows had been
-//! open for six days on the 2026-09-22 customer instance. This job is its
-//! second, regular caller.
+//! `journal::recover()` runs `fail_orphaned_pending` only at boot, so a
+//! long-lived server needs this job as its second, regular caller to close a
+//! `pending` row whose settlement was lost.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -25,8 +23,15 @@ pub(super) async fn delete_orphaned_logs(db_pool: &DbPool, enforce: bool) -> Pro
         |e: systemprompt_logging::models::LoggingError| ProviderError::Internal(Box::new(e));
     // Why: `logs` and `users` have different owners, so the orphan set is
     // computed by asking each: the log owners seen, minus the users that
-    // still exist.
-    let seen = logs.distinct_log_user_ids().await.map_err(internal)?;
+    // still exist. System-span rows are owned by a sentinel no user row
+    // backs, and are never orphans.
+    let seen: Vec<_> = logs
+        .distinct_log_user_ids()
+        .await
+        .map_err(internal)?
+        .into_iter()
+        .filter(|id| id.as_str() != systemprompt_logging::SYSTEM_LOG_OWNER)
+        .collect();
     let orphans = users
         .missing_ids(&seen)
         .await

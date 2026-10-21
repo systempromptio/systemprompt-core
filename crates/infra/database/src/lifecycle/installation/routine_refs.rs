@@ -4,9 +4,8 @@
 //! Postgres does not track what a PL/pgSQL body names, so `DROP TABLE`
 //! succeeds while a trigger's function still writes that table, and the
 //! failure surfaces on the next ordinary write — after boot, in a request,
-//! far from the migration that caused it. On a 0.58 → 0.60 upgrade core
-//! analytics 015 dropped `analytics_ingestion_producers` while astound's
-//! `feedback_capture` triggers still wrote it. This check runs once the schema
+//! far from the migration that caused it — typically a downstream extension's
+//! trigger still writing a table core dropped. This check runs once the schema
 //! is final, and names the trigger, its table, the function and the missing
 //! relation, so the fix — retire the trigger in its extension's retirements —
 //! is in the error rather than in a stack trace.

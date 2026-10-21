@@ -100,7 +100,7 @@ workspace SQLx macros require its database configuration.
 |---------|-------------------------|-------|
 | JWT validation | `crates/infra/security/src/jwt/validate.rs` | First-party RS256 validation requires `kid`, a nonempty audience policy and time-claim validation; issuer checks depend on the selected policy |
 | OAuth authorization code protection | `crates/domain/oauth/` | PKCE S256, exact redirect URI validation, expiring single-use codes and refresh-token revocation |
-| Authorization | `crates/infra/security/src/authz/` | Route policies and resource decisions; authenticated identity alone does not grant access |
+| Authorization | `crates/infra/governance/src/authz/` | Route policies and resource decisions; authenticated identity alone does not grant access |
 | Database access | `crates/infra/database/`, domain repositories | PostgreSQL, parameterized queries and compile-time query checks; bootstrap DDL has separate rules |
 | Extension registration | `crates/shared/extension/` | Compile/link-time registration through `inventory`; extensions execute as trusted in-process code |
 | Audit persistence | `crates/infra/logging/`, `crates/domain/ai/` | Structured decisions and request records; database permissions and retention are deployment controls |

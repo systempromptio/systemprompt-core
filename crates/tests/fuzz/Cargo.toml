@@ -16,6 +16,8 @@ serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 systemprompt-manifest = { path = "../../shared/manifest" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-agent = { path = "../../domain/agent" }
+systemprompt-wire = { path = "../../shared/wire" }
+systemprompt-gateway = { path = "../../app/gateway" }
 
 [workspace]
 members = ["."]
@@ -38,6 +40,51 @@ doc = false
 [[bin]]
 name = "fuzz_config_loading"
 path = "fuzz_targets/config_loading.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_anthropic_parse_response"
+path = "fuzz_targets/anthropic_parse_response.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_openai_chat_parse_response"
+path = "fuzz_targets/openai_chat_parse_response.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_openai_responses_parse"
+path = "fuzz_targets/openai_responses_parse.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_gemini_parse_response"
+path = "fuzz_targets/gemini_parse_response.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_sse_framing"
+path = "fuzz_targets/sse_framing.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_anthropic_beta_parse"
+path = "fuzz_targets/anthropic_beta_parse.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_inbound_anthropic_messages"
+path = "fuzz_targets/inbound_anthropic_messages.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_inbound_openai_chat"
+path = "fuzz_targets/inbound_openai_chat.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_inbound_openai_responses"
+path = "fuzz_targets/inbound_openai_responses.rs"
 doc = false
 
 [package.metadata.cargo-machete]

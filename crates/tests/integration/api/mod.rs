@@ -196,10 +196,6 @@ mod session_middleware_persists_anon;
 mod routes_mcp_unauth_challenge;
 
 #[cfg(test)]
-#[path = "routes_oauth_callback.rs"]
-mod routes_oauth_callback;
-
-#[cfg(test)]
 #[path = "routes_oauth_webauthn_complete.rs"]
 mod routes_oauth_webauthn_complete;
 
@@ -376,6 +372,9 @@ mod routes_content_blog;
 mod routes_content_negotiation;
 
 #[cfg(test)]
+#[path = "routes_bridge_plugin_archive.rs"]
+mod routes_bridge_plugin_archive;
+#[cfg(test)]
 #[path = "routes_bridge_plugin_file.rs"]
 mod routes_bridge_plugin_file;
 
@@ -432,10 +431,6 @@ mod routes_oauth_introspect_revoke;
 mod routes_oauth_userinfo;
 
 #[cfg(test)]
-#[path = "routes_oauth_callback_flow.rs"]
-mod routes_oauth_callback_flow;
-
-#[cfg(test)]
 #[path = "routes_oauth_webauthn.rs"]
 mod routes_oauth_webauthn;
 
@@ -475,6 +470,9 @@ mod gateway_bridge_models_more;
 #[path = "gateway_dispatch_more.rs"]
 mod gateway_dispatch_more;
 
+#[cfg(test)]
+#[path = "server_extension_readiness.rs"]
+mod server_extension_readiness;
 #[cfg(test)]
 #[path = "server_readiness_db_loss.rs"]
 mod server_readiness_db_loss;

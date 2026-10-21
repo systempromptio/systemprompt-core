@@ -25,13 +25,13 @@ use http::HeaderValue;
 // JSON: the provider wire payload is inspected as raw JSON to tell an
 // uninspectable body from an empty one.
 use serde_json::Value;
-use systemprompt_identifiers::PolicyId;
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::secrets::SecretFinding;
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::secrets::SecretFinding;
+use systemprompt_governance::policy::{
     ChainEntryOutcome, ChainEntryResult, Evaluation, GovernanceEngine, GovernedInput,
     PolicyContext, SECRET_SCAN_ID,
 };
+use systemprompt_identifiers::PolicyId;
 use systemprompt_wire::canonical::CanonicalRequest;
 use systemprompt_wire::inspect;
 use systemprompt_wire::inspect::{ForwardedSurface, SurfaceBudget};

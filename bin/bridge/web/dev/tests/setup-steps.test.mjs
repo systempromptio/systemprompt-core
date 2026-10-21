@@ -1,12 +1,6 @@
-// The onboarding wizard's step model.
-//
-// This file exists because of a bug that shipped in v0.43.0: the settle gate
-// read `h.snapshot`, a field the wire stopped carrying when the host payload
-// was reduced to `health`. The expression was not merely wrong, it was constant
-// `false` — so the 12s settle timer always fired and every sign-in ended on
-// "Still checking this computer. Some agents have not reported yet." with a
-// "Continue anyway" button. No test could have failed, because the whole GUI
-// layer had none.
+// The onboarding wizard's step model. The settle gate reads each host's
+// `health`; a gate reading a field the wire does not carry would be constant
+// `false` and leave every sign-in on "Still checking this computer".
 import test from "node:test";
 import assert from "node:assert/strict";
 

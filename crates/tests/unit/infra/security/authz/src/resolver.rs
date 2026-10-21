@@ -1,9 +1,9 @@
-use systemprompt_identifiers::RouteId;
-use systemprompt_security::authz::resolver::{ResolveInput, resolve};
-use systemprompt_security::authz::subject::{SubjectAttributes, SubjectDimension};
-use systemprompt_security::authz::types::{
+use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
+use systemprompt_governance::authz::subject::{SubjectAttributes, SubjectDimension};
+use systemprompt_governance::authz::types::{
     Access, AccessRule, Decision, DenyReason, EntityRef, MatchedBy, RuleType,
 };
+use systemprompt_identifiers::RouteId;
 use systemprompt_test_fixtures::{FIXTURE_USER_ID, fixture_user_id};
 
 fn rule(rule_type: RuleType, value: &str, access: Access) -> AccessRule {
@@ -34,7 +34,7 @@ fn input<'a>(
         user_roles,
         default_included,
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     }
 }
@@ -347,8 +347,7 @@ fn department_rule_for_another_department_does_not_match() {
     );
 }
 
-// The regression guard for the ladder rewrite: with the dimension left
-// unregistered its rules are inert, which is exactly the pre-change
+// With the dimension left unregistered its rules are inert, matching the
 // behaviour every other case in this file asserts.
 #[test]
 fn unregistered_dimension_rules_are_inert() {

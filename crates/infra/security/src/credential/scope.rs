@@ -8,12 +8,12 @@
 //! resolved against them — so an endpoint asking for a coordinate the
 //! credential does not carry is refused rather than guessed at.
 //!
-//! [`fill_endpoint`] is the generalisation of what used to be a `{project}`
-//! substitution: the catalog never carries a tenant identifier, so a secret
-//! swapped for another customer's re-targets the endpoint with it. An
-//! endpoint that asks for a coordinate this credential cannot supply cannot be
-//! served — guessing one would send the request somewhere the operator never
-//! chose. `PLACEHOLDERS` is every placeholder a template may ask for.
+//! [`fill_endpoint`] generalises a `{project}` substitution: the catalog never
+//! carries a tenant identifier, so a secret swapped for another customer's
+//! re-targets the endpoint with it. An endpoint that asks for a coordinate this
+//! credential cannot supply cannot be served — guessing one would send the
+//! request somewhere the operator never chose. `PLACEHOLDERS` is every
+//! placeholder a template may ask for.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

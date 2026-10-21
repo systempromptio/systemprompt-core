@@ -44,7 +44,10 @@ fn provider(
         wire,
         surface,
         endpoint: "https://example.invalid/v1".to_owned(),
-        api_key_secret: SecretName::new(name),
+        api_key_secret: Some(SecretName::new(name)),
+        credential: Default::default(),
+        user_agent: None,
+        forward_headers: Vec::new(),
         governance: Default::default(),
         extra_headers: Default::default(),
         accepted_betas: None,
@@ -210,6 +213,8 @@ fn bridge_profile_dto_round_trips_typed_surface() {
         configured: true,
         models: vec!["claude-sonnet-4-6".to_owned()],
         config_issue: None,
+        display_name: None,
+        personal_key: false,
     };
 
     let json = serde_json::to_string(&health).expect("serialize");

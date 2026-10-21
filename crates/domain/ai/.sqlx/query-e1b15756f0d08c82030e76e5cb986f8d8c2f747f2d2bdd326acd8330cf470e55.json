@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COALESCE(SUM(requests), 0)::int8 AS \"requests!\",\n                   COALESCE(SUM(input_tokens), 0)::int8 AS \"input_tokens!\",\n                   COALESCE(SUM(output_tokens), 0)::int8 AS \"output_tokens!\",\n                   COALESCE(SUM(cost_microdollars), 0)::int8 AS \"cost_microdollars!\"\n            FROM ai_quota_buckets\n            WHERE subject_kind = $1 AND subject_id = $2\n              AND window_seconds = $3 AND window_start = $4\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "output_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "cost_microdollars!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "e1b15756f0d08c82030e76e5cb986f8d8c2f747f2d2bdd326acd8330cf470e55"
+}

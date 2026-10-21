@@ -21,8 +21,7 @@ export function renderSetupHeading(component) {
 }
 
 // Shown after sign-in succeeds while the bridge is still probing hosts, syncing
-// and writing policy — the window that previously flashed the sign-in form or a
-// full agent picker and read as broken.
+// and writing policy.
 export function renderSetupFinalizing(component) {
   const plugins = component.syncPlugins;
   const appName = escapeHtml(appNameOf(component));

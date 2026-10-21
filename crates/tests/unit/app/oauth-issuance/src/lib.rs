@@ -1,7 +1,7 @@
 //! Unit tests for the systemprompt-oauth-issuance crate: client-credentials
 //! scope and audience policy, RFC 8693 subject and ID-JAG validation, `act`
 //! chain assembly, user-grant permission resolution, request validation, and
-//! the grant input and issued-token shapes.
+//! the grant input and issued-token shapes, and the SSO driver end to end.
 
 #[cfg(test)]
 mod client_credentials;
@@ -11,6 +11,8 @@ mod error;
 mod request;
 #[cfg(test)]
 mod sso_cookie;
+#[cfg(test)]
+mod sso_driver;
 #[cfg(test)]
 mod sso_permissions;
 #[cfg(test)]

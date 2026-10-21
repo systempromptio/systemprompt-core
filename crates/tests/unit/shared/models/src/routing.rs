@@ -332,7 +332,6 @@ mod gateway_route_tests {
 
     #[test]
     fn gateway_requests_are_never_logged_as_page_views() {
-        // The regression, stated directly.
         let c = classifier_without_content_routing();
         let meta = c.get_event_metadata("/v1/messages", "POST");
         assert_eq!(meta.log_module, "gateway_request");

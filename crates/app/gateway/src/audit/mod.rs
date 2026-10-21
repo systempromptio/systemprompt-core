@@ -39,13 +39,13 @@ use std::time::Instant;
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
+use systemprompt_governance::policy::types::AccessScope;
 use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
-use systemprompt_security::policy::types::AccessScope;
 
 pub use access_log::GatewayAccessLog;
 
@@ -96,6 +96,7 @@ pub struct GatewayAudit {
     quota_buckets: AiQuotaBucketRepository,
     quota_reservation: Mutex<Option<crate::quota::QuotaReservation>>,
     admission: Mutex<Option<admission::PendingAdmission>>,
+    user_key_billing: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Debug, Default)]
@@ -125,6 +126,7 @@ impl GatewayAudit {
             quota_buckets: repos.quota_buckets.clone(),
             quota_reservation: Mutex::new(None),
             admission: Mutex::new(None),
+            user_key_billing: std::sync::atomic::AtomicBool::new(false),
         }
     }
 

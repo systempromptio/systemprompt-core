@@ -8,14 +8,14 @@
 //! Lives outside the `authz` test crate because that crate registers
 //! inventory hooks, which `build_authz_hook` discovers through the pool.
 
+use systemprompt_governance::authz::{
+    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
+    DenyReason, EntityRef, build_authz_hook,
+};
 use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_manifest::profile::{
     AuditConfig, AuthzConfig, AuthzHookConfig, AuthzMode, GovernanceConfig,
     UNRESTRICTED_ACKNOWLEDGEMENT,
-};
-use systemprompt_security::authz::{
-    AuthzBootstrapError, AuthzContext, AuthzDecision, AuthzError, AuthzRequest, ChainSources,
-    DenyReason, EntityRef, build_authz_hook,
 };
 use systemprompt_test_fixtures::{closed_db_pool, fixture_user_id};
 
@@ -266,7 +266,7 @@ mod extension_mode {
     use super::*;
     use async_trait::async_trait;
     use std::sync::Arc;
-    use systemprompt_security::authz::{AuthzDecisionHook, CompositeAuthzHook, SharedAuthzHook};
+    use systemprompt_governance::authz::{AuthzDecisionHook, CompositeAuthzHook, SharedAuthzHook};
 
     #[derive(Debug)]
     struct AlwaysAllow;

@@ -197,8 +197,8 @@ fn read_raw(path: &std::path::Path) -> serde_yaml::Value {
     serde_yaml::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 
-// Why: the edit used to save the interpolated struct, so every `${VAR}` in
-// the profile was replaced by the operator's shell value (or its default).
+// Why: saving the interpolated struct would replace every `${VAR}` in the
+// profile with the operator's shell value (or its default).
 #[test]
 fn saving_an_edit_keeps_untouched_placeholders_and_writes_the_changed_leaf() {
     use systemprompt_cli::cloud::profile::edit_document::ProfileDocument;

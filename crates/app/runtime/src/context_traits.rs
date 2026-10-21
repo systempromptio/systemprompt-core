@@ -82,8 +82,45 @@ impl ExtensionContext for AppContext {
         self.config().instance_id.clone()
     }
 
+    fn instances(&self) -> systemprompt_traits::DynInstanceRegistry {
+        let concrete = Arc::clone(self.service_repository());
+        let registry: systemprompt_traits::DynInstanceRegistry = concrete;
+        registry
+    }
+
+    fn leases(&self) -> systemprompt_traits::DynLeaseRepository {
+        let concrete = Arc::clone(&self.coordination_repositories().leases);
+        let leases: systemprompt_traits::DynLeaseRepository = concrete;
+        leases
+    }
+
+    fn advisory_locks(&self) -> systemprompt_traits::DynAdvisoryLocks {
+        let concrete = Arc::clone(&self.coordination_repositories().locks);
+        let locks: systemprompt_traits::DynAdvisoryLocks = concrete;
+        locks
+    }
+
+    fn secret(&self, name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        let secrets = match systemprompt_config::SecretsBootstrap::get() {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                tracing::warn!(%error, secret = name, "extension secret requested before secrets loaded");
+                return None;
+            },
+        };
+        secrets
+            .custom_secret(name)
+            .map(|value| systemprompt_traits::ExtensionSecret::new(value.clone()))
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.plugins.extension_registry.get(id).cloned()
+    }
+
+    fn config_planes(
+        &self,
+    ) -> systemprompt_provider_contracts::ConfigPlaneResult<crate::ConfigPlaneSet> {
+        Self::config_planes(self)
     }
 }
 

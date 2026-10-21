@@ -1,6 +1,12 @@
 //! Cloud Storage JSON API calls: media upload, media download, delete and
 //! object resource reads.
 //!
+//! The object resource's `etag` and the media download's `ETag` header are
+//! different values for the same object, so neither is surfaced: the
+//! validator is the object generation, which the resource carries as
+//! `generation` and the download as `x-goog-generation`, and which changes
+//! on every overwrite.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,7 +23,7 @@ use super::{GcsError, GcsFileStorage};
 pub(crate) struct ObjectResource {
     pub size: Option<String>,
     pub content_type: Option<String>,
-    pub etag: Option<String>,
+    pub generation: Option<String>,
     pub time_created: Option<DateTime<Utc>>,
     pub updated: Option<DateTime<Utc>>,
 }
@@ -25,6 +31,15 @@ pub(crate) struct ObjectResource {
 pub(crate) enum Lookup<T> {
     Found(T),
     Missing,
+}
+
+pub(crate) const GENERATION_HEADER: &str = "x-goog-generation";
+
+pub(crate) fn generation_etag(generation: Option<&str>) -> Option<String> {
+    generation
+        .map(str::trim)
+        .filter(|g| !g.is_empty())
+        .map(|g| format!("\"{g}\""))
 }
 
 fn encode(segment: &str) -> String {
@@ -49,7 +64,7 @@ impl GcsFileStorage {
         }
         Err(GcsError::Status {
             status: status.as_u16(),
-            body: response.text().await?,
+            body: crate::error_body::capped_error_body(response).await?,
         })
     }
 

@@ -65,6 +65,7 @@ pub mod cost;
 pub mod error;
 pub mod frame_options;
 pub mod gateway_guard;
+pub mod health;
 pub mod metadata;
 pub mod migration;
 pub mod purge;
@@ -82,6 +83,9 @@ pub use frame_options::{FrameOptionsOverride, stamp_frame_options};
 pub use gateway_guard::{
     GatewayDenyKind, GatewayDenyReason, GatewayGuardRequest, GatewayRequestGuard,
     GatewayRequestGuardRegistration, gateway_guards, run_gateway_guards,
+};
+pub use health::{
+    BoxedReadinessSource, MetricDescriptor, MetricKind, ReadinessCheck, ReadinessFailure,
 };
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition};
 pub use migration::Migration;
@@ -110,13 +114,14 @@ pub mod prelude {
     };
 
     pub use systemprompt_provider_contracts::{
-        ApplyMode, ApplyOutcome, ChangeActor, ChangeRequest, ComponentContext, ComponentRenderer,
-        ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ContentDataContext, ContentDataProvider,
-        DeclaredState, DriftKind, DriftRow, FrameOptions, FrontmatterContext, FrontmatterProcessor,
+        ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, ComponentContext,
+        ComponentRenderer, ConfigPlane, ConfigPlaneError, ConfigPlaneResult, ConfigPlaneSet,
+        ContentDataContext, ContentDataProvider, DeclaredState, DriftKind, DriftRow,
+        EffectiveAuthority, EntityScope, FrameOptions, FrontmatterContext, FrontmatterProcessor,
         PageContext, PageDataProvider, PagePrepareContext, PagePrerenderer, PageRenderSpec,
-        PlaceholderMapping, PlaneContext, PlaneSnapshot, RenderedComponent, RssFeedContext,
-        RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,
-        SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
-        TemplateDefinition, TemplateProvider, TemplateSource,
+        PlaceholderMapping, PlaneContext, PlaneEffect, PlaneSnapshot, PlaneTx, PlaneWriter,
+        RenderedComponent, RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider,
+        RssFeedSpec, SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry,
+        TemplateDataExtender, TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }

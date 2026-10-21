@@ -184,7 +184,7 @@ async fn coverage_command_reply(
         systemprompt_test_fixtures::fixture_app_context_with_hook(
             &pool,
             &b.database_url,
-            Arc::new(systemprompt_security::authz::DenyAllHook::null()),
+            Arc::new(systemprompt_governance::authz::DenyAllHook::null()),
         )?
     } else {
         test_app_context(&pool, &b.database_url)

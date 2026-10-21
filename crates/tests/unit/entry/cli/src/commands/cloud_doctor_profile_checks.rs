@@ -127,7 +127,7 @@ fn provider_credentials_are_reported_per_missing_secret() {
         &registry
             .providers
             .iter()
-            .map(|p| (p.api_key_secret.as_str(), "value"))
+            .filter_map(|p| p.api_key_secret.as_ref().map(|s| (s.as_str(), "value")))
             .collect::<Vec<_>>(),
     );
     let satisfied = check_provider_secrets(&registry, &all_present);

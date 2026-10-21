@@ -1,9 +1,8 @@
 // The Setup health table's row model: one row per thing that can be wrong,
 // worst first, each carrying the action that answers it when one exists.
 //
-// Pure so it runs under node:test. The rows used to be built inside the
-// component, where nothing could assert that a host failure the sync could
-// not write without UAC actually offered the UAC-backed repair.
+// Pure so it runs under node:test, where a test can assert that a host failure
+// the sync cannot write without UAC offers the UAC-backed repair.
 
 import { t } from "/assets/js/i18n.js";
 

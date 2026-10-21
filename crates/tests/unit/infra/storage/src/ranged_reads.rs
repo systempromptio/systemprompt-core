@@ -227,6 +227,49 @@ async fn gcs_forwards_the_range_and_reads_a_206() {
 }
 
 #[tokio::test]
+async fn gcs_open_and_metadata_report_the_same_etag_for_one_object() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/storage/v1/b/b/o/files%2Fa.bin"))
+        .and(query_param("alt", "media"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("etag", "\"media-md5\"")
+                .insert_header("x-goog-generation", "1700000000000001")
+                .set_body_bytes(b"0123456789".to_vec()),
+        )
+        .with_priority(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/storage/v1/b/b/o/files%2Fa.bin"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "size": "10",
+            "etag": "CIGAgIDAgID/ARAB",
+            "generation": "1700000000000001",
+            "timeCreated": "2026-10-01T10:00:00Z"
+        })))
+        .mount(&server)
+        .await;
+    let base = Url::parse(&server.uri()).unwrap();
+    let s = GcsFileStorage::new(
+        GcsParams::new("b", None, false)
+            .unwrap()
+            .with_endpoints(base.clone(), base),
+        Arc::new(StaticTokens),
+        reqwest::Client::new(),
+    );
+    let id = StoredFileId::new("files/a.bin");
+    let read_etag = s.open(&id, None).await.unwrap().metadata.etag;
+    let head_etag = s.metadata(&id).await.unwrap().etag;
+    assert_eq!(read_etag.as_deref(), Some("\"1700000000000001\""));
+    assert_eq!(
+        read_etag, head_etag,
+        "a conditional request validated against HEAD must match the GET validator"
+    );
+}
+
+#[tokio::test]
 async fn local_directory_metadata_is_not_found() {
     let (_dir, s, _id) = local_with(b"x").await;
     assert!(matches!(

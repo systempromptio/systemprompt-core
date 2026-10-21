@@ -1,0 +1,61 @@
+name: Semver report
+
+# Informational: breaking changes are allowed, but each one this reports needs
+# a `### Breaking` entry in CHANGELOG.md. A workflow of its own so that a slow
+# or failed report never changes the conclusion of a gate run that
+# release-proof.py reads.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA or branch to report on. Defaults to the triggering ref."
+        type: string
+        required: false
+  pull_request:
+    branches: [main]
+  push:
+    branches: [next]
+
+concurrency:
+  group: semver-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Why: transient TLS resets from static.rust-lang.org and crates.io fail a run
+  # on infrastructure rather than on the code. rustup and cargo both retry when
+  # told to; they do not by default.
+  RUSTUP_MAX_RETRIES: "10"
+  CARGO_NET_RETRY: "10"
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: "true"
+  RUSTFLAGS: ""
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  semver:
+    name: Semver report
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: sccache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - run: rustup show
+      - uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad # v0.0.9
+      - run: cargo install cargo-semver-checks --locked --version 0.51.0
+      - name: Semver report against the last release tag
+        run: bash scripts/semver-report.sh target/semver-report.md
+      - if: always()
+        run: cat target/semver-report.md >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: semver-report
+          path: target/semver-report.md
+          if-no-files-found: warn

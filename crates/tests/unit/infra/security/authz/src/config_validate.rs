@@ -1,4 +1,4 @@
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     Access, AccessControlConfig, EntityKind, RuleEntry, RuleTarget,
 };
 

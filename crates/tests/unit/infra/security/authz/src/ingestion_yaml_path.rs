@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use systemprompt_database::DbPool;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AccessControlIngestionService, IngestOptions, RegisteredEntities,
 };
 use systemprompt_test_fixtures::test_db_pool;

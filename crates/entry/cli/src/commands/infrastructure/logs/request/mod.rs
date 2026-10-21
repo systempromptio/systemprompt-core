@@ -38,6 +38,7 @@ fn request_list_columns() -> Vec<Column> {
         Column::new("model", ColumnType::String),
         Column::new("tokens", ColumnType::String),
         Column::new("cost", ColumnType::String),
+        Column::new("billing", ColumnType::String),
         Column::new("latency_ms", ColumnType::Number),
         Column::new("status", ColumnType::String),
         Column::new("finish", ColumnType::String),
@@ -110,6 +111,7 @@ pub struct RequestListRow {
     pub model: String,
     pub tokens: String,
     pub cost: String,
+    pub billing: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<i64>,
     pub status: String,

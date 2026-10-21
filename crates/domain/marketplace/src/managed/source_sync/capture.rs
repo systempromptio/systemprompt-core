@@ -8,7 +8,7 @@ use super::{
     GitCheckout, GitSyncRequest, GitSyncResult, ManagedError, ManagedRepository, ManagedSourceId,
     Result, RevisionFiles, UserId, import_tree, resolve_ref,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -81,17 +81,29 @@ impl GitSynchronizationService {
 #[derive(Debug, Clone)]
 pub struct NativeGitSourceCapture {
     scratch_root: PathBuf,
+    certificate_authority: Option<Vec<u8>>,
 }
 
 impl NativeGitSourceCapture {
     #[must_use]
     pub const fn new(scratch_root: PathBuf) -> Self {
-        Self { scratch_root }
+        Self {
+            scratch_root,
+            certificate_authority: None,
+        }
     }
-}
 
-impl GitSourceCapture for NativeGitSourceCapture {
-    fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {
+    #[must_use]
+    pub fn with_certificate_authority(mut self, pem: Vec<u8>) -> Self {
+        self.certificate_authority = Some(pem);
+        self
+    }
+
+    fn capture_into(
+        &self,
+        temp: &Path,
+        request: &GitCaptureRequest<'_>,
+    ) -> Result<CapturedGitSource> {
         let GitCaptureRequest {
             repository,
             reference,
@@ -100,30 +112,59 @@ impl GitSourceCapture for NativeGitSourceCapture {
             credential,
         } = *request;
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
-        let commit = resolve_ref(repository, reference, credential, deadline)?;
+        let certificate_authority = self
+            .certificate_authority
+            .as_deref()
+            .map(|pem| write_certificate_authority(temp, pem))
+            .transpose()?;
+        let commit = resolve_ref(
+            repository,
+            reference,
+            credential,
+            certificate_authority.as_deref(),
+            deadline,
+        )?;
+        let files = import_tree(&GitCheckout {
+            temp,
+            repository,
+            commit: &commit,
+            subdirectory,
+            root,
+            credential,
+            certificate_authority: certificate_authority.as_deref(),
+            deadline,
+        })?;
+        Ok(CapturedGitSource { commit, files })
+    }
+}
+
+fn write_certificate_authority(temp: &Path, certificate: &[u8]) -> Result<PathBuf> {
+    use std::io::Write;
+    let path = temp.join(".systemprompt-ca.pem");
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(&path)?.write_all(certificate)?;
+    Ok(path)
+}
+
+impl GitSourceCapture for NativeGitSourceCapture {
+    fn capture(&self, request: &GitCaptureRequest<'_>) -> Result<CapturedGitSource> {
         std::fs::create_dir_all(&self.scratch_root)?;
         let temp = self.scratch_root.join(format!(
             "systemprompt-managed-{}",
             ManagedSourceId::generate()
         ));
         super::super::git_execution::create_private_directory(&temp)?;
-        let imported = import_tree(&GitCheckout {
-            temp: &temp,
-            repository,
-            commit: &commit,
-            subdirectory,
-            root,
-            credential,
-            certificate_authority: None,
-            deadline,
-        });
+        let captured = self.capture_into(&temp, request);
         std::fs::remove_dir_all(&temp)?;
         if temp.exists() {
             return Err(ManagedError::Integrity);
         }
-        Ok(CapturedGitSource {
-            commit,
-            files: imported?,
-        })
+        captured
     }
 }

@@ -11,6 +11,14 @@
 # twice, a deploy and a restart, and installs a second database from scratch.
 # The two catalogs (scripts/schema-catalog.sql) must be identical.
 #
+# Last, the rung's own server boots against the upgraded database
+# (scripts/schema-ladder-boot.sh): the pod a rolling update leaves running
+# must keep serving the expanded schema, or refuse one a `@compat: breaking`
+# migration contracted.
+#
+# LADDER_BIN_DIR, when set, holds the rung's binaries between runs: a tag never
+# changes, so a hit there skips both rung builds.
+#
 # Fresh-install gates cannot see a migration that only misbehaves against an
 # established database; this is the one that can. `infra/events` 007 in 0.59.0
 # dropped the only `actor_id` check on every upgrading instance and passed
@@ -42,15 +50,25 @@ trap cleanup EXIT
 
 step() { printf '\n==> %s\n' "$*"; }
 
-step "build the $RUNG migrator"
-git -C "$ROOT" worktree add --detach "$WORK/rung" "$RUNG" >/dev/null
-(
-    cd "$WORK/rung"
-    rustup show >/dev/null
-    SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
-        -p systemprompt-test-migrate --target-dir "$WORK/target"
-)
-RELEASED="$WORK/target/debug/systemprompt-test-migrate"
+BIN_DIR="$(realpath -m "${LADDER_BIN_DIR:-$WORK/bin}")"
+RELEASED="$BIN_DIR/systemprompt-test-migrate"
+RUNG_CLI="$BIN_DIR/systemprompt"
+if [ -x "$RELEASED" ] && [ -x "$RUNG_CLI" ]; then
+    step "reuse the cached $RUNG migrator and server"
+else
+    step "build the $RUNG migrator and server"
+    git -C "$ROOT" worktree add --detach "$WORK/rung" "$RUNG" >/dev/null
+    (
+        cd "$WORK/rung"
+        rustup show >/dev/null
+        SQLX_OFFLINE=true cargo build --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-test-migrate --target-dir "$WORK/target"
+        SQLX_OFFLINE=true cargo build -p systemprompt-cli --bin systemprompt \
+            --target-dir "$WORK/target"
+    )
+    mkdir -p "$BIN_DIR"
+    cp "$WORK/target/debug/systemprompt-test-migrate" "$WORK/target/debug/systemprompt" "$BIN_DIR/"
+fi
 
 for db in "$UP" "$FRESH"; do
     psql "$SERVER/postgres" -XAtq -v ON_ERROR_STOP=1 \
@@ -85,6 +103,9 @@ if ! diff -u --label "fresh install" --label "upgraded from $RUNG" \
     exit 1
 fi
 echo "    $(wc -l < "$WORK/fresh.txt") schema objects identical"
+
+step "boot the $RUNG server against $UP — the pod a rolling update leaves running"
+bash "$SCRIPTS/schema-ladder-boot.sh" "$RUNG" "$RUNG_CLI" "$SERVER/$UP"
 
 for db in "$UP" "$FRESH"; do
     psql "$SERVER/postgres" -XAtq -c "DROP DATABASE IF EXISTS \"$db\" WITH (FORCE)" || true

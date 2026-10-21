@@ -43,6 +43,7 @@ impl std::fmt::Debug for DataPlane {
             .field("oauth_repositories", &"OAuthRepositories")
             .field("user_repository", &"UserRepository")
             .field("service_repository", &"ServiceRepository")
+            .field("coordination", &"CoordinationRepositories")
             .field("ai_repositories", &"AiRepositories")
             .field("analytics_repositories", &"AnalyticsRepositories")
             .field("file_repository", &"FileRepository")

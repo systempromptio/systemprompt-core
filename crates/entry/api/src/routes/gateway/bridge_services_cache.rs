@@ -1,7 +1,6 @@
 //! A short-lived in-process copy of the services config for the bridge routes.
 //!
 //! One bridge sync is a manifest fetch followed by a download per plugin
-//! file, and each of those used to re-read and re-parse every services YAML
 //! file. The copy here is reused for `TTL`, so a sync burst parses the tree
 //! once while an edit on disk is still picked up within seconds. Per-user
 //! filtering happens downstream; the config itself is the same for everyone.

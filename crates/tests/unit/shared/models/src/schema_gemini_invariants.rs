@@ -4,7 +4,7 @@
 //! `gemini_declaration_violations` is the rule set; the corpus below is every
 //! shape that has reached a Gemini or Vertex 400 from a real client — the
 //! Atlassian MCP catalog through OpenCode, Claude Code's tuple arrays, Pydantic
-//! optionals — plus the shapes the sanitizer used to leave half-fixed. A new
+//! optionals — plus shapes a partial sanitizer would leave half-fixed. A new
 //! failing shape is added to the corpus, and the sanitizer has to make it pass.
 
 use serde_json::{Value, json};
@@ -52,10 +52,9 @@ fn the_checker_names_each_rejection_gemini_makes() {
     assert!(gemini_declaration_violations(&json!({"type": "array", "items": {}})).is_empty());
 }
 
-// Why: these are the shapes that have produced
+// Why: these shapes of Atlassian's `source_types` (through OpenCode) produce
 // "field predicate failed: $type == Type.ARRAY" and "any_of[0].items: missing
-// field" in production (Atlassian's `source_types` through OpenCode,
-// 2026-09-05 and 2026-09-11). Each must sanitise to an accepted declaration.
+// field" from Gemini. Each must sanitise to an accepted declaration.
 #[test]
 fn every_known_source_types_shape_sanitises_to_an_accepted_declaration() {
     let items = json!({"type": "string", "enum": ["confluence", "jira"]});
@@ -87,8 +86,8 @@ fn every_known_source_types_shape_sanitises_to_an_accepted_declaration() {
     }
 }
 
-// Why: the two real Atlassian declarations at the indices the 2026-09-11
-// error named (`function_declarations[86]` / `[87]`), plus the one tool in
+// Why: the two real Atlassian declarations Gemini refused
+// (`function_declarations[86]` / `[87]`), plus the one tool in
 // that catalog that uses `anyOf`, as the server sends them.
 #[test]
 fn the_atlassian_search_declarations_sanitise_cleanly() {

@@ -21,7 +21,7 @@ fn surface(value: &serde_json::Value) -> Vec<String> {
 
 #[test]
 fn finds_strings_nested_anywhere_including_shapes_the_canonical_model_drops() {
-    // Why: this is the regression shape — a `document` block is dropped by the
+    // Why: a `document` block is dropped by the
     // inbound parser, so nothing canonical can see a credential placed here.
     let values = surface(&json!({
         "model": "claude-x",

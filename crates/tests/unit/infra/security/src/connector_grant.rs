@@ -148,3 +148,158 @@ async fn a_minted_grant_answers_a_bearer_header() {
         "Bearer minted"
     );
 }
+
+#[test]
+fn missing_or_blank_fields_name_the_field() {
+    let no_url =
+        connector("grant: client_credentials\nclient_id_secret: cc_id\nclient_secret: cc_secret\n");
+    assert!(matches!(
+        MachineGrant::resolve("jira", &no_url, secrets).unwrap_err(),
+        ConnectorGrantError::MissingField {
+            field: "token_url",
+            ..
+        }
+    ));
+    let blank_app = connector(
+        "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
+         private_key_secret: gh_key\napp_id: \"  \"\ninstallation_id: \"1\"\n",
+    );
+    assert!(matches!(
+        MachineGrant::resolve("github", &blank_app, secrets).unwrap_err(),
+        ConnectorGrantError::MissingField {
+            field: "app_id",
+            ..
+        }
+    ));
+    let no_installation = connector(
+        "grant: app_installation\ntoken_url: https://x/{installation_id}\n\
+         private_key_secret: gh_key\napp_id: \"1\"\n",
+    );
+    assert!(matches!(
+        MachineGrant::resolve("github", &no_installation, secrets).unwrap_err(),
+        ConnectorGrantError::MissingField {
+            field: "installation_id",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn debug_output_never_carries_secrets() {
+    let grants = [
+        MachineGrant::ClientCredentials {
+            token_url: "https://idp/token".to_owned(),
+            client_id: "cid".to_owned(),
+            client_secret: "s3cret-cc".to_owned(),
+            scopes: vec!["read".to_owned()],
+        },
+        MachineGrant::AppInstallation {
+            token_url: "https://gh/token".to_owned(),
+            app_id: "42".to_owned(),
+            private_key_pem: "s3cret-pem".to_owned(),
+        },
+        MachineGrant::ApiToken {
+            email: "bot@example.com".to_owned(),
+            api_token: "s3cret-api".to_owned(),
+        },
+    ];
+    for grant in &grants {
+        let rendered = format!("{grant:?}");
+        assert!(!rendered.contains("s3cret"), "{rendered}");
+    }
+    assert!(format!("{:?}", grants[1]).contains("42"));
+}
+
+#[tokio::test]
+async fn client_credentials_send_scopes_space_separated() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .and(body_string_contains("scope=read+write"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({"access_token": "scoped"})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let grant = MachineGrant::ClientCredentials {
+        token_url: format!("{}/token", server.uri()),
+        client_id: "id".to_owned(),
+        client_secret: "secret".to_owned(),
+        scopes: vec!["read".to_owned(), "write".to_owned()],
+    };
+    let key = format!("connector-test:scopes:{}", server.uri());
+    assert_eq!(grant.token(&key).await.expect("mints"), "scoped");
+}
+
+#[tokio::test]
+async fn an_unreadable_token_response_is_a_credential_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("not json"))
+        .mount(&server)
+        .await;
+    let grant = MachineGrant::ClientCredentials {
+        token_url: format!("{}/token", server.uri()),
+        client_id: "id".to_owned(),
+        client_secret: "secret".to_owned(),
+        scopes: Vec::new(),
+    };
+    let err = grant
+        .token(&format!("connector-test:garbled:{}", server.uri()))
+        .await
+        .expect_err("garbled body");
+    assert!(matches!(err, ConnectorGrantError::Credential(_)), "{err}");
+}
+
+#[tokio::test]
+async fn an_app_installation_signs_a_jwt_and_reads_the_installation_token() {
+    use wiremock::matchers::{header, header_regex};
+    let server = MockServer::start().await;
+    let expires = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
+    Mock::given(method("POST"))
+        .and(path("/app/installations/9/access_tokens"))
+        .and(header("x-github-api-version", "2022-11-28"))
+        .and(header_regex(
+            "authorization",
+            r"^Bearer [\w-]+\.[\w-]+\.[\w-]+$",
+        ))
+        .respond_with(
+            ResponseTemplate::new(201)
+                .set_body_json(serde_json::json!({"token": "ghs_inst", "expires_at": expires})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let pem = systemprompt_test_fixtures::keys::test_key(2)
+        .to_pkcs8_pem()
+        .expect("pem")
+        .to_string();
+    let c = connector(&format!(
+        "grant: app_installation\ntoken_url: {}/app/installations/{{installation_id}}/access_tokens\n\
+         private_key_secret: pem\napp_id: \"7\"\ninstallation_id: \"9\"\n",
+        server.uri()
+    ));
+    let grant = MachineGrant::resolve("github", &c, |name| (name == "pem").then(|| pem.clone()))
+        .expect("resolves");
+    let key = format!("connector-test:app:{}", server.uri());
+    assert_eq!(
+        grant.authorization(&key).await.expect("mints"),
+        "Bearer ghs_inst"
+    );
+}
+
+#[tokio::test]
+async fn an_unusable_private_key_fails_before_any_request() {
+    let grant = MachineGrant::AppInstallation {
+        token_url: "http://127.0.0.1:9/never".to_owned(),
+        app_id: "7".to_owned(),
+        private_key_pem: "not a pem".to_owned(),
+    };
+    let err = grant
+        .token("connector-test:bad-pem")
+        .await
+        .expect_err("key refused");
+    assert!(matches!(err, ConnectorGrantError::Credential(_)), "{err}");
+}

@@ -10,6 +10,8 @@
 use systemprompt_identifiers::{ContextId, TaskId, TraceId};
 use tracing::Span;
 
+pub const SYSTEM_LOG_OWNER: &str = "system";
+
 pub struct SystemSpan(Span);
 
 impl std::fmt::Debug for SystemSpan {
@@ -22,7 +24,7 @@ impl SystemSpan {
     pub fn new(component: &str) -> Self {
         Self(tracing::info_span!(
             "system",
-            user_id = "system",
+            user_id = SYSTEM_LOG_OWNER,
             session_id = "system",
             trace_id = %TraceId::generate().as_str(),
             client_id = %format!("system:{component}"),

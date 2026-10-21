@@ -5,6 +5,7 @@
 
 pub mod agents;
 pub mod auth;
+pub mod auto_update;
 pub mod cancel;
 pub mod diagnostics;
 mod diagnostics_bundle;

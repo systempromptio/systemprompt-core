@@ -19,6 +19,7 @@ mod gateway_auth_shapes;
 mod gateway_authz_request;
 mod gateway_bridge_device;
 mod gateway_bridge_instance_hosts;
+mod gateway_bridge_release_error;
 mod gateway_bridge_release_feed;
 mod gateway_bridge_release_sums;
 mod gateway_extract_credential;
@@ -35,16 +36,19 @@ mod gateway_messages_extract;
 mod gateway_messages_signatures;
 mod gateway_otel_convert;
 mod gateway_otel_ingest;
+mod gateway_otel_json;
 mod gateway_scope_header_only;
 mod gateway_upstream_status_mapping;
 mod marketplace_yaml;
 mod oauth;
 mod proxy_mcp_metadata;
 mod role_table;
+mod sso_unknown_provider;
 mod sync_types;
 
 mod gateway_sessions_mint;
 
+mod gateway_otel_authed;
 mod gateway_otel_handle;
 mod mcp_registry_handler;
 

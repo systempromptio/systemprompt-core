@@ -209,7 +209,7 @@ fn an_upstream_401_on_a_fresh_jwt_latches_sign_in_instead_of_reminting() {
 
 // Why: only the gateway that minted the credential can declare it bad. A
 // managed MCP upstream on another origin — or a stale registry entry left by
-// a previous gateway — answering 401 used to sign the whole bridge out.
+// a previous gateway — answering 401 must not sign the whole bridge out.
 #[test]
 fn a_401_from_a_non_gateway_mcp_upstream_does_not_latch_sign_in() {
     let state = tempfile::tempdir().expect("state dir");
@@ -1232,6 +1232,7 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         plugin_tokens: Arc::new(
             systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
         ),
+        update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
     }
 }
 

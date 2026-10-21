@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use systemprompt_identifiers::{RouteId, TraceId};
-use systemprompt_security::authz::types::{Access, EntityKind, RuleType};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::types::{Access, EntityKind, RuleType};
+use systemprompt_governance::authz::{
     AccessControlRepository, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest,
     ChainSources, DenyReason, EntityRef, NullAuditSink, RuleBasedHook, UpsertRuleParams,
 };
+use systemprompt_identifiers::{RouteId, TraceId};
 use systemprompt_test_fixtures::closed_db_pool;
 
 fn fixture() -> AuthzRequest {

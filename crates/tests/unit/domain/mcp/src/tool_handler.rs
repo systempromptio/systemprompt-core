@@ -209,8 +209,7 @@ async fn execute_input_parse_error_returns_invalid_params() {
     assert!(err.message.to_lowercase().contains("invalid"));
 }
 
-// Why: the 2026-09-08 outage of every systemprompt-server tool in Claude Code.
-// An internally tagged enum input renders as a bare `oneOf`; Claude Code
+// Why: an internally tagged enum input renders as a bare `oneOf`; Claude Code
 // validates `inputSchema.type == "object"` per tool and, on one failure, drops
 // the server's whole tool list. The definition must carry the root type.
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -3,9 +3,8 @@
 //! [`A2AContextMiddleware`], [`McpContextMiddleware`]).
 //!
 //! Each flavour encodes its own caller-admission contract at the type level.
-//! These tests pin those contracts so a future "let's collapse them again"
-//! refactor cannot silently re-introduce the v0.11.0 regression (where the
-//! coarse public-flavour gate ate the MCP proxy's RFC 9728 401 challenge).
+//! These tests pin those contracts so collapsing the flavours cannot let a
+//! coarse public-flavour gate eat the MCP proxy's RFC 9728 401 challenge.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

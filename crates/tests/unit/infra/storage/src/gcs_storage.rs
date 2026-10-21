@@ -167,6 +167,29 @@ async fn a_403_is_a_backend_error_carrying_the_status() {
 }
 
 #[tokio::test]
+async fn an_oversized_error_body_is_capped_before_it_reaches_the_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(502).set_body_string("x".repeat(64 * 1024)))
+        .mount(&server)
+        .await;
+    let err = storage(&server, None)
+        .read_all(&StoredFileId::new("x.txt"))
+        .await
+        .unwrap_err();
+    let FileStorageError::Backend(source) = err else {
+        panic!("expected Backend, got {err:?}");
+    };
+    let gcs = source.downcast_ref::<GcsError>().expect("GcsError source");
+    let GcsError::Status { status, body } = gcs else {
+        panic!("expected Status, got {gcs:?}");
+    };
+    assert_eq!(*status, 502);
+    assert!(body.len() <= 2048 + " [truncated]".len(), "{}", body.len());
+    assert!(body.ends_with(" [truncated]"), "a cut body says so");
+}
+
+#[tokio::test]
 async fn parent_components_are_refused_before_any_request() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))

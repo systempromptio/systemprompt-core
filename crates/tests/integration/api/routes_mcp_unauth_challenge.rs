@@ -1,21 +1,17 @@
-//! Regression guard: unauthenticated requests to `/api/v1/mcp/*` must NOT be
-//! rejected with the generic `caller type 'anon' is not authorized for this
-//! route` 403 emitted by `authz_gate`.
+//! Unauthenticated requests to `/api/v1/mcp/*` must NOT be rejected with the
+//! generic `caller type 'anon' is not authorized for this route` 403 emitted
+//! by `authz_gate`.
 //!
-//! v0.11.0 mounted `/api/v1/mcp/*` under `AuthzPolicy::restricted_to([User,
-//! Admin, Mcp, Service])`, which sits ABOVE the proxy handler that already
-//! handled auth correctly and emits a spec-compliant 401 +
-//! `WWW-Authenticate: Bearer resource_metadata="…"` (RFC 9728). The added gate
-//! short-circuited the request before the proxy could run, collapsing the
-//! response to a generic 403 and breaking every spec-compliant MCP client
-//! (Cowork, Claude Code, etc.) — they only start their OAuth discovery dance
-//! on a 401 carrying the challenge.
+//! The proxy handler answers them with a spec-compliant 401 +
+//! `WWW-Authenticate: Bearer resource_metadata="…"` (RFC 9728). A role gate
+//! mounted above it would short-circuit the request into a generic 403, and
+//! spec-compliant MCP clients (Cowork, Claude Code, etc.) only start OAuth
+//! discovery on a 401 carrying the challenge.
 //!
 //! This test drives the FULL mounted router (the same one `setup_api_server`
 //! ships in production), POSTs to an MCP path with no `Authorization` header,
-//! and asserts the response is NOT the regression body. It would have caught
-//! the v0.11.0 regression at CI time. Pair with the unit test
-//! `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
+//! and asserts the response is NOT the generic 403 body. Pair with the unit
+//! test `unit/entry/api/src/middleware/authz_policy.rs` (gate-level coverage).
 
 use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
@@ -28,12 +24,12 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
     unique_instance,
@@ -102,6 +98,10 @@ async fn boot_full_router() -> anyhow::Result<axum::Router> {
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+                    &pool,
+                    test_instance.clone(),
+                )),
+                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
                     &pool,
                     test_instance.clone(),
                 )),

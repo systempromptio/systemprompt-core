@@ -24,7 +24,6 @@ pub struct OauthCleanupRepository {
 pub struct OauthCleanupCounts {
     pub codes: u64,
     pub tokens: u64,
-    pub state_bindings: u64,
     pub jti_revocations: u64,
     pub id_jag_replays: u64,
     pub bridge_exchange_codes: u64,
@@ -38,7 +37,6 @@ impl OauthCleanupCounts {
     pub const fn total(&self) -> u64 {
         self.codes
             + self.tokens
-            + self.state_bindings
             + self.jti_revocations
             + self.id_jag_replays
             + self.bridge_exchange_codes
@@ -59,7 +57,6 @@ impl OauthCleanupRepository {
         Ok(OauthCleanupCounts {
             codes: self.delete_expired_auth_codes().await?,
             tokens: self.delete_expired_refresh_tokens().await?,
-            state_bindings: self.delete_expired_state_bindings().await?,
             jti_revocations: self.delete_expired_jti_revocations().await?,
             id_jag_replays: self.delete_expired_id_jag_replays().await?,
             bridge_exchange_codes: self.delete_spent_bridge_exchange_codes().await?,
@@ -82,13 +79,6 @@ impl OauthCleanupRepository {
         )
         .execute(&*self.write_pool)
         .await?;
-        Ok(result.rows_affected())
-    }
-
-    pub async fn delete_expired_state_bindings(&self) -> OauthResult<u64> {
-        let result = sqlx::query!("DELETE FROM oauth_state_bindings WHERE expires_at < NOW()")
-            .execute(&*self.write_pool)
-            .await?;
         Ok(result.rows_affected())
     }
 

@@ -22,6 +22,8 @@ pub enum BreakdownType {
     Agent,
     Provider,
     User,
+    #[value(alias = "billing_source")]
+    BillingSource,
 }
 
 #[derive(Debug, Args)]
@@ -41,7 +43,7 @@ pub struct BreakdownArgs {
         long,
         value_enum,
         default_value = "model",
-        help = "Breakdown by (model, agent, provider, user)"
+        help = "Breakdown by (model, agent, provider, user, billing-source)"
     )]
     pub by: BreakdownType,
 
@@ -86,6 +88,12 @@ async fn execute_internal(
             .into_iter()
             .map(Share::from)
             .collect(),
+        BreakdownType::BillingSource => repo
+            .get_breakdown_by_billing_source(start, end, args.limit)
+            .await?
+            .into_iter()
+            .map(Share::from)
+            .collect(),
         BreakdownType::User => repo
             .get_breakdown_by_user(start, end, args.limit)
             .await?
@@ -102,7 +110,7 @@ async fn execute_internal(
             start.format("%Y-%m-%d %H:%M"),
             end.format("%Y-%m-%d %H:%M")
         ),
-        breakdown_by: format!("{:?}", args.by).to_lowercase(),
+        breakdown_by: breakdown_label(args.by).to_owned(),
         items: build_items(rows, total_cost),
         total_cost_microdollars: total_cost,
     };
@@ -120,6 +128,16 @@ async fn execute_internal(
     }
 
     Ok(breakdown_table(&output.items).with_title("Cost Breakdown"))
+}
+
+const fn breakdown_label(by: BreakdownType) -> &'static str {
+    match by {
+        BreakdownType::Model => "model",
+        BreakdownType::Agent => "agent",
+        BreakdownType::Provider => "provider",
+        BreakdownType::User => "user",
+        BreakdownType::BillingSource => "billing_source",
+    }
 }
 
 struct Share {

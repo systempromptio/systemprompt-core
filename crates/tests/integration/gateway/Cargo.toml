@@ -19,7 +19,7 @@ systemprompt-ai = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }
-systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }

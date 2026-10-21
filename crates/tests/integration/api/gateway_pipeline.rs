@@ -35,11 +35,11 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::common::setup_ctx;
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_security::policy::types::AccessScope;
-use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(
@@ -138,7 +138,10 @@ pub(super) fn provider_registry(
             wire,
             surface,
             endpoint: endpoint.to_owned(),
-            api_key_secret: SecretName::new(API_KEY_SECRET),
+            api_key_secret: Some(SecretName::new(API_KEY_SECRET)),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: HashMap::new(),
             accepted_betas: None,
@@ -316,6 +319,7 @@ fn governance_inputs(
     dispatch.governance = Arc::new(
         GovernanceEngine::from_config(
             &GovernanceConfig::parse(yaml).expect("valid governance fixture"),
+            Some(systemprompt_test_fixtures::offline_rate_windows()),
         )
         .expect("governance fixture builds"),
     );
@@ -824,7 +828,7 @@ async fn missing_api_key_secret_is_pre_audit_error() -> anyhow::Result<()> {
         WireProtocol::Anthropic,
         ApiSurface::Anthropic,
     );
-    registry.providers[0].api_key_secret = SecretName::new("definitely_absent_secret_key");
+    registry.providers[0].api_key_secret = Some(SecretName::new("definitely_absent_secret_key"));
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
@@ -1013,9 +1017,8 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
 }
 
 // Why: the unit tests cover the detectors in isolation; this covers what a
-// caller actually gets. `ade511b3c` shipped a detector that read trace ids as
-// cards and ordinary English as a jailbreak, and it denied production traffic
-// before anything here failed, because nothing here asserted an absence.
+// caller actually gets, including the absence of findings on trace ids and
+// ordinary English that an over-eager detector would deny.
 //
 // The email is the synchronisation point, not decoration. Polling for "no
 // findings" would pass while the scan was still in flight; polling until the

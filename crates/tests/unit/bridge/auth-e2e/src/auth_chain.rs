@@ -289,10 +289,9 @@ fn pat_exchange_server_error_names_the_failed_provider() {
 
 #[test]
 fn pat_exchange_transport_failure_is_not_terminal() {
-    // Why: the 2026-09-10 astound incident. A refresh tick fired one second before
-    // the laptop finished waking, the PAT exchange failed to reach the gateway, and
-    // a terminal verdict here latched the bridge into "sign in required" for five
-    // hours with a perfectly valid PAT still on disk.
+    // Why: a refresh tick can fire before a waking laptop has a network; a
+    // terminal verdict here would latch the bridge into "sign in required" with
+    // a valid PAT still on disk.
     let home = TempDir::new().unwrap();
     temp_env::with_vars(sandbox_vars(&home), || {
         block_on(async {

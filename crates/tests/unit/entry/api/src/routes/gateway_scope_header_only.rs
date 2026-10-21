@@ -9,13 +9,13 @@ use systemprompt_api::routes::gateway::messages::extract::RejectionPartial;
 use systemprompt_api::routes::gateway::messages::extract::scope::{
     ScopeHeaders, ScopeResolution, resolve_scope_attribution,
 };
+use systemprompt_governance::authz::{
+    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
+};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::attribution::{AttributionSource, RequestAttribution};
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
-};
-use systemprompt_security::authz::{
-    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
 };
 
 const RUN: &str = "workflowrun";

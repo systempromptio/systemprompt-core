@@ -4,7 +4,7 @@
 //! Every entry belongs to the gateway whose manifest delivered it. The on-disk
 //! fragment records that gateway, and a fragment written for another gateway is
 //! never re-hydrated: forwarding a fresh token to the previous gateway's
-//! upstreams is how a switched account used to sign itself out. A fragment in
+//! upstreams would sign a switched account out. A fragment in
 //! the pre-stamp array shape is likewise left alone until a sync rewrites it.
 //! Two gateways are the same when scheme, host and port agree; trailing
 //! slashes and host case do not make a second gateway.

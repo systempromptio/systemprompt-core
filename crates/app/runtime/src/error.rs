@@ -24,15 +24,15 @@ use systemprompt_config::{
 use systemprompt_content::ContentError;
 use systemprompt_extension::LoaderError;
 use systemprompt_files::FilesError;
+use systemprompt_governance::authz::AuthzError;
+use systemprompt_governance::policy::GovernanceEngineError;
 use systemprompt_identifiers::SecretName;
 use systemprompt_loader::{BundleError, ConfigLoadError};
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_mcp::McpDomainError;
 use systemprompt_models::errors::GlobalConfigError;
 use systemprompt_oauth::OauthError;
-use systemprompt_security::authz::AuthzError;
 use systemprompt_security::keys::TokenAuthorityError;
-use systemprompt_security::policy::GovernanceEngineError;
 use systemprompt_traits::{BoxedSource, FileStorageError, RepositoryError};
 use systemprompt_users::UserError;
 use thiserror::Error;

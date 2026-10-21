@@ -5,6 +5,7 @@
 use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
+use systemprompt_governance::authz::{AuthzContext, EntityRef};
 use systemprompt_identifiers::{
     Actor, AgentName, ClientId, ContextId, McpServerId, SessionId, TaskId, TraceId, UserId,
 };
@@ -13,7 +14,6 @@ use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
 use systemprompt_models::execution::context::ExecutionContext;
-use systemprompt_security::authz::{AuthzContext, EntityRef};
 
 fn claims_with(roles: Vec<String>, attributes: BTreeMap<String, serde_json::Value>) -> JwtClaims {
     let now = Utc::now();

@@ -162,6 +162,7 @@ pub enum UiEvent {
     UpdateCheckFinished {
         result: Result<UpdateUiState, Arc<GuiError>>,
         reply_to: ReplyId,
+        automatic: bool,
     },
     UpdateInstallRequested {
         reply_to: ReplyId,

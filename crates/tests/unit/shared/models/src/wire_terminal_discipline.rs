@@ -16,8 +16,8 @@
 //! 2. The terminal event never precedes the tool block's completion. A client
 //!    that finalises on it would run a call whose arguments are still partial.
 //! 3. A turn that produced a tool call ends in `ToolUse`, whatever the wire
-//!    said, because a generic stop beside a formed call is the outage this
-//!    whole suite exists for.
+//!    said, because a client reads a generic stop beside a formed call as a
+//!    finished turn and discards the call.
 
 use futures::StreamExt;
 use serde_json::json;

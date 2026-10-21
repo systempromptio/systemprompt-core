@@ -11,11 +11,11 @@ use systemprompt_identifiers::TeamsAppId;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::{AccessControlIngestionService, IngestOptions};
 use systemprompt_identifiers::{AgentName, SecretName, SlackWorkspaceId, TeamsTenantId};
 use systemprompt_manifest::services::{
     SlackAppConfig, SlackAuthzConfig, TeamsAppConfig, TeamsAuthzConfig,
 };
-use systemprompt_security::authz::{AccessControlIngestionService, IngestOptions};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

@@ -6,13 +6,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::MarketplaceId;
-use systemprompt_manifest::services::MarketplaceConfig;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository,
     DASHBOARD_SOURCE, EntityKind, IngestOptions, IngestScope, RegisteredEntities, RuleType,
     UpsertRuleParams, YAML_SOURCE,
 };
+use systemprompt_identifiers::MarketplaceId;
+use systemprompt_manifest::services::MarketplaceConfig;
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

@@ -84,6 +84,18 @@ mod profile_gateway_hidden;
 mod profile_secrets_vault;
 
 #[cfg(test)]
+mod profile_secrets_refresh;
+
+#[cfg(test)]
+mod manifest_config_provider;
+
+#[cfg(test)]
+mod desktop_policy_validation;
+
+#[cfg(test)]
+mod marketplace_mirror_wire;
+
+#[cfg(test)]
 mod profile_services_sources;
 
 #[cfg(test)]

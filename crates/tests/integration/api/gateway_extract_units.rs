@@ -10,8 +10,8 @@ use axum::http::{HeaderMap, HeaderValue};
 use systemprompt_api::routes::gateway::messages::{
     GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential,
 };
+use systemprompt_governance::authz::EntityRef;
 use systemprompt_identifiers::{Actor, ContextId, ModelId, RouteId, TraceId, UserId};
-use systemprompt_security::authz::EntityRef;
 
 fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
     use axum::http::HeaderName;

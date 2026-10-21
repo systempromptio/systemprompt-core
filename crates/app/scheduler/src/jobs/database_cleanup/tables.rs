@@ -1,10 +1,11 @@
 //! The batched delete loop the retention plan is executed with; the per-table
 //! statements live in [`RetentionRepository`].
 //!
-//! Each table is deleted in batches of `BATCH_ROWS` so no statement takes a
-//! long lock and each statement-level capture trigger writes one outbox row
-//! per batch instead of one per row. A run stops early at `RUN_BUDGET` and
-//! picks up where it left off the next night.
+//! Each table is deleted in batches of `BATCH_ROWS` through
+//! [`run_batched`] so no statement takes a long lock and each statement-level
+//! capture trigger writes one outbox row per batch instead of one per row. A
+//! run stops early at `RUN_BUDGET` and picks up where it left off the next
+//! night.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,7 +13,7 @@
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
-use systemprompt_traits::ProviderResult;
+use systemprompt_traits::{BatchPlan, ProviderResult, run_batched};
 
 use crate::repository::{RETENTION_BATCH_ROWS, RetentionRepository};
 
@@ -33,25 +34,15 @@ pub(super) async fn delete_in_batches(
     cutoff: DateTime<Utc>,
     started: Instant,
 ) -> ProviderResult<RetentionPass> {
-    let mut deleted = 0;
-    loop {
-        if started.elapsed() > RUN_BUDGET {
-            return Ok(RetentionPass {
-                table,
-                days,
-                deleted,
-                complete: false,
-            });
-        }
-        let batch = retention.delete_batch(table, cutoff).await?;
-        deleted += batch;
-        if batch < u64::try_from(RETENTION_BATCH_ROWS).unwrap_or(u64::MAX) {
-            return Ok(RetentionPass {
-                table,
-                days,
-                deleted,
-                complete: true,
-            });
-        }
-    }
+    let plan = BatchPlan {
+        deadline: started + RUN_BUDGET,
+        full_batch: u64::try_from(RETENTION_BATCH_ROWS).unwrap_or(u64::MAX),
+    };
+    let run = run_batched(plan, move || retention.delete_batch(table, cutoff)).await?;
+    Ok(RetentionPass {
+        table,
+        days,
+        deleted: run.processed,
+        complete: run.complete,
+    })
 }

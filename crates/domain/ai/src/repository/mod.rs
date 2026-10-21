@@ -4,7 +4,7 @@
 //! (`ai_requests`, `ai_request_messages`, `ai_tool_calls`,
 //! `ai_request_payloads`, `ai_request_client_evidence`, `ai_quota_buckets`,
 //! `ai_safety_findings`, `ai_gateway_policies`,
-//! `ai_gateway_thought_signatures`).
+//! `ai_gateway_thought_signatures`, `user_provider_credentials`).
 //!
 //! All repositories return [`systemprompt_traits::RepositoryError`]. Services
 //! are the only callers — repositories never execute application logic.
@@ -21,12 +21,14 @@ pub mod ai_safety_findings;
 pub mod ai_usage_anomaly;
 pub mod ownership;
 pub mod thought_signatures;
+pub mod user_provider_credentials;
 
 use systemprompt_database::DbPool;
 
 pub use ai_gateway_policies::{AiGatewayPolicyRepository, GatewayPolicyRow};
 pub use ai_quota_buckets::{
     AiQuotaBucketRepository, IncrementParams, QuotaBucketDelta, QuotaBucketState,
+    QuotaSubjectUsage, QuotaUsageRepository, QuotaWindowKey,
 };
 pub use ai_request_client_evidence::AiRequestClientEvidenceRepository;
 pub use ai_request_payloads::{
@@ -41,6 +43,7 @@ pub use ai_safety_findings::{
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
+pub use user_provider_credentials::{UserProviderCredentialMeta, UserProviderCredentialRepository};
 
 #[derive(Debug, Clone)]
 pub struct AiRepositories {
@@ -48,8 +51,10 @@ pub struct AiRepositories {
     pub payloads: AiRequestPayloadRepository,
     pub gateway_policies: AiGatewayPolicyRepository,
     pub quota_buckets: AiQuotaBucketRepository,
+    pub quota_usage: QuotaUsageRepository,
     pub safety_findings: AiSafetyFindingRepository,
     pub thought_signatures: AiThoughtSignatureRepository,
+    pub user_provider_credentials: UserProviderCredentialRepository,
 }
 
 impl AiRepositories {
@@ -59,8 +64,10 @@ impl AiRepositories {
             payloads: AiRequestPayloadRepository::new(db),
             gateway_policies: AiGatewayPolicyRepository::new(db),
             quota_buckets: AiQuotaBucketRepository::new(db),
+            quota_usage: QuotaUsageRepository::new(db),
             safety_findings: AiSafetyFindingRepository::new(db),
             thought_signatures: AiThoughtSignatureRepository::new(db),
+            user_provider_credentials: UserProviderCredentialRepository::new(db),
         }
     }
 }

@@ -9,11 +9,11 @@ use std::collections::HashMap;
 
 use chrono::Utc;
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::{EntityKind, IngestScope, reconcile_composed_bundles};
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_manifest::services::{
     BundleOwnership, BundleSourceInfo, MarketplaceConfig, ServicesBundleManifest, ServicesConfig,
 };
-use systemprompt_security::authz::{EntityKind, IngestScope, reconcile_composed_bundles};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

@@ -10,26 +10,26 @@ use systemprompt_gateway::quota::{
     QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams, ReservedWindow, precheck_and_reserve,
     release, settle,
 };
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::RequestAttribution;
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 
 const ERROR_DIMENSION: &str = "quota_fault_error";
 const EMPTY_DIMENSION: &str = "quota_fault_empty";
 const ERROR_USER_PREFIX: &str = "quota-fault-error-";
-const ERROR_RULE_TYPE: systemprompt_security::authz::RuleType =
-    systemprompt_security::authz::RuleType::extension_static(ERROR_DIMENSION);
-const EMPTY_RULE_TYPE: systemprompt_security::authz::RuleType =
-    systemprompt_security::authz::RuleType::extension_static(EMPTY_DIMENSION);
+const ERROR_RULE_TYPE: systemprompt_governance::authz::RuleType =
+    systemprompt_governance::authz::RuleType::extension_static(ERROR_DIMENSION);
+const EMPTY_RULE_TYPE: systemprompt_governance::authz::RuleType =
+    systemprompt_governance::authz::RuleType::extension_static(EMPTY_DIMENSION);
 
 #[derive(Debug)]
 struct ErroringSubjectProvider;
 
 #[async_trait::async_trait]
-impl systemprompt_security::authz::SubjectAttributeProvider for ErroringSubjectProvider {
-    fn dimension(&self) -> systemprompt_security::authz::SubjectDimension {
-        systemprompt_security::authz::SubjectDimension {
+impl systemprompt_governance::authz::SubjectAttributeProvider for ErroringSubjectProvider {
+    fn dimension(&self) -> systemprompt_governance::authz::SubjectDimension {
+        systemprompt_governance::authz::SubjectDimension {
             rule_type: ERROR_RULE_TYPE,
             label: "Quota fault (error)",
             precedence: 900,
@@ -39,9 +39,9 @@ impl systemprompt_security::authz::SubjectAttributeProvider for ErroringSubjectP
     async fn values_for(
         &self,
         user_id: &UserId,
-    ) -> Result<Vec<String>, systemprompt_security::authz::AuthzError> {
+    ) -> Result<Vec<String>, systemprompt_governance::authz::AuthzError> {
         if user_id.as_str().starts_with(ERROR_USER_PREFIX) {
-            return Err(systemprompt_security::authz::AuthzError::Validation(
+            return Err(systemprompt_governance::authz::AuthzError::Validation(
                 "subject lookup unavailable".to_owned(),
             ));
         }
@@ -53,9 +53,9 @@ impl systemprompt_security::authz::SubjectAttributeProvider for ErroringSubjectP
 struct EmptySubjectProvider;
 
 #[async_trait::async_trait]
-impl systemprompt_security::authz::SubjectAttributeProvider for EmptySubjectProvider {
-    fn dimension(&self) -> systemprompt_security::authz::SubjectDimension {
-        systemprompt_security::authz::SubjectDimension {
+impl systemprompt_governance::authz::SubjectAttributeProvider for EmptySubjectProvider {
+    fn dimension(&self) -> systemprompt_governance::authz::SubjectDimension {
+        systemprompt_governance::authz::SubjectDimension {
             rule_type: EMPTY_RULE_TYPE,
             label: "Quota fault (empty)",
             precedence: 901,
@@ -65,15 +65,15 @@ impl systemprompt_security::authz::SubjectAttributeProvider for EmptySubjectProv
     async fn values_for(
         &self,
         _user_id: &UserId,
-    ) -> Result<Vec<String>, systemprompt_security::authz::AuthzError> {
+    ) -> Result<Vec<String>, systemprompt_governance::authz::AuthzError> {
         Ok(Vec::new())
     }
 }
 
-systemprompt_security::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
+systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
     ErroringSubjectProvider
 ));
-systemprompt_security::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
+systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
     EmptySubjectProvider
 ));
 

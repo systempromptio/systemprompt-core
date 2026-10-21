@@ -30,7 +30,7 @@ This crate implements a complete OAuth 2.0 authorization server with:
 
 ```toml
 [dependencies]
-systemprompt-oauth = "0.70"
+systemprompt-oauth = "0.71"
 ```
 
 ```rust
@@ -82,7 +82,6 @@ Business logic including:
 | `oauth_client_contacts` | Contact emails per client |
 | `oauth_auth_codes` | Authorization codes (600s TTL) |
 | `oauth_refresh_tokens` | Refresh tokens |
-| `oauth_state_bindings` | OAuth state-to-session bindings |
 | `oauth_jti_revocations` | Revoked JWT identifiers |
 | `bridge_exchange_codes` | Short-lived bridge session exchange codes |
 | `bridge_sessions` | Bridge heartbeat / active-session records |

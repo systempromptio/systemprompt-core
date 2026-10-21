@@ -27,6 +27,8 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayUpstreamRegistry;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
+use super::credentials::{BillingSource, KeyOwner};
+use super::route_match::{describe_route_match, enforce_route_requirements};
 use super::{DispatchError, GatewayError, PolicyDenied};
 
 pub(super) struct ResolvedUpstream<'a> {
@@ -37,26 +39,29 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<GatewayRoute>,
     pub(super) scoped: bool,
+    pub(super) billing: BillingSource,
+    pub(super) owner: KeyOwner,
+}
+
+pub(super) struct UpstreamQuery<'r> {
+    pub(super) request: &'r CanonicalRequest,
+    pub(super) attribution: &'r RequestAttribution,
+    pub(super) ai_request_id: &'r AiRequestId,
+    pub(super) owner: KeyOwner,
 }
 
 pub(super) async fn resolve_upstream<'a>(
     config: &'a GatewayConfig,
     registry: &'a ProviderRegistry,
-    request: &CanonicalRequest,
-    attribution: &RequestAttribution,
-    ai_request_id: &AiRequestId,
+    query: UpstreamQuery<'_>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
-    if !config.is_model_exposed(registry, request.model.as_str()) {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            model = %request.model,
-            "Gateway denied: model not exposed by gateway policy or registry"
-        );
-        return Err(DispatchError::pre_audit(PolicyDenied(format!(
-            "model '{}' is not permitted by gateway policy",
-            request.model
-        ))));
-    }
+    let UpstreamQuery {
+        request,
+        attribution,
+        ai_request_id,
+        owner,
+    } = query;
+    ensure_model_exposed(config, registry, request, ai_request_id)?;
 
     let matched = config.resolve_route(registry, request).ok_or_else(|| {
         DispatchError::pre_audit(GatewayError::NoRoute {
@@ -68,15 +73,7 @@ pub(super) async fn resolve_upstream<'a>(
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-    let engine = RouteSelectorEngine::global();
-    let (route, selector) = if engine.has_selectors() {
-        match engine.refine(matched.as_ref(), request).await {
-            Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
-            None => (matched, None),
-        }
-    } else {
-        (matched, None)
-    };
+    let (route, selector) = refine_route(matched, request).await;
 
     let selection = route.chain_for(attribution);
     if let ChainSelection::Unmapped { dimension, value } = selection {
@@ -108,14 +105,51 @@ pub(super) async fn resolve_upstream<'a>(
     let mut bound = bind_route(
         registry,
         Cow::Owned(primary),
-        request.model.as_str(),
-        ai_request_id,
+        BindTarget {
+            requested_model: request.model.as_str(),
+            ai_request_id,
+            owner,
+        },
         route_match_descriptor,
     )
     .await?;
     bound.deployments = deployments;
     bound.scoped = scoped;
     Ok(bound)
+}
+
+fn ensure_model_exposed(
+    config: &GatewayConfig,
+    registry: &ProviderRegistry,
+    request: &CanonicalRequest,
+    ai_request_id: &AiRequestId,
+) -> Result<(), DispatchError> {
+    if config.is_model_exposed(registry, request.model.as_str()) {
+        return Ok(());
+    }
+    tracing::warn!(
+        ai_request_id = %ai_request_id,
+        model = %request.model,
+        "Gateway denied: model not exposed by gateway policy or registry"
+    );
+    Err(DispatchError::pre_audit(PolicyDenied(format!(
+        "model '{}' is not permitted by gateway policy",
+        request.model
+    ))))
+}
+
+async fn refine_route<'a>(
+    matched: Cow<'a, GatewayRoute>,
+    request: &CanonicalRequest,
+) -> (Cow<'a, GatewayRoute>, Option<String>) {
+    let engine = RouteSelectorEngine::global();
+    if !engine.has_selectors() {
+        return (matched, None);
+    }
+    match engine.refine(matched.as_ref(), request).await {
+        Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
+        None => (matched, None),
+    }
 }
 
 fn plan_chain(
@@ -167,6 +201,19 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     let Some(view) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
+    // Why: a personal subscription and a deployment secret bill different
+    // accounts; a failover hop between them would move a request onto a bill
+    // nobody chose, so a chain only fails over within one credential source.
+    if view
+        .resolve(registry)
+        .is_some_and(|entry| entry.is_user_credential() != primary.provider.is_user_credential())
+    {
+        return Err(DispatchError::pre_audit(PolicyDenied(format!(
+            "deployment '{}' bills a different credential source than '{}'",
+            view.provider.as_str(),
+            primary.provider.name.as_str()
+        ))));
+    }
     let failover = format!("failover:{}", hop.hops.join("->"));
     let descriptor = Some(match primary.route_match_descriptor.as_deref() {
         Some(existing) => format!("{existing};{failover}"),
@@ -175,21 +222,34 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     bind_route(
         registry,
         Cow::Owned(view),
-        requested_model,
-        ai_request_id,
+        BindTarget {
+            requested_model,
+            ai_request_id,
+            owner: primary.owner.clone(),
+        },
         descriptor,
     )
     .await
     .map(Some)
 }
 
+struct BindTarget<'r> {
+    requested_model: &'r str,
+    ai_request_id: &'r AiRequestId,
+    owner: KeyOwner,
+}
+
 async fn bind_route<'a>(
     registry: &'a ProviderRegistry,
     route: Cow<'a, GatewayRoute>,
-    requested_model: &str,
-    ai_request_id: &AiRequestId,
+    target: BindTarget<'_>,
     route_match_descriptor: Option<String>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
+    let BindTarget {
+        requested_model,
+        ai_request_id,
+        owner,
+    } = target;
     let provider = route.resolve(registry).ok_or_else(|| {
         DispatchError::pre_audit(GatewayError::UndeclaredProvider {
             route: route.effective_id().to_string(),
@@ -199,7 +259,7 @@ async fn bind_route<'a>(
 
     enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
 
-    let call = super::credentials::resolve(provider).await?;
+    let (call, billing) = super::credentials::resolve(provider, &owner).await?;
 
     let adapter = GatewayUpstreamRegistry::global()
         .get(provider.wire.as_tag())
@@ -217,55 +277,7 @@ async fn bind_route<'a>(
         route_match_descriptor,
         deployments: Vec::new(),
         scoped: false,
+        billing,
+        owner,
     })
-}
-
-pub fn describe_route_match(
-    route: &GatewayRoute,
-    declarative: Option<String>,
-    selector: Option<String>,
-    scope: Option<String>,
-) -> String {
-    let governance = route.requires.as_ref().and_then(|r| {
-        let declared = r.declared();
-        (!declared.is_empty()).then(|| format!("requires:{}", declared.join(",")))
-    });
-
-    let identity = Some(format!("route:{}", route.effective_id()));
-    [identity, declarative, selector, governance, scope]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(";")
-}
-
-pub fn enforce_route_requirements(
-    route: &GatewayRoute,
-    provider: &ProviderEntry,
-    requested_model: &str,
-    ai_request_id: &AiRequestId,
-) -> Result<(), DispatchError> {
-    let Some(requires) = route.requires.as_ref() else {
-        return Ok(());
-    };
-    let upstream = provider.upstream_model_for(route.upstream_model.as_deref(), requested_model);
-    let unmet = requires.unmet(provider.effective_governance(upstream));
-    if unmet.is_empty() {
-        return Ok(());
-    }
-
-    tracing::warn!(
-        ai_request_id = %ai_request_id,
-        route = %route.effective_id(),
-        model = %upstream,
-        requirements = %unmet.join(","),
-        "Gateway denied: route governance requirements unmet by resolved provider/model"
-    );
-    Err(DispatchError::pre_audit(PolicyDenied(format!(
-        "route '{}' requires [{}] which provider '{}' does not satisfy for model '{}'",
-        route.effective_id(),
-        unmet.join(","),
-        route.provider.as_str(),
-        upstream
-    ))))
 }

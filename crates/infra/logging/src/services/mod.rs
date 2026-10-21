@@ -29,5 +29,5 @@ pub use output::{
     mark_structured_emitted, reset_structured_emitted, set_startup_mode, set_structured_output,
     structured_was_emitted,
 };
-pub use spans::SystemSpan;
+pub use spans::{SYSTEM_LOG_OWNER, SystemSpan};
 pub use throttle::LogThrottle;

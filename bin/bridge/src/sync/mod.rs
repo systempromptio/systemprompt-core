@@ -9,6 +9,7 @@ mod error;
 mod manifest;
 mod manifest_cache;
 mod org_plugins_scope;
+mod process_lock;
 mod provision;
 mod registry_refresh;
 mod replay;
@@ -83,7 +84,7 @@ async fn ensure_device_enrolled(
     }
 }
 
-async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncError> {
+fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncError> {
     bridge
         .activity
         .ensure_persistence()
@@ -98,13 +99,20 @@ async fn prepare_run(bridge: &crate::context::BridgeContext) -> Result<(), SyncE
         .report(&crate::progress::SyncProgress::new(
             "manifest", "manifest", 1, 1,
         ));
+    Ok(())
+}
+
+// Why: a headless sync (the OS scheduler, `sync --watch`) has no proxy
+// heartbeat to retry receipts, so sync does it; it runs before the sync locks
+// so a slow gateway never holds them, and the outbox's own lock and backoff
+// make it safe beside the heartbeat's retry.
+async fn retry_pending_feedback() {
     if let Ok(config) = config::load() {
         let gateway = config::gateway_url_or_default(&config);
         if let Err(error) = crate::feedback::retry_pending(gateway.as_str()).await {
-            tracing::debug!(%error,"Installation receipts remain unacknowledged before sync");
+            tracing::debug!(%error, "Installation receipts remain unacknowledged before sync");
         }
     }
-    Ok(())
 }
 
 fn persist_envelope(fetch: &manifest::ManifestFetch) -> Result<(), SyncError> {
@@ -132,9 +140,11 @@ async fn run_attempt(
         cancel,
     } = options;
     let (allow_unsigned, force_replay, allow_tofu) = (*allow_unsigned, *force_replay, *allow_tofu);
+    retry_pending_feedback().await;
     let operation =
         std::sync::Arc::new(std::sync::Arc::clone(&bridge.sync_lock).lock_owned().await);
-    prepare_run(bridge).await?;
+    let _across_processes = process_lock::acquire().await?;
+    prepare_run(bridge)?;
     let fetch = manifest::fetch_authenticated_manifest(&bridge.http, *freshness).await?;
     let synced = manifest::verify_and_decode(&fetch, allow_unsigned, allow_tofu).await?;
     let run_gateway = fetch.client.base_url().clone();

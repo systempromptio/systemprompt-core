@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 
-use systemprompt_identifiers::ProviderId;
+use systemprompt_identifiers::{ProviderId, SecretName, UserId};
 use systemprompt_manifest::services::ProviderEntry;
 use systemprompt_security::credential::{CredentialKind, ProviderCredential, fill_endpoint};
 use systemprompt_wire::anthropic::AnthropicBeta;
@@ -30,14 +30,36 @@ pub struct UpstreamTarget {
     cache_key: String,
     extra_headers: Vec<(String, String)>,
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
+    user_agent: Option<String>,
+    forward_headers: Vec<String>,
 }
 
 impl UpstreamTarget {
     pub fn resolve(entry: &ProviderEntry, secret: &str) -> Result<Self, UpstreamTargetError> {
-        let secret_name = entry.api_key_secret.as_str();
+        let secret_name = entry
+            .api_key_secret
+            .as_ref()
+            .map_or_else(|| entry.name.as_str(), |name| name.as_str());
+        Self::resolve_keyed(entry, secret, secret_name)
+    }
+
+    pub fn resolve_personal(
+        entry: &ProviderEntry,
+        key: &str,
+        user_id: &UserId,
+    ) -> Result<Self, UpstreamTargetError> {
+        let cache_key = format!("user:{}:{}", user_id.as_str(), entry.name.as_str());
+        Self::resolve_keyed(entry, key, &cache_key)
+    }
+
+    fn resolve_keyed(
+        entry: &ProviderEntry,
+        secret: &str,
+        credential_label: &str,
+    ) -> Result<Self, UpstreamTargetError> {
         let credential = ProviderCredential::parse(secret).map_err(|source| {
             UpstreamTargetError::MalformedCredential {
-                secret: secret_name.to_owned(),
+                secret: credential_label.to_owned(),
                 source,
             }
         })?;
@@ -47,7 +69,7 @@ impl UpstreamTarget {
         {
             return Err(UpstreamTargetError::ApiKeyOnVertex {
                 provider: entry.name.as_str().to_owned(),
-                secret: secret_name.to_owned(),
+                secret: credential_label.to_owned(),
             });
         }
         let endpoint = fill_endpoint(&entry.endpoint, &credential.scope()).map_err(|source| {
@@ -68,16 +90,26 @@ impl UpstreamTarget {
             hosting: entry.hosting(),
             endpoint,
             credential,
-            cache_key: secret_name.to_owned(),
+            cache_key: credential_label.to_owned(),
             extra_headers,
             accepted_betas: entry.accepted_betas.clone(),
+            user_agent: entry.user_agent.clone(),
+            forward_headers: entry
+                .forward_headers
+                .iter()
+                .map(|name| name.to_ascii_lowercase())
+                .collect(),
         })
     }
 
     pub fn from_secrets(entry: &ProviderEntry) -> Result<Self, UpstreamTargetError> {
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
-        let secret_name = entry.api_key_secret.as_str();
+        let Some(secret_name) = entry.platform_secret().map(SecretName::as_str) else {
+            return Err(UpstreamTargetError::UserCredentialProvider {
+                provider: entry.name.as_str().to_owned(),
+            });
+        };
         let secret =
             secrets
                 .get(secret_name)
@@ -103,7 +135,9 @@ impl UpstreamTarget {
             auth,
             self.extra_headers.clone(),
         )
-        .with_accepted_betas(self.accepted_betas.clone()))
+        .with_accepted_betas(self.accepted_betas.clone())
+        .with_user_agent(self.user_agent.clone())
+        .with_forward_headers(self.forward_headers.clone()))
     }
 
     #[must_use]

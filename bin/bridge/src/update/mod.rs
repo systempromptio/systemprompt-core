@@ -12,12 +12,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod automatic;
+pub mod automatic;
 mod download;
 mod error;
 mod install;
 
-pub use automatic::{AutoUpdateDecision, auto_update_policy, automatic_enabled, run_automatic};
+pub use automatic::{AutoUpdateDecision, auto_update_policy, automatic_enabled};
 pub use download::{DownloadProgress, download_verified};
 pub use error::UpdateError;
 
@@ -192,17 +192,8 @@ pub fn sweep_leftovers() {
     install::sweep_leftovers();
 }
 
-#[must_use]
-pub fn read_only_launch() -> Option<String> {
-    install::read_only_launch()
-}
-
 pub fn installed_path() -> Result<std::path::PathBuf, UpdateError> {
     install::installed_path()
-}
-
-pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
-    spawn_relaunch(installed, false)
 }
 
 // Why: the successor holds off acquiring the single-instance lock and binding
@@ -210,21 +201,7 @@ pub fn spawn_installed(installed: &std::path::Path) -> Result<(), UpdateError> {
 // race for both: it focuses a dying window instead of starting, and it binds a
 // fallback port that every host profile written for the default rejects.
 pub fn spawn_successor(installed: &std::path::Path) -> Result<(), UpdateError> {
-    spawn_relaunch(installed, true)
-}
-
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-fn record_handoff() {
-    crate::single_instance::record_handoff();
-}
-
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-const fn record_handoff() {}
-
-fn spawn_relaunch(installed: &std::path::Path, await_predecessor: bool) -> Result<(), UpdateError> {
-    if await_predecessor {
-        record_handoff();
-    }
+    record_handoff();
     let mut command =
         if cfg!(target_os = "macos") && installed.extension().is_some_and(|e| e == "app") {
             let mut c = std::process::Command::new("/usr/bin/open");
@@ -247,3 +224,11 @@ fn spawn_relaunch(installed: &std::path::Path, await_predecessor: bool) -> Resul
         })
         .map_err(UpdateError::Relaunch)
 }
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+fn record_handoff() {
+    crate::single_instance::record_handoff();
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const fn record_handoff() {}

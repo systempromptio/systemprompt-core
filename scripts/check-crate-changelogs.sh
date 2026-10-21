@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 # A crate that changed must say what changed in it.
 #
-# 0.42.0 shipped source changes in ten crates and a CHANGELOG entry in none of
-# them. Nothing caught it: the build, clippy, rustdoc, all 14 shards and every
-# other source gate pass against an undocumented crate, and all 53 checks on
-# the release PR were green. The rule existed only as prose in
-# release-flow.md 3, and prose is not a gate. The decay was visible in the
-# tree -- `domain/ai` last carried an entry at 0.38.0, `domain/analytics` at
-# 0.31.0.
+# The build, clippy, rustdoc, the shards and every other source gate pass
+# against an undocumented crate, so this is the gate that enforces it.
 #
 # The invariant: a crate whose `src` changed between the newest release tag and
 # HEAD must carry a heading for the version in its manifest.

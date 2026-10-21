@@ -11,6 +11,7 @@
 pub mod abandon;
 mod admission;
 pub mod chain_plan;
+mod client_session;
 pub mod credentials;
 mod error;
 pub mod failover;
@@ -20,6 +21,7 @@ mod opening;
 mod pricing;
 mod rate;
 pub mod resolve;
+pub mod route_match;
 pub mod stages;
 
 pub use self::error::{
@@ -39,19 +41,20 @@ use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
 
 use self::abandon::AbandonGuard;
 use self::admission::commit_admission;
+use self::client_session::with_client_session;
 use self::failover::{FailoverSend, send_with_failover};
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
-use self::resolve::{ResolvedUpstream, resolve_upstream};
+use self::resolve::{ResolvedUpstream, UpstreamQuery, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
 use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
-use systemprompt_security::policy::GovernanceEngine;
+use systemprompt_governance::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
 pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";
@@ -92,8 +95,22 @@ impl GatewayService {
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
         let ai_request_id = ctx.ai_request_id.clone();
-        let upstream =
-            resolve_upstream(config, registry, &request, &ctx.attribution, &ai_request_id).await?;
+        let owner = credentials::KeyOwner {
+            credentials: repos.user_provider_credentials.clone(),
+            user_id: ctx.user_id.clone(),
+        };
+        let upstream = resolve_upstream(
+            config,
+            registry,
+            UpstreamQuery {
+                request: &request,
+                attribution: &ctx.attribution,
+                ai_request_id: &ai_request_id,
+                owner,
+            },
+        )
+        .await?;
+        let forward_headers = with_client_session(forward_headers, ctx.session_id.as_ref());
         let pricing = dispatch_pricing(&request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);
@@ -156,6 +173,9 @@ struct OpenedDispatch<'a> {
 
 async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
     let audit = &opened.audit;
+    if opened.upstream.billing == credentials::BillingSource::UserKey {
+        audit.bill_to_user_key();
+    }
     audit
         .pin_pricing(opened.pricing)
         .map_err(|e| DispatchError::PreAudit(GatewayError::internal("pricing pin failed", e)))?;
@@ -228,6 +248,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     let mut scanned =
         ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
     commit_admission(&audit).await?;
+    audit.record_billing_source().await;
     crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
     let admitted_at = std::time::Instant::now();

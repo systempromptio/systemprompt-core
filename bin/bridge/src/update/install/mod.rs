@@ -118,27 +118,3 @@ pub(crate) fn running_exe() -> Result<PathBuf, UpdateError> {
     let exe = std::env::current_exe().map_err(UpdateError::LocateExe)?;
     Ok(std::fs::canonicalize(&exe).unwrap_or(exe))
 }
-
-// Why: macOS mounts a disk image read-only and runs a quarantined app from a
-// randomised read-only App Translocation path; neither can be updated in place.
-#[cfg_attr(
-    not(target_os = "macos"),
-    expect(
-        clippy::missing_const_for_fn,
-        reason = "constant only off macOS, where the body resolves the bundle path"
-    )
-)]
-#[must_use]
-pub(crate) fn read_only_launch() -> Option<String> {
-    #[cfg(target_os = "macos")]
-    {
-        let bundle = installed_path().ok()?;
-        let shown = bundle.to_string_lossy();
-        (shown.starts_with("/Volumes/") || shown.contains("/AppTranslocation/"))
-            .then(|| format!("running from {shown}; {}", macos::READ_ONLY_HINT))
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
-}

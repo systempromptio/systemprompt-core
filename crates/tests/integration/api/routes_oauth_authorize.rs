@@ -2,8 +2,8 @@
 //! `handle_authorize_post`. The GET path validates CSRF/state, PKCE and the
 //! OAuth parameter set, resolves the client, then renders the WebAuthn
 //! challenge form; the POST path rejects password auth (and denied consent)
-//! after validation. We cover the happy render (plain state and same-origin
-//! return-path server-state issuance), and the missing-state, bad-pkce,
+//! after validation. We cover the happy render (plain state and a path-shaped
+//! state echoed unchanged), and the missing-state, bad-pkce,
 //! unsupported-response-type, unknown-client, denied-consent and
 //! password-attempt branches.
 
@@ -243,7 +243,7 @@ async fn authorize_get_loopback_redirect_matches_any_port() -> anyhow::Result<()
 }
 
 #[tokio::test]
-async fn authorize_get_same_origin_return_path_issues_server_state() -> anyhow::Result<()> {
+async fn authorize_get_path_shaped_state_is_echoed_to_the_client_unchanged() -> anyhow::Result<()> {
     let client = seeded_client().await?;
     let app = authorize_app().await?;
     let return_path = "/dashboard/return/after/consent/padding0";
@@ -256,6 +256,16 @@ async fn authorize_get_same_origin_return_path_issues_server_state() -> anyhow::
     );
     let resp = app.oneshot(empty_get(&uri)).await?;
     assert_eq!(resp.status(), StatusCode::OK, "{}", resp.status());
+    let bytes = to_bytes(resp.into_body(), 1024 * 1024).await?;
+    let html = String::from_utf8_lossy(&bytes);
+    assert!(
+        html.contains(&format!("name=\"state\" value=\"{return_path}\"")),
+        "the client's own state must reach its redirect untouched: {html}"
+    );
+    assert!(
+        !html.contains("state_"),
+        "no server-issued state may replace the client's: {html}"
+    );
     Ok(())
 }
 

@@ -1,8 +1,8 @@
 //! Cowork egress allowlist resolution.
 //!
-//! The allowlist is unrestricted by default. It used to be hard-pinned to
-//! `127.0.0.1`, which left agents on a stock install with no internet access at
-//! all; loopback-only is now an explicit opt-in for regulated deployments.
+//! The allowlist is unrestricted by default, so agents on a stock install have
+//! internet access; loopback-only is an explicit opt-in for regulated
+//! deployments.
 
 use std::sync::{Mutex, MutexGuard, OnceLock};
 

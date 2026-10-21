@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::{IngestScope, reconcile_services_authz};
 use systemprompt_identifiers::MarketplaceId;
 use systemprompt_manifest::services::{MarketplaceConfig, ServicesConfig};
-use systemprompt_security::authz::{IngestScope, reconcile_services_authz};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 
@@ -57,7 +57,7 @@ async fn reconcile_projects_roles_yaml_and_marketplace_access() {
     services.marketplaces = markets;
 
     let scope = IngestScope::new().with_kind(
-        systemprompt_security::authz::EntityKind::Marketplace,
+        systemprompt_governance::authz::EntityKind::Marketplace,
         [market.clone()],
     );
     let report = reconcile_services_authz(

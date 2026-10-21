@@ -13,7 +13,7 @@ An extension is a Rust type that implements the `Extension` trait and is registe
 ```toml
 # Cargo.toml
 [dependencies]
-systemprompt = { version = "0.70", features = ["core"] }
+systemprompt = { version = "0.71", features = ["core"] }
 inventory = "0.3"
 ```
 
@@ -119,7 +119,7 @@ Schema changes after the initial `CREATE TABLE` are migrations. Migration SQL li
 
    ```toml
    [build-dependencies]
-   systemprompt-extension = "0.70"
+   systemprompt-extension = "0.71"
    ```
 
 2. Add migration files. For example `schema/migrations/001_add_demo_items_label_index.sql`:
@@ -205,6 +205,21 @@ trait itself. Extensions that participate in gateway request governance addition
 implement `GatewayRequestGuard` (`crates/shared/extension/src/gateway_guard.rs:62`) and
 register it with `register_gateway_guard`.
 
+## Runtime seams
+
+Core owns these contracts so an extension never reimplements them against core tables:
+
+- **Governance:** build a `PolicyRequest` and call `GovernanceEngine::charge_and_evaluate`. The engine charges every armed rate window before the chain runs, so a caller cannot evaluate an uncharged call. A chain that arms `rate_limit` without a rate-window repository refuses to build.
+- **Replica liveness:** `ctx.instances().is_alive(&instance_id)` is true while that replica holds its boot-time instance claim or heartbeats its `services` rows within 90 seconds. Use it instead of querying `services` with a staleness window of your own. `ctx.instance_id()` is this node's identity.
+- **Leases:** `ctx.leases().claim(&LeaseKey::new("…"), ttl)` grants an expiring single-owner claim on a named resource, or `None` while another live replica holds it. Claim again before `ttl` elapses to keep it; a dead owner's lease is forfeit even before it expires. `release` and `holder` complete the set.
+- **Advisory locks:** `ctx.advisory_locks().try_acquire(&AdvisoryLockKey::new("…"))` (or `acquire_within(key, wait)`) takes a cluster-wide lock on the session pool, never on a pool behind a transaction-mode pooler. Call `release().await` on the guard; dropping it closes the locking session, which also frees the lock. The key space is disjoint from the scheduler's job locks.
+- **Quota usage:** read a quota window through `QuotaUsageRepository` (`ai_repositories().quota_usage`): `usage(window, subject_id)` and `window_usage(window, limit)` sum every shard row of the window. Never sum `ai_quota_buckets` directly; a window may be spread over several shards.
+- **Job database budgets:** override `Job::db_budget` to return a `DbBudget` (statement timeout, optional lock timeout and `work_mem`), then open the job's transactions with `ctx.get::<BudgetedDb>()?.begin()`. The budget is applied with `SET LOCAL`, so a runaway statement is cancelled and rolled back without the limit leaking to other users of the pooled connection.
+- **Batched jobs:** drain a backlog with `run_batched(BatchPlan { deadline, full_batch }, || batch())`. It stops when a batch comes back short or the deadline passes, and `BatchedRun::into_job_result` reports what remains for the next run.
+- **Once per release:** `ReleaseStampRepository::run_once(ReleaseRun { name, release: env!("CARGO_PKG_VERSION"), gate, wait }, work)` runs `work` under a cluster-wide lock when this release is ahead of the recorded one (`ReleaseGate::IfBehind`) or not behind it (`ReleaseGate::UnlessNewer`), and records the release only when `work` succeeds. A binary older than the recorded release never runs it, so a lagging pod in a rolling update cannot redo a newer release's work.
+- **Secrets:** `ctx.secret("encryption_master_key")` returns a custom secret from the platform secrets document (any configured secrets source, including reloads) as an `ExtensionSecret` that redacts itself in `Debug`. Core credentials such as the pepper and database URLs are never handed out. Do not read credentials or `HOSTNAME` from the environment; `ctx.instance_id()` is the node identity.
+- **Readiness:** override `Extension::readiness(ctx)` to return named `ReadinessCheck`s. Every `/readyz` runs them; a check that returns `ReadinessFailure`, errors, or overruns the probe timeout answers 503 with the failing check under `extensions`, so the probe fails closed. An `Unready` reason is shown; a `Failed` cause is only logged.
+- **Metrics:** emit through the `metrics` facade and declare each metric in `Extension::metrics()` as a `MetricDescriptor`. A histogram's buckets register before the recorder installs, so it renders as buckets rather than a summary, and every descriptor's help text appears on `/metrics`.
 
 ## How discovery works
 

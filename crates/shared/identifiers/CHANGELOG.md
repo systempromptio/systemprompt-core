@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `LeaseKey` and `AdvisoryLockKey`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

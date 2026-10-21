@@ -1,73 +1,13 @@
-//! Maps `UiEvent`s to their kind tags for GUI event routing.
+//! Routes each `UiEvent` to its GUI handler.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use winit::event_loop::ActiveEventLoop;
 
+use crate::gui::event_kind::event_kind;
 use crate::gui::events::UiEvent;
 use crate::gui::{GuiApp, handlers};
-
-const fn event_kind(event: &UiEvent) -> &'static str {
-    match event {
-        UiEvent::OpenSettings => "OpenSettings",
-        UiEvent::OpenDeviceAction(_) => "OpenDeviceAction",
-        UiEvent::SyncRequested { .. } => "SyncRequested",
-        UiEvent::ValidateRequested { .. } => "ValidateRequested",
-        UiEvent::OpenConfigFolder => "OpenConfigFolder",
-        UiEvent::RevealApplication => "RevealApplication",
-        UiEvent::OpenLogDirectory { .. } => "OpenLogDirectory",
-        UiEvent::ExportDiagnosticBundle { .. } => "ExportDiagnosticBundle",
-        UiEvent::ProxySecretResetRequested { .. } => "ProxySecretResetRequested",
-        UiEvent::ConfigDirRepairRequested { .. } => "ConfigDirRepairRequested",
-        UiEvent::ConfigDirRepairFinished { .. } => "ConfigDirRepairFinished",
-        UiEvent::LoginRequested { .. } => "LoginRequested",
-        UiEvent::SessionLoginRequested { .. } => "SessionLoginRequested",
-        UiEvent::LogoutRequested { .. } => "LogoutRequested",
-        UiEvent::PurgeRequested { .. } => "PurgeRequested",
-        UiEvent::DisconnectRequested { .. } => "DisconnectRequested",
-        UiEvent::CredentialRejected { .. } => "CredentialRejected",
-        UiEvent::SetGatewayRequested { .. } => "SetGatewayRequested",
-        UiEvent::GatewayProbeRequested { .. } => "GatewayProbeRequested",
-        UiEvent::McpAuthProbeRequested { .. } => "McpAuthProbeRequested",
-        UiEvent::ProfileFetchRequested { .. } => "ProfileFetchRequested",
-        UiEvent::UpdateCheckRequested { .. } => "UpdateCheckRequested",
-        UiEvent::UpdateInstallRequested { .. } => "UpdateInstallRequested",
-        UiEvent::UpdateRestartRequested => "UpdateRestartRequested",
-        UiEvent::AutostartToggleRequested => "AutostartToggleRequested",
-        UiEvent::SettingsReadRequested { .. } => "SettingsReadRequested",
-        UiEvent::SyncStarted => "SyncStarted",
-        UiEvent::SyncStep(_) => "SyncStep",
-        UiEvent::SyncFinished { .. } => "SyncFinished",
-        UiEvent::ValidateFinished { .. } => "ValidateFinished",
-        UiEvent::LoginFinished { .. } => "LoginFinished",
-        UiEvent::SessionLoginFinished { .. } => "SessionLoginFinished",
-        UiEvent::LogoutFinished { .. } => "LogoutFinished",
-        UiEvent::PurgeFinished { .. } => "PurgeFinished",
-        UiEvent::DisconnectFinished { .. } => "DisconnectFinished",
-        UiEvent::SetGatewayFinished { .. } => "SetGatewayFinished",
-        UiEvent::GatewayProbeFinished { .. } => "GatewayProbeFinished",
-        UiEvent::McpAuthProbeFinished { .. } => "McpAuthProbeFinished",
-        UiEvent::ProfileFetchFinished { .. } => "ProfileFetchFinished",
-        UiEvent::UpdateCheckFinished { .. } => "UpdateCheckFinished",
-        UiEvent::UpdateInstallFinished { .. } => "UpdateInstallFinished",
-        UiEvent::UpdateProgress { .. } => "UpdateProgress",
-        UiEvent::Quit => "Quit",
-        UiEvent::StateRefreshed => "StateRefreshed",
-        UiEvent::AgentUninstall { .. } => "AgentUninstall",
-        UiEvent::AgentOpenConfig { .. } => "AgentOpenConfig",
-        UiEvent::AgentOpen { .. } => "AgentOpen",
-        UiEvent::AgentEnrol { .. } => "AgentEnrol",
-        UiEvent::SetupComplete => "SetupComplete",
-        UiEvent::FirstRunStart => "FirstRunStart",
-        UiEvent::FocusWindow => "FocusWindow",
-        UiEvent::Host(_) => "Host",
-        UiEvent::ProxyStatsTick => "ProxyStatsTick",
-        UiEvent::IpcInbound(_) => "IpcInbound",
-        UiEvent::IpcEmit { .. } => "IpcEmit",
-        UiEvent::CancelInFlight { .. } => "CancelInFlight",
-    }
-}
 
 #[tracing::instrument(
     level = "info",
@@ -238,8 +178,12 @@ fn dispatch_finished(app: &mut GuiApp, event: UiEvent) -> Result<(), Box<UiEvent
         UiEvent::ProfileFetchFinished { result, reply_to } => {
             handlers::profile::on_profile_fetch_finished(app, *result, reply_to);
         },
-        UiEvent::UpdateCheckFinished { result, reply_to } => {
-            handlers::update::on_update_check_finished(app, result, reply_to);
+        UiEvent::UpdateCheckFinished {
+            result,
+            reply_to,
+            automatic,
+        } => {
+            handlers::update::on_update_check_finished(app, result, reply_to, automatic);
         },
         UiEvent::UpdateInstallFinished { result, reply_to } => {
             handlers::update::on_update_install_finished(app, result, reply_to);

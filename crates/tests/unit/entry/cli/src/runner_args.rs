@@ -3,9 +3,8 @@
 //!
 //! `reconstruct_args` is what a profile-routed command sends to the remote
 //! tenant, so a token lost or duplicated here changes what actually runs on
-//! the far side. It edits the original argv by position; it used to drop any
-//! token already emitted, which collapsed `admin agents show admin` and
-//! `--limit 10 --offset 10`.
+//! the far side. It edits the original argv by position, so repeated tokens
+//! such as `admin agents show admin` and `--limit 10 --offset 10` survive.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 

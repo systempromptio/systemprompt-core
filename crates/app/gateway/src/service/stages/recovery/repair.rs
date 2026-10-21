@@ -6,8 +6,8 @@
 
 use std::collections::HashMap;
 
-use systemprompt_security::policy::GovernedInput;
-use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretFinding};
+use systemprompt_governance::policy::GovernedInput;
+use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretFinding};
 use systemprompt_wire::canonical::CanonicalRequest;
 use systemprompt_wire::inspect;
 

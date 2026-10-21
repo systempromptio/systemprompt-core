@@ -34,7 +34,6 @@ pub fn public_router() -> Router<OAuthState> {
             "/authorize",
             post(endpoints::authorize::handle_authorize_post),
         )
-        .route("/callback", get(endpoints::callback::handle_callback))
         .route(
             "/webauthn/register/start",
             post(webauthn::register::start_register),

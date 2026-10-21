@@ -93,7 +93,6 @@ Base path `/api/v1/core/oauth` (`crates/entry/api/src/routes/oauth/core.rs`). OA
 | POST | `/api/v1/core/oauth/session` | Public | Issue an anonymous session token. |
 | GET | `/api/v1/core/oauth/authorize` | Public | Authorization endpoint (browser flow). |
 | POST | `/api/v1/core/oauth/authorize` | Public | Authorization decision submission. |
-| GET | `/api/v1/core/oauth/callback` | Public | Upstream IdP callback. |
 | POST | `/api/v1/core/oauth/token` | Public | Token endpoint (authorization_code, refresh_token, client_credentials). |
 | GET | `/api/v1/core/oauth/webauthn/complete` | Public | Complete a WebAuthn-bound authorization. |
 | POST | `/api/v1/core/oauth/webauthn/register/start` | Public | Begin WebAuthn credential registration. |
@@ -325,7 +324,7 @@ quota_windows:
     max_cost_microdollars: 50000000
 ```
 
-Policies may also declare `rate_windows`, request-rate throttles counted across every replica: `{window_seconds, subject, max_requests}` with `subject` set to `user` or `api_key`. A request past `max_requests` in the current fixed window answers `429` (`rate_limit_error`) with `Retry-After` set to the end of the window, under `quota_mode: warn` as well as `enforce`. An `api_key` window applies only to requests authenticated with a key. If the counter cannot be updated, `quota_fault_mode: closed` answers `503` and `open` admits the request.
+Policies may also declare `rate_windows`, request-rate throttles counted across every replica: `{window_seconds, subject, max_requests}` with `subject` set to `user` or `api_key`. A request past `max_requests` in the current fixed window answers `429` (`rate_limit_error`) with `Retry-After` set to the end of the window, under `quota_mode: warn` as well as `enforce`. An `api_key` window applies only to requests authenticated with a key. If the counter cannot be updated, `quota_fault_mode: closed` answers `503` and `open` admits the request. A request the quota windows then refuse under `enforce` (or whose quota check fails) has its rate-window charge refunded, so only requests that reach the upstream spend request-rate budget; a request refused by the rate window itself still counts.
 
 ### API key limits and scope bindings
 

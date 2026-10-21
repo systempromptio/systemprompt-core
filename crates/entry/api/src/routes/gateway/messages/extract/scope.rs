@@ -20,12 +20,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::{HeaderMap, StatusCode};
+use systemprompt_governance::authz::{SharedSubjectAttributeProvider, SubjectProviderSet};
 use systemprompt_identifiers::headers::SCOPE_PREFIX;
 use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::{
     AttributionEntry, AttributionSource, RequestAttribution, ScopeBinding,
 };
-use systemprompt_security::authz::{SharedSubjectAttributeProvider, SubjectProviderSet};
 
 use super::RejectionPartial;
 use crate::routes::gateway::messages::RequestContext;

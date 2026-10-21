@@ -112,13 +112,12 @@ async fn a_registered_but_stopped_service_reports_the_status_that_refused_it() {
     delete_service(&pool, &name).await;
 }
 
-// Why: this is the regression test for a defect that killed the API process.
-// `start_services` reports Ok when it started nothing — an unregistered name
-// filters to an empty target list — so the old code recursed on that Ok alone
-// and spun forever on a row that never leaves `error`, exhausting the stack.
-// The timeout is part of the assertion: a reintroduced recursion aborts the
-// binary on stack overflow, and anything that merely hangs fails here rather
-// than wedging the suite.
+// Why: `start_services` reports Ok when it started nothing — an unregistered
+// name filters to an empty target list — so recursing on that Ok alone would
+// spin forever on a row that never leaves `error` and exhaust the stack.
+// The timeout is part of the assertion: such a recursion aborts the binary on
+// stack overflow, and anything that merely hangs fails here rather than wedging
+// the suite.
 #[tokio::test]
 async fn a_crashed_service_that_cannot_be_restarted_is_refused_rather_than_retried_forever() {
     let pool = live_pool().await;

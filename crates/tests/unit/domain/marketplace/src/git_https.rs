@@ -3,10 +3,10 @@ use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use systemprompt_marketplace::managed::git_execution::{GitExecutionLimits, execute};
 
-struct Fixture {
-    directory: tempfile::TempDir,
+pub(crate) struct Fixture {
+    pub(crate) directory: tempfile::TempDir,
     server: Child,
-    port: String,
+    pub(crate) port: String,
 }
 
 impl Drop for Fixture {
@@ -17,7 +17,7 @@ impl Drop for Fixture {
 }
 
 impl Fixture {
-    fn start() -> Self {
+    pub(crate) fn start() -> Self {
         let directory = tempfile::tempdir().expect("fixture directory");
         let root = directory.path();
         let cert = Command::new("openssl")

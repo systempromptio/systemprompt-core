@@ -3,9 +3,8 @@
 //! (`fetch_urls_from_database`) and multi-locale parent-route synthesis
 //! (`build_parent_urls`) end-to-end against real `markdown_content` rows.
 //!
-//! These previously had zero coverage: the existing pipeline tests run against
-//! an empty content database, so the per-slug loop and the hreflang-alternate
-//! branches never executed. Here we insert `public = true` rows in two locales
+//! The per-slug loop and the hreflang-alternate branches need content rows, so
+//! here we insert `public = true` rows in two locales
 //! for a configured source, run the generator, and assert on the concrete
 //! `sitemap.xml` URL entries it emits (loc, locale prefix, hreflang
 //! alternates, and the parent-route URLs).

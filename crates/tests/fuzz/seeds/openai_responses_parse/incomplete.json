@@ -1,0 +1,1 @@
+{"id":"resp_3","object":"response","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"model":"gpt-5","output":[],"usage":{"input_tokens":10,"output_tokens":100}}

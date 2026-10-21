@@ -4,12 +4,11 @@
 //! tables, its `extension_migrations` ledger and its scheduled job behind
 //! on every installed database; a drop migration that was baseline-stamped
 //! rather than executed leaves the same residue with a ledger that says
-//! there is nothing left to run. The 2026-09-22 production audit found 39
-//! such tables and a dead `evaluation` ledger, none reported anywhere. This
-//! audit runs after every schema install and in `infra db doctor`: a live
-//! base table in a namespace the extensions declare into that no
-//! extension's `CREATE TABLE` names, and a ledger whose extension id no
-//! registered extension carries. It reads; the fix is a migration.
+//! there is nothing left to run. This audit runs after every schema install and
+//! in `infra db doctor`: a live base table in a namespace the extensions
+//! declare into that no extension's `CREATE TABLE` names, and a ledger whose
+//! extension id no registered extension carries. It reads; the fix is a
+//! migration.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -3,17 +3,7 @@
 //! Registration is fault-isolated per job: a job that fails to upsert, parse
 //! its schedule, or join the cron scheduler is collected as a [`SkippedJob`],
 //! recorded as an `ERROR` in the `logs` table, and the remaining jobs are
-//! registered as normal. Before this, one bad entry aborted the loop and every
-//! later job was silently dropped — and, because the error reached the server
-//! lifecycle, took the whole boot with it.
-//!
-//! `Registered::NotInInventory` is separated from the other skips because it
-//! is the only one that means the operator is looking at a stale deployment:
-//! the configuration names a job this binary was not built with. It is
-//! reported, not merely logged, because the registration warning never
-//! reaches the `logs` table — the database log layer drops any event whose
-//! span carries no user, session and trace, and boot-time registration runs
-//! outside one.
+//! registered as normal; one bad entry never stops the others or the boot.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,7 +21,6 @@ use tracing::{Instrument, debug, info, warn};
 enum Registered {
     Yes,
     No,
-    NotInInventory,
 }
 
 pub(super) struct RegistrationOutcome {
@@ -46,15 +35,6 @@ impl SchedulerService {
         for job_config in &self.config.jobs {
             match self.register_single_job(ctx, job_config).await {
                 Ok(Registered::Yes) => registered += 1,
-                Ok(Registered::NotInInventory) => skipped.push(SkippedJob {
-                    job_name: job_config.name.clone(),
-                    owner: job_config
-                        .owner
-                        .as_ref()
-                        .map_or_else(|| "system admin".to_owned(), |o| o.as_str().to_owned()),
-                    reason: "this build has no job by that name; the configuration is ahead of                              the deployed binary"
-                        .to_owned(),
-                }),
                 Ok(Registered::No) => {},
                 Err(error) => {
                     warn!(
@@ -118,8 +98,9 @@ impl SchedulerService {
         }
 
         let Some(registered_job) = ctx.registered_jobs.get(job_config.name.as_str()) else {
-            warn!(job = %job_config.name, "Job not found in inventory, skipping");
-            return Ok(Registered::NotInInventory);
+            return Err(SchedulerError::UnknownJob {
+                names: job_config.name.to_string(),
+            });
         };
 
         if !registered_job.configured() {

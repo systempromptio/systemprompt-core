@@ -453,3 +453,38 @@ pub(crate) fn ai_messages(text: &str) -> Vec<AiMessage> {
         parts: Vec::new(),
     }]
 }
+
+pub(crate) fn make_handler_state_with_launcher(
+    pool: &DbPool,
+    launcher: systemprompt_traits::DynAgentRunLauncher,
+    agent_run: Option<serde_json::Value>,
+) -> Arc<AgentHandlerState> {
+    systemprompt_test_fixtures::ensure_test_bootstrap();
+    let instance = systemprompt_test_fixtures::unique_instance();
+    let url = systemprompt_test_fixtures::test_database_url();
+    let mut config = systemprompt_test_fixtures::fixture_config(&url);
+    config.instance_id = instance.clone();
+    let mut deps = systemprompt_test_fixtures::a2a_dependencies(pool);
+    deps.instance_id = instance;
+    let repos = systemprompt_agent::repository::A2ARepositories::new(pool, deps);
+    let agent_state = Arc::new(
+        AgentState::new(
+            Arc::clone(pool),
+            Arc::new(config),
+            stub_jwt(),
+            Arc::new(repos),
+            systemprompt_test_mocks::recording_webhooks(),
+        )
+        .with_agent_run_launcher(launcher),
+    );
+    let mut agent = agent_config("test_agent");
+    agent.metadata.agent_run = agent_run;
+    Arc::new(AgentHandlerState {
+        config: Arc::new(RwLock::new(agent)),
+        oauth_state: make_oauth_state(pool),
+        agent_state,
+        ai_service: Arc::new(StubAiProvider::new()),
+        stream_semaphore: Arc::new(Semaphore::new(4)),
+        active_tasks: systemprompt_agent::services::a2a_server::ActiveTasks::default(),
+    })
+}

@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, anyhow};
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::repository::AccessControlRepository;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::repository::AccessControlRepository;
 
 use super::ExportYamlArgs;
 use crate::CliConfig;

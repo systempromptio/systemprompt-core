@@ -27,8 +27,8 @@ fn absent_block_means_manual_only() {
     assert!(!profile.judge.automatic);
 }
 
-// Inserts the pre-5c8d3ae9e key on purpose: this is the regression test for
-// the `alias = "evaluation"` that keeps a deployed profile.yaml booting.
+// Inserts the `evaluation` key on purpose: the `alias = "evaluation"` keeps a
+// deployed profile.yaml that spells it that way booting.
 #[test]
 fn automatic_flag_parses() {
     let mut map = profile_yaml_without_judge();

@@ -169,8 +169,14 @@ impl HostApp for OpenCodeHost {
         }
     }
 
+    // Why: OpenCode ships one config for its terminal agent and its desktop
+    // app; when the desktop install is present the card names both.
     fn kind(&self) -> HostAppKind {
-        HostAppKind::CliTool
+        if desktop_app_present() {
+            HostAppKind::DesktopAndCli
+        } else {
+            HostAppKind::CliTool
+        }
     }
 
     fn description(&self) -> &'static str {

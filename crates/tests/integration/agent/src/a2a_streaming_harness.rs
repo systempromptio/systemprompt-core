@@ -7,8 +7,7 @@
 //! Deeper success paths (planning → tool execution → completion) require
 //! a real `AgentRegistry`-backed `AgentConfig` plus an MCP service
 //! provider; those are scaffolded but currently exercise the failure
-//! branch — that still covers `setup_stream` initialization code that
-//! was previously unreached.
+//! branch, which still covers `setup_stream` initialization.
 
 use std::sync::Arc;
 

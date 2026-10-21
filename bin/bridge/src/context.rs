@@ -42,6 +42,7 @@ pub struct BridgeContext {
     pub sync_progress: crate::progress::SyncProgressSink,
     pub policy_store: crate::config::store::PolicyStore,
     pub sync_lock: Arc<tokio::sync::Mutex<()>>,
+    pub update_gate: crate::update::automatic::UpdateGate,
     pub elevation_attempted: AtomicBool,
     pub startup_faults: Vec<StartupFault>,
 }
@@ -100,12 +101,14 @@ impl BridgeContext {
                 (InstallId::ephemeral(), false)
             },
         };
+        let update_gate = crate::update::automatic::UpdateGate::default();
         let deps = ProxyDeps {
             install_id,
             mcp_registry: Arc::clone(&mcp_registry),
             activity: activity.clone(),
             http: http.clone(),
             plugin_tokens: Arc::clone(&plugin_tokens),
+            update_gate: update_gate.clone(),
         };
         let proxy = match mode {
             ProxyMode::Serve => ProxyHandle::serve(runtime.handle(), deps, &mut faults),
@@ -125,6 +128,7 @@ impl BridgeContext {
             sync_progress: crate::progress::SyncProgressSink::default(),
             policy_store,
             sync_lock: Arc::new(tokio::sync::Mutex::new(())),
+            update_gate,
             elevation_attempted: AtomicBool::new(false),
             startup_faults: faults,
         }))

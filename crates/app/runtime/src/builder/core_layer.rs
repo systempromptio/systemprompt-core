@@ -27,9 +27,9 @@ use systemprompt_database::{
     validate_write_pool_is_primary,
 };
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::SharedAuthzHook;
+use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::{Config, Profile};
-use systemprompt_security::authz::SharedAuthzHook;
-use systemprompt_security::policy::GovernanceEngine;
 use systemprompt_traits::{CacheEpochs, FileStorage};
 
 use crate::error::RuntimeResult;
@@ -62,11 +62,13 @@ async fn init_services(
     Ok(services)
 }
 
-pub(super) async fn init_core(
-    authz_hook_override: Option<SharedAuthzHook>,
-) -> RuntimeResult<CoreLayer> {
-    let profile = ProfileBootstrap::get()?;
-    let secrets = SecretsBootstrap::get()?;
+async fn resolve_services_root(
+    profile: &Profile,
+    secrets: &systemprompt_manifest::secrets::Secrets,
+) -> RuntimeResult<(
+    &'static systemprompt_loader::ActiveServicesRoot,
+    Arc<AppPaths>,
+)> {
     let active_root = systemprompt_loader::ServicesSourceBootstrap::try_run(
         profile,
         |name| secrets.get(name).cloned(),
@@ -80,6 +82,15 @@ pub(super) async fn init_core(
     )?);
     systemprompt_files::FilesConfig::init(&app_paths)?;
     systemprompt_config::try_init_config(Some(active_root.path.as_path()))?;
+    Ok((active_root, app_paths))
+}
+
+pub(super) async fn init_core(
+    authz_hook_override: Option<SharedAuthzHook>,
+) -> RuntimeResult<CoreLayer> {
+    let profile = ProfileBootstrap::get()?;
+    let secrets = SecretsBootstrap::get()?;
+    let (active_root, app_paths) = resolve_services_root(profile, secrets).await?;
     let services = init_services(secrets).await?;
     let config = Arc::new(Config::get()?.clone());
     let instance_id = config.instance_id.clone();
@@ -104,7 +115,7 @@ pub(super) async fn init_core(
 
     let cache_epochs = CacheEpochs::new();
     let authz_audit_pool = database.write_pool();
-    let authz_hook = systemprompt_security::authz::build_authz_hook(
+    let authz_hook = systemprompt_governance::authz::build_authz_hook(
         profile.governance.as_ref(),
         authz_audit_pool,
         authz_hook_override,
@@ -112,13 +123,12 @@ pub(super) async fn init_core(
         cache_epochs.clone(),
     )?;
 
-    let governance = Arc::new(
-        GovernanceEngine::from_services_root(active_root.path.as_path())?.with_rate_windows(
-            systemprompt_security::policy::RateWindowRepository::new(
-                database.write_pool().as_ref().clone(),
-            ),
-        ),
-    );
+    let governance = Arc::new(GovernanceEngine::from_services_root(
+        active_root.path.as_path(),
+        Some(systemprompt_governance::policy::RateWindowRepository::new(
+            database.write_pool().as_ref().clone(),
+        )),
+    )?);
 
     systemprompt_logging::set_console_format(profile.observability.log_format);
     systemprompt_logging::init_logging(&database);
@@ -158,9 +168,9 @@ pub async fn discover_vertex_models(
     .await
 }
 
-fn chain_sources() -> RuntimeResult<systemprompt_security::authz::ChainSources> {
+fn chain_sources() -> RuntimeResult<systemprompt_governance::authz::ChainSources> {
     let services = systemprompt_loader::ServicesBootstrap::get()?;
-    Ok(systemprompt_security::authz::ChainSources::from_services(
+    Ok(systemprompt_governance::authz::ChainSources::from_services(
         services,
     ))
 }

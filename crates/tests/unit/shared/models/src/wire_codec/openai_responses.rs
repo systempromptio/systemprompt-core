@@ -437,8 +437,8 @@ fn openai_responses_parse_captures_reasoning_id_and_encrypted_content() {
     }
 }
 
-// Why: tool use used to be resolved before truncation, so a function_call cut
-// off at max_output_tokens was reported as a runnable tool call. Its arguments
+// Why: truncation is resolved before tool use, so a function_call cut off at
+// max_output_tokens is never reported as a runnable tool call. Its arguments
 // are incomplete JSON, so the client either fails to parse them or -- worse --
 // runs the tool with the wrong ones.
 #[test]

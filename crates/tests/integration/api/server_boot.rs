@@ -14,12 +14,12 @@ use systemprompt_analytics::AnalyticsService;
 use systemprompt_api::services::server::setup_api_server;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{
     ensure_test_bootstrap, fixture_config, fixture_system_admin, fixture_user_id, test_db_pool,
     unique_instance,
@@ -88,6 +88,10 @@ async fn setup_api_server_assembles_full_router() -> anyhow::Result<()> {
                 ),
                 user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
                 service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+                    &pool,
+                    test_instance.clone(),
+                )),
+                coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
                     &pool,
                     test_instance.clone(),
                 )),

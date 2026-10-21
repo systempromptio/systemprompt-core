@@ -32,6 +32,7 @@ systemprompt-storage = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-ai = { workspace = true }
@@ -72,3 +73,5 @@ url = { workspace = true }
 chrono = { workspace = true }
 webauthn-rs = { workspace = true }
 webauthn-authenticator-rs = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }

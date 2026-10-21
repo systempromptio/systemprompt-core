@@ -15,14 +15,9 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
   // Install state for a host is only KNOWN once its probe has completed, at
   // which point `health` is populated. Until every probeable host has it the
   // result is "unknown" — we must not show onboarding then, or it flashes
-  // before detection resolves (the bug where it appeared with agents already
-  // installed). Once settled, show the agents step only when none are
+  // before detection resolves. Once settled, show the agents step only when none are
   // installed; installing one (anyInstalled) drops straight into the app.
   //
-  // This read was `h.snapshot` for a while. The wire stopped carrying the raw
-  // probe snapshot when the host payload was reduced to `health`, so the
-  // expression was not merely wrong — it was constant false, and every sign-in
-  // sat out the 12s settle timer and ended on "Still checking this computer".
   // Hosts that cannot be probed are excluded rather than waited for: a
   // sync-only agent is governed from the gateway, is never probed, and so has
   // no health to report, which would pin this false for ever.
@@ -33,8 +28,8 @@ export function stepsFromSnapshot(snap, { leftSetup, finished }) {
   // bridge records that on disk (the Finish button, or a completed first-use
   // run) and carries it in every snapshot; a profile the next release reads as
   // stale — an upgrade changed what it should contain — is the Agents tab's
-  // Repair, not a reason to start over. Before this read, an auto-update
-  // reopened the wizard on every configured machine.
+  // Repair, not a reason to start over, so an auto-update never reopens the
+  // wizard on a configured machine.
   const onboarded = !!snap.agents_onboarded || !!(snap.first_run && snap.first_run.done);
   const model = {
     settled,

@@ -3,9 +3,8 @@
 //! Cloud deployments always sit behind Cloudflare → Fly, so a generated cloud
 //! profile must trust the private/Fly/Cloudflare ranges — omitting the Fly
 //! peer range makes every request resolve to the proxy's private address and
-//! silently discards forwarded client-IP headers, a footgun that has caused a
-//! production attribution outage. Traffic that enters through Fly's *public*
-//! edge rather than the private mesh appends a further hop from
+//! silently discards forwarded client-IP headers. Traffic that enters through
+//! Fly's *public* edge rather than the private mesh appends a further hop from
 //! [`proxies::FLY_PUBLIC_RANGES`], so that range must be trusted too or the
 //! same misattribution returns. Local profiles trust loopback and RFC1918 so a
 //! local reverse proxy works out of the box.

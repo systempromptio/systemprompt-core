@@ -13,12 +13,18 @@ fn rows() -> Vec<PickerRow> {
 }
 
 fn provider(configured: bool, models: &[&str]) -> ProviderHealth {
+    on_surface(ApiSurface::Anthropic, configured, models)
+}
+
+fn on_surface(surface: ApiSurface, configured: bool, models: &[&str]) -> ProviderHealth {
     ProviderHealth {
         name: "fixture".to_owned(),
-        surface: ApiSurface::OpenAi,
+        surface,
         configured,
         models: models.iter().map(|model| (*model).to_owned()).collect(),
         config_issue: (!configured).then(|| "credential absent".to_owned()),
+        display_name: None,
+        personal_key: false,
     }
 }
 
@@ -42,6 +48,22 @@ fn picker_rows_excludes_claude_models_and_unconfigured_providers() {
                 label: "Gpt 5".into(),
             },
         ]
+    );
+}
+
+#[test]
+fn picker_rows_keep_claude_code_on_anthropic_surface_providers() {
+    let mut personal = provider(true, &["go-minimax-m3"]);
+    personal.personal_key = true;
+    let rows = picker_rows(&[
+        on_surface(ApiSurface::OpenAi, true, &["deepseek-v4-pro", "go-kimi-k3"]),
+        on_surface(ApiSurface::Gemini, true, &["gemini-2.5-pro"]),
+        personal,
+        provider(true, &["vertex-sonnet-compat"]),
+    ]);
+    assert_eq!(
+        rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        vec!["vertex-sonnet-compat"]
     );
 }
 

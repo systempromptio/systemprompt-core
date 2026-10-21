@@ -632,9 +632,8 @@ fn anthropic_parse_keeps_max_tokens_over_a_truncated_tool_use_block() {
     );
 }
 
-// Why: the fixture is a real `claude-opus-5` adaptive-thinking reply that
-// went through the gateway on 2026-09-06 and was audited with
-// `reasoning_tokens = 0`. Anthropic's `output_tokens` already includes the
+// Why: the fixture is a real `claude-opus-5` adaptive-thinking reply.
+// Anthropic's `output_tokens` already includes the
 // thinking share, so the count is copied across and the cost must not move.
 #[test]
 fn anthropic_parse_reads_adaptive_thinking_tokens_as_a_breakdown_of_output() {

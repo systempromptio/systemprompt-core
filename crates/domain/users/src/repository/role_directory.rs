@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use sqlx::PgPool;
-use systemprompt_security::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
+use systemprompt_governance::authz::{AuthzError, RoleDirectory, SharedRoleDirectory};
 
 #[derive(Debug)]
 pub struct UsersRoleDirectory {
@@ -41,4 +41,4 @@ impl RoleDirectory for UsersRoleDirectory {
     }
 }
 
-systemprompt_security::register_role_directory!(UsersRoleDirectory::shared);
+systemprompt_governance::register_role_directory!(UsersRoleDirectory::shared);

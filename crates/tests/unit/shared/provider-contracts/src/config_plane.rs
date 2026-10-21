@@ -1,5 +1,6 @@
 use systemprompt_provider_contracts::{
-    ChangeActor, DeclaredState, DriftKind, PlaneSnapshot, diff_snapshots,
+    ApplyMode, ChangeActor, DeclaredState, DriftKind, EntityScope, PlaneEffect, PlaneSnapshot,
+    diff_snapshots,
 };
 
 fn snapshot(pairs: &[(&str, &str)]) -> PlaneSnapshot {
@@ -74,4 +75,29 @@ fn actor_labels_are_stable_tokens() {
     assert_eq!(ChangeActor::Boot.label(), "boot");
     assert_eq!(ChangeActor::Reconciler.label(), "config_reconcile");
     assert_eq!(ChangeActor::Cli.label(), "cli");
+    assert_eq!(ChangeActor::Seed.label(), "seed");
+}
+
+#[test]
+fn seed_if_empty_converges_like_overwrite_and_insert_only_does_not() {
+    assert_eq!(ApplyMode::SeedIfEmpty.as_str(), "seed_if_empty");
+    assert!(ApplyMode::SeedIfEmpty.must_converge());
+    assert!(ApplyMode::Overwrite.must_converge());
+    assert!(!ApplyMode::InsertOnly.must_converge());
+}
+
+#[test]
+fn an_entity_scope_admits_only_the_named_keys() {
+    let keys = vec!["groups/a".to_owned()];
+    let scoped = EntityScope::Entities(&keys);
+    assert!(scoped.admits("groups/a"));
+    assert!(!scoped.admits("groups/b"));
+    assert!(!scoped.is_all());
+    assert!(EntityScope::All.admits("anything"));
+}
+
+#[test]
+fn plane_effect_defaults_to_live() {
+    assert_eq!(PlaneEffect::default(), PlaneEffect::Live);
+    assert_eq!(PlaneEffect::OnRestart.as_str(), "on_restart");
 }

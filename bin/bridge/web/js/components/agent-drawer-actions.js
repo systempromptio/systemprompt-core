@@ -25,11 +25,9 @@ export function actionButtons(drawer, host, status) {
     buttons.push(ghostButton(escapeHtml(status.secondary.code), status.secondary.label, busy));
   }
   // Whether an action is available at all is decided in Rust, beside the state
-  // it depends on (`HostEntryPayload.can_*`), and only rendered here. These four
-  // buttons used to be unconditional, so a sync-only agent — governed from the
-  // gateway, with nothing installed on this computer — offered all of them, and
-  // every one reached a handler that could only answer "unknown host:
-  // claude-code". Deciding it here as well (`surface === "sync-only"`) would be
+  // it depends on (`HostEntryPayload.can_*`), and only rendered here; a
+  // sync-only agent, with nothing installed on this computer, offers none of
+  // them. Deciding it here as well (`surface === "sync-only"`) would be
   // the same fact derived twice, free to drift.
   if (primaryKind !== "open" && host.can_open !== false && appInstallState(host) !== APP_NOT_INSTALLED) {
     buttons.push(ghostButton("open", t("host-action-open") || "Open"));

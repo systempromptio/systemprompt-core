@@ -8,6 +8,12 @@
 //! writes `modelPicker.options` rows into the settings files it owns. Claude
 //! ids are left to discovery, which carries their real pricing and labels.
 //!
+//! Only Anthropic-surface providers contribute rows: Claude Code stays on the
+//! Claude family and its Anthropic-wire peers, while `OpenAI`- and
+//! Google-surface catalogs (`DeepSeek`, `OpenCode` Go) belong to the hosts that
+//! speak them. A personal-subscription provider never contributes: its terms
+//! admit only the clients it names.
+//!
 //! This is Claude Code only. Claude Desktop's `inferenceModels` policy must
 //! stay Anthropic-only (`crate::install::mdm::policy` enforces it); Desktop
 //! breaks on other model families.
@@ -24,6 +30,7 @@ use super::{
 };
 use crate::gateway::types::ProviderHealth;
 use crate::install::mdm::MdmError;
+use systemprompt_models::providers::ApiSurface;
 
 mod merge;
 
@@ -47,7 +54,7 @@ pub fn is_claude_family(id: &str) -> bool {
 pub fn picker_rows(providers: &[ProviderHealth]) -> Vec<PickerRow> {
     let mut ids: Vec<&str> = providers
         .iter()
-        .filter(|p| p.configured)
+        .filter(|p| p.configured && p.surface == ApiSurface::Anthropic && !p.personal_key)
         .flat_map(|p| p.models.iter().map(String::as_str))
         .filter(|id| !is_claude_family(id))
         .collect();

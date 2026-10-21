@@ -3,13 +3,12 @@
 //!
 //! The failure this prevents is not a slow query. Migrations are awaited
 //! before the HTTP listener is bound, so an unmeasured backfill is an
-//! instance that never opens its port: a 3,644-row `UPDATE ai_requests` took
-//! 27 minutes on a production instance because one per-row trigger
-//! re-enqueued the whole client session per row. The author is the only one
+//! instance that never opens its port, and a per-row trigger can stretch a
+//! few thousand rows into minutes. The author is the only one
 //! who can measure that, and `-- @cost:` is where they write it down.
 //!
-//! Migrations that shipped before this gate cannot be annotated — the
-//! checksum is taken over the whole body, so adding a comment makes every
+//! Migrations already applied to established databases cannot be annotated —
+//! the checksum is taken over the whole body, so adding a comment makes every
 //! established database refuse to boot. They are listed in
 //! `migration_cost_baseline.txt` instead. That list may only shrink: an entry
 //! whose file is gone is itself a failure, so it cannot quietly rot, and a
@@ -26,7 +25,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::ExtensionId;
 
-use systemprompt_database::{HOT_TABLES, audit_one, backfill_statements};
+use systemprompt_database::{HOT_TABLES, audit_one, backfill_statements, projection_tables};
 
 const BASELINE: &str = "migration_cost_baseline.txt";
 const BACKFILL_FLOOR: &str = "migration_backfill_floor.txt";
@@ -101,6 +100,24 @@ fn migration_files() -> Vec<PathBuf> {
         .collect();
     files.sort();
     files
+}
+
+fn base_schema_sql() -> Vec<String> {
+    let root = repo_root();
+    let mut dirs = Vec::new();
+    migration_dirs(&root.join("crates"), &mut dirs);
+    let mut files: Vec<PathBuf> = dirs
+        .iter()
+        .filter_map(|dir| dir.parent())
+        .flat_map(|dir| std::fs::read_dir(dir).into_iter().flatten().flatten())
+        .map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|e| e == "sql"))
+        .collect();
+    files.sort();
+    files
+        .iter()
+        .map(|path| std::fs::read_to_string(path).expect("schema readable"))
+        .collect()
 }
 
 #[test]
@@ -252,6 +269,13 @@ fn version_of(path: &Path) -> Option<u32> {
 #[test]
 fn no_backfill_after_floor() {
     let floor = backfill_floor();
+    let schemas = base_schema_sql();
+    let projections = projection_tables(schemas.iter().map(String::as_str));
+    assert!(
+        projections.contains("trace_facts"),
+        "the base-schema walk did not derive trace_facts as a projection table, so the \
+         cleanup allowance is reading the wrong tree: {projections:?}"
+    );
     let mut offenders = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     let mut highest = std::collections::BTreeMap::<String, u32>::new();
@@ -272,7 +296,10 @@ fn no_backfill_after_floor() {
             continue;
         }
         let sql = std::fs::read_to_string(&path).expect("migration readable");
-        for statement in backfill_statements(&sql) {
+        for statement in backfill_statements(&sql)
+            .into_iter()
+            .filter(|statement| !statement.is_projection_cleanup(&projections))
+        {
             offenders.push(format!(
                 "{name}: statement {} {} {}",
                 statement.position, statement.form, statement.target
@@ -298,7 +325,10 @@ fn no_backfill_after_floor() {
          Past the floor a migration is DDL (the same text as the base schema) plus\n  \
          INSERT INTO projection_backlog SELECT '<projection>', <key> FROM <relation> …\n\
          Put the projector, its statement trigger and the drainer in the base schema so a\n\
-         fresh install, which stamps migrations without running them, gets the same facts.",
+         fresh install, which stamps migrations without running them, gets the same facts.\n\
+         The one data statement allowed is cleanup: a DELETE from projection_backlog or from a\n\
+         projection's own fact table (a table the base schema creates and queues by name\n\
+         through queue_projection_backlog).",
         offenders.join("\n  ")
     );
 }
@@ -347,5 +377,46 @@ fn the_backfill_detector_allows_ddl_and_keys_only_queueing() {
         "SELECT queue_projection_backlog('p', ARRAY['a']);",
     ] {
         assert!(backfill_statements(sql).is_empty(), "{sql}");
+    }
+}
+
+#[test]
+fn projection_tables_are_the_queued_projections_the_schema_creates() {
+    let schemas = [
+        "CREATE TABLE IF NOT EXISTS trace_facts (trace_id TEXT PRIMARY KEY);",
+        "CREATE OR REPLACE FUNCTION q() RETURNS trigger LANGUAGE plpgsql AS $$ \
+         BEGIN PERFORM queue_projection_backlog('trace_facts', ARRAY['a']); \
+         PERFORM queue_projection_backlog( 'no_such_table', ARRAY['a']); RETURN NULL; END $$;",
+        "CREATE TABLE IF NOT EXISTS logs (id TEXT PRIMARY KEY);",
+    ];
+    let tables = projection_tables(schemas);
+    assert_eq!(tables.into_iter().collect::<Vec<_>>(), vec!["trace_facts"]);
+}
+
+#[test]
+fn the_backfill_detector_treats_projection_deletes_as_cleanup() {
+    let tables = BTreeSet::from(["trace_facts".to_owned()]);
+    for sql in [
+        "DELETE FROM projection_backlog b WHERE b.projection = 'trace_facts';",
+        "DELETE FROM trace_facts f WHERE f.ai_count = 0;",
+    ] {
+        let found = backfill_statements(sql);
+        assert_eq!(found.len(), 1, "{sql}");
+        assert!(found[0].is_projection_cleanup(&tables), "{sql}");
+    }
+}
+
+#[test]
+fn the_backfill_detector_keeps_flagging_writes_that_are_not_projection_cleanup() {
+    let tables = BTreeSet::from(["trace_facts".to_owned()]);
+    for sql in [
+        "DELETE FROM logs WHERE level = 'debug';",
+        "UPDATE trace_facts SET ai_count = 0;",
+        "INSERT INTO trace_facts (trace_id) SELECT trace_id FROM logs GROUP BY trace_id;",
+        "UPDATE projection_backlog SET attempts = 0;",
+    ] {
+        let found = backfill_statements(sql);
+        assert_eq!(found.len(), 1, "{sql}");
+        assert!(!found[0].is_projection_cleanup(&tables), "{sql}");
     }
 }

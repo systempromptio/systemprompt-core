@@ -4,7 +4,7 @@
 //! ([`AuditConfig`]); a body at or under it is stored whole, over it only the
 //! digest and a head+tail excerpt survive. A probe (`max_tokens <= 1`) is
 //! always excerpt-only: its body is the prompt the next real turn re-sends,
-//! and a production instance held 1,338 of them in full for no reader.
+//! so storing it in full serves no reader.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

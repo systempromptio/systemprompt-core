@@ -1,10 +1,8 @@
 //! The Claude Desktop managed policy and its per-platform rendering.
 //!
-//! These assertions were impossible before the policy was extracted: the plist
-//! was hand-built inside `#[cfg(target_os = "macos")]` string concatenation, so
-//! the macOS profile shipped with no `managedMcpServers` key and with MCP
-//! servers pointing at the upstream gateway with no credential, and nothing on
-//! any other host could see it.
+//! The policy is platform-neutral data, so the macOS rendering (its
+//! `managedMcpServers` key and MCP servers pointing at the loopback proxy with
+//! a credential) is asserted on every host.
 
 use std::collections::BTreeMap;
 
@@ -45,7 +43,7 @@ fn value_of<'a>(policy: &'a [(&'static str, PolicyValue)], key: &str) -> Option<
     policy.iter().find(|(k, _)| *k == key).map(|(_, v)| v)
 }
 
-// Why: the defect that broke the 2026-09-03 Mac install. A server published
+// Why: a server published
 // with the upstream URL and no headers can never authenticate, and bypasses
 // the proxy that stamps the per-user JWT and applies governance.
 #[test]

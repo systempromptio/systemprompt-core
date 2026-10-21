@@ -21,11 +21,6 @@ fn pkce_min_less_than_max() {
 }
 
 #[test]
-fn token_cookie_max_age_is_one_hour() {
-    assert_eq!(token::COOKIE_MAX_AGE_SECONDS, 3600);
-}
-
-#[test]
 fn token_seconds_per_day_is_86400() {
     assert_eq!(token::SECONDS_PER_DAY, 86_400);
 }

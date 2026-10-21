@@ -1,13 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_identifiers::{ModelId, RouteId, TraceId};
-use systemprompt_security::authz::audit::NullAuditSink;
-use systemprompt_security::authz::hook::DenyAllHook;
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::audit::NullAuditSink;
+use systemprompt_governance::authz::hook::DenyAllHook;
+use systemprompt_governance::authz::{
     AllowAllHook, AuthzContext, AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason,
     EntityRef, WebhookHook,
 };
+use systemprompt_identifiers::{ModelId, RouteId, TraceId};
 use systemprompt_test_fixtures::fixture_user_id;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

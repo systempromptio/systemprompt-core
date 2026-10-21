@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `GET`/`PUT`/`DELETE /v1/me/provider-credentials[/{provider}]` list, store (with upstream verification) and remove the caller's personal provider keys; the bridge profile reports per-user provider health.
+- `/readyz` runs the extensions' readiness checks and answers `503` when one fails, errors or overruns; extension metric descriptors are registered with the recorder.
+- `OpsSampler` runs one ops-metrics sampling pass.
+
+### Changed
+
+- **Breaking:** `install_recorder` takes the extensions' `MetricDescriptor`s.
+- **Breaking:** the identity-keyed global rate window fails closed: when its counter cannot be charged, an authenticated request answers `503` with `Retry-After`.
+- Governance types are imported from `systemprompt-governance`.
+
+### Removed
+
+- **Breaking:** `GET /api/v1/core/oauth/callback` (`CallbackQuery`, `handle_callback`); `/oauth/authorize` echoes the client's `state` verbatim.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

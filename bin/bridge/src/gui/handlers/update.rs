@@ -1,55 +1,35 @@
-//! GUI self-update handlers: check, install, restart.
+//! GUI self-update handlers: the tray's check, install and restart. The
+//! scheduled trigger lives in [`super::auto_update`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
 
-use std::time::{Duration, Instant};
 use winit::event_loop::ActiveEventLoop;
-
 
 use crate::gui::error::GuiError;
 use crate::gui::events::{InstalledUpdate, ReplyId, UiEvent};
-use crate::gui::{GuiApp, emit};
+use crate::gui::{GuiApp, UiEventProxy, emit};
 use crate::update::{self, UpdateUiState};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload};
 
-const AUTO_UPDATE_INTERVAL: Duration = Duration::from_hours(6);
-
-// Why: staging only — the check leads to a download and an on-disk swap, never
-// a restart. Called from the one-second event-loop pass, so the policy read,
-// which touches the last-sync sentinel, sits behind the interval test.
-pub(crate) fn maybe_auto_check(app: &mut GuiApp, woke_from_sleep: bool) {
-    if app.auto_update_pending {
-        return;
+pub(super) fn progress_reporter(
+    proxy: UiEventProxy,
+    version: String,
+) -> impl Fn(update::DownloadProgress) + Send + Sync {
+    move |p: update::DownloadProgress| {
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "fraction() is clamped to 0.0..=1.0, so the product fits u8"
+        )]
+        let percent = (p.fraction() * 100.0) as u8;
+        proxy.send_event(UiEvent::UpdateProgress {
+            version: version.clone(),
+            percent,
+        });
     }
-    let due = woke_from_sleep
-        || app
-            .last_update_check_at
-            .is_none_or(|at| at.elapsed() >= AUTO_UPDATE_INTERVAL);
-    if !due {
-        return;
-    }
-    let snap = app.state.snapshot();
-    if !snap.signed_in() || snap.update.in_progress() || snap.update.can_restart() {
-        return;
-    }
-    if !update::auto_update_policy().stages() {
-        return;
-    }
-    app.last_update_check_at = Some(Instant::now());
-    if let Some(message) = update::read_only_launch() {
-        tracing::warn!(reason = %message, "automatic update withheld: the install is read-only");
-        app.append_log(format!("automatic update withheld: {message}"));
-        app.state
-            .set_update_state(UpdateUiState::Failed { message });
-        app.refresh_ui();
-        emit::emit_state(app);
-        return;
-    }
-    app.auto_update_pending = true;
-    on_update_check_requested(app, None);
 }
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -58,7 +38,11 @@ pub(crate) fn on_update_check_requested(app: &GuiApp, reply_to: ReplyId) {
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
         let result = check(http).await.map_err(Arc::new);
-        proxy.send_event(UiEvent::UpdateCheckFinished { result, reply_to });
+        proxy.send_event(UiEvent::UpdateCheckFinished {
+            result,
+            reply_to,
+            automatic: false,
+        });
     });
 }
 
@@ -66,8 +50,8 @@ pub(crate) fn on_update_check_finished(
     app: &mut GuiApp,
     result: Result<UpdateUiState, Arc<GuiError>>,
     reply_to: ReplyId,
+    automatic: bool,
 ) {
-    let automatic = app.auto_update_pending;
     // Why: a tray click has no reply channel — the toast and the activity
     // log are the only places the person who clicked can see the answer.
     let manual = reply_to.is_none() && !automatic;
@@ -83,7 +67,14 @@ pub(crate) fn on_update_check_finished(
                 );
             }
         },
-        Ok(state) => app.state.set_update_state(state.clone()),
+        Ok(state) => {
+            if automatic && let Some(version) = state.version() {
+                app.append_log(format!(
+                    "{version} is available; staging it for the next restart"
+                ));
+            }
+            app.state.set_update_state(state.clone());
+        },
         Err(e) => {
             let message = format!("{e:#}");
             tracing::warn!(error = %message, automatic, "update check failed");
@@ -102,17 +93,9 @@ pub(crate) fn on_update_check_finished(
             }
         },
     }
-    let staging = std::mem::take(&mut app.auto_update_pending)
-        && app.state.snapshot().update.can_install()
-        && update::auto_update_policy().stages();
     app.refresh_ui();
     emit::emit_state(app);
     reply(app, reply_to, result, "update check");
-    if staging {
-        app.append_log("a newer release is available; staging it for the next restart");
-        app.proxy
-            .send_event(UiEvent::UpdateInstallRequested { reply_to: None });
-    }
 }
 
 #[tracing::instrument(level = "info", skip(app))]
@@ -139,20 +122,7 @@ pub(crate) fn on_update_install_requested(app: &mut GuiApp, reply_to: ReplyId) {
     let proxy = app.proxy.clone();
     let http = app.ctx.http.clone();
     app.ctx.spawn(async move {
-        let progress_proxy = proxy.clone();
-        let progress_version = version.clone();
-        let on_progress = move |p: update::DownloadProgress| {
-            #[expect(
-                clippy::cast_possible_truncation,
-                clippy::cast_sign_loss,
-                reason = "fraction() is clamped to 0.0..=1.0, so the product fits u8"
-            )]
-            let percent = (p.fraction() * 100.0) as u8;
-            progress_proxy.send_event(UiEvent::UpdateProgress {
-                version: progress_version.clone(),
-                percent,
-            });
-        };
+        let on_progress = progress_reporter(proxy.clone(), version.clone());
         let result = install(&version, http, &on_progress)
             .await
             .map_err(Arc::new);
@@ -253,7 +223,7 @@ async fn install(
     })
 }
 
-async fn client_and_bearer(
+pub(super) async fn client_and_bearer(
     http: reqwest::Client,
 ) -> Result<(crate::gateway::GatewayClient, crate::ids::BearerToken), GuiError> {
     let cfg = crate::config::load()?;

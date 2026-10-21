@@ -359,5 +359,6 @@ fn test_deps() -> systemprompt_bridge::proxy::ProxyDeps {
         plugin_tokens: Arc::new(
             systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
         ),
+        update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
     }
 }

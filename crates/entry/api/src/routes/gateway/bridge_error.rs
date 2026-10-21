@@ -43,6 +43,12 @@ pub enum BridgeError {
     LastHostDisabled(HostKind),
     #[error("Gateway not enabled")]
     GatewayDisabled,
+    #[error("provider '{0}' does not take a personal key")]
+    NotPersonalProvider(String),
+    #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
+    PersonalKeyRejected(String),
+    #[error("{provider} could not verify the key (upstream answered {status}); try again shortly")]
+    PersonalKeyUnverified { provider: String, status: String },
     #[error("User not found: {0}")]
     UserNotFound(UserId),
     #[error("Invalid path")]
@@ -130,6 +136,14 @@ impl From<BridgeError> for ApiHttpError {
             },
             BridgeError::GatewayDisabled => {
                 ApiError::not_found(message).with_error_key("gateway_disabled")
+            },
+            BridgeError::NotPersonalProvider(_) => {
+                ApiError::not_found(message).with_error_key("not_personal_provider")
+            },
+            BridgeError::PersonalKeyRejected(_) => ApiError::validation_error(message, Vec::new())
+                .with_error_key("personal_key_rejected"),
+            BridgeError::PersonalKeyUnverified { .. } => {
+                ApiError::bad_request(message).with_error_key("personal_key_unverified")
             },
             BridgeError::UserNotFound(_)
             | BridgeError::PluginNotFound

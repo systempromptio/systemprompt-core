@@ -3,10 +3,7 @@
 //! A migration that rewrites rows in a hot table is the one thing that can
 //! turn a deploy into an unexplained outage: it runs inside the boot, before
 //! the HTTP listener is bound, in one transaction, holding its locks, fanning
-//! out through every per-row trigger on the table. A 3,644-row `UPDATE
-//! ai_requests` measured 113 ms per row on a production instance — 27 minutes
-//! of silence — because one trigger re-enqueued the whole client session per
-//! row.
+//! out through every per-row trigger on the table.
 //!
 //! The directive is how an author states what they measured. `rows` is what
 //! the migration actually wrote and `measured` is the wall clock of its

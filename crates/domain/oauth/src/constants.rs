@@ -9,7 +9,6 @@ pub mod pkce {
 }
 
 pub mod token {
-    pub const COOKIE_MAX_AGE_SECONDS: i64 = 3600;
     pub const SECONDS_PER_DAY: i64 = 86400;
     pub const REFRESH_TOKEN_EXPIRY_DAYS: i64 = 30;
     pub const ANONYMOUS_TOKEN_EXPIRY_SECONDS: i64 = 24 * 3600;

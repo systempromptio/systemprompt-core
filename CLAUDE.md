@@ -63,6 +63,13 @@ and `Supply Chain passed` (the aggregate jobs of each gate workflow) alone; push
 runs post those names with a ` (push)` suffix, so a green `next` run can never
 stand in for the PR's own.
 
+**Semver is reported, not gated.** The `Semver report` workflow (`semver.yml`, its own run so it never changes a gate's conclusion) runs
+`scripts/semver-report.sh` (cargo-semver-checks over every published crate
+against the last `vX.Y.Z` tag) and posts the report to the run summary and a
+`semver-report` artifact. Breaking changes stay allowed, but the report must be
+read before promoting, and every break it lists needs a `### Breaking` entry in
+CHANGELOG.md.
+
 Releasing is three deliberate steps:
 
 1. `just gate [REF]` — read-only. Confirms the push runs of CI, Quality and

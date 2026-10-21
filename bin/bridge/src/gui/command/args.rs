@@ -79,3 +79,12 @@ pub(super) struct HostEnabledArgs {
 pub(super) struct RecentArgs {
     pub(super) limit: Option<usize>,
 }
+
+#[derive(Deserialize)]
+pub(super) struct PersonalKeyArgs {
+    pub(super) provider: String,
+    #[serde(default, rename = "apiKey")]
+    pub(super) api_key: Option<String>,
+    #[serde(default)]
+    pub(super) label: Option<String>,
+}

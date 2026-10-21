@@ -15,6 +15,12 @@ pub enum UpstreamTargetError {
     #[error("provider '{provider}' secret '{secret}' is not configured")]
     MissingSecret { provider: String, secret: String },
 
+    #[error(
+        "provider '{provider}' is served only from a personal key the caller stores for \
+         themselves; no deployment secret serves it"
+    )]
+    UserCredentialProvider { provider: String },
+
     #[error("secret '{secret}' declares a Google service account but is malformed: {source}")]
     MalformedCredential {
         secret: String,

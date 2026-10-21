@@ -10,11 +10,11 @@
 use std::collections::HashMap;
 
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::MarketplaceId;
-use systemprompt_manifest::services::{MarketplaceConfig, SlackAppConfig};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AccessControlConfig, AccessControlIngestionService, IngestOptions, RegisteredEntities,
 };
+use systemprompt_identifiers::MarketplaceId;
+use systemprompt_manifest::services::{MarketplaceConfig, SlackAppConfig};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

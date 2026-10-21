@@ -171,10 +171,9 @@ fn reset_replaces_the_secret_and_names_the_stale_profiles() {
     });
 }
 
-// Why: the incident this guards against was a key file the user could no
-// longer read; the proxy failed with a bare "Access is denied". The file is
-// this user's to delete, so a fresh key is minted and the profiles pick it up
-// on the next sync.
+// Why: a key file the user cannot read would fail the proxy with a bare
+// "Access is denied". The file is this user's to delete, so a fresh key is
+// minted and the profiles pick it up on the next sync.
 #[cfg(unix)]
 #[test]
 fn an_unreadable_secret_that_can_be_removed_is_minted_afresh() {

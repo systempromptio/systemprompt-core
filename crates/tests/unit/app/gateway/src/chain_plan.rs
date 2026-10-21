@@ -202,3 +202,69 @@ fn failover_deployments_too_small_for_the_request_are_dropped() {
         .collect();
     assert_eq!(providers, vec!["large"]);
 }
+
+fn providers_of(planned: &systemprompt_gateway::service::chain_plan::PlannedChain) -> Vec<&str> {
+    planned
+        .deployments
+        .iter()
+        .map(|v| v.provider.as_str())
+        .collect()
+}
+
+#[test]
+fn an_empty_chain_plans_to_nothing() {
+    let planned = order_chain(Vec::new(), "m");
+    assert!(planned.deployments.is_empty());
+    assert_eq!(planned.descriptor, None);
+}
+
+#[test]
+fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
+    let r = route(
+        "model_pattern: m\nprovider: lb-plan-a\nstrategy: least_busy\nfallbacks:\n  - {provider: lb-plan-b}\n  - {provider: lb-plan-c}\n",
+    );
+    let planned = order_chain(
+        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
+        "m",
+    );
+    assert_eq!(
+        providers_of(&planned),
+        vec!["lb-plan-a", "lb-plan-b", "lb-plan-c"]
+    );
+    assert_eq!(planned.descriptor.as_deref(), Some("strategy:least_busy"));
+}
+
+#[test]
+fn a_weighted_chain_is_a_permutation_of_its_deployments() {
+    let r = route(
+        "model_pattern: m\nprovider: w-plan-a\nweight: 5\nstrategy: weighted\nfallbacks:\n  - {provider: w-plan-b, weight: 1}\n",
+    );
+    let planned = order_chain(
+        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
+        "m",
+    );
+    let mut providers = providers_of(&planned);
+    providers.sort_unstable();
+    assert_eq!(providers, vec!["w-plan-a", "w-plan-b"]);
+    assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));
+}
+
+#[test]
+fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
+    let r = route("model_pattern: m\nprovider: w-plan-solo\nstrategy: weighted\n");
+    let planned = order_chain(
+        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
+        "m",
+    );
+    assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
+    assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));
+}
+
+#[test]
+fn a_deployment_with_no_known_window_is_never_refused() {
+    let r = route("model_pattern: m\nprovider: unregistered\nfallbacks:\n  - {provider: small}\n");
+    let (deployments, fallbacks) = chain(&r);
+    let planned = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
+        .expect("an unknown window is not a refusal");
+    assert_eq!(providers_of(&planned), vec!["unregistered"]);
+}

@@ -23,6 +23,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod error_body;
 pub mod gcs;
 pub mod local;
 mod object_id;

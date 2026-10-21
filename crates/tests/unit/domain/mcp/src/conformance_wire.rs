@@ -1,7 +1,6 @@
 // Conformance gate for the wire shapes McpResponseBuilder::build emits per
 // negotiated ClientProfile, validated against the vendored official MCP
-// CallToolResult JSON schemas. This is the regression gate the Cowork
-// artifact incident lacked: a strict host rejects any result that fails
+// CallToolResult JSON schemas. A strict host rejects any result that fails
 // its schema, so every profile's output must validate.
 
 use rmcp::model::{CallToolResult, ProtocolVersion};

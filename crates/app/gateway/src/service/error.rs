@@ -75,6 +75,11 @@ pub enum GatewayError {
     UndeclaredProvider { route: String, provider: String },
     #[error("gateway has no outbound adapter for wire protocol '{wire}'")]
     NoAdapter { wire: String },
+    #[error(
+        "personal key required for provider {provider} — add it in the bridge Settings or your \
+         profile"
+    )]
+    PersonalKeyRequired { provider: String },
     #[error("gateway dispatch has no authenticated session")]
     MissingSession,
     #[error("gateway {context}")]
@@ -105,7 +110,7 @@ impl GatewayError {
                 StatusCode::SERVICE_UNAVAILABLE
             },
             Self::Quota(_) => StatusCode::TOO_MANY_REQUESTS,
-            Self::GuardForbidden(_) => StatusCode::FORBIDDEN,
+            Self::GuardForbidden(_) | Self::PersonalKeyRequired { .. } => StatusCode::FORBIDDEN,
             Self::ImageFetch(image) if image.caller_fault() => StatusCode::BAD_REQUEST,
             Self::Upstream(upstream) => upstream_status(upstream),
             Self::MissingPricing(_)

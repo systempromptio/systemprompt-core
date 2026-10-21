@@ -7,7 +7,7 @@
 
 use std::str::FromStr;
 
-use systemprompt_security::authz::{EntityKind, RuleType};
+use systemprompt_governance::authz::{EntityKind, RuleType};
 use systemprompt_test_fixtures::test_pg_pool;
 
 #[tokio::test]

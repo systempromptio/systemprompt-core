@@ -21,6 +21,7 @@ inventory = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-security = { workspace = true }
+systemprompt-governance = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
@@ -63,6 +64,8 @@ systemprompt-marketplace = { workspace = true }
 systemprompt-runtime = { workspace = true }
 systemprompt-users = { workspace = true }
 systemprompt-content = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-config = { workspace = true }
 uuid = { workspace = true }
 
 [package.metadata.cargo-machete]

@@ -9,6 +9,8 @@ fn ph(name: &str, surface: ApiSurface, configured: bool, models: &[&str]) -> Pro
         configured,
         models: models.iter().map(|s| (*s).to_owned()).collect(),
         config_issue: (!configured).then(|| "missing".to_owned()),
+        display_name: None,
+        personal_key: false,
     }
 }
 

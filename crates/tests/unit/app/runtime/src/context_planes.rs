@@ -8,12 +8,12 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, RouteClassifier};
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
 use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
@@ -70,6 +70,10 @@ async fn plane_debug_impls_flag_optional_members() {
         )),
         user_repository: Arc::new(systemprompt_users::UserRepository::new(&pool)),
         service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
+            &pool,
+            test_instance.clone(),
+        )),
+        coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
             &pool,
             test_instance.clone(),
         )),

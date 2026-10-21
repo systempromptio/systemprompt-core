@@ -59,9 +59,8 @@ if [ -n "$HITS_SIZE" ]; then
 fi
 
 # Rule 3: a wiremock JSON-RPC mount that matches on `method` alone. The
-# request body is the wire contract; a mount that ignores the rest let the
-# MCP probe send `"params": null` (refused by a real server) for months while
-# its tests passed. Match the whole frame (`jsonrpc`, `id`, `method`, `params`).
+# request body is the wire contract; a mount that ignores the rest passes a
+# frame a real server refuses (e.g. `"params": null`). Match the whole frame (`jsonrpc`, `id`, `method`, `params`).
 PATTERN_METHOD_ONLY='body_partial_json\(\s*serde_json::json!\(\{\s*"method":\s*"[^"]+"\s*\}\)'
 RAW_METHOD=$(rg -n -U --no-heading --color=never -g '*.rs' "$PATTERN_METHOD_ONLY" "$SEARCH_DIR" 2>/dev/null | grep -E 'body_partial_json' || true)
 HITS_METHOD=$(printf '%s\n' "$RAW_METHOD" | filter_hits)

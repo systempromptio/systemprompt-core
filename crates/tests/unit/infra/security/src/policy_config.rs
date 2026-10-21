@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use systemprompt_security::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
 use tempfile::{NamedTempFile, tempdir};
 
 #[test]
@@ -20,7 +20,11 @@ fn defaults_declare_the_four_builtins_in_order() {
 #[test]
 fn defaults_have_no_vendor_catalog() {
     let cfg = GovernanceConfig::defaults();
-    let engine = systemprompt_security::policy::GovernanceEngine::from_config(&cfg).unwrap();
+    let engine = systemprompt_governance::policy::GovernanceEngine::from_config(
+        &cfg,
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap();
     assert_eq!(engine.secret_scanner().unwrap().pattern_count(), 0);
 }
 
@@ -180,8 +184,11 @@ fn load_rejects_a_present_but_broken_file_instead_of_downgrading_enforcement() {
 fn engine_uses_defaults_when_services_root_has_no_governance_config() {
     let root = tempdir().unwrap();
 
-    let engine = systemprompt_security::policy::GovernanceEngine::from_services_root(root.path())
-        .expect("an absent config uses the documented warn-only defaults");
+    let engine = systemprompt_governance::policy::GovernanceEngine::from_services_root(
+        root.path(),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect("an absent config uses the documented warn-only defaults");
     let policies: Vec<_> = engine
         .policies()
         .filter(|(config, _)| config.enabled)
@@ -202,10 +209,13 @@ fn engine_uses_defaults_when_services_root_has_no_governance_config() {
 fn engine_reports_non_directory_services_root_without_falling_back() {
     let root = NamedTempFile::new().unwrap();
 
-    let error = systemprompt_security::policy::GovernanceEngine::from_services_root(root.path())
-        .expect_err("a non-directory services root must not silently use defaults");
+    let error = systemprompt_governance::policy::GovernanceEngine::from_services_root(
+        root.path(),
+        Some(crate::offline_rate_windows()),
+    )
+    .expect_err("a non-directory services root must not silently use defaults");
     assert!(matches!(
         error,
-        systemprompt_security::policy::GovernanceEngineError::ConfigRejected { .. }
+        systemprompt_governance::policy::GovernanceEngineError::ConfigRejected { .. }
     ));
 }

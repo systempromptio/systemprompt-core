@@ -16,6 +16,7 @@ use systemprompt_analytics::{AnalyticsService, FingerprintRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, PathsConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
@@ -24,7 +25,6 @@ use systemprompt_marketplace::{AllowAllFilter, MarketplaceCache, MarketplaceFilt
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::RouteClassifier;
 use systemprompt_runtime::{AppContext, ConfigPlane, DataPlane, Plugins, Subsystems};
-use systemprompt_security::authz::{AllowAllHook, NullAuditSink, SharedAuthzHook};
 use systemprompt_users::UserService;
 
 use crate::user::{fixture_system_admin, fixture_user_id};
@@ -147,6 +147,14 @@ pub fn fixture_app_context_with(
 }
 
 pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<Arc<AppContext>> {
+    fixture_app_context_with_extensions(pool, config, ExtensionRegistry::new())
+}
+
+pub fn fixture_app_context_with_extensions(
+    pool: &DbPool,
+    config: Config,
+    extension_registry: ExtensionRegistry,
+) -> Result<Arc<AppContext>> {
     let hook = Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let user_repository = Arc::new(systemprompt_users::UserRepository::new(pool));
     fixture_app_context_assembled(
@@ -157,6 +165,7 @@ pub fn fixture_app_context_with_config(pool: &DbPool, config: Config) -> Result<
             marketplace_filter: Arc::new(AllowAllFilter),
             authz_hook: hook,
             user_repository,
+            extension_registry: Arc::new(extension_registry),
         },
     )
 }
@@ -167,6 +176,7 @@ struct FixtureSeams {
     marketplace_filter: Arc<dyn MarketplaceFilter>,
     authz_hook: SharedAuthzHook,
     user_repository: Arc<systemprompt_users::UserRepository>,
+    extension_registry: Arc<ExtensionRegistry>,
 }
 
 // Build a fixture context whose user repository is supplied by the test —
@@ -188,13 +198,14 @@ pub fn fixture_app_context_with_user_repository(
             marketplace_filter,
             authz_hook: hook,
             user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
         },
     )
 }
 
 // Build a fixture context with an explicit authorization hook — used by tests
 // that need to drive the `Deny` branch (pass a
-// [`DenyAllHook`](systemprompt_security::authz::DenyAllHook)).
+// [`DenyAllHook`](systemprompt_governance::authz::DenyAllHook)).
 pub fn fixture_app_context_with_hook(
     pool: &DbPool,
     database_url: &str,
@@ -225,6 +236,7 @@ fn fixture_app_context_full(
             marketplace_filter,
             authz_hook,
             user_repository,
+            extension_registry: Arc::new(ExtensionRegistry::new()),
         },
     )
 }
@@ -239,11 +251,15 @@ fn fixture_app_context_assembled(
         marketplace_filter,
         authz_hook,
         user_repository,
+        extension_registry,
     } = seams;
     let governance = Arc::new(
-        systemprompt_security::policy::GovernanceEngine::from_services_root(std::path::Path::new(
-            &paths.services,
-        ))?,
+        systemprompt_governance::policy::GovernanceEngine::from_services_root(
+            std::path::Path::new(&paths.services),
+            Some(systemprompt_governance::policy::RateWindowRepository::new(
+                pool.write_pool().as_ref().clone(),
+            )),
+        )?,
     );
     let app_paths = Arc::new(AppPaths::from_profile(
         &paths,
@@ -289,6 +305,10 @@ fn fixture_app_context_assembled(
             user_repository,
             service_repository: Arc::new(systemprompt_database::ServiceRepository::new(
                 pool,
+                instance_id.clone(),
+            )),
+            coordination: Arc::new(systemprompt_database::CoordinationRepositories::new(
+                pool,
                 instance_id,
             )),
             ai_repositories: Arc::new(systemprompt_ai::repository::AiRepositories::new(pool)),
@@ -308,7 +328,7 @@ fn fixture_app_context_assembled(
             route_classifier: Arc::new(RouteClassifier::new(None)),
         },
         Plugins {
-            extension_registry: Arc::new(ExtensionRegistry::new()),
+            extension_registry,
             mcp_registry: RegistryService::new(fixture_user_id()),
             marketplace_filter,
             marketplace_cache: Arc::new(MarketplaceCache::default()),
@@ -346,12 +366,25 @@ pub fn fixture_artifact_ingest(db: &DbPool) -> Result<Arc<systemprompt_mcp::Arti
     )))
 }
 
+// A counter store that never answers: built without a runtime, so a sync
+// test can arm a rate window; every charge through it fails closed.
+pub fn offline_rate_windows() -> systemprompt_governance::policy::RateWindowRepository {
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .acquire_timeout(std::time::Duration::from_millis(50))
+        .idle_timeout(None)
+        .max_lifetime(None)
+        .connect_lazy("postgres://offline:offline@127.0.0.1:1/offline")
+        .expect("lazy pool construction is infallible for a well-formed URL");
+    systemprompt_governance::policy::RateWindowRepository::new(pool)
+}
+
 // The vendor-neutral warn-only chain: what a deployment without a
 // `<services>/governance/config.yaml` boots with.
-pub fn default_governance_engine() -> Arc<systemprompt_security::policy::GovernanceEngine> {
+pub fn default_governance_engine() -> Arc<systemprompt_governance::policy::GovernanceEngine> {
     Arc::new(
-        systemprompt_security::policy::GovernanceEngine::from_config(
-            &systemprompt_security::policy::GovernanceConfig::defaults(),
+        systemprompt_governance::policy::GovernanceEngine::from_config(
+            &systemprompt_governance::policy::GovernanceConfig::defaults(),
+            Some(offline_rate_windows()),
         )
         .expect("the default governance chain always builds"),
     )

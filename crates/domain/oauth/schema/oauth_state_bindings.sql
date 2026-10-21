@@ -1,3 +1,4 @@
+-- Why: retained only so pods of the previous release keep working during a rolling update; dropped by the next release.
 CREATE TABLE IF NOT EXISTS oauth_state_bindings (
     state_token_hash TEXT PRIMARY KEY,
     return_to        TEXT        NOT NULL,

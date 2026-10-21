@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `ConfigPlaneSet`, `EffectiveAuthority` and `PlaneAuthority`; `ConfigPlane::depends_on`, `effect` and `export`, scoped apply (`EntityScope`), `ApplyRequest`, `PlaneTx` and the writer token.
+- `DbBudget` (returned by `Job::db_budget()`) and `run_batched` with `BatchPlan` and `BatchedRun`, the bounded batch loop.
+
+### Changed
+
+- **Breaking:** `ConfigPlane::read_current`, `apply` and `export` take the host transaction, `apply` takes an `ApplyRequest`, and `ApplyMode`, `ChangeActor` and `ConfigPlaneError` gain `SeedIfEmpty`, `Seed` and `Unsupported`/`UnknownDependency`/`DependencyCycle`/`PlanesUnavailable`.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `InstanceRegistry`, `LeaseRepository`, `AdvisoryLocks` and `HeldAdvisoryLock` with `Lease`, `CoordinationError` and the `UnavailableCoordination` default, the coordination seams behind `ExtensionContext`.
+- `ExtensionSecret`, the redacting value `ExtensionContext::secret` returns.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

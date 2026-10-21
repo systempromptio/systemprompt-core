@@ -2,8 +2,7 @@
 //!
 //! A page view is an HTML page being served. The route classifier knows only
 //! the path, so an XHR under an HTML prefix (`/admin/auth/me` answered as
-//! JSON) or a form post answered with a redirect would count as one; on a
-//! production instance that XHR was 45% of every recorded page view. The
+//! JSON) or a form post answered with a redirect would count as one. The
 //! classification is therefore corrected against whether the response
 //! actually carried an HTML body.
 //!

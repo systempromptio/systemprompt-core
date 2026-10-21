@@ -11,15 +11,15 @@ use systemprompt_api::routes::gateway::messages::extract::scope::{
 };
 use systemprompt_api::routes::gateway::messages::rejection::persist_rejection;
 use systemprompt_gateway::service::GatewayService;
+use systemprompt_governance::authz::{
+    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
+};
 use systemprompt_identifiers::{AiRequestId, ApiKeyId, ScopeDimension, UserId};
 use systemprompt_models::attribution::{AttributionSource, RequestAttribution, ScopeBinding};
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_security::authz::{
-    AuthzError, RuleType, SubjectAttributeProvider, SubjectDimension, SubjectProviderSet,
-};
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -56,7 +56,7 @@ impl SubjectAttributeProvider for ProjectProvider {
     }
 }
 
-systemprompt_security::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
+systemprompt_governance::register_subject_attribute_provider!(|_ctx| std::sync::Arc::new(
     ProjectProvider
 ));
 

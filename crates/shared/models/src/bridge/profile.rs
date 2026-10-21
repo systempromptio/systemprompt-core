@@ -41,8 +41,12 @@ pub struct AdvertisedLimits {
     pub max_output_tokens: u32,
 }
 
+/// One advertised provider and whether it can serve requests.
+///
 /// A provider whose credential secret is absent is flagged
-/// (`configured = false`) rather than dropped silently.
+/// (`configured = false`) rather than dropped silently. A `personal_key`
+/// provider is served only from a key the user stores for themselves (a
+/// personal subscription); `configured` then means this user has stored one.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderHealth {
     pub name: String,
@@ -52,4 +56,35 @@ pub struct ProviderHealth {
     pub models: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config_issue: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub personal_key: bool,
+}
+
+/// One row of `GET /v1/me/provider-credentials`: a provider that takes a
+/// personal key, and what is known about the caller's stored key without
+/// opening it. The key itself is never returned.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProviderCredentialStatus {
+    pub provider: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    pub configured: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verified_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_used_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// Body of `PUT /v1/me/provider-credentials/{provider}`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetProviderCredentialRequest {
+    pub api_key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }

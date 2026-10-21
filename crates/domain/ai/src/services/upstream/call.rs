@@ -25,6 +25,8 @@ pub struct UpstreamCall {
     auth: AuthHeader,
     extra_headers: Vec<(String, String)>,
     accepted_betas: Option<BTreeSet<AnthropicBeta>>,
+    user_agent: Option<String>,
+    forward_headers: Vec<String>,
 }
 
 impl UpstreamCall {
@@ -41,7 +43,28 @@ impl UpstreamCall {
             auth,
             extra_headers,
             accepted_betas: None,
+            user_agent: None,
+            forward_headers: Vec::new(),
         }
+    }
+
+    #[must_use]
+    pub fn with_user_agent(mut self, user_agent: Option<String>) -> Self {
+        self.user_agent = user_agent;
+        self
+    }
+
+    #[must_use]
+    pub fn with_forward_headers(mut self, forward_headers: Vec<String>) -> Self {
+        self.forward_headers = forward_headers;
+        self
+    }
+
+    #[must_use]
+    pub fn forwards(&self, wire: WireProtocol, name: &str) -> bool {
+        let lower = name.to_ascii_lowercase();
+        (wire == WireProtocol::Anthropic && lower.starts_with(ANTHROPIC_HEADER_PREFIX))
+            || self.forward_headers.contains(&lower)
     }
 
     #[must_use]
@@ -117,6 +140,7 @@ impl UpstreamCall {
         headers.extend(
             forward
                 .iter()
+                .filter(|(name, _)| self.forwards(wire, name))
                 .filter(|(name, _)| !dialect.drops_forwarded_header(name))
                 .filter_map(|(name, value)| {
                     if is_beta_header(wire, name) {
@@ -130,6 +154,9 @@ impl UpstreamCall {
                 }),
         );
         headers.extend(self.extra_headers.iter().cloned());
+        if let Some(user_agent) = &self.user_agent {
+            headers.push(("user-agent".to_owned(), user_agent.clone()));
+        }
         headers
     }
 
@@ -159,6 +186,8 @@ impl UpstreamCall {
         self.dialect(wire).finish_value(body);
     }
 }
+
+const ANTHROPIC_HEADER_PREFIX: &str = "anthropic-";
 
 fn is_beta_header(wire: WireProtocol, name: &str) -> bool {
     wire == WireProtocol::Anthropic && name.eq_ignore_ascii_case(ANTHROPIC_BETA_HEADER)

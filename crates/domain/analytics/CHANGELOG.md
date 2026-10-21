@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `get_breakdown_by_billing_source` splits a window's cost into `platform` and `user_key` from the hourly rollup; `report_ai_usage_hourly` exposes the personal-key columns, and the rollup's update trigger treats a `billing_source` change as a rolled-up change.
+
 ## [0.66.0] - 2026-10-13
 
 ### Changed

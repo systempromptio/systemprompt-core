@@ -21,10 +21,10 @@ use std::sync::{Arc, OnceLock};
 use systemprompt_database::MigrationConfig;
 use systemprompt_events::EventRouter;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_governance::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_manifest::Config;
 use systemprompt_marketplace::MarketplaceFilter;
 use systemprompt_mcp::services::registry::RegistryService;
-use systemprompt_security::authz::{AuthzDecisionHook, SharedAuthzHook};
 use systemprompt_traits::BackgroundTasks;
 use systemprompt_users::UserService;
 
@@ -165,14 +165,7 @@ impl AppContextBuilder {
         )
         .await?;
 
-        let assembly::ContentAnalytics {
-            geoip_reader,
-            content_config,
-            route_classifier,
-            analytics_service,
-            analytics_repositories,
-            fingerprint_repo,
-        } = assembly::assemble_content_analytics(
+        let content = assembly::assemble_content_analytics(
             &config,
             &app_paths,
             &database,
@@ -180,7 +173,7 @@ impl AppContextBuilder {
         )?;
 
         let (repositories, user_service, system_admin, mcp_registry) =
-            build_domain_layer(&config, &database, analytics_repositories).await?;
+            build_domain_layer(&config, &database, content.analytics_repositories).await?;
 
         let marketplace_filter = self
             .marketplace_filter
@@ -196,7 +189,7 @@ impl AppContextBuilder {
             schema_install: Arc::new(crate::SchemaState::from(schema_install)),
             event_bridge: Arc::new(OnceLock::new()),
             event_router: event_router_or_outbox(self.event_router, &database, &config),
-            geoip_reader,
+            geoip_reader: content.geoip_reader,
             file_storage,
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks: self.background_tasks.unwrap_or_default(),
@@ -206,16 +199,16 @@ impl AppContextBuilder {
         Ok(AppContext::from_parts(
             build_data_plane(
                 database,
-                analytics_service,
-                fingerprint_repo,
+                content.analytics_service,
+                content.fingerprint_repo,
                 user_service,
                 repositories,
             ),
             ConfigPlane {
                 config,
                 app_paths,
-                content_config,
-                route_classifier,
+                content_config: content.content_config,
+                route_classifier: content.route_classifier,
             },
             Plugins {
                 extension_registry,
@@ -243,7 +236,7 @@ fn event_router_or_outbox(
 
 fn build_artifact_ingest(
     database: &systemprompt_database::DbPool,
-    governance: &systemprompt_security::policy::GovernanceEngine,
+    governance: &systemprompt_governance::policy::GovernanceEngine,
 ) -> Arc<systemprompt_mcp::ArtifactIngest> {
     let ingest = systemprompt_mcp::ArtifactIngest::from_db(
         database,

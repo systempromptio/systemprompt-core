@@ -258,6 +258,7 @@ systemprompt-config = { path = "../infra/config" }
 systemprompt-events = { path = "../infra/events" }
 systemprompt-storage = { path = "../infra/storage" }
 systemprompt-security = { path = "../infra/security" }
+systemprompt-governance = { path = "../infra/governance" }
 systemprompt-cloud = { path = "../infra/cloud" }
 systemprompt-loader = { path = "../infra/loader" }
 systemprompt-users = { path = "../domain/users" }

@@ -15,9 +15,8 @@ function diffSummary(diff) {
   return parts.join(", ");
 }
 
-// The footer used to report the snapshot's counts while the list beside it
-// reported the listing's, and the two disagreed on screen. Once the listing is
-// loaded it is the only source; before that the snapshot's line is labelled as
+// The footer and the list beside it must agree: once the listing is loaded it
+// is the only source; before that the snapshot's line is labelled as
 // what it is.
 function listingSummary(listing) {
   const parts = [];

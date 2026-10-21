@@ -2,11 +2,11 @@
 //! named by a rule passes the tools it covers, and only those.
 
 use serde_json::json;
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 const YAML: &str = r#"
 governance:
@@ -27,7 +27,11 @@ governance:
 "#;
 
 fn decide(name: &str, scope: AccessScope, roles: &[String]) -> Decision {
-    let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(YAML).unwrap()).unwrap();
+    let engine = GovernanceEngine::from_config(
+        &GovernanceConfig::parse(YAML).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap();
     let session = SessionId::generate();
     let user = UserId::new("role-gate-user");
     let call = CallId::generate();
@@ -97,5 +101,5 @@ fn admin_passes_without_the_role() {
     assert!(matches!(decision, Decision::Allow { .. }), "{decision:?}");
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

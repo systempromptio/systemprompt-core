@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::Serialize;
-use systemprompt_provider_contracts::{ApplyOutcome, DriftRow};
+use systemprompt_provider_contracts::{ApplyOutcome, DriftRow, PlaneEffect};
 use systemprompt_runtime::EffectiveAuthority;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,6 +77,7 @@ impl ReconcileReport {
 pub struct PlaneDiff {
     pub plane: String,
     pub authority: EffectiveAuthority,
+    pub effect: PlaneEffect,
     pub declared_path: String,
     pub declared_hash: Option<String>,
     pub rows: Vec<DriftRow>,

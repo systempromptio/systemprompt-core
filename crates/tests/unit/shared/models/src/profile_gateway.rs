@@ -246,7 +246,10 @@ fn registry_with_endpoint(endpoint: &str) -> ProviderRegistry {
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: endpoint.to_owned(),
-            api_key_secret: SecretName::new("test"),
+            api_key_secret: Some(SecretName::new("test")),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: HashMap::new(),
             accepted_betas: None,
@@ -351,7 +354,10 @@ fn provider_entry(name: &str, endpoint: &str, models: Vec<ProviderModel>) -> Pro
         wire: WireProtocol::Anthropic,
         surface: ApiSurface::Anthropic,
         endpoint: endpoint.to_owned(),
-        api_key_secret: SecretName::new(name),
+        api_key_secret: Some(SecretName::new(name)),
+        credential: Default::default(),
+        user_agent: None,
+        forward_headers: Vec::new(),
         governance: Default::default(),
         extra_headers: HashMap::new(),
         accepted_betas: None,
@@ -1178,7 +1184,10 @@ fn priced_registry(models: Vec<ProviderModel>) -> ProviderRegistry {
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://api.anthropic.com/v1".to_owned(),
-            api_key_secret: SecretName::new("test"),
+            api_key_secret: Some(SecretName::new("test")),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: HashMap::new(),
             accepted_betas: None,
@@ -1491,9 +1500,8 @@ fn releases_spec(
     .expect("valid bridge_releases spec")
 }
 
-// Why: sp-dev shipped `token_secret: SYSTEMPROMPT_BRIDGE_RELEASES_TOKEN` while
-// the machine only carried `ASTOUND_RELEASE_TOKEN`; every bridge update check
-// on that tenant failed and nothing at boot said why.
+// Why: a `token_secret` naming a secret the machine does not carry fails every
+// bridge update check, so boot must name the missing secret.
 #[test]
 fn a_release_token_secret_that_is_not_configured_is_reported_by_name() {
     let mut gateway = enabled_gateway(vec![]);
@@ -1543,7 +1551,10 @@ pub(crate) fn priced_provider(
         wire,
         surface: ApiSurface::Anthropic,
         endpoint: "https://api.anthropic.com/v1".to_owned(),
-        api_key_secret: SecretName::new(name),
+        api_key_secret: Some(SecretName::new(name)),
+        credential: Default::default(),
+        user_agent: None,
+        forward_headers: Vec::new(),
         governance: Default::default(),
         extra_headers: HashMap::new(),
         accepted_betas: None,

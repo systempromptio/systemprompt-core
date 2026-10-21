@@ -16,6 +16,8 @@ mod bootstrap;
 #[cfg(test)]
 mod bootstrap_dispatch_db;
 #[cfg(test)]
+mod budgeted_dispatch_db;
+#[cfg(test)]
 mod cancelled_cluster_job_db;
 #[cfg(test)]
 mod config_planes;
@@ -56,7 +58,11 @@ mod plans;
 #[cfg(test)]
 mod reconciler_db;
 #[cfg(test)]
+mod registration_db;
+#[cfg(test)]
 mod repository_db;
+#[cfg(test)]
+mod retention_enforce_db;
 #[cfg(test)]
 mod service_config_manifest;
 #[cfg(test)]

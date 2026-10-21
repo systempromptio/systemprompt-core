@@ -5,7 +5,8 @@
 //! platform cost dashboard. Sums and counts read the hourly rollup
 //! (`report_ai_usage_hourly`), widening the window to whole UTC hours at its
 //! start; the agent of a request is the one its task had when the request
-//! was written. Two reads stay on `report_ai_requests` for their window: the
+//! was written; the billing-source split reads the rollup's personal-key
+//! share. Two reads stay on `report_ai_requests` for their window: the
 //! per-user breakdown, whose conversation count is a distinct count of
 //! contexts no rollup can add up, and the trend series, which is per request.
 //!
@@ -121,6 +122,51 @@ impl CostAnalyticsRepository {
               AND provider <> ''
             GROUP BY provider
             ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn get_breakdown_by_billing_source(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            WITH totals AS (
+                SELECT
+                    COALESCE(SUM(cost_microdollars), 0)::bigint AS cost,
+                    COALESCE(SUM(request_count), 0)::bigint AS requests,
+                    COALESCE(SUM(tokens), 0)::bigint AS tokens,
+                    COALESCE(SUM(user_key_cost_microdollars), 0)::bigint AS key_cost,
+                    COALESCE(SUM(user_key_request_count), 0)::bigint AS key_requests,
+                    COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND NOT synthetic
+            )
+            SELECT
+                split.name as "name!",
+                split.cost as "cost!",
+                split.requests as "requests!",
+                split.tokens as "tokens!"
+            FROM totals t
+            CROSS JOIN LATERAL (VALUES
+                ('platform', t.cost - t.key_cost, t.requests - t.key_requests,
+                 t.tokens - t.key_tokens),
+                ('user_key', t.key_cost, t.key_requests, t.key_tokens)
+            ) AS split(name, cost, requests, tokens)
+            WHERE split.requests > 0
+            ORDER BY split.cost DESC
             LIMIT $3
             "#,
             start,

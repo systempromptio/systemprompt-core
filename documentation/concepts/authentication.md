@@ -59,7 +59,7 @@ Audit attribution separates the accountable user from `ActorKind`, including sys
 
 ## The authorization hook
 
-Authentication answers "who"; the authorization hook answers "may they". It is constructed once at startup by `build_authz_hook` (`crates/infra/security/src/authz/runtime.rs:36`) from the profile's `governance.authz` block, and the resulting `Arc<dyn AuthzDecisionHook>` is stored on the `AppContext` and threaded to every consumer. It is fail-closed by construction.
+Authentication answers "who"; the authorization hook answers "may they". It is constructed once at startup by `build_authz_hook` (`crates/infra/governance/src/authz/runtime.rs:36`) from the profile's `governance.authz` block, and the resulting `Arc<dyn AuthzDecisionHook>` is stored on the `AppContext` and threaded to every consumer. It is fail-closed by construction.
 
 ```
 governance.authz.hook.mode

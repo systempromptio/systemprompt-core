@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     has_offered_tools BOOLEAN,
     instance_id VARCHAR(255),
     api_key_id TEXT,
+    -- Whose account the upstream bills: 'user_key' is a personal subscription
+    -- the caller stored, so its estimated cost never settles platform spend.
+    billing_source TEXT NOT NULL DEFAULT 'platform'
+        CONSTRAINT ai_requests_billing_source_check CHECK (billing_source IN ('platform', 'user_key')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,

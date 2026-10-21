@@ -1,12 +1,10 @@
 //! Unit tests for `AuthzPolicy` — the coarse caller-type gate applied at every
 //! route group's `with_auth(...)` mount. Drives `authz_gate` directly with a
 //! preconstructed `RequestContext` to lock in which policies admit which
-//! `UserType`s. The MCP-specific cases here exist because v0.11.0 regressed
-//! by mounting `/api/v1/mcp/*` under a policy that excluded `Anon` — collapsing
-//! the proxy handler's RFC 9728 `WWW-Authenticate` 401 into a generic 403 and
-//! breaking spec-compliant MCP clients.
-//!
-//! These tests would have caught that regression at the unit layer.
+//! `UserType`s. The MCP-specific cases hold `/api/v1/mcp/*` open to `Anon`:
+//! a policy that excluded it would collapse the proxy handler's RFC 9728
+//! `WWW-Authenticate` 401 into a generic 403 and break spec-compliant MCP
+//! clients.
 
 use axum::Router;
 use axum::body::{Body, to_bytes};

@@ -1,11 +1,8 @@
 import { subscribe } from "./bridge.js";
 
-// Colour scheme and contrast are independent, and this file used to collapse
-// them: `prefers-color-scheme: light || prefers-contrast: more` both set
-// data-contrast="elevated", so asking your OS for light mode handed you a
-// *darker* high-contrast dark theme and no light theme existed. They are now two
-// attributes, each with a stored user override above the OS preference, because
-// a machine with neither OS setting left the user no recourse at all.
+// Colour scheme and contrast are independent: they are two attributes, each
+// with a stored user override above the OS preference, so a machine with
+// neither OS setting still leaves the user a choice.
 
 const STORAGE_THEME = "bridge.theme";
 

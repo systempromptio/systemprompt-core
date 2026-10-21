@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- Provider discovery reads a deployment key only through `ProviderEntry::platform_secret`.
+
 ## [0.69.0] - 2026-10-15
 
 ### Added

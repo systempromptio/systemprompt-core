@@ -20,9 +20,8 @@
 //! user as a rejected token rather than as the rate limit it is.
 //!
 //! The access log layer is outside both limiters so that a refused request
-//! still produces a record. It sat inside the limiter until 2026-09-22, which
-//! is why an instance that was 429ing every sign-in showed nothing at all in
-//! its logs.
+//! still produces a record; an instance 429ing every sign-in shows it in its
+//! logs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,6 +44,7 @@ pub mod bridge_whoami;
 pub mod messages;
 pub mod models;
 pub mod otel;
+pub mod provider_credentials;
 pub mod sessions;
 
 pub mod access_log;
@@ -121,6 +121,7 @@ fn gateway_parts(ctx: &AppContext) -> anyhow::Result<GatewayParts> {
             .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
+            .merge(provider_credentials::routes(ctx, &jwt_extractor))
             .merge(bridge_release_routes(&jwt_extractor))
             .merge(otel_routes(ctx, &jwt_extractor))
             .route("/models", get(models::list))

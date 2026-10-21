@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- A provider declared `credential: user` is served only from the calling user's stored key (`user_provider_credentials`), resolved per request; a caller with no stored key gets `403`. Each request records its `billing_source` (`platform` or `user_key`), and `user_key` requests settle quota at zero cost.
+- Providers' `user_agent` and `forward_headers` apply to the upstream call; `x-opencode-session` is derived from the gateway session when the client sends none.
+
+### Changed
+
+- **Breaking:** `GatewayRepositories` gains `user_provider_credentials`; `describe_route_match` and `enforce_route_requirements` moved from `service::resolve` to `service::route_match`.
+- **Breaking:** governance types are imported from `systemprompt-governance`, and rate windows are charged and evaluated through `GovernanceEngine::charge_and_evaluate`.
+- `resolve_upstream` takes an `UpstreamQuery`.
+
+### Fixed
+
+- A request that the quota windows refuse (enforce) or whose quota check fails has its `rate_windows` charge refunded.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

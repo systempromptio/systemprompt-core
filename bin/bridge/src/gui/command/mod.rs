@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod agents;
 mod args;
 mod diagnostics;
 mod general;
@@ -18,9 +19,10 @@ use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope, IpcReplyPayload, ReplyTarget};
 
+use agents::agent_dispatch;
 use diagnostics::diagnostics_dispatch;
 use general::{auth_dispatch, gateway_dispatch, meta_dispatch, sync_dispatch};
-use hosts::{agent_dispatch, host_dispatch};
+use hosts::host_dispatch;
 use window::window_dispatch;
 
 #[derive(Debug)]

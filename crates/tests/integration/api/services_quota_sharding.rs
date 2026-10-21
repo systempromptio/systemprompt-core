@@ -7,11 +7,11 @@ use systemprompt_gateway::quota::{
     QuotaEstimate, QuotaReservation, QuotaSubjects, QuotaUsage, ReserveOutcome, ReserveParams,
     precheck_and_reserve, settle,
 };
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_identifiers::{ScopeDimension, UserId};
 use systemprompt_manifest::profile::QuotaConfig;
 use systemprompt_manifest::services::QuotaFaultMode;
 use systemprompt_models::attribution::{AttributionEntry, AttributionSource, RequestAttribution};
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
 
 const DIMENSION: &str = "project";

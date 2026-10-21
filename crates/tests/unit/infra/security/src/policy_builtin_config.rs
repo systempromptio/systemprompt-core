@@ -1,12 +1,16 @@
 use serde_json::json;
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 struct Call {
@@ -212,5 +216,5 @@ fn every_instantiated_policy_exposes_a_distinct_operator_facing_name_and_descrip
     assert_eq!(unique, names.len(), "policy names must be distinct");
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

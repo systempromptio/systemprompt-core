@@ -97,7 +97,7 @@ impl Fixture {
         cost_microdollars: i64,
         tokens: i32,
         offset_minutes: i64,
-    ) -> Result<()> {
+    ) -> Result<String> {
         let id = format!("req_{}_{}", self.tag, Uuid::new_v4().simple());
         let created_at = self.window_start + Duration::minutes(offset_minutes);
         sqlx::query(
@@ -113,6 +113,18 @@ impl Fixture {
         .bind(cost_microdollars)
         .bind(tokens)
         .bind(created_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(id)
+    }
+
+    async fn set_billing_source(&self, id: &str, billing_source: &str) -> Result<()> {
+        sqlx::query(
+            "UPDATE ai_requests SET billing_source = $1, updated_at = CURRENT_TIMESTAMP WHERE id = \
+             $2",
+        )
+        .bind(billing_source)
+        .bind(id)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -485,6 +497,58 @@ async fn empty_window_returns_no_rows() -> Result<()> {
     assert!(
         breakdown.is_empty(),
         "empty window must not surface a zero-cost unattributed row, got: {breakdown:?}"
+    );
+
+    fx.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn breakdown_by_billing_source_splits_the_rollup_into_platform_and_user_key() -> Result<()> {
+    let fx = Fixture::new().await?;
+
+    fx.insert_ai_request(None, 100, 10, 10).await?;
+    let keyed = fx.insert_ai_request(None, 200, 20, 20).await?;
+    fx.set_billing_source(&keyed, "user_key").await?;
+    let restamped = fx.insert_ai_request(None, 300, 30, 70).await?;
+    fx.set_billing_source(&restamped, "user_key").await?;
+    fx.insert_ai_request(None, 1_000, 100, 130).await?;
+
+    let repo = fx.repo().await?;
+    let rows = repo
+        .get_breakdown_by_billing_source(
+            fx.window_start + Duration::minutes(30),
+            fx.window_start + Duration::minutes(120),
+            10,
+        )
+        .await?;
+    let split: Vec<(&str, i64, i64, i64)> = rows
+        .iter()
+        .map(|r| (r.name.as_str(), r.requests, r.tokens, r.cost))
+        .collect();
+    assert_eq!(
+        split,
+        vec![("user_key", 2, 50, 500), ("platform", 1, 10, 100)],
+        "the window widens to the start hour, excludes the hour at its end, and a \
+         billing_source set by a later UPDATE moves the request to user_key"
+    );
+
+    fx.set_billing_source(&restamped, "platform").await?;
+    let rows = repo
+        .get_breakdown_by_billing_source(
+            fx.window_start + Duration::minutes(30),
+            fx.window_start + Duration::minutes(120),
+            10,
+        )
+        .await?;
+    let split: Vec<(&str, i64, i64, i64)> = rows
+        .iter()
+        .map(|r| (r.name.as_str(), r.requests, r.tokens, r.cost))
+        .collect();
+    assert_eq!(
+        split,
+        vec![("platform", 2, 40, 400), ("user_key", 1, 20, 200)],
+        "moving a request back to platform subtracts its personal-key share"
     );
 
     fx.cleanup().await?;

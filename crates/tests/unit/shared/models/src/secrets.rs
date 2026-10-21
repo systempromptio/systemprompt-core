@@ -332,3 +332,21 @@ fn debug_exposes_secret_names_and_presence_without_any_secret_values() {
         );
     }
 }
+
+#[test]
+fn custom_secret_reads_only_the_custom_map() {
+    let secrets = full_secrets();
+    assert_eq!(
+        secrets.custom_secret("stripe_key").map(String::as_str),
+        Some("sk_test")
+    );
+    assert_eq!(
+        secrets.custom_secret("INTERCOM").map(String::as_str),
+        Some("ic_value")
+    );
+    assert!(
+        secrets.custom_secret("oauth_at_rest_pepper").is_none(),
+        "a core secret is never handed out as a custom secret"
+    );
+    assert!(secrets.custom_secret("database_url").is_none());
+}

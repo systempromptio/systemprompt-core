@@ -21,5 +21,8 @@ mod ranged_reads;
 mod s3_storage;
 #[cfg(test)]
 mod shared_mount_probe;
+
+#[cfg(test)]
+mod storage_edges;
 #[cfg(test)]
 mod support;

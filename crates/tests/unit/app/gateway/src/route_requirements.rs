@@ -10,7 +10,7 @@
 //! directions of that fallback are asserted — a model can be stricter than its
 //! provider, and it can be laxer.
 
-use systemprompt_gateway::service::resolve::enforce_route_requirements;
+use systemprompt_gateway::service::route_match::enforce_route_requirements;
 use systemprompt_identifiers::{AiRequestId, ModelId, ProviderId, RouteId, SecretName};
 use systemprompt_manifest::services::ai::ModelGovernance;
 use systemprompt_manifest::services::{
@@ -47,7 +47,10 @@ fn provider(governance: ModelGovernance, models: Vec<ProviderModel>) -> Provider
         wire: WireProtocol::Anthropic,
         surface: ApiSurface::Anthropic,
         endpoint: "https://acme.invalid".to_owned(),
-        api_key_secret: SecretName::new("acme_api_key"),
+        api_key_secret: Some(SecretName::new("acme_api_key")),
+        credential: Default::default(),
+        user_agent: None,
+        forward_headers: Vec::new(),
         extra_headers: Default::default(),
         accepted_betas: None,
         models,

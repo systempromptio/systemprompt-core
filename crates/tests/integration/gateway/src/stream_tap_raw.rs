@@ -87,3 +87,101 @@ async fn a_frame_split_across_chunks_is_released_whole() {
         .expect("bytes");
     assert_eq!(first, Bytes::from_static(MESSAGE_START.as_bytes()));
 }
+
+const COMPLETE_TAIL: &str = "event: content_block_start\ndata: \
+     {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\
+     event: content_block_delta\ndata: \
+     {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\
+     event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\
+     event: message_delta\ndata: \
+     {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":2}}\n\n\
+     event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+
+#[tokio::test]
+async fn a_complete_stream_passes_through_and_settles_completed() {
+    let db = setup_db().await;
+    let user_id = seed_user(&db).await;
+    let (audit, ai_request_id) = open_audit(&db, user_id).await;
+
+    let upstream = Box::pin(stream::iter(vec![
+        Ok::<Bytes, WireStreamError>(Bytes::from_static(MESSAGE_START.as_bytes())),
+        Ok(Bytes::from_static(COMPLETE_TAIL.as_bytes())),
+    ]));
+    let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
+    let body = tap_raw(
+        upstream,
+        inbound,
+        Arc::clone(&audit),
+        tap_ctx(&db, &ai_request_id, GatewayPolicySpec::default()),
+    );
+    let bytes = axum::body::to_bytes(body, 1024 * 1024)
+        .await
+        .expect("collect tapped body");
+    assert_eq!(
+        bytes,
+        Bytes::from(format!("{MESSAGE_START}{COMPLETE_TAIL}")),
+        "a pass-through tap forwards the upstream bytes untouched"
+    );
+    assert!(!String::from_utf8_lossy(&bytes).contains(STREAM_ABORT_MESSAGE));
+
+    let (status, _) = settled_status(&audit, &db, &ai_request_id).await;
+    assert_eq!(status, "completed");
+}
+
+#[tokio::test]
+async fn an_upstream_error_breaks_the_body_and_fails_the_request() {
+    let db = setup_db().await;
+    let user_id = seed_user(&db).await;
+    let (audit, ai_request_id) = open_audit(&db, user_id).await;
+
+    let upstream = Box::pin(stream::iter(vec![
+        Ok::<Bytes, WireStreamError>(Bytes::from_static(MESSAGE_START.as_bytes())),
+        Err(WireStreamError::transport("upstream reset")),
+    ]));
+    let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
+    let body = tap_raw(
+        upstream,
+        inbound,
+        Arc::clone(&audit),
+        tap_ctx(&db, &ai_request_id, GatewayPolicySpec::default()),
+    );
+    assert!(
+        axum::body::to_bytes(body, 1024 * 1024).await.is_err(),
+        "an upstream error must surface as a broken body"
+    );
+
+    let (status, _) = settled_status(&audit, &db, &ai_request_id).await;
+    assert_eq!(status, "failed");
+}
+
+#[tokio::test]
+async fn a_client_that_drops_the_body_mid_stream_fails_the_request() {
+    use futures::StreamExt as _;
+    let db = setup_db().await;
+    let user_id = seed_user(&db).await;
+    let (audit, ai_request_id) = open_audit(&db, user_id).await;
+
+    let upstream = Box::pin(
+        stream::iter(vec![Ok::<Bytes, WireStreamError>(Bytes::from_static(
+            MESSAGE_START.as_bytes(),
+        ))])
+        .chain(stream::pending()),
+    );
+    let inbound: Arc<dyn InboundAdapter> = Arc::new(AnthropicMessagesInbound);
+    let body = tap_raw(
+        upstream,
+        inbound,
+        Arc::clone(&audit),
+        tap_ctx(&db, &ai_request_id, GatewayPolicySpec::default()),
+    );
+    let mut frames = body.into_data_stream();
+    let first = futures::StreamExt::next(&mut frames)
+        .await
+        .expect("first frame")
+        .expect("bytes");
+    assert_eq!(first, Bytes::from_static(MESSAGE_START.as_bytes()));
+    drop(frames);
+
+    let (status, _) = settled_status(&audit, &db, &ai_request_id).await;
+    assert_eq!(status, "failed");
+}

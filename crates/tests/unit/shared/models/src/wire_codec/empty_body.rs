@@ -1,10 +1,9 @@
 //! Every buffered wire parser must refuse a body that carries no turn.
 //!
-//! Observed live on 2026-09-05: a Vertex `MaaS` model answered a buffered
-//! `/v1/messages` call with HTTP 200 and a body the openai-chat parser
-//! accepted as an empty completion. The gateway relayed a 200 with
-//! `content: []`, zero tokens and no error, which a client reads as the model
-//! having said nothing. `buffered_defect` is the check that runs before the
+//! A Vertex `MaaS` model can answer a buffered `/v1/messages` call with HTTP
+//! 200 and a body the openai-chat parser would accept as an empty completion;
+//! relayed as a 200 with `content: []`, a client reads it as the model having
+//! said nothing. `buffered_defect` is the check that runs before the
 //! parser; these fixtures pin what it rejects and, just as importantly, what
 //! it leaves alone.
 

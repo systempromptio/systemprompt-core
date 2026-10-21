@@ -179,8 +179,7 @@ impl ProfileState {
 /// [`Self::Unknown`] is not a synonym for "absent": it means every detector we
 /// tried was inconclusive (a bounded probe timed out, a registry hive was
 /// unreadable). Callers must never render it as "not installed" — an
-/// inconclusive probe masking an otherwise healthy host is the bug this
-/// tri-state exists to prevent.
+/// inconclusive probe must not mask an otherwise healthy host.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]

@@ -56,6 +56,9 @@ use super::undeclared::audit_schema_residue;
 use crate::lifecycle::migrations::{MigrationConfig, MigrationService};
 use crate::services::DatabaseProvider;
 
+type ExtensionSet = [std::sync::Arc<dyn Extension>];
+type FreshSet = std::collections::HashSet<ExtensionId>;
+
 pub async fn install_extension_schemas_full(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
@@ -99,6 +102,11 @@ pub async fn install_extension_schemas_full(
 
     let report = result?;
 
+    log_install_outcome(&report);
+    Ok(report)
+}
+
+fn log_install_outcome(report: &SchemaInstallReport) {
     info!(
         foreign_key_drift = report.foreign_key_drift.len(),
         undeclared_tables = report.residue.undeclared_tables.len(),
@@ -120,15 +128,14 @@ pub async fn install_extension_schemas_full(
             "extension_migrations ledger for an extension that no longer exists"
         );
     }
-    Ok(report)
 }
 
 async fn fresh_extension_ids(
     migration_service: &MigrationService<'_>,
-    schema_extensions: &[std::sync::Arc<dyn Extension>],
+    schema_extensions: &ExtensionSet,
     prepared: &[PreparedSchema],
-) -> Result<std::collections::HashSet<ExtensionId>, LoaderError> {
-    let mut fresh = std::collections::HashSet::new();
+) -> Result<FreshSet, LoaderError> {
+    let mut fresh = FreshSet::new();
     for (ext, p) in schema_extensions.iter().zip(prepared) {
         if ext.has_migrations()
             && migration_service
@@ -144,65 +151,23 @@ async fn fresh_extension_ids(
 
 async fn run_install(
     db: &dyn DatabaseProvider,
-    schema_extensions: &[std::sync::Arc<dyn Extension>],
-    held_back: &[std::sync::Arc<dyn Extension>],
+    schema_extensions: &ExtensionSet,
+    held_back: &ExtensionSet,
     migration_config: MigrationConfig,
 ) -> Result<SchemaInstallReport, LoaderError> {
     if schema_extensions.is_empty() {
         return Ok(SchemaInstallReport::default());
     }
     let migration_service = MigrationService::new(db).with_config(migration_config);
-
-    let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
-    for ext in schema_extensions {
-        prepared.push(prepare_extension_schema(ext.as_ref())?);
-    }
-
-    validate_table_ownership(&prepared, schema_extensions)?;
-    check_migration_references(schema_extensions)?;
-    check_retirements(schema_extensions)?;
-    warn_unmeasured_migrations(db, &migration_service, schema_extensions).await;
+    let prepared = prepare_and_check(db, &migration_service, schema_extensions).await?;
 
     apply_retirements(db, schema_extensions).await?;
-
-    let fresh_extensions =
-        fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
-
-    for (ext, p) in schema_extensions.iter().zip(&prepared) {
-        let stamp = if fresh_extensions.contains(&p.extension_id) {
-            MigrationService::baseline_stamp_rows(ext.as_ref())
-        } else {
-            Vec::new()
-        };
-        if !stamp.is_empty() {
-            info!(
-                extension = %p.extension_id,
-                migrations_stamped = stamp.len(),
-                "Fresh install: stamping migrations as baseline without executing them"
-            );
-        }
-        execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
-    }
-
-    for ext in schema_extensions {
-        if fresh_extensions.contains(ext.id()) {
-            let retirements_run = migration_service
-                .run_stamped_retirements(ext.as_ref())
-                .await?;
-            if retirements_run > 0 {
-                info!(
-                    extension = %ext.id(),
-                    retirements_run,
-                    "Fresh install: executed the stamped retirement migrations"
-                );
-            }
-        }
-    }
-
+    let fresh = fresh_extension_ids(&migration_service, schema_extensions, &prepared).await?;
+    apply_structural(db, &migration_service, schema_extensions, &prepared, &fresh).await?;
     apply_routine_prepass(db, &prepared).await?;
 
     for ext in schema_extensions {
-        if ext.has_migrations() && !fresh_extensions.contains(ext.id()) {
+        if ext.has_migrations() && !fresh.contains(ext.id()) {
             debug!(extension = %ext.id(), "Running pending migrations");
             migration_service
                 .run_pending_migrations(ext.as_ref())
@@ -210,24 +175,7 @@ async fn run_install(
         }
     }
 
-    for p in &prepared {
-        execute_phase(db, &p.dependent, &[], &p.extension_id).await?;
-        for cols in &p.columns_to_validate {
-            validate_extension_columns(db, cols, &p.extension_id).await?;
-        }
-    }
-
-    // Why: after every extension's dependent phase, not inside it — a key may
-    // reference a unique index another extension's dependent phase creates.
-    let mut report = SchemaInstallReport::default();
-    for (ext, p) in schema_extensions.iter().zip(&prepared) {
-        // Why: only an established extension with a migration chain can carry
-        // pre-existing drift; anywhere else a key that cannot be created is a
-        // schema bug and must fail the install.
-        let established = ext.has_migrations() && !fresh_extensions.contains(&p.extension_id);
-        let drift = apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
-        report.foreign_key_drift.extend(drift);
-    }
+    let mut report = apply_dependent(db, schema_extensions, &prepared, &fresh).await?;
 
     // Why: after every phase, so the schema checked is the one the server
     // will write to; a trigger left writing a dropped table fails every
@@ -243,12 +191,95 @@ async fn run_install(
     Ok(report)
 }
 
+async fn prepare_and_check(
+    db: &dyn DatabaseProvider,
+    migration_service: &MigrationService<'_>,
+    schema_extensions: &ExtensionSet,
+) -> Result<Vec<PreparedSchema>, LoaderError> {
+    let mut prepared: Vec<PreparedSchema> = Vec::with_capacity(schema_extensions.len());
+    for ext in schema_extensions {
+        prepared.push(prepare_extension_schema(ext.as_ref())?);
+    }
+    validate_table_ownership(&prepared, schema_extensions)?;
+    check_migration_references(schema_extensions)?;
+    check_retirements(schema_extensions)?;
+    warn_unmeasured_migrations(db, migration_service, schema_extensions).await;
+    Ok(prepared)
+}
+
+async fn apply_structural(
+    db: &dyn DatabaseProvider,
+    migration_service: &MigrationService<'_>,
+    schema_extensions: &ExtensionSet,
+    prepared: &[PreparedSchema],
+    fresh: &FreshSet,
+) -> Result<(), LoaderError> {
+    for (ext, p) in schema_extensions.iter().zip(prepared) {
+        let stamp = if fresh.contains(&p.extension_id) {
+            MigrationService::baseline_stamp_rows(ext.as_ref())
+        } else {
+            Vec::new()
+        };
+        if !stamp.is_empty() {
+            info!(
+                extension = %p.extension_id,
+                migrations_stamped = stamp.len(),
+                "Fresh install: stamping migrations as baseline without executing them"
+            );
+        }
+        execute_phase(db, &p.structural, &stamp, &p.extension_id).await?;
+    }
+
+    for ext in schema_extensions {
+        if fresh.contains(ext.id()) {
+            let retirements_run = migration_service
+                .run_stamped_retirements(ext.as_ref())
+                .await?;
+            if retirements_run > 0 {
+                info!(
+                    extension = %ext.id(),
+                    retirements_run,
+                    "Fresh install: executed the stamped retirement migrations"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn apply_dependent(
+    db: &dyn DatabaseProvider,
+    schema_extensions: &ExtensionSet,
+    prepared: &[PreparedSchema],
+    fresh: &FreshSet,
+) -> Result<SchemaInstallReport, LoaderError> {
+    for p in prepared {
+        execute_phase(db, &p.dependent, &[], &p.extension_id).await?;
+        for cols in &p.columns_to_validate {
+            validate_extension_columns(db, cols, &p.extension_id).await?;
+        }
+    }
+
+    // Why: after every extension's dependent phase, not inside it — a key may
+    // reference a unique index another extension's dependent phase creates.
+    let mut report = SchemaInstallReport::default();
+    for (ext, p) in schema_extensions.iter().zip(prepared) {
+        // Why: only an established extension with a migration chain can carry
+        // pre-existing drift; anywhere else a key that cannot be created is a
+        // schema bug and must fail the install.
+        let established = ext.has_migrations() && !fresh.contains(&p.extension_id);
+        let drift = apply_foreign_keys(db, &p.foreign_keys, &p.extension_id, !established).await?;
+        report.foreign_key_drift.extend(drift);
+    }
+    Ok(report)
+}
+
 // Why: an ahead extension is held back from the install but still owns its
 // tables and ledger; leaving it out of the audit would report them as residue.
 async fn residue_including(
     db: &dyn DatabaseProvider,
     prepared: &[PreparedSchema],
-    held_back: &[std::sync::Arc<dyn Extension>],
+    held_back: &ExtensionSet,
 ) -> Result<super::undeclared::SchemaResidue, LoaderError> {
     let mut held: Vec<PreparedSchema> = Vec::with_capacity(held_back.len());
     for ext in held_back {

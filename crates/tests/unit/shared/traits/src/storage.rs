@@ -189,4 +189,59 @@ mod byte_range {
             "bytes=1-2"
         );
     }
+
+    #[test]
+    fn suffix_ranges_resolve_to_the_tail_and_clamp_to_the_object() {
+        assert_eq!(
+            ByteRange::Suffix(3).resolve(10).unwrap(),
+            ServedRange {
+                start: 7,
+                end: 9,
+                size: 10
+            }
+        );
+        assert_eq!(
+            ByteRange::Suffix(50).resolve(10).unwrap(),
+            ServedRange {
+                start: 0,
+                end: 9,
+                size: 10
+            }
+        );
+        assert!(matches!(
+            ByteRange::Suffix(0).resolve(10),
+            Err(FileStorageError::RangeNotSatisfiable { size: 10 })
+        ));
+        assert!(matches!(
+            ByteRange::Suffix(4).resolve(0),
+            Err(FileStorageError::RangeNotSatisfiable { size: 0 })
+        ));
+    }
+
+    #[test]
+    fn bounded_ranges_past_the_end_or_on_empty_objects_are_unsatisfiable() {
+        assert!(matches!(
+            ByteRange::Bounded { start: 10, end: 20 }.resolve(10),
+            Err(FileStorageError::RangeNotSatisfiable { size: 10 })
+        ));
+        assert!(ByteRange::Bounded { start: 0, end: 0 }.resolve(0).is_err());
+        assert_eq!(
+            ByteRange::Bounded { start: 0, end: 0 }
+                .resolve(1)
+                .unwrap()
+                .length(),
+            1
+        );
+    }
+
+    #[test]
+    fn whitespace_around_the_spec_is_tolerated() {
+        assert_eq!(
+            ByteRange::parse("  bytes= 2 - 4 "),
+            Some(ByteRange::Bounded { start: 2, end: 4 })
+        );
+        assert_eq!(ByteRange::parse("bytes=x-"), None);
+        assert_eq!(ByteRange::parse("bytes=-x"), None);
+        assert_eq!(ByteRange::parse("bytes=5"), None);
+    }
 }

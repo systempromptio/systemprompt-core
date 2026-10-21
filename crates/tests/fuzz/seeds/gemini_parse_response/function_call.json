@@ -1,0 +1,1 @@
+{"candidates":[{"content":{"role":"model","parts":[{"text":"think","thought":true},{"functionCall":{"name":"get_time","args":{"tz":"UTC"}},"thoughtSignature":"abc"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":4,"thoughtsTokenCount":3}}

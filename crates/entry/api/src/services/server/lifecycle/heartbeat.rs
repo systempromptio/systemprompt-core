@@ -3,9 +3,10 @@
 //!
 //! Every replica heartbeats every [`HEARTBEAT_INTERVAL`]; every
 //! [`GC_EVERY_BEATS`]th beat it also deletes rows whose heartbeat is older
-//! than [`DEAD_AFTER_SECS`]. The delete is idempotent, so replicas reaping
-//! concurrently is harmless, and a deployment with any live replica keeps its
-//! registry clean without a scheduled job.
+//! than [`INSTANCE_DEAD_AFTER_SECS`], the same window
+//! [`systemprompt_traits::InstanceRegistry::is_alive`] judges by. The delete is
+//! idempotent, so replicas reaping concurrently is harmless, and a deployment
+//! with any live replica keeps its registry clean without a scheduled job.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,16 +14,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{INSTANCE_DEAD_AFTER_SECS, ServiceRepository};
 use systemprompt_runtime::AppContext;
 
 pub(in crate::services::server) const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 
 const GC_EVERY_BEATS: u32 = 4;
-
-// Why: six missed heartbeats — long enough that a replica stalled by a slow
-// deploy or a GC pause is not evicted while it is still serving.
-const DEAD_AFTER_SECS: i64 = 90;
 
 pub(in crate::services::server) fn start_registry_heartbeat(ctx: &AppContext) {
     let repository = Arc::clone(ctx.service_repository());
@@ -53,7 +50,10 @@ async fn beat(repository: &ServiceRepository, beats: &mut u32) {
     if !beats.is_multiple_of(GC_EVERY_BEATS) {
         return;
     }
-    match repository.delete_dead_instances(DEAD_AFTER_SECS).await {
+    match repository
+        .delete_dead_instances(INSTANCE_DEAD_AFTER_SECS)
+        .await
+    {
         Ok(0) => {},
         Ok(reaped) => tracing::info!(reaped, "service registry reaped dead instances"),
         Err(error) => {

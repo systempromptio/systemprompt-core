@@ -15,9 +15,9 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
+use systemprompt_governance::policy::GovernedInput;
+use systemprompt_governance::policy::secrets::{SecretScanner, redact_spans};
 use systemprompt_models::artifacts::PayloadDigest;
-use systemprompt_security::policy::GovernedInput;
-use systemprompt_security::policy::secrets::{SecretScanner, redact_spans};
 use systemprompt_traits::BoxedSource;
 
 use super::{ArtifactIngest, IngestRequest};

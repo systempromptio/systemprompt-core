@@ -1,9 +1,8 @@
-//! Regression lock for the embedded default provider catalog.
+//! Lock for the embedded default provider catalog.
 //!
-//! These tests transcribe the support-set and per-million pricing that the
-//! deleted hardcoded `AnthropicModels`/`OpenAiModels`/`GeminiModels` tables
-//! used to encode. `ProviderRegistry::default_seed()` is now the single source
-//! of that knowledge, so an accidental edit to `default_catalog.yaml` (a wrong
+//! These tests transcribe the expected support-set and per-million pricing.
+//! `ProviderRegistry::default_seed()` is the single source of that knowledge,
+//! so an accidental edit to `default_catalog.yaml` (a wrong
 //! price, a dropped model, a renamed default) must fail here.
 
 use systemprompt_manifest::services::ProviderRegistry;

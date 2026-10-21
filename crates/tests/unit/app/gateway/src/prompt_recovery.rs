@@ -5,19 +5,23 @@ use systemprompt_gateway::protocol::canonical::{
 };
 use systemprompt_gateway::protocol::outbound::PreparedBody;
 use systemprompt_gateway::service::stages::recovery::{PromptRecovery, govern_prompt};
-use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
-use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::secrets::REDACTION_MARKER;
-use systemprompt_security::policy::types::AccessScope;
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::Decision;
+use systemprompt_governance::policy::secrets::REDACTION_MARKER;
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{
     AgentScope, GovernanceConfig, GovernanceEngine, GovernedInput, GovernedTarget, PolicyContext,
 };
+use systemprompt_identifiers::{CallId, ModelId, SessionId, UserId};
 
 pub(super) const KEY: &str = "XRECOVERY-1234567890";
 pub(super) const POLICY: &str = "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n";
 
 pub(super) fn engine(yaml: &str) -> GovernanceEngine {
-    GovernanceEngine::from_config(&GovernanceConfig::parse(yaml).unwrap()).unwrap()
+    GovernanceEngine::from_config(
+        &GovernanceConfig::parse(yaml).unwrap(),
+        Some(crate::offline_rate_windows()),
+    )
+    .unwrap()
 }
 
 pub(super) fn govern(
@@ -34,17 +38,16 @@ fn govern_at(
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
 ) -> PromptRecovery {
-    let mut counts = systemprompt_security::policy::RateCounts::empty();
-    counts.record(
+    let counts = systemprompt_governance::policy::RateCounts::charged([(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
-    );
+    )]);
     govern_counted(engine, &counts, request, body)
 }
 
 fn govern_counted(
     engine: &GovernanceEngine,
-    rate_counts: &systemprompt_security::policy::RateCounts,
+    rate_counts: &systemprompt_governance::policy::RateCounts,
     request: &mut CanonicalRequest,
     body: &mut PreparedBody,
 ) -> PromptRecovery {
@@ -460,5 +463,5 @@ fn invalid_json_and_excessive_findings_cannot_be_forwarded() {
     }
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

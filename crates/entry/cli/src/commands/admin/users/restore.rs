@@ -11,7 +11,7 @@
 use anyhow::{Result, anyhow};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_users::{User, UserAdminService, UserRepository, UserService};
+use systemprompt_users::{User, UserRepository, UserService};
 
 use super::types::UserDeletedOutput;
 use crate::context::CommandContext;
@@ -35,9 +35,8 @@ pub struct LegalHoldArgs {
 async fn resolve(ctx: &CommandContext, reference: &str) -> Result<(UserService, User)> {
     let pool = ctx.db_pool().await?;
     let user_service = UserService::new(Arc::new(UserRepository::new(&pool)));
-    let admin_service = UserAdminService::new(user_service.clone());
-    let user = admin_service
-        .find_user(reference)
+    let user = user_service
+        .find_by_reference_any_status(reference)
         .await?
         .ok_or_else(|| anyhow!("User not found: {reference}"))?;
     Ok((user_service, user))

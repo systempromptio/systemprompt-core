@@ -1,14 +1,15 @@
 use serde_json::json;
+use systemprompt_governance::authz::types::{Decision, DenyReason};
+use systemprompt_governance::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
+use systemprompt_governance::policy::secrets::{SecretHit, SecretScanner};
+use systemprompt_governance::policy::types::{AccessScope, AgentScope, PolicyContext};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceEngine};
 use systemprompt_identifiers::{CallId, McpToolName, SessionId, UserId};
-use systemprompt_security::authz::types::{Decision, DenyReason};
-use systemprompt_security::policy::governed::{GovernedInput, GovernedTarget, McpToolInput};
-use systemprompt_security::policy::secrets::{SecretHit, SecretScanner};
-use systemprompt_security::policy::types::{AccessScope, AgentScope, PolicyContext};
-use systemprompt_security::policy::{GovernanceConfig, GovernanceEngine};
 
 fn engine(yaml: &str) -> GovernanceEngine {
     let config = GovernanceConfig::parse(yaml).expect("valid test governance YAML");
-    GovernanceEngine::from_config(&config).expect("registered test governance policies")
+    GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+        .expect("registered test governance policies")
 }
 
 fn scanner(yaml: &str) -> SecretScanner {
@@ -88,8 +89,8 @@ fn a_prefixless_base64_key_is_caught_by_the_entropy_detector() {
     assert!(!hit.redacted.contains("FIyuuM"));
 }
 
-// Why: the blob that triggered the incident — a protobuf record id returned by
-// a Salesforce MCP tool. Structurally a serialised message, not key material.
+// Why: a protobuf record id returned by a Salesforce MCP tool. Structurally a
+// serialised message, not key material.
 const PROTOBUF_TOOL_PAYLOAD: &str =
     "CAISLwoLaGVsbG8gd29ybGQSC2NvbnRhY3QtaWQxGhNSb3NlIEdvbnphbGV6IE93bmVy";
 
@@ -191,7 +192,11 @@ fn invalid_pattern_definitions_fail_engine_startup() {
             "governance:\n  policies:\n    - id: secret_scan\n      patterns:\n        {patterns}\n"
         );
         if let Ok(config) = GovernanceConfig::parse(&yaml) {
-            assert!(GovernanceEngine::from_config(&config).is_err(), "{yaml}");
+            assert!(
+                GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows()))
+                    .is_err(),
+                "{yaml}"
+            );
         }
     }
 }
@@ -275,10 +280,9 @@ fn shas_uuids_and_identifiers_do_not_trip_the_entropy_detector() {
 
 // Why: `/` is a token character, so an absolute path is scored whole. A macOS
 // `$TMPDIR` carries a 30-char random segment and the uppercase `/T/` the
-// detector demands, and Claude Code puts those paths in its system prompt —
-// which denied every request from affected Macs on 2026-09-03. The first
-// fixture is the measured 0.8142 shape that actually blocked; the second is
-// the 0.7646 shape that passed only by luck of its random segment.
+// detector demands, and Claude Code puts those paths in its system prompt.
+// The first fixture is a measured 0.8142 shape; the second a 0.7646 shape
+// that differs only in its random segment.
 #[test]
 fn macos_temp_paths_do_not_trip_the_entropy_detector() {
     for text in [
@@ -312,7 +316,7 @@ fn secrets_embedded_in_path_shaped_tokens_are_still_reported() {
 
 // Why: SRI integrity hashes are public metadata that ride along in page
 // markup and tool content; each is dense base64 behind an `algo-` prefix and
-// used to deny every request whose forwarded surface carried one.
+// must not deny a request whose forwarded surface carries one.
 #[test]
 fn sri_integrity_hashes_do_not_trip_the_entropy_detector() {
     for text in [
@@ -497,7 +501,7 @@ const RATE_LIMIT_2: &str = "governance:\n  policies:\n    - id: rate_limit\n    
 
 fn rate_decision(
     e: &GovernanceEngine,
-    counts: &systemprompt_security::policy::RateCounts,
+    counts: &systemprompt_governance::policy::RateCounts,
 ) -> Decision {
     let session = SessionId::generate();
     let user = UserId::new("u-rate");
@@ -519,13 +523,11 @@ fn rate_decision(
     e.evaluate(&ctx).decision
 }
 
-fn counts_at(position: u64) -> systemprompt_security::policy::RateCounts {
-    let mut counts = systemprompt_security::policy::RateCounts::empty();
-    counts.record(
+fn counts_at(position: u64) -> systemprompt_governance::policy::RateCounts {
+    systemprompt_governance::policy::RateCounts::charged([(
         systemprompt_identifiers::PolicyId::new("rate_limit"),
         position,
-    );
-    counts
+    )])
 }
 
 #[test]
@@ -565,9 +567,9 @@ fn rate_limit_fails_closed_without_a_charged_count() {
 
 mod require_approval {
     use super::{Call, args, engine, tool};
-    use systemprompt_security::authz::types::Decision;
-    use systemprompt_security::policy::types::AccessScope;
-    use systemprompt_security::policy::{
+    use systemprompt_governance::authz::types::Decision;
+    use systemprompt_governance::policy::types::AccessScope;
+    use systemprompt_governance::policy::{
         ApprovalSettings, ChainEntryResult, GovernanceConfig, GovernanceEngine,
         GovernanceEngineError,
     };
@@ -1058,8 +1060,11 @@ governance:
       when: 'not a list'
     exempt_scopes: ['admin']
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("a malformed patterns entry rejects the policy configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("a malformed patterns entry rejects the policy configuration");
         assert!(
             matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "require_approval"),
             "{err}"
@@ -1080,8 +1085,11 @@ governance:
         op: gt
         value: 'not a number'
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("an operand the operator cannot use rejects the configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("an operand the operator cannot use rejects the configuration");
         assert!(err.to_string().contains("expected_revenue"), "{err}");
     }
 
@@ -1095,8 +1103,11 @@ governance:
     patterns: [note_add]
     exempt_scopes: ['superuser']
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(BROKEN).unwrap())
-            .expect_err("an unknown scope rejects the configuration");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(BROKEN).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("an unknown scope rejects the configuration");
         assert!(err.to_string().contains("superuser"), "{err}");
     }
 
@@ -1220,7 +1231,7 @@ governance:
 }
 
 mod approval_digest {
-    use systemprompt_security::policy::args_digest;
+    use systemprompt_governance::policy::args_digest;
 
     #[test]
     fn key_order_does_not_change_the_digest() {
@@ -1248,7 +1259,7 @@ mod approval_digest {
 }
 
 mod secret_scan_enforcement {
-    use systemprompt_security::policy::{
+    use systemprompt_governance::policy::{
         GovernanceConfig, GovernanceEngine, GovernanceEngineError,
     };
 
@@ -1261,8 +1272,11 @@ governance:
     enabled: true
     mode: enforce
 ";
-        let err = GovernanceEngine::from_config(&GovernanceConfig::parse(TOOTHLESS).unwrap())
-            .expect_err("enforce mode with nothing to detect is silent non-enforcement");
+        let err = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(TOOTHLESS).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect_err("enforce mode with nothing to detect is silent non-enforcement");
         assert!(
             matches!(&err, GovernanceEngineError::InvalidPolicyConfiguration { id, .. } if id == "secret_scan"),
             "{err}"
@@ -1279,15 +1293,21 @@ governance:
     enabled: true
     mode: enforce
 ";
-        let engine = GovernanceEngine::from_config(&GovernanceConfig::parse(DISABLED).unwrap())
-            .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
+        let engine = GovernanceEngine::from_config(
+            &GovernanceConfig::parse(DISABLED).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("a disabled engine enforces nothing, so nothing is silently unenforced");
         assert!(!engine.enforces_prompt_secrets());
     }
 
     #[test]
     fn a_warn_mode_secret_scan_with_no_patterns_still_builds() {
-        GovernanceEngine::from_config(&GovernanceConfig::defaults())
-            .expect("the documented warn-only defaults carry an empty catalog");
+        GovernanceEngine::from_config(
+            &GovernanceConfig::defaults(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("the documented warn-only defaults carry an empty catalog");
     }
 
     #[test]
@@ -1303,10 +1323,13 @@ governance:
       name: Demo Key
       regex: 'XDEMO-[0-9]+'
 ";
-        GovernanceEngine::from_config(&GovernanceConfig::parse(ARMED).unwrap())
-            .expect("an armed enforce scanner is fine");
+        GovernanceEngine::from_config(
+            &GovernanceConfig::parse(ARMED).unwrap(),
+            Some(crate::offline_rate_windows()),
+        )
+        .expect("an armed enforce scanner is fine");
     }
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

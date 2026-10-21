@@ -17,6 +17,8 @@ mod component;
 #[cfg(test)]
 mod config_plane;
 #[cfg(test)]
+mod config_plane_set;
+#[cfg(test)]
 mod contracts_misc;
 #[cfg(test)]
 mod dependencies;
@@ -24,6 +26,8 @@ mod dependencies;
 mod extender;
 #[cfg(test)]
 mod job;
+#[cfg(test)]
+mod job_batch;
 #[cfg(test)]
 mod page;
 #[cfg(test)]

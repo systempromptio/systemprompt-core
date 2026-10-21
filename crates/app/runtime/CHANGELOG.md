@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Changed
+
+- **Breaking:** `config_planes` moved to `systemprompt-provider-contracts`; `ConfigPlaneSet` and `EffectiveAuthority` are re-exported from there, and `ConfigPlaneSet::ensure_db_writable` and `is_file_managed` are removed in favour of `ConfigPlaneSet::writer`.
+- **Breaking:** `DataPlane` gains `coordination` (`CoordinationRepositories`); `AiRequestListItem` and its list row gain `billing_source`, and `trace_id` decodes as `TraceId`.
+- **Breaking:** governance types are imported from `systemprompt-governance`, and the governance engine is built with the rate-window repository.
+- The extension context serves instance liveness, leases, advisory locks, custom secrets and the config plane set.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

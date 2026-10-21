@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `ExtensionContext::instances()`, `leases()`, `advisory_locks()`, `secret(name)` and `config_planes()`.
+- `Extension::readiness()` contributes named checks to `/readyz`; `Extension::metrics()` declares metric descriptors and histogram buckets.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

@@ -5,7 +5,7 @@ Disable defaults with `default-features = false` when selecting an independent f
 
 ```toml
 [dependencies]
-systemprompt = { version = "0.70", features = ["api"] }
+systemprompt = { version = "0.71", features = ["api"] }
 ```
 
 ## Feature matrix
@@ -27,7 +27,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `events` | `dep:systemprompt-events` |
 | `storage` | `dep:systemprompt-storage` |
 | `client` | `dep:systemprompt-client` |
-| `security` | `dep:systemprompt-security` |
+| `security` | `dep:systemprompt-security`, `dep:systemprompt-governance` |
 | `cli` | `dep:systemprompt-cli` |
 | `runtime` | `cli`, `dep:systemprompt-extension` |
 | `analytics` | `dep:systemprompt-analytics` |

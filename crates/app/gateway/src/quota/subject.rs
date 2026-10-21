@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_security::authz::SubjectProviderSet;
+use systemprompt_governance::authz::SubjectProviderSet;
 
 use super::QuotaWindow;
 use super::reserve::QuotaSubjects;

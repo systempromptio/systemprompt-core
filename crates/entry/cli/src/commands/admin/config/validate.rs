@@ -57,48 +57,8 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
         }
     }
 
-    let files_to_validate = if let Some(target) = &args.target {
-        if let Ok(section) = target.parse::<ConfigSection>() {
-            section.all_files()?
-        } else {
-            vec![std::path::PathBuf::from(target)]
-        }
-    } else {
-        let mut all_files = Vec::new();
-        for section in ConfigSection::all() {
-            all_files.extend(section.all_files()?);
-        }
-        all_files
-    };
-
-    let mut results = Vec::new();
-    let mut all_valid = true;
-
-    for file_path in files_to_validate {
-        let section = detect_section(&file_path);
-        let exists = file_path.exists();
-
-        let (valid, error) = if exists {
-            match validate_file(&file_path, args.strict) {
-                Ok(()) => (true, None),
-                Err(e) => {
-                    all_valid = false;
-                    (false, Some(e.to_string()))
-                },
-            }
-        } else {
-            all_valid = false;
-            (false, Some("File not found".to_owned()))
-        };
-
-        results.push(ConfigFileInfo {
-            path: file_path.display().to_string(),
-            section,
-            exists,
-            valid,
-            error,
-        });
-    }
+    let (mut results, mut all_valid) =
+        validate_files(files_for_target(args.target.as_deref())?, args.strict);
 
     all_valid &= super::plane_validate::append_full_validation(args.target.as_ref(), &mut results);
 
@@ -112,25 +72,67 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<(CommandOutpu
         }
     }
 
-    let output = ConfigValidateOutput {
+    Ok(render(&ConfigValidateOutput {
         files: results,
         all_valid,
-    };
+    }))
+}
 
+fn files_for_target(target: Option<&str>) -> Result<Vec<std::path::PathBuf>> {
+    let Some(target) = target else {
+        let mut all_files = Vec::new();
+        for section in ConfigSection::all() {
+            all_files.extend(section.all_files()?);
+        }
+        return Ok(all_files);
+    };
+    match target.parse::<ConfigSection>() {
+        Ok(section) => Ok(section.all_files()?),
+        Err(_) => Ok(vec![std::path::PathBuf::from(target)]),
+    }
+}
+
+fn validate_files(files: Vec<std::path::PathBuf>, strict: bool) -> (Vec<ConfigFileInfo>, bool) {
+    let mut results = Vec::new();
+    let mut all_valid = true;
+    for file_path in files {
+        let section = detect_section(&file_path);
+        let exists = file_path.exists();
+        let error = if exists {
+            validate_file(&file_path, strict)
+                .err()
+                .map(|e| e.to_string())
+        } else {
+            Some("File not found".to_owned())
+        };
+        let valid = error.is_none();
+        all_valid &= valid;
+        results.push(ConfigFileInfo {
+            path: file_path.display().to_string(),
+            section,
+            exists,
+            valid,
+            error,
+        });
+    }
+    (results, all_valid)
+}
+
+fn render(output: &ConfigValidateOutput) -> (CommandOutput, bool) {
+    let all_valid = output.all_valid;
     let title = if all_valid {
         "Validation Passed"
     } else {
         "Validation Failed"
     };
-
-    Ok((
+    (
         CommandOutput::table_of(
             vec!["path", "section", "exists", "valid", "error"],
             &output.files,
         )
         .with_title(title),
         all_valid,
-    ))
+    )
 }
 
 fn print_profile_schema() -> Result<(CommandOutput, bool)> {

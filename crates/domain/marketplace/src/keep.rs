@@ -23,17 +23,17 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::hash::Hash;
 
-use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     AccessControlRepository, BulkKeepQuery, ChainSources, EntityKind, MarketplaceSource,
     ParentChainIndex, SubjectAttributes, SubjectDimension, allowed_ids,
 };
+use systemprompt_identifiers::{MarketplaceId, PluginId, UserId};
 
 use crate::candidate::{EntryKeepSets, MarketplaceCandidate};
 use crate::error::MarketplaceFilterError;
 
 /// The subject whose visibility is being resolved. Attributes and dimensions
-/// are gathered by the caller exactly as for `systemprompt_security::authz`'s
+/// are gathered by the caller exactly as for `systemprompt_governance::authz`'s
 /// resolver.
 #[derive(Debug, Clone, Copy)]
 pub struct KeepSetsSubject<'a> {

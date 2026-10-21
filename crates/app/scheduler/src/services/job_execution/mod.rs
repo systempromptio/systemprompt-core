@@ -226,10 +226,14 @@ impl JobExecutionService {
             .map(|job| job.parameters.clone())
             .unwrap_or_default();
         merged.extend(parameters.clone());
-        let job_ctx =
-            make_job_context(actor, Arc::clone(self.ctx.db_pool()), Arc::clone(&self.ctx))
-                .with_enforce(enforce)
-                .with_parameters(merged);
+        let job_ctx = make_job_context(
+            actor,
+            Arc::clone(self.ctx.db_pool()),
+            Arc::clone(&self.ctx),
+            runnable.as_job().db_budget(),
+        )
+        .with_enforce(enforce)
+        .with_parameters(merged);
 
         match runnable.as_job().execute(&job_ctx).await {
             Ok(result) => JobRunReport {

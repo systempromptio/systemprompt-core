@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
+use systemprompt_governance::authz::{Access, EntityKind, EntityRef, RuleType};
 use systemprompt_identifiers::{
     AgentId, HookId, MarketplaceId, McpServerId, PluginId, RouteId, SkillId, SlackChannelId,
     SlackWorkspaceId, TeamsConversationId, TeamsTenantId,
 };
-use systemprompt_security::authz::{Access, EntityKind, EntityRef, RuleType};
 
 #[test]
 fn entity_kind_as_str_all_variants() {

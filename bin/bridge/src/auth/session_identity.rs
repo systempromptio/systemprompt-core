@@ -1,10 +1,9 @@
 //! The session id the bridge presents to the gateway.
 //!
-//! Every gateway call used to mint a fresh `SessionId::generate()`. The server
-//! adopts an unknown id rather than rejecting it, so each hourly token refresh
-//! through the credential helper created another `user_sessions` row: 24 rows
-//! per user per day on the 2026-09-22 customer instance, 1,070 bridge sessions
-//! for 20 users.
+//! The server adopts an unknown session id rather than rejecting it, so a
+//! bridge that minted a fresh `SessionId::generate()` per call would create a
+//! `user_sessions` row on every hourly token refresh through the credential
+//! helper.
 //!
 //! The id is instead derived from the credential binding this install already
 //! computes for its token cache, plus the UTC date. That makes it stable for

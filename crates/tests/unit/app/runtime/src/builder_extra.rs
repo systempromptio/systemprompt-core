@@ -28,7 +28,7 @@ fn with_extensions_records_registry() {
 #[test]
 fn with_authz_hook_records_hook() {
     use std::sync::Arc;
-    use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
+    use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
     let hook = AllowAllHook::new(Arc::new(NullAuditSink));
     let builder = AppContextBuilder::new().with_authz_hook(hook);
     let dbg = format!("{:?}", builder);
@@ -38,8 +38,8 @@ fn with_authz_hook_records_hook() {
 #[test]
 fn with_shared_authz_hook_records_hook() {
     use std::sync::Arc;
-    use systemprompt_security::authz::{AllowAllHook, NullAuditSink};
-    let hook: systemprompt_security::authz::SharedAuthzHook =
+    use systemprompt_governance::authz::{AllowAllHook, NullAuditSink};
+    let hook: systemprompt_governance::authz::SharedAuthzHook =
         Arc::new(AllowAllHook::new(Arc::new(NullAuditSink)));
     let builder = AppContextBuilder::new().with_shared_authz_hook(hook);
     let dbg = format!("{:?}", builder);

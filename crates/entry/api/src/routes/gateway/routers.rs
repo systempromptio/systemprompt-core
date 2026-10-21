@@ -182,9 +182,18 @@ pub(super) fn bridge_profile_routes(
     let jwt_manifest = Arc::clone(jwt_extractor);
     let jwt_enabled_hosts = Arc::clone(jwt_extractor);
     let jwt_host_model_filter = Arc::clone(jwt_extractor);
+    let ctx_profile = ctx.clone();
+    let jwt_profile = Arc::clone(jwt_extractor);
     Router::new()
         .route("/bridge/pubkey", get(bridge::pubkey))
-        .route("/bridge/profile", get(bridge::profile))
+        .route(
+            "/bridge/profile",
+            get(move |headers| {
+                let extractor = Arc::clone(&jwt_profile);
+                let context = ctx_profile.clone();
+                async move { bridge::profile(extractor, context, headers).await }
+            }),
+        )
         .route(
             "/bridge/whoami",
             get(move |headers| {

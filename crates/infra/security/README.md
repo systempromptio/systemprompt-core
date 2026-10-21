@@ -22,14 +22,12 @@ The crate owns the request-level security shared by the HTTP API and the runtime
 | `session` | Session-scoped token generation and claim validation (`SessionGenerator`, `SessionParams`, `ValidatedSessionClaims`). |
 | `extraction` | Token extraction from `Authorization` headers, MCP proxy headers, and cookies, plus header injection for context propagation. |
 | `auth` | Request validation into a `RequestContext` (`AuthValidationService`) and bridge hook-token verification. |
-| `authz` | Unified authorization decision plane: the deny-overrides `resolve`, the `access_control_rules` repository, the `AuthzDecisionHook` surface with built-in impls, ingestion, and Postgres audit sinks. |
-| `policy` | Shared tool-use governance types (`GovernancePolicy`, `GovernanceEngine`, `PolicyContext`) that produce the same `Decision` shape the authz resolver returns. |
 | `at_rest` | HMAC-SHA256 keyed hashing (`hmac_sha256`, `hmac_sha256_hex`) under the deployment `oauth_at_rest_pepper`, used to store refresh-token ids and authorisation codes as digests rather than plaintext. |
 | `manifest_signing` | Ed25519 bridge-manifest signing with RFC 8785 JCS canonicalisation, keyed independently of the JWT signing key. |
 | `services` | Lightweight scanner / bot detection (`ScannerDetector`). |
 | `error` | `AuthError`, `JwtError`, `ManifestSigningError` and their result aliases. |
 
-Authz schema DDL and migrations live in `authz/schema/`.
+Authorization and the governed-call policy chain live in `systemprompt-governance`.
 
 ### `auth`
 
@@ -84,24 +82,6 @@ Session token generation and claim validation.
 | `SessionParams` | Struct | Configuration for session token creation |
 | `ValidatedSessionClaims` | Struct | Extracted claims after JWT validation |
 
-### `authz`
-
-Unified authorization decision plane shared by the gateway `/v1/messages` proxy and the MCP RBAC middleware.
-
-| Export | Type | Purpose |
-|--------|------|---------|
-| `resolve` | Fn | Deny-overrides resolver against `access_control_rules` |
-| `AuthzDecisionHook` | Trait | Pluggable decision surface; concrete impl is carried on `AppContext` as `SharedAuthzHook` |
-| `AllowAllHook` / `DenyAllHook` / `WebhookHook` | Struct | Built-in `AuthzDecisionHook` implementations |
-| `AccessControlRepository` | Struct | CRUD over `access_control_rules` |
-| `AccessControlIngestionService` | Struct | Loads rule sets from configuration |
-| `AuthzExtension` | Struct | Registers schemas and migrations via the extension framework |
-| `AuthzAuditSink` / `DbAuditSink` / `NullAuditSink` | Trait + impls | Sinks for governance decision audit records |
-| `GovernanceDecisionRepository` | Struct | Reads `governance_decisions` audit rows |
-| `Access` / `AccessRule` / `AuthzDecision` / `AuthzRequest` / `Decision` / `EntityKind` / `RuleType` | Types | Authz request and decision data model |
-| `build_authz_hook` | Fn | Constructs the active `SharedAuthzHook` (Deny/Allow/Webhook) from `governance.authz` for the caller to store on its context |
-| `SharedAuthzHook` | Type alias | `Arc<dyn AuthzDecisionHook>` — the value threaded through DI |
-
 ### `keys`
 
 The asymmetric signing-key plane. `RsaSigningKey` holds the active keypair; the `authority` submodule exposes it process-wide.
@@ -122,16 +102,6 @@ Keyed hashing so sensitive OAuth identifiers are stored as digests, never plaint
 | `hmac_sha256` | Fn | HMAC-SHA256 digest of a value under the `oauth_at_rest_pepper` |
 | `hmac_sha256_hex` | Fn | Hex-encoded HMAC-SHA256 digest |
 
-### `policy`
-
-Shared tool-use governance types that produce the same `Decision` shape as the authz resolver.
-
-| Export | Type | Purpose |
-|--------|------|---------|
-| `GovernancePolicy` | Trait | Contract every tool-call policy in the chain implements |
-| `GovernanceEngine` | Struct | Ordered set of policies (scope check, secret scan, blocklist, rate limit) evaluated to one `Decision` |
-| `PolicyContext` / `McpToolInput` / `AgentScope` | Types | Inputs a policy evaluates against |
-
 ### `manifest_signing`
 
 Ed25519 signing for bridge manifests, keyed independently of the JWT signing key.
@@ -146,7 +116,7 @@ Ed25519 signing for bridge manifests, keyed independently of the JWT signing key
 
 ```toml
 [dependencies]
-systemprompt-security = "0.70"
+systemprompt-security = "0.71"
 ```
 
 ### Token Extraction
@@ -219,8 +189,6 @@ let token = generator.generate(&params)?;
 | `systemprompt-models` | Shared models (JwtClaims, UserType, Permission) |
 | `systemprompt-identifiers` | Typed identifiers (UserId, SessionId, TraceId) |
 | `systemprompt-config` | Profile and secrets access for signing keys |
-| `systemprompt-database` | `DbPool` for authz repositories and audit sinks |
-| `systemprompt-extension` | Extension trait used by `AuthzExtension` |
 | `jsonwebtoken` | JWT encoding/decoding with RS256 |
 | `rsa`, `pkcs8` | RSA keypair generation and PKCS#8 PEM encoding |
 | `sha2`, `hmac`, `hex` | `kid` derivation and HMAC-SHA256 at-rest hashing |
@@ -229,13 +197,10 @@ let token = generator.generate(&params)?;
 | `ed25519-dalek` + `serde_jcs` | Ed25519 signing and RFC 8785 canonical JSON |
 | `base64`, `serde`, `serde_json` | Encoding and serialisation |
 | `axum` | HTTP types (HeaderMap, HeaderValue) |
-| `sqlx` | Authz repository and audit sink queries |
-| `reqwest` | `WebhookHook` outbound calls |
-| `metrics` | Authz decision counters |
+| `reqwest` | JWKS and credential exchange calls |
 | `uuid` | Token and record identifiers |
-| `inventory` | Extension registration |
 | `chrono` | Timestamp handling |
-| `async-trait`, `thiserror` | `dyn`-compatible authz hooks and typed errors |
+| `thiserror` | Typed errors |
 | `tracing` | Structured logging |
 
 ## License

@@ -1,0 +1,60 @@
+[package]
+name = "systemprompt-governance"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Governance for systemprompt.io AI tool calls: the GovernanceEngine policy chain (secret scan, scope check, blocklist, rate limit, approvals) and the unified authz decision plane (deny-overrides resolver + AuthzDecisionHook) shared by gateway and MCP enforcement."
+readme = "README.md"
+include = ["src/**/*", "schema/**/*", "build.rs", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
+
+[lints]
+workspace = true
+
+[build-dependencies]
+systemprompt-extension = { workspace = true }
+
+[dependencies]
+# Core runtime
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+
+# Hashing, identifiers and webhook transport
+uuid = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+hex = { workspace = true }
+
+base64 = { workspace = true }
+serde = { workspace = true }
+
+# Authz module
+inventory = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sqlx = { workspace = true }
+metrics = { workspace = true }
+# `time` for the approval waiter's poll interval.
+tokio = { workspace = true }
+
+# systemprompt.io dependencies
+systemprompt-models = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-client = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-traits = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true

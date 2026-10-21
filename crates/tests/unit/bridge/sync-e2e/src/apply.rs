@@ -1618,6 +1618,8 @@ fn cancelled_run_once_leaves_no_promoted_plugin_and_a_following_run_recovers_cle
     assert_eq!(recovered.installed, vec!["acme-plugin".to_owned()]);
 }
 
+const GEMINI_SURFACE_MODEL: &str = "gemini-2.5-pro";
+
 async fn mount_profile_with_models(
     server: &MockServer,
     models: &[&str],
@@ -1628,14 +1630,22 @@ async fn mount_profile_with_models(
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "inference_gateway_base_url": server.uri(),
             "auth_scheme": "bearer",
-            "models": models,
+            "models": models.iter().copied().chain([GEMINI_SURFACE_MODEL]).collect::<Vec<_>>(),
             "default_model": default_model,
-            "providers": [{
-                "name": "google",
-                "surface": "gemini",
-                "configured": true,
-                "models": models
-            }]
+            "providers": [
+                {
+                    "name": "minimax",
+                    "surface": "anthropic",
+                    "configured": true,
+                    "models": models
+                },
+                {
+                    "name": "google",
+                    "surface": "gemini",
+                    "configured": true,
+                    "models": [GEMINI_SURFACE_MODEL]
+                }
+            ]
         })))
         .mount(server)
         .await;
@@ -1663,7 +1673,7 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
     let manifest = manifest_with(vec![], vec![]);
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
-        remount_settings_gateway(&server, &manifest, &["gemini-old", "claude-sonnet"], None).await;
+        remount_settings_gateway(&server, &manifest, &["minimax-old", "claude-sonnet"], None).await;
         let pat_dir = fresh_dir("picker-owned-lifecycle");
         let pat_file = pat_dir.join("pat.txt");
         fs::write(&pat_file, "sp-live-test-pat").unwrap();
@@ -1709,7 +1719,7 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
     let sidecar = dirs.metadata.join("claude-code-model-picker.json");
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
-        serde_json::json!(["gemini-old"]),
+        serde_json::json!(["minimax-old"]),
         "the durable ownership record excludes Claude's native catalog rows"
     );
     let installed: serde_json::Value =
@@ -1719,14 +1729,14 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
         installed["modelPicker"]["options"],
         serde_json::json!([
             {"model": "local-foreign", "label": "Local foreign"},
-            {"model": "gemini-old", "label": "Gemini Old"}
+            {"model": "minimax-old", "label": "Minimax Old"}
         ])
     );
 
     rt.block_on(remount_settings_gateway(
         &server,
         &manifest,
-        &["gemini-new"],
+        &["minimax-new"],
         None,
     ));
     fs::write(&sidecar, "{broken").unwrap();
@@ -1742,7 +1752,7 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
         "a failed ownership read must leave durable settings untouched"
     );
 
-    fs::write(&sidecar, "[\"gemini-old\"]\n").unwrap();
+    fs::write(&sidecar, "[\"minimax-old\"]\n").unwrap();
     run_sync(&dirs).expect("repairing the sidecar makes the same sync retryable");
     let withdrawn: serde_json::Value =
         serde_json::from_slice(&fs::read(&settings).unwrap()).unwrap();
@@ -1750,13 +1760,19 @@ fn model_picker_owned_rows_survive_restart_and_withdraw_without_touching_foreign
         withdrawn["modelPicker"]["options"],
         serde_json::json!([
             {"model": "local-foreign", "label": "Local foreign"},
-            {"model": "gemini-new", "label": "Gemini New"}
+            {"model": "minimax-new", "label": "Minimax New"}
         ]),
         "the old owned row is withdrawn while the foreign row survives"
     );
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(&fs::read(&sidecar).unwrap()).unwrap(),
-        serde_json::json!(["gemini-new"])
+        serde_json::json!(["minimax-new"])
+    );
+    assert!(
+        !withdrawn["modelPicker"]
+            .to_string()
+            .contains(GEMINI_SURFACE_MODEL),
+        "a Gemini-surface provider never contributes a Claude Code picker row"
     );
     let _ = (&pat_dir, &server);
 }
@@ -1770,8 +1786,8 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
         remount_settings_gateway(
             &server,
             &manifest,
-            &["gemini-default"],
-            Some("gemini-default"),
+            &["minimax-default"],
+            Some("minimax-default"),
         )
         .await;
         let pat_dir = tempfile::tempdir().unwrap();
@@ -1796,7 +1812,7 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
     let mut seeded: serde_json::Value =
         serde_json::from_slice(&fs::read(&settings).expect("read seeded settings")).unwrap();
     assert_eq!(
-        seeded["model"], "gemini-default",
+        seeded["model"], "minimax-default",
         "the gateway default fills an empty Claude Code choice"
     );
     assert_eq!(seeded["apiKeyHelper"], "foreign-helper");
@@ -1807,8 +1823,8 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
     rt.block_on(remount_settings_gateway(
         &server,
         &manifest,
-        &["gemini-next"],
-        Some("gemini-next"),
+        &["minimax-next"],
+        Some("minimax-next"),
     ));
 
     run_sync(&dirs).expect("the refreshed profile still applies");
@@ -1820,8 +1836,14 @@ fn sync_seeds_a_gateway_default_without_overwriting_a_later_operator_choice() {
     );
     assert_eq!(
         after["modelPicker"]["options"],
-        serde_json::json!([{"model": "gemini-next", "label": "Gemini Next"}]),
+        serde_json::json!([{"model": "minimax-next", "label": "Minimax Next"}]),
         "the second sync refreshed the profile-derived owned picker rows"
+    );
+    assert!(
+        !after["modelPicker"]
+            .to_string()
+            .contains(GEMINI_SURFACE_MODEL),
+        "a Gemini-surface provider never contributes a Claude Code picker row"
     );
     assert_eq!(
         after["apiKeyHelper"], "foreign-helper",

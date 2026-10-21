@@ -22,17 +22,17 @@ use std::sync::Arc;
 
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_governance::authz::resolver::{ResolveInput, resolve};
+use systemprompt_governance::authz::{
+    Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
+    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
+    reconcile_gateway_entities_exact,
+};
 use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName, UserId};
 use systemprompt_manifest::services::{
     GatewayConfig, ProviderEntry, ProviderModel, ProviderRegistry, synthesize_route_id,
 };
 use systemprompt_models::providers::ApiSurface;
-use systemprompt_security::authz::resolver::{ResolveInput, resolve};
-use systemprompt_security::authz::{
-    Access, AccessControlConfig, AccessControlIngestionService, AccessControlRepository, Decision,
-    DenyReason, EntityKind, EntityRef, IngestOptions, RegisteredEntities, RuleEntry, RuleTarget,
-    reconcile_gateway_entities_exact,
-};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -86,7 +86,10 @@ fn registry(name: &str) -> ProviderRegistry {
             wire: WireProtocol::Anthropic,
             surface: ApiSurface::Anthropic,
             endpoint: "https://example.test/v1".to_owned(),
-            api_key_secret: SecretName::new("test"),
+            api_key_secret: Some(SecretName::new("test")),
+            credential: Default::default(),
+            user_agent: None,
+            forward_headers: Vec::new(),
             governance: Default::default(),
             extra_headers: HashMap::new(),
             accepted_betas: None,
@@ -198,7 +201,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: Some(entity.default_included),
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
     assert!(
@@ -224,7 +227,7 @@ async fn reconcile_materializes_synthetic_default_route_and_wildcard_grants_it()
         user_roles: &["admin".to_owned()],
         default_included: bogus_entity.map(|e| e.default_included),
         parents: &[],
-        attributes: &systemprompt_security::authz::NO_SUBJECT_ATTRIBUTES,
+        attributes: &systemprompt_governance::authz::NO_SUBJECT_ATTRIBUTES,
         dimensions: &[],
     });
     assert!(
@@ -265,10 +268,9 @@ async fn entity_exists(pg: &PgPool, id: &str) -> bool {
         > 0
 }
 
-// The regression this whole mechanism exists for: a hand-written route id used
-// to be accepted, mint its own catalog row, and leave a grant on a route that
-// can never dispatch. Four such ids sat in roles.yaml across three repos for
-// months because every boot made them look real.
+// A hand-written route id must not be accepted: it would mint its own catalog
+// row and leave a grant on a route that can never dispatch, and every boot
+// would make it look real.
 #[tokio::test]
 async fn ingest_rejects_a_literal_route_id_the_registry_does_not_vouch_for_and_writes_nothing() {
     let f = setup().await;

@@ -1,7 +1,7 @@
 //! Profile validation and the profile-only `cloud doctor` checks must agree:
 //! a profile validation rejects has a failing check, and a profile it accepts
-//! has none. 0.63.0 shipped with the two disagreeing about
-//! `server.instance_id`, which made every cloud profile undeployable.
+//! has none, or a disagreement (e.g. over `server.instance_id`) makes every
+//! cloud profile undeployable.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 

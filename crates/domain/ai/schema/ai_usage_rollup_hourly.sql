@@ -5,6 +5,10 @@
 -- not additive (percentiles, distinct conversations) keeps reading
 -- `ai_requests` for its window.
 --
+-- The `user_key_*` measures are the share of each row billed to a member's
+-- own personal key (`ai_requests.billing_source = 'user_key'`); the platform
+-- share is the row total minus them.
+--
 -- Dimensions are NOT NULL so they can form the primary key: a request with no
 -- provider, model or agent is stored under ''. `agent_name` is the agent of
 -- the request's task, resolved when the row is written.
@@ -35,6 +39,9 @@ CREATE TABLE IF NOT EXISTS ai_usage_rollup_hourly (
     latency_sum_ms BIGINT NOT NULL DEFAULT 0,
     latency_n BIGINT NOT NULL DEFAULT 0,
     cache_hits BIGINT NOT NULL DEFAULT 0,
+    user_key_request_count BIGINT NOT NULL DEFAULT 0,
+    user_key_tokens BIGINT NOT NULL DEFAULT 0,
+    user_key_cost_microdollars BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (bucket, user_id, provider, model, agent_name, synthetic)
 );
 CREATE INDEX IF NOT EXISTS idx_ai_usage_rollup_hourly_user_bucket
@@ -46,7 +53,8 @@ SELECT format('
     INSERT INTO ai_usage_rollup_hourly AS r (
         bucket, user_id, provider, model, agent_name, synthetic, request_count, tokens,
         input_tokens, output_tokens, reasoning_tokens, cache_read_tokens,
-        cache_creation_tokens, cost_microdollars, latency_sum_ms, latency_n, cache_hits)
+        cache_creation_tokens, cost_microdollars, latency_sum_ms, latency_n, cache_hits,
+        user_key_request_count, user_key_tokens, user_key_cost_microdollars)
     SELECT date_trunc(''hour'', s.created_at, ''UTC''), s.user_id, COALESCE(s.provider, ''''),
            COALESCE(s.model, ''''), COALESCE(t.agent_name, ''''), s.synthetic,
            SUM(s.sign), SUM(s.sign * COALESCE(s.tokens_used, 0)),
@@ -56,7 +64,12 @@ SELECT format('
            SUM(s.sign * COALESCE(s.cache_creation_tokens, 0)), SUM(s.sign * s.cost_microdollars),
            SUM(s.sign * COALESCE(s.latency_ms, 0)),
            COALESCE(SUM(s.sign) FILTER (WHERE s.latency_ms IS NOT NULL), 0),
-           COALESCE(SUM(s.sign) FILTER (WHERE s.cache_hit), 0)
+           COALESCE(SUM(s.sign) FILTER (WHERE s.cache_hit), 0),
+           COALESCE(SUM(s.sign) FILTER (WHERE s.billing_source = ''user_key''), 0),
+           COALESCE(SUM(s.sign * COALESCE(s.tokens_used, 0))
+               FILTER (WHERE s.billing_source = ''user_key''), 0),
+           COALESCE(SUM(s.sign * COALESCE(s.cost_microdollars, 0))
+               FILTER (WHERE s.billing_source = ''user_key''), 0)
     FROM (%s) s
     LEFT JOIN agent_tasks t ON t.task_id = s.task_id
     GROUP BY 1, 2, 3, 4, 5, 6
@@ -72,7 +85,10 @@ SELECT format('
         cost_microdollars = r.cost_microdollars + EXCLUDED.cost_microdollars,
         latency_sum_ms = r.latency_sum_ms + EXCLUDED.latency_sum_ms,
         latency_n = r.latency_n + EXCLUDED.latency_n,
-        cache_hits = r.cache_hits + EXCLUDED.cache_hits
+        cache_hits = r.cache_hits + EXCLUDED.cache_hits,
+        user_key_request_count = r.user_key_request_count + EXCLUDED.user_key_request_count,
+        user_key_tokens = r.user_key_tokens + EXCLUDED.user_key_tokens,
+        user_key_cost_microdollars = r.user_key_cost_microdollars + EXCLUDED.user_key_cost_microdollars
 ', source)
 $$;
 
@@ -97,10 +113,12 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
     changed CONSTANT TEXT := '(n.created_at, n.user_id, n.provider, n.model, n.task_id, n.synthetic, '
         'n.tokens_used, n.input_tokens, n.output_tokens, n.reasoning_tokens, n.cache_read_tokens, '
-        'n.cache_creation_tokens, n.cost_microdollars, n.latency_ms, n.cache_hit) IS DISTINCT FROM '
+        'n.cache_creation_tokens, n.cost_microdollars, n.latency_ms, n.cache_hit, '
+        'n.billing_source) IS DISTINCT FROM '
         '(o.created_at, o.user_id, o.provider, o.model, o.task_id, o.synthetic, o.tokens_used, '
         'o.input_tokens, o.output_tokens, o.reasoning_tokens, o.cache_read_tokens, '
-        'o.cache_creation_tokens, o.cost_microdollars, o.latency_ms, o.cache_hit)';
+        'o.cache_creation_tokens, o.cost_microdollars, o.latency_ms, o.cache_hit, '
+        'o.billing_source)';
 BEGIN
     IF TG_OP = 'INSERT' THEN
         EXECUTE ai_usage_rollup_upsert_sql('SELECT n.*, 1 AS sign FROM new_rows n');

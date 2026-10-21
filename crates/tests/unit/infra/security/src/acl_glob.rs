@@ -1,6 +1,6 @@
 //! Tests for the ACL `entity_match` glob primitive.
 
-use systemprompt_security::authz::ingestion::glob::glob_matches;
+use systemprompt_governance::authz::ingestion::glob::glob_matches;
 
 #[test]
 fn star_matches_everything() {

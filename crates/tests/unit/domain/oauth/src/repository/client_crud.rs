@@ -281,48 +281,6 @@ async fn list_and_count_include_created_client() {
 }
 
 #[tokio::test]
-async fn find_by_redirect_uri_and_scope() {
-    let ctx = setup().await;
-    let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));
-    let uri = format!("https://ru-{}.invalid/cb", Uuid::new_v4().simple());
-    let mut params = create_params(&client_id, &ctx.owner);
-    params.redirect_uris = vec![uri.clone()];
-    ctx.repo.create(params).await.expect("create");
-
-    let found = ctx
-        .repo
-        .find_by_redirect_uri(&uri)
-        .await
-        .expect("find")
-        .expect("present");
-    assert_eq!(found.client_id, client_id);
-
-    let with_scope = ctx
-        .repo
-        .find_by_redirect_uri_with_scope(&uri, &["openid"])
-        .await
-        .expect("find scope")
-        .expect("present");
-    assert_eq!(with_scope.client_id, client_id);
-
-    assert!(
-        ctx.repo
-            .find_by_redirect_uri_with_scope(&uri, &["does-not-exist"])
-            .await
-            .expect("find missing scope")
-            .is_none()
-    );
-
-    assert!(
-        ctx.repo
-            .find_by_redirect_uri("https://nobody.invalid/cb")
-            .await
-            .expect("find unknown")
-            .is_none()
-    );
-}
-
-#[tokio::test]
 async fn update_last_used_marks_timestamp() {
     let ctx = setup().await;
     let client_id = ClientId::new(format!("c-{}", Uuid::new_v4().simple()));

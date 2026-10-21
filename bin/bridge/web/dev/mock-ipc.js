@@ -29,9 +29,8 @@ function emit(channel, payload) {
 }
 
 // The real envelope, from src/gui/ipc.rs: `ok` is a boolean and the payload
-// travels in `value`. The mock used to resolve with `payload.ok` itself, which
-// only worked because it also built the envelope — a mock that disagrees with
-// the contract cannot evidence the contract.
+// travels in `value`. The mock builds the same envelope, because a mock that
+// disagrees with the contract cannot evidence the contract.
 function reply(id, payload) {
   const bus = ensureBus();
   bus.reply(bus.mount, id, payload);
@@ -438,6 +437,14 @@ const COMMANDS = {
     touch(host);
     return {};
   },
+  "personalKeys.list": () => [{ provider: "opencode-go", display_name: "OpenCode Go", configured: false }],
+  "personalKeys.set": ({ provider, apiKey }) => {
+    if (!apiKey || apiKey.length < 8) {
+      throw { scope: "gateway", code: "invalid_args", message: "OpenCode Go rejected the key", detail: { reason: "key_rejected" } };
+    }
+    return { provider, display_name: "OpenCode Go", configured: true };
+  },
+  "personalKeys.remove": ({ provider }) => ({ provider }),
   "host.enabled.set": ({ hostId, enabled }) => {
     if (!hostById(hostId)) { throw { scope: "host", code: "not-found", message: `unknown host: ${hostId}` }; }
     if (!enabled) { state.host_apps = state.host_apps.filter((h) => h.id !== hostId); }

@@ -44,7 +44,7 @@ fn an_adapter_that_declares_no_passthrough_wire_reports_none() {
     );
 }
 
-// Why: all three shipped adapters now render their own terminal, because all
+// Why: all three shipped adapters render their own terminal, because all
 // three state the turn's usage on it. The default is what any adapter added
 // later inherits, so it is exercised through a minimal one rather than left
 // unproven.

@@ -118,13 +118,17 @@ scripts/*
 !scripts/check-gates.txt
 !scripts/publish-crates.sh
 !scripts/schema-ladder.sh
+!scripts/schema-ladder-boot.sh
 !scripts/schema-catalog.sql
 !scripts/test-test-shard.py
 !scripts/collect-fallback-profraw.sh
 !scripts/quarantine-fallback-profraw.sh
+!scripts/coverage-unpack.sh
 !scripts/test-collect-fallback-profraw.py
 # ...and the bounded apt install every CI job that links system libraries runs.
 !scripts/ci-install-system-deps.sh
+# ...and the informational semver report (quality.yml `semver`).
+!scripts/semver-report.sh
 # ...and the source-gate linters run by CI (.github/workflows/quality.yml) via
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh

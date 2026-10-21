@@ -8,9 +8,9 @@
 use systemprompt_identifiers::{ActorKind, AgentId, UserId};
 
 const SCHEMA_SQL: &str =
-    include_str!("../../../../../../infra/security/schema/governance_decisions.sql");
+    include_str!("../../../../../../infra/governance/schema/governance_decisions.sql");
 const MIGRATION_SQL: &str =
-    include_str!("../../../../../../infra/security/schema/migrations/005_actor_kind_extend.sql");
+    include_str!("../../../../../../infra/governance/schema/migrations/005_actor_kind_extend.sql");
 
 fn all_variants() -> Vec<ActorKind> {
     let uid = UserId::new("u");

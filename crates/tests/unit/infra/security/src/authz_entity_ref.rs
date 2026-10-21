@@ -1,4 +1,4 @@
-use systemprompt_security::authz::{EntityKind, EntityRef};
+use systemprompt_governance::authz::{EntityKind, EntityRef};
 
 #[test]
 fn from_kind_and_id_round_trips_every_kind() {

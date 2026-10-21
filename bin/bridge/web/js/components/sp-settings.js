@@ -6,6 +6,7 @@ import { t } from "/assets/js/i18n.js";
 import { setTheme } from "/assets/js/theme.js";
 import { gatewayUrlError, loadPrefs } from "/assets/js/utils/settings-prefs.js";
 import { renderSettingsPaths, renderSettingsAppearance, renderSettingsSecurity } from "/assets/js/components/settings-sections.js";
+import "/assets/js/components/sp-personal-keys.js";
 
 export class SpSettings extends SpElement {
   constructor() {
@@ -27,9 +28,8 @@ export class SpSettings extends SpElement {
     this._registerGatewayActions();
   }
 
-  // Why: this used to add `is-setup-mode`, dropping the user into the
-  // full-screen first-run wizard to change one field. The wizard has no
-  // cancel, so anyone who clicked it to check their URL was stuck there.
+  // Why: the full-screen first-run wizard (`is-setup-mode`) has no cancel, so
+  // editing one field happens inline instead.
   _registerGatewayActions() {
     this.registerAction("edit-gateway", () => {
       this.gatewayDraft = (this.prefs && this.prefs.gateway_url)
@@ -66,6 +66,7 @@ export class SpSettings extends SpElement {
     return `
       ${banner}
       ${renderSettingsPaths(this)}
+      <sp-personal-keys></sp-personal-keys>
       ${renderSettingsAppearance()}
       ${renderSettingsSecurity(this)}
       <div class="sp-row">

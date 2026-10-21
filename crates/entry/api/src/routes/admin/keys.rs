@@ -11,12 +11,12 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_governance::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_identifiers::{ApiKeyId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::attribution::ScopeBinding;
 use systemprompt_runtime::AppContext;
-use systemprompt_security::authz::{AuthzHookContext, NullAuditSink, SubjectProviderSet};
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 
 use crate::error::ApiHttpError;

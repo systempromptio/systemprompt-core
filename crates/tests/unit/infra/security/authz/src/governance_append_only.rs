@@ -1,17 +1,16 @@
 //! The `governance_decisions` append-only guarantee, exercised against a live
 //! database.
 //!
-//! Immutability used to be a convention the operator was expected to install as
-//! a grant. A migration replaces that with a BEFORE UPDATE trigger, which
-//! binds every role including the one these tests connect as — so the assertion
+//! Immutability is a BEFORE UPDATE trigger, not an operator grant, so it binds
+//! every role including the one these tests connect as — so the assertion
 //! here is that an UPDATE is refused while INSERT and DELETE still work.
 
 use std::sync::LazyLock;
 
-use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
-use systemprompt_security::authz::{
+use systemprompt_governance::authz::{
     DecisionTag, GovernanceDecisionRecord, GovernanceDecisionRepository,
 };
+use systemprompt_identifiers::{Actor, ContextId, SessionId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 use uuid::Uuid;
 

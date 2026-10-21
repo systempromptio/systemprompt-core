@@ -23,13 +23,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use systemprompt_models::bridge::profile::{
     AdvertisedLimits, BridgeProfileResponse, ProviderHealth,
 };
 
-use crate::services::{GatewayConfig, ProviderRegistry};
+use crate::services::{GatewayConfig, ProviderEntry, ProviderRegistry};
 
 fn advertised_limits(
     registry: &ProviderRegistry,
@@ -52,15 +52,41 @@ fn advertised_limits(
         .collect()
 }
 
+fn entry_configured(
+    entry: &ProviderEntry,
+    secret_present: &impl Fn(&str) -> bool,
+    personal_keys: &BTreeSet<String>,
+) -> bool {
+    if entry.is_user_credential() {
+        return personal_keys.contains(entry.name.as_str());
+    }
+    entry
+        .platform_secret()
+        .is_some_and(|secret| secret_present(secret.as_str()))
+}
+
 pub fn provider_health(
     registry: &ProviderRegistry,
     secret_present: impl Fn(&str) -> bool,
 ) -> Vec<ProviderHealth> {
+    provider_health_for_user(registry, &secret_present, &BTreeSet::new())
+}
+
+pub fn provider_health_for_user(
+    registry: &ProviderRegistry,
+    secret_present: &impl Fn(&str) -> bool,
+    personal_keys: &BTreeSet<String>,
+) -> Vec<ProviderHealth> {
     registry
         .advertised_providers()
         .map(|entry| {
-            let secret = entry.api_key_secret.as_str();
-            let configured = secret_present(secret);
+            let configured = entry_configured(entry, secret_present, personal_keys);
+            let config_issue = (!configured).then(|| {
+                entry.platform_secret().map_or_else(
+                    || "personal key not added — add your own key in Settings".to_owned(),
+                    |secret| format!("API key secret '{}' is not configured", secret.as_str()),
+                )
+            });
             ProviderHealth {
                 name: entry.name.as_str().to_owned(),
                 surface: entry.surface,
@@ -71,8 +97,9 @@ pub fn provider_health(
                     .filter(|model| !model.hidden)
                     .map(|model| model.id.as_str().to_owned())
                     .collect(),
-                config_issue: (!configured)
-                    .then(|| format!("API key secret '{secret}' is not configured")),
+                config_issue,
+                display_name: entry.display_name.clone(),
+                personal_key: entry.is_user_credential(),
             }
         })
         .collect()
@@ -84,10 +111,20 @@ pub fn is_model_servable(
     model: &str,
     secret_present: &impl Fn(&str) -> bool,
 ) -> bool {
+    is_model_servable_for_user(registry, gateway, model, secret_present, &BTreeSet::new())
+}
+
+pub fn is_model_servable_for_user(
+    registry: &ProviderRegistry,
+    gateway: Option<&GatewayConfig>,
+    model: &str,
+    secret_present: &impl Fn(&str) -> bool,
+    personal_keys: &BTreeSet<String>,
+) -> bool {
     let configured = |provider: &str| {
         registry
             .find_provider(provider)
-            .is_some_and(|entry| secret_present(entry.api_key_secret.as_str()))
+            .is_some_and(|entry| entry_configured(entry, secret_present, personal_keys))
     };
     if let Some(gw) = gateway {
         if let Some(route) = gw.find_route(model) {
@@ -105,7 +142,7 @@ pub fn is_model_servable(
         .providers
         .iter()
         .filter(|entry| entry.find_model(model).is_some())
-        .any(|entry| secret_present(entry.api_key_secret.as_str()))
+        .any(|entry| entry_configured(entry, secret_present, personal_keys))
 }
 
 #[derive(Debug, Clone)]
@@ -123,6 +160,15 @@ pub fn build(
     params: BridgeProfileParams<'_>,
     secret_present: impl Fn(&str) -> bool,
 ) -> BridgeProfileResponse {
+    build_for_user(params, secret_present, &BTreeSet::new())
+}
+
+#[must_use]
+pub fn build_for_user(
+    params: BridgeProfileParams<'_>,
+    secret_present: impl Fn(&str) -> bool,
+    personal_keys: &BTreeSet<String>,
+) -> BridgeProfileResponse {
     let BridgeProfileParams {
         inference_gateway_base_url,
         auth_scheme,
@@ -131,7 +177,9 @@ pub fn build(
         registry,
         gateway,
     } = params;
-    let servable = |model: &str| is_model_servable(registry, gateway, model, &secret_present);
+    let servable = |model: &str| {
+        is_model_servable_for_user(registry, gateway, model, &secret_present, personal_keys)
+    };
     BridgeProfileResponse {
         inference_gateway_base_url,
         auth_scheme,
@@ -143,6 +191,6 @@ pub fn build(
         default_model,
         organization_uuid,
         model_limits: advertised_limits(registry, servable),
-        providers: provider_health(registry, &secret_present),
+        providers: provider_health_for_user(registry, &secret_present, personal_keys),
     }
 }

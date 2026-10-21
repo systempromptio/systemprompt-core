@@ -19,6 +19,7 @@ use crate::config::SharedRuntimeConfig;
 use crate::proxy::server::ProxyStats;
 use crate::proxy::session::SessionContext;
 use crate::proxy::token_cache::TokenCache;
+use crate::update::automatic::UpdateGate;
 
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 const HEARTBEAT_AUTH_THRESHOLD_SECS: u64 = 300;
@@ -35,19 +36,43 @@ struct HeartbeatPayload<'a> {
     tokens_out_total: i64,
 }
 
-pub async fn run_loop(
-    runtime_config: SharedRuntimeConfig,
-    token_cache: Arc<TokenCache>,
-    session: Arc<SessionContext>,
-    stats: Arc<ProxyStats>,
-    client: reqwest::Client,
-) {
+/// What the heartbeat loop runs against, built from the proxy's own state.
+pub struct HeartbeatDeps {
+    pub runtime_config: SharedRuntimeConfig,
+    pub token_cache: Arc<TokenCache>,
+    pub session: Arc<SessionContext>,
+    pub stats: Arc<ProxyStats>,
+    pub client: reqwest::Client,
+    pub update_gate: UpdateGate,
+}
+
+impl std::fmt::Debug for HeartbeatDeps {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HeartbeatDeps").finish_non_exhaustive()
+    }
+}
+
+pub async fn run_loop(deps: HeartbeatDeps) {
+    let HeartbeatDeps {
+        runtime_config,
+        token_cache,
+        session,
+        stats,
+        client,
+        update_gate,
+    } = deps;
     let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     interval.tick().await;
     let mut waiting_for_sign_in = false;
+    let mut staging = tokio::task::JoinSet::new();
     loop {
         interval.tick().await;
+        while let Some(finished) = staging.try_join_next() {
+            if let Err(error) = finished {
+                tracing::error!(%error, "required-release staging task did not complete");
+            }
+        }
         let cfg = runtime_config.load_full();
         flush_feedback(cfg.gateway_base.as_str(), Arc::clone(&session)).await;
         if token_cache.sign_in_required() {
@@ -58,15 +83,15 @@ pub async fn run_loop(
             continue;
         }
         waiting_for_sign_in = false;
-        if let Err(err) = send_one(
-            cfg.gateway_base.as_ref(),
-            token_cache.as_ref(),
-            session.as_ref(),
-            stats.as_ref(),
-            &client,
-        )
-        .await
-        {
+        let tick = Tick {
+            gateway_base: cfg.gateway_base.as_ref(),
+            token_cache: token_cache.as_ref(),
+            session: session.as_ref(),
+            stats: stats.as_ref(),
+            client: &client,
+            update_gate: &update_gate,
+        };
+        if let Err(err) = send_one(tick, &mut staging).await {
             tracing::warn!(error = %err, "bridge heartbeat tick failed");
         }
     }
@@ -91,13 +116,27 @@ fn report_feedback(result: crate::feedback::Result<()>, message: &'static str) {
     }
 }
 
+struct Tick<'a> {
+    gateway_base: &'a ValidatedUrl,
+    token_cache: &'a TokenCache,
+    session: &'a SessionContext,
+    stats: &'a ProxyStats,
+    client: &'a reqwest::Client,
+    update_gate: &'a UpdateGate,
+}
+
 async fn send_one(
-    gateway_base: &ValidatedUrl,
-    token_cache: &TokenCache,
-    session: &SessionContext,
-    stats: &ProxyStats,
-    client: &reqwest::Client,
+    tick: Tick<'_>,
+    staging: &mut tokio::task::JoinSet<()>,
 ) -> Result<(), HeartbeatError> {
+    let Tick {
+        gateway_base,
+        token_cache,
+        session,
+        stats,
+        client,
+        update_gate,
+    } = tick;
     let token = token_cache
         .current(HEARTBEAT_AUTH_THRESHOLD_SECS)
         .await
@@ -143,9 +182,39 @@ async fn send_one(
             required = %body.min_bridge_version,
             "gateway reports this bridge as unsupported",
         );
-        crate::update::run_automatic(gateway_base, &token.token, client).await;
+        // Why: a staging download can take minutes; the heartbeat keeps its pace.
+        staging.spawn(stage_required_release(
+            update_gate.clone(),
+            gateway_base.clone(),
+            token.token.clone(),
+            client.clone(),
+        ));
     }
     Ok(())
+}
+
+async fn stage_required_release(
+    update_gate: UpdateGate,
+    gateway_base: ValidatedUrl,
+    bearer: crate::ids::BearerToken,
+    http: reqwest::Client,
+) {
+    use crate::update::automatic::{self, AutomaticError, Outcome, Skipped, Trigger};
+
+    let client = crate::gateway::GatewayClient::new(gateway_base, http);
+    match automatic::run(&update_gate, Trigger::Unsupported, &client, &bearer).await {
+        Ok(Outcome::Staged { version, .. }) => {
+            tracing::info!(%version, "required bridge release staged for the next launch");
+        },
+        Ok(Outcome::Current)
+        | Err(AutomaticError::Skipped(Skipped::NotDue | Skipped::InFlight)) => {},
+        Err(AutomaticError::Skipped(skipped @ Skipped::Policy(_))) => {
+            tracing::warn!(reason = %skipped, "a newer bridge is required; update manually");
+        },
+        Err(AutomaticError::Update(e)) => {
+            tracing::error!(error = %e, "a newer bridge is required but staging it failed");
+        },
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]

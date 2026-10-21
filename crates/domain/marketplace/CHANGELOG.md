@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `NativeGitSourceCapture::with_certificate_authority` trusts a private Git host's CA for `ls-remote` and fetch.
+
+### Changed
+
+- Governance types are imported from `systemprompt-governance`.
+
 ## [0.69.0] - 2026-10-15
 
 ### Added

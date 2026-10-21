@@ -3,12 +3,9 @@
 //!
 //! A migration runs inside the boot, before the HTTP listener is bound, in
 //! one transaction, holding its locks, and every per-row trigger on the table
-//! fires for every row it touches. That is how a 3,644-row `UPDATE
-//! ai_requests` took 27 minutes on a production instance: one trigger
-//! re-enqueued the whole client session per row, 113 ms a row. Suspending it
-//! took the same statement to 2.0 s. The same shape emptied `logs` once and
-//! wrote 77,797 outbox tombstones and as many `pg_notify` calls in a single
-//! transaction.
+//! fires for every row it touches: a trigger that re-enqueues work per row
+//! turns a bulk `UPDATE` into minutes of silence, or a bulk `DELETE` into an
+//! outbox tombstone and a `pg_notify` per row in a single transaction.
 //!
 //! What this module reports is deliberately blunt: any write to a table on
 //! the hot list, plus the `ALTER`/`CREATE INDEX` forms that take a full scan
@@ -16,11 +13,10 @@
 //! something a parser can do — the author is the one who can measure it, and
 //! [`CostDirective`] is where they say so.
 //!
-//! [`HOT_TABLES`] is the core-shipped list: row counts are from the 2026-09-22
-//! production analysis, and every one of them grows with traffic while none is
-//! ever pruned to a bounded size. It is passed in rather than read directly so
-//! an installation can add the tables it owns — core cannot know about a
-//! downstream repo's hottest table.
+//! [`HOT_TABLES`] is the core-shipped list: every one of them grows with
+//! traffic while none is ever pruned to a bounded size. It is passed in rather
+//! than read directly so an installation can add the tables it owns — core
+//! cannot know about a downstream repo's hottest table.
 //!
 //! Two consumers, one detector, and they read it over different populations.
 //!

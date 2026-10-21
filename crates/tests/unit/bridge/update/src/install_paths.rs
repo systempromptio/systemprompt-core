@@ -1,4 +1,4 @@
-use systemprompt_bridge::update::{installed_path, spawn_installed, sweep_leftovers};
+use systemprompt_bridge::update::{installed_path, spawn_successor, sweep_leftovers};
 
 #[test]
 fn installed_path_resolves_to_an_existing_file() {
@@ -36,7 +36,7 @@ fn sweep_leftovers_is_safe_to_call_repeatedly() {
 fn spawning_a_missing_binary_is_a_relaunch_error() {
     let dir = tempfile::tempdir().expect("tempdir");
     let missing = dir.path().join("not-installed-here");
-    let err = spawn_installed(&missing).expect_err("a missing binary cannot be relaunched");
+    let err = spawn_successor(&missing).expect_err("a missing binary cannot be relaunched");
     assert!(
         matches!(err, systemprompt_bridge::update::UpdateError::Relaunch(_)),
         "unexpected error: {err}"
@@ -53,7 +53,7 @@ fn spawning_an_executable_succeeds() {
     std::fs::write(&script, "#!/bin/sh\nexit 0\n").expect("write script");
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
         .expect("chmod script");
-    let spawned = spawn_installed(&script);
+    let spawned = spawn_successor(&script);
     assert!(spawned.is_ok(), "spawn failed: {:?}", spawned.err());
     std::thread::sleep(std::time::Duration::from_millis(200));
     _ = std::fs::remove_dir_all(&dir);
@@ -65,7 +65,7 @@ fn spawning_a_non_executable_file_is_a_relaunch_error() {
     let dir = tempfile::tempdir().expect("tempdir");
     let plain = dir.path().join("not-executable");
     std::fs::write(&plain, b"data").expect("write file");
-    let err = spawn_installed(&plain).expect_err("a non-executable file cannot be relaunched");
+    let err = spawn_successor(&plain).expect_err("a non-executable file cannot be relaunched");
     assert!(
         matches!(err, systemprompt_bridge::update::UpdateError::Relaunch(_)),
         "unexpected error: {err}"

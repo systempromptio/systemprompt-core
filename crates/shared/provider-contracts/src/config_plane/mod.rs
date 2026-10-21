@@ -17,26 +17,38 @@
 //!
 //! [`ConfigPlane::name`] is the profile key under `config_planes.authority`,
 //! the metrics label and the audit row's plane column, so it is a stable
-//! lowercase `snake_case` token.
+//! lowercase `snake_case` token. [`ConfigPlane::depends_on`] names the planes
+//! whose rows this one references; [`ConfigPlaneSet`] orders the set so they
+//! are reconciled first.
+//!
+//! [`ConfigPlane::export`] renders the current database state as declaration
+//! text, which is how an operator captures console-only rows before switching
+//! a plane to `file` authority.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 mod diff;
 mod error;
+mod request;
+mod set;
+mod tx;
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use systemprompt_identifiers::UserId;
 
 use crate::dependencies::{Dependencies, MissingDependency};
 
 pub use diff::{DriftKind, DriftRow, diff_snapshots};
 pub use error::{ConfigPlaneError, ConfigPlaneResult};
+pub use request::{
+    ApplyMode, ApplyOutcome, ApplyRequest, ChangeActor, ChangeRequest, EntityScope, PlaneEffect,
+};
+pub use set::{ConfigPlaneSet, EffectiveAuthority, PlaneAuthority, PlaneWriter};
+pub use tx::PlaneTx;
 
 pub type PlaneSnapshot = BTreeMap<String, String>;
 
@@ -64,63 +76,6 @@ impl DeclaredState {
             hash: hex::encode(digest.finalize()),
             entries,
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ApplyMode {
-    InsertOnly,
-    Overwrite,
-}
-
-impl ApplyMode {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::InsertOnly => "insert_only",
-            Self::Overwrite => "overwrite",
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ChangeActor {
-    Boot,
-    Reconciler,
-    Cli,
-    User(UserId),
-}
-
-impl ChangeActor {
-    #[must_use]
-    pub fn label(&self) -> &str {
-        match self {
-            Self::Boot => "boot",
-            Self::Reconciler => "config_reconcile",
-            Self::Cli => "cli",
-            Self::User(id) => id.as_str(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ChangeRequest<'a> {
-    pub actor: ChangeActor,
-    pub reason: &'a str,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
-pub struct ApplyOutcome {
-    pub inserted: usize,
-    pub updated: usize,
-    pub deleted: usize,
-}
-
-impl ApplyOutcome {
-    #[must_use]
-    pub const fn total(&self) -> usize {
-        self.inserted + self.updated + self.deleted
     }
 }
 
@@ -152,21 +107,44 @@ impl<'a> PlaneContext<'a> {
 /// One declared configuration plane an extension contributes through
 /// `Extension::config_planes`.
 ///
-/// `apply` with [`ApplyMode::Overwrite`] must leave the database equal to the
-/// declaration (a following [`ConfigPlane::read_current`] diffs clean): the
-/// host re-reads after every correction and reports a plane whose apply did
-/// not converge as failed rather than corrected. The host inserts `DbPool`
-/// into the context's dependencies. Planes are held as `Arc<dyn ConfigPlane>`,
-/// and native `async fn` in traits is not `dyn`-compatible.
+/// Every database read and write runs on the host's transaction
+/// ([`PlaneTx`]); the host records the audit rows in it and commits once.
+/// `apply` with [`ApplyMode::Overwrite`] or [`ApplyMode::SeedIfEmpty`] must
+/// leave the admitted entities equal to the declaration (a following
+/// [`ConfigPlane::read_current`] on the same transaction diffs clean): the
+/// host re-reads after every apply and rolls back an apply that did not
+/// converge. The host inserts `DbPool` into the context's dependencies.
+///
+/// The defaulted methods refuse: [`ConfigPlane::export`] answers
+/// [`ConfigPlaneError::Unsupported`], and a scoped apply reaches a plane only
+/// when [`ConfigPlane::supports_scoped_apply`] is true. Planes are held as
+/// `Arc<dyn ConfigPlane>`, and native `async fn` in traits is not
+/// `dyn`-compatible.
 #[async_trait]
 pub trait ConfigPlane: Send + Sync {
     fn name(&self) -> &'static str;
 
     fn declared_path(&self) -> &'static str;
 
+    fn depends_on(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    fn effect(&self) -> PlaneEffect {
+        PlaneEffect::Live
+    }
+
+    fn supports_scoped_apply(&self) -> bool {
+        false
+    }
+
     fn load_declared(&self, services_root: &Path) -> ConfigPlaneResult<Option<DeclaredState>>;
 
-    async fn read_current(&self, ctx: &PlaneContext<'_>) -> ConfigPlaneResult<PlaneSnapshot>;
+    async fn read_current(
+        &self,
+        ctx: &PlaneContext<'_>,
+        tx: &mut PlaneTx<'_>,
+    ) -> ConfigPlaneResult<PlaneSnapshot>;
 
     fn diff(&self, declared: &DeclaredState, current: &PlaneSnapshot) -> Vec<DriftRow> {
         diff_snapshots(&declared.entries, current)
@@ -175,8 +153,18 @@ pub trait ConfigPlane: Send + Sync {
     async fn apply(
         &self,
         ctx: &PlaneContext<'_>,
-        declared: &DeclaredState,
-        mode: ApplyMode,
-        change: &ChangeRequest<'_>,
+        tx: &mut PlaneTx<'_>,
+        request: &ApplyRequest<'_>,
     ) -> ConfigPlaneResult<ApplyOutcome>;
+
+    async fn export(
+        &self,
+        _ctx: &PlaneContext<'_>,
+        _tx: &mut PlaneTx<'_>,
+    ) -> ConfigPlaneResult<Option<String>> {
+        Err(ConfigPlaneError::Unsupported {
+            plane: self.name().to_owned(),
+            operation: "export",
+        })
+    }
 }

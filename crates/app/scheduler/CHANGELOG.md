@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.71.0] - 2026-10-21
+
+### Added
+
+- `Job::db_budget()` is applied as `SET LOCAL statement_timeout` / `work_mem` to transactions opened through the job context's `BudgetedDb`.
+- Config plane apply honours dependency order, `seed-if-empty` mode, entity scope and each change's effect; `ConfigReconcileService::export` renders a plane as a declaration. Migration 004 records seed-mode changes in the audit.
+
+### Changed
+
+- **Breaking:** `ConfigReconcileRepository::record_changes` takes the `PlaneTransaction` opened by `begin`; `PlaneReport` gains `effect`.
+- A configured job missing from the inventory is reported as `UnknownJob` on the normal skip path.
+
+### Fixed
+
+- An enforced `database_cleanup` run keeps system-span log rows; only rows owned by a missing user are orphans.
+- A non-converging apply rolls back as one transaction, and a stale `systemprompt_config_plane_info` series is zeroed under the authority it was recorded with.
+
 ## [0.70.0] - 2026-10-18
 
 ### Added

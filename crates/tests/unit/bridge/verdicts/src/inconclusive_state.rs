@@ -1,6 +1,5 @@
-//! Guards on the two mistakes that made the bridge report false alarms:
-//! an inconclusive probe treated as a definite failure, and a UI literal that
-//! no longer matched the enum variant it was written against.
+//! Guards against false alarms: an inconclusive probe is never a definite
+//! failure, and a UI literal must match the enum variant it names.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,9 +76,8 @@ fn a_probe_that_reached_no_verdict_is_not_conclusive() {
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use systemprompt_bridge::gui::error::GuiError;
 
-// Cancellation used to be detected by searching the error message for a
-// phrase. Two call sites spelled it differently and the check silently stopped
-// matching, so pressing Cancel on sign-in reported "unauthorized".
+// Cancellation is a type, not a phrase in the message, so a differently
+// spelled call site cannot turn Cancel on sign-in into "unauthorized".
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 #[test]
 fn cancellation_is_recognised_by_type_not_by_message() {

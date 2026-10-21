@@ -63,8 +63,11 @@ fn build_routes(
     let serves = |group: RouteGroup| groups.contains(&group);
     let mut router = Router::new();
 
-    super::metrics::install_recorder(&ctx.config().instance_id)
-        .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
+    super::metrics::install_recorder(
+        &ctx.config().instance_id,
+        &ctx.extension_registry().all_metrics(),
+    )
+    .map_err(|source| RouteMountError::initialization("prometheus_metrics", source))?;
 
     let jwt_extractor = build_jwt_extractor(ctx)?;
     let limits = RateLimitState::from_context(ctx);

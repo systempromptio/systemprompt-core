@@ -7,9 +7,9 @@ use systemprompt_gateway::protocol::outbound::gemini::GeminiOutbound;
 use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
+use systemprompt_governance::authz::types::Decision;
 use systemprompt_identifiers::{ProviderId, RouteId};
 use systemprompt_manifest::services::GatewayRoute;
-use systemprompt_security::authz::types::Decision;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

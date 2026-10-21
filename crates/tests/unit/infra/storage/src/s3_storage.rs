@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use systemprompt_storage::{
-    FileStorageBackend, S3Credentials, S3FileStorage, S3Params, build_file_storage,
+    FileStorageBackend, S3Credentials, S3Error, S3FileStorage, S3Params, build_file_storage,
 };
 use systemprompt_traits::{FileStorage, FileStorageError, StoredFileId};
 use wiremock::matchers::{body_bytes, header, header_regex, method, path};
@@ -109,6 +109,29 @@ async fn a_missing_object_is_not_found() {
         s.metadata(&id).await,
         Err(FileStorageError::NotFound(_))
     ));
+}
+
+#[tokio::test]
+async fn an_oversized_error_body_is_capped_before_it_reaches_the_error() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("y".repeat(64 * 1024)))
+        .mount(&server)
+        .await;
+    let err = storage(&server, None)
+        .read_all(&StoredFileId::new("files/x.png"))
+        .await
+        .unwrap_err();
+    let FileStorageError::Backend(source) = err else {
+        panic!("expected Backend, got {err:?}");
+    };
+    let s3 = source.downcast_ref::<S3Error>().expect("S3Error source");
+    let S3Error::Status { status, body } = s3 else {
+        panic!("expected Status, got {s3:?}");
+    };
+    assert_eq!(*status, 500);
+    assert!(body.len() <= 2048 + " [truncated]".len(), "{}", body.len());
+    assert!(body.ends_with(" [truncated]"), "a cut body says so");
 }
 
 #[tokio::test]

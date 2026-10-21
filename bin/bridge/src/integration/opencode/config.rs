@@ -47,8 +47,8 @@ pub(super) fn role_of(key: &str) -> crate::drift::EntryRole {
     }
 }
 
-// Why: OpenCode 1.x read an admin-managed tier that 2.x no longer loads, so a
-// provider block the bridge left there is dead config that only uninstall and
+// Why: OpenCode 2.x does not load the admin-managed tier, so a provider block
+// in it is dead config that only uninstall and
 // doctor still look at. `[opencode] managed_dir` relocates it (a test sandbox);
 // the platform default applies only when the config does not set it.
 pub(super) fn managed_dir() -> Result<PathBuf, crate::config::ConfigReadError> {

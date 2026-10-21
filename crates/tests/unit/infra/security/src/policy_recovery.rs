@@ -1,11 +1,11 @@
-use systemprompt_identifiers::{CallId, SessionId, UserId};
-use systemprompt_security::authz::types::Decision;
-use systemprompt_security::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
-use systemprompt_security::policy::types::AccessScope;
-use systemprompt_security::policy::{
+use systemprompt_governance::authz::types::Decision;
+use systemprompt_governance::policy::secrets::{REDACTION_MARKER, SecretScanner, redact_spans};
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_governance::policy::{
     AgentScope, ChainEntryResult, GovernanceConfig, GovernanceEngine, GovernedInput,
     GovernedTarget, PolicyContext,
 };
+use systemprompt_identifiers::{CallId, SessionId, UserId};
 
 const KEY: &str = "XRECOVERY-1234567890";
 const PATTERNS: &str = "patterns:\n  - id: recovery-key\n    name: Recovery Key\n    regex: 'XRECOVERY-[0-9]+'\n  - id: private-key\n    name: Private Key\n    regex: '-----BEGIN PRIVATE KEY-----'\n    redact_whole_value: true\n  - id: bearer\n    name: Bearer\n    regex: 'Bearer eyJ[A-Za-z0-9_.]+'\n    redact_whole_value: true\n";
@@ -60,7 +60,8 @@ fn prefix_only_patterns_remove_the_entire_secret_bearing_value() {
 #[test]
 fn recovery_is_explicit_reverified_and_never_applied_to_tools() {
     let config = GovernanceConfig::parse(POLICY).unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-user");
@@ -111,7 +112,7 @@ static EVALUATIONS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUs
 #[derive(Debug)]
 struct CountEvaluations;
 
-impl systemprompt_security::policy::GovernancePolicy for CountEvaluations {
+impl systemprompt_governance::policy::GovernancePolicy for CountEvaluations {
     fn id(&self) -> systemprompt_identifiers::PolicyId {
         systemprompt_identifiers::PolicyId::new("recovery_count_evaluations")
     }
@@ -124,18 +125,19 @@ impl systemprompt_security::policy::GovernancePolicy for CountEvaluations {
     fn evaluate(&self, _: &PolicyContext<'_>) -> Decision {
         EVALUATIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Decision::Allow {
-            matched_by: systemprompt_security::authz::types::MatchedBy::DefaultIncluded,
+            matched_by: systemprompt_governance::authz::types::MatchedBy::DefaultIncluded,
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_count_evaluations", |_| Ok(Box::new(
-    CountEvaluations
-)));
+systemprompt_governance::register_governance_policy!("recovery_count_evaluations", |_| Ok(
+    Box::new(CountEvaluations)
+));
 
 #[test]
 fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
     let config = GovernanceConfig::parse("governance:\n  policies:\n    - id: recovery_count_evaluations\n    - id: secret_scan\n      patterns:\n        - id: recovery-key\n          name: Recovery Key\n          regex: 'XRECOVERY-[0-9]+'\n    - id: rate_limit\n      requests_per_window: 0\n").unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-counter-user");
@@ -166,7 +168,7 @@ fn recovery_never_reexecutes_earlier_policies_and_honors_later_denials() {
 #[derive(Debug)]
 struct LeaksWithoutFindings;
 
-impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
+impl systemprompt_governance::policy::GovernancePolicy for LeaksWithoutFindings {
     fn id(&self) -> systemprompt_identifiers::PolicyId {
         systemprompt_identifiers::PolicyId::new("recovery_leak_without_findings")
     }
@@ -178,11 +180,11 @@ impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
     }
     fn evaluate(&self, _: &PolicyContext<'_>) -> Decision {
         Decision::Deny {
-            reason: systemprompt_security::authz::types::DenyReason::SecretLeak {
+            reason: systemprompt_governance::authz::types::DenyReason::SecretLeak {
                 pattern_id: systemprompt_identifiers::SecretPatternId::try_new("opaque")
                     .expect("valid SecretPatternId"),
                 pattern_name: std::borrow::Cow::Borrowed("opaque"),
-                location: systemprompt_security::policy::SecretLocation::new(
+                location: systemprompt_governance::policy::SecretLocation::new(
                     "prompt",
                     "text",
                     "[REDACTED]",
@@ -191,7 +193,7 @@ impl systemprompt_security::policy::GovernancePolicy for LeaksWithoutFindings {
         }
     }
 }
-systemprompt_security::register_governance_policy!("recovery_leak_without_findings", |_| Ok(
+systemprompt_governance::register_governance_policy!("recovery_leak_without_findings", |_| Ok(
     Box::new(LeaksWithoutFindings)
 ));
 
@@ -201,7 +203,8 @@ fn a_policy_without_located_findings_never_offers_recovery() {
         "governance:\n  policies:\n    - id: recovery_leak_without_findings\n",
     )
     .unwrap();
-    let engine = GovernanceEngine::from_config(&config).unwrap();
+    let engine =
+        GovernanceEngine::from_config(&config, Some(crate::offline_rate_windows())).unwrap();
     let input = GovernedInput::prompt_text(KEY.to_owned());
     let session = SessionId::generate();
     let user = UserId::new("recovery-opaque-user");
@@ -226,5 +229,5 @@ fn a_policy_without_located_findings_never_offers_recovery() {
     assert_eq!(evaluation.chain[0].result, ChainEntryResult::Fail);
 }
 
-static NO_RATE_COUNTS: systemprompt_security::policy::RateCounts =
-    systemprompt_security::policy::RateCounts::empty();
+static NO_RATE_COUNTS: systemprompt_governance::policy::RateCounts =
+    systemprompt_governance::policy::RateCounts::empty();

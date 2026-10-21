@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
 use systemprompt_provider_contracts::{
-    ApplyMode, ApplyOutcome, ChangeRequest, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
-    DeclaredState, PlaneContext, PlaneSnapshot,
+    ApplyMode, ApplyOutcome, ApplyRequest, ConfigPlane, ConfigPlaneError, ConfigPlaneResult,
+    DeclaredState, PlaneContext, PlaneSnapshot, PlaneTx,
 };
 
 pub struct FakePlane {
@@ -93,21 +93,25 @@ impl ConfigPlane for FakePlane {
         Ok(Some(DeclaredState::from_entries(entries)))
     }
 
-    async fn read_current(&self, _ctx: &PlaneContext<'_>) -> ConfigPlaneResult<PlaneSnapshot> {
+    async fn read_current(
+        &self,
+        _ctx: &PlaneContext<'_>,
+        _tx: &mut PlaneTx<'_>,
+    ) -> ConfigPlaneResult<PlaneSnapshot> {
         Ok(self.store())
     }
 
     async fn apply(
         &self,
         _ctx: &PlaneContext<'_>,
-        declared: &DeclaredState,
-        mode: ApplyMode,
-        change: &ChangeRequest<'_>,
+        _tx: &mut PlaneTx<'_>,
+        request: &ApplyRequest<'_>,
     ) -> ConfigPlaneResult<ApplyOutcome> {
+        let (declared, mode) = (request.declared, request.mode);
         self.applied_reasons
             .lock()
             .expect("lock")
-            .push(change.reason.to_owned());
+            .push(request.change.reason.to_owned());
         if !self.converges {
             return Ok(ApplyOutcome::default());
         }
@@ -119,14 +123,14 @@ impl ConfigPlane for FakePlane {
                     outcome.inserted += 1;
                     store.insert(k.clone(), v.clone());
                 },
-                Some(have) if have != v && mode == ApplyMode::Overwrite => {
+                Some(have) if have != v && mode.must_converge() => {
                     outcome.updated += 1;
                     store.insert(k.clone(), v.clone());
                 },
                 Some(_) => {},
             }
         }
-        if mode == ApplyMode::Overwrite {
+        if mode != ApplyMode::InsertOnly {
             let before = store.len();
             store.retain(|k, _| declared.entries.contains_key(k));
             outcome.deleted = before - store.len();
