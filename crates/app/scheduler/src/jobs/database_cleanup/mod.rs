@@ -1,9 +1,10 @@
 //! The one retention job: bounded, batched deletes (and body releases) over
 //! every high-volume operational table, with the windows read from
-//! `profile.retention`.
+//! `profile.retention`. Each [`RetentionTarget`] dispatches to the repository
+//! of the crate that owns the table; the scheduler issues no delete itself.
 //!
-//! Deletion requires `enforce`; without it the job reports what it would
-//! delete.
+//! Deletion requires `enforce`; without it the job only reports each window
+//! and deletes nothing.
 //!
 //! Tables are deleted message rows first, so the request rows they hang off
 //! are still present for the cascade-free path. Quota windows are at most a
@@ -26,22 +27,96 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::profile::RetentionConfig;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{debug, info, warn};
 
-use crate::repository::RetentionRepository;
+use crate::error::SchedulerResult;
 use crate::services::scheduling::job_app_context;
 
 use self::archived_users::purge_archived_users;
 use self::orphans::{delete_orphaned_logs, fail_orphaned_requests};
-use self::tables::{RetentionPass, delete_in_batches};
+use self::tables::{BATCH_ROWS, RetentionOwners, RetentionPass, delete_in_batches};
 
 const QUOTA_BUCKET_DAYS: u32 = 62;
 const DEFAULT_MESSAGES_DAYS: u32 = 30;
+
+/// The tables the retention job prunes; each variant dispatches to the
+/// repository of the crate that owns the table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetentionTarget {
+    Logs,
+    AnalyticsEvents,
+    AiRequestMessages,
+    McpToolExecutions,
+    EventOutbox,
+    AiRequestPayloads,
+    GovernanceDecisions,
+    AiQuotaBuckets,
+}
+
+impl RetentionTarget {
+    #[must_use]
+    pub const fn table(self) -> &'static str {
+        match self {
+            Self::Logs => "logs",
+            Self::AnalyticsEvents => "analytics_events",
+            Self::AiRequestMessages => "ai_request_messages",
+            Self::McpToolExecutions => "mcp_tool_executions",
+            Self::EventOutbox => "event_outbox",
+            Self::AiRequestPayloads => "ai_request_payloads",
+            Self::GovernanceDecisions => "governance_decisions",
+            Self::AiQuotaBuckets => "ai_quota_buckets",
+        }
+    }
+
+    async fn purge(self, owners: &RetentionOwners, cutoff: DateTime<Utc>) -> SchedulerResult<u64> {
+        let deleted = match self {
+            Self::Logs => owners.logs.purge_before(cutoff, BATCH_ROWS).await?,
+            Self::AnalyticsEvents => {
+                owners
+                    .analytics_events
+                    .purge_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::AiRequestMessages => {
+                owners
+                    .requests
+                    .purge_messages_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::McpToolExecutions => {
+                owners
+                    .tool_executions
+                    .purge_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::EventOutbox => {
+                owners
+                    .outbox
+                    .purge_processed_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::AiRequestPayloads => {
+                owners
+                    .payloads
+                    .release_bodies_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+            Self::GovernanceDecisions => owners.decisions.purge_before(cutoff, BATCH_ROWS).await?,
+            Self::AiQuotaBuckets => {
+                owners
+                    .quota_buckets
+                    .purge_before(cutoff, BATCH_ROWS)
+                    .await?
+            },
+        };
+        Ok(deleted)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct DatabaseCleanupJob;
@@ -70,7 +145,7 @@ impl Job for DatabaseCleanupJob {
         if let Some(days) = ctx.get_parameter_parsed::<u32>("log_retention_days")? {
             retention.logs_days = days;
         }
-        let retention_repo = RetentionRepository::new(&db_pool);
+        let owners = RetentionOwners::new(&db_pool, app.config().instance_id.clone());
 
         debug!("Job started");
         let orphaned = delete_orphaned_logs(&db_pool, ctx.enforce()).await?;
@@ -78,20 +153,18 @@ impl Job for DatabaseCleanupJob {
         let plan = plan(&retention);
         let mut passes = Vec::with_capacity(plan.len());
         let mut total = orphaned;
-        for (table, days) in plan {
+        for (target, days) in plan {
             let cutoff = Utc::now() - chrono::Duration::days(i64::from(days));
             let pass = if ctx.enforce() {
-                delete_in_batches(&retention_repo, table, days, cutoff, start_time).await?
+                delete_in_batches(&owners, target, days, cutoff, start_time).await?
             } else {
-                let would = retention_repo.count_before(table, cutoff).await?;
                 info!(
-                    table,
-                    would_delete = would,
+                    table = target.table(),
                     retention_days = days,
-                    "enforce disabled: rows qualify for deletion but were not deleted"
+                    "enforce disabled: rows past the window were not deleted"
                 );
                 RetentionPass {
-                    table,
+                    table: target.table(),
                     days,
                     deleted: 0,
                     complete: true,
@@ -138,19 +211,34 @@ fn services_messages_days() -> u32 {
     }
 }
 
-fn plan(retention: &RetentionConfig) -> Vec<(&'static str, u32)> {
+fn plan(retention: &RetentionConfig) -> Vec<(RetentionTarget, u32)> {
     let messages_days = retention
         .ai_request_messages_days
         .unwrap_or_else(services_messages_days);
     vec![
-        ("logs", retention.logs_days),
-        ("analytics_events", retention.analytics_events_days),
-        ("ai_request_messages", messages_days),
-        ("mcp_tool_executions", retention.mcp_tool_executions_days),
-        ("event_outbox", retention.outbox_processed_days),
-        ("ai_request_payloads", retention.ai_request_payload_raw_days),
-        ("governance_decisions", retention.governance_decisions_days),
-        ("ai_quota_buckets", QUOTA_BUCKET_DAYS),
+        (RetentionTarget::Logs, retention.logs_days),
+        (
+            RetentionTarget::AnalyticsEvents,
+            retention.analytics_events_days,
+        ),
+        (RetentionTarget::AiRequestMessages, messages_days),
+        (
+            RetentionTarget::McpToolExecutions,
+            retention.mcp_tool_executions_days,
+        ),
+        (
+            RetentionTarget::EventOutbox,
+            retention.outbox_processed_days,
+        ),
+        (
+            RetentionTarget::AiRequestPayloads,
+            retention.ai_request_payload_raw_days,
+        ),
+        (
+            RetentionTarget::GovernanceDecisions,
+            retention.governance_decisions_days,
+        ),
+        (RetentionTarget::AiQuotaBuckets, QUOTA_BUCKET_DAYS),
     ]
 }
 

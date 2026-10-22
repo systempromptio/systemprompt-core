@@ -64,6 +64,8 @@ mod repository_db;
 #[cfg(test)]
 mod retention_enforce_db;
 #[cfg(test)]
+mod retention_targets_db;
+#[cfg(test)]
 mod service_config_manifest;
 #[cfg(test)]
 mod service_management_behaviour_db;

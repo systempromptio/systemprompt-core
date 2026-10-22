@@ -12,6 +12,7 @@ use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{DockerCli, ProjectContext, StoredTenant};
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
+use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 use crate::cloud::init::ensure_project_scaffolding;
 use crate::cloud::profile::templates::validate_connection;
@@ -39,7 +40,7 @@ pub async fn create_local_tenant(prompter: &dyn Prompter) -> Result<StoredTenant
     let project = format!("{}_{}", sanitize_database_name(&name), nanoid());
 
     let port: u16 = prompter
-        .input_with_default("PostgreSQL port", "5432")?
+        .input_with_default("PostgreSQL port", &DEFAULT_POSTGRES_PORT.to_string())?
         .parse()
         .context("PostgreSQL port must be a number")?;
 

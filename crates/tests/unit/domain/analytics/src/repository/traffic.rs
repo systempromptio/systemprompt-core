@@ -5,6 +5,7 @@
 //! so concurrent suites sharing the database cannot pollute the counts.
 
 use chrono::{Duration, Utc};
+use std::sync::Arc;
 use systemprompt_analytics::{
     AnalyticsEventType, AnalyticsEventsRepository, CreateAnalyticsEventInput, LinkClickEventData,
     NavigationQuery, PageQuery, TrafficAnalyticsRepository,
@@ -106,7 +107,12 @@ fn window() -> (chrono::DateTime<Utc>, chrono::DateTime<Utc>) {
 async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let guide = format!("{prefix}/guides/a");
@@ -228,7 +234,12 @@ async fn get_pages_groups_by_landing_page_and_referrer_with_filters() {
 async fn get_pages_engaged_only_excludes_zero_request_sessions() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
 
     let prefix = format!("/tp-{}", Uuid::new_v4());
     let page = format!("{prefix}/landing");
@@ -311,7 +322,12 @@ async fn seed_link_click(
 async fn get_navigation_groups_internal_link_clicks_by_transition() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool),
     ));
@@ -376,7 +392,12 @@ async fn get_navigation_groups_internal_link_clicks_by_transition() {
 async fn get_navigation_include_external_returns_external_clicks() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-    let repo = TrafficAnalyticsRepository::new(&pool);
+    let repo = TrafficAnalyticsRepository::new(
+        &pool,
+        Arc::new(systemprompt_users::SessionTrafficRollupRepository::new(
+            &pool,
+        )),
+    );
     let events = AnalyticsEventsRepository::new(std::sync::Arc::new(
         systemprompt_logging::AnalyticsRepository::new(&pool),
     ));

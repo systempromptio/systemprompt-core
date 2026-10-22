@@ -105,6 +105,7 @@ pub struct HostEntryPayload<'a> {
     #[cfg_attr(feature = "ts-export", ts(type = "string"))]
     pub id: HostKind,
     pub display_name: &'a str,
+    #[cfg_attr(feature = "ts-export", ts(type = "\"desktop-app\" | \"cli-tool\""))]
     pub kind: HostAppKind,
     pub description: &'a str,
     pub icon: &'a str,

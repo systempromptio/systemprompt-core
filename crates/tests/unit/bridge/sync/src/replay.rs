@@ -4,6 +4,7 @@ use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::sync::{
     LastSyncState, ReplayStateError, SyncError, check_replay, check_skew, read_last_sync,
 };
+use systemprompt_models::bridge::host::HostKind;
 
 fn tempdir() -> std::path::PathBuf {
     let mut p = std::env::temp_dir();
@@ -240,8 +241,8 @@ fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_ap
 
     let prior = LastSyncState {
         manifest_version: Some(version("2026-09-17T11:04:01Z-000001a0af09abc9")),
-        enabled_hosts: vec!["claude-code".to_owned()],
-        host_model_protocols: [("claude-code".to_owned(), vec!["anthropic".to_owned()])]
+        enabled_hosts: vec![HostKind::ClaudeCode],
+        host_model_protocols: [(HostKind::ClaudeCode, vec!["anthropic".to_owned()])]
             .into_iter()
             .collect(),
         auto_update: AutoUpdatePolicy::default(),
@@ -249,8 +250,8 @@ fn a_partial_sync_record_keeps_the_prior_hosts_and_update_policy_not_the_half_ap
     };
     let attempted = LastSyncState {
         manifest_version: Some(version("2026-09-17T11:05:24Z-000001a0af0aee88")),
-        enabled_hosts: vec!["claude-code".to_owned(), "cowork".to_owned()],
-        host_model_protocols: [("cowork".to_owned(), vec!["openai".to_owned()])]
+        enabled_hosts: vec![HostKind::ClaudeCode, HostKind::ClaudeDesktop],
+        host_model_protocols: [(HostKind::ClaudeDesktop, vec!["openai".to_owned()])]
             .into_iter()
             .collect(),
         auto_update: AutoUpdatePolicy::Disabled,

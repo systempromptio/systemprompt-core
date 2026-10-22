@@ -53,7 +53,7 @@ agents-status-proxy-:proxy_probe/mod.rs:ProxyProbeState
 mcp-auth-:proxy/mcp_probe/types.rs:McpAuthState
 host-profile-:integration/profile_state.rs:ProfileCode
 host-app-:integration/profile_state.rs:AppInstallState
-agent-kind-:integration/host_app/mod.rs:HostAppKind
+agent-kind-:crates/shared/models/src/bridge/host.rs:HostAppKind
 settings-schedule-:schedule/status.rs:ScheduleStatus"
 
 # This reimplements `rename_all = "kebab-case"` in awk, so it is only correct
@@ -109,7 +109,12 @@ produced=""
 for family in $enum_families; do
     prefix=${family%%:*}
     rest=${family#*:}
-    file="$bridge/src/${rest%%:*}"
+    # Why: a producer enum shared with the gateway lives under crates/ and is
+    # named from the repo root; everything else is a bridge source path.
+    case "${rest%%:*}" in
+        crates/*) file="${rest%%:*}" ;;
+        *) file="$bridge/src/${rest%%:*}" ;;
+    esac
     enum=${rest#*:}
     [ -f "$file" ] || { echo "lint-bridge-i18n: $file is gone -- update enum_families" >&2; exit 2; }
     assert_kebab_serde "$file" "$enum" || exit 2

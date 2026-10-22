@@ -2,6 +2,7 @@ use chrono::Utc;
 use systemprompt_identifiers::{
     ConsumerInstallationId, ManagedResourceId, PublicationId, ResourceRevisionId,
 };
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, FileReadback, ReadbackStatus,
 };
@@ -60,23 +61,20 @@ fn an_executable_unavailable_mode_or_empty_or_duplicate_readback_cannot_pass() {
 }
 
 #[test]
-fn client_alias_preserves_registry_serialization() {
+fn the_evaluator_client_wire_is_kebab_case_with_no_alias() {
     assert_eq!(
         serde_json::to_string(&EvaluatorClient::OpenCode).unwrap(),
         "\"open-code\""
     );
-    assert_eq!(
-        serde_json::from_str::<EvaluatorClient>("\"opencode\"").unwrap(),
-        EvaluatorClient::OpenCode
-    );
+    assert!(serde_json::from_str::<EvaluatorClient>("\"opencode\"").is_err());
     assert!(serde_json::from_str::<ContentDigest>("\"not-a-digest\"").is_err());
 }
 
 #[test]
-fn installation_host_aliases_preserve_existing_codex_and_opencode_names() {
-    assert!(EvaluatorClient::Codex.accepts_host_name("codex-cli"));
-    assert!(EvaluatorClient::Codex.accepts_host_name("codex"));
-    assert!(EvaluatorClient::OpenCode.accepts_host_name("opencode"));
-    assert!(EvaluatorClient::OpenCode.accepts_host_name("open-code"));
-    assert!(!EvaluatorClient::Codex.accepts_host_name("hermes"));
+fn an_evaluator_client_accepts_both_packagings_of_its_product() {
+    assert!(EvaluatorClient::Codex.accepts(HostKind::CodexCli));
+    assert!(EvaluatorClient::Codex.accepts(HostKind::Codex));
+    assert!(EvaluatorClient::OpenCode.accepts(HostKind::OpenCode));
+    assert!(EvaluatorClient::OpenCode.accepts(HostKind::OpenCodeCli));
+    assert!(!EvaluatorClient::Codex.accepts(HostKind::Hermes));
 }

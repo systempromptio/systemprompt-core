@@ -1,0 +1,14 @@
+# SQL vocabularies checked by scripts/lint-sql-vocab.sh, one per line:
+#   table.column|schema.sql|enum.rs|EnumName
+# The CHECK (col IN (...)) set in the schema file must equal the enum's
+# as_str() string set, and the column's SQL DEFAULT must be the enum's
+# #[default] variant.
+#
+# Rule for the same script: the literals `is_bot = false` and
+# `is_behavioral_bot = false` inside a sqlx::query*! string in crates/**/src
+# fail everywhere; the human-traffic predicate is the SQL function
+# is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)
+# (crates/domain/users/schema/user_sessions.sql), called directly or through
+# v_clean_traffic / v_engaged_traffic. The allowlist is empty.
+user_sessions.session_source|crates/domain/users/schema/user_sessions.sql|crates/shared/identifiers/src/session.rs|SessionSource
+session_traffic_rollup_hourly.traffic_class|crates/domain/users/schema/session_traffic_rollup_hourly.sql|crates/shared/models/src/analytics/traffic_class.rs|TrafficClass

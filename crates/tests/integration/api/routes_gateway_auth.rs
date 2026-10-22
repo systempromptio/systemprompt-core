@@ -276,7 +276,7 @@ mod bridge_stream_auth {
     use anyhow::Result;
     use axum::http::{HeaderMap, HeaderValue, StatusCode};
     use systemprompt_api::routes::gateway::bridge_stream;
-    use systemprompt_events::{AGUI_BROADCASTER, Broadcaster};
+    use systemprompt_events::Broadcaster;
     use systemprompt_test_fixtures::seed_bridge_credential;
 
     // Note: this asserts the outcome, not the guard. Removing the
@@ -288,7 +288,12 @@ mod bridge_stream_auth {
     async fn a_request_with_no_credential_is_unauthorized() -> Result<()> {
         let (_db, ctx) = setup_ctx().await?;
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, HeaderMap::new()).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            HeaderMap::new(),
+        )
+        .await;
 
         assert_eq!(
             response.status(),
@@ -307,7 +312,12 @@ mod bridge_stream_auth {
             HeaderValue::from_static("Bearer not-a-real-token"),
         );
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
 
         assert_eq!(
             response.status(),
@@ -327,7 +337,12 @@ mod bridge_stream_auth {
         let mut headers = HeaderMap::new();
         headers.insert("x-api-key", HeaderValue::from_static("sk-not-a-real-key"));
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         Ok(())
@@ -344,7 +359,12 @@ mod bridge_stream_auth {
             HeaderValue::from_str(&format!("Bearer {}", credential.jwt.as_str()))?,
         );
 
-        let response = bridge_stream::handle(jwt_extractor(&ctx)?, headers).await;
+        let response = bridge_stream::handle(
+            jwt_extractor(&ctx)?,
+            std::sync::Arc::clone(ctx.event_broadcasters()),
+            headers,
+        )
+        .await;
         assert_eq!(response.status(), StatusCode::OK);
         assert!(
             response
@@ -355,7 +375,13 @@ mod bridge_stream_auth {
         );
         tokio::time::timeout(Duration::from_secs(1), async {
             loop {
-                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 1 {
+                if ctx
+                    .event_broadcasters()
+                    .agui
+                    .connection_count(&credential.user_id)
+                    .await
+                    == 1
+                {
                     break;
                 }
                 tokio::task::yield_now().await;
@@ -367,7 +393,13 @@ mod bridge_stream_auth {
         drop(response);
         tokio::time::timeout(Duration::from_secs(1), async {
             loop {
-                if AGUI_BROADCASTER.connection_count(&credential.user_id).await == 0 {
+                if ctx
+                    .event_broadcasters()
+                    .agui
+                    .connection_count(&credential.user_id)
+                    .await
+                    == 0
+                {
                     break;
                 }
                 tokio::task::yield_now().await;

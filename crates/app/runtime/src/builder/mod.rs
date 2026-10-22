@@ -150,6 +150,7 @@ impl AppContextBuilder {
         let CoreLayer {
             config,
             app_paths,
+            files_config,
             database,
             authz_hook,
             governance,
@@ -179,8 +180,10 @@ impl AppContextBuilder {
             .marketplace_filter
             .unwrap_or_else(|| assembly::build_marketplace_filter(&database));
 
+        let (ai_service, connector_tokens) =
+            ai_service::build_ai_service(&database, &repositories, &mcp_registry)?;
         let subsystems = Subsystems {
-            ai_service: ai_service::build_ai_service(&database, &repositories, &mcp_registry)?,
+            ai_service,
             artifact_ingest: build_artifact_ingest(&database, &governance),
             system_admin,
             authz_hook,
@@ -194,6 +197,7 @@ impl AppContextBuilder {
             shutdown: self.shutdown.unwrap_or_default(),
             background_tasks: self.background_tasks.unwrap_or_default(),
             publish_guard: Arc::default(),
+            connector_tokens,
         };
 
         Ok(AppContext::from_parts(
@@ -207,6 +211,7 @@ impl AppContextBuilder {
             ConfigPlane {
                 config,
                 app_paths,
+                files_config,
                 content_config: content.content_config,
                 route_classifier: content.route_classifier,
             },
@@ -230,6 +235,7 @@ fn event_router_or_outbox(
         EventRouter::with_outbox(
             database.write_pool().as_ref().clone(),
             config.instance_id.clone(),
+            Arc::new(systemprompt_events::EventBroadcasters::new()),
         )
     })
 }

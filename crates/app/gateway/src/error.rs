@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_config::{SecretsBootstrapError, StateDirError};
+use systemprompt_config::StateDirError;
 use systemprompt_loader::ConfigLoadError;
 use systemprompt_traits::{ContextProviderError, RepositoryError};
 
@@ -22,16 +22,6 @@ pub type GatewayAuditResult<T> = Result<T, GatewayAuditError>;
 pub enum GatewayAuditError {
     #[error("{0}")]
     Invariant(&'static str),
-
-    #[error(
-        "Gateway accounting journal requires the `encryption_master_key` secret (32 bytes as 64 \
-         hex characters); with `secrets.source: env` it must also be listed in \
-         SYSTEMPROMPT_CUSTOM_SECRETS"
-    )]
-    MissingJournalKey,
-
-    #[error(transparent)]
-    JournalKey(#[from] SecretsBootstrapError),
 
     #[error("Cannot create gateway journal at {}", .0.dir.display())]
     JournalDir(#[source] StateDirError),

@@ -95,18 +95,23 @@ async fn plane_debug_impls_flag_optional_members() {
     assert!(dbg.contains("fingerprint_repo: false"), "got: {dbg}");
     assert!(dbg.contains("user_service: false"), "got: {dbg}");
 
+    let app_paths = Arc::new(
+        AppPaths::from_profile(
+            &tmp_paths(),
+            systemprompt_manifest::PathResolution::Canonicalize,
+            None,
+        )
+        .expect("app paths"),
+    );
     let cfg = ConfigPlane {
         config: Arc::new(systemprompt_test_fixtures::app_context::fixture_config(
             &url,
         )),
-        app_paths: Arc::new(
-            AppPaths::from_profile(
-                &tmp_paths(),
-                systemprompt_manifest::PathResolution::Canonicalize,
-                None,
-            )
-            .expect("app paths"),
-        ),
+        files_config: Arc::new(systemprompt_files::FilesConfig::new(
+            app_paths.storage().root().to_path_buf(),
+            systemprompt_files::FilesConfigYaml::default(),
+        )),
+        app_paths,
         content_config: Some(content_config()),
         route_classifier: Arc::new(RouteClassifier::new(None)),
     };
@@ -136,7 +141,9 @@ async fn plane_debug_impls_flag_optional_members() {
             systemprompt_database::SchemaInstallReport::default(),
         )),
         event_bridge: Arc::new(OnceLock::new()),
-        event_router: systemprompt_events::EventRouter::local_only(),
+        event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+            systemprompt_events::EventBroadcasters::new(),
+        )),
         geoip_reader: None,
         file_storage: systemprompt_storage::build_file_storage(
             systemprompt_storage::FileStorageBackend::Local {
@@ -148,15 +155,13 @@ async fn plane_debug_impls_flag_optional_members() {
         publish_guard: Arc::new(tokio::sync::Mutex::new(
             systemprompt_marketplace::inventory::PublishGuard::default(),
         )),
+        connector_tokens: Arc::default(),
     };
     let dbg = format!("{subsystems:?}");
     assert!(dbg.contains("Subsystems"), "got: {dbg}");
     assert!(dbg.contains("system_admin: \"planeadmin\""), "got: {dbg}");
     assert!(dbg.contains("event_bridge: false"), "got: {dbg}");
-    assert!(
-        dbg.contains("event_router: EventRouter { outbox: None }"),
-        "got: {dbg}"
-    );
+    assert!(dbg.contains("outbox: None"), "got: {dbg}");
     assert!(dbg.contains("geoip_reader: false"), "got: {dbg}");
 
     let ctx = AppContext::from_parts(data, cfg, plugins, subsystems);

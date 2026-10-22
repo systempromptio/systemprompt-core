@@ -30,7 +30,10 @@ pub(crate) struct UpstreamRequest<'a> {
 
 #[must_use]
 pub fn replay_policy(request_path: &str, body: &Bytes) -> Replay {
-    if !request_path.starts_with("/mcp/") {
+    if !matches!(
+        crate::proxy::credential::classify_path(request_path),
+        crate::proxy::credential::RouteClass::Mcp
+    ) {
         return Replay::Never;
     }
     match jsonrpc_method(body).as_deref() {

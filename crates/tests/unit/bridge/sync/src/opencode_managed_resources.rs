@@ -14,6 +14,7 @@ use systemprompt_bridge::host_sync::{ApplyError, HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 
 struct Sandbox {
@@ -84,7 +85,7 @@ fn manifest_with(skills: Vec<SkillEntry>, mcp: Vec<ManagedMcpServer>) -> SignedM
         hooks: vec![],
         managed_mcp_servers: mcp,
         revocations: vec![],
-        enabled_hosts: vec!["opencode".into()],
+        enabled_hosts: vec![HostKind::OpenCode],
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,

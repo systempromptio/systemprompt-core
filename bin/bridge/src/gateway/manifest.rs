@@ -12,6 +12,7 @@
 use base64::Engine;
 use ed25519_dalek::{Signature, VerifyingKey};
 
+use systemprompt_models::bridge::host::HostKind;
 pub use systemprompt_models::bridge::manifest::{
     AgentEntry, ArtifactEntry, HookEntry, MANIFEST_INLINE_SCHEMA_VERSION, MANIFEST_SCHEMA_HEADER,
     MANIFEST_SCHEMA_VERSION, ManagedMcpServer, ManifestClaudeCode, ManifestMarketplace,
@@ -24,7 +25,9 @@ pub use systemprompt_models::plugin::PluginComponentRef;
 
 pub use systemprompt_identifiers::{AgentId, AgentName, ApiKeyId, TenantId, UserId, ValidatedUrl};
 
-pub use super::manifest_hosts::{enables_host, skill_targets_host, unknown_skill_hosts};
+pub use super::manifest_hosts::{
+    enables_host, skill_targets_host, skill_targets_product, unknown_skill_hosts,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManifestError {
@@ -133,8 +136,8 @@ pub struct SignedManifestBuilder {
     hooks: Vec<HookEntry>,
     managed_mcp_servers: Vec<ManagedMcpServer>,
     revocations: Vec<ApiKeyId>,
-    enabled_hosts: Vec<String>,
-    host_model_protocols: std::collections::BTreeMap<String, Vec<String>>,
+    enabled_hosts: Vec<HostKind>,
+    host_model_protocols: std::collections::BTreeMap<HostKind, Vec<String>>,
     artifacts: Vec<ArtifactEntry>,
     allow_claude_ai_connectors: bool,
     desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
@@ -187,7 +190,7 @@ impl SignedManifestBuilder {
     }
 
     #[must_use]
-    pub fn with_enabled_hosts(mut self, hosts: Vec<String>) -> Self {
+    pub fn with_enabled_hosts(mut self, hosts: Vec<HostKind>) -> Self {
         self.enabled_hosts = hosts;
         self
     }
@@ -195,7 +198,7 @@ impl SignedManifestBuilder {
     #[must_use]
     pub fn with_host_model_protocols(
         mut self,
-        protocols: std::collections::BTreeMap<String, Vec<String>>,
+        protocols: std::collections::BTreeMap<HostKind, Vec<String>>,
     ) -> Self {
         self.host_model_protocols = protocols;
         self

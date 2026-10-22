@@ -30,6 +30,7 @@ use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::mcp_registry::normalize_key;
 use systemprompt_bridge::sync::{SyncOptions, run_once};
 use systemprompt_identifiers::HookId;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::hooks::{HookCategory, HookEvent};
 use systemprompt_models::plugin::PluginHooksRef;
 use systemprompt_test_fixtures::fixture_user_id;
@@ -346,7 +347,7 @@ fn run_once_applies_full_manifest_end_to_end() {
             hooks: vec![hook()],
             managed_mcp_servers: vec![mcp("Primary MCP", "http://127.0.0.1:9911/mcp")],
             revocations: vec![],
-            enabled_hosts: vec!["claude-code".into()],
+            enabled_hosts: vec![HostKind::ClaudeCode],
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
@@ -513,7 +514,7 @@ fn run_once_empty_manifest_writes_no_plugins() {
             hooks: vec![],
             managed_mcp_servers: vec![],
             revocations: vec![],
-            enabled_hosts: vec!["claude-code".into()],
+            enabled_hosts: vec![HostKind::ClaudeCode],
             host_model_protocols: Default::default(),
             artifacts: vec![],
             allow_claude_ai_connectors: false,
@@ -619,7 +620,7 @@ fn run_once_surfaces_plugin_file_404_as_apply_failure() {
 }
 
 
-fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<String>) -> SignedManifest {
+fn manifest_with(servers: Vec<ManagedMcpServer>, enabled_hosts: Vec<HostKind>) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
         min_bridge_version: None,
@@ -731,7 +732,7 @@ fn a_manifest_without_a_user_writes_a_null_user_fragment() {
 
 #[test]
 fn an_enabled_host_with_nothing_installed_is_a_no_op() {
-    let enabled = manifest_with(vec![], vec!["claude-desktop".into()]);
+    let enabled = manifest_with(vec![], vec![HostKind::ClaudeDesktop]);
     let (server, dirs, pat_dir) = serve(&enabled, "pat-hosts");
     let summary = run_sync(&dirs).expect("sync applies");
     assert!(
@@ -1366,7 +1367,7 @@ fn empty_manifest() -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["claude-code".into()],
+        enabled_hosts: vec![HostKind::ClaudeCode],
         host_model_protocols: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
@@ -2126,7 +2127,7 @@ fn an_absolute_manifest_file_path_is_refused_without_touching_external_state() {
 #[test]
 fn sync_routes_claude_code_rewrites_stale_values_and_preserves_foreign_keys() {
     let rt = setup_runtime();
-    let manifest = manifest_with(vec![], vec!["claude-code".into()]);
+    let manifest = manifest_with(vec![], vec![HostKind::ClaudeCode]);
     let (server, dirs, pat_dir) = rt.block_on(async {
         let server = MockServer::start().await;
         remount_settings_gateway(&server, &manifest, &["claude-sonnet"], None).await;

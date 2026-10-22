@@ -199,6 +199,10 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         },
         ConfigPlane {
             config: Arc::new(config),
+            files_config: Arc::new(systemprompt_files::FilesConfig::new(
+                app_paths.storage().root().to_path_buf(),
+                systemprompt_files::FilesConfigYaml::default(),
+            )),
             app_paths,
             content_config: None,
             route_classifier: Arc::new(RouteClassifier::new(None)),
@@ -220,7 +224,9 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
                 systemprompt_database::SchemaInstallReport::default(),
             )),
             event_bridge: Arc::new(OnceLock::new()),
-            event_router: systemprompt_events::EventRouter::local_only(),
+            event_router: systemprompt_events::EventRouter::local_only(Arc::new(
+                systemprompt_events::EventBroadcasters::new(),
+            )),
             geoip_reader: None,
             file_storage: systemprompt_storage::build_file_storage(
                 systemprompt_storage::FileStorageBackend::Local {
@@ -229,13 +235,19 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
             ),
             shutdown: Default::default(),
             background_tasks: Default::default(),
+            connector_tokens: Arc::default(),
             publish_guard: Arc::new(tokio::sync::Mutex::new(
                 systemprompt_marketplace::inventory::PublishGuard::default(),
             )),
         },
     ));
 
-    setup_api_server(&ctx, None).map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
+    setup_api_server(
+        &ctx,
+        None,
+        &std::sync::Arc::new(systemprompt_api::services::server::ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))
 }
 
 fn get_req(uri: &str) -> Request<Body> {

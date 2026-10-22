@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_traits::{
@@ -55,11 +57,15 @@ fn to_ai_generated(f: File) -> AiProviderResult<AiGeneratedFile> {
 #[derive(Debug)]
 pub struct FilesAiPersistenceProvider {
     repository: FileRepository,
+    files_config: Arc<FilesConfig>,
 }
 
 impl FilesAiPersistenceProvider {
-    pub const fn from_repository(repository: FileRepository) -> Self {
-        Self { repository }
+    pub const fn new(repository: FileRepository, files_config: Arc<FilesConfig>) -> Self {
+        Self {
+            repository,
+            files_config,
+        }
     }
 }
 
@@ -134,14 +140,9 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     }
 
     fn storage_config(&self) -> AiProviderResult<ImageStorageConfig> {
-        let config =
-            FilesConfig::get_optional().ok_or_else(|| AiProviderError::ConfigurationError {
-                message: "FilesConfig::init() not called".to_owned(),
-            })?;
-
         Ok(ImageStorageConfig {
             base_path: FilesConfig::generated_images_relative(),
-            url_prefix: format!("{}/images/generated", config.url_prefix()),
+            url_prefix: format!("{}/images/generated", self.files_config.url_prefix()),
         })
     }
 }

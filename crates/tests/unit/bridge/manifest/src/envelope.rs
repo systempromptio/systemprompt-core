@@ -4,6 +4,7 @@ use systemprompt_bridge::gateway::manifest::{
 };
 use systemprompt_bridge::gateway::manifest_version::ManifestVersion;
 use systemprompt_bridge::ids::ManifestSignature;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 
 fn version(s: &str) -> ManifestVersion {
@@ -21,7 +22,7 @@ fn payload_value() -> serde_json::Value {
             .with_timezone(&chrono::Utc),
         fixture_user_id(),
     )
-    .with_enabled_hosts(vec!["claude-desktop".into()])
+    .with_enabled_hosts(vec![HostKind::ClaudeDesktop])
     .build();
     serde_json::to_value(&manifest).expect("manifest serializes")
 }
@@ -38,7 +39,7 @@ fn decode_payload_round_trips_builder_manifest() {
     let manifest = decode_payload(&envelope(&payload_value())).expect("decodes");
     assert_eq!(manifest.user_id, fixture_user_id());
     assert_eq!(manifest.min_schema_version, MANIFEST_INLINE_SCHEMA_VERSION);
-    assert_eq!(manifest.enabled_hosts, vec!["claude-desktop"]);
+    assert_eq!(manifest.enabled_hosts, vec![HostKind::ClaudeDesktop]);
 }
 
 #[test]

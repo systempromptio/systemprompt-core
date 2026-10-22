@@ -10,6 +10,7 @@ use systemprompt_models::mcp::McpServerConfig;
 use systemprompt_traits::{ToolContext, ToolProviderError};
 
 use crate::services::deployment::DeploymentService;
+use systemprompt_identifiers::headers;
 
 pub(super) fn create_request_context(
     ctx: &ToolContext,
@@ -27,7 +28,7 @@ pub(super) fn create_request_context(
 
     let context_id = ctx
         .headers
-        .get("x-context-id")
+        .get(headers::CONTEXT_ID)
         .filter(|s| !s.is_empty())
         .and_then(|s| ContextId::try_new(s.clone()).ok())
         .ok_or_else(|| ToolProviderError::ConfigurationError {
@@ -39,7 +40,7 @@ pub(super) fn create_request_context(
 
     let agent_name = ctx
         .headers
-        .get("x-agent-name")
+        .get(headers::AGENT_NAME)
         .filter(|s| !s.is_empty())
         .and_then(|s| AgentName::try_new(s.clone()).ok())
         .ok_or_else(|| ToolProviderError::ConfigurationError {
@@ -53,7 +54,7 @@ pub(super) fn create_request_context(
     // so a missing or malformed identity is refused rather than defaulted.
     let actor_user_id = ctx
         .headers
-        .get("x-user-id")
+        .get(headers::USER_ID)
         .filter(|s| !s.is_empty())
         .and_then(|s| UserId::try_new(s.clone()).ok())
         .ok_or_else(|| {
@@ -75,7 +76,7 @@ pub(super) fn create_request_context(
         request_ctx = request_ctx.with_auth_token(auth_token.clone());
     }
 
-    if let Some(task_id) = ctx.headers.get("x-task-id").filter(|s| !s.is_empty()) {
+    if let Some(task_id) = ctx.headers.get(headers::TASK_ID).filter(|s| !s.is_empty()) {
         request_ctx = request_ctx.with_task_id(TaskId::new(task_id.clone()));
     }
 

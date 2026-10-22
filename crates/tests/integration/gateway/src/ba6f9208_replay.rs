@@ -108,9 +108,8 @@ async fn opencode_parallel_tool_results_reach_an_anthropic_wire_upstream_as_one_
         // Chat inbound to an anthropic-wire provider never takes the raw lane.
         raw_body: None,
     };
-    let adapter = GatewayUpstreamRegistry::global()
-        .get("anthropic")
-        .expect("anthropic adapter");
+    let upstreams = GatewayUpstreamRegistry::new();
+    let adapter = upstreams.get("anthropic").expect("anthropic adapter");
     let body = adapter.build_body(&ctx).expect("build body");
     let outcome = adapter.send(ctx, &body).await.expect("send");
     assert!(matches!(outcome, OutboundOutcome::Buffered(_)));

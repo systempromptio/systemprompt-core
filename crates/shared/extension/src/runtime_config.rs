@@ -1,17 +1,16 @@
-//! Process-level injection of extensions registered outside of the
-//! `inventory` linker collector.
+//! Extensions registered outside of the `inventory` linker collector.
 //!
 //! When the host binary cannot rely on the `inventory`-based registration
-//! path (typically because LTO has stripped the static `submit!` slots),
-//! `set_injected_extensions` lets the application install a fallback
-//! list of [`crate::Extension`] values plus a `WebAssetsStrategy` that the
-//! runtime should honour.
+//! path (typically because LTO has stripped the static `submit!` slots), it
+//! hands an [`InjectedExtensions`] value — the fallback list of
+//! [`crate::Extension`] values plus the `WebAssetsStrategy` the runtime
+//! should honour — to [`crate::ExtensionRegistry::discover_with`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::PathBuf;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use crate::Extension;
 
@@ -39,26 +38,4 @@ impl std::fmt::Debug for InjectedExtensions {
             .field("web_assets", &self.web_assets)
             .finish()
     }
-}
-
-static INJECTED_EXTENSIONS: OnceLock<InjectedExtensions> = OnceLock::new();
-
-pub fn set_injected_extensions(config: InjectedExtensions) -> Result<(), InjectedExtensions> {
-    INJECTED_EXTENSIONS.set(config)
-}
-
-#[must_use]
-pub fn get_injected_extensions() -> Vec<Arc<dyn Extension>> {
-    INJECTED_EXTENSIONS
-        .get()
-        .map_or_else(Vec::new, |config| config.extensions.clone())
-}
-
-#[must_use]
-pub fn get_web_assets_strategy() -> WebAssetsStrategy {
-    INJECTED_EXTENSIONS
-        .get()
-        .map_or(WebAssetsStrategy::Disabled, |config| {
-            config.web_assets.clone()
-        })
 }

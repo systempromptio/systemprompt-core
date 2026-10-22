@@ -12,6 +12,7 @@ use systemprompt_bridge::integration::cowork_artifacts::emit::{
 };
 use systemprompt_bridge::integration::cowork_artifacts::sink::LIBRARY_STORE_FILE;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 use tempfile::TempDir;
 
@@ -50,7 +51,7 @@ fn manifest(artifacts: Vec<ArtifactEntry>) -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["claude-desktop".into()],
+        enabled_hosts: vec![HostKind::ClaudeDesktop],
         host_model_protocols: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,

@@ -40,7 +40,7 @@ use systemprompt_models::mcp::deployment::{ConnectorConfig, ConnectorGrant};
 pub use app_jwt::{AppJwtClaims, app_jwt_claims, sign_app_jwt};
 pub use error::ConnectorGrantError;
 
-use crate::credential::cache::{clamp_ttl, token_for};
+use crate::credential::cache::{TokenCache, clamp_ttl};
 use crate::credential::{CredentialError, http};
 
 const INSTALLATION_PLACEHOLDER: &str = "{installation_id}";
@@ -138,18 +138,27 @@ impl MachineGrant {
         }
     }
 
-    pub async fn token(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
-        token_for(cache_key, || async { self.mint().await })
+    pub async fn token(
+        &self,
+        tokens: &TokenCache,
+        cache_key: &str,
+    ) -> Result<String, ConnectorGrantError> {
+        tokens
+            .token_for(cache_key, || async { self.mint().await })
             .await
             .map_err(ConnectorGrantError::Credential)
     }
 
-    pub async fn authorization(&self, cache_key: &str) -> Result<String, ConnectorGrantError> {
+    pub async fn authorization(
+        &self,
+        tokens: &TokenCache,
+        cache_key: &str,
+    ) -> Result<String, ConnectorGrantError> {
         let scheme = match self {
             Self::ApiToken { .. } => "Basic",
             Self::ClientCredentials { .. } | Self::AppInstallation { .. } => "Bearer",
         };
-        Ok(format!("{scheme} {}", self.token(cache_key).await?))
+        Ok(format!("{scheme} {}", self.token(tokens, cache_key).await?))
     }
 
     async fn mint(&self) -> Result<(String, Duration), CredentialError> {
@@ -200,6 +209,7 @@ impl MachineGrant {
 }
 
 pub async fn machine_token(
+    tokens: &TokenCache,
     server: &str,
     connector: &ConnectorConfig,
 ) -> Result<String, ConnectorGrantError> {
@@ -207,7 +217,10 @@ pub async fn machine_token(
         .map_err(|e| ConnectorGrantError::Secrets(Box::new(e)))?;
     let grant = MachineGrant::resolve(server, connector, |name| secrets.get(name).cloned())?;
     grant
-        .token(&format!("connector:{server}:{}", connector.grant.as_str()))
+        .token(
+            tokens,
+            &format!("connector:{server}:{}", connector.grant.as_str()),
+        )
         .await
 }
 

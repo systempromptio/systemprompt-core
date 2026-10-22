@@ -31,6 +31,7 @@ pub struct ExternalProxyTarget {
 
 impl McpClient {
     pub async fn resolve_external_proxy_target(
+        &self,
         server_config: &McpServerConfig,
         context: &RequestContext,
     ) -> McpDomainResult<ExternalProxyTarget> {
@@ -41,9 +42,13 @@ impl McpClient {
             ))
         })?;
 
-        let bearer =
-            super::external_auth::resolve_external_bearer(ext, context, &server_config.name)
-                .await?;
+        let bearer = super::external_auth::resolve_external_bearer(
+            &self.connector_tokens,
+            ext,
+            context,
+            &server_config.name,
+        )
+        .await?;
         let headers = super::external_auth::outbound_headers(
             ext,
             &bearer,

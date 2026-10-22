@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- Host ids are `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`: `codex` and `opencode` name the desktop apps, `codex-cli` and `opencode-cli` the command-line tools. `install --host opencode` now enrols the desktop app; use `opencode-cli` for the terminal agent. A manifest naming an unknown host id is refused, and an empty enabled-host list enables no host.
+- The loopback proxy's rejection response carries `x-systemprompt-bridge-reason` only; `x-systemprompt-bridge-install` and `x-systemprompt-bridge-config-dir` are no longer sent.
+- A loopback request to `/mcp` with no server slug is answered as an unknown MCP server rather than forwarded to the gateway.
+
+### Added
+
+- Codex and OpenCode each appear as two agents, the desktop app and the CLI, over one shared configuration written once. The app is detected by its bundle or installer folder and can be launched; the CLI by its binary on `PATH`. Removing one keeps the shared configuration while the other is enabled.
+
+### Changed
+
+- The Agents list and the setup page show only the hosts the last synced manifest enabled.
+- Hermes is listed as a command-line tool.
+
 ## [0.72.1] - 2026-10-22
 
 ### Fixed

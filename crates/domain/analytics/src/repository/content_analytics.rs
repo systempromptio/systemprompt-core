@@ -73,6 +73,9 @@ impl ContentAnalyticsRepository {
         days: i32,
         limit: i64,
     ) -> Result<Vec<ContentId>> {
+        // Why: `users` carries only `is_bot` and `is_scanner`; this is a
+        // user-level filter, not the session predicate `is_human_traffic`
+        // states over the crawler and behavioural flags.
         let rows: Vec<String> = sqlx::query_scalar!(
             r#"
             SELECT mc.id as "id!"

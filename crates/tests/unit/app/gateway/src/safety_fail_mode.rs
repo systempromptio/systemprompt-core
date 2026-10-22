@@ -92,7 +92,7 @@ fn empty_request() -> CanonicalRequest {
 
 async fn timed_out_request_finding(fail_mode: ScannerFailMode) -> Finding {
     let safety = policy(fail_mode, SafetyMode::Enforce);
-    let scanner = SafetyScannerRegistry::global()
+    let scanner = SafetyScannerRegistry::new()
         .create(SLEEPER, &safety)
         .expect("sleeper is registered");
     let request = empty_request();
@@ -149,7 +149,7 @@ async fn warn_mode_never_blocks_a_closed_scanner_failure() {
 async fn a_response_scan_obeys_the_same_timeout_and_fail_mode() {
     let closed = policy(ScannerFailMode::Closed, SafetyMode::Enforce);
     let open = policy(ScannerFailMode::Open, SafetyMode::Enforce);
-    let scanner = SafetyScannerRegistry::global()
+    let scanner = SafetyScannerRegistry::new()
         .create(SLEEPER, &closed)
         .expect("sleeper is registered");
     let response = CanonicalResponse::default();

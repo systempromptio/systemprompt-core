@@ -9,7 +9,7 @@ fn host_kind_round_trips() {
     for kind in [
         HostKind::ClaudeCode,
         HostKind::CodexCli,
-        HostKind::OpenCode,
+        HostKind::OpenCodeCli,
         HostKind::Hermes,
     ] {
         assert_eq!(HostKind::from_str(kind.as_str()).expect("parse"), kind);
@@ -36,9 +36,15 @@ fn status_and_error_class_round_trip() {
 #[test]
 fn undeclared_hosts_are_unsupported() {
     assert!(matches!(
-        host_for(HostKind::OpenCode),
+        host_for(HostKind::OpenCodeCli),
         Execution::Unsupported { .. }
     ));
+    for app in [HostKind::ClaudeDesktop, HostKind::Codex, HostKind::OpenCode] {
+        assert!(
+            matches!(host_for(app), Execution::Unsupported { .. }),
+            "{app} is a desktop packaging and never runs headless"
+        );
+    }
     assert!(matches!(
         host_for(HostKind::Hermes),
         Execution::Unsupported { .. }

@@ -11,7 +11,6 @@
 mod config_loaders;
 mod display;
 mod extension_validator;
-mod files_validator;
 mod mcp_validator;
 
 use systemprompt_config::{ProfileBootstrap, SkillConfigValidator};
@@ -33,7 +32,6 @@ use mcp_validator::validate_mcp_manifests;
 
 pub use display::{display_validation_report, display_validation_warnings};
 pub use extension_validator::{ExtensionConfigOutcome, validate_extension_configs};
-pub use files_validator::FilesConfigValidator;
 pub use mcp_validator::{collect_manifest_errors, merge_mcp_errors};
 
 #[derive(Debug)]
@@ -45,7 +43,7 @@ impl StartupValidator {
     pub fn new() -> Self {
         let mut registry = DomainConfigRegistry::new();
 
-        registry.register(Box::new(FilesConfigValidator::new()));
+        registry.register(Box::new(systemprompt_files::FilesConfigValidator::new()));
         registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
         registry.register(Box::new(ContentConfigValidator::new()));

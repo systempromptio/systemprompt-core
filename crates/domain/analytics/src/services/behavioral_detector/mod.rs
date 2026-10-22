@@ -15,15 +15,17 @@ pub use types::{BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralSig
 pub const BEHAVIORAL_BOT_THRESHOLD: i32 = 30;
 
 mod scoring {
-    pub(super) const HIGH_REQUEST_COUNT: i32 = 30;
+    use systemprompt_models::analytics::BehavioralBotReason;
+
+    pub(super) const HIGH_REQUEST_COUNT: i32 = BehavioralBotReason::RequestCountExceeded.score();
     pub(super) const HIGH_PAGE_COVERAGE: i32 = 25;
     pub(super) const SEQUENTIAL_NAVIGATION: i32 = 20;
     pub(super) const MULTIPLE_FINGERPRINT_SESSIONS: i32 = 20;
     pub(super) const REGULAR_TIMING: i32 = 15;
     pub(super) const HIGH_PAGES_PER_MINUTE: i32 = 15;
     pub(super) const OUTDATED_BROWSER: i32 = 25;
-    pub(super) const NO_JAVASCRIPT_EVENTS: i32 = 20;
-    pub(super) const GHOST_SESSION: i32 = 35;
+    pub(super) const NO_JAVASCRIPT_EVENTS: i32 = BehavioralBotReason::NoJavascript.score();
+    pub(super) const GHOST_SESSION: i32 = BehavioralBotReason::GhostSession.score();
     pub(super) const RESIDENTIAL_PROXY_ROTATION: i32 = 35;
     pub(super) const NO_ENGAGEMENT_ACROSS_SESSIONS: i32 = 25;
     pub(super) const PERIODIC_CADENCE: i32 = 35;

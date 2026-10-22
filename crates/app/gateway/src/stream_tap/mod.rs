@@ -16,6 +16,8 @@ mod raw;
 
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+
+use crate::registry::SafetyScannerRegistry;
 use std::task::{Context, Poll};
 
 use axum::body::Body;
@@ -53,6 +55,7 @@ pub struct TapFinalizeCtx {
     pub policy: GatewayPolicySpec,
     pub quota_fault_mode: QuotaFaultMode,
     pub ai_request_id: AiRequestId,
+    pub scanners: Arc<SafetyScannerRegistry>,
 }
 
 /// How the tapped stream is rendered back to the caller.

@@ -12,6 +12,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use crate::policies::Finding;
 use async_trait::async_trait;
 use systemprompt_manifest::services::QuotaFaultMode;
@@ -30,12 +32,13 @@ pub const GATEWAY_ARTIFACT_SCANNER: &str = "gateway_safety";
 #[derive(Debug, Clone)]
 pub struct GatewayArtifactScanner {
     resolver: PolicyResolver,
+    scanners: Arc<SafetyScannerRegistry>,
 }
 
 impl GatewayArtifactScanner {
     #[must_use]
-    pub const fn new(resolver: PolicyResolver) -> Self {
-        Self { resolver }
+    pub const fn new(resolver: PolicyResolver, scanners: Arc<SafetyScannerRegistry>) -> Self {
+        Self { resolver, scanners }
     }
 }
 
@@ -69,7 +72,7 @@ impl ArtifactScanner for GatewayArtifactScanner {
             received_surface: ForwardedSurface::default(),
         };
 
-        let registry = SafetyScannerRegistry::global();
+        let registry = &self.scanners;
         let mut findings: Vec<Finding> = Vec::new();
         for name in &policy.safety.scanners {
             match registry.create(name, &policy.safety) {

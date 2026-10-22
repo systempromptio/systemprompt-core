@@ -24,6 +24,7 @@ use tracing::Instrument;
 use super::super::extractors::ContextExtractor;
 use super::error::log_error_response;
 use super::support::{DynExtractor, create_request_span, session_context_required_error};
+use systemprompt_identifiers::headers as sp_headers;
 
 #[path = "mcp_flavour.rs"]
 mod mcp_flavour;
@@ -73,7 +74,7 @@ impl PublicContextMiddleware {
         let mut req_ctx = request.extensions().get::<RequestContext>().cloned()?;
 
         let headers = request.headers();
-        if let Some(context_id) = headers.get("x-context-id")
+        if let Some(context_id) = headers.get(sp_headers::CONTEXT_ID)
             && let Ok(id) = context_id.to_str()
         {
             match ContextId::try_new(id.to_owned()) {
@@ -84,7 +85,7 @@ impl PublicContextMiddleware {
             }
         }
 
-        if let Some(agent_name) = headers.get("x-agent-name")
+        if let Some(agent_name) = headers.get(sp_headers::AGENT_NAME)
             && let Ok(name) = agent_name.to_str()
         {
             match AgentName::try_new(name.to_owned()) {

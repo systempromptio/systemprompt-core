@@ -7,6 +7,7 @@
 use serde_json::json;
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, enqueue_background};
+use systemprompt_models::origin::ClientKind;
 
 use opentelemetry_proto::tonic::collector::logs::v1::ExportLogsServiceRequest;
 use opentelemetry_proto::tonic::collector::metrics::v1::ExportMetricsServiceRequest;
@@ -37,7 +38,7 @@ pub fn ingest_traces(req: ExportTraceServiceRequest) {
                     "trace_id": trace_hex,
                     "span_id": span_hex,
                     "parent_span_id": parent_hex,
-                    "scope": "claude-desktop",
+                    "scope": ClientKind::ClaudeDesktop.as_str(),
                     "start_time_unix_nano": span.start_time_unix_nano,
                     "end_time_unix_nano": span.end_time_unix_nano,
                     "duration_ns": span
@@ -91,7 +92,7 @@ pub fn ingest_logs(req: ExportLogsServiceRequest) {
                     "kind": "log",
                     "trace_id": trace_hex,
                     "span_id": span_hex,
-                    "scope": "claude-desktop",
+                    "scope": ClientKind::ClaudeDesktop.as_str(),
                     "severity_number": record.severity_number,
                     "severity_text": "redacted",
                     "time_unix_nano": record.time_unix_nano,

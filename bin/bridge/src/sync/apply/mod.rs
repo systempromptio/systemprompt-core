@@ -41,7 +41,6 @@ use crate::ids::BearerToken;
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::ValidatedUrl;
-use systemprompt_models::bridge::host::HostKind;
 use tokio_util::sync::CancellationToken;
 
 pub(crate) use plugin::PluginApplyOutcome as ApplyReport;
@@ -150,8 +149,8 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
                 index + 1,
                 emitters.len(),
             ));
-        let enabled = crate::gateway::manifest::enables_host(&manifest_for_write, host_id);
-        if enabled && app_absent(host_id, &bridge.start_menu) {
+        let enabled = host_sync::enabled_for(*emitter, &manifest_for_write);
+        if enabled && app_absent(*emitter, &bridge.start_menu) {
             tracing::info!(
                 host = host_id.as_str(),
                 "host app not installed; settings not written"
@@ -195,10 +194,22 @@ pub(crate) async fn apply_manifest(req: &ApplyRequest<'_>) -> Result<ApplyOutcom
     Ok(ApplyOutcome::Applied(report))
 }
 
-fn app_absent(host_id: HostKind, start_menu: &crate::probe_cache::StartMenuCache) -> bool {
-    crate::integration::find_host_by_id(host_id).is_some_and(|host| {
-        host.app_installed(start_menu) == crate::integration::AppInstallState::NotInstalled
-    })
+// Why: an emitter serving both packagings of a product writes for whichever is
+// present; only when every packaging it serves is conclusively absent is the
+// tree left unwritten.
+fn app_absent(
+    emitter: &dyn host_sync::HostSync,
+    start_menu: &crate::probe_cache::StartMenuCache,
+) -> bool {
+    let served: Vec<&'static dyn crate::integration::HostApp> = crate::integration::host_apps()
+        .iter()
+        .copied()
+        .filter(|host| emitter.serves(host.id()))
+        .collect();
+    !served.is_empty()
+        && served.iter().all(|host| {
+            host.app_installed(start_menu) == crate::integration::AppInstallState::NotInstalled
+        })
 }
 
 pub(crate) fn check_not_superseded(run_gateway: &ValidatedUrl) -> Result<(), ApplyError> {

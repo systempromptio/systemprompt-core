@@ -125,16 +125,18 @@ impl DurableOutboxRepository {
         .map(|_| ())
     }
 
-    pub(crate) async fn prune_processed(
+    pub(crate) async fn purge_processed_before(
         pool: &PgPool,
         cutoff: chrono::DateTime<chrono::Utc>,
+        batch: i64,
     ) -> Result<u64, sqlx::Error> {
         sqlx::query!(
-            "DELETE FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL)",
-            cutoff
+            "DELETE FROM event_outbox WHERE ctid = ANY(ARRAY(SELECT ctid FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL) LIMIT $2))",
+            cutoff,
+            batch
         )
-            .execute(pool)
-            .await
-            .map(|result| result.rows_affected())
+        .execute(pool)
+        .await
+        .map(|result| result.rows_affected())
     }
 }

@@ -10,15 +10,12 @@ pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesCo
 pub use validator::FilesConfigValidator;
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_config::paths::AppPaths;
 
 use crate::error::{FilesError, FilesResult};
 use types::FilesConfigWrapper;
-
-static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();
 
 #[derive(Debug, Clone)]
 pub struct FilesConfig {
@@ -29,28 +26,6 @@ pub struct FilesConfig {
 }
 
 impl FilesConfig {
-    pub fn init(paths: &AppPaths) -> FilesResult<()> {
-        if FILES_CONFIG.get().is_some() {
-            return Ok(());
-        }
-        let config = Self::from_profile(paths)?;
-        config.validate()?;
-        if FILES_CONFIG.set(config).is_err() {
-            tracing::warn!("FilesConfig was already initialized by a concurrent caller");
-        }
-        Ok(())
-    }
-
-    pub fn get() -> FilesResult<&'static Self> {
-        FILES_CONFIG
-            .get()
-            .ok_or_else(|| FilesError::Config("FilesConfig::init() not called".into()))
-    }
-
-    pub fn get_optional() -> Option<&'static Self> {
-        FILES_CONFIG.get()
-    }
-
     pub fn from_profile(paths: &AppPaths) -> FilesResult<Self> {
         let profile = ProfileBootstrap::get()?;
 
@@ -63,12 +38,17 @@ impl FilesConfig {
 
         let yaml_config = Self::load_yaml_config(paths)?;
 
-        Ok(Self {
-            storage_root: PathBuf::from(storage_root),
-            url_prefix: yaml_config.url_prefix,
-            cache_control: yaml_config.cache_control,
-            upload: yaml_config.upload,
-        })
+        Ok(Self::new(PathBuf::from(storage_root), yaml_config))
+    }
+
+    #[must_use]
+    pub fn new(storage_root: PathBuf, yaml: FilesConfigYaml) -> Self {
+        Self {
+            storage_root,
+            url_prefix: yaml.url_prefix,
+            cache_control: yaml.cache_control,
+            upload: yaml.upload,
+        }
     }
 
     pub(super) fn load_yaml_config(paths: &AppPaths) -> FilesResult<FilesConfigYaml> {
@@ -107,29 +87,16 @@ impl FilesConfig {
         Ok(())
     }
 
-    pub fn ensure_storage_structure(&self) -> Vec<String> {
-        let mut errors = Vec::new();
-
-        if !self.storage_root.exists()
-            && let Err(e) = std::fs::create_dir_all(&self.storage_root)
-        {
-            errors.push(format!(
-                "Failed to create storage root {}: {}",
-                self.storage_root.display(),
-                e
-            ));
-            return errors;
-        }
-
-        for dir in [self.files(), self.images()] {
-            if !dir.exists()
-                && let Err(e) = std::fs::create_dir_all(&dir)
-            {
-                errors.push(format!("Failed to create {}: {}", dir.display(), e));
+    pub fn ensure_storage_structure(&self) -> FilesResult<()> {
+        for dir in [self.storage_root.clone(), self.files(), self.images()] {
+            if !dir.exists() {
+                std::fs::create_dir_all(&dir).map_err(|source| FilesError::StorageDir {
+                    path: dir.clone(),
+                    source,
+                })?;
             }
         }
-
-        errors
+        Ok(())
     }
 
     pub fn storage(&self) -> &Path {

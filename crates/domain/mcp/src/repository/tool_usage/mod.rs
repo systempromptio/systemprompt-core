@@ -10,7 +10,7 @@ mod queries;
 pub use intent::IntentStamp;
 pub use queries::ProximityProbe;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
@@ -37,6 +37,18 @@ impl ToolUsageRepository {
         let write_pool = db.write_pool();
         Self { pool, write_pool }
     }
+
+    pub async fn purge_before(&self, cutoff: DateTime<Utc>, batch: i64) -> McpDomainResult<u64> {
+        let result = sqlx::query!(
+            "DELETE FROM mcp_tool_executions WHERE ctid = ANY(ARRAY(SELECT ctid FROM mcp_tool_executions WHERE created_at < $1 LIMIT $2))",
+            cutoff,
+            batch
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
 
     pub async fn start_execution(
         &self,

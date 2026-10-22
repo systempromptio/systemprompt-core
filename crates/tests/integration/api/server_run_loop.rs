@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use futures::StreamExt;
-use systemprompt_api::services::server::{bind_and_serve, run_server, wait_for_ready};
+use systemprompt_api::services::server::{bind_and_serve, run_server};
 use systemprompt_traits::{Phase, StartupEvent};
 use tokio::time::sleep;
 
@@ -30,11 +30,12 @@ async fn run_server_reconciles_activates_and_drains_on_sigterm() -> anyhow::Resu
     .await?;
     let base = format!("http://{}", early.local_addr());
 
+    let readiness = std::sync::Arc::clone(early.readiness());
     let (events_tx, mut events_rx) = futures::channel::mpsc::unbounded();
     let mut server = tokio::spawn(run_server((*ctx).clone(), Some(events_tx), early));
 
     tokio::select! {
-        ready = wait_for_ready(60) => {
+        ready = readiness.wait_for_ready(60) => {
             assert!(ready, "run_server never signalled readiness");
         },
         early_exit = &mut server => {
@@ -342,7 +343,7 @@ mod mcp_failure {
         format!(
             r#"mcp_servers:
   {MCP_NAME}:
-    type: internal
+    server_type: internal
     binary: no-such-mcp-binary
     package: fixture
     port: 5987

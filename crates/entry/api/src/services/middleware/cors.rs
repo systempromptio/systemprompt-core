@@ -4,6 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::http::Method;
+use systemprompt_identifiers::headers;
 use systemprompt_manifest::Config;
 use thiserror::Error;
 use tower_http::cors::{AllowOrigin, CorsLayer};
@@ -62,11 +63,11 @@ impl CorsMiddleware {
                 http::header::ACCESS_CONTROL_REQUEST_METHOD,
                 http::header::ACCESS_CONTROL_REQUEST_HEADERS,
                 http::HeaderName::from_static("mcp-protocol-version"),
-                http::HeaderName::from_static("x-context-id"),
-                http::HeaderName::from_static("x-gateway-conversation-id"),
-                http::HeaderName::from_static("x-provider-request-id"),
-                http::HeaderName::from_static("x-trace-id"),
-                http::HeaderName::from_static("x-call-source"),
+                http::HeaderName::from_static(headers::CONTEXT_ID),
+                http::HeaderName::from_static(headers::GATEWAY_CONVERSATION_ID),
+                http::HeaderName::from_static(headers::PROVIDER_REQUEST_ID),
+                http::HeaderName::from_static(headers::TRACE_ID),
+                http::HeaderName::from_static(headers::CALL_SOURCE),
             ])
             .expose_headers([
                 http::header::WWW_AUTHENTICATE,

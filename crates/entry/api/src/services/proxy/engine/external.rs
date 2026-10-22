@@ -16,7 +16,6 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::{McpServerId, ServiceName};
-use systemprompt_mcp::services::client::McpClient;
 use systemprompt_mcp::{McpDomainError, McpServerConfig};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -72,7 +71,9 @@ impl ProxyEngine {
         )
         .await?;
 
-        let target = McpClient::resolve_external_proxy_target(&server_config, &req_ctx)
+        let target = self
+            .mcp_client
+            .resolve_external_proxy_target(&server_config, &req_ctx)
             .await
             .map_err(|e| map_resolve_error(service_name, e))?;
 

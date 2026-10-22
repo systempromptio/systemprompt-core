@@ -41,7 +41,7 @@ use super::cache_invalidation::{
 };
 
 use super::repository::EventOutboxRepository;
-use super::routing::{EventRouter, OUTBOX_CHANNEL, OutboxChannel};
+use super::routing::{EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel};
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, SystemEvent};
 
@@ -65,15 +65,22 @@ pub struct PostgresEventBridge {
     listener_pool: PgPool,
     outbox: EventOutboxRepository,
     epochs: CacheEpochs,
+    broadcasters: Arc<EventBroadcasters>,
 }
 
 impl PostgresEventBridge {
     #[must_use]
-    pub fn new(pool: PgPool, instance_id: InstanceId, epochs: CacheEpochs) -> Self {
+    pub fn new(
+        pool: PgPool,
+        instance_id: InstanceId,
+        epochs: CacheEpochs,
+        broadcasters: Arc<EventBroadcasters>,
+    ) -> Self {
         Self {
             outbox: EventOutboxRepository::new(pool.clone(), instance_id),
             listener_pool: pool,
             epochs,
+            broadcasters,
         }
     }
 
@@ -85,7 +92,7 @@ impl PostgresEventBridge {
 
     #[must_use]
     pub fn router(&self) -> EventRouter {
-        EventRouter::from_outbox(self.outbox.clone())
+        EventRouter::from_outbox(self.outbox.clone(), Arc::clone(&self.broadcasters))
     }
 
     pub fn start(self) -> EventBridgeHandle {
@@ -222,38 +229,40 @@ impl PostgresEventBridge {
             return;
         }
 
-        Self::fan_in(channel, &row.user_id, row.payload).await;
+        self.fan_in(channel, &row.user_id, row.payload).await;
     }
 
     pub(super) async fn fan_in(
+        &self,
         channel: OutboxChannel,
         user_id: &UserId,
         // JSON: outbox payload is polymorphic by channel; decoded into the
         // matching typed event immediately below.
         payload: serde_json::Value,
     ) {
+        let local = EventRouter::local_only(Arc::clone(&self.broadcasters));
         match channel {
             OutboxChannel::AgUi => match serde_json::from_value::<AgUiEvent>(payload) {
                 Ok(event) => {
-                    EventRouter::route_agui_local(user_id, event).await;
+                    local.route_agui_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode AG-UI event"),
             },
             OutboxChannel::A2A => match serde_json::from_value::<A2AEvent>(payload) {
                 Ok(event) => {
-                    EventRouter::route_a2a_local(user_id, event).await;
+                    local.route_a2a_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode A2A event"),
             },
             OutboxChannel::System => match serde_json::from_value::<SystemEvent>(payload) {
                 Ok(event) => {
-                    EventRouter::route_system_local(user_id, event).await;
+                    local.route_system_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode system event"),
             },
             OutboxChannel::Analytics => match serde_json::from_value::<AnalyticsEvent>(payload) {
                 Ok(event) => {
-                    EventRouter::route_analytics_local(user_id, event).await;
+                    local.route_analytics_local(user_id, event).await;
                 },
                 Err(e) => error!(error = %e, "event bridge: failed to decode analytics event"),
             },

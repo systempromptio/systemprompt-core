@@ -23,6 +23,9 @@ lint-test-seams
 lint-test-value
 lint-shared-test-ids
 lint-raw-ids
+lint-host-ids
+lint-header-literals
+lint-path-literals
 lint-sqlx
 lint-http-errors
 lint-no-untyped-admin
@@ -39,5 +42,7 @@ lint-bridge-verdicts
 lint-bridge-typed-warnings
 lint-bridge-layers
 lint-bridge-globals
+lint-core-globals
+lint-serde-aliases
 lint-bridge-file-size
 lint-repo-hygiene

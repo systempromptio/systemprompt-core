@@ -54,6 +54,8 @@ use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
+use crate::protocol::outbound::OutboundOutcome;
+use crate::registry::GatewayEngines;
 use systemprompt_governance::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
@@ -72,6 +74,7 @@ pub struct DispatchInputs {
     pub identity_headers: Vec<(String, String)>,
     pub trace_sampled: Option<bool>,
     pub governance: Arc<GovernanceEngine>,
+    pub engines: Arc<GatewayEngines>,
 }
 
 impl GatewayService {
@@ -91,6 +94,7 @@ impl GatewayService {
             identity_headers,
             trace_sampled,
             governance,
+            engines,
         } = inputs;
         let policy = dispatch_policy(repos, &ctx, config.quota_fault_mode).await?;
         let stream_usage = inbound.wants_stream_usage(&raw_body);
@@ -102,6 +106,7 @@ impl GatewayService {
         let upstream = resolve_upstream(
             config,
             registry,
+            &engines,
             UpstreamQuery {
                 request: &request,
                 attribution: &ctx.attribution,
@@ -135,6 +140,7 @@ impl GatewayService {
             forward_headers,
             trace_sampled,
             governance,
+            engines,
         }))
         .await;
         // Why: every `Err` from the opened dispatch has already recorded itself
@@ -169,6 +175,7 @@ struct OpenedDispatch<'a> {
     forward_headers: Vec<(String, String)>,
     trace_sampled: Option<bool>,
     governance: Arc<GovernanceEngine>,
+    engines: Arc<GatewayEngines>,
 }
 
 async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
@@ -210,6 +217,23 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
     .await
 }
 
+async fn send_traced(
+    scanned: &mut ScannedDispatch,
+    send: FailoverSend<'_, '_>,
+    ctx: &GatewayRequestContext,
+    trace_sampled: Option<bool>,
+) -> Result<OutboundOutcome, DispatchError> {
+    let admitted_at = std::time::Instant::now();
+    let outcome = crate::protocol::outbound::trace_context::with_trace(
+        ctx.trace_id.clone(),
+        trace_sampled,
+        Box::pin(send_with_failover(scanned, send)),
+    )
+    .await?;
+    crate::audit::phases::record(GatewayPhase::UpstreamFirstByte, admitted_at.elapsed());
+    Ok(outcome)
+}
+
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {
     let admission_started = std::time::Instant::now();
     admit(&opened).await?;
@@ -231,6 +255,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         forward_headers,
         trace_sampled,
         governance,
+        engines,
     } = opened;
 
     let prepared = PreparedDispatch::build(
@@ -241,33 +266,30 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         UpstreamRelay {
             raw_body: &raw_body,
             inbound: inbound.as_ref(),
+            overrides: &engines.override_engine,
         },
     )
     .await?;
     let governed = GovernedDispatch::enforce(prepared, db, &ctx, &audit, &governance).await?;
+    let scan = stages::SafetyScan {
+        scanners: &engines.scanner_registry,
+        safety: &policy.safety,
+    };
     let mut scanned =
-        ScannedDispatch::enforce(governed, repos, &ai_request_id, &policy.safety, &audit).await?;
+        ScannedDispatch::enforce(governed, repos, scan, &ai_request_id, &audit).await?;
     commit_admission(&audit).await?;
     audit.record_billing_source().await;
     crate::audit::phases::record(GatewayPhase::Admission, admission_started.elapsed());
 
-    let admitted_at = std::time::Instant::now();
-    let outcome = crate::protocol::outbound::trace_context::with_trace(
-        ctx.trace_id.clone(),
-        trace_sampled,
-        Box::pin(send_with_failover(
-            &mut scanned,
-            FailoverSend {
-                registry,
-                primary: &upstream,
-                forward_headers: &forward_headers,
-                ai_request_id: &ai_request_id,
-                audit: &audit,
-            },
-        )),
-    )
-    .await?;
-    crate::audit::phases::record(GatewayPhase::UpstreamFirstByte, admitted_at.elapsed());
+    let send = FailoverSend {
+        registry,
+        engines: &engines,
+        primary: &upstream,
+        forward_headers: &forward_headers,
+        ai_request_id: &ai_request_id,
+        audit: &audit,
+    };
+    let outcome = send_traced(&mut scanned, send, &ctx, trace_sampled).await?;
 
     let mut response = finalize(
         outcome,
@@ -281,6 +303,7 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
             inbound,
             request_model: scanned.request_model().to_owned(),
             stream_usage,
+            scanners: Arc::clone(&engines.scanner_registry),
         },
     )
     .await;

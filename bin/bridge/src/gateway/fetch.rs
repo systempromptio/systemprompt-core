@@ -12,6 +12,7 @@ use crate::gateway::errors::GatewayError;
 use crate::gateway::manifest::SignedManifestEnvelope;
 use crate::gateway::types::ReleaseManifest;
 use crate::gateway::{GatewayClient, ensure_success, record_span};
+use systemprompt_models::ApiPaths;
 
 /// Whether the gateway may answer a manifest fetch from its per-user memo.
 ///
@@ -41,7 +42,7 @@ impl GatewayClient {
             #[serde(default)]
             pubkey: Option<String>,
         }
-        let url = self.url("/v1/bridge/pubkey");
+        let url = self.url(ApiPaths::BRIDGE_PUBKEY);
         let started = Instant::now();
         let resp = self
             .http()
@@ -68,7 +69,7 @@ impl GatewayClient {
         bearer: &BearerToken,
         freshness: Freshness,
     ) -> Result<SignedManifestEnvelope, GatewayError> {
-        let url = self.url("/v1/bridge/manifest");
+        let url = self.url(ApiPaths::BRIDGE_MANIFEST);
         let started = Instant::now();
         let mut request = self
             .http()
@@ -110,7 +111,7 @@ impl GatewayClient {
         if relative_path.contains("..") || relative_path.starts_with('/') {
             return Err(GatewayError::UnsafePath(relative_path.to_owned()));
         }
-        let url = self.url(&format!("/v1/bridge/plugins/{plugin_id}/{relative_path}"));
+        let url = self.url(&ApiPaths::bridge_plugin_file(plugin_id, relative_path));
         let started = Instant::now();
         let send = || {
             self.http()
@@ -187,7 +188,10 @@ impl GatewayClient {
         refresh: bool,
     ) -> Result<ReleaseManifest, GatewayError> {
         let refresh = if refresh { "&refresh=true" } else { "" };
-        let url = self.url(&format!("/v1/bridge/latest?platform={platform}{refresh}"));
+        let url = self.url(&format!(
+            "{}?platform={platform}{refresh}",
+            ApiPaths::BRIDGE_LATEST
+        ));
         let started = Instant::now();
         let resp = self
             .http()

@@ -134,6 +134,9 @@ scripts/*
 !scripts/lint-schema.sh
 !scripts/lint-extensions.sh
 !scripts/lint-raw-ids.sh
+!scripts/lint-host-ids.sh
+!scripts/lint-header-literals.sh
+!scripts/lint-path-literals.sh
 !scripts/lint-authoritative-reads.sh
 !scripts/lint-field-copy-from.py
 !scripts/check-sqlx.sh
@@ -159,6 +162,13 @@ scripts/*
 # per-crate sqlx cache audit, and the native bridge test build shared with
 # quality.yml's bridge-native job.
 !scripts/lint-env-vars.sh
+!scripts/lint-core-globals.sh
+!scripts/core-globals-allowlist.txt
+!scripts/lint-serde-aliases.sh
+!scripts/serde-aliases-allowlist.txt
+!scripts/repo-construction-allowlist.txt
+!scripts/sqlx-allowlist.txt
+!scripts/test-gate-roots.py
 !scripts/env-var-allowlist.txt
 !scripts/lint-native-test-deps.sh
 !scripts/bridge-native-crates.txt
@@ -203,6 +213,8 @@ rustc-ice-*.txt
 !scripts/lint-json-value.sh
 !scripts/lint-tracing-messages.sh
 !scripts/lint-table-ownership.sh
+!scripts/table-ownership-reads.txt
+!scripts/sql-vocabularies.txt
 !scripts/lint-swallowed-errors.sh
 !scripts/lint-bridge-typed-warnings.sh
 !scripts/rust-contracts/

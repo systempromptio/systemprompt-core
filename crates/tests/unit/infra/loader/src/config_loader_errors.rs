@@ -118,7 +118,7 @@ fn duplicate_mcp_server_in_include_errors() {
 agents: {}
 mcp_servers:
   clash_mcp:
-    type: internal
+    server_type: internal
     binary: clash-bin
     package: clash
     port: 5001
@@ -139,7 +139,7 @@ includes:
 agents: {}
 mcp_servers:
   clash_mcp:
-    type: internal
+    server_type: internal
     binary: clash-bin-2
     package: clash
     port: 5002

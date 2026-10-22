@@ -37,10 +37,9 @@ impl SecurityRepository {
         let rows = sqlx::query!(
             r#"
             SELECT ip_address, COUNT(*) as session_count
-            FROM user_sessions
+            FROM v_clean_traffic
             WHERE started_at >= NOW() - INTERVAL '24 hours'
               AND ip_address IS NOT NULL
-              AND is_bot = false
             GROUP BY ip_address
             HAVING COUNT(*) >= $1
             "#,

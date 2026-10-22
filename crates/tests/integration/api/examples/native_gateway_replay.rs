@@ -241,7 +241,7 @@ async fn replay() -> Result<()> {
     let background = BackgroundTasks::new();
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
-        systemprompt_config::SecretsBootstrap::get()?,
+        systemprompt_config::SecretsBootstrap::encryption_master_key()?,
     )?;
     let repos = GatewayRepositories::new(
         &db,
@@ -371,6 +371,7 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
                     },
                 ),
             )
@@ -429,6 +430,7 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
                     },
                 ),
             )

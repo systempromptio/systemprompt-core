@@ -56,6 +56,7 @@ pub mod analytics_events;
 pub mod auth;
 pub mod content;
 pub use content::{ContentCatalogStats, DynContentCatalogStats};
+pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, TrafficClassTotals};
 pub mod context;
 pub mod context_provider;
 pub mod coordination;
@@ -74,6 +75,7 @@ pub use secret::ExtensionSecret;
 pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;
+pub mod traffic_class_counts;
 pub mod validation;
 pub mod validation_report;
 

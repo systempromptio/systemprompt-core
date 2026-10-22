@@ -5,6 +5,7 @@ use systemprompt_models::mcp::deployment::ConnectorConfig;
 use systemprompt_security::connector_grant::{
     AppJwtClaims, ConnectorGrantError, MachineGrant, app_jwt_claims,
 };
+use systemprompt_security::credential::TokenCache;
 use wiremock::matchers::{body_string_contains, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -105,8 +106,15 @@ async fn client_credentials_mints_once_and_caches() {
     ));
     let grant = MachineGrant::resolve("jira", &c, secrets).expect("resolves");
     let key = format!("connector-test:{}", server.uri());
-    assert_eq!(grant.token(&key).await.expect("mints"), "machine-token");
-    assert_eq!(grant.token(&key).await.expect("cached"), "machine-token");
+    let tokens = TokenCache::new();
+    assert_eq!(
+        grant.token(&tokens, &key).await.expect("mints"),
+        "machine-token"
+    );
+    assert_eq!(
+        grant.token(&tokens, &key).await.expect("cached"),
+        "machine-token"
+    );
 }
 
 #[tokio::test]
@@ -117,7 +125,7 @@ async fn an_api_token_answers_a_basic_header_without_an_exchange() {
     };
     assert_eq!(
         grant
-            .authorization("connector-test:api-token")
+            .authorization(&TokenCache::new(), "connector-test:api-token")
             .await
             .expect("encodes"),
         "Basic Ym90QGV4YW1wbGUuY29tOnRvaw=="
@@ -143,8 +151,9 @@ async fn a_minted_grant_answers_a_bearer_header() {
         scopes: Vec::new(),
     };
     let key = format!("connector-test:bearer:{}", server.uri());
+    let tokens = TokenCache::new();
     assert_eq!(
-        grant.authorization(&key).await.expect("mints"),
+        grant.authorization(&tokens, &key).await.expect("mints"),
         "Bearer minted"
     );
 }
@@ -229,7 +238,8 @@ async fn client_credentials_send_scopes_space_separated() {
         scopes: vec!["read".to_owned(), "write".to_owned()],
     };
     let key = format!("connector-test:scopes:{}", server.uri());
-    assert_eq!(grant.token(&key).await.expect("mints"), "scoped");
+    let tokens = TokenCache::new();
+    assert_eq!(grant.token(&tokens, &key).await.expect("mints"), "scoped");
 }
 
 #[tokio::test]
@@ -247,7 +257,10 @@ async fn an_unreadable_token_response_is_a_credential_error() {
         scopes: Vec::new(),
     };
     let err = grant
-        .token(&format!("connector-test:garbled:{}", server.uri()))
+        .token(
+            &TokenCache::new(),
+            &format!("connector-test:garbled:{}", server.uri()),
+        )
         .await
         .expect_err("garbled body");
     assert!(matches!(err, ConnectorGrantError::Credential(_)), "{err}");
@@ -284,8 +297,9 @@ async fn an_app_installation_signs_a_jwt_and_reads_the_installation_token() {
     let grant = MachineGrant::resolve("github", &c, |name| (name == "pem").then(|| pem.clone()))
         .expect("resolves");
     let key = format!("connector-test:app:{}", server.uri());
+    let tokens = TokenCache::new();
     assert_eq!(
-        grant.authorization(&key).await.expect("mints"),
+        grant.authorization(&tokens, &key).await.expect("mints"),
         "Bearer ghs_inst"
     );
 }
@@ -298,7 +312,7 @@ async fn an_unusable_private_key_fails_before_any_request() {
         private_key_pem: "not a pem".to_owned(),
     };
     let err = grant
-        .token("connector-test:bad-pem")
+        .token(&TokenCache::new(), "connector-test:bad-pem")
         .await
         .expect_err("key refused");
     assert!(matches!(err, ConnectorGrantError::Credential(_)), "{err}");

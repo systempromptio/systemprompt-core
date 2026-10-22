@@ -86,7 +86,7 @@ async fn enforce_deletes_rows_past_their_window_and_keeps_fresh_ones() {
 }
 
 #[tokio::test]
-async fn without_enforce_an_expired_row_is_only_counted() {
+async fn without_enforce_an_expired_row_is_kept() {
     let url = test_database_url();
     let pool = test_db_pool().await;
     let pg = pool.write_pool();

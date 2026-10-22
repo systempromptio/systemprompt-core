@@ -67,11 +67,12 @@ impl DurableOutbox {
         Self { pool, instance_id }
     }
 
-    pub async fn prune_processed_before(
+    pub async fn purge_processed_before(
         &self,
         cutoff: chrono::DateTime<chrono::Utc>,
+        batch: i64,
     ) -> Result<u64, sqlx::Error> {
-        DurableOutboxRepository::prune_processed(&self.pool, cutoff).await
+        DurableOutboxRepository::purge_processed_before(&self.pool, cutoff, batch).await
     }
 
     pub async fn append<T: Serialize + Sync>(

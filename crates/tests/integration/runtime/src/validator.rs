@@ -8,12 +8,13 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use systemprompt_files::FilesConfigValidator;
 use systemprompt_logging::set_startup_mode;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::profile::{
     ContentNegotiationConfig, RateLimitsConfig, SecurityHeadersConfig,
 };
-use systemprompt_runtime::{FilesConfigValidator, StartupValidator};
+use systemprompt_runtime::StartupValidator;
 
 static STARTUP_MODE_LOCK: Mutex<()> = Mutex::new(());
 

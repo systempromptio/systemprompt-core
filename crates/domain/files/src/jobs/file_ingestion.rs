@@ -14,10 +14,10 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use std::path::Path;
+use std::sync::Arc;
 use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::FileId;
-use systemprompt_provider_contracts::ProviderError;
 use systemprompt_traits::{Job, JobContext, JobResult, JobScope, ProviderResult};
 use walkdir::WalkDir;
 
@@ -77,10 +77,7 @@ impl Job for FileIngestionJob {
 
         let db_pool = ctx.get::<DbPool>()?;
 
-        let files_config = FilesConfig::get().map_err(|e| ProviderError::ConfigurationLoad {
-            context: "files config".to_owned(),
-            source: Box::new(e),
-        })?;
+        let files_config = ctx.get::<Arc<FilesConfig>>()?;
         let images_dir = files_config.storage();
 
         if !images_dir.exists() {

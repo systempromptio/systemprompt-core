@@ -15,7 +15,6 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use crate::policies::RouteSelectorEngine;
 use systemprompt_ai::UpstreamCall;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_manifest::services::{
@@ -25,7 +24,7 @@ use systemprompt_models::attribution::RequestAttribution;
 
 use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
-use super::super::registry::GatewayUpstreamRegistry;
+use super::super::registry::GatewayEngines;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
 use super::credentials::{BillingSource, KeyOwner};
 use super::route_match::{describe_route_match, enforce_route_requirements};
@@ -35,7 +34,7 @@ pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Cow<'a, GatewayRoute>,
     pub(super) provider: &'a ProviderEntry,
     pub(super) call: UpstreamCall,
-    pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
+    pub(super) adapter: Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<GatewayRoute>,
     pub(super) scoped: bool,
@@ -53,6 +52,7 @@ pub(super) struct UpstreamQuery<'r> {
 pub(super) async fn resolve_upstream<'a>(
     config: &'a GatewayConfig,
     registry: &'a ProviderRegistry,
+    engines: &GatewayEngines,
     query: UpstreamQuery<'_>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let UpstreamQuery {
@@ -73,7 +73,7 @@ pub(super) async fn resolve_upstream<'a>(
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-    let (route, selector) = refine_route(matched, request).await;
+    let (route, selector) = refine_route(engines, matched, request).await;
 
     let selection = route.chain_for(attribution);
     if let ChainSelection::Unmapped { dimension, value } = selection {
@@ -104,6 +104,7 @@ pub(super) async fn resolve_upstream<'a>(
     };
     let mut bound = bind_route(
         registry,
+        engines,
         Cow::Owned(primary),
         BindTarget {
             requested_model: request.model.as_str(),
@@ -139,10 +140,11 @@ fn ensure_model_exposed(
 }
 
 async fn refine_route<'a>(
+    engines: &GatewayEngines,
     matched: Cow<'a, GatewayRoute>,
     request: &CanonicalRequest,
 ) -> (Cow<'a, GatewayRoute>, Option<String>) {
-    let engine = RouteSelectorEngine::global();
+    let engine = &engines.route_selector;
     if !engine.has_selectors() {
         return (matched, None);
     }
@@ -189,6 +191,7 @@ fn join_segments(first: Option<String>, second: Option<String>) -> Option<String
 pub(super) struct DeploymentHop<'h> {
     pub(super) index: usize,
     pub(super) hops: &'h [String],
+    pub(super) engines: &'h GatewayEngines,
 }
 
 pub(super) async fn resolve_deployment_upstream<'a>(
@@ -221,6 +224,7 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     });
     bind_route(
         registry,
+        hop.engines,
         Cow::Owned(view),
         BindTarget {
             requested_model,
@@ -241,6 +245,7 @@ struct BindTarget<'r> {
 
 async fn bind_route<'a>(
     registry: &'a ProviderRegistry,
+    engines: &GatewayEngines,
     route: Cow<'a, GatewayRoute>,
     target: BindTarget<'_>,
     route_match_descriptor: Option<String>,
@@ -261,8 +266,10 @@ async fn bind_route<'a>(
 
     let (call, billing) = super::credentials::resolve(provider, &owner).await?;
 
-    let adapter = GatewayUpstreamRegistry::global()
+    let adapter = engines
+        .upstream_registry
         .get(provider.wire.as_tag())
+        .map(Arc::clone)
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {
                 wire: provider.wire.as_tag().to_owned(),

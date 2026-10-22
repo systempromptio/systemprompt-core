@@ -46,7 +46,7 @@ impl CaptureOutcome {
 }
 
 pub async fn capture_host(host: HostKind, ctx: &HostSyncCtx<'_>) -> Result<CaptureOutcome> {
-    let kind = crate::feedback::client_kind(host.as_str()).ok_or(FeedbackError::Scope)?;
+    let kind = systemprompt_models::feedback::EvaluatorClient::from(host);
     let skills: Vec<_> = ctx
         .manifest
         .skills

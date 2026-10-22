@@ -45,7 +45,7 @@ pub(crate) fn unreadable_env(error: ProfileFactsError) -> ProbeEnv {
 }
 
 pub(crate) fn inputs_for(host: &dyn HostApp) -> ProfileGenInputs {
-    facts().inputs_for(host.id(), host.accepted_surfaces())
+    facts().inputs_for(host.profile_identity(), host.accepted_surfaces())
 }
 
 pub(crate) fn host_token(host: systemprompt_models::bridge::host::HostKind) -> String {

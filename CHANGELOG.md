@@ -1,6 +1,77 @@
 # Changelog
 
-## [Unreleased]
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
+- **Breaking:** `systemprompt_extension::ExtensionContext` gains the required method `background_tasks(&self) -> BackgroundTasks`. Migrate by returning a clone of the process's `BackgroundTasks` owner (`AppContext` implements it); a fresh `BackgroundTasks::new()` is only for stubs.
+- **Breaking:** `GatewayJournal::open(state_dir, key: [u8; 32])` takes the decoded master key; `GatewayAuditError::MissingJournalKey` and `GatewayAuditError::JournalKey` are removed. Migrate by passing `SecretsBootstrap::encryption_master_key()?`.
+- **Breaking:** `TrafficAnalyticsRepository::new(db, traffic_counts: DynTrafficClassCounts)` takes the users-owned counter, and `get_bot_totals` reads it over whole hour buckets. Migrate by passing `Arc::new(SessionTrafficRollupRepository::new(db))`.
+- **Breaking:** `systemprompt_traits::SessionStore` drops `mark_as_behavioral_bot(&str)` and gains `mark_ghost_sessions_as_bots()` and `mark_no_js_sessions_as_bots(&[SessionId])`. Migrate by implementing the two sweep methods; a typed `SessionRepository::mark_as_behavioral_bot(BehavioralBotReason)` remains on the concrete repository.
+- **Breaking:** `systemprompt_models::bridge::host::HostKind` has seven ids: `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`. `codex` and `opencode` name the desktop apps, `codex-cli` and `opencode-cli` the command-line tools. `HostKind::kind()` gives the packaging (`HostAppKind`) and `HostKind::product()` the product (`HostProduct`). Migrate host rules, enabled-host preferences and `hosts:` lists that mean the OpenCode CLI to `opencode-cli` and those that mean the Codex app to `codex`.
+- **Breaking:** `SignedManifest::enabled_hosts` is `Vec<HostKind>` and `host_model_protocols` is `BTreeMap<HostKind, Vec<String>>`; a manifest naming an unknown host id fails to deserialise, and an empty `enabled_hosts` enables no host. The gateway and the bridge ship together.
+- **Breaking:** `ClientKind::from_bridge_host_id` and `ClientKind::bridge_host_id` are removed. Migrate by `ClientKind::from(host)` and `ClientKind::hosts()`.
+- **Breaking:** `EvaluatorClient::accepts_host_name(&str)` and the `opencode` serde alias are removed. Migrate by `EvaluatorClient::accepts(HostKind)` or `EvaluatorClient::from(HostKind)`.
+- **Breaking:** `ExecutionSource::from_hook_host` takes a `HostKind`.
+- **Breaking:** `systemprompt_agent_runs::HostKind` is the shared `systemprompt_models::bridge::host::HostKind`; `AgentRunsError::UnknownHost` is removed, and a desktop packaging (`claude-desktop`, `codex`, `opencode`) is `Execution::Unsupported`. The `agent_runs.host` column is constrained to the CLI ids and rows queued as `opencode` move to `opencode-cli` (migration `001_agent_runs_host_cli_ids`).
+- **Breaking:** `bridge_user_host_prefs.host_id` and `bridge_user_host_model_prefs.host_id` are constrained to the seven ids (migration `021_bridge_host_prefs_host_check`); rows naming any other id are dropped, and existing `opencode` rows keep their meaning: the id names the desktop app, so a CLI user enables `opencode-cli` from the host toggle.
+- **Breaking:** the loopback proxy's rejection response no longer carries `x-systemprompt-bridge-install` or `x-systemprompt-bridge-config-dir`; `x-systemprompt-bridge-reason` stays (`systemprompt_bridge::headers::REJECTION_REASON`).
+- **Breaking:** **Bridge:** `proxy::forward::route` is public with `resolve_route`, `RouteResolution` and `Route`; `proxy::credential::classify_path` and `hook_plugin_id` are public; `feedback::sessions::OPENCODE_SESSION_HEADER` is removed in favour of `systemprompt_identifiers::headers::OPENCODE_SESSION`; `proxy::forward::headers::stamp_attestation` returns `()`. A loopback request to `/mcp` with no server slug resolves to `UnknownMcp` instead of being forwarded to the gateway.
+- **Breaking:** **Bridge:** `HostAppKind` is `systemprompt_models::bridge::host::HostAppKind` with `DesktopApp` and `CliTool` only; `HostApp::kind()` derives from the host id. `integration::codex_cli` is `integration::codex` with `CODEX_APP_HOST`, `CODEX_CLI_HOST` and `CodexSync`; `integration::opencode` exposes `OPENCODE_APP_HOST` and `OPENCODE_CLI_HOST`, and `install_state` is removed. `HostSync::serves` lets one emitter serve every packaging of a product. `enrol::remove_host_profiles` takes the enabled host list, and `ProfileRemoval::RetainedForSibling` / `enrol::Outcome::RetainedForSibling` report a shared config kept for the other packaging. `sysproc::find_processes` returns `ProcessHit`s carrying their packaging.
+- **Breaking:** `systemprompt_files::FilesConfig::{init, get, get_optional}` are removed; the context owns the value. Migrate by reading `AppContext::files_config()` (jobs take `Arc<FilesConfig>` from `JobContext`), building one with `FilesConfig::from_profile` or `FilesConfig::new` at a composition root, and passing it to `FilesAiPersistenceProvider::new`.
+- **Breaking:** `FilesConfig::ensure_storage_structure` returns `Result<(), FilesError>` (`FilesError::StorageDir` names the directory) and runs as a builder step; `FilesConfig::validate` no longer touches the filesystem. `systemprompt_runtime::FilesConfigValidator` is removed. Migrate by using `systemprompt_files::FilesConfigValidator` (priority 10).
+- **Breaking:** `systemprompt_events::{CONTEXT_BROADCASTER, AGUI_BROADCASTER, A2A_BROADCASTER, ANALYTICS_BROADCASTER}` are removed in favour of `EventBroadcasters`, built once and shared. `EventRouter::local_only`, `EventRouter::with_outbox` and `PostgresEventBridge::new` take the `Arc<EventBroadcasters>`; the `route_*_local` functions are methods; `ConnectionGuard::new` takes an `Arc<GenericBroadcaster<E>>`. Migrate by reading `AppContext::event_broadcasters()`.
+- **Breaking:** `systemprompt_api::services::server::readiness` is a `ReadinessState` value owned by the server (`EarlyServer::readiness()`); the free functions `init_readiness`, `get_readiness_receiver`, `is_ready`, `signal_ready`, `signal_shutdown` and `wait_for_ready` are removed. `setup_api_server`, `join_within_drain_grace` and `serve_metrics_listener` take it; `metrics_router` and `handle_metrics` take a `MetricsState`.
+- **Breaking:** `systemprompt_security::credential::TokenCache` is a value: `google::access_token`, `MachineGrant::{token, authorization}` and `connector_grant::machine_token` take a `&TokenCache`. `McpClient` is constructed with `McpClient::new(Arc<TokenCache>)` and its operations are methods; `McpToolProvider::new` and `ProxyEngine::new` take the shared cache (`AppContext::connector_tokens()`).
+- **Breaking:** `systemprompt_extension::runtime_config::{set_injected_extensions, get_injected_extensions, get_web_assets_strategy}` are removed. Migrate by passing the `InjectedExtensions` value to `ExtensionRegistry::discover_with`.
+- **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
+- **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
+- **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
+
+### Added
+
+- `systemprompt_models::analytics::BehavioralBotReason`: the one vocabulary for `user_sessions.behavioral_bot_reason`, carrying each reason's score.
+- `SecretsBootstrap::encryption_master_key() -> Result<[u8; 32], SecretsBootstrapError>` beside `oauth_at_rest_pepper()`, the one decoder of the `encryption_master_key` secret for callers.
+- `session_traffic_rollup_hourly` (migration `users/027`): sessions per hour and traffic class (`human`, `ghost`, `bot`), kept current by statement triggers on `user_sessions` and on `users.status`, excluding deleted users' sessions; `SessionTrafficRollupRepository` implements the new `systemprompt_traits::TrafficClassCounts`, and `TrafficClass` in `systemprompt_models::analytics` is its vocabulary.
+- SQL function `is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)`; `v_clean_traffic` and `v_engaged_traffic` are defined over it, and every aggregate human-traffic filter calls it.
+- **Bridge:** Codex and OpenCode each install as two hosts, the desktop app and the CLI, over one shared configuration tree written once. The app host is detected by its bundle or installer folder and can be launched; the CLI host by the binary on `PATH`. Removing one packaging keeps the shared configuration while the other remains enabled.
+- `lint-host-ids`: a bridge host id literal outside `HostKind` and the web mirror `host-ids.js` fails the gate.
+- `systemprompt_identifiers::headers::{API_KEY, OPENCODE_SESSION}`; `ApiPaths` gains the bridge-facing paths (`BRIDGE_*`, `BRIDGE_AUTH_*`, `BRIDGE_PERSONAL_KEYS`, `OTEL`, `MCP`, `PUBLIC_HOOKS*`, `CONSUMER_*`) with `is_otel`, `is_mcp`, `is_public_hook`, `mcp_server_slug`, `gateway_relative`, `api_v1_relative` and the URL builders; the gateway registers its routes from them and the bridge classifies every loopback route once through `classify_route`.
+- `lint-header-literals` and `lint-path-literals`: a hand-spelled systemprompt header name or bridge-facing gateway path fails the gate.
+- `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
+- Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
+
+### Changed
+
+- The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
+- The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
+- `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
+- **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
+
+### Removed
+
+- `LoggingRepository::cleanup_old_logs` and `DurableOutbox::prune_processed_before`. Migrate by calling `purge_before(cutoff, batch)` / `purge_processed_before(cutoff, batch)` in a loop until a batch comes back short.
+- `SchedulerError::UnknownRetentionTable`; the retention plan is the `RetentionTarget` enum.
+
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- **Breaking:** `systemprompt_files::FilesConfig::{init, get, get_optional}` are removed; the context owns the value. Migrate by reading `AppContext::files_config()` (jobs take `Arc<FilesConfig>` from `JobContext`), building one with `FilesConfig::from_profile` or `FilesConfig::new` at a composition root, and passing it to `FilesAiPersistenceProvider::new`.
+- **Breaking:** `FilesConfig::ensure_storage_structure` returns `Result<(), FilesError>` (`FilesError::StorageDir` names the directory) and runs as a builder step; `FilesConfig::validate` no longer touches the filesystem. `systemprompt_runtime::FilesConfigValidator` is removed. Migrate by using `systemprompt_files::FilesConfigValidator` (priority 10).
+- **Breaking:** `systemprompt_events::{CONTEXT_BROADCASTER, AGUI_BROADCASTER, A2A_BROADCASTER, ANALYTICS_BROADCASTER}` are removed in favour of `EventBroadcasters`, built once and shared. `EventRouter::local_only`, `EventRouter::with_outbox` and `PostgresEventBridge::new` take the `Arc<EventBroadcasters>`; the `route_*_local` functions are methods; `ConnectionGuard::new` takes an `Arc<GenericBroadcaster<E>>`. Migrate by reading `AppContext::event_broadcasters()`.
+- **Breaking:** `systemprompt_api::services::server::readiness` is a `ReadinessState` value owned by the server (`EarlyServer::readiness()`); the free functions `init_readiness`, `get_readiness_receiver`, `is_ready`, `signal_ready`, `signal_shutdown` and `wait_for_ready` are removed. `setup_api_server`, `join_within_drain_grace` and `serve_metrics_listener` take it; `metrics_router` and `handle_metrics` take a `MetricsState`.
+- **Breaking:** `systemprompt_security::credential::TokenCache` is a value: `google::access_token`, `MachineGrant::{token, authorization}` and `connector_grant::machine_token` take a `&TokenCache`. `McpClient` is constructed with `McpClient::new(Arc<TokenCache>)` and its operations are methods; `McpToolProvider::new` and `ProxyEngine::new` take the shared cache (`AppContext::connector_tokens()`).
+- **Breaking:** `systemprompt_extension::runtime_config::{set_injected_extensions, get_injected_extensions, get_web_assets_strategy}` are removed. Migrate by passing the `InjectedExtensions` value to `ExtensionRegistry::discover_with`.
+- **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
+- **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
+- **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
+
+### Added
+
+- `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
+- Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
 
 ### Fixed
 
@@ -9,6 +80,7 @@
 - **AI:** personal-key verification probes every endpoint the key will be sent to, including `credential_from` siblings.
 - **AI:** entries sharing one personal credential share one cached token instead of minting separately.
 - **Governance:** deny messages name `services/access-control/rules.yaml`.
+
 
 ## [0.72.1] - 2026-10-22
 

@@ -3,10 +3,9 @@
 //! Each test builds its own [`EventRouter`] over the pool it needs (live,
 //! closed, or none), so no test depends on what another installed.
 
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_events::{
-    ANALYTICS_BROADCASTER, Broadcaster, EventRouter, RelayError, RelayOutcome,
-};
+use systemprompt_events::{Broadcaster, EventBroadcasters, EventRouter, RelayError, RelayOutcome};
 use systemprompt_identifiers::{ConnectionId, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
 use systemprompt_test_fixtures::{closed_db_pool, test_db_pool, unique_instance, unique_user_id};
@@ -40,10 +39,11 @@ async fn cleanup(pool: &sqlx::PgPool, user: &UserId) {
 
 #[tokio::test]
 async fn local_only_router_reports_not_installed_and_writes_no_row() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let pool = fixture_pool().await;
     let user = unique_user_id("relay-local-only");
 
-    let outcome = EventRouter::local_only()
+    let outcome = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user, AnalyticsEventBuilder::heartbeat())
         .await;
 
@@ -63,12 +63,21 @@ async fn local_only_router_reports_not_installed_and_writes_no_row() {
 
 #[tokio::test]
 async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let pool = fixture_pool().await;
     let user = unique_user_id("relay-two-routers");
     let first_instance = unique_instance();
     let second_instance = unique_instance();
-    let first = EventRouter::with_outbox(pool.clone(), first_instance.clone());
-    let second = EventRouter::with_outbox(pool.clone(), second_instance.clone());
+    let first = EventRouter::with_outbox(
+        pool.clone(),
+        first_instance.clone(),
+        Arc::clone(&broadcasters),
+    );
+    let second = EventRouter::with_outbox(
+        pool.clone(),
+        second_instance.clone(),
+        Arc::clone(&broadcasters),
+    );
 
     let first_outcome = first
         .route_analytics(&user, AnalyticsEventBuilder::heartbeat())
@@ -111,20 +120,21 @@ async fn routers_over_one_pool_each_persist_exactly_their_own_row() {
 
 #[tokio::test]
 async fn outbox_insert_failure_does_not_block_local_delivery() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let db = closed_db_pool().await;
     let closed = (*db.pool()).clone();
-    let router = EventRouter::with_outbox(closed, unique_instance());
+    let router = EventRouter::with_outbox(closed, unique_instance(), Arc::clone(&broadcasters));
 
     let user = unique_user_id("relay-insert-fail");
     let conn = ConnectionId::new("relay-insert-fail-conn");
     let (tx, mut rx) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
-    ANALYTICS_BROADCASTER.register(&user, &conn, tx).await;
+    broadcasters.analytics.register(&user, &conn, tx).await;
 
     let outcome = router
         .route_analytics(&user, AnalyticsEventBuilder::heartbeat())
         .await;
 
-    ANALYTICS_BROADCASTER.unregister(&user, &conn).await;
+    broadcasters.analytics.unregister(&user, &conn).await;
 
     assert!(
         matches!(

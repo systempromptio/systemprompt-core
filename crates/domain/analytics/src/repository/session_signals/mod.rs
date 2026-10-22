@@ -23,6 +23,8 @@ use systemprompt_traits::{DynAnalyticsEventStore, DynContentCatalogStats, DynSes
 
 use crate::{AnalyticsError, Result};
 
+const NO_JS_WINDOW_HOURS: i64 = 25;
+
 #[derive(Clone)]
 pub struct SessionSignalsRepository {
     write_pool: Arc<PgPool>,
@@ -73,6 +75,26 @@ impl SessionSignalsRepository {
     pub async fn has_analytics_events(&self, session_id: &SessionId) -> Result<bool> {
         self.events
             .has_analytics_events(session_id)
+            .await
+            .map_err(AnalyticsError::from)
+    }
+
+    pub async fn mark_ghost_sessions_as_bots(&self) -> Result<u64> {
+        self.owner
+            .mark_ghost_sessions_as_bots()
+            .await
+            .map_err(AnalyticsError::from)
+    }
+
+    // Why: the owner judges sessions started in the last day, so engagement is
+    // read over a slightly wider window; a session engaged before its own
+    // start is impossible, so widening never excludes a true candidate.
+    pub async fn mark_no_js_sessions_as_bots(&self) -> Result<u64> {
+        let engaged =
+            engagement_queries::engaged_session_ids_since(&self.write_pool, NO_JS_WINDOW_HOURS)
+                .await?;
+        self.owner
+            .mark_no_js_sessions_as_bots(&engaged)
             .await
             .map_err(AnalyticsError::from)
     }

@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileRemoval, ProfileState};
-use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_bridge::integration::opencode::OPENCODE_CLI_HOST as OPENCODE_HOST;
 use tempfile::TempDir;
 
 use crate::support::{inputs_for, probe_env};

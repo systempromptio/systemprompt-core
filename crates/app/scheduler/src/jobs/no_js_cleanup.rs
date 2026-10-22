@@ -5,11 +5,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::info;
 
-use crate::repository::AnalyticsRepository;
+use crate::error::SchedulerError;
+use crate::services::scheduling::job_app_context;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NoJsCleanupJob;
@@ -31,10 +31,12 @@ impl Job for NoJsCleanupJob {
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let start_time = std::time::Instant::now();
 
-        let analytics = AnalyticsRepository::new(ctx.get::<DbPool>()?);
-        let result = analytics.mark_no_js_sessions_as_bots().await?;
-
-        let marked = result as u64;
+        let marked = job_app_context(ctx)?
+            .analytics_repositories()
+            .session_signals
+            .mark_no_js_sessions_as_bots()
+            .await
+            .map_err(SchedulerError::from)?;
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
         if marked > 0 {
