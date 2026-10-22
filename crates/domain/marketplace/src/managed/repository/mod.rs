@@ -21,11 +21,13 @@ use systemprompt_identifiers::{
 
 use super::{DependencyRef, RevisionFiles};
 use crate::catalog::VerifiedRevisions;
+use systemprompt_loader::bundle::BaseTreeHashMemo;
 
 #[derive(Debug, Clone)]
 pub struct ManagedRepository {
     pub(crate) pool: PgPool,
     verified: Arc<VerifiedRevisions>,
+    tree_hash: Arc<BaseTreeHashMemo>,
 }
 
 impl ManagedRepository {
@@ -35,7 +37,12 @@ impl ManagedRepository {
         Self {
             pool: db.write_pool().as_ref().clone(),
             verified: Arc::new(VerifiedRevisions::default()),
+            tree_hash: Arc::new(BaseTreeHashMemo::new()),
         }
+    }
+
+    pub(crate) fn base_tree_hash_memo(&self) -> &BaseTreeHashMemo {
+        &self.tree_hash
     }
 
     pub(crate) fn verified_revisions(&self) -> &VerifiedRevisions {

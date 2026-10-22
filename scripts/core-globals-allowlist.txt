@@ -44,7 +44,6 @@ crates/infra/logging/src/services/output/mod.rs:STARTUP_MODE — debt: CLI outpu
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer
-crates/infra/loader/src/bundle/provenance.rs:CACHE — debt: tree-hash memo
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key

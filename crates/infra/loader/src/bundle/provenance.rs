@@ -14,7 +14,7 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, PoisonError};
 use std::time::SystemTime;
 
 use serde::{Deserialize, Serialize};
@@ -47,8 +47,22 @@ pub struct SourcesProvenance {
     pub bundles: Vec<BundleProvenance>,
 }
 
+/// Memo of the base services tree hash, owned by whoever records provenance
+/// repeatedly and handed to [`sources_provenance`].
+#[derive(Debug, Default)]
+pub struct BaseTreeHashMemo {
+    last: Mutex<Option<(Fingerprint, String)>>,
+}
+
+impl BaseTreeHashMemo {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[must_use]
-pub fn sources_provenance() -> SourcesProvenance {
+pub fn sources_provenance(memo: &BaseTreeHashMemo) -> SourcesProvenance {
     let profile = match ProfileBootstrap::get() {
         Ok(profile) => profile,
         Err(error) => {
@@ -85,7 +99,7 @@ pub fn sources_provenance() -> SourcesProvenance {
             }
         })
         .collect();
-    let base = base_tree_hash(Path::new(&profile.paths.services));
+    let base = base_tree_hash(memo, Path::new(&profile.paths.services));
     SourcesProvenance {
         // Why: with no bundles pinned no boot records a composed hash; the
         // composition is the base tree alone.
@@ -145,12 +159,13 @@ fn active_composed_hash() -> Option<String> {
 // newest mtime or file count moves — a publish or a deploy, not a pass.
 type Fingerprint = (SystemTime, usize);
 
-fn base_tree_hash(root: &Path) -> Option<String> {
-    static CACHE: OnceLock<Mutex<Option<(Fingerprint, String)>>> = OnceLock::new();
+fn base_tree_hash(memo: &BaseTreeHashMemo, root: &Path) -> Option<String> {
     let fingerprint = tree_fingerprint(root)?;
-    let cache = CACHE.get_or_init(|| Mutex::new(None));
-    if let Ok(guard) = cache.lock()
-        && let Some((seen, hash)) = guard.as_ref()
+    if let Some((seen, hash)) = memo
+        .last
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .as_ref()
         && *seen == fingerprint
     {
         return Some(hash.clone());
@@ -163,12 +178,7 @@ fn base_tree_hash(root: &Path) -> Option<String> {
         },
     };
     let hash = ServicesBundleManifest::compute_content_hash(&files);
-    match cache.lock() {
-        Ok(mut guard) => *guard = Some((fingerprint, hash.clone())),
-        Err(error) => {
-            tracing::warn!(%error, "Base tree hash memo poisoned; recomputing on every pass");
-        },
-    }
+    *memo.last.lock().unwrap_or_else(PoisonError::into_inner) = Some((fingerprint, hash.clone()));
     Some(hash)
 }
 

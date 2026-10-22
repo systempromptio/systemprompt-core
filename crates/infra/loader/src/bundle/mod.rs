@@ -40,7 +40,7 @@ pub use compose::{BundleMember, compose, composed_hash};
 pub use error::{BundleError, BundleResult, VerifyFailure};
 pub use extract::{BUNDLE_TREE_PREFIX, ExtractOptions, TarLayout, extract_bytes, extract_tarball};
 pub use provenance::{
-    BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
+    BaseTreeHashMemo, BundleProvenance, SourcesProvenance, owning_bundle_hashes, sources_provenance,
 };
 pub use source::{AnyFetcher, BundleFetcher, FetchedBundle, RemoteRef};
 pub use verify::{verify_bundle, verify_extracted};
