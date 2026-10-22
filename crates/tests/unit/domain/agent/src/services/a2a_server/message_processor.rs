@@ -385,7 +385,7 @@ async fn partial_provider_stream_preserves_text_then_emits_one_error_without_com
     let errors = events
         .iter()
         .filter_map(|event| match event {
-            StreamEvent::Error(error) => Some(error.as_str()),
+            StreamEvent::Error(error) => Some(error.to_string()),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -543,7 +543,7 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
         .unwrap_or_else(|| panic!("intermediate synthesis missing: {events:?}"));
     let failed = events
         .iter()
-        .position(|event| matches!(event, StreamEvent::Error(error) if error.contains("stub generate failure")))
+        .position(|event| matches!(event, StreamEvent::Error(error) if error.to_string().contains("stub generate failure")))
         .unwrap_or_else(|| panic!("final synthesis failure missing: {events:?}"));
     assert!(
         initial < failed,

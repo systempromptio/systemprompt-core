@@ -19,7 +19,7 @@ pub use message_handler::HandleMessageParams;
 pub use persistence::PersistOutcome;
 pub use stream_processor::StreamProcessor;
 
-use crate::services::shared::Result;
+use crate::services::shared::{AgentServiceError, Result};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -49,7 +49,7 @@ pub enum StreamEvent {
         full_text: String,
         artifacts: Vec<Artifact>,
     },
-    Error(String),
+    Error(Arc<AgentServiceError>),
     Cancelled,
 }
 

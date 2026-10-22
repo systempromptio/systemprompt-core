@@ -148,6 +148,7 @@ async fn drain_events(
             },
             StreamEvent::Error(error) => {
                 text_state.finalize(ctx.message_id).await;
+                let error = error.to_string();
                 record_failure(ctx.task_repo, ctx.task_id, &error).await;
                 finish_failed(ctx, error, "STREAM_ERROR").await;
                 break;

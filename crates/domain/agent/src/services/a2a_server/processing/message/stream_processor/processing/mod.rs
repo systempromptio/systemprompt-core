@@ -123,7 +123,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         Err(AgentServiceError::StreamClosed) => {
             tracing::debug!("Stream receiver dropped; pipeline stopped");
         },
-        Err(e) => report_stream_error(&tx, e.to_string()).await,
+        Err(e) => report_stream_error(&tx, e).await,
     }
 }
 
@@ -194,8 +194,8 @@ async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Ar
     Ok((final_text, artifacts))
 }
 
-async fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
-    if tx.send(StreamEvent::Error(message)).await.is_err() {
+async fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, error: AgentServiceError) {
+    if tx.send(StreamEvent::Error(Arc::new(error))).await.is_err() {
         tracing::trace!("Failed to send error event, channel closed");
     }
 }
