@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            id as \"id!\",\n            task_id as \"task_id!: TaskId\",\n            message_id as \"message_id!: MessageId\",\n            client_message_id,\n            role as \"role!\",\n            context_id as \"context_id!: ContextId\",\n            user_id as \"user_id?: UserId\",\n            session_id as \"session_id?: SessionId\",\n            trace_id as \"trace_id?: TraceId\",\n            sequence_number as \"sequence_number!\",\n            created_at as \"created_at!\",\n            updated_at as \"updated_at!\",\n            metadata,\n            reference_task_ids\n        FROM task_messages WHERE task_id = ANY($1) ORDER BY task_id, sequence_number ASC",
+  "query": "SELECT\n            id as \"id!\",\n            task_id as \"task_id!: TaskId\",\n            message_id as \"message_id!: MessageId\",\n            client_message_id as \"client_message_id?: MessageId\",\n            role as \"role!\",\n            context_id as \"context_id!: ContextId\",\n            user_id as \"user_id?: UserId\",\n            session_id as \"session_id?: SessionId\",\n            trace_id as \"trace_id?: TraceId\",\n            sequence_number as \"sequence_number!\",\n            created_at as \"created_at!\",\n            updated_at as \"updated_at!\",\n            metadata,\n            reference_task_ids\n        FROM task_messages WHERE task_id = $1 ORDER BY sequence_number ASC",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "client_message_id",
+        "name": "client_message_id?: MessageId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -160,7 +160,7 @@
     ],
     "parameters": {
       "Left": [
-        "TextArray"
+        "Text"
       ]
     },
     "nullable": [
@@ -180,5 +180,5 @@
       true
     ]
   },
-  "hash": "ae4387f9f552528c44aebd0d0e7beb2a4ba62f1233b57eefe416b6bb11eb9c21"
+  "hash": "ea38aed517fac19af4e01bbb232351125942f6230c9e196a0972cf03f15614bc"
 }

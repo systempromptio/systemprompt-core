@@ -152,7 +152,7 @@ pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleN
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
 pub use oauth::{
     AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenFamilyId, RefreshTokenId,
-    SsoProviderId,
+    SsoProviderId, SsoRequestId,
 };
 pub use path::ValidatedFilePath;
 pub use plugin::PluginId;

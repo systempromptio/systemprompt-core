@@ -41,7 +41,7 @@ pub struct TaskMessage {
     pub id: i32,
     pub task_id: TaskId,
     pub message_id: MessageId,
-    pub client_message_id: Option<String>,
+    pub client_message_id: Option<MessageId>,
     pub role: String,
     pub context_id: ContextId,
     pub user_id: Option<UserId>,

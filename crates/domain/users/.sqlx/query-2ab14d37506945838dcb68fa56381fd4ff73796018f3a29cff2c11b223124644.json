@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT k.id, k.user_id, k.name, k.key_prefix, k.key_hash,\n                   k.created_at, k.last_used_at, k.expires_at, k.revoked_at,\n                   k.model_allowlist, k.budget_microdollars, k.max_requests,\n                   k.request_window_seconds, k.purpose,\n                   ARRAY(SELECT s.dimension FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_dimensions!\",\n                   ARRAY(SELECT s.value FROM user_api_key_scopes s\n                         WHERE s.key_id = k.id ORDER BY s.dimension) AS \"scope_values!\"\n            FROM user_api_keys k\n            WHERE k.key_prefix = $1\n              AND k.revoked_at IS NULL\n            ",
+  "query": "\n            INSERT INTO user_api_keys\n                (id, user_id, name, key_prefix, key_hash, expires_at,\n                 model_allowlist, budget_microdollars, max_requests, request_window_seconds,\n                 purpose)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n            RETURNING id, user_id as \"user_id: UserId\", name, key_prefix, key_hash,\n                      created_at, last_used_at, expires_at, revoked_at,\n                      model_allowlist, budget_microdollars, max_requests, request_window_seconds,\n                      purpose,\n                      ARRAY[]::TEXT[] AS \"scope_dimensions!\", ARRAY[]::TEXT[] AS \"scope_values!\"\n            ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id",
+        "name": "user_id: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -172,6 +172,16 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
+        "Varchar",
+        "Varchar",
+        "Text",
+        "Timestamptz",
+        "TextArray",
+        "Int8",
+        "Int4",
+        "Int4",
         "Text"
       ]
     },
@@ -194,5 +204,5 @@
       null
     ]
   },
-  "hash": "ab43bba18842b44f6e51ba631f52337a80c1df18382024efc29deedcbb1d6a6b"
+  "hash": "2ab14d37506945838dcb68fa56381fd4ff73796018f3a29cff2c11b223124644"
 }

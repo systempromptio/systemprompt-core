@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO user_device_certs (id, user_id, fingerprint, label)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id, user_id, fingerprint, label, enrolled_at, revoked_at\n            ",
+  "query": "\n            INSERT INTO user_device_certs (id, user_id, fingerprint, label)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id, user_id as \"user_id: UserId\", fingerprint, label, enrolled_at, revoked_at\n            ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id",
+        "name": "user_id: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -87,5 +87,5 @@
       true
     ]
   },
-  "hash": "09fdca6e9a36d360ddd6a550eeb8100abdb4a107a369b148e6bb31a9eb8bfc29"
+  "hash": "d2ef6b66186f53667c4f0e288d0a6b26556c3c78ca03409a630783140424e630"
 }

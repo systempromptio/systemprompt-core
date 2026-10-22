@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            id as \"id!\",\n            task_id as \"task_id!: TaskId\",\n            message_id as \"message_id!: MessageId\",\n            client_message_id,\n            role as \"role!\",\n            context_id as \"context_id!: ContextId\",\n            user_id as \"user_id?: UserId\",\n            session_id as \"session_id?: SessionId\",\n            trace_id as \"trace_id?: TraceId\",\n            sequence_number as \"sequence_number!\",\n            created_at as \"created_at!\",\n            updated_at as \"updated_at!\",\n            metadata,\n            reference_task_ids\n        FROM task_messages WHERE task_id = $1 ORDER BY sequence_number ASC",
+  "query": "SELECT\n            m.id as \"id!\",\n            m.task_id as \"task_id!: TaskId\",\n            m.message_id as \"message_id!: MessageId\",\n            m.client_message_id as \"client_message_id?: MessageId\",\n            m.role as \"role!\",\n            m.context_id as \"context_id!: ContextId\",\n            m.user_id as \"user_id?: UserId\",\n            m.session_id as \"session_id?: SessionId\",\n            m.trace_id as \"trace_id?: TraceId\",\n            m.sequence_number as \"sequence_number!\",\n            m.created_at as \"created_at!\",\n            m.updated_at as \"updated_at!\",\n            m.metadata,\n            m.reference_task_ids\n        FROM task_messages m\n        JOIN agent_tasks t ON m.task_id = t.task_id\n        WHERE t.context_id = $1\n        ORDER BY m.created_at ASC",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "client_message_id",
+        "name": "client_message_id?: MessageId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -180,5 +180,5 @@
       true
     ]
   },
-  "hash": "2e48ac01d9d14e790a2eef2e06c547d881c65d14e48b9af0ff02694276b5d208"
+  "hash": "e72f9c653cb41fd093ec743b5bc93a95be74107d6c9f0684bbcb48170f5e1c9d"
 }

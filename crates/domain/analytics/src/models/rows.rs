@@ -21,7 +21,7 @@ use super::reporting::{
 pub(crate) struct EngagementEventRow {
     pub id: EngagementEventId,
     pub session_id: SessionId,
-    pub user_id: String,
+    pub user_id: UserId,
     pub page_url: String,
     pub content_id: Option<ContentId>,
     pub event_type: String,
@@ -52,7 +52,7 @@ impl From<EngagementEventRow> for EngagementEvent {
         Self {
             id: row.id,
             session_id: row.session_id,
-            user_id: UserId::new(row.user_id),
+            user_id: row.user_id,
             page_url: row.page_url,
             content_id: row.content_id,
             event_type: row.event_type,
