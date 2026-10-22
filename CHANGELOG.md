@@ -4,6 +4,14 @@
 
 ### Breaking
 
+- **Breaking:** **Gateway:** a personal access token's principal carries its user's roles, groups and projects (every registered subject dimension), exactly as the same user's bridge JWT does. Calls that were 403 on role-gated routes with a PAT now succeed, and `access_scope` for a PAT is derived from those roles instead of `unknown`.
+- **Breaking:** **Gateway:** the session id is bound to the credential. A PAT request without a gateway-issued `x-session-id` lands on a session minted for and bound to the key; a client's own header (such as OpenCode's `ses_…`) is recorded as `ai_requests.client_session_id` and never rejected. A JWT request whose `x-session-id` differs from its `session_id` claim is 401; without the header the claim is used.
+- **Breaking:** **Bridge profile:** `GET /v1/bridge/profile` is 401 for a missing, invalid or stale bearer instead of returning an anonymous profile. Its model list is what dispatch would serve the caller: route-resolved (`resolve_route`), configured and entitled.
+- **Gateway:** the derived `x-opencode-session` follows the client's own session id when it sent one, so OpenCode sessions on one key are metered separately.
+- **Breaking:** **Governance:** `AuthzDecisionHook` gains a required `probe` that decides without writing an audit row.
+- **Bridge profile:** `organization_uuid` has one derivation, `TenantId::organization_uuid`.
+- **Breaking:** **Identifiers:** `ClientSessionId` is an opaque token (1–128 printable ASCII characters, no whitespace) instead of a lowercase hyphenated UUID, so a harness's own session id fits.
+
 - **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
 - **Breaking:** `systemprompt_extension::ExtensionContext` gains the required method `background_tasks(&self) -> BackgroundTasks`. Migrate by returning a clone of the process's `BackgroundTasks` owner (`AppContext` implements it); a fresh `BackgroundTasks::new()` is only for stubs.
 - **Breaking:** `GatewayJournal::open(state_dir, key: [u8; 32])` takes the decoded master key; `GatewayAuditError::MissingJournalKey` and `GatewayAuditError::JournalKey` are removed. Migrate by passing `SecretsBootstrap::encryption_master_key()?`.
@@ -47,6 +55,7 @@
 - **Migrations (lock footprint on a 100M-row `ai_requests`: none touch it):**
   - governance `026_access_control_change_provenance`: nullable `ADD COLUMN`s, ACCESS EXCLUSIVE on two small tables for milliseconds, no rewrite or scan.
   - ai `050_ai_gateway_policies_change_provenance`: nullable `ADD COLUMN`s (milliseconds), CHECK added `NOT VALID` then validated under SHARE UPDATE EXCLUSIVE over tens of rows.
+  - users `029_api_key_sessions`: one new empty table with a foreign key to `user_api_keys`; SHARE ROW EXCLUSIVE on `user_api_keys` for milliseconds, no scan; does not lock `user_sessions` or `ai_requests`.
   - scheduler `005_config_plane_last_apply`: nullable `ADD COLUMN`s on the one-row-per-plane table.
 - `ai_request_messages(created_at)` and a partial `ai_request_payloads(created_at) WHERE request_body IS NOT NULL OR response_body IS NOT NULL` index (migration `ai/049`, built `CONCURRENTLY`): each retention batch reaches its rows through an index and the payload pass skips bodies already released.
 - `just lint-migrations` (`scripts/lint-migrations.sh`, `scripts/large-tables.txt`): migrations added since the last release must add constraints `NOT VALID` and validate them, build indexes on large tables `CONCURRENTLY` in a `-- @no-transaction` file, bound bulk writes, default new `NOT NULL` columns, and keep view predicates `LANGUAGE sql`.

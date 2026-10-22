@@ -14,6 +14,7 @@ pub mod dispatch;
 pub mod error;
 pub mod extract;
 pub mod rejection;
+pub mod session_binding;
 
 pub use dispatch::map_upstream_error;
 pub use extract::{GatewayAuthzRequestInput, build_gateway_authz_request, extract_credential};

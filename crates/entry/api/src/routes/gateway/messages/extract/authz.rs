@@ -88,7 +88,7 @@ pub async fn enforce_authz_pre_dispatch(
         trace_id: principal.trace_id().clone(),
         route_id,
         model: ModelId::new(model),
-        session_id: Some(principal.attested_session().clone()),
+        session_id: Some(principal.session_id().clone()),
         client_id: principal.client_id().cloned(),
         context_id: context_id.clone(),
     });
