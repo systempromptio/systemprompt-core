@@ -35,7 +35,7 @@ pub fn is_container_running(container_name: &str) -> bool {
         .is_ok_and(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
 }
 
-/// What one rendered PostgreSQL compose file says about its container.
+/// What one rendered `PostgreSQL` compose file says about its container.
 ///
 /// `credentials` chooses between `${VAR}` interpolation (the local setup
 /// passes them through `docker compose` env) and literal values (a tenant

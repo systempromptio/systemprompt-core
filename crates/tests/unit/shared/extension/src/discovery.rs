@@ -1,11 +1,9 @@
-//! Tests for `ExtensionRegistry::discover` / `discover_with` in
-//! `registry/discovery.rs`.
+//! Tests for `ExtensionRegistry::discover` in `registry/discovery.rs`.
 //!
 //! The unit-test binary registers exactly one extension through `inventory`
-//! (`InventoryExt`, below), so `discover()` exercises the inventory-iteration
-//! branch; `discover_with` merges the `InjectedExtensions` value it is handed.
-//! These tests use uniquely named extensions for the merge assertions and
-//! account for the single inventory registration in count assertions.
+//! (`InventoryExt`, below), the one way an extension exists, so `discover()`
+//! exercises the inventory-iteration branch; count assertions account for
+//! that single registration.
 
 
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
@@ -57,35 +55,6 @@ fn discover_returns_ok() {
     assert_eq!(
         registry.len(),
         1,
-        "plain discovery sees the inventory registration and nothing injected"
-    );
-}
-
-#[test]
-fn discover_with_includes_injected_extensions_and_skips_duplicate_ids() {
-    // Injecting the same id twice must collapse to a single registry entry (the
-    // second is skipped as already-discovered), while a distinct id is also
-    // included. A DEBUG subscriber is active so the injected-extension log
-    // fields (count, name, priority) and the completion-summary fields are
-    // evaluated.
-    let _guard = debug_subscriber_guard();
-
-    let registry = ExtensionRegistry::discover_with(&crate::injected_lock::injected())
-        .expect("discover should not error");
-
-    assert!(
-        registry.has(crate::injected_lock::PRIMARY_ID),
-        "injected id must be included"
-    );
-    assert!(
-        registry.has(crate::injected_lock::SECONDARY_ID),
-        "second distinct injected id must be included"
-    );
-    assert!(!registry.is_empty());
-    assert_eq!(
-        registry.len(),
-        3,
-        "one inventory extension plus two distinct injected ids; the duplicate \
-         injected id must be skipped, not double-counted"
+        "discovery sees exactly the inventory registration"
     );
 }

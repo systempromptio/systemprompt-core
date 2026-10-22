@@ -8179,6 +8179,7 @@ version = "0.0.11"
 dependencies = [
  "async-trait",
  "chrono",
+ "inventory",
  "reqwest",
  "serde_json",
  "serde_yaml_ng",

@@ -19,7 +19,7 @@ use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{
     CoordinationRepositories, DbPool, SchemaInstallReport, ServiceRepository,
 };
-use systemprompt_events::{EventBridgeHandle, EventBroadcasters, EventRouter};
+use systemprompt_events::{EventBridgeHandle, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
@@ -37,6 +37,7 @@ use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
+mod accessors;
 mod context_loaders;
 mod debug_impls;
 mod repositories;
@@ -231,10 +232,6 @@ impl AppContext {
         &self.cfg.app_paths
     }
 
-    pub const fn files_config(&self) -> &Arc<FilesConfig> {
-        &self.cfg.files_config
-    }
-
     pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
         &self.plugins.marketplace_filter
     }
@@ -251,17 +248,9 @@ impl AppContext {
         &self.subsystems.event_router
     }
 
-    pub const fn event_broadcasters(&self) -> &Arc<EventBroadcasters> {
-        self.subsystems.event_router.broadcasters()
-    }
-
     // Why: the guard memoises per-entry tree digests across passes; the
     // scheduled job and the manual route share it so neither re-captures a
     // tree the other already published.
-    pub const fn connector_tokens(&self) -> &Arc<TokenCache> {
-        &self.subsystems.connector_tokens
-    }
-
     pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
         &self.subsystems.publish_guard
     }
