@@ -26,7 +26,6 @@ use systemprompt_identifiers::{AccessTokenId, ClientId};
 use systemprompt_manifest::Config;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::{
     DelegatedJwtParams, JwtConfig, JwtSigningParams, generate_jwt_with_act,
 };
@@ -42,7 +41,7 @@ pub mod subject;
 
 pub use claims::{build_act_chain, intersect_scopes};
 pub use delegation::validate_resource;
-pub use subject::peek_issuer;
+pub use subject::{JwksCache, peek_issuer};
 
 use claims::resolve_audience;
 use delegation::{ensure_session, resolve_delegate, resolve_resource};
@@ -68,22 +67,29 @@ pub struct TokenExchangeRequest<'a> {
 }
 
 pub async fn handle_token_exchange(
-    repo: &OAuthRepository,
     client_id: &ClientId,
     request: TokenExchangeRequest<'_>,
     origin: RequestOrigin<'_>,
     state: &OAuthState,
+    jwks: &JwksCache,
 ) -> IssuanceResult<TokenResponse> {
     let global = Config::get()?;
+    let repo = state.oauth_repository();
 
     if request.requested_token_type == Some(ID_JAG_TOKEN_TYPE) {
-        return issue_id_jag(client_id, &request, global).await;
+        return issue_id_jag(client_id, &request, global, jwks).await;
     }
 
     let subject = if request.subject_token_type == ID_JAG_TOKEN_TYPE {
-        validate_id_jag_subject(request.subject_token, client_id, repo, global).await?
+        validate_id_jag_subject(request.subject_token, client_id, repo, global, jwks).await?
     } else {
-        validate_subject_token(request.subject_token, request.subject_token_type, global).await?
+        validate_subject_token(
+            request.subject_token,
+            request.subject_token_type,
+            global,
+            jwks,
+        )
+        .await?
     };
 
     let resource = resolve_resource(&subject, request.resource, global)?;

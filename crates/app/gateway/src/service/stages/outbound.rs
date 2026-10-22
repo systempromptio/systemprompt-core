@@ -31,6 +31,7 @@ pub(super) fn outbound_ctx<'a>(
     OutboundCtx {
         route: upstream.route.as_ref(),
         upstream: &upstream.call,
+        http: &upstream.http,
         request,
         upstream_model: parts.upstream_model,
         model_limits: parts.model_limits,

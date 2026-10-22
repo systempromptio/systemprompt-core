@@ -82,7 +82,10 @@ async fn client_config_app() -> anyhow::Result<Router> {
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    Ok(public_router().with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .with_state(state))
 }
 
 async fn seed_owner() -> anyhow::Result<UserId> {

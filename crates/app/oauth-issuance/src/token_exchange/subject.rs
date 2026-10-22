@@ -8,7 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, LazyLock, Mutex, PoisonError};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use systemprompt_manifest::Config;
@@ -38,6 +39,7 @@ pub async fn validate_subject_token(
     token: &str,
     token_type: &str,
     global: &Config,
+    jwks: &JwksCache,
 ) -> IssuanceResult<SubjectIdentity> {
     if !matches!(
         token_type,
@@ -75,7 +77,8 @@ pub async fn validate_subject_token(
         message: "trusted-issuer token must carry a kid header".to_owned(),
     })?;
 
-    let jwk = shared_jwks_client(&global.trusted_issuers)
+    let jwk = jwks
+        .client_for(trusted)
         .fetch_at(&trusted.issuer, &trusted.jwks_uri, &kid)
         .await
         .map_err(|e| IssuanceError::malformed("subject_token", "JWKS resolution failed", e))?;
@@ -171,26 +174,33 @@ fn validate_self_issued(
 // carries them, so both are required outright for every subject token.
 pub const REQUIRED_CLAIMS: [&str; 3] = ["exp", "iss", "aud"];
 
-type HostKeyedJwks = Option<(Vec<String>, Arc<JwksClient>)>;
+type IssuerHosts = (String, Vec<String>);
 
-static SHARED_JWKS: LazyLock<Mutex<HostKeyedJwks>> = LazyLock::new(|| Mutex::new(None));
+/// Per-issuer JWKS clients owned by the token-exchange service.
+///
+/// Each trusted issuer keeps its own client, so its `Cache-Control` TTL and
+/// kid-miss refetch throttle apply across exchanges and one issuer's allowlist
+/// never evicts another's.
+#[derive(Debug, Default)]
+pub struct JwksCache {
+    clients: Mutex<HashMap<IssuerHosts, Arc<JwksClient>>>,
+}
 
-// Why: One JWKS client per trusted-issuer host allowlist.
-//
-// It is kept for the process so its `Cache-Control` TTL and kid-miss refetch
-// throttle actually apply; a client built per request re-fetched the issuer's
-// JWKS on every exchange.
-pub fn shared_jwks_client(trusted: &[TrustedIssuer]) -> Arc<JwksClient> {
-    let hosts = jwks_host_allowlist(trusted);
-    let mut slot = SHARED_JWKS.lock().unwrap_or_else(PoisonError::into_inner);
-    if let Some((cached_hosts, client)) = slot.as_ref()
-        && *cached_hosts == hosts
-    {
-        return Arc::clone(client);
+impl JwksCache {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
     }
-    let client = Arc::new(JwksClient::new(hosts.clone()));
-    *slot = Some((hosts, Arc::clone(&client)));
-    client
+
+    pub fn client_for(&self, trusted: &TrustedIssuer) -> Arc<JwksClient> {
+        let hosts = jwks_host_allowlist(std::slice::from_ref(trusted));
+        let mut clients = self.clients.lock().unwrap_or_else(PoisonError::into_inner);
+        Arc::clone(
+            clients
+                .entry((trusted.issuer.clone(), hosts.clone()))
+                .or_insert_with(|| Arc::new(JwksClient::new(hosts))),
+        )
+    }
 }
 
 pub fn jwks_host_allowlist(trusted: &[TrustedIssuer]) -> Vec<String> {

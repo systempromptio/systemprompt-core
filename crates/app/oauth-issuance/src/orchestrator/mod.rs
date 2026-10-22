@@ -14,17 +14,19 @@ mod grants;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::{GrantType, OAuthState};
 
+use crate::token_exchange::JwksCache;
 use crate::{IssuanceError, IssuanceResult, RequestOrigin, TokenRequest, TokenResponse};
 
 /// Issues tokens for one token-endpoint request against the OAuth state.
 #[derive(Debug, Clone, Copy)]
 pub struct TokenIssuanceOrchestrator<'a> {
     state: &'a OAuthState,
+    jwks: &'a JwksCache,
 }
 
 impl<'a> TokenIssuanceOrchestrator<'a> {
-    pub const fn new(state: &'a OAuthState) -> Self {
-        Self { state }
+    pub const fn new(state: &'a OAuthState, jwks: &'a JwksCache) -> Self {
+        Self { state, jwks }
     }
 
     pub async fn issue(

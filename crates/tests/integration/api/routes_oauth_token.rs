@@ -117,9 +117,11 @@ async fn token_app() -> anyhow::Result<Router> {
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    let router = public_router()
-        .layer(middleware::from_fn(inject_context))
-        .with_state(state);
+    let router = public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .layer(middleware::from_fn(inject_context))
+    .with_state(state);
     Ok(router)
 }
 

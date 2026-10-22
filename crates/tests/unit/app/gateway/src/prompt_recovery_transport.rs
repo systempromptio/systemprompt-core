@@ -93,6 +93,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                 let initial = OutboundCtx {
                     route: &route,
                     upstream: &support::api_key_call(&endpoint, "unused"),
+                    http: &reqwest::Client::new(),
                     request: &request,
                     upstream_model: "upstream-1",
                     model_limits: None,
@@ -118,6 +119,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                         OutboundCtx {
                             route: &route,
                             upstream: &support::api_key_call(&endpoint, "unused"),
+                            http: &reqwest::Client::new(),
                             request: &request,
                             upstream_model: "upstream-1",
                             model_limits: None,

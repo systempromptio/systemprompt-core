@@ -21,8 +21,6 @@ crates/infra/loader/src/config_loader/mod.rs:CONFIG_CACHE — owned by config-ar
 crates/entry/api/src/routes/gateway/bridge_services_cache.rs:CACHED — owned by config-arch Phase 3
 
 # Gateway failover statics (config-arch session hand-off).
-crates/app/gateway/src/service/failover/breakers.rs:BREAKERS — debt: hand-off to the config-arch session
-crates/app/gateway/src/service/failover/load.rs:LOAD — debt: hand-off to the config-arch session
 crates/infra/security/src/credential/mod.rs:PROVIDER_TOKENS — debt: ProviderCredential::bearer is called from domain/ai upstream/target.rs and loader vertex_discovery (config-arch session); the owned form is TokenCache
 
 # Immutable data: compiled once, never mutated.
@@ -47,6 +45,4 @@ crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI outp
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
-crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HTTP client
-crates/app/oauth-issuance/src/token_exchange/subject.rs:SHARED_JWKS — debt: JWKS client cache
 crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo

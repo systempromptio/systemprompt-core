@@ -28,13 +28,14 @@ use super::super::registry::GatewayEngines;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
 use super::credentials::{BillingSource, KeyOwner};
 use super::route_match::{describe_route_match, enforce_route_requirements};
-use super::{DispatchError, GatewayError, PolicyDenied};
+use super::{ContextWindowExceeded, DispatchError, GatewayError, PolicyDenied};
 
 pub(super) struct ResolvedUpstream<'a> {
     pub(super) route: Cow<'a, GatewayRoute>,
     pub(super) provider: &'a ProviderEntry,
     pub(super) call: UpstreamCall,
     pub(super) adapter: Arc<dyn OutboundAdapter>,
+    pub(super) http: reqwest::Client,
     pub(super) route_match_descriptor: Option<String>,
     pub(super) deployments: Vec<GatewayRoute>,
     pub(super) scoped: bool,
@@ -91,7 +92,18 @@ pub(super) async fn resolve_upstream<'a>(
     }
     let scope = selection.descriptor();
     let scoped = matches!(selection, ChainSelection::Scope { .. });
-    let planned = plan_chain(registry, request, &route, &selection, ai_request_id)?;
+    let planned =
+        plan_chain(registry, engines, request, &route, &selection).map_err(|exceeded| {
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                route = %route.effective_id(),
+                model = %exceeded.model,
+                estimate = exceeded.estimate,
+                limit = exceeded.limit,
+                "Gateway denied: request exceeds the model's context window"
+            );
+            DispatchError::pre_audit(exceeded)
+        })?;
     let deployments = planned.deployments;
     let route_match_descriptor = join_segments(
         Some(describe_route_match(&route, declarative, selector, scope)),
@@ -156,25 +168,19 @@ async fn refine_route<'a>(
 
 fn plan_chain(
     registry: &ProviderRegistry,
+    engines: &GatewayEngines,
     request: &CanonicalRequest,
     route: &GatewayRoute,
     selection: &ChainSelection<'_>,
-    ai_request_id: &AiRequestId,
-) -> Result<PlannedChain, DispatchError> {
-    let ordered = order_chain(route.chain_views(selection), request.model.as_str());
+) -> Result<PlannedChain, ContextWindowExceeded> {
+    let ordered = order_chain(
+        route.chain_views(selection),
+        request.model.as_str(),
+        &engines.breakers,
+        &engines.load,
+    );
     let context_fallbacks = route.context_fallback_views(selection);
-    let fitted = fit_context_window(registry, request, ordered.deployments, context_fallbacks)
-        .map_err(|exceeded| {
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                route = %route.effective_id(),
-                model = %exceeded.model,
-                estimate = exceeded.estimate,
-                limit = exceeded.limit,
-                "Gateway denied: request exceeds the model's context window"
-            );
-            DispatchError::pre_audit(exceeded)
-        })?;
+    let fitted = fit_context_window(registry, request, ordered.deployments, context_fallbacks)?;
     Ok(PlannedChain {
         deployments: fitted.deployments,
         descriptor: join_segments(ordered.descriptor, fitted.descriptor),
@@ -281,6 +287,7 @@ async fn bind_route<'a>(
         provider,
         call,
         adapter,
+        http: engines.http.clone(),
         route_match_descriptor,
         deployments: Vec::new(),
         scoped: false,

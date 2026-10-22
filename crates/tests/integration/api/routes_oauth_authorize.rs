@@ -117,9 +117,11 @@ async fn authorize_app() -> anyhow::Result<Router> {
         ctx.session_provider().expect("sessions"),
         ctx.user_provider().expect("user"),
     );
-    Ok(public_router()
-        .layer(middleware::from_fn(inject_context))
-        .with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .layer(middleware::from_fn(inject_context))
+    .with_state(state))
 }
 
 async fn seeded_client() -> anyhow::Result<OAuthClientFixture> {
@@ -400,9 +402,11 @@ async fn authorize_app_with_mcp_registry() -> anyhow::Result<Router> {
         ctx.user_provider().expect("user"),
     )
     .with_mcp_registry(std::sync::Arc::new(ctx.mcp_registry().clone()));
-    Ok(public_router()
-        .layer(middleware::from_fn(inject_context))
-        .with_state(state))
+    Ok(public_router(std::sync::Arc::new(
+        systemprompt_oauth_issuance::JwksCache::new(),
+    ))
+    .layer(middleware::from_fn(inject_context))
+    .with_state(state))
 }
 
 fn authorize_uri(client_id: &str, resource: Option<&str>) -> String {

@@ -34,6 +34,7 @@ systemprompt-database = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
 systemprompt-oauth = { workspace = true }
+systemprompt-oauth-issuance = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }

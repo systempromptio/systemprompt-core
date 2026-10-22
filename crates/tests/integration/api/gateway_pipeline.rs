@@ -304,7 +304,7 @@ pub(super) fn inputs_with(
         identity_headers: Vec::new(),
         trace_sampled: None,
         governance: systemprompt_test_fixtures::default_governance_engine(),
-        engines: Arc::new(GatewayEngines::new()),
+        engines: Arc::new(GatewayEngines::new().expect("gateway engines build")),
     }
 }
 

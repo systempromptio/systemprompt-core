@@ -6,12 +6,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use systemprompt_database::resilience::{CircuitBreaker, Probe, ResilienceConfig};
 use systemprompt_manifest::services::ResilienceSettings;
 
-/// Process-wide circuit breakers, one per provider name, sharing the
+/// Circuit breakers owned by one gateway, one per provider name, sharing the
 /// provider's `resilience:` settings with the internal `ResilientProvider`.
 pub struct ProviderBreakers {
     inner: Mutex<HashMap<String, Arc<CircuitBreaker>>>,
@@ -29,11 +29,6 @@ impl ProviderBreakers {
         Self {
             inner: Mutex::new(HashMap::new()),
         }
-    }
-
-    pub fn global() -> &'static Self {
-        static BREAKERS: OnceLock<ProviderBreakers> = OnceLock::new();
-        BREAKERS.get_or_init(Self::new)
     }
 
     pub fn for_provider(&self, name: &str, settings: &ResilienceSettings) -> Arc<CircuitBreaker> {
