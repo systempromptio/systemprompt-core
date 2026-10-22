@@ -6,6 +6,8 @@
 
 ### Fixed
 
+- **Config:** `admin config catalog` provider upserts no longer downgrade a personal (`credential: user`) provider or drop its headers and betas.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking
