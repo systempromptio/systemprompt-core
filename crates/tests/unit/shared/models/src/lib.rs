@@ -381,3 +381,6 @@ mod feedback_contracts;
 
 #[cfg(test)]
 mod skill_frontmatter_render;
+
+#[cfg(test)]
+mod personal_key_sharing;

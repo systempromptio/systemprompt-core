@@ -134,6 +134,9 @@ pub struct ProviderEntry {
     pub credential: ProviderCredentialSource,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_from: Option<ProviderId>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -156,6 +159,21 @@ impl ProviderEntry {
     #[must_use]
     pub const fn is_user_credential(&self) -> bool {
         matches!(self.credential, ProviderCredentialSource::User)
+    }
+
+    // Why: one subscription can span several entries (OpenCode Go serves
+    // Chat Completions and Anthropic Messages from separate endpoints); the
+    // member stores the key once, under the entry `credential_from` names.
+    #[must_use]
+    pub fn credential_owner(&self) -> &str {
+        self.credential_from
+            .as_ref()
+            .map_or(self.name.as_str(), ProviderId::as_str)
+    }
+
+    #[must_use]
+    pub const fn takes_own_personal_key(&self) -> bool {
+        self.is_user_credential() && self.credential_from.is_none()
     }
 
     #[must_use]

@@ -50,6 +50,7 @@ fn registry(endpoint: &str, limits: ModelLimits) -> ProviderRegistry {
             endpoint: endpoint.to_owned(),
             api_key_secret: Some(SecretName::new(PROVIDER)),
             credential: Default::default(),
+            credential_from: None,
             user_agent: None,
             forward_headers: Vec::new(),
             governance: Default::default(),

@@ -66,6 +66,7 @@ impl ProviderCatalogService {
             endpoint: spec.endpoint,
             api_key_secret: Some(spec.api_key_secret),
             credential: systemprompt_manifest::services::ProviderCredentialSource::Platform,
+            credential_from: None,
             user_agent: None,
             forward_headers: Vec::new(),
             extra_headers: spec.extra_headers,

@@ -36,7 +36,7 @@ pub fn personal_providers(registry: &ProviderRegistry) -> Vec<ProviderEntry> {
     registry
         .providers
         .iter()
-        .filter(|entry| entry.is_user_credential())
+        .filter(|entry| entry.takes_own_personal_key())
         .cloned()
         .collect()
 }

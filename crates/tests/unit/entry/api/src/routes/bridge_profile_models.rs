@@ -85,6 +85,7 @@ fn provider_with_surface(
         endpoint: "https://example.invalid/v1".to_owned(),
         api_key_secret: Some(SecretName::new(secret)),
         credential: Default::default(),
+        credential_from: None,
         user_agent: None,
         forward_headers: Vec::new(),
         governance: Default::default(),
