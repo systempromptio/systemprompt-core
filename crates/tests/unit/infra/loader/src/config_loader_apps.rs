@@ -58,7 +58,7 @@ fn slack_app_merged_from_include() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
+    let root = format!("{ROOT_HEAD}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     let app = config
@@ -86,7 +86,7 @@ fn duplicate_slack_app_across_root_and_include_errors() {
     );
 
     let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\n{}",
+        "{ROOT_HEAD}\n{}",
         slack_app_block("other")
     );
     let err = ConfigLoader::load_from_content(&root, &config_path)
@@ -111,7 +111,7 @@ fn teams_app_merged_from_include() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
+    let root = format!("{ROOT_HEAD}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     let app = config
@@ -136,7 +136,7 @@ fn duplicate_teams_app_across_root_and_include_errors() {
     );
 
     let root = format!(
-        "{ROOT_HEAD}\nai:\n  default_provider: anthropic\n{}",
+        "{ROOT_HEAD}\n{}",
         teams_app_block("other")
     );
     let err = ConfigLoader::load_from_content(&root, &config_path)
@@ -161,7 +161,7 @@ fn web_block_carried_from_include_when_root_has_none() {
         ),
     );
 
-    let root = format!("{ROOT_HEAD}\nai:\n  default_provider: anthropic\n");
+    let root = format!("{ROOT_HEAD}\n");
     let config = ConfigLoader::load_from_content(&root, &config_path).expect("should load");
 
     let web = config.web.expect("web block from include must be carried");
@@ -179,8 +179,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     unsafe {
@@ -247,8 +245,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
     let config = ConfigLoader::load_from_content(root, &config_path).expect("should load");
 
@@ -266,8 +262,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
 #[test]

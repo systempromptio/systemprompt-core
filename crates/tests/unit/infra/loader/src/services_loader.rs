@@ -12,8 +12,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#
     .to_string()
 }
@@ -77,8 +75,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     ConfigLoader::load_from_content(main_content, &config_path).expect("result should succeed");
@@ -131,8 +127,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -164,8 +158,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, content).expect("Failed to write config");
@@ -207,8 +199,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     std::fs::write(&config_path, main_content).expect("Failed to write config");
@@ -246,8 +236,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
@@ -283,8 +271,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
     std::fs::write(&config_path, main_content).expect("Failed to write config");
 
@@ -549,15 +535,9 @@ scheduler:
   bootstrap_jobs:
     - database_cleanup
 ai:
-  default_provider: anthropic
   sampling:
     enable_smart_routing: false
     fallback_enabled: true
-  providers:
-    anthropic:
-      enabled: true
-      api_key: test-key
-      default_model: claude-sonnet-4-20250514
   mcp:
     auto_discover: true
     resilience:
@@ -633,8 +613,7 @@ fn test_load_full_fixture_round_trip() {
     assert!(config.skills.skills.contains_key("general_assistance"));
     assert!(config.web.is_some());
     assert!(config.scheduler.is_some());
-    assert_eq!(config.ai.default_provider, "anthropic");
-    assert!(!config.ai.providers.is_empty());
+    assert!(config.ai.sampling.fallback_enabled);
     assert_eq!(config.settings.agent_port_range, (9000, 9999));
 }
 
@@ -648,8 +627,6 @@ skills_typo:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err =
@@ -674,8 +651,6 @@ skills_typo:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(content, &config_path)
@@ -708,8 +683,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main_content, &config_path)
@@ -732,8 +705,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [9000, 9999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 skills:
   enabled: true
   auto_discover: false

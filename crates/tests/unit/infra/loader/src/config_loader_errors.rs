@@ -24,8 +24,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main, &config_path)
@@ -95,8 +93,6 @@ mcp_servers: {{}}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#
     );
 
@@ -154,8 +150,6 @@ mcp_servers:
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main, &config_path)
@@ -180,8 +174,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main, &config_path)
@@ -227,8 +219,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let config = ConfigLoader::load_from_content(main, &config_path)
@@ -274,8 +264,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main, &config_path)
@@ -301,8 +289,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 skills:
   enabled: true
   auto_discover: false
@@ -343,8 +329,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 skills:
   enabled: true
   auto_discover: false
@@ -432,8 +416,6 @@ mcp_servers: {}
 settings:
   agent_port_range: [4000, 4999]
   mcp_port_range: [5000, 5999]
-ai:
-  default_provider: anthropic
 "#;
 
     let err = ConfigLoader::load_from_content(main, &config_path)
