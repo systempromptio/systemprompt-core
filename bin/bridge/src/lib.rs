@@ -145,11 +145,11 @@ Commands (plugin + MCP sync):
                                           Scheduler / systemd --user). Idempotent;
                                           `uninstall` deregisters it.
                                           Config keys ({config_file}): gateway_url,
-                                          deployment_organization_uuid, [sync.trust]
-                                          (gateway, key, source — the operator pin),
-                                          and [cowork] session_org_dir — pins the Cowork
-                                          session directory to sync into instead of
-                                          resolving it. See README.
+                                          [sync.trust] (gateway, key, source — the
+                                          operator pin), and [cowork] session_org_dir —
+                                          pins the Cowork session directory to sync into;
+                                          it outranks the organization the gateway names.
+                                          See README.
   sync                       Pull plugins + MCP allowlist from gateway into org-plugins
     [--watch] [--interval <secs>] [--fresh] [--allow-unsigned] [--force-replay] [--allow-tofu]
                                           --fresh asks the gateway to rebuild the

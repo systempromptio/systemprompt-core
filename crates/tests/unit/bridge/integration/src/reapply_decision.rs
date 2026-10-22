@@ -45,9 +45,17 @@ fn sandbox(gateway_uri: &str, seed_managed: Option<&str>) -> Sandbox {
         "seeded-loopback-secret",
     )
     .expect("seed loopback secret");
+    let pat_file = base.join("pat.txt");
+    fs::write(&pat_file, "sp-live-test-pat").expect("seed pat");
     let config_file = config_home.join("systemprompt-bridge.toml");
-    fs::write(&config_file, format!("gateway_url = \"{gateway_uri}\"\n"))
-        .expect("write bridge config");
+    fs::write(
+        &config_file,
+        format!(
+            "gateway_url = \"{gateway_uri}\"\n[pat]\nfile = '{}'\n",
+            pat_file.display()
+        ),
+    )
+    .expect("write bridge config");
 
     let vars: Vec<(&'static str, Option<String>)> = vec![
         ("SP_BRIDGE_CONFIG", Some(config_file.display().to_string())),
@@ -101,13 +109,15 @@ fn profile_body(models: &[&str]) -> serde_json::Value {
         "providers": [
             {
                 "name": "openai-upstream",
-                "surface": "openai",
+                "credential": "openai",
+                "clients": ["openai"],
                 "configured": true,
                 "models": models,
             },
             {
                 "name": "anthropic-upstream",
-                "surface": "anthropic",
+                "credential": "anthropic",
+                "clients": ["claude", "openai"],
                 "configured": true,
                 "models": ["claude-opus-4-7"],
             }
@@ -136,6 +146,16 @@ fn with_gateway<R>(
             .respond_with(
                 ResponseTemplate::new(200).set_body_json(profile_body(&["gpt-5", "gpt-5-mini"])),
             )
+            .mount(&server)
+            .await;
+        // Why: the profile is fetched as a user, so the sandbox PAT is
+        // exchanged for a JWT that names one.
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "h.eyJzdWIiOiAidXNlci1hbGljZSJ9.s",
+                "ttl": 3600,
+            })))
             .mount(&server)
             .await;
         server
@@ -250,7 +270,7 @@ fn a_profile_the_writer_just_wrote_is_not_rewritten_by_the_next_reapply() {
 }
 
 #[test]
-fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
+fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_family() {
     let inputs = with_gateway(None, |ctx, _managed| {
         ctx.block_on(build_profile_inputs(ctx, &CODEX_CLI_HOST, &BTreeMap::new()))
             .expect("inputs built from the mocked gateway")
@@ -279,21 +299,22 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_surface() {
             "gpt-5-mini".to_owned(),
             "claude-opus-4-7".to_owned()
         ],
-        "every servable model is offered to a host with no surface restriction"
+        "every model the catalog advertises to openai clients is offered to Codex"
     );
-    assert!(
-        !inputs
+    assert_eq!(
+        inputs
             .headers
-            .contains_key(systemprompt_identifiers::headers::INFERENCE_PROTOCOL),
-        "no surface restriction means no protocol header: {:?}",
-        inputs.headers
+            .get(systemprompt_identifiers::headers::INFERENCE_PROTOCOL)
+            .map(String::as_str),
+        Some("openai"),
+        "the protocol header names the host's client family"
     );
 }
 
 #[test]
-fn a_surface_override_replaces_the_models_and_the_protocol_header() {
+fn a_server_filter_replaces_the_models_and_the_protocol_header() {
     let mut overrides = BTreeMap::new();
-    overrides.insert("codex-cli".to_owned(), vec!["anthropic".to_owned()]);
+    overrides.insert("codex-cli".to_owned(), vec!["claude".to_owned()]);
     let inputs = with_gateway(None, |ctx, _managed| {
         ctx.block_on(build_profile_inputs(ctx, &CODEX_CLI_HOST, &overrides))
             .expect("inputs built from the mocked gateway")
@@ -301,14 +322,14 @@ fn a_surface_override_replaces_the_models_and_the_protocol_header() {
     assert_eq!(
         inputs.models,
         vec!["claude-opus-4-7".to_owned()],
-        "the override moved the host onto the anthropic surface"
+        "the filter moved the host onto the models advertised to claude clients"
     );
     assert_eq!(
         inputs
             .headers
             .get(systemprompt_identifiers::headers::INFERENCE_PROTOCOL)
             .map(String::as_str),
-        Some("anthropic")
+        Some("claude")
     );
 }
 

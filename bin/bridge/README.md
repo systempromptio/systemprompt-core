@@ -179,7 +179,6 @@ Cache lives at the OS cache dir under `systemprompt-bridge/cache.json` (mode 060
 
 ```toml
 gateway_url = "https://gateway.example.com"
-deployment_organization_uuid = "…"   # Cowork organization this deployment targets
 
 [pat]
 file = "…"                            # PAT path override (default: <config_dir>/systemprompt-bridge.pat)
@@ -196,7 +195,7 @@ source = "operator"
 # host-app integration overrides
 
 [cowork]
-session_org_dir = "…"                 # absolute path to the Cowork session/organization directory
+session_org_dir = "…"                 # absolute path to the Cowork session/organization directory; outranks the gateway's organization_uuid
 
 [opencode]
 managed_dir = "…"                     # where the OpenCode managed config is written (default: the OS-managed OpenCode config dir)

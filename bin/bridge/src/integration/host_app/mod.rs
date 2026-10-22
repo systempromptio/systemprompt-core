@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::providers::ApiSurface;
 
 mod error;
 mod probe;
@@ -205,10 +204,6 @@ pub trait HostApp: Send + Sync + 'static {
 
     fn download_url(&self) -> &'static str {
         ""
-    }
-
-    fn accepted_surfaces(&self) -> &'static [ApiSurface] {
-        &[]
     }
 
     // Why: only a host whose profile itself names the managed MCP servers

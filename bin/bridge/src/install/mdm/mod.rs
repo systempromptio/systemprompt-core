@@ -85,10 +85,7 @@ pub(crate) fn desktop_policy_entries(
         mcp.registry,
         mcp.overrides.clone(),
     )?;
-    let inputs = facts.inputs_for(
-        systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
-        policy::DESKTOP_SURFACES,
-    );
+    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
     policy::desktop_policy(&inputs, mcp.egress_allowed_hosts)
 }
 

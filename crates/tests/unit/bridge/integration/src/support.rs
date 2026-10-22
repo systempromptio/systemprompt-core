@@ -18,7 +18,6 @@ pub(crate) fn facts() -> ProfileFacts {
         profile: None,
         mcp_servers: None,
         overrides: BTreeMap::new(),
-        operator_org_uuid: None,
     }
 }
 
@@ -45,7 +44,7 @@ pub(crate) fn unreadable_env(error: ProfileFactsError) -> ProbeEnv {
 }
 
 pub(crate) fn inputs_for(host: &dyn HostApp) -> ProfileGenInputs {
-    facts().inputs_for(host.id(), host.accepted_surfaces())
+    facts().inputs_for(host.id())
 }
 
 pub(crate) fn host_token(host: systemprompt_models::bridge::host::HostKind) -> String {

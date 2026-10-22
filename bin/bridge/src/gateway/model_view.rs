@@ -1,5 +1,9 @@
-//! Model view a host receives from gateway provider health: the models it can
-//! use given the API surfaces it speaks.
+//! Model view a host receives from gateway provider health: the models it
+//! lists, given the client family it is.
+//!
+//! A model's `clients` is its whole visibility rule (the gateway resolves it
+//! from the catalog); the bridge only maps each host to its family and keeps
+//! the providers that advertise to it. `clients: []` is hidden everywhere.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,37 +11,64 @@
 use std::collections::BTreeMap;
 
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::{ClientFamily, LONG_CONTEXT_WINDOW, with_context_variant};
 
 use crate::gateway::types::ProviderHealth;
 
-// Why: Claude Desktop breaks when `inferenceModels` names a non-Anthropic
-// family, and Fable ids are not served to it; this predicate is the one
-// definition of "a model Desktop may list", shared by every Desktop writer
-// and the Status card's Desktop subset.
 #[must_use]
-pub fn is_desktop_model(id: &str) -> bool {
-    let lower = id.to_ascii_lowercase();
-    lower.starts_with("claude-") && !lower.starts_with("claude-fable-")
+pub const fn host_client(host: HostKind) -> ClientFamily {
+    match host {
+        HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
+        HostKind::CodexCli | HostKind::OpenCode | HostKind::Hermes => ClientFamily::OpenAi,
+    }
 }
 
-#[must_use]
-pub fn desktop_models(models: &[String]) -> Vec<String> {
-    let mut out: Vec<String> = Vec::new();
-    for id in models.iter().filter(|id| is_desktop_model(id)) {
-        if !out.contains(id) {
-            out.push(id.clone());
-        }
+/// The client families a host lists models for: the user's server-stored
+/// filter when one is set for it, else the host's own family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostClients {
+    pub families: Vec<ClientFamily>,
+    pub filtered: bool,
+}
+
+impl HostClients {
+    #[must_use]
+    pub fn for_host(host: HostKind, server_filters: &BTreeMap<String, Vec<String>>) -> Self {
+        server_filters.get(host.as_str()).map_or_else(
+            || Self {
+                families: vec![host_client(host)],
+                filtered: false,
+            },
+            |tags| Self {
+                families: tags
+                    .iter()
+                    .filter_map(|t| ClientFamily::from_tag(t))
+                    .collect(),
+                filtered: true,
+            },
+        )
     }
-    out
+
+    #[must_use]
+    pub fn tags(&self) -> Vec<String> {
+        self.families
+            .iter()
+            .map(|f| f.as_tag().to_owned())
+            .collect()
+    }
+}
+
+fn advertises_to(provider: &ProviderHealth, families: &[ClientFamily]) -> bool {
+    provider.clients.iter().any(|c| families.contains(c))
 }
 
 /// One provider of the catalog as the Status card groups it: its distinct
-/// models, and why it serves none when it is not configured.
+/// models, the client families it advertises to, and why it serves none when
+/// it is not configured.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogGroup {
     pub name: String,
-    pub surface: ApiSurface,
+    pub clients: Vec<ClientFamily>,
     pub configured: bool,
     pub models: Vec<String>,
     pub config_issue: Option<String>,
@@ -48,10 +79,10 @@ pub fn catalog_models(providers: &[ProviderHealth]) -> Vec<CatalogGroup> {
     let mut seen = std::collections::HashSet::new();
     providers
         .iter()
-        .filter(|p| p.surface.is_advertised())
+        .filter(|p| !p.clients.is_empty())
         .map(|p| CatalogGroup {
             name: p.name.clone(),
-            surface: p.surface,
+            clients: p.clients.clone(),
             configured: p.configured,
             models: p
                 .models
@@ -71,18 +102,15 @@ pub fn with_context_variants(
 ) -> Vec<String> {
     let mut out = Vec::with_capacity(models.len());
     for id in models {
-        let base = id.strip_suffix("[1m]").unwrap_or(id);
-        if !is_desktop_model(base) {
-            continue;
-        }
+        let base = systemprompt_models::providers::without_context_variant(id);
         let is_million = limits
             .get(base)
             .or_else(|| limits.get(id))
-            .is_some_and(|limit| limit.context_window >= 1_000_000);
+            .is_some_and(|limit| limit.context_window >= LONG_CONTEXT_WINDOW);
         if !is_million {
             continue;
         }
-        let listed = format!("{base}[1m]");
+        let listed = with_context_variant(base);
         if !out.contains(&listed) {
             out.push(listed);
         }
@@ -90,8 +118,12 @@ pub fn with_context_variants(
     out
 }
 
+/// What one host can list from the catalog.
+///
 /// `checked` is false when there was no provider health to evaluate
 /// (distinguishes "nothing usable" from "not yet checked").
+/// `missing_personal_keys` names each personal credential once, however many
+/// endpoints it serves.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct HostModelView {
     pub compatible_models: Vec<String>,
@@ -102,32 +134,28 @@ pub struct HostModelView {
 }
 
 #[must_use]
-pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> HostModelView {
+pub fn host_model_view(health: &[ProviderHealth], families: &[ClientFamily]) -> HostModelView {
     let mut seen = std::collections::HashSet::new();
+    let mut missing_credentials = std::collections::HashSet::new();
     let mut view = HostModelView {
         checked: !health.is_empty(),
         ..HostModelView::default()
     };
-    for provider in health {
-        let speaks = accepted.is_empty() || accepted.contains(&provider.surface);
-        if !speaks {
-            continue;
-        }
+    for provider in health.iter().filter(|p| advertises_to(p, families)) {
         if !provider.configured {
             view.unconfigured_providers.push(provider.name.clone());
-            if provider.personal_key {
+            if provider.personal_key && missing_credentials.insert(provider.credential.as_str()) {
                 view.missing_personal_keys.push(
                     provider
                         .display_name
                         .clone()
-                        .unwrap_or_else(|| provider.name.clone()),
+                        .unwrap_or_else(|| provider.credential.clone()),
                 );
             }
-        } else if !provider.models.is_empty() {
-            view.available = true;
-        }
-        if !provider.configured {
             continue;
+        }
+        if !provider.models.is_empty() {
+            view.available = true;
         }
         for model in &provider.models {
             if seen.insert(model.clone()) {
@@ -139,22 +167,16 @@ pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> Ho
 }
 
 #[must_use]
-pub fn effective_surfaces(
-    host_id: HostKind,
-    default: &[ApiSurface],
-    overrides: &BTreeMap<String, Vec<String>>,
-) -> Vec<ApiSurface> {
-    overrides.get(host_id.as_str()).map_or_else(
-        || default.to_vec(),
-        |tags| {
-            tags.iter()
-                .filter_map(|t| ApiSurface::from_tag(t))
-                .collect()
-        },
-    )
-}
-
-#[must_use]
-pub fn has_surface_override(host_id: HostKind, overrides: &BTreeMap<String, Vec<String>>) -> bool {
-    overrides.contains_key(host_id.as_str())
+pub fn claude_models(groups: &[CatalogGroup]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in groups
+        .iter()
+        .filter(|g| g.configured && g.clients.contains(&ClientFamily::Claude))
+        .flat_map(|g| g.models.iter())
+    {
+        if !out.contains(id) {
+            out.push(id.clone());
+        }
+    }
+    out
 }

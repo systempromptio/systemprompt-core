@@ -5,6 +5,13 @@
 ### Changed
 
 - Version follows core 0.73.0.
+- **Breaking:** the bridge needs a 0.73 gateway. It reads the catalog's client families (`ProviderHealth.clients`, `ProviderCredentialStatus.credential`) and sends `x-inference-protocol` and host model filters as `ClientFamily` tags (`claude`, `openai`, `gemini`).
+- **Models:** a host lists the models whose catalog `clients` include its family (Claude Code and Claude Desktop: `claude`; Codex, OpenCode and Hermes: `openai`), narrowed by the user's server-stored filter. A model with `clients: []` is shown to no host. The `claude-*` / not-`claude-fable-*` Desktop predicate (`model_view::is_desktop_model`, `desktop_models`) and `effective_surfaces` / `has_surface_override` are removed; `model_view::{host_client, HostClients}` replace them. `HostApp::accepted_surfaces` is removed.
+- **Host model filters:** the server is the one store. The copy in `last-sync.json` (`LastSyncState::host_model_protocols`) is removed; the bridge reads the filters from the manifest envelope the gateway signed.
+- **Profile:** the bridge profile is always fetched as a user. `GatewayClient::fetch_bridge_profile` takes a non-optional `&BearerToken`; `fetch_bridge_profile_signed_in` uses the cached credential or mints one, and a 401 on a token older than two minutes re-mints once (`auth::rejection::rejection_is_stale`, shared with the proxy's token cache). A second 401 is an error; there is no anonymous fallback. `bridge-profile.json` is keyed by `(gateway, user)`, and `profile_cache::load_for` reads one entry. `auth::cache::cached_bearer` is removed.
+- **Cowork:** the explicit pin (`cowork.session_org_dir`) wins, then the session naming the gateway profile's `organization_uuid`, then the personal or only session; anything else is ambiguous and names the fix. The Claude Desktop row shows the chosen session and which rule chose it (`cowork_plugins::{resolve_target_with_source, choose_target, TargetSource}`). `deployment_organization_uuid` is removed from the config and is ignored if present; the organization id comes from the gateway. `pick_target_for_org` is removed.
+- **Personal keys:** keyed by credential id (`set_personal_key` / `delete_personal_key` take a `CredentialId`; the GUI commands take `credential`). Settings lists one row per personal credential with the provider endpoints it serves (`gateway::personal_keys::personal_key_rows`).
+- **Headers:** the proxy never injects or rewrites `x-session-id`. A client-supplied value reaches the gateway unchanged and none is added when absent; the gateway binds the session to the credential. `UpstreamHeaderInputs::session_id` is removed.
 
 ## [0.72.1] - 2026-10-22
 

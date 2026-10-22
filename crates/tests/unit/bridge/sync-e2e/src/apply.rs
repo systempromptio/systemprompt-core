@@ -1635,13 +1635,15 @@ async fn mount_profile_with_models(
             "providers": [
                 {
                     "name": "minimax",
-                    "surface": "anthropic",
+                    "credential": "minimax",
+                    "clients": ["claude"],
                     "configured": true,
                     "models": models
                 },
                 {
                     "name": "google",
-                    "surface": "gemini",
+                    "credential": "google",
+                    "clients": ["gemini"],
                     "configured": true,
                     "models": [GEMINI_SURFACE_MODEL]
                 }

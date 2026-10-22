@@ -87,7 +87,7 @@ pub(super) struct RecentArgs {
 
 #[derive(Deserialize)]
 pub(super) struct PersonalKeyArgs {
-    pub(super) provider: String,
+    pub(super) credential: systemprompt_identifiers::CredentialId,
     #[serde(default, rename = "apiKey")]
     pub(super) api_key: Option<String>,
     #[serde(default)]

@@ -281,6 +281,7 @@ fn recompute(doc: &Value) -> Option<Value> {
             "unconfigured_providers": [],
             "model_protocols": [],
             "model_protocols_overridden": false,
+            "cowork_session": Value::Null,
             "surface": "sync-only",
             "verdict": serde_json::to_value(&v).unwrap_or_default(),
         }));

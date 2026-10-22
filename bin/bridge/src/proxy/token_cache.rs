@@ -16,6 +16,7 @@ use tokio::sync::Mutex;
 
 use systemprompt_identifiers::SessionId;
 
+use crate::gateway::rejection::rejection_is_stale;
 use crate::gateway::types::HelperOutput;
 use crate::proxy::forward::{ForwardError, ForwardResult};
 use crate::proxy::sign_in_latch::{CredentialStamp, SignInLatch, capture_stamp};
@@ -24,20 +25,11 @@ use crate::{auth, config};
 pub use crate::proxy::sign_in_latch::AuthState;
 
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
-const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
 // Why: the credential stamp reads the config file, hashes the PAT and opens
 // the keystore. Doing that on every forwarded request put a disk read and a
 // keychain call on the hot path; once per interval catches a rotated
 // credential within seconds without paying for it per request.
 const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
-
-// Why: a gateway rejecting a token minted moments ago means the credential
-// itself is revoked; an older one was more likely voided by a redeploy or key
-// rotation, and one re-mint is worth trying.
-#[must_use]
-pub fn rejection_is_stale(token_age: Duration) -> bool {
-    token_age > FRESH_REJECTION_WINDOW
-}
 
 pub type RefreshFn = Arc<
     dyn Fn(u64) -> Pin<Box<dyn Future<Output = ForwardResult<HelperOutput>> + Send>> + Send + Sync,

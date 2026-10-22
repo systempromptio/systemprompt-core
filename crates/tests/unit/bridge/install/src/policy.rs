@@ -338,15 +338,16 @@ fn a_valid_org_uuid_is_carried_and_a_malformed_one_is_rejected() {
 // Why: Claude Desktop breaks on non-Anthropic model families. The gateway
 // serves Gemini for Claude Code's benefit; it must never reach this key.
 #[test]
-fn desktop_inference_models_never_carry_non_anthropic_ids() {
+fn desktop_inference_models_are_the_claude_client_list_it_is_given() {
+    // The list is narrowed upstream by the catalog's `clients`
+    // (`model_view::host_model_view`); the writer applies no id predicate,
+    // so a Claude-advertised Fable model is kept.
     let headers = BTreeMap::new();
     let token = host_token();
     let policy = claude_desktop_policy(&PolicyInputs {
         base_url: "http://127.0.0.1:48217",
         host_token: &token,
-        models: Some(
-            r#"["gemini-2.5-flash", "claude-sonnet-5", "vertex-gemini-2.5-pro"]"#.to_owned(),
-        ),
+        models: Some(r#"["claude-sonnet-5", "claude-fable-5-1"]"#.to_owned()),
         headers: &headers,
         egress_allowed_hosts: None,
         org_uuid: None,
@@ -357,27 +358,8 @@ fn desktop_inference_models_never_carry_non_anthropic_ids() {
     else {
         panic!("inferenceModels must be a JSON value");
     };
-    assert_eq!(models, &serde_json::json!(["claude-sonnet-5"]));
-}
-
-#[test]
-fn an_all_gemini_list_does_not_invent_unadvertised_claude_models() {
-    let headers = BTreeMap::new();
-    let token = host_token();
-    let policy = claude_desktop_policy(&PolicyInputs {
-        base_url: "http://127.0.0.1:48217",
-        host_token: &token,
-        models: Some(r#"["gemini-2.5-flash"]"#.to_owned()),
-        headers: &headers,
-        egress_allowed_hosts: None,
-        org_uuid: None,
-        mcp_servers: Some(&[]),
-    })
-    .expect("policy renders");
-    let PolicyValue::Json(models) = value_of(&policy, "inferenceModels").expect("models present")
-    else {
-        panic!("inferenceModels must be a JSON value");
-    };
-    let ids = models.as_array().expect("array");
-    assert!(ids.is_empty(), "{models}");
+    assert_eq!(
+        models,
+        &serde_json::json!(["claude-sonnet-5", "claude-fable-5-1"])
+    );
 }

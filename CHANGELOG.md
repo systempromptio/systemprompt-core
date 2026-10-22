@@ -9,6 +9,7 @@
 - **Gateway:** routes carry a required declared `id`, an audit `label`, `models` globs, `when.scope`, `deployments`, `context_fallbacks` and `alias`; `gateway.default_model` refuses `[1m]` (the bridge profile derives it from `limits.context_window`); `gateway.catalog_route_id` keeps 0.72 access rules on the implicit route matching.
 - **AI:** `AiService` is built from the `ResolvedCatalog`; the in-process default is `gateway.default_model`'s first served deployment and `enabled: false` removes a provider's endpoints everywhere. `UpstreamTarget` resolves from a catalog hop; personal keys are stored and verified per credential (`user_provider_credentials.credential`, migration 048: a metadata-only rename on a small table) and verification probes every endpoint the credential serves.
 - **Security:** upstream tokens are cached under `TokenCacheKey`, keyed by catalog credential (and member, for personal credentials).
+- **Bridge:** the 0.73 bridge needs a 0.73 gateway. The anonymous bridge profile is gone: the profile is always fetched as a user, cached per `(gateway, user)`, and a stale bearer gets 401 and one re-mint. The organization id comes from the gateway's `organization_uuid` (an explicit `cowork.session_org_dir` pin still wins); `deployment_organization_uuid` is removed. Host model visibility comes from each model's `clients`; the `claude-*` Desktop predicate and the local host-filter copy are removed. The proxy never injects or rewrites `x-session-id`.
 
 ### Fixed
 

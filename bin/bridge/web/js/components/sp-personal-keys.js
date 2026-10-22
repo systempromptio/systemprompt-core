@@ -1,4 +1,4 @@
-// Settings section for personal provider keys (personal subscriptions). The
+// Settings section for personal credential keys (personal subscriptions). The
 // gateway verifies a key upstream before storing it; a stored or removed key
 // re-syncs every host, so OpenCode's model list follows within seconds.
 
@@ -21,24 +21,24 @@ export class SpPersonalKeys extends SpElement {
     this.gatewayUrl = "";
     this._ui = Object.create(null);
     this.registerAction("input:pk-key", (el) => {
-      const ui = this.ui(el.dataset.provider);
+      const ui = this.ui(el.dataset.credential);
       ui.editing = true; ui.draft = el.value; ui.error = null; this.invalidate();
     });
-    this.registerAction("pk-save", (el) => this._save(el.dataset.provider));
-    this.registerAction("pk-retry", (el) => (el.dataset.provider ? this._save(el.dataset.provider) : this._load()));
-    this.registerAction("pk-remove", (el) => this._remove(el.dataset.provider));
+    this.registerAction("pk-save", (el) => this._save(el.dataset.credential));
+    this.registerAction("pk-retry", (el) => (el.dataset.credential ? this._save(el.dataset.credential) : this._load()));
+    this.registerAction("pk-remove", (el) => this._remove(el.dataset.credential));
     this.registerAction("pk-reload", () => this._load());
-    this.registerAction("pk-edit", (el) => this._edit(el.dataset.provider));
+    this.registerAction("pk-edit", (el) => this._edit(el.dataset.credential));
     this.registerAction("pk-sign-in", () => bridge.signIn(this.gatewayUrl, true).then(() => this._load(), (e) => { this.loadError = failure(e); }));
     this.addEventListener("focusin", (e) => {
-      const provider = e.target && e.target.dataset ? e.target.dataset.provider : null;
-      if (e.target.dataset.input === "pk-key" && provider && !this.ui(provider).editing) { this._edit(provider); }
+      const credential = e.target && e.target.dataset ? e.target.dataset.credential : null;
+      if (e.target.dataset.input === "pk-key" && credential && !this.ui(credential).editing) { this._edit(credential); }
     });
   }
 
-  ui(provider) {
-    if (!this._ui[provider]) { this._ui[provider] = { editing: false, draft: "", busy: false, error: null }; }
-    return this._ui[provider];
+  ui(credential) {
+    if (!this._ui[credential]) { this._ui[credential] = { editing: false, draft: "", busy: false, error: null }; }
+    return this._ui[credential];
   }
 
   onConnect() {
@@ -56,21 +56,21 @@ export class SpPersonalKeys extends SpElement {
     this.invalidate();
   }
 
-  _edit(provider) {
-    Object.assign(this.ui(provider), { editing: true, draft: "", error: null });
+  _edit(credential) {
+    Object.assign(this.ui(credential), { editing: true, draft: "", error: null });
     this.invalidate();
-    setTimeout(() => { const input = this.querySelector(`#pk-${CSS.escape(provider)}`); if (input) { input.focus(); } }, 0);
+    setTimeout(() => { const input = this.querySelector(`#pk-${CSS.escape(credential)}`); if (input) { input.focus(); } }, 0);
   }
 
-  async _save(provider) {
-    const ui = this.ui(provider);
+  async _save(credential) {
+    const ui = this.ui(credential);
     const key = (ui.draft || "").trim();
-    if (!key) { this._edit(provider); return; }
+    if (!key) { this._edit(credential); return; }
     ui.busy = true; ui.error = null; this.invalidate();
     try {
-      const row = await bridge.personalKeySet(provider, key, null);
+      const row = await bridge.personalKeySet(credential, key, null);
       Object.assign(ui, { editing: false, draft: "" });
-      this.rows = (this.rows || []).map((r) => (r.provider === provider ? row : r));
+      this.rows = (this.rows || []).map((r) => (r.credential === credential ? row : r));
       notifyOk(t("toast-personal-key-saved") || "Key verified and saved. Your agents are being updated.");
     } catch (e) {
       ui.error = failure(e);
@@ -79,11 +79,11 @@ export class SpPersonalKeys extends SpElement {
     }
   }
 
-  async _remove(provider) {
-    const ui = this.ui(provider);
+  async _remove(credential) {
+    const ui = this.ui(credential);
     ui.busy = true; ui.error = null; this.invalidate();
     try {
-      await bridge.personalKeyRemove(provider);
+      await bridge.personalKeyRemove(credential);
       notifyOk(t("toast-personal-key-removed") || "Key removed.");
       await this._load();
     } catch (e) {

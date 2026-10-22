@@ -7,6 +7,8 @@ mod configured_target;
 #[cfg(test)]
 mod cowork_adapter_settings;
 #[cfg(test)]
+mod cowork_resolve_order;
+#[cfg(test)]
 mod emit_io;
 #[cfg(test)]
 mod prune_orphans;

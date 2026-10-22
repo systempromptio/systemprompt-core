@@ -4,4 +4,4 @@
  * One provider of the catalog. `configured` false means the gateway lists it
  * but cannot serve it; `config_issue` says why.
  */
-export type CatalogProviderPayload = { name: string, surface: string, configured: boolean, models: Array<string>, config_issue: string | null, };
+export type CatalogProviderPayload = { name: string, clients: Array<string>, configured: boolean, models: Array<string>, config_issue: string | null, };

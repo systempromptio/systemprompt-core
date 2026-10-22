@@ -74,9 +74,10 @@
       "compatible_models_available": false,
       "unconfigured_providers": [],
       "model_protocols": [
-        "anthropic"
+        "claude"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "checking",
@@ -115,9 +116,10 @@
       "compatible_models_available": false,
       "unconfigured_providers": [],
       "model_protocols": [
-        "anthropic"
+        "claude"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "checking",
@@ -159,6 +161,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "checking",
@@ -200,6 +203,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "checking",
@@ -239,6 +243,7 @@
       "unconfigured_providers": [],
       "model_protocols": [],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "sync-only",
       "verdict": {
         "state": "checking",

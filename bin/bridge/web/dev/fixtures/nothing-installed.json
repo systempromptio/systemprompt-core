@@ -96,9 +96,10 @@
       "compatible_models_available": true,
       "unconfigured_providers": [],
       "model_protocols": [
-        "anthropic"
+        "claude"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-set-up",
@@ -161,9 +162,10 @@
       "compatible_models_available": true,
       "unconfigured_providers": [],
       "model_protocols": [
-        "anthropic"
+        "claude"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-installed",
@@ -229,6 +231,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-installed",
@@ -294,6 +297,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "not-installed",
@@ -335,6 +339,7 @@
       "unconfigured_providers": [],
       "model_protocols": [],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "sync-only",
       "verdict": {
         "state": "checking",

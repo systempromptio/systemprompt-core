@@ -83,7 +83,7 @@ async fn build_profile(
         },
     };
 
-    let bridge_profile = client.fetch_bridge_profile(Some(&bearer)).await?;
+    let bridge_profile = crate::auth::profile::fetch_signed_in(&client).await?;
     let usage = client.fetch_profile_usage(&bearer).await?;
     let identity = profile_identity(&snapshot, whoami.as_ref());
 

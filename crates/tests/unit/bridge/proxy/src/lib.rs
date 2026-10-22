@@ -13,6 +13,8 @@ mod forward_frames;
 #[cfg(test)]
 mod forward_replay;
 #[cfg(test)]
+mod headers;
+#[cfg(test)]
 mod identity;
 #[cfg(test)]
 mod keepalive;

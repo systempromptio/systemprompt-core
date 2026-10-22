@@ -67,11 +67,8 @@ pub(super) fn cmd_install(ctx: &BridgeContext, args: &[String]) -> ExitCode {
         let gateway_url = gateway
             .clone()
             .unwrap_or_else(|| crate::config::gateway_url_or_default(&cfg));
-        let bearer = crate::auth::cache::cached_bearer(&gateway_url);
-        if let Err(e) = ctx.block_on(
-            ctx.gateway_client(gateway_url)
-                .fetch_bridge_profile(bearer.as_ref()),
-        ) {
+        let client = ctx.gateway_client(gateway_url);
+        if let Err(e) = ctx.block_on(crate::auth::profile::fetch_signed_in(&client)) {
             diag(&format!(
                 "Cannot refresh the Desktop model catalog: {e}. Install was not applied."
             ));
