@@ -37,7 +37,17 @@
 - **Breaking:** `systemprompt_mcp::models::ExecutionStatus` is removed; `systemprompt_models::mcp::McpToolExecutionStatus` (adds `Timeout`) is the `mcp_tool_executions.status` vocabulary.
 - **Breaking:** `ServiceRepository::cleanup_stale_entries` is replaced by `reap_stale(&dyn ProcessLiveness) -> Reaped`, which also deletes `running` rows whose pid is not a child this installation owns. `systemprompt_mcp::services::database::sync::{cleanup_stale_services, delete_crashed_services}` and `systemprompt_api::...::reconciliation::service_row_is_stale` are removed. Migrate by passing `systemprompt_loader::subprocess::SubprocessLiveness`.
 
+- **Breaking:** **Config:** provenance uses one closed vocabulary, `ChangeSource` (`code:<file>`, `bundle:<name>`, `console:<user>`, `migration`); `ai_gateway_policies.source` and `config_plane_base.source` refuse anything else. Existing `access_control_*` `source` values are rewritten by the access-plane work, not here.
+- **Breaking:** **Config:** `CacheDomain` gains `GatewayRoutes`, `Governance`, `Groups`, `AccessControl` and `GatewayPolicies`; `ConfigPlane` gains the per-entity `sources`/`read`/`write`/`render_declarations` contract (defaulted).
+
 ### Added
+- **Config:** `config_version`, bumped by `sp_bump_config_version()` on every committed plane write and announced as `config:<plane>` on `systemprompt_cache`; `ConfigWatch<T>` reloads a plane on that notification or on a moved version (30 s poll).
+- **Config:** `with_change_context` sets transaction-local actor, reason and source; `sp_stamp_change()` writes them to `changed_by`, `changed_at`, `reason` and `source` on `access_control_rules`, `access_control_entities` and `ai_gateway_policies`.
+- **Config:** `config_plane_base`, `config_conflicts` and `config_plane_state.last_apply_*` for the explicit apply's three-way merge.
+- **Migrations (lock footprint on a 100M-row `ai_requests`: none touch it):**
+  - governance `026_access_control_change_provenance`: nullable `ADD COLUMN`s, ACCESS EXCLUSIVE on two small tables for milliseconds, no rewrite or scan.
+  - ai `050_ai_gateway_policies_change_provenance`: nullable `ADD COLUMN`s (milliseconds), CHECK added `NOT VALID` then validated under SHARE UPDATE EXCLUSIVE over tens of rows.
+  - scheduler `005_config_plane_last_apply`: nullable `ADD COLUMN`s on the one-row-per-plane table.
 - `ai_request_messages(created_at)` and a partial `ai_request_payloads(created_at) WHERE request_body IS NOT NULL OR response_body IS NOT NULL` index (migration `ai/049`, built `CONCURRENTLY`): each retention batch reaches its rows through an index and the payload pass skips bodies already released.
 - `just lint-migrations` (`scripts/lint-migrations.sh`, `scripts/large-tables.txt`): migrations added since the last release must add constraints `NOT VALID` and validate them, build indexes on large tables `CONCURRENTLY` in a `-- @no-transaction` file, bound bulk writes, default new `NOT NULL` columns, and keep view predicates `LANGUAGE sql`.
 
