@@ -80,8 +80,22 @@ pub enum ConfigLoadError {
     #[error("duplicate Teams app definition: {0}")]
     DuplicateTeamsApp(String),
 
-    #[error("duplicate provider definition across services includes: {0}")]
-    DuplicateProvider(String),
+    #[error("{path}: {what} is the pre-0.73 catalog shape; {hint}", hint = systemprompt_manifest::services::catalog::MIGRATE_HINT)]
+    LegacyCatalog { path: PathBuf, what: &'static str },
+
+    #[error("catalog file unreadable: {0}")]
+    CatalogDocument(#[from] systemprompt_manifest::services::catalog::CatalogDocumentError),
+
+    #[error(
+        "{path} declares `{section}:`; the model catalog is read only from services/ai/{{{files}}}, \
+         so remove the section (and any `includes:` entry naming a catalog file); {hint}",
+        files = systemprompt_manifest::services::catalog::CATALOG_FILES.join(","),
+        hint = systemprompt_manifest::services::catalog::MIGRATE_HINT
+    )]
+    CatalogOutsideConvention { path: PathBuf, section: &'static str },
+
+    #[error("the services catalog does not resolve: {0}")]
+    Catalog(#[from] systemprompt_manifest::services::catalog::CatalogError),
 
     #[error(
         "Services config not initialized. Call ServicesBootstrap::init() after \

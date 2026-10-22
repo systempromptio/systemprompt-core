@@ -7,20 +7,20 @@
 //! that only a Google service-account key can list one, and the Model Garden
 //! listing call itself. The rate card
 //! is held because it decides which publishers are worth asking about at all —
-//! a provider the card prices nothing for has nothing to discover.
+//! an endpoint whose wire the card prices nothing for has nothing to discover.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use systemprompt_manifest::services::{ProviderEntry, VertexRateCard};
+use systemprompt_manifest::services::VertexRateCard;
 use systemprompt_security::credential::{
     AuthHeader, CredentialKind, CredentialScope, ProviderCredential,
 };
 use systemprompt_wire::hosting::is_vertex_host;
 
 use super::client;
-use super::source::{CatalogListing, CatalogSource, DiscoveryError};
+use super::source::{CatalogListing, CatalogSource, DiscoveryEndpoint, DiscoveryError};
 
 #[derive(Debug)]
 pub struct VertexCatalog {
@@ -33,8 +33,8 @@ impl VertexCatalog {
         Self { card }
     }
 
-    fn publishers(&self, provider: &ProviderEntry) -> Vec<String> {
-        self.card.publishers_for(provider.name.as_str())
+    fn publishers(&self, endpoint: &DiscoveryEndpoint) -> Vec<String> {
+        self.card.publishers_for(endpoint.wire)
     }
 }
 
@@ -54,32 +54,31 @@ impl CatalogSource for VertexCatalog {
         "vertex"
     }
 
-    fn matches_provider(&self, provider: &ProviderEntry) -> bool {
-        !self.publishers(provider).is_empty() && vertex_host(&provider.endpoint).is_some()
+    fn matches_endpoint(&self, endpoint: &DiscoveryEndpoint) -> bool {
+        !self.publishers(endpoint).is_empty() && vertex_host(&endpoint.url).is_some()
     }
 
-    fn applies(&self, provider: &ProviderEntry, credential: &ProviderCredential) -> bool {
-        self.matches_provider(provider) && credential.kind() == CredentialKind::GoogleServiceAccount
+    fn applies(&self, endpoint: &DiscoveryEndpoint, credential: &ProviderCredential) -> bool {
+        self.matches_endpoint(endpoint) && credential.kind() == CredentialKind::GoogleServiceAccount
     }
 
     async fn list(
         &self,
         http: &reqwest::Client,
         auth: &AuthHeader,
-        provider: &ProviderEntry,
+        endpoint: &DiscoveryEndpoint,
         _scope: &CredentialScope,
     ) -> Result<CatalogListing, DiscoveryError> {
-        let host =
-            vertex_host(&provider.endpoint).ok_or_else(|| DiscoveryError::NotVertexHost {
-                endpoint: provider.endpoint.clone(),
-            })?;
+        let host = vertex_host(&endpoint.url).ok_or_else(|| DiscoveryError::NotVertexHost {
+            endpoint: endpoint.url.clone(),
+        })?;
         if !auth.is_bearer() {
             return Err(DiscoveryError::BearerRequired);
         }
 
-        let name = provider.name.as_str();
+        let label = endpoint.endpoint.to_string();
         let (models, failures) =
-            client::list_all(http, &host, &auth.value, name, &self.publishers(provider)).await;
+            client::list_all(http, &host, &auth.value, &label, &self.publishers(endpoint)).await;
 
         Ok(CatalogListing {
             models: models

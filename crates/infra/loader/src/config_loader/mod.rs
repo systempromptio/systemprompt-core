@@ -3,20 +3,17 @@
 //! [`ConfigLoader`] is the only public entry point. It resolves the active
 //! profile (via [`systemprompt_config::ProfileBootstrap`]) to a YAML path,
 //! parses the root file, recursively resolves the `includes:` graph
-//! (rejecting cycles and duplicate definitions), inlines `!include`
+//! (rejecting cycles and duplicate definitions), reads the model catalog by
+//! convention from `services/ai/` ([`catalog`]), inlines `!include`
 //! references inside agent system prompts, skill instructions and gateway
 //! prompt overrides, projects the gateway spec to its resolved runtime form,
-//! and finally validates the merged configuration — provider registry and
-//! gateway references included — before returning it to the caller.
+//! and finally validates the merged configuration — the catalog resolved
+//! with every reference checked — before returning it to the caller.
 //!
-//! A provider whose `api_key_secret` does not resolve is demoted to
-//! `surface: backend` before validation, so its models stop being advertised
-//! rather than being offered in every client's picker and failing on first use.
-//! It is not a boot failure: an instance serving one provider must still start
-//! when an unrelated credential is absent. An uninitialised secret store means
-//! "unknown", never "absent" — several entry points load services with no
-//! secrets at all, and demoting there would empty the catalog. That also keeps
-//! the memoisation below benign: the worst case is the old behaviour.
+//! A pre-0.73 tree is refused with the `systemprompt admin config migrate`
+//! hint. A provider whose secret is absent is still loaded: a missing
+//! credential is health state the gateway reports, never a rewrite of the
+//! catalog.
 //!
 //! [`ConfigLoader::load`] — the active-profile entry point — memoises its
 //! result for the lifetime of the process. The explicit
@@ -26,6 +23,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod catalog;
 mod discovery;
 pub mod gateway;
 mod includes;
@@ -39,7 +37,6 @@ use std::sync::{OnceLock, PoisonError, RwLock};
 
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_manifest::services::ServicesConfig;
-use systemprompt_models::providers::ApiSurface;
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
 use crate::services_root::ServicesRootBootstrap;
@@ -141,11 +138,13 @@ impl ConfigLoader {
     }
 
     fn run_from_content(&self, content: &str) -> ConfigLoadResult<ServicesConfig> {
+        catalog::refuse_legacy(&self.config_path, content)?;
         let mut merged: ServicesConfig =
             serde_yaml::from_str(content).map_err(|e| ConfigLoadError::Yaml {
                 path: self.config_path.clone(),
                 source: e,
             })?;
+        catalog::refuse_catalog_sections(&self.config_path, &merged)?;
 
         let includes = std::mem::take(&mut merged.includes);
 
@@ -169,9 +168,11 @@ impl ConfigLoader {
             }
         }
 
+        let document = catalog::read_catalog_dir(&catalog::catalog_dir(&self.base_path))?;
+        catalog::install_catalog(&mut merged, document);
+
         resolve_system_prompt_includes(&self.base_path, &mut merged)?;
         resolve_skill_instruction_includes(&self.base_path, &mut merged)?;
-        gateway::resolve_file_gateway_includes(&self.base_path, &mut merged)?;
         gateway::project_gateway(&mut merged);
 
         discover_skills(&self.base_path, &mut merged)?;
@@ -193,8 +194,6 @@ impl ConfigLoader {
         {
             merged.apply_port_offset(profile.services.port_offset)?;
         }
-
-        demote_providers_without_credentials(&mut merged);
 
         merged.validate()?;
 
@@ -255,27 +254,4 @@ fn cache_store(key: PathBuf, config: &ServicesConfig) {
         .write()
         .unwrap_or_else(PoisonError::into_inner)
         .insert(key, config.clone());
-}
-
-fn demote_providers_without_credentials(config: &mut ServicesConfig) {
-    let Ok(secrets) = systemprompt_config::SecretsBootstrap::get() else {
-        return;
-    };
-
-    for provider in &mut config.providers.providers {
-        if !provider.surface.is_advertised() || provider.is_user_credential() {
-            continue;
-        }
-        if provider
-            .platform_secret()
-            .is_some_and(|name| secrets.get(name.as_str()).is_some())
-        {
-            continue;
-        }
-        tracing::warn!(
-            provider = %provider.name.as_str(),
-            "provider has no credential in the secret store; its models will not be advertised"
-        );
-        provider.surface = ApiSurface::Backend;
-    }
 }

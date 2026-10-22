@@ -15,6 +15,7 @@ use crate::error::{ConfigLoadError, ConfigLoadResult};
 pub(super) fn merge_into(
     target: &mut ServicesConfig,
     include: ServicesConfig,
+    declares_ai: bool,
 ) -> ConfigLoadResult<()> {
     merge_no_dup(&mut target.agents, include.agents, |k| {
         ConfigLoadError::DuplicateAgent(k)
@@ -46,31 +47,8 @@ pub(super) fn merge_into(
         target.bridge_policy = include.bridge_policy;
     }
 
-    if include.gateway.is_some() && target.gateway.is_none() {
-        target.gateway = include.gateway;
-    }
-
-    for provider in include.providers.providers {
-        if target
-            .providers
-            .find_provider(provider.name.as_str())
-            .is_some()
-        {
-            return Err(ConfigLoadError::DuplicateProvider(
-                provider.name.as_str().to_owned(),
-            ));
-        }
-        target.providers.providers.push(provider);
-    }
-
-    if !include.ai.providers.is_empty() {
-        if target.ai.providers.is_empty() {
-            target.ai = include.ai;
-        } else {
-            for (name, provider) in include.ai.providers {
-                target.ai.providers.insert(name, provider);
-            }
-        }
+    if declares_ai {
+        target.ai = include.ai;
     }
 
     if include.web.is_some() {

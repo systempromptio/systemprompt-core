@@ -1,4 +1,4 @@
-//! Folding a classified listing into the provider registry.
+//! Folding a classified listing into the catalog document.
 //!
 //! Two rules carry the whole module. An explicit declaration always wins: the
 //! catalog is hand-written and reviewed, discovery is a convenience, and a
@@ -15,13 +15,18 @@
 //! operator's and is kept — reported and warned about, not deleted.
 //!
 //! Past the retirement date itself the upstream has switched the model off, so
-//! a declaration of a retired model is hidden: it leaves every model listing
-//! and picker, and the retirement is logged at error so the operator knows to
-//! delete the entry from the catalog. It is hidden rather than removed because
-//! removal empties the route that reached it, and a route that reaches no
-//! priced model fails the gateway's boot validation — a date passing must not
-//! stop an instance from starting. "Already declared" means the provider lists
-//! the entry's id or any of its aliases under any of its declared models.
+//! a declaration of a retired model stops being advertised (`clients: []`):
+//! it leaves every model listing and picker, and the retirement is logged at
+//! error so the operator knows to delete the entry from the catalog. It is
+//! not removed because removal empties any route that reached it, and a date
+//! passing must not stop an instance from starting.
+//!
+//! "Already declared" means the catalog declares the entry's id, or a model
+//! already deployed on the listing endpoint sends the entry's
+//! `upstream_model`. A published entry is appended as one model with one
+//! deployment on the listing endpoint, advertised to the client families the
+//! endpoint's existing models are (the endpoint's own wire family when it has
+//! none yet).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -31,62 +36,112 @@ use std::hash::BuildHasher;
 
 use chrono::NaiveDate;
 use systemprompt_identifiers::ModelId;
-use systemprompt_manifest::services::{
-    DiscoveryReport, ProviderEntry, VertexRateCard, VertexRateCardEntry,
-};
+use systemprompt_manifest::services::catalog::{CatalogDocument, DeploymentTarget};
+use systemprompt_manifest::services::{DiscoveryReport, VertexRateCard, VertexRateCardEntry};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::WireProtocol;
 
-fn already_declared(provider: &ProviderEntry, entry: &VertexRateCardEntry) -> bool {
-    std::iter::once(entry.id.as_str())
-        .chain(entry.aliases.iter().map(ModelId::as_str))
-        .any(|name| provider.find_model(name).is_some())
+use super::source::DiscoveryEndpoint;
+
+fn deployed_on(document: &CatalogDocument, model: &ModelId, endpoint: &DiscoveryEndpoint) -> bool {
+    document
+        .deployments
+        .get(model.as_str())
+        .is_some_and(|targets| targets.iter().any(|t| *t.endpoint() == endpoint.endpoint))
 }
 
-fn retire(provider: &mut ProviderEntry, entry: &VertexRateCardEntry) {
-    let names: Vec<&str> = std::iter::once(entry.id.as_str())
-        .chain(entry.aliases.iter().map(ModelId::as_str))
-        .collect();
-    for model in &mut provider.models {
-        if names.iter().any(|name| model.matches(name)) {
-            model.hidden = true;
-        }
+fn declared_as(
+    document: &CatalogDocument,
+    endpoint: &DiscoveryEndpoint,
+    entry: &VertexRateCardEntry,
+) -> Option<ModelId> {
+    if document.models.get(entry.id.as_str()).is_some() {
+        return Some(entry.id.clone());
+    }
+    document
+        .models
+        .iter()
+        .find(|(id, model)| {
+            model.upstream_name(id) == entry.upstream_model && deployed_on(document, id, endpoint)
+        })
+        .map(|(id, _)| id.clone())
+}
+
+const fn wire_family(wire: WireProtocol) -> ClientFamily {
+    match wire {
+        WireProtocol::Anthropic => ClientFamily::Claude,
+        WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => ClientFamily::OpenAi,
+        WireProtocol::Gemini => ClientFamily::Gemini,
     }
 }
 
+fn endpoint_clients(document: &CatalogDocument, endpoint: &DiscoveryEndpoint) -> Vec<ClientFamily> {
+    let mut clients: Vec<ClientFamily> = Vec::new();
+    for (id, model) in document.models.iter() {
+        if deployed_on(document, id, endpoint) {
+            for family in &model.clients {
+                if !clients.contains(family) {
+                    clients.push(*family);
+                }
+            }
+        }
+    }
+    if clients.is_empty() {
+        clients.push(wire_family(endpoint.wire));
+    }
+    clients
+}
+
 pub fn publish(
-    provider: &mut ProviderEntry,
+    document: &mut CatalogDocument,
+    endpoint: &DiscoveryEndpoint,
     entry: &VertexRateCardEntry,
     today: NaiveDate,
     report: &mut DiscoveryReport,
 ) {
     let id = entry.id.as_str().to_owned();
-    let declared = already_declared(provider, entry);
+    let declared = declared_as(document, endpoint, entry);
     if !entry.is_supported(today) {
-        if declared && entry.is_retired(today) {
-            tracing::error!(
-                model = %id,
-                retires_on = ?entry.retires_on,
-                docs = %entry.docs,
-                "declared Vertex model is past its retirement date and no longer exists \
-                 upstream; hiding it from every listing. Remove it from the catalog"
-            );
-            retire(provider, entry);
-        } else if declared {
-            tracing::warn!(
-                model = %id,
-                retires_on = ?entry.retires_on,
-                docs = %entry.docs,
-                "explicitly declared Vertex model is retiring or unsupported; it stays served \
-                 because the catalog declares it, but it should be removed"
-            );
+        match declared {
+            Some(model) if entry.is_retired(today) => {
+                tracing::error!(
+                    model = %model,
+                    retires_on = ?entry.retires_on,
+                    docs = %entry.docs,
+                    "declared Vertex model is past its retirement date and no longer exists \
+                     upstream; it is no longer advertised. Remove it from the catalog"
+                );
+                if let Some(declaration) = document.models.models.get_mut(&model) {
+                    declaration.clients.clear();
+                }
+            },
+            Some(model) => {
+                tracing::warn!(
+                    model = %model,
+                    retires_on = ?entry.retires_on,
+                    docs = %entry.docs,
+                    "explicitly declared Vertex model is retiring or unsupported; it stays served \
+                     because the catalog declares it, but it should be removed"
+                );
+            },
+            None => {},
         }
         report.retiring.push(id);
         return;
     }
-    if declared {
+    if declared.is_some() {
         report.explicit_wins.push(id);
         return;
     }
-    provider.models.push(entry.to_provider_model());
+    let clients = endpoint_clients(document, endpoint);
+    document
+        .models
+        .models
+        .insert(entry.id.clone(), entry.to_model_entry(clients));
+    document.deployments.deployments.insert(
+        entry.id.clone(),
+        vec![DeploymentTarget::Endpoint(endpoint.endpoint.clone())],
+    );
     report.discovered_priced.push(id);
 }
 
@@ -98,11 +153,11 @@ pub fn record_unpriced(upstream: String, report: &mut DiscoveryReport) {
 
 pub fn record_unseen<S: BuildHasher>(
     card: &VertexRateCard,
-    provider: &str,
+    wire: WireProtocol,
     seen: &HashSet<String, S>,
     report: &mut DiscoveryReport,
 ) {
-    for entry in card.entries_for(provider) {
+    for entry in card.entries_for(wire) {
         if !seen.contains(&entry.upstream) {
             report
                 .priced_not_published

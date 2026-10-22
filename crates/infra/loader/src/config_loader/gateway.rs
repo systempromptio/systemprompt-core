@@ -2,9 +2,10 @@
 //!
 //! Resolution itself lives in
 //! [`systemprompt_manifest::services::GatewayConfigSpec::resolve`]; this module
-//! owns what happens to the parsed spec beforehand — route-id backfill and
-//! `!include` prompt resolution — and the final projection to
-//! [`GatewayState::Resolved`] once every include has been merged.
+//! owns `!include` prompt resolution (relative to `services/ai/`, where
+//! `gateway.yaml` lives) and the final projection to
+//! [`GatewayState::Resolved`]. Every route declares its id, so nothing is
+//! backfilled.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,14 +15,6 @@ use std::path::Path;
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState, ServicesConfig};
 
 use crate::error::{ConfigLoadError, ConfigLoadResult};
-
-pub fn backfill_route_ids(spec: &mut GatewayConfigSpec) -> bool {
-    let mut mutated = false;
-    for route in &mut spec.routes {
-        mutated |= route.ensure_id();
-    }
-    mutated
-}
 
 pub fn resolve_override_prompt_includes(
     base_dir: &Path,
@@ -47,21 +40,9 @@ pub fn resolve_override_prompt_includes(
     Ok(())
 }
 
-pub(super) fn resolve_file_gateway_includes(
-    file_dir: &Path,
-    config: &mut ServicesConfig,
-) -> ConfigLoadResult<()> {
-    if let Some(spec) = config.gateway.as_mut().and_then(GatewayState::as_spec_mut) {
-        resolve_override_prompt_includes(file_dir, spec)?;
-    }
-    Ok(())
-}
-
 pub(super) fn project_gateway(config: &mut ServicesConfig) {
     let Some(state) = config.gateway.take() else {
         return;
     };
-    let mut spec = state.into_spec();
-    backfill_route_ids(&mut spec);
-    config.gateway = Some(GatewayState::Resolved(spec.resolve()));
+    config.gateway = Some(GatewayState::Resolved(state.into_spec().resolve()));
 }
