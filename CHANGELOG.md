@@ -28,6 +28,7 @@
 - **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
 - **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
+- **Breaking:** `systemprompt_models::time_format` → `systemprompt_cli::shared::time_format`. Migrate by importing the formatting helpers from the CLI crate or formatting with `chrono` directly.
 
 ### Added
 

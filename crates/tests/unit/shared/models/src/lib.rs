@@ -264,9 +264,6 @@ mod errors_models;
 mod env_interpolation;
 
 #[cfg(test)]
-mod time_format_tests;
-
-#[cfg(test)]
 mod users_summary;
 
 #[cfg(test)]

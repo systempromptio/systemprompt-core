@@ -16,6 +16,7 @@ pub mod parsers;
 pub mod profile;
 pub mod project;
 pub mod text;
+pub mod time_format;
 
 pub use command_result::{
     ChartType, CommandOutput, KeyValueItem, KeyValueOutput, SuccessOutput, TableOutput, TextOutput,
