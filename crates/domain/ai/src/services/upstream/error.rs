@@ -24,7 +24,9 @@ pub enum UpstreamTargetError {
     )]
     PersonalCredential { credential: String },
 
-    #[error("credential '{credential}' declares a Google service account but is malformed: {source}")]
+    #[error(
+        "credential '{credential}' declares a Google service account but is malformed: {source}"
+    )]
     MalformedCredential {
         credential: String,
         #[source]
@@ -35,7 +37,10 @@ pub enum UpstreamTargetError {
         "endpoint '{endpoint}' is hosted on Vertex AI, which accepts only a Google \
          service-account key for this wire; credential '{credential}' holds an API key"
     )]
-    ApiKeyOnVertex { endpoint: String, credential: String },
+    ApiKeyOnVertex {
+        endpoint: String,
+        credential: String,
+    },
 
     #[error("endpoint '{endpoint}' URL cannot be resolved: {source}")]
     Endpoint {

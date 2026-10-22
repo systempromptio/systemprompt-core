@@ -77,7 +77,8 @@ impl AiService {
         SecretsBootstrap::get()?;
         let (clients, withheld) = ProviderClients::build(&catalog)?;
         ConfigValidator::validate(ai_config, &catalog, &clients, &withheld)?;
-        let (default_provider, default_model) = Self::derive_default(&catalog, &clients, &withheld)?;
+        let (default_provider, default_model) =
+            Self::derive_default(&catalog, &clients, &withheld)?;
 
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
@@ -120,7 +121,11 @@ impl AiService {
                     .iter()
                     .map(|hop| hop.endpoint_ref().to_string())
                     .collect(),
-                connected: clients.endpoints().iter().map(ToString::to_string).collect(),
+                connected: clients
+                    .endpoints()
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect(),
                 withheld: withheld
                     .iter()
                     .map(|w| format!("{}: {}", w.endpoint, w.reason))

@@ -66,7 +66,6 @@ impl ImageProviderFactory {
         }
     }
 
-    /// The provider for `ai.default_image_model`, or `None` when it is unset.
     pub fn from_catalog(catalog: &ResolvedCatalog) -> Result<Option<DefaultImageProvider>> {
         let Some(model) = catalog.default_image_model() else {
             return Ok(None);

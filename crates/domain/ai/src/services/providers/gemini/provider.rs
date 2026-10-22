@@ -3,8 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::error::Result;
+use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::services::upstream::UpstreamTarget;
 use reqwest::Client;
 

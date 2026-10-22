@@ -166,13 +166,12 @@ impl UpstreamTarget {
         };
         let secrets = systemprompt_config::SecretsBootstrap::get()
             .map_err(|e| UpstreamTargetError::SecretsUnavailable(Box::new(e)))?;
-        let secret =
-            secrets
-                .get(secret_name.as_str())
-                .ok_or_else(|| UpstreamTargetError::MissingSecret {
-                    credential: credential.id.as_str().to_owned(),
-                    secret: secret_name.as_str().to_owned(),
-                })?;
+        let secret = secrets.get(secret_name.as_str()).ok_or_else(|| {
+            UpstreamTargetError::MissingSecret {
+                credential: credential.id.as_str().to_owned(),
+                secret: secret_name.as_str().to_owned(),
+            }
+        })?;
         let key = TokenCacheKey::platform(&credential.id);
         Self::bind(binding, secret, key)
     }

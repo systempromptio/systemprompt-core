@@ -123,8 +123,6 @@ impl ProviderClients {
         self.by_endpoint.keys().cloned().collect()
     }
 
-    /// The first served hop of `model`, in deployment order, optionally
-    /// narrowed to one provider.
     #[must_use]
     pub fn hop_for<'c>(
         &self,

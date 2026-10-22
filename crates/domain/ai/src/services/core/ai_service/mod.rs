@@ -1,8 +1,8 @@
 //! [`crate::AiService`] internals.
 //!
-//! Split across the per-endpoint client set, generation, streaming, tool execution, planning, the
-//! [`systemprompt_models::ai::AiProvider`] bridge, and the streaming storage
-//! wrapper.
+//! Split across the per-endpoint client set, generation, streaming, tool
+//! execution, planning, the [`systemprompt_models::ai::AiProvider`] bridge, and
+//! the streaming storage wrapper.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

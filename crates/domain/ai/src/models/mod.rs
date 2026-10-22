@@ -26,14 +26,14 @@ pub mod tools {
 }
 
 pub mod ai_request_record;
-mod billing_source;
 mod ai_request_usage;
+mod billing_source;
 pub mod image_generation;
 pub mod request_kind;
 pub(crate) mod rows;
 
-pub use billing_source::BillingSource;
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
+pub use billing_source::BillingSource;
 pub use request_kind::{RequestKind, RequestStatus};
 pub use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, NativeMarker, RequestOrigin,

@@ -29,13 +29,14 @@ pub enum PersonalKeyError {
     NotPersonalCredential(String),
     #[error("{0} rejected the key; check it was copied whole and the subscription is active")]
     Rejected(String),
-    #[error("{credential} could not verify the key (upstream answered {status}); try again shortly")]
+    #[error(
+        "{credential} could not verify the key (upstream answered {status}); try again shortly"
+    )]
     Unverified { credential: String, status: String },
     #[error("personal key could not be stored")]
     Internal(#[source] systemprompt_traits::BoxedSource),
 }
 
-/// The personal credentials at least one enabled provider authenticates with.
 #[must_use]
 pub fn personal_credentials(catalog: &ResolvedCatalog) -> Vec<&ResolvedCredential> {
     catalog
@@ -55,8 +56,6 @@ pub fn personal_credential<'c>(
         .ok_or_else(|| PersonalKeyError::NotPersonalCredential(id.to_owned()))
 }
 
-/// Every endpoint of an enabled provider the credential authenticates: the
-/// set a stored key will be sent to, so the set verification probes.
 #[must_use]
 pub fn credential_endpoints<'c>(
     catalog: &'c ResolvedCatalog,
@@ -112,7 +111,6 @@ pub async fn store_personal_key(
     Ok(meta)
 }
 
-/// Probes every endpoint the credential serves; any rejection rejects the key.
 pub async fn verify_personal_key(
     catalog: &ResolvedCatalog,
     credential: &ResolvedCredential,
@@ -159,7 +157,8 @@ async fn verify_endpoint(
     user_id: &UserId,
 ) -> Result<(), PersonalKeyError> {
     let rejected = || PersonalKeyError::Rejected(credential_label(binding.credential));
-    let target = UpstreamTarget::resolve_personal(binding, key, user_id).map_err(|_e| rejected())?;
+    let target =
+        UpstreamTarget::resolve_personal(binding, key, user_id).map_err(|_e| rejected())?;
     let call = target.call().await.map_err(|_e| rejected())?;
     let client = reqwest::Client::builder()
         .timeout(VERIFY_TIMEOUT)
@@ -252,8 +251,6 @@ fn probe_session(user_id: &UserId) -> String {
     )
 }
 
-/// The upstream name of a model deployed on this endpoint, advertised models
-/// first, so the probe asks for something the endpoint actually serves.
 fn probe_model(catalog: &ResolvedCatalog, endpoint: &ResolvedEndpoint) -> Option<String> {
     let target = endpoint.endpoint_ref();
     let mut models: Vec<_> = catalog.models().collect();

@@ -37,7 +37,6 @@ impl ServedModel {
     }
 }
 
-/// Every model deployed on `endpoint`, in catalog model order.
 #[must_use]
 pub fn served_models_on(catalog: &ResolvedCatalog, endpoint: &EndpointRef) -> Vec<ServedModel> {
     catalog
@@ -52,8 +51,6 @@ pub fn served_models_on(catalog: &ResolvedCatalog, endpoint: &EndpointRef) -> Ve
         .collect()
 }
 
-/// The upstream name for `requested`, or `requested` itself when the endpoint
-/// does not list it.
 #[must_use]
 pub fn upstream_model_in<'a>(models: &'a [ServedModel], requested: &'a str) -> &'a str {
     models
