@@ -10,7 +10,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use clap::Args;
 use sha2::{Digest, Sha256};
-use systemprompt_files::{FileUploadRequest, FileUploadService, FilesConfig};
+use systemprompt_files::{FileUploadRequest, FileUploadService};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use tokio::fs;
 
@@ -38,10 +38,9 @@ pub struct UploadArgs {
 
 pub async fn execute(args: UploadArgs, ctx: &CommandContext) -> Result<CommandOutput> {
     let app = ctx.app_context().await?;
-    let files_config = FilesConfig::get()?;
     let service = FileUploadService::new(
         (**app.file_repository()).clone(),
-        files_config.clone(),
+        (**app.files_config()).clone(),
         std::sync::Arc::clone(app.file_storage()),
     );
 

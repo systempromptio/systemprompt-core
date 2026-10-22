@@ -10,11 +10,14 @@ use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
 use axum::routing::get;
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_api::services::server::health::human_bytes;
 use systemprompt_api::services::server::health_detail::handle_health_detail;
 use systemprompt_api::services::server::lifecycle::reconciliation::cleanup_stale_service_entries;
-use systemprompt_api::services::server::{handle_health, readiness, scheduler_health, shutdown};
+use systemprompt_api::services::server::{
+    ReadinessState, handle_health, scheduler_health, shutdown,
+};
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_manifest::profile::ShutdownConfig;
@@ -149,14 +152,12 @@ async fn shutdown_drain_clears_dead_and_recycled_children() -> anyhow::Result<()
     Ok(())
 }
 
-/// Both halves of the drain guard, in one test because the readiness broadcast
-/// is process-wide: as separate tests, the shutdown announced by one could arm
-/// the other's grace window and make the pair flaky.
 #[tokio::test(start_paused = true)]
 async fn drain_grace_bounds_the_drain_and_not_the_server() {
     let grace = ShutdownConfig::default().drain_grace();
 
     // Never signalled: the guard must not be a deadline on healthy serving.
+    let readiness = Arc::new(ReadinessState::new());
     let unsignalled = tokio::time::timeout(
         grace * 3,
         shutdown::join_within_drain_grace(
@@ -164,6 +165,7 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
             &ShutdownRequest::default(),
             &ShutdownConfig::default(),
             &systemprompt_traits::StreamDrain::default(),
+            &readiness,
         ),
     )
     .await;
@@ -177,17 +179,19 @@ async fn drain_grace_bounds_the_drain_and_not_the_server() {
     // subscribes on first poll, and a broadcast delivers nothing sent earlier.
     let streams = systemprompt_traits::StreamDrain::default();
     let watched = streams.clone();
+    let wedged_readiness = Arc::clone(&readiness);
     let wedged = tokio::spawn(async move {
         shutdown::join_within_drain_grace(
             std::future::pending::<anyhow::Result<()>>(),
             &ShutdownRequest::default(),
             &ShutdownConfig::default(),
             &watched,
+            &wedged_readiness,
         )
         .await
     });
     tokio::time::sleep(Duration::from_millis(50)).await;
-    readiness::signal_shutdown();
+    readiness.signal_shutdown();
 
     let result = tokio::time::timeout(grace * 3, wedged)
         .await
@@ -216,6 +220,7 @@ async fn drain_grace_leaves_room_for_child_termination() {
         &ShutdownRequest::default(),
         &ShutdownConfig::default(),
         &systemprompt_traits::StreamDrain::default(),
+        &ReadinessState::new(),
     )
     .await;
     assert!(served.is_ok(), "a clean drain returns the serve result");
@@ -280,6 +285,7 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
         ctx.db_pool().write_pool().as_ref().clone(),
         instance_id,
         systemprompt_traits::CacheEpochs::new(),
+        Arc::clone(ctx.event_broadcasters()),
     )
     .start();
     let listening = tokio::time::timeout(Duration::from_secs(10), handle.listening())

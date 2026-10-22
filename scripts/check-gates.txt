@@ -39,5 +39,6 @@ lint-bridge-verdicts
 lint-bridge-typed-warnings
 lint-bridge-layers
 lint-bridge-globals
+lint-core-globals
 lint-bridge-file-size
 lint-repo-hygiene

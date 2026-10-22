@@ -176,7 +176,11 @@ impl<'r> Chain<'_, 'r> {
         let bound = resolve_deployment_upstream(
             self.send.registry,
             self.send.primary,
-            DeploymentHop { index, hops: &hops },
+            DeploymentHop {
+                index,
+                hops: &hops,
+                engines: self.send.engines,
+            },
             &self.request_model,
             self.send.ai_request_id,
         )

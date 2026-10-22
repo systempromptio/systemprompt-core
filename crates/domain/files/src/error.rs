@@ -36,6 +36,13 @@ domain_error! {
             source: serde_yaml::Error,
         },
 
+        #[error("Failed to create storage directory {path}: {source}")]
+        StorageDir {
+            path: PathBuf,
+            #[source]
+            source: std::io::Error,
+        },
+
         #[error("invalid UUID for file id {id}")]
         InvalidFileId {
             id: FileId,

@@ -1,3 +1,4 @@
+mod config_injected;
 mod persistence_and_types;
 mod profile_edge;
 mod serde_roundtrip;

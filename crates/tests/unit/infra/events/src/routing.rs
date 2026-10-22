@@ -1,7 +1,5 @@
-use systemprompt_events::{
-    A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, Broadcaster, CONTEXT_BROADCASTER,
-    EventRouter,
-};
+use std::sync::Arc;
+use systemprompt_events::{Broadcaster, EventBroadcasters, EventRouter};
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::a2a::TaskState;
 use systemprompt_models::{
@@ -40,10 +38,11 @@ fn test_system_event() -> SystemEvent {
 
 #[tokio::test]
 async fn test_route_agui_returns_tuple() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = test_user_id();
     let event = test_agui_event();
 
-    let result = EventRouter::local_only()
+    let result = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_agui(&user_id, event)
         .await
         .into_local_logged();
@@ -54,15 +53,17 @@ async fn test_route_agui_returns_tuple() {
 
 #[tokio::test]
 async fn test_route_agui_with_registered_connection() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    AGUI_BROADCASTER
+    broadcasters
+        .agui
         .register(&user_id, &ConnectionId::new("agui-conn"), sender)
         .await;
 
     let event = test_agui_event();
-    let (agui_count, _context_count) = EventRouter::local_only()
+    let (agui_count, _context_count) = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_agui(&user_id, event)
         .await
         .into_local_logged();
@@ -73,17 +74,19 @@ async fn test_route_agui_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    AGUI_BROADCASTER
+    broadcasters
+        .agui
         .unregister(&user_id, &ConnectionId::new("agui-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_a2a_returns_tuple() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = test_user_id();
     let event = test_a2a_event();
 
-    let result = EventRouter::local_only()
+    let result = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_a2a(&user_id, event)
         .await
         .into_local_logged();
@@ -94,15 +97,17 @@ async fn test_route_a2a_returns_tuple() {
 
 #[tokio::test]
 async fn test_route_a2a_with_registered_connection() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    A2A_BROADCASTER
+    broadcasters
+        .a2a
         .register(&user_id, &ConnectionId::new("a2a-conn"), sender)
         .await;
 
     let event = test_a2a_event();
-    let (a2a_count, _context_count) = EventRouter::local_only()
+    let (a2a_count, _context_count) = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_a2a(&user_id, event)
         .await
         .into_local_logged();
@@ -113,17 +118,19 @@ async fn test_route_a2a_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    A2A_BROADCASTER
+    broadcasters
+        .a2a
         .unregister(&user_id, &ConnectionId::new("a2a-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_system_returns_count() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = test_user_id();
     let event = test_system_event();
 
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_system(&user_id, event)
         .await
         .into_local_logged();
@@ -133,15 +140,17 @@ async fn test_route_system_returns_count() {
 
 #[tokio::test]
 async fn test_route_system_with_registered_connection() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .register(&user_id, &ConnectionId::new("context-conn"), sender)
         .await;
 
     let event = test_system_event();
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_system(&user_id, event)
         .await
         .into_local_logged();
@@ -152,18 +161,21 @@ async fn test_route_system_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .unregister(&user_id, &ConnectionId::new("context-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_agui_broadcasts_to_context() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (context_sender, mut context_receiver) =
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .register(
             &user_id,
             &ConnectionId::new("context-only-conn"),
@@ -172,7 +184,7 @@ async fn test_route_agui_broadcasts_to_context() {
         .await;
 
     let event = test_agui_event();
-    let (_agui_count, context_count) = EventRouter::local_only()
+    let (_agui_count, context_count) = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_agui(&user_id, event)
         .await
         .into_local_logged();
@@ -183,18 +195,21 @@ async fn test_route_agui_broadcasts_to_context() {
         .await
         .expect("context_receiver.recv().await should be present");
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .unregister(&user_id, &ConnectionId::new("context-only-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_a2a_broadcasts_to_context() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (context_sender, mut context_receiver) =
         tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .register(
             &user_id,
             &ConnectionId::new("a2a-context-conn"),
@@ -203,7 +218,7 @@ async fn test_route_a2a_broadcasts_to_context() {
         .await;
 
     let event = test_a2a_event();
-    let (_a2a_count, context_count) = EventRouter::local_only()
+    let (_a2a_count, context_count) = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_a2a(&user_id, event)
         .await
         .into_local_logged();
@@ -214,7 +229,8 @@ async fn test_route_a2a_broadcasts_to_context() {
         .await
         .expect("context_receiver.recv().await should be present");
 
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .unregister(&user_id, &ConnectionId::new("a2a-context-conn"))
         .await;
 }
@@ -256,10 +272,11 @@ fn test_analytics_event() -> AnalyticsEvent {
 
 #[tokio::test]
 async fn test_route_analytics_returns_count() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = test_user_id();
     let event = test_analytics_event();
 
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, event)
         .await
         .into_local_logged();
@@ -269,15 +286,17 @@ async fn test_route_analytics_returns_count() {
 
 #[tokio::test]
 async fn test_route_analytics_with_registered_connection() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("analytics-conn"), sender)
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, event)
         .await
         .into_local_logged();
@@ -288,26 +307,30 @@ async fn test_route_analytics_with_registered_connection() {
         .await
         .expect("receiver.recv().await should be present");
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("analytics-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_analytics_multiple_connections() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender1, mut rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, mut rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("analytics-conn-1"), sender1)
         .await;
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("analytics-conn-2"), sender2)
         .await;
 
     let event = test_analytics_event();
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, event)
         .await
         .into_local_logged();
@@ -322,28 +345,33 @@ async fn test_route_analytics_multiple_connections() {
         .await
         .expect("rx2.recv().await should be present");
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("analytics-conn-1"))
         .await;
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("analytics-conn-2"))
         .await;
 }
 
 #[tokio::test]
 async fn test_analytics_broadcaster_connection_count() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 0);
+    assert_eq!(broadcasters.analytics.connection_count(&user_id).await, 0);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("count-conn"), sender)
         .await;
 
-    assert_eq!(ANALYTICS_BROADCASTER.connection_count(&user_id).await, 1);
+    assert_eq!(broadcasters.analytics.connection_count(&user_id).await, 1);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("count-conn"))
         .await;
 }
@@ -357,15 +385,17 @@ async fn test_analytics_event_timestamp_exists() {
 
 #[tokio::test]
 async fn test_route_analytics_heartbeat_event() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("heartbeat-conn"), sender)
         .await;
 
     let heartbeat = AnalyticsEventBuilder::heartbeat();
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, heartbeat)
         .await
         .into_local_logged();
@@ -375,23 +405,26 @@ async fn test_route_analytics_heartbeat_event() {
         .await
         .expect("receiver.recv().await should be present");
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("heartbeat-conn"))
         .await;
 }
 
 #[tokio::test]
 async fn test_route_analytics_session_ended_event() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let user_id = unique_user_id("user-id");
     let (sender, mut receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .register(&user_id, &ConnectionId::new("session-end-conn"), sender)
         .await;
 
     let session_end =
         AnalyticsEventBuilder::session_ended("test-session".to_string().into(), 120000, 10, 20);
-    let count = EventRouter::local_only()
+    let count = EventRouter::local_only(Arc::clone(&broadcasters))
         .route_analytics(&user_id, session_end)
         .await
         .into_local_logged();
@@ -401,7 +434,8 @@ async fn test_route_analytics_session_ended_event() {
         .await
         .expect("receiver.recv().await should be present");
 
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&user_id, &ConnectionId::new("session-end-conn"))
         .await;
 }

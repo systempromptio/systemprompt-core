@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- **Breaking:** `systemprompt_files::FilesConfig::{init, get, get_optional}` are removed; the context owns the value. Migrate by reading `AppContext::files_config()` (jobs take `Arc<FilesConfig>` from `JobContext`), building one with `FilesConfig::from_profile` or `FilesConfig::new` at a composition root, and passing it to `FilesAiPersistenceProvider::new`.
+- **Breaking:** `FilesConfig::ensure_storage_structure` returns `Result<(), FilesError>` (`FilesError::StorageDir` names the directory) and runs as a builder step; `FilesConfig::validate` no longer touches the filesystem. `systemprompt_runtime::FilesConfigValidator` is removed. Migrate by using `systemprompt_files::FilesConfigValidator` (priority 10).
+- **Breaking:** `systemprompt_events::{CONTEXT_BROADCASTER, AGUI_BROADCASTER, A2A_BROADCASTER, ANALYTICS_BROADCASTER}` are removed in favour of `EventBroadcasters`, built once and shared. `EventRouter::local_only`, `EventRouter::with_outbox` and `PostgresEventBridge::new` take the `Arc<EventBroadcasters>`; the `route_*_local` functions are methods; `ConnectionGuard::new` takes an `Arc<GenericBroadcaster<E>>`. Migrate by reading `AppContext::event_broadcasters()`.
+- **Breaking:** `systemprompt_api::services::server::readiness` is a `ReadinessState` value owned by the server (`EarlyServer::readiness()`); the free functions `init_readiness`, `get_readiness_receiver`, `is_ready`, `signal_ready`, `signal_shutdown` and `wait_for_ready` are removed. `setup_api_server`, `join_within_drain_grace` and `serve_metrics_listener` take it; `metrics_router` and `handle_metrics` take a `MetricsState`.
+- **Breaking:** `systemprompt_security::credential::TokenCache` is a value: `google::access_token`, `MachineGrant::{token, authorization}` and `connector_grant::machine_token` take a `&TokenCache`. `McpClient` is constructed with `McpClient::new(Arc<TokenCache>)` and its operations are methods; `McpToolProvider::new` and `ProxyEngine::new` take the shared cache (`AppContext::connector_tokens()`).
+- **Breaking:** `systemprompt_extension::runtime_config::{set_injected_extensions, get_injected_extensions, get_web_assets_strategy}` are removed. Migrate by passing the `InjectedExtensions` value to `ExtensionRegistry::discover_with`.
+- **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
+
+### Added
+
+- Gates: `lint-core-globals` fails on a process static outside the reasoned allowlist.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking

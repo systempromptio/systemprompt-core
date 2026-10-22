@@ -8,6 +8,7 @@
 use axum::Router;
 use axum::routing::{get, post};
 use std::sync::Arc;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::JwtContextExtractor;
@@ -50,13 +51,18 @@ pub(super) fn inference_routes(
     ctx: &AppContext,
     jwt_extractor: &Arc<JwtContextExtractor>,
     repos: &Arc<systemprompt_gateway::GatewayRepositories>,
+    engines: &Arc<GatewayEngines>,
 ) -> Router {
+    let handles = messages::GatewayHandles {
+        repos: Arc::clone(repos),
+        engines: Arc::clone(engines),
+    };
+    let handles_messages = handles.clone();
+    let handles_responses = handles.clone();
+    let handles_chat = handles;
     let ctx_messages = ctx.clone();
     let ctx_responses = ctx.clone();
     let ctx_chat = ctx.clone();
-    let repos_messages = Arc::clone(repos);
-    let repos_responses = Arc::clone(repos);
-    let repos_chat = Arc::clone(repos);
     let jwt_messages = Arc::clone(jwt_extractor);
     let jwt_responses = Arc::clone(jwt_extractor);
     let jwt_chat = Arc::clone(jwt_extractor);
@@ -70,9 +76,9 @@ pub(super) fn inference_routes(
             post(move |request| {
                 let extractor = Arc::clone(&jwt_messages);
                 let context = ctx_messages.clone();
-                let repos = Arc::clone(&repos_messages);
+                let handles = handles_messages.clone();
                 let inbound = Arc::clone(&anthropic_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
+                async move { messages::handle(inbound, extractor, context, handles, request).await }
             }),
         )
         .route(
@@ -80,9 +86,9 @@ pub(super) fn inference_routes(
             post(move |request| {
                 let extractor = Arc::clone(&jwt_responses);
                 let context = ctx_responses.clone();
-                let repos = Arc::clone(&repos_responses);
+                let handles = handles_responses.clone();
                 let inbound = Arc::clone(&responses_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
+                async move { messages::handle(inbound, extractor, context, handles, request).await }
             }),
         )
         .route(
@@ -90,9 +96,9 @@ pub(super) fn inference_routes(
             post(move |request| {
                 let extractor = Arc::clone(&jwt_chat);
                 let context = ctx_chat.clone();
-                let repos = Arc::clone(&repos_chat);
+                let handles = handles_chat.clone();
                 let inbound = Arc::clone(&chat_inbound);
-                async move { messages::handle(inbound, extractor, context, repos, request).await }
+                async move { messages::handle(inbound, extractor, context, handles, request).await }
             }),
         )
 }
@@ -255,6 +261,7 @@ pub(super) fn bridge_session_routes(
     let jwt_profile_usage = Arc::clone(jwt_extractor);
     let jwt_heartbeat = Arc::clone(jwt_extractor);
     let jwt_stream = Arc::clone(jwt_extractor);
+    let broadcasters_stream = Arc::clone(ctx.event_broadcasters());
     Router::new()
         .route(
             "/bridge/profile/usage",
@@ -276,7 +283,8 @@ pub(super) fn bridge_session_routes(
             "/bridge/stream",
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_stream);
-                async move { bridge_stream::handle(extractor, headers).await }
+                let broadcasters = Arc::clone(&broadcasters_stream);
+                async move { bridge_stream::handle(extractor, broadcasters, headers).await }
             }),
         )
 }

@@ -1,12 +1,11 @@
-//! Tests for `ExtensionRegistry::discover` / `discover_and_merge` in
+//! Tests for `ExtensionRegistry::discover` / `discover_with` in
 //! `registry/discovery.rs`.
 //!
 //! The unit-test binary registers exactly one extension through `inventory`
 //! (`InventoryExt`, below), so `discover()` exercises the inventory-iteration
-//! branch as well as the injected-extension path. `discover` also consults the
-//! process-global injected list; these tests use uniquely named extensions for
-//! the merge assertions and account for the single inventory registration in
-//! count assertions.
+//! branch; `discover_with` merges the `InjectedExtensions` value it is handed.
+//! These tests use uniquely named extensions for the merge assertions and
+//! account for the single inventory registration in count assertions.
 
 
 use systemprompt_extension::{Extension, ExtensionMetadata, ExtensionRegistry};
@@ -54,22 +53,25 @@ fn discover_finds_the_inventory_registered_extension() {
 #[test]
 fn discover_returns_ok() {
     let registry = ExtensionRegistry::discover().expect("discover should not error");
-    // No inventory registrations in this binary, so discovery succeeds and the
-    // registry is well-formed (validation over zero/declared extensions holds).
     registry.validate().expect("discovered registry validates");
+    assert_eq!(
+        registry.len(),
+        1,
+        "plain discovery sees the inventory registration and nothing injected"
+    );
 }
 
 #[test]
-fn discover_includes_process_injected_extensions_and_skips_duplicate_ids() {
-    // The process-global injected list is consulted by `discover()`. Injecting
-    // the same id twice must collapse to a single registry entry (the second is
-    // skipped as already-discovered), while a distinct id is also included.
-    // A DEBUG subscriber is active so the injected-extension log fields (count,
-    // name, priority) and the completion-summary fields are evaluated.
+fn discover_with_includes_injected_extensions_and_skips_duplicate_ids() {
+    // Injecting the same id twice must collapse to a single registry entry (the
+    // second is skipped as already-discovered), while a distinct id is also
+    // included. A DEBUG subscriber is active so the injected-extension log
+    // fields (count, name, priority) and the completion-summary fields are
+    // evaluated.
     let _guard = debug_subscriber_guard();
-    crate::injected_lock::ensure_set();
 
-    let registry = ExtensionRegistry::discover().expect("discover should not error");
+    let registry = ExtensionRegistry::discover_with(&crate::injected_lock::injected())
+        .expect("discover should not error");
 
     assert!(
         registry.has(crate::injected_lock::PRIMARY_ID),

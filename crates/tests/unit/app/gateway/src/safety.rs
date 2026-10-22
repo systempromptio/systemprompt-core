@@ -123,7 +123,7 @@ register_safety_scanner!(
 
 #[tokio::test]
 async fn a_failing_extension_scanner_reports_failure_instead_of_an_empty_clean_list() {
-    let scanner = SafetyScannerRegistry::global()
+    let scanner = SafetyScannerRegistry::new()
         .create("stub_broken", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
     let request_outcome = scanner.scan_request(&req_with("anything")).await;
@@ -170,7 +170,7 @@ fn severity_as_str() {
 
 #[test]
 fn registry_creates_the_builtin_heuristic_per_policy() {
-    let scanner = SafetyScannerRegistry::global()
+    let scanner = SafetyScannerRegistry::new()
         .create("heuristic", &SafetyConfig::default())
         .expect("heuristic is built in");
     assert_eq!(scanner.name(), "heuristic");
@@ -179,7 +179,7 @@ fn registry_creates_the_builtin_heuristic_per_policy() {
 #[test]
 fn registry_returns_none_for_unknown_scanner() {
     assert!(
-        SafetyScannerRegistry::global()
+        SafetyScannerRegistry::new()
             .create("does_not_exist", &SafetyConfig::default())
             .is_none()
     );
@@ -187,7 +187,7 @@ fn registry_returns_none_for_unknown_scanner() {
 
 #[tokio::test]
 async fn registry_resolves_registered_extension_scanner() {
-    let registry = SafetyScannerRegistry::global();
+    let registry = SafetyScannerRegistry::new();
     let scanner = registry
         .create("stub_secrets", &SafetyConfig::default())
         .expect("extension scanner is collected via inventory");
@@ -395,7 +395,7 @@ mod dedup {
 
 #[test]
 fn registry_resolves_the_null_scanner_by_name() {
-    let scanner = SafetyScannerRegistry::global()
+    let scanner = SafetyScannerRegistry::new()
         .create("null", &SafetyConfig::default())
         .expect("null is built in");
     assert_eq!(scanner.name(), "null");

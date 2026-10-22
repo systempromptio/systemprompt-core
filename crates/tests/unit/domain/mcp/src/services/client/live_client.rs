@@ -24,7 +24,8 @@ async fn list_tools_maps_schemas_and_metadata() {
             .expect("tool metadata"),
     );
 
-    let tools = McpClient::list_tools(&config, &request_context("list"))
+    let tools = McpClient::new(std::sync::Arc::default())
+        .list_tools(&config, &request_context("list"))
         .await
         .expect("tools list");
 
@@ -50,14 +51,15 @@ async fn call_tool_round_trips_result() {
     mount_mcp_endpoint(&server, default_tools_json()).await;
 
     let config = external_mcp_config("live_call", &format!("{}/mcp", server.uri()));
-    let result = McpClient::call_tool(
-        &config,
-        "echo".to_owned(),
-        Some(serde_json::json!({"message": "hi"})),
-        &request_context("call"),
-    )
-    .await
-    .expect("tool call");
+    let result = McpClient::new(std::sync::Arc::default())
+        .call_tool(
+            &config,
+            "echo".to_owned(),
+            Some(serde_json::json!({"message": "hi"})),
+            &request_context("call"),
+        )
+        .await
+        .expect("tool call");
 
     assert_eq!(result.is_error, Some(false));
     let text = serde_json::to_string(&result.content).expect("content serializes");
@@ -73,7 +75,8 @@ async fn oauth_required_without_token_is_rejected() {
     let mut config = external_mcp_config("live_auth", &format!("{}/mcp", server.uri()));
     config.oauth.required = true;
 
-    let err = McpClient::list_tools(&config, &request_context("auth"))
+    let err = McpClient::new(std::sync::Arc::default())
+        .list_tools(&config, &request_context("auth"))
         .await
         .expect_err("missing token rejected");
     assert!(err.to_string().contains("User JWT required"));
@@ -89,7 +92,8 @@ async fn oauth_required_with_token_sends_bearer() {
     config.oauth.required = true;
 
     let context = request_context("auth-ok").with_auth_token(JwtToken::new("user-jwt"));
-    let tools = McpClient::list_tools(&config, &context)
+    let tools = McpClient::new(std::sync::Arc::default())
+        .list_tools(&config, &context)
         .await
         .expect("tools list with bearer");
     assert_eq!(tools.len(), 2);
@@ -105,7 +109,8 @@ async fn external_auth_without_user_is_rejected() {
         serde_yaml::from_str("token_endpoint: /api/public/prov/token").expect("external auth"),
     );
 
-    let err = McpClient::call_tool(&config, "echo".to_owned(), None, &request_context("ext"))
+    let err = McpClient::new(std::sync::Arc::default())
+        .call_tool(&config, "echo".to_owned(), None, &request_context("ext"))
         .await
         .expect_err("anonymous external-auth call rejected");
     assert!(err.to_string().contains("requires an authenticated user"));
@@ -122,7 +127,8 @@ async fn external_auth_with_unreachable_accessor_fails() {
     );
 
     let context = request_context("ext2").with_auth_token(JwtToken::new("user-jwt"));
-    let err = McpClient::call_tool(&config, "echo".to_owned(), None, &context)
+    let err = McpClient::new(std::sync::Arc::default())
+        .call_tool(&config, "echo".to_owned(), None, &context)
         .await
         .expect_err("no broker secret is configured, so the accessor is never called");
     assert!(

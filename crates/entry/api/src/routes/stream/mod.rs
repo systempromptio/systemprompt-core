@@ -10,16 +10,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::Router;
-use axum::extract::Extension;
+use axum::extract::{Extension, State};
 use axum::response::IntoResponse;
 use axum::response::sse::Sse;
 use axum::routing::get;
 use std::convert::Infallible;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_events::{
-    A2A_BROADCASTER, AGUI_BROADCASTER, Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse,
-    standard_keep_alive,
+    Broadcaster, ConnectionGuard, EventBroadcasters, GenericBroadcaster, ToSse, standard_keep_alive,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_models::api::ApiError;
@@ -34,12 +33,14 @@ pub mod contexts;
 #[derive(Clone, Debug)]
 pub struct StreamState {
     pub context_provider: Arc<ContextProviderService>,
+    pub broadcasters: Arc<EventBroadcasters>,
 }
 
 pub fn stream_router(ctx: &AppContext) -> Router {
     let context_provider = ContextProviderService::new(ctx.a2a_repositories().contexts.clone());
     let state = StreamState {
         context_provider: Arc::new(context_provider),
+        broadcasters: Arc::clone(ctx.event_broadcasters()),
     };
 
     Router::new()
@@ -51,14 +52,21 @@ pub fn stream_router(ctx: &AppContext) -> Router {
 
 pub async fn stream_a2a_events(
     Extension(request_context): Extension<RequestContext>,
+    State(state): State<StreamState>,
 ) -> impl IntoResponse {
-    create_sse_stream(request_context, &A2A_BROADCASTER, "A2A").await
+    create_sse_stream(request_context, Arc::clone(&state.broadcasters.a2a), "A2A").await
 }
 
 pub async fn stream_agui_events(
     Extension(request_context): Extension<RequestContext>,
+    State(state): State<StreamState>,
 ) -> impl IntoResponse {
-    create_sse_stream(request_context, &AGUI_BROADCASTER, "AgUI").await
+    create_sse_stream(
+        request_context,
+        Arc::clone(&state.broadcasters.agui),
+        "AgUI",
+    )
+    .await
 }
 
 #[derive(Debug)]
@@ -92,7 +100,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> futures_util::Stream for StreamWi
 
 pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
     request_context: RequestContext,
-    broadcaster: &'static LazyLock<GenericBroadcaster<E>>,
+    broadcaster: Arc<GenericBroadcaster<E>>,
     stream_name: &str,
 ) -> impl IntoResponse {
     let user_id = request_context.user_id().clone();

@@ -10,7 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 use systemprompt_manifest::services::{OverrideRuleAction, SystemPromptRule};
 
@@ -23,6 +23,12 @@ pub struct OverrideEngine {
     extensions: Vec<Arc<dyn SystemPromptOverride>>,
 }
 
+impl Default for OverrideEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl std::fmt::Debug for OverrideEngine {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OverrideEngine")
@@ -33,13 +39,12 @@ impl std::fmt::Debug for OverrideEngine {
 
 impl OverrideEngine {
     #[must_use]
-    pub fn global() -> &'static Self {
-        static ENGINE: OnceLock<OverrideEngine> = OnceLock::new();
-        ENGINE.get_or_init(|| Self {
+    pub fn new() -> Self {
+        Self {
             extensions: inventory::iter::<SystemPromptOverrideRegistration>()
                 .map(|reg| (reg.factory)())
                 .collect(),
-        })
+        }
     }
 
     #[must_use]

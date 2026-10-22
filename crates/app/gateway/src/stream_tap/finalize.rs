@@ -171,6 +171,7 @@ pub(super) fn finalize(
                 let accounting = audit.settle_quota(&summary.usage, cost_microdollars).await;
                 record_accounting_outcome(&audit, ctx.quota_fault_mode, accounting).await;
                 run_response_safety_scan(
+                    &ctx.scanners,
                     &ctx.repos.safety_findings,
                     &ctx.ai_request_id,
                     &summary.response,

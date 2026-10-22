@@ -16,17 +16,24 @@ use super::super::{DispatchError, SafetyBlocked};
 use super::recovery::redact_findings;
 use super::{GovernedDispatch, ScannedDispatch};
 use crate::policies::SafetyConfig;
+use crate::registry::SafetyScannerRegistry;
+
+pub(in crate::service) struct SafetyScan<'a> {
+    pub scanners: &'a SafetyScannerRegistry,
+    pub safety: &'a SafetyConfig,
+}
 
 impl ScannedDispatch {
     pub(in crate::service) async fn enforce(
         governed: GovernedDispatch,
         repos: &super::super::super::GatewayRepositories,
+        scan: SafetyScan<'_>,
         ai_request_id: &AiRequestId,
-        safety: &SafetyConfig,
         audit: &GatewayAudit,
     ) -> Result<Self, DispatchError> {
+        let SafetyScan { scanners, safety } = scan;
         let GovernedDispatch(mut prepared) = governed;
-        let findings = run_request_safety_scan(&prepared.request, safety).await;
+        let findings = run_request_safety_scan(scanners, &prepared.request, safety).await;
         let blocked = findings
             .iter()
             .find(|f| request_finding_blocks(f, safety))

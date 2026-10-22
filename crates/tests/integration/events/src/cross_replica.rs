@@ -19,12 +19,13 @@
 //! fails within seconds.
 
 use std::future::Future;
+use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::PgPool;
 use systemprompt_events::{
-    A2A_BROADCASTER, Broadcaster, EventBridgeHandle, EventRouter, EventSender, PostgresEventBridge,
-    RelayOutcome,
+    Broadcaster, EventBridgeHandle, EventBroadcasters, EventRouter, EventSender,
+    PostgresEventBridge, RelayOutcome,
 };
 use systemprompt_identifiers::{ConnectionId, ContextId, TaskId, UserId};
 use systemprompt_models::A2AEvent;
@@ -59,11 +60,14 @@ fn sample_event() -> A2AEvent {
 }
 
 async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
-    let router = EventRouter::with_outbox(pool.clone(), unique_instance());
+    let broadcasters = Arc::new(EventBroadcasters::new());
+    let router =
+        EventRouter::with_outbox(pool.clone(), unique_instance(), Arc::clone(&broadcasters));
     let bridge = PostgresEventBridge::new(
         pool.clone(),
         unique_instance(),
         systemprompt_traits::CacheEpochs::new(),
+        broadcasters,
     )
     .start();
     assert!(
@@ -73,10 +77,20 @@ async fn start_peer_replica(pool: &PgPool) -> (EventRouter, EventBridgeHandle) {
     (router, bridge)
 }
 
-async fn subscribe(user: &UserId, connection: &str) -> (ConnectionId, Receiver<Delivery>) {
+async fn subscribe(
+    router: &EventRouter,
+    user: &UserId,
+    connection: &str,
+) -> (ConnectionId, Receiver<Delivery>) {
     let connection = ConnectionId::new(connection);
     let (tx, rx): (EventSender, _) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
-    assert!(A2A_BROADCASTER.register(user, &connection, tx).await);
+    assert!(
+        router
+            .broadcasters()
+            .a2a
+            .register(user, &connection, tx)
+            .await
+    );
     (connection, rx)
 }
 
@@ -114,13 +128,17 @@ async fn event_routed_on_replica_a_reaches_subscriber_on_replica_b() {
     let pool = setup_test_pool().await;
     let (router, bridge) = start_peer_replica(&pool).await;
     let user = unique_user_id("evt-relay");
-    let (connection, mut rx) = subscribe(&user, "replica-b-conn").await;
+    let (connection, mut rx) = subscribe(&router, &user, "replica-b-conn").await;
 
     route_on_replica_a(&router, &user).await;
     next_delivery(&mut rx, "the in-process delivery").await;
     next_delivery(&mut rx, "the relayed delivery from replica A").await;
 
-    A2A_BROADCASTER.unregister(&user, &connection).await;
+    router
+        .broadcasters()
+        .a2a
+        .unregister(&user, &connection)
+        .await;
     teardown(&pool, bridge, &[&user]).await;
 }
 
@@ -130,8 +148,8 @@ async fn relayed_event_reaches_only_the_addressed_user() {
     let (router, bridge) = start_peer_replica(&pool).await;
     let target = unique_user_id("evt-relay");
     let bystander = unique_user_id("evt-relay");
-    let (target_conn, mut target_rx) = subscribe(&target, "target-conn").await;
-    let (bystander_conn, mut bystander_rx) = subscribe(&bystander, "bystander-conn").await;
+    let (target_conn, mut target_rx) = subscribe(&router, &target, "target-conn").await;
+    let (bystander_conn, mut bystander_rx) = subscribe(&router, &bystander, "bystander-conn").await;
 
     route_on_replica_a(&router, &target).await;
     next_delivery(&mut target_rx, "the target's in-process delivery").await;
@@ -147,8 +165,14 @@ async fn relayed_event_reaches_only_the_addressed_user() {
     let bystander_extra = bystander_rx.try_recv();
     let target_extra = target_rx.try_recv();
 
-    A2A_BROADCASTER.unregister(&target, &target_conn).await;
-    A2A_BROADCASTER
+    router
+        .broadcasters()
+        .a2a
+        .unregister(&target, &target_conn)
+        .await;
+    router
+        .broadcasters()
+        .a2a
         .unregister(&bystander, &bystander_conn)
         .await;
     teardown(&pool, bridge, &[&target, &bystander]).await;

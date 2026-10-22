@@ -38,12 +38,6 @@ mod display_tests;
 mod error_variants;
 #[cfg(test)]
 mod ext_fixtures;
-#[cfg(test)]
-mod files_validator_load;
-#[cfg(test)]
-mod files_validator_storage_errors;
-#[cfg(test)]
-mod files_validator_tests;
 #[cfg(all(test, unix))]
 mod managed_inventory_lifecycle;
 #[cfg(test)]

@@ -371,6 +371,7 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
                     },
                 ),
             )
@@ -429,6 +430,7 @@ async fn replay() -> Result<()> {
                         identity_headers: vec![],
                         trace_sampled: None,
                         governance: systemprompt_test_fixtures::default_governance_engine(),
+                        engines: std::sync::Arc::new(systemprompt_gateway::GatewayEngines::new()),
                     },
                 ),
             )

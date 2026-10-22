@@ -21,6 +21,7 @@ use super::lifecycle::{
     initialize_scheduler, reconcile_agents, reconcile_system_services, start_event_bridge,
     start_registry_heartbeat, start_schema_watch, start_secrets_refresh,
 };
+use super::readiness::ReadinessState;
 use super::routes::role::LifecyclePlan;
 
 pub async fn run_server(
@@ -43,13 +44,14 @@ pub async fn run_server(
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
-    let router = crate::services::server::setup_api_server(&ctx, events.as_ref())?;
+    let router =
+        crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?;
     start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
     early.activate(router);
-    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler).await?;
-    super::readiness::signal_ready();
+    let metrics_listener = start_metrics_listener(&ctx, plan.scheduler, early.readiness()).await?;
+    early.readiness().signal_ready();
 
     if let Some(ref tx) = events {
         tx.phase_completed(Phase::ApiServer);
@@ -114,11 +116,13 @@ async fn serve_until_shutdown(
         "Shutdown budget; the orchestrator's termination grace must cover the total"
     );
     let restart = ctx.shutdown_request().clone();
+    let readiness = Arc::clone(early.readiness());
     let serve_result = super::shutdown::join_within_drain_grace(
         early.join(),
         &restart,
         &timings,
         ctx.background_tasks().stream_drain(),
+        &readiness,
     )
     .await;
 
@@ -252,6 +256,7 @@ fn create_mcp_orchestrator(
 async fn start_metrics_listener(
     ctx: &AppContext,
     runs_scheduler: bool,
+    readiness: &ReadinessState,
 ) -> Result<Option<OwnedTask<()>>> {
     let Some(port) = ctx.config().metrics_port else {
         return Ok(None);
@@ -263,8 +268,12 @@ async fn start_metrics_listener(
     super::pool_metrics::spawn_sampler(ctx);
     super::ops_metrics::spawn_samplers(ctx, runs_scheduler);
     let addr = std::net::SocketAddr::new(ctx.config().host.parse()?, port);
+    let state = super::metrics::MetricsState {
+        handle,
+        broadcasters: Arc::clone(ctx.event_broadcasters()),
+    };
     Ok(Some(
-        super::metrics::serve_metrics_listener(addr, handle).await?,
+        super::metrics::serve_metrics_listener(addr, state, readiness).await?,
     ))
 }
 

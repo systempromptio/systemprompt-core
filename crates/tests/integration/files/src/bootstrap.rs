@@ -17,6 +17,7 @@ pub struct TestEnv {
     pub _tmp: TempDir,
     pub storage_root: PathBuf,
     pub app_paths: AppPaths,
+    pub files_config: FilesConfig,
 }
 
 static ENV: OnceLock<TestEnv> = OnceLock::new();
@@ -134,13 +135,12 @@ extensions:
     )
     .expect("app paths");
 
-    if let Err(e) = FilesConfig::init(&app_paths) {
-        eprintln!("FilesConfig::init failed: {e}");
-    }
+    let files_config = FilesConfig::from_profile(&app_paths).expect("files config from profile");
 
     TestEnv {
         _tmp: tmp,
         storage_root: storage_dir,
         app_paths,
+        files_config,
     }
 }

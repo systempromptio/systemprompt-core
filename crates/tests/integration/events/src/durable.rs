@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use sqlx::postgres::{PgListener, PgPoolOptions};
@@ -5,7 +6,7 @@ use systemprompt_events::services::durable::{
     DurableOutbox, OutboxConsumer, ReportingFact, SseEvent,
 };
 use systemprompt_events::{
-    ANALYTICS_BROADCASTER, Broadcaster, EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, ToSse,
+    Broadcaster, EventBroadcasters, EventRouter, OUTBOX_CHANNEL, PostgresEventBridge, ToSse,
 };
 use systemprompt_identifiers::{Actor, ConnectionId, UserId};
 use systemprompt_models::AnalyticsEventBuilder;
@@ -100,8 +101,10 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
 
     let connection = ConnectionId::generate();
     let (sender, mut rx) = tokio::sync::mpsc::channel(8);
+    let broadcasters = Arc::new(EventBroadcasters::new());
     assert!(
-        ANALYTICS_BROADCASTER
+        broadcasters
+            .analytics
             .register(&user, &connection, sender)
             .await
     );
@@ -109,6 +112,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
         pool.clone(),
         instance,
         systemprompt_traits::CacheEpochs::new(),
+        Arc::clone(&broadcasters),
     );
     let router = bridge.router();
     let bridge = bridge.start();
@@ -274,7 +278,7 @@ async fn transactional_delivery_preserves_sse_and_recovers_processing() {
     drop(listener);
     verify_all_channels(&pool, &outbox, &router).await;
     bridge.shutdown().await;
-    ANALYTICS_BROADCASTER.unregister(&user, &connection).await;
+    broadcasters.analytics.unregister(&user, &connection).await;
     pool.close().await;
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "DROP SCHEMA \"{schema}\" CASCADE"
@@ -353,7 +357,7 @@ async fn verify_upgrade(pool: &sqlx::PgPool) {
 }
 
 async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router: &EventRouter) {
-    use systemprompt_events::{A2A_BROADCASTER, AGUI_BROADCASTER, CONTEXT_BROADCASTER};
+    let broadcasters = router.broadcasters();
     use systemprompt_identifiers::{ContextId, TaskId};
     use systemprompt_models::a2a::TaskState;
     use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, SystemEventBuilder};
@@ -362,23 +366,27 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router
     let connection = ConnectionId::generate();
     let (sender, mut rx) = tokio::sync::mpsc::channel(16);
     assert!(
-        A2A_BROADCASTER
+        broadcasters
+            .a2a
             .register(&actor.user_id, &connection, sender.clone())
             .await
     );
     assert!(
-        AGUI_BROADCASTER
+        broadcasters
+            .agui
             .register(&actor.user_id, &connection, sender.clone())
             .await
     );
     assert!(
-        ANALYTICS_BROADCASTER
+        broadcasters
+            .analytics
             .register(&actor.user_id, &connection, sender.clone())
             .await
     );
     let (context_sender, mut context_rx) = tokio::sync::mpsc::channel(16);
     assert!(
-        CONTEXT_BROADCASTER
+        broadcasters
+            .context
             .register(&actor.user_id, &connection, context_sender)
             .await
     );
@@ -480,16 +488,20 @@ async fn verify_all_channels(pool: &sqlx::PgPool, outbox: &DurableOutbox, router
             .await
             .is_err()
     );
-    A2A_BROADCASTER
+    broadcasters
+        .a2a
         .unregister(&actor.user_id, &connection)
         .await;
-    AGUI_BROADCASTER
+    broadcasters
+        .agui
         .unregister(&actor.user_id, &connection)
         .await;
-    ANALYTICS_BROADCASTER
+    broadcasters
+        .analytics
         .unregister(&actor.user_id, &connection)
         .await;
-    CONTEXT_BROADCASTER
+    broadcasters
+        .context
         .unregister(&actor.user_id, &connection)
         .await;
 }

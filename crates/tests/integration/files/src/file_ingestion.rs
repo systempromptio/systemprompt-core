@@ -49,7 +49,8 @@ async fn file_ingestion_executes_against_real_pool() {
         actor,
         Dependencies::new()
             .with(db)
-            .with(Arc::new(env.app_paths.clone())),
+            .with(Arc::new(env.app_paths.clone()))
+            .with(Arc::new(env.files_config.clone())),
     );
 
     let result = job.execute(&ctx).await.expect("job should execute");

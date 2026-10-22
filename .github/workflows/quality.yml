@@ -326,6 +326,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-bridge-globals
         if: ${{ !cancelled() }}
+      - run: just lint-core-globals
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size
         if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
