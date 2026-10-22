@@ -2,6 +2,17 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- The provider catalog is five objects in four files under `services/ai/`: `credentials.yaml` (`CredentialRegistry`, `CredentialEntry { kind: platform | personal, secret, label }`), `providers.yaml` (`ProviderRegistry` keyed by `ProviderId`, `ProviderConfig` with `credential`, `user_agent`, `forward_headers`, `extra_headers`, `governance`, `enabled`, `capabilities` defaults and `endpoints`), `models.yaml` (`ModelRegistry`, `ModelEntry` with `upstream_model`, capability overrides, `limits`, `pricing`, `governance`, `clients`) and `deployments.yaml` (`DeploymentRegistry`: model → ordered `provider/endpoint` refs or `DeploymentDetail`). `ServicesConfig` gains `credentials`, `models` and `deployments`; `providers` is the new map.
+- `ResolvedCatalog` (`services::catalog`) is the one runtime view: `ResolvedCatalog::build(CatalogInput, &CatalogContext)` validates every reference and `resolve(&ModelRequest) -> ResolvedTarget` dispatches `model → deployment → endpoint → provider → credential`. `ServicesConfig::resolve_catalog` builds it; `CatalogDocument` reads and merges catalog files and refuses the pre-0.73 shape with the `config migrate` hint.
+- Gateway routes are policy only: required declared `id`, `label`, `models` glob(s), `when.scope`, `deployments` (a narrowing of the model's own), `strategy`, `context_fallbacks` (model ids) and `alias: {requested, model}`. `gateway.default_model` is a `ModelId` and refuses `[1m]`; `gateway.catalog_route_id` addresses requests no route matched (default: the 0.72 `*` route id).
+- Deleted: `ProviderEntry`, `ProviderModel`, `ProviderCredentialSource`, `ProviderEntry::credential_from`, `surface_for`, `find_served_model`, `upstream_model_in`, route `chain.rs` (`RouteScopeChains`, `ScopeChain`, `ChainSelection`, `UnmappedScope`, `by_scope`, `fallbacks`), `AiConfig::default_provider`, `AiConfig::providers`, `AiProviderConfig`, `GatewayConfig::{default_provider, allow_unlisted_models, hidden_requires_route, resolve_route, candidate_routes, is_model_exposed, dispatchable_route_ids}`, `GatewayRoute::{model_pattern, provider, upstream_model, extra_headers, pricing, fallbacks, by_scope, weight}`, `SystemPromptRule::model_pattern` (now `models`), `ProviderRegistryError`.
+- `AiConfig` refuses unknown fields, so a tree that still sets `ai.default_provider` or `ai.providers` fails to load.
+- The embedded default catalog is `DefaultCatalog::FILES` (the five files in the new shape); `ProviderRegistry::default_seed` is gone.
+- The Vertex rate card moved to `services::catalog::vertex`; entries are keyed by endpoint shape (`wire`) instead of a provider name, `to_model_entry` replaces `to_provider_model`, and its errors are `VertexRateCardError`.
+- `bridge_profile` builds from the `ResolvedCatalog` with `CredentialFacts`; `default_model` is presented as `<id>[1m]` only when the model is advertised to Claude clients and its context window is at least 1M.
+
 ### Fixed
 
 - `ProviderEntry::bills_same_credential`: two entries bill the same account when both use deployment secrets or both use the one personal key named by the same `credential_owner()`.

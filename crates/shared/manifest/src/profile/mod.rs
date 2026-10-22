@@ -5,7 +5,7 @@
 //! governance, and runtime sections, plus validation rules and
 //! environment-variable interpolation. The provider catalog and gateway
 //! routes are not profile sections: they live in the services tree
-//! (`crate::services::{ProviderRegistry, GatewayState}`), and a profile that
+//! (`crate::services::{catalog, GatewayState}`), and a profile that
 //! still carries them fails to parse with [`ProfileError::MovedToServices`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

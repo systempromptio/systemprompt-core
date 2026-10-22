@@ -5,6 +5,7 @@
 
 use super::ValidationConfigProvider;
 use crate::ServicesConfig;
+use crate::services::CatalogContext;
 use systemprompt_traits::validation_report::{
     ValidationIssue, ValidationReport, ValidationWarning,
 };
@@ -56,8 +57,7 @@ impl DomainConfig for AiConfigValidator {
             })?;
         let ai_config = &config.ai;
 
-        Self::validate_default_provider(&mut report, ai_config);
-        Self::validate_enabled_providers(&mut report, ai_config);
+        Self::validate_catalog(&mut report, config);
         Self::validate_mcp_config(&mut report, ai_config);
 
         if ai_config.history.retention_days == 0 {
@@ -72,54 +72,25 @@ impl DomainConfig for AiConfigValidator {
 }
 
 impl AiConfigValidator {
-    fn validate_default_provider(report: &mut ValidationReport, ai_config: &crate::AiConfig) {
-        if ai_config.default_provider.is_empty() {
-            report.add_error(ValidationIssue::new(
-                "ai.default_provider",
-                "Default AI provider not configured",
-            ));
-        } else if !ai_config
-            .providers
-            .contains_key(&ai_config.default_provider)
-        {
+    fn validate_catalog(report: &mut ValidationReport, config: &ServicesConfig) {
+        let catalog = match config.resolve_catalog(&CatalogContext::default()) {
+            Ok(catalog) => catalog,
+            Err(error) => {
+                report.add_error(ValidationIssue::new("catalog", error.to_string()));
+                return;
+            },
+        };
+        if catalog.default_model().is_none() {
             report.add_error(
-                ValidationIssue::new(
-                    "ai.default_provider",
-                    format!(
-                        "Default provider '{}' not found in providers",
-                        ai_config.default_provider
-                    ),
-                )
-                .with_suggestion("Add the provider to ai.providers or change default_provider"),
+                ValidationIssue::new("gateway.default_model", "No default model configured")
+                    .with_suggestion("Set gateway.default_model to a model in models.yaml"),
             );
         }
-    }
-
-    fn validate_enabled_providers(report: &mut ValidationReport, ai_config: &crate::AiConfig) {
-        let enabled: Vec<_> = ai_config
-            .providers
-            .iter()
-            .filter(|(_, c)| c.enabled)
-            .collect();
-
-        if enabled.is_empty() {
+        if catalog.providers().all(|provider| !provider.enabled) {
             report.add_error(
-                ValidationIssue::new("ai.providers", "No AI providers are enabled")
-                    .with_suggestion("Enable at least one provider in ai.providers"),
+                ValidationIssue::new("providers", "No AI providers are enabled")
+                    .with_suggestion("Enable at least one provider in providers.yaml"),
             );
-        }
-
-        for (name, cfg) in &enabled {
-            if cfg.default_model.is_empty() {
-                report.add_warning(ValidationWarning::new(
-                    format!("ai.providers.{}.default_model", name),
-                    format!(
-                        "Provider '{}' has no default_model override; the provider client default \
-                         will be used",
-                        name
-                    ),
-                ));
-            }
         }
     }
 

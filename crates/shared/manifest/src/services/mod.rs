@@ -1,6 +1,9 @@
-//! The services manifest: agents, plugins, hooks, MCP servers, skills,
-//! marketplaces, providers and the gateway policy, as loaded from the services
-//! YAML tree and validated at boot.
+//! The services manifest, as loaded from the services YAML tree and validated
+//! at boot.
+//!
+//! Agents, plugins, hooks, MCP servers, skills, marketplaces, the model
+//! catalog (credentials, providers, models, deployments) and the gateway
+//! policy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,6 +13,7 @@ pub mod ai;
 pub mod artifacts;
 pub mod bridge_policy;
 pub mod bundle;
+pub mod catalog;
 pub mod external_agent;
 pub mod frontmatter;
 pub mod gateway;
@@ -24,7 +28,6 @@ pub mod marketplace_external_plugin;
 mod marketplace_mirror;
 pub mod mcp;
 pub mod plugin;
-pub mod providers;
 pub mod registry;
 pub mod rules;
 pub mod runtime;
@@ -46,8 +49,8 @@ pub use agent_config::{
     OAuthConfig, RetiredCardKeyError,
 };
 pub use ai::{
-    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelGovernance, ModelPricing, ResilienceSettings, SamplingConfig,
+    AiConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition, ModelGovernance,
+    ModelPricing, ResilienceSettings, SamplingConfig,
 };
 pub use artifacts::{ARTIFACT_CONFIG_FILENAME, DEFAULT_ARTIFACT_CONTENT_FILE, DiskArtifactConfig};
 pub use bridge_policy::BridgePolicyConfig;
@@ -57,14 +60,18 @@ pub use bundle::{
     FileEntry, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest, ServicesBundleState,
     SignedBundleManifest,
 };
+pub use catalog::{
+    CatalogContext, CatalogError, CatalogInput, CredentialRegistry, DeploymentRegistry,
+    ModelRegistry, ModelRequest, ProviderRegistry, ResolvedCatalog,
+};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
-    BridgeReleasesSpec, ChainSelection, GatewayConfig, GatewayConfigSpec, GatewayProfileError,
-    GatewayResult, GatewayRoute, GatewayState, OverrideRuleAction, QuotaFaultMode,
-    ResponseFormatKind, RouteDeployment, RouteMatch, RouteRequirements, RouteScopeChains,
-    ScopeChain, SelectionStrategy, SystemPromptRule, UnmappedScope, estimate_input_tokens,
-    slugify_pattern, synthesize_route_id,
+    BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError, GatewayResult,
+    GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction, QuotaFaultMode, ResponseFormatKind,
+    RouteAlias, RouteDeployment, RouteMatch, RouteRequirements, SelectionStrategy,
+    SystemPromptRule, WeightedDeployment, estimate_input_tokens, slugify_pattern,
+    synthesize_route_id,
 };
 pub use hooks::{
     DiskHookConfig, HOOK_CONFIG_FILENAME, HookAction, HookEventsConfig, HookMatcher, HookType,
@@ -78,11 +85,6 @@ pub use marketplace_external_plugin::{ExternalPluginEntry, ExternalPluginSource}
 pub use mcp::{McpDeploymentProvider, McpServerSummary};
 pub use plugin::{
     PluginAuthor, PluginConfig, PluginConfigFile, PluginScript, PluginSummary, PluginVariableDef,
-};
-pub use providers::{
-    DiscoveryReport, DocumentedLaunchStage, ProviderCredentialSource, ProviderEntry, ProviderModel,
-    ProviderRegistry, ProviderRegistryError, ProviderRegistryResult, RETIREMENT_NOTICE_DAYS,
-    VertexRateCard, VertexRateCardEntry,
 };
 pub use registry::{ServiceModule, ServiceStatus, UnknownServiceModule, UnknownServiceStatus};
 pub use rules::{DEFAULT_RULE_CONTENT_FILE, DiskRuleConfig, RULE_CONFIG_FILENAME};
@@ -136,7 +138,13 @@ pub struct ServicesConfig {
     #[serde(default)]
     pub bridge_policy: Option<BridgePolicyConfig>,
     #[serde(default)]
+    pub credentials: CredentialRegistry,
+    #[serde(default)]
     pub providers: ProviderRegistry,
+    #[serde(default)]
+    pub models: ModelRegistry,
+    #[serde(default)]
+    pub deployments: DeploymentRegistry,
     #[serde(default)]
     pub gateway: Option<GatewayState>,
 }
@@ -218,19 +226,26 @@ impl ServicesConfig {
             app.validate(name)?;
         }
 
-        self.validate_providers_and_gateway()
+        self.resolve_catalog(&CatalogContext::default())
+            .map(drop)
+            .map_err(|e| ServicesValidationError::invalid_field_cause("catalog", e))
     }
 
-    fn validate_providers_and_gateway(&self) -> Result<(), ServicesValidationError> {
-        self.providers
-            .validate()
-            .map_err(|e| ServicesValidationError::invalid_field_cause("providers", e))?;
-        match &self.gateway {
-            Some(GatewayState::Resolved(config)) => config.validate(&self.providers),
-            Some(GatewayState::Spec(spec)) => spec.clone().resolve().validate(&self.providers),
-            None => Ok(()),
-        }
-        .map_err(|e| ServicesValidationError::invalid_field_cause("gateway", e))
+    pub fn resolve_catalog(
+        &self,
+        context: &CatalogContext,
+    ) -> Result<ResolvedCatalog, CatalogError> {
+        let gateway = self.gateway.as_ref().map(GatewayState::config);
+        ResolvedCatalog::build(
+            CatalogInput {
+                credentials: &self.credentials,
+                providers: &self.providers,
+                models: &self.models,
+                deployments: &self.deployments,
+                gateway: gateway.as_deref(),
+            },
+            context,
+        )
     }
 
     #[must_use]

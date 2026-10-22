@@ -4,6 +4,10 @@
 
 ### Breaking
 
+- **Catalog:** the provider catalog is rewritten as five objects in four files under `services/ai/`: `credentials.yaml`, `providers.yaml` (providers with `endpoints:`), `models.yaml` and `deployments.yaml`, plus `gateway.yaml` for `default_model` and policy routes. Dispatch resolves `model → deployment → endpoint → provider → credential` through `ResolvedCatalog`; routes no longer select endpoints by glob. A pre-0.73 tree is refused with the `systemprompt admin config migrate` hint.
+- **Catalog:** deleted `ProviderEntry`, `ProviderModel`, `ProviderCredentialSource`, `credential_from`, `surface_for`, `find_served_model`, route `chain.rs` (`by_scope`, `fallbacks`), `ai.default_provider`, `ai.providers` (`AiProviderConfig`), `gateway.default_provider`, `allow_unlisted_models`, `hidden_requires_route`, `model_pattern` routes and `ApiSurface` (now `ClientFamily`, `clients: [claude, openai, gemini]`).
+- **Gateway:** routes carry a required declared `id`, an audit `label`, `models` globs, `when.scope`, `deployments`, `context_fallbacks` and `alias`; `gateway.default_model` refuses `[1m]` (the bridge profile derives it from `limits.context_window`); `gateway.catalog_route_id` keeps 0.72 access rules on the implicit route matching.
+
 ### Fixed
 
 - **Config:** `admin config catalog` provider upserts no longer downgrade a personal (`credential: user`) provider or drop its headers and betas.
