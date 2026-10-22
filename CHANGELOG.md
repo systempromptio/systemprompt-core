@@ -29,6 +29,8 @@
 - **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 - **Breaking:** `SsoLoginEvent::provider_id` is `SsoProviderId`, `SsoStateRow::provider_id` is `SsoProviderId` and `ConsumedRefreshToken::family_id` is `RefreshTokenFamilyId` (new in `systemprompt_identifiers`). Migrate by reading the value through `as_str()`.
+- **Breaking:** `systemprompt_oauth::TemplateEngine` is `TemplateService`. Migrate by renaming the import.
+- **Breaking:** `systemprompt_oauth` re-exports an explicit list from `models` (the `cimd`, `clients` and `oauth` modules plus their public types) and from `services::validation`; the `error::kind` module is folded into `error` (`OauthErrorKind` stays at `systemprompt_oauth::OauthErrorKind`). Migrate a path that went through `error::kind` to `error::OauthErrorKind`.
 
 ### Added
 
