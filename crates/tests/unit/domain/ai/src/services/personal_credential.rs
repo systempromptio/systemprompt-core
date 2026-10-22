@@ -1,112 +1,163 @@
-//! One personal key serves every entry that names it in `credential_from`.
+//! One personal key serves every endpoint of every provider naming its
+//! credential.
 //!
-//! Pins that storing the key probes every sibling endpoint, not only the
-//! owner's, and that the sibling entries share one token-cache key while two
-//! different credentials never do.
+//! Pins that storing the key probes every endpoint the credential serves
+//! (all must accept; any rejection rejects the key), that a disabled
+//! provider's endpoints are neither probed nor offered, and that only
+//! personal credentials take a key.
 
-use systemprompt_ai::{PersonalKeyError, UpstreamTarget, credential_siblings, verify_personal_key};
+use systemprompt_ai::{
+    PersonalKeyError, credential_endpoints, personal_credential, personal_credentials,
+    verify_personal_key,
+};
 use systemprompt_identifiers::UserId;
-use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_test_fixtures::catalog::{CatalogFixture, model, personal, platform, priced};
+use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-fn entry(yaml: &str) -> ProviderEntry {
-    serde_yaml::from_str(yaml).expect("provider entry")
+fn go_catalog(base: &str, other_enabled: bool) -> ResolvedCatalog {
+    let other = ProviderConfig {
+        enabled: other_enabled,
+        ..ProviderConfig::new("go")
+    };
+    CatalogFixture::new()
+        .credential("go", personal("Go"))
+        .credential("platform", platform("platform"))
+        .provider("go", ProviderConfig::new("go"))
+        .endpoint(
+            "go",
+            "chat",
+            EndpointConfig::new(WireProtocol::OpenAiChat, format!("{base}/chat/v1")),
+        )
+        .endpoint(
+            "go",
+            "messages",
+            EndpointConfig::new(WireProtocol::Anthropic, format!("{base}/messages/v1")),
+        )
+        .provider("go-mirror", other)
+        .endpoint(
+            "go-mirror",
+            "chat",
+            EndpointConfig::new(WireProtocol::OpenAiChat, format!("{base}/mirror/v1")),
+        )
+        .provider("vendor", ProviderConfig::new("platform"))
+        .endpoint(
+            "vendor",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, format!("{base}/vendor/v1")),
+        )
+        .model(
+            "go-chat",
+            model(&[ClientFamily::OpenAi], 128_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model(
+            "go-messages",
+            model(&[ClientFamily::Claude], 128_000, priced(1.0, 2.0, 0.1)),
+        )
+        .model("vendor-model", model(&[], 128_000, priced(1.0, 2.0, 0.1)))
+        .deploy("go-chat", ["go/chat", "go-mirror/chat"])
+        .deploy("go-messages", ["go/messages"])
+        .deploy("vendor-model", ["vendor/api"])
+        .build()
 }
 
-fn go_registry(base: &str) -> ProviderRegistry {
-    let chat = entry(&format!(
-        "name: go\nwire: openai-chat\nsurface: openai\nendpoint: {base}/chat/v1\ncredential: \
-         user\nmodels:\n  - id: go-chat\n"
-    ));
-    let messages = entry(&format!(
-        "name: go-anthropic\nwire: anthropic\nsurface: openai\nendpoint: \
-         {base}/messages/v1\ncredential: user\ncredential_from: go\nmodels:\n  - id: \
-         go-messages\n"
-    ));
-    let other = entry(&format!(
-        "name: other\nwire: anthropic\nsurface: openai\nendpoint: {base}/other/v1\ncredential: \
-         user\nmodels:\n  - id: other-model\n"
-    ));
-    ProviderRegistry {
-        providers: vec![chat, messages, other],
-    }
-}
-
-fn owner(registry: &ProviderRegistry) -> &ProviderEntry {
-    registry.find_provider("go").expect("owner entry")
-}
-
-async fn mount_models(server: &MockServer, prefix: &str, status: u16) {
+async fn mount_models(server: &MockServer, prefix: &str, status: u16, calls: u64) {
     Mock::given(method("GET"))
         .and(path(format!("{prefix}/models")))
         .respond_with(ResponseTemplate::new(status))
-        .expect(1)
+        .expect(calls)
         .mount(server)
         .await;
 }
 
-#[test]
-fn siblings_are_the_owner_and_entries_naming_it() {
-    let registry = go_registry("https://go.example.test");
-    let names: Vec<&str> = credential_siblings(&registry, owner(&registry))
+fn endpoint_names(catalog: &ResolvedCatalog, credential: &str) -> Vec<String> {
+    let credential = catalog.credential(credential).expect("credential");
+    credential_endpoints(catalog, credential)
         .iter()
-        .map(|e| e.name.as_str())
-        .collect();
-    assert_eq!(names, vec!["go", "go-anthropic"]);
-}
-
-#[tokio::test]
-async fn storing_a_shared_key_probes_every_sibling_endpoint() {
-    let server = MockServer::start().await;
-    mount_models(&server, "/chat/v1", 200).await;
-    mount_models(&server, "/messages/v1", 200).await;
-    let registry = go_registry(&server.uri());
-
-    verify_personal_key(
-        &registry,
-        owner(&registry),
-        "sk-go",
-        &UserId::new("member-1"),
-    )
-    .await
-    .expect("both endpoints accept the key");
-}
-
-#[tokio::test]
-async fn a_key_one_sibling_refuses_is_rejected() {
-    let server = MockServer::start().await;
-    mount_models(&server, "/chat/v1", 200).await;
-    mount_models(&server, "/messages/v1", 401).await;
-    let registry = go_registry(&server.uri());
-
-    let err = verify_personal_key(
-        &registry,
-        owner(&registry),
-        "sk-go",
-        &UserId::new("member-1"),
-    )
-    .await
-    .unwrap_err();
-    assert!(matches!(err, PersonalKeyError::Rejected(_)), "{err:?}");
+        .map(|e| e.endpoint_ref().to_string())
+        .collect()
 }
 
 #[test]
-fn entries_sharing_a_credential_share_one_token_cache_key() {
-    let registry = go_registry("https://go.example.test");
-    let user = UserId::new("member-1");
-    let key = |name: &str| {
-        let e = registry.find_provider(name).expect("entry");
-        UpstreamTarget::resolve_personal(e, "sk-x", &user)
-            .expect("resolves")
-            .cache_key()
-            .to_owned()
-    };
-    assert_eq!(key("go"), key("go-anthropic"));
-    assert_ne!(key("go"), key("other"));
+fn a_credentials_endpoints_are_every_enabled_providers_endpoints() {
+    let catalog = go_catalog("https://go.example.test", true);
+    assert_eq!(
+        endpoint_names(&catalog, "go"),
+        vec!["go/chat", "go/messages", "go-mirror/chat"]
+    );
+}
 
-    let e = registry.find_provider("go").expect("entry");
-    let other_user =
-        UpstreamTarget::resolve_personal(e, "sk-x", &UserId::new("member-2")).expect("resolves");
-    assert_ne!(other_user.cache_key(), key("go"));
+#[test]
+fn a_disabled_provider_contributes_no_endpoint() {
+    let catalog = go_catalog("https://go.example.test", false);
+    assert_eq!(
+        endpoint_names(&catalog, "go"),
+        vec!["go/chat", "go/messages"]
+    );
+}
+
+#[test]
+fn only_personal_credentials_take_a_key() {
+    let catalog = go_catalog("https://go.example.test", true);
+    let ids: Vec<&str> = personal_credentials(&catalog)
+        .iter()
+        .map(|c| c.id.as_str())
+        .collect();
+    assert_eq!(ids, vec!["go"]);
+    assert!(matches!(
+        personal_credential(&catalog, "platform"),
+        Err(PersonalKeyError::NotPersonalCredential(_))
+    ));
+}
+
+#[tokio::test]
+async fn storing_a_key_probes_every_endpoint_of_the_credential() {
+    let server = MockServer::start().await;
+    mount_models(&server, "/chat/v1", 200, 1).await;
+    mount_models(&server, "/messages/v1", 200, 1).await;
+    mount_models(&server, "/mirror/v1", 200, 1).await;
+    mount_models(&server, "/vendor/v1", 200, 0).await;
+    let catalog = go_catalog(&server.uri(), true);
+    let credential = personal_credential(&catalog, "go").expect("personal");
+
+    verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
+        .await
+        .expect("every endpoint accepts the key");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn a_disabled_providers_endpoint_is_not_probed() {
+    let server = MockServer::start().await;
+    mount_models(&server, "/chat/v1", 200, 1).await;
+    mount_models(&server, "/messages/v1", 200, 1).await;
+    mount_models(&server, "/mirror/v1", 401, 0).await;
+    let catalog = go_catalog(&server.uri(), false);
+    let credential = personal_credential(&catalog, "go").expect("personal");
+
+    verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
+        .await
+        .expect("the disabled mirror is never asked");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn a_key_any_endpoint_refuses_is_rejected() {
+    let server = MockServer::start().await;
+    mount_models(&server, "/chat/v1", 200, 1).await;
+    mount_models(&server, "/messages/v1", 401, 1).await;
+    mount_models(&server, "/mirror/v1", 200, 0).await;
+    let catalog = go_catalog(&server.uri(), true);
+    let credential = personal_credential(&catalog, "go").expect("personal");
+
+    let err = verify_personal_key(&catalog, credential, "sk-go", &UserId::new("member-1"))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(err, PersonalKeyError::Rejected(ref label) if label == "Go"),
+        "{err:?}"
+    );
 }

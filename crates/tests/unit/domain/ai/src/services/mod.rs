@@ -10,3 +10,4 @@ mod tooled;
 mod tools;
 mod upstream;
 mod upstream_betas;
+mod upstream_catalog;

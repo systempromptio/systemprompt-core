@@ -22,8 +22,8 @@ use std::collections::BTreeMap;
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::catalog::{
     CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput, CatalogResult,
-    CredentialEntry, DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry, ProviderConfig,
-    ResolvedCatalog, CATALOG_FILES,
+    CredentialEntry, DefaultCatalog, DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry,
+    ProviderConfig, ResolvedCatalog, CATALOG_FILES,
 };
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute, ModelPricing};
 use systemprompt_models::providers::ClientFamily;
@@ -88,6 +88,23 @@ impl CatalogFixture {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[must_use]
+    pub fn from_document(document: CatalogDocument) -> Self {
+        Self {
+            document,
+            ..Self::default()
+        }
+    }
+
+    /// Core's embedded default catalog (`DefaultCatalog`) as a fixture to edit.
+    #[must_use]
+    pub fn embedded_default() -> Self {
+        Self::from_document(
+            DefaultCatalog::document()
+                .unwrap_or_else(|e| panic!("embedded default catalog parses: {e}")),
+        )
     }
 
     #[must_use]

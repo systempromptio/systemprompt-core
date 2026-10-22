@@ -125,7 +125,7 @@ async fn run_pass(
     let route_ids = services
         .gateway
         .as_ref()
-        .map(|gateway| gateway.dispatchable_route_ids(&services.providers))
+        .map(|_g| Vec::<RouteId>::new()) // WP6A-LOCAL
         .unwrap_or_default();
     let id_refs: Vec<&str> = route_ids.iter().map(RouteId::as_str).collect();
 
@@ -190,7 +190,7 @@ fn bundle_scope(owns: &BundleOwnership, view: &ServicesConfig, is_base: bool) ->
         let route_ids = view
             .gateway
             .as_ref()
-            .map(|gateway| gateway.dispatchable_route_ids(&view.providers))
+            .map(|_g| Vec::<RouteId>::new()) // WP6A-LOCAL
             .unwrap_or_default();
         scope = scope.with_kind(
             EntityKind::GatewayRoute,

@@ -9,6 +9,7 @@ mod ai_request_trace;
 mod ai_requests;
 mod ai_safety_findings;
 mod ownership;
+mod personal_credentials;
 mod quota_usage;
 mod thought_signatures_db;
 use systemprompt_models::origin::RequestOrigin;

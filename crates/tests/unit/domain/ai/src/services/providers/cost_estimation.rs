@@ -7,20 +7,13 @@
 //! [`catalog_pricing`]. These tests pin both the rates and that conversion so a
 //! drift in either is caught.
 
-use systemprompt_ai::services::providers::catalog_pricing;
-use systemprompt_manifest::services::{ProviderModel, ProviderRegistry};
+use systemprompt_ai::services::providers::{ServedModel, catalog_pricing};
+
+use crate::services::providers::mock_http::seed_models;
 use systemprompt_test_fixtures::usage;
 
-fn seed_models(provider: &str) -> Vec<ProviderModel> {
-    ProviderRegistry::default_seed()
-        .expect("embedded default catalog parses")
-        .find_provider(provider)
-        .unwrap_or_else(|| panic!("provider '{provider}' present in seed"))
-        .models
-        .clone()
-}
 
-fn microdollars(models: &[ProviderModel], model: &str, input: u32, output: u32) -> i64 {
+fn microdollars(models: &[ServedModel], model: &str, input: u32, output: u32) -> i64 {
     catalog_pricing(models, model)
         .expect("model is priced")
         .cost_microdollars(&usage().input(input).output(output).build())
@@ -90,4 +83,31 @@ fn cache_tokens_are_billed_by_the_shared_cost_function() {
 fn an_unpriced_model_has_no_pricing() {
     let models = seed_models("anthropic");
     assert!(catalog_pricing(&models, "claude-not-in-catalogue").is_none());
+}
+
+// Why: a provider client prices from its endpoint's deployments, so the
+// endpoint's price multiplier and a deployment's pricing override reach cost
+// accounting without being re-derived from the model entry.
+#[test]
+fn the_endpoint_multiplier_and_deployment_overrides_reach_client_pricing() {
+    use systemprompt_ai::services::providers::served_models_on;
+    use systemprompt_manifest::services::catalog::EndpointRef;
+    use systemprompt_test_fixtures::catalog::vertex_regions;
+
+    let catalog = vertex_regions().build();
+    let global = served_models_on(&catalog, &EndpointRef::new("vertex", "claude-global"));
+    let eu = served_models_on(&catalog, &EndpointRef::new("vertex", "claude-eu"));
+    let gemini = served_models_on(&catalog, &EndpointRef::new("vertex", "gemini"));
+
+    let base = catalog_pricing(&global, "claude-sonnet-5").expect("priced");
+    let premium = catalog_pricing(&eu, "claude-sonnet-5").expect("priced");
+    assert!((base.input_per_million - 3.0).abs() < 1e-9);
+    assert!((premium.input_per_million - 3.0 * 1.10).abs() < 1e-9);
+
+    let flash = catalog_pricing(&gemini, "vertex-gemini-3.8-flash").expect("priced");
+    assert_eq!(flash.cache_write_per_million, Some(0.0));
+    assert!(
+        catalog_pricing(&gemini, "gemini-3.8-flash").is_some(),
+        "the upstream name finds the same deployment"
+    );
 }

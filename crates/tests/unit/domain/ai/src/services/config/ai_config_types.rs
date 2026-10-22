@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use systemprompt_identifiers::ModelId;
 use systemprompt_manifest::services::{
-    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
-    ModelPricing, SamplingConfig,
+    AiConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition, ModelPricing,
+    SamplingConfig,
 };
 use systemprompt_wire::ModelLimits;
 
@@ -9,9 +9,9 @@ mod ai_config_defaults {
     use super::*;
 
     #[test]
-    fn default_ai_config_has_empty_provider() {
+    fn default_ai_config_has_no_image_model() {
         let config = AiConfig::default();
-        assert!(config.default_provider.is_empty());
+        assert!(config.default_image_model.is_none());
     }
 
     #[test]
@@ -19,50 +19,37 @@ mod ai_config_defaults {
         let config = AiConfig::default();
         assert!(config.default_max_output_tokens.is_none());
     }
-
-    #[test]
-    fn default_ai_config_has_empty_providers_map() {
-        let config = AiConfig::default();
-        assert!(config.providers.is_empty());
-    }
 }
 
 mod ai_config_serde {
     use super::*;
 
     #[test]
-    fn roundtrip_minimal_config() {
-        let config = AiConfig::default();
-        let json = serde_json::to_string(&config).expect("serialize");
-        let deserialized: AiConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.default_provider, config.default_provider);
+    fn deserialize_from_empty_object() {
+        let config: AiConfig = serde_json::from_str("{}").expect("deserialize");
+        assert!(config.default_image_model.is_none());
+        assert!(config.default_max_output_tokens.is_none());
     }
 
     #[test]
-    fn deserialize_from_empty_object() {
-        let config: AiConfig = serde_json::from_str("{}").expect("deserialize");
-        assert!(config.default_provider.is_empty());
-        assert!(config.providers.is_empty());
+    fn the_retired_provider_keys_are_refused() {
+        for retired in [
+            r#"{"default_provider":"openai"}"#,
+            r#"{"providers":{"openai":{"enabled":true}}}"#,
+        ] {
+            let err = serde_json::from_str::<AiConfig>(retired).unwrap_err();
+            assert!(
+                err.to_string().contains("unknown field"),
+                "{retired}: {err}"
+            );
+        }
     }
 
     #[test]
     fn roundtrip_full_config() {
-        let mut providers = HashMap::new();
-        providers.insert(
-            "openai".to_string(),
-            AiProviderConfig {
-                enabled: true,
-                default_model: "gpt-4".to_string(),
-                default_image_model: "dall-e-3".to_string(),
-                google_search_enabled: false,
-                ..AiProviderConfig::default()
-            },
-        );
-
         let config = AiConfig {
-            default_provider: "openai".to_string(),
             default_max_output_tokens: Some(4096),
-            providers,
+            default_image_model: Some(ModelId::new("gemini-2.5-flash-image")),
             sampling: SamplingConfig {
                 enable_smart_routing: true,
                 fallback_enabled: false,
@@ -79,9 +66,14 @@ mod ai_config_serde {
 
         let json = serde_json::to_string(&config).expect("serialize");
         let deserialized: AiConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.default_provider, "openai");
         assert_eq!(deserialized.default_max_output_tokens, Some(4096));
-        assert!(deserialized.providers.contains_key("openai"));
+        assert_eq!(
+            deserialized
+                .default_image_model
+                .as_ref()
+                .map(ModelId::as_str),
+            Some("gemini-2.5-flash-image")
+        );
         assert!(deserialized.sampling.enable_smart_routing);
         assert!(!deserialized.sampling.fallback_enabled);
         assert!(deserialized.mcp.auto_discover);
@@ -166,43 +158,6 @@ mod history_config_tests {
         let deserialized: HistoryConfig = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.retention_days, 365);
         assert!(deserialized.log_tool_executions);
-    }
-}
-
-mod ai_provider_config_tests {
-    use super::*;
-
-    #[test]
-    fn default_is_enabled_with_empty_fields() {
-        let config = AiProviderConfig::default();
-        assert!(config.enabled);
-        assert!(config.default_model.is_empty());
-        assert!(config.default_image_model.is_empty());
-        assert!(!config.google_search_enabled);
-    }
-
-    #[test]
-    fn serde_enabled_defaults_to_true() {
-        let config: AiProviderConfig =
-            serde_json::from_str(r#"{"default_model":"gpt-4"}"#).expect("deserialize");
-        assert!(config.enabled);
-    }
-
-    #[test]
-    fn serde_roundtrip_policy_fields() {
-        let config = AiProviderConfig {
-            enabled: true,
-            default_model: "gpt-4".to_string(),
-            default_image_model: "dall-e-3".to_string(),
-            google_search_enabled: true,
-            ..AiProviderConfig::default()
-        };
-
-        let json = serde_json::to_string(&config).expect("serialize");
-        let deserialized: AiProviderConfig = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.default_model, "gpt-4");
-        assert_eq!(deserialized.default_image_model, "dall-e-3");
-        assert!(deserialized.google_search_enabled);
     }
 }
 

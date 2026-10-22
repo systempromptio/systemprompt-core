@@ -479,7 +479,7 @@ async fn health_check_reports_provider_and_tools() {
     let svc = service(&pool, ANTHROPIC, server.uri());
 
     let health = svc.health_check().await.expect("health ok");
-    assert_eq!(health.get("provider_anthropic"), Some(&true));
+    assert_eq!(health.get("provider_anthropic/api"), Some(&true));
 }
 
 #[tokio::test]
@@ -528,22 +528,68 @@ async fn openai_protocol_drives_generate() {
 }
 
 #[tokio::test]
-async fn build_fails_when_default_provider_not_enabled() {
+async fn build_fails_when_the_default_model_is_only_on_a_disabled_provider() {
     let pool = bootstrapped_pool().await;
-    // default_provider points at a provider with no enabled policy entry.
-    let registry = super::registry_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned());
-    let mut config = super::ai_config(ANTHROPIC);
-    config.default_provider = "gemini".to_owned();
-    let result = systemprompt_ai::AiService::new(
-        &registry,
-        &config,
-        systemprompt_ai::AiServiceProviders {
-            tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
-            sessions: super::noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
+    let catalog = super::fixture_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned())
+        .default_model(OPENAI_MODEL)
+        .build();
+    let err = super::service_from(&pool, std::sync::Arc::new(catalog))
+        .expect_err("gpt-4.1 is deployed only on the disabled openai provider");
+    let message = err.to_string();
+    assert!(message.contains("gpt-4.1"), "{message}");
+    assert!(message.contains("openai/api"), "{message}");
+}
+
+#[tokio::test]
+async fn the_default_provider_is_the_default_models_first_served_deployment() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::openai_chat_success(json!({})).await;
+    let svc = service(&pool, OPENAI, server.uri());
+    assert_eq!(svc.default_provider(), OPENAI);
+    assert_eq!(svc.default_model(), OPENAI_MODEL);
+}
+
+#[tokio::test]
+async fn a_disabled_providers_model_is_never_served_in_process() {
+    let pool = bootstrapped_pool().await;
+    let server = mock_http::anthropic_messages_success(json!({})).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (_user, ctx) = seeded_context(&pool).await;
+    let request =
+        AiRequest::builder(vec![AiMessage::user("hi")], OPENAI, OPENAI_MODEL, 64, ctx).build();
+
+    let err = svc
+        .generate(&request)
+        .await
+        .expect_err("openai is disabled");
+    assert!(format!("{err:?}").contains(OPENAI), "{err:?}");
+    assert_eq!(
+        svc.health_check()
+            .await
+            .expect("health ok")
+            .keys()
+            .filter(|k| k.starts_with("provider_"))
+            .count(),
+        1,
+        "only the enabled provider has a client"
     );
-    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn a_request_without_a_provider_resolves_through_the_catalog() {
+    let pool = bootstrapped_pool().await;
+    let server =
+        mock_http::anthropic_messages_success(mock_http::anthropic_response_body("ok")).await;
+    let svc = service(&pool, ANTHROPIC, server.uri());
+    let (_user, ctx) = seeded_context(&pool).await;
+    let request =
+        AiRequest::builder(vec![AiMessage::user("hi")], "", ANTHROPIC_MODEL, 64, ctx).build();
+
+    let response = svc
+        .generate(&request)
+        .await
+        .expect("resolved through the catalog");
+    assert!(response.content.contains("ok"));
 }
 
 #[tokio::test]
@@ -572,23 +618,10 @@ async fn google_search_uses_search_capable_provider_and_surfaces_sources() {
     let server =
         mock_http::gemini_generate_success(mock_http::gemini_grounded_body("grounded answer"))
             .await;
-    let registry = super::registry_with_endpoint("gemini", server.uri());
-    let mut config = super::ai_config("gemini");
-    config
-        .providers
-        .get_mut("gemini")
-        .expect("gemini policy entry")
-        .google_search_enabled = true;
-    let svc = systemprompt_ai::AiService::new(
-        &registry,
-        &config,
-        systemprompt_ai::AiServiceProviders {
-            tools: std::sync::Arc::new(systemprompt_ai::NoopToolProvider::new()),
-            sessions: super::noop_session_provider(),
-        },
-        &systemprompt_ai::repository::AiRepositories::new(&pool),
-    )
-    .expect("AiService builds");
+    let catalog = super::fixture_with_endpoint("gemini", server.uri())
+        .with_provider("gemini", |p| p.google_search_enabled = true)
+        .build();
+    let svc = super::service_from(&pool, std::sync::Arc::new(catalog)).expect("AiService builds");
 
     let response = svc
         .generate_with_google_search(systemprompt_ai::models::ai::GoogleSearchParams {
