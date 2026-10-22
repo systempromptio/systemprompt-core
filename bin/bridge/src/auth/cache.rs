@@ -176,3 +176,14 @@ pub fn write_bound(
     };
     crate::fsutil::atomic_write_0600(&cache_path()?, &serde_json::to_vec(&entry)?)
 }
+
+// Why: core's /v1/bridge/profile lists personal-key providers (OpenCode Go)
+// only for the member the bearer names; an anonymous fetch drops them.
+#[must_use]
+pub fn cached_bearer(gateway: &ValidatedUrl) -> Option<crate::ids::BearerToken> {
+    let cfg = config::load().ok()?;
+    read_for(&cfg, gateway, 30)
+        .ok()
+        .flatten()
+        .map(|out| out.token)
+}

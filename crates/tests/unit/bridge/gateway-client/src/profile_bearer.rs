@@ -91,7 +91,8 @@ fn run_profile_fetch(seed: bool) -> Vec<Request> {
                 .mount(&server)
                 .await;
             let client = GatewayClient::new(gateway.clone(), reqwest::Client::new());
-            let profile = client.fetch_bridge_profile().await.unwrap();
+            let bearer = systemprompt_bridge::auth::cache::cached_bearer(&gateway);
+            let profile = client.fetch_bridge_profile(bearer.as_ref()).await.unwrap();
             assert_eq!(profile.models, vec!["opencode-go/model".to_owned()]);
             server.received_requests().await.unwrap()
         })

@@ -114,11 +114,14 @@ impl GatewayClient {
         skip(self),
         fields(endpoint = "profile", status, latency_ms)
     )]
-    pub async fn fetch_bridge_profile(&self) -> Result<BridgeProfile, GatewayError> {
+    pub async fn fetch_bridge_profile(
+        &self,
+        bearer: Option<&BearerToken>,
+    ) -> Result<BridgeProfile, GatewayError> {
         let url = self.url("/v1/bridge/profile");
         let started = Instant::now();
         let mut request = self.http().get(&url);
-        if let Some(bearer) = cached_bearer(self.base_url()) {
+        if let Some(bearer) = bearer {
             request = request.bearer_auth(bearer.expose());
         }
         let resp = request
@@ -188,14 +191,4 @@ impl GatewayClient {
             .await
             .map_err(|e| GatewayError::DeviceEnrollDecode(Box::new(e)))
     }
-}
-
-// Why: core's /v1/bridge/profile lists personal-key providers (OpenCode Go)
-// only for the member the bearer names; an anonymous fetch drops them.
-fn cached_bearer(gateway: &systemprompt_identifiers::ValidatedUrl) -> Option<BearerToken> {
-    let cfg = crate::config::load().ok()?;
-    crate::auth::cache::read_for(&cfg, gateway, 30)
-        .ok()
-        .flatten()
-        .map(|out| out.token)
 }

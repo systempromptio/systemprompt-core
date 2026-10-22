@@ -228,7 +228,7 @@ async fn run_probe(http: &reqwest::Client, latched: bool) -> GatewayProbeOutcome
 
     let catalog = match &status {
         GatewayStatus::Reachable { .. } => client
-            .fetch_bridge_profile()
+            .fetch_bridge_profile(crate::auth::cache::cached_bearer(client.base_url()).as_ref())
             .await
             .map(|profile| profile.providers)
             .map_err(|e| CatalogFetchError::Fetch(Arc::new(e))),

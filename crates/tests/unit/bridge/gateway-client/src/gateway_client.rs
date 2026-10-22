@@ -345,7 +345,7 @@ async fn fetch_bridge_profile_ok() {
         .mount(&server)
         .await;
 
-    let profile = client(&server).fetch_bridge_profile().await.unwrap();
+    let profile = client(&server).fetch_bridge_profile(None).await.unwrap();
     assert_eq!(profile.inference_gateway_base_url, "https://gw.example.com");
     assert_eq!(profile.auth_scheme, "bearer");
     assert_eq!(
@@ -363,7 +363,10 @@ async fn fetch_bridge_profile_500_maps_to_http_status() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_bridge_profile().await.unwrap_err();
+    let err = client(&server)
+        .fetch_bridge_profile(None)
+        .await
+        .unwrap_err();
     match err {
         GatewayError::Rejected {
             status, endpoint, ..
@@ -384,7 +387,10 @@ async fn fetch_bridge_profile_malformed_body_maps_to_decode() {
         .mount(&server)
         .await;
 
-    let err = client(&server).fetch_bridge_profile().await.unwrap_err();
+    let err = client(&server)
+        .fetch_bridge_profile(None)
+        .await
+        .unwrap_err();
     assert!(
         matches!(err, GatewayError::ProfileDecode(_)),
         "expected ProfileDecode, got {err:?}"
@@ -599,7 +605,7 @@ async fn each_endpoint_maps_a_connection_failure_to_its_own_fetch_variant() {
         GatewayError::WhoamiFetch(_)
     ));
     assert!(matches!(
-        c.fetch_bridge_profile().await.unwrap_err(),
+        c.fetch_bridge_profile(None).await.unwrap_err(),
         GatewayError::ProfileFetch(_)
     ));
     assert!(matches!(

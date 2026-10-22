@@ -9,7 +9,10 @@ use super::SyncError;
 pub(super) async fn seed_default_model_from_profile(
     client: &crate::gateway::GatewayClient,
 ) -> Result<(), SyncError> {
-    let profile = match client.fetch_bridge_profile().await {
+    let profile = match client
+        .fetch_bridge_profile(crate::auth::cache::cached_bearer(client.base_url()).as_ref())
+        .await
+    {
         Ok(profile) => profile,
         // Why: a gateway older than the profile endpoint has no default model
         // to seed; the sync itself completed and its checkpoint is written.
