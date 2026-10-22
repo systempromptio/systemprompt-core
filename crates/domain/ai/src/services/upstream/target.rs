@@ -48,7 +48,7 @@ impl UpstreamTarget {
         key: &str,
         user_id: &UserId,
     ) -> Result<Self, UpstreamTargetError> {
-        let cache_key = format!("user:{}:{}", user_id.as_str(), entry.name.as_str());
+        let cache_key = format!("user:{}:{}", user_id.as_str(), entry.credential_owner());
         Self::resolve_keyed(entry, key, &cache_key)
     }
 
@@ -163,6 +163,11 @@ impl UpstreamTarget {
     #[must_use]
     pub fn endpoint(&self) -> &str {
         &self.endpoint
+    }
+
+    #[must_use]
+    pub fn cache_key(&self) -> &str {
+        &self.cache_key
     }
 
     #[must_use]

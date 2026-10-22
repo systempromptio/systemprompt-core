@@ -5,6 +5,7 @@
 ### Fixed
 
 - Storing a personal key probes every entry that shares it (`credential_siblings`, `verify_personal_key`), not only the owner entry, so a key a sibling endpoint refuses is never stored as working.
+- The personal token cache is keyed by user and credential owner, so entries sharing one key share its token; `UpstreamTarget::cache_key()` exposes it.
 
 ## [0.72.1] - 2026-10-22
 
