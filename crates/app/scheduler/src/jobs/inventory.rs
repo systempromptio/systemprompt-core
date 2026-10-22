@@ -86,10 +86,10 @@ impl Job for InventoryRefreshJob {
     }
     async fn execute(&self, ctx: &JobContext) -> ProviderResult<JobResult> {
         let app = job_app_context(ctx)?;
-        let memo = ctx.get::<Arc<InventoryRefreshMemo>>().ok();
+        let memo = ctx.get::<Arc<InventoryRefreshMemo>>()?;
         let owner = app.system_admin().id();
         let published = match catalog_fingerprint(app) {
-            Some(fingerprint) if memo.is_some_and(|memo| memo.unchanged(&fingerprint)) => 0,
+            Some(fingerprint) if memo.unchanged(&fingerprint) => 0,
             fingerprint => {
                 // Why: the owner is the system admin because that is who owns
                 // the configured inventory.
@@ -100,7 +100,7 @@ impl Job for InventoryRefreshJob {
                 )
                 .await
                 .map_err(SchedulerError::from)?;
-                if let (Some(fingerprint), Some(memo)) = (fingerprint, memo) {
+                if let Some(fingerprint) = fingerprint {
                     memo.remember(fingerprint);
                 }
                 let count = outcomes
