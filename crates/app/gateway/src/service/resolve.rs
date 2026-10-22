@@ -201,15 +201,15 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     let Some(view) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
-    // Why: a personal subscription and a deployment secret bill different
-    // accounts; a failover hop between them would move a request onto a bill
-    // nobody chose, so a chain only fails over within one credential source.
+    // Why: a personal subscription and a deployment secret, or two members'
+    // personal subscriptions, bill different accounts; a failover hop between
+    // them would move a request onto a bill nobody chose.
     if view
         .resolve(registry)
-        .is_some_and(|entry| entry.is_user_credential() != primary.provider.is_user_credential())
+        .is_some_and(|entry| !entry.bills_same_credential(primary.provider))
     {
         return Err(DispatchError::pre_audit(PolicyDenied(format!(
-            "deployment '{}' bills a different credential source than '{}'",
+            "deployment '{}' bills a different credential than '{}'",
             view.provider.as_str(),
             primary.provider.name.as_str()
         ))));

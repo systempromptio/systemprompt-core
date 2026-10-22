@@ -7,6 +7,7 @@
 ### Fixed
 
 - **Config:** `admin config catalog` provider upserts no longer downgrade a personal (`credential: user`) provider or drop its headers and betas.
+- **Gateway:** failover never moves a request between two different personal subscriptions; the guard compares the credential owner, not only the credential source.
 
 ## [0.72.1] - 2026-10-22
 

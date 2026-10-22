@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Fixed
+
+- `ProviderEntry::bills_same_credential`: two entries bill the same account when both use deployment secrets or both use the one personal key named by the same `credential_owner()`.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking
