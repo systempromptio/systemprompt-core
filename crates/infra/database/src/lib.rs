@@ -73,7 +73,8 @@ pub use extension::DatabaseExtension;
 
 pub use models::{
     ColumnInfo, DatabaseInfo, DatabaseQuery, DatabaseTransaction, DbValue, FromDbValue, IndexInfo,
-    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, parse_database_datetime,
+    JsonRow, QueryResult, QueryRow, QuerySelector, TableInfo, ToDbValue, escape_like,
+    parse_database_datetime,
 };
 
 pub use services::{

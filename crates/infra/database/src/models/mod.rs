@@ -11,6 +11,6 @@ pub mod query;
 pub mod transaction;
 
 pub use info::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
-pub use query::{DatabaseQuery, QueryResult, QueryRow, QuerySelector};
+pub use query::{DatabaseQuery, QueryResult, QueryRow, QuerySelector, escape_like};
 pub use systemprompt_traits::{DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime};
 pub use transaction::DatabaseTransaction;
