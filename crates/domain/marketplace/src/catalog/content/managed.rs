@@ -14,7 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use super::{CatalogContent, revision_cache};
+use super::CatalogContent;
 use crate::error::MarketplaceError;
 use crate::managed::{
     AssetDigest, ManagedError, ManagedRepository, ManagedResolution, RevisionBundle,
@@ -167,8 +167,8 @@ impl CatalogContent {
     }
 }
 
-// Why: a published revision never changes, so only revisions this process has
-// not yet verified are pulled from Postgres; the rest come from the memo.
+// Why: a published revision never changes, so only revisions this repository
+// has not yet verified are pulled from Postgres; the rest come from the memo.
 async fn verified_bundles(
     repository: &ManagedRepository,
     principal: &UserId,
@@ -185,7 +185,10 @@ async fn verified_bundles(
         else {
             continue;
         };
-        match revision_cache::get(revision_id, bundle_digest.as_str()) {
+        match repository
+            .verified_revisions()
+            .get(revision_id, bundle_digest.as_str())
+        {
             Some(bundle) => {
                 out.insert(revision_id.clone(), bundle);
             },
@@ -211,7 +214,7 @@ async fn verified_bundles(
             return Err(MarketplaceError::Managed(ManagedError::Integrity));
         }
         let bundle = Arc::new(bundle);
-        revision_cache::insert(
+        repository.verified_revisions().insert(
             revision_id.clone(),
             bundle_digest.as_str().to_owned(),
             Arc::clone(&bundle),
