@@ -208,7 +208,7 @@ async fn provider_error_produces_synthesis_failed_fallback() {
 
     assert!(out.contains("Tool execution completed"));
     assert!(out.contains("Synthesis error"));
-    assert!(out.contains("stub failure"));
+    assert!(out.contains("Provider stub returned empty response"));
 }
 
 #[tokio::test]

@@ -302,7 +302,7 @@ async fn generate_image_propagates_provider_error_and_persists_nothing() {
         .generate_image(request(&user_id, None))
         .await
         .expect_err("provider error");
-    assert!(format!("{err}").contains("stub image failure"));
+    assert!(format!("{err}").contains("Provider stub returned no image data"));
     assert!(file_provider.files.lock().expect("lock").is_empty());
 }
 
@@ -455,7 +455,7 @@ async fn generate_batch_stops_on_first_error() {
         .generate_batch(vec![request(&user_id, None)])
         .await
         .expect_err("batch error");
-    assert!(format!("{err}").contains("stub image failure"));
+    assert!(format!("{err}").contains("Provider stub returned no image data"));
 }
 
 #[tokio::test]
