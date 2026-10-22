@@ -86,7 +86,10 @@ impl HostApp for ClaudeDesktopHost {
             read_error: read.probe_error.as_deref(),
             desired: &desired,
         });
-        let found = HostProcesses::from_enumeration(os::list_claude_processes());
+        let found = HostProcesses::from_enumeration(
+            os::list_claude_processes(),
+            systemprompt_models::bridge::host::HostAppKind::DesktopApp,
+        );
         let update_needs_approval = os::update_needs_approval(read.source_path.as_deref(), env);
         HostAppSnapshot {
             host_id: self.id(),

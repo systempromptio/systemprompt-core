@@ -263,7 +263,7 @@ pub(crate) fn on_profile_install_finished(
 async fn generate_profile_for(
     host: &'static dyn crate::integration::HostApp,
     bridge: &crate::context::BridgeContext,
-    overrides: &std::collections::BTreeMap<String, Vec<String>>,
+    overrides: &crate::integration::reapply::ModelProtocolOverrides,
 ) -> GuiResult<GeneratedProfile> {
     crate::sync::refresh_registry_for(bridge, host).await?;
     let inputs = crate::integration::reapply::build_profile_inputs(bridge, host, overrides).await?;
