@@ -18,7 +18,7 @@ use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Artifact, Message, TaskState};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{
-    MessageProcessor, MessageStream, StreamEvent,
+    MessageHandler, MessageStream, StreamEvent,
 };
 
 use super::event_loop_lifecycle::{EmitRunStartedParams, emit_run_started};
@@ -39,7 +39,7 @@ pub struct ProcessEventsParams {
     pub agent_name: AgentName,
     pub context: RequestContext,
     pub task_repo: TaskRepository,
-    pub processor: Arc<MessageProcessor>,
+    pub processor: Arc<MessageHandler>,
 }
 
 impl std::fmt::Debug for ProcessEventsParams {
@@ -117,7 +117,7 @@ struct EventLoopCtx<'a> {
     agent_name: &'a AgentName,
     context: &'a RequestContext,
     task_repo: &'a TaskRepository,
-    processor: &'a Arc<MessageProcessor>,
+    processor: &'a Arc<MessageHandler>,
 }
 
 async fn drain_events(

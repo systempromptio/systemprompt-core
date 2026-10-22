@@ -1,6 +1,6 @@
-//! Non-streaming message handling for [`MessageProcessor`].
+//! Non-streaming message handling for [`MessageHandler`].
 //!
-//! Implements `MessageProcessor::handle_message`: it validates the context,
+//! Implements `MessageHandler::handle_message`: it validates the context,
 //! persists a submitted task, runs the stream pipeline to completion, builds
 //! the finished [`Task`], persists it, and broadcasts
 //! the completion and AG-UI lifecycle events.
@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod helpers;
 mod shapes;
+mod stream_collection;
 
 pub use shapes::{HandleMessageParams, new_submitted_task, resolve_agent_message, resolve_task_id};
 
@@ -17,16 +17,16 @@ use std::sync::Arc;
 
 use crate::services::a2a_server::active_tasks::ActiveTasks;
 
-use self::helpers::{
+use self::stream_collection::{
     BroadcastAguiLifecycleParams, broadcast_agui_lifecycle, collect_stream_response,
 };
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::services::a2a_server::processing::message::persistence::{
     PersistOutcome, broadcast_completion, persist_completed_task,
 };
-use crate::services::a2a_server::processing::message::stream_processor::StreamProcessor;
+use crate::services::a2a_server::processing::message::stream_service::StreamService;
 use crate::services::a2a_server::processing::message::{
-    MessageProcessor, ProcessMessageStreamParams,
+    MessageHandler, ProcessMessageStreamParams,
 };
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
 use crate::services::a2a_server::streaming::broadcast::{
@@ -45,7 +45,7 @@ struct PersistAndAnnounceParams<'a> {
     webhooks: &'a WebhookContext,
 }
 
-impl MessageProcessor {
+impl MessageHandler {
     pub(in crate::services::a2a_server) async fn handle_message(
         &self,
         message: Message,
@@ -179,8 +179,8 @@ impl MessageProcessor {
         Ok(())
     }
 
-    fn stream_processor(&self) -> StreamProcessor {
-        StreamProcessor {
+    fn stream_processor(&self) -> StreamService {
+        StreamService {
             ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),
             skill_service: Arc::clone(&self.skill_service),

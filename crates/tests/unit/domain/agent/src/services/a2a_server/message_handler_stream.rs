@@ -1,4 +1,4 @@
-// DB-backed tests for `MessageProcessor`: construction, the streaming pipeline
+// DB-backed tests for `MessageHandler`: construction, the streaming pipeline
 // (`process_message_stream` with a stubbed provider), and persisting a
 // completed task (`persist_completed_task`). The streaming path is driven with
 // a real seeded context/task and an injected `AgentRuntimeInfo`, so it never
@@ -10,8 +10,7 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::services::a2a_server::processing::TaskBuilder;
 use systemprompt_agent::services::a2a_server::processing::message::{
-    MessageProcessor, PersistCompletedTaskOnProcessorParams, ProcessMessageStreamParams,
-    StreamEvent,
+    MessageHandler, PersistCompletedTaskOnProcessorParams, ProcessMessageStreamParams, StreamEvent,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_test_mocks::recording_webhooks;
@@ -40,7 +39,7 @@ async fn new_constructs_against_pool() {
     systemprompt_test_fixtures::ensure_test_bootstrap();
     let _lock = crate::SKILLS_FIXTURE_LOCK.read().await;
     let provider = Arc::new(StubAiProvider::new());
-    MessageProcessor::new(
+    MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -58,7 +57,7 @@ async fn process_message_stream_emits_text_and_complete() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["one ", "two"]));
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -109,7 +108,7 @@ async fn persist_completed_task_updates_existing_row() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new());
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -155,7 +154,7 @@ async fn cancelling_a_running_stream_emits_exactly_one_cancelled_event() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().with_stalled_stream());
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -208,7 +207,7 @@ async fn process_message_stream_provider_failure_emits_error() {
     let (ctx, task_id) = seed_context_and_task(&repos, &user, &session).await;
 
     let provider = Arc::new(StubAiProvider::new().failing_stream());
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -286,7 +285,7 @@ async fn configured_skills_are_injected_and_missing_optional_skills_do_not_abort
     let (user, session) = seed_user_and_session(&pool).await;
     let (ctx, task_id) = seed_context_and_task(&repositories, &user, &session).await;
     let provider = Arc::new(StubAiProvider::new().with_text_stream(&["done"]));
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider.clone(),
         recording_webhooks(),
@@ -350,7 +349,7 @@ async fn partial_provider_stream_preserves_text_then_emits_one_error_without_com
     let (ctx, task_id) = seed_context_and_task(&repositories, &user, &session).await;
     let provider =
         Arc::new(StubAiProvider::new().with_partial_stream_failure("retained partial answer"));
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -435,7 +434,7 @@ async fn planned_stream_synthesizes_tool_results_before_completing_with_the_fina
             .with_generate("final summary after wrapper synthesis")
             .with_response("initial strategy synthesis"),
     );
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),
@@ -511,7 +510,7 @@ async fn planned_stream_reports_final_resynthesis_failure_without_completing() {
             .failing_generate()
             .with_response("intermediate tool explanation"),
     );
-    let processor = MessageProcessor::new(
+    let processor = MessageHandler::new(
         Arc::new(crate::repository::repos(&pool)),
         provider,
         recording_webhooks(),

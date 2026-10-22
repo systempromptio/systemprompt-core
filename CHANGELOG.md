@@ -34,6 +34,7 @@
 - **Breaking:** `systemprompt_mcp::services::network::proxy::create_proxy_router` and `NetworkService::create_proxy` take the `reqwest::Client` they forward through; the process-wide proxy client is removed. Migrate by passing the caller's client.
 - **Breaking:** `systemprompt_mcp::{TaskContext, TaskManager, TaskOptions}` re-exports are removed, and `services::registry::trait_impl` is folded into `services::registry` (`McpDeploymentProviderImpl` stays at the crate root). Migrate by importing from `rmcp::task_manager`.
 - **Breaking:** `StreamEvent::Error` carries `Arc<AgentServiceError>` and `AgentServiceError::StreamFailed` is `{ source: Arc<AgentServiceError> }`. Migrate by matching the typed error and formatting it where text is needed.
+- **Breaking:** in `systemprompt_agent::services::a2a_server`, `MessageProcessor` is `MessageHandler` and `StreamProcessor` is `StreamService`; `processing::message::stream_processor` is `stream_service` (its `helpers` module is `synthesis`), and `handlers::request::helpers` is `handlers::request::routing`. Migrate by renaming the imports.
 
 ### Added
 

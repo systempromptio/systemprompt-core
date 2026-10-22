@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::protocol::{GetTaskParams, SendMessageParams};
 use systemprompt_agent::models::a2a::{A2aRequestParams, Message, MessageRole, Part};
-use systemprompt_agent::services::a2a_server::handlers::request::helpers::handle_streaming_path;
+use systemprompt_agent::services::a2a_server::handlers::request::routing::handle_streaming_path;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 
 use super::a2a_helpers::{StubAiProvider, make_handler_state, request_context};

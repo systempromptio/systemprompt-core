@@ -14,7 +14,7 @@ use systemprompt_agent::models::a2a::jsonrpc::NumberOrString;
 use systemprompt_agent::models::a2a::{Message, MessageRole, Part, TaskState};
 use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_agent::services::a2a_server::processing::message::{
-    MessageProcessor, MessageStream, StreamEvent,
+    MessageHandler, MessageStream, StreamEvent,
 };
 use systemprompt_agent::services::a2a_server::streaming::{ProcessEventsParams, process_events};
 use systemprompt_agent::services::shared::AgentServiceError;
@@ -102,7 +102,7 @@ async fn spawn_loop_with(spec: LoopSpec<'_>) -> Loop {
 
     let (broadcaster, rec) = arc_recording_broadcaster();
     let processor = Arc::new(
-        MessageProcessor::new(
+        MessageHandler::new(
             Arc::new(crate::repository::repos(&pool)),
             Arc::new(StubAiProvider::new()),
             broadcaster,
