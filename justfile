@@ -359,6 +359,24 @@ lint-bridge-layers:
 lint-bridge-globals:
     ./scripts/lint-bridge-globals.sh
 
+# Core service state lives on AppContext (and the server, gateway and bridge
+# roots), built once and injected. A `static X: OnceLock<..>` in a production
+# crate fails unless scripts/core-globals-allowlist.txt names it with a reason.
+# `just lint-core-globals ROOT...` scans other roots (the installs).
+lint-core-globals *ARGS:
+    ./scripts/lint-core-globals.sh {{ARGS}}
+
+# A field has one wire name: `#[serde(alias = ...)]` fails unless
+# scripts/serde-aliases-allowlist.txt names it with a vendor reason. The same
+# gate rejects a bare `8080`/`5432` outside `systemprompt_models::defaults`.
+lint-serde-aliases *ARGS:
+    ./scripts/lint-serde-aliases.sh {{ARGS}}
+
+# The root-walking gates scan the roots they are given and default to core;
+# this proves both against a fixture tree per script.
+test-gate-roots:
+    python3 scripts/test-gate-roots.py
+
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
 # the cap a failure instead of a note, so files are split before they sprawl.

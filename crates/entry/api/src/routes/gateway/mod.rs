@@ -53,6 +53,7 @@ mod routers;
 use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::AppContext as _;
 
@@ -112,13 +113,18 @@ struct GatewayParts {
     bridge_auth: Router,
 }
 
-fn gateway_parts(ctx: &AppContext) -> anyhow::Result<GatewayParts> {
+fn gateway_parts(ctx: &AppContext, engines: &Arc<GatewayEngines>) -> anyhow::Result<GatewayParts> {
     let jwt_extractor = build_jwt_extractor(ctx)?;
     let gateway_repos = Arc::new(gateway_repositories(ctx)?);
 
     Ok(GatewayParts {
         traffic: Router::new()
-            .merge(inference_routes(ctx, &jwt_extractor, &gateway_repos))
+            .merge(inference_routes(
+                ctx,
+                &jwt_extractor,
+                &gateway_repos,
+                engines,
+            ))
             .merge(bridge_profile_routes(ctx, &jwt_extractor))
             .merge(bridge_session_routes(ctx, &jwt_extractor))
             .merge(provider_credentials::routes(ctx, &jwt_extractor))
@@ -131,12 +137,16 @@ fn gateway_parts(ctx: &AppContext) -> anyhow::Result<GatewayParts> {
 }
 
 pub fn gateway_router(ctx: &AppContext) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx)?;
+    let parts = gateway_parts(ctx, &Arc::new(GatewayEngines::new()))?;
     Ok(common_layers(ctx, parts.traffic.merge(parts.bridge_auth)))
 }
 
-pub fn gateway_mount_router(ctx: &AppContext, limits: &RateLimitState) -> anyhow::Result<Router> {
-    let parts = gateway_parts(ctx)?;
+pub fn gateway_mount_router(
+    ctx: &AppContext,
+    limits: &RateLimitState,
+    engines: &Arc<GatewayEngines>,
+) -> anyhow::Result<Router> {
+    let parts = gateway_parts(ctx, engines)?;
     let rate_config = &ctx.config().rate_limits;
 
     let traffic =

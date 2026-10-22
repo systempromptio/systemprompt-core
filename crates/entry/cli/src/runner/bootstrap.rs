@@ -18,7 +18,6 @@ use std::path::{Path, PathBuf};
 use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_config::{ProfileBootstrap, SecretsBootstrap};
-use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::LogLevel;
@@ -188,7 +187,7 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
     )
     .await
     .context("Failed to resolve the services bundle sources")?;
-    let paths = AppPaths::from_profile(
+    AppPaths::from_profile(
         &profile.paths,
         profile.path_resolution(),
         Some(active_root.path.as_path()),
@@ -206,7 +205,6 @@ pub(super) async fn init_paths(discover_models: bool) -> Result<()> {
         systemprompt_loader::ServicesBootstrap::try_init()
             .context("Failed to load the services configuration")?;
     }
-    FilesConfig::init(&paths).context("Failed to initialize files configuration")?;
     Ok(())
 }
 

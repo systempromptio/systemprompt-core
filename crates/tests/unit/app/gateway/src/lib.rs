@@ -17,6 +17,8 @@ mod canonical_response;
 #[cfg(test)]
 mod chain_plan;
 #[cfg(test)]
+mod engines_injected;
+#[cfg(test)]
 mod failover;
 #[cfg(test)]
 mod google_credentials;

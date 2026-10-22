@@ -67,6 +67,12 @@ pub struct TestBootstrap {
     pub database_url: String,
 }
 
+impl TestBootstrap {
+    pub fn files_config(&self) -> FilesConfig {
+        FilesConfig::from_profile(&self.app_paths).expect("files config from the fixture profile")
+    }
+}
+
 static BOOTSTRAP: OnceLock<TestBootstrap> = OnceLock::new();
 
 pub fn ensure_test_bootstrap() -> &'static TestBootstrap {
@@ -271,10 +277,6 @@ fn init_bootstrap_inner_expecting(
         None,
     )
     .expect("app paths");
-    if FilesConfig::get_optional().is_none() {
-        let _ = FilesConfig::init(&app_paths);
-    }
-
     TestBootstrap {
         _tmp: tmp,
         profile_path,

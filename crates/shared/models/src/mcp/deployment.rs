@@ -89,7 +89,7 @@ pub struct DeploymentConfig {
 /// into the client's confirmation or block it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deployment {
-    #[serde(default, alias = "type")]
+    #[serde(default)]
     pub server_type: McpServerType,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub binary: Option<String>,

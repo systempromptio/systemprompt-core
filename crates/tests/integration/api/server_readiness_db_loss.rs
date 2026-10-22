@@ -4,7 +4,7 @@ use anyhow::Result;
 use axum::body::{Body, to_bytes};
 use axum::http::Request;
 use systemprompt_api::services::server::builder::discovery_router;
-use systemprompt_api::services::server::readiness::{signal_ready, signal_shutdown};
+use systemprompt_api::services::server::readiness::ReadinessState;
 use systemprompt_test_fixtures::{DisposableDb, test_app_context};
 use tower::ServiceExt;
 
@@ -13,8 +13,9 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
     let owned = DisposableDb::with_schema("readyz_db_loss").await;
     let db = owned.test_pool().await;
     let ctx = test_app_context(&db, owned.url());
-    let app = discovery_router(&ctx);
-    signal_ready();
+    let readiness = std::sync::Arc::new(ReadinessState::new());
+    readiness.signal_ready();
+    let app = discovery_router(&ctx).layer(axum::Extension(std::sync::Arc::clone(&readiness)));
     let raw = db.pool();
     raw.close().await;
 
@@ -33,7 +34,7 @@ async fn readyz_withdraws_readiness_when_its_owned_database_disappears() -> Resu
             .is_some_and(|value| !value.is_empty())
     );
 
-    signal_shutdown();
+    readiness.signal_shutdown();
     drop(ctx);
     drop(raw);
     drop(db);

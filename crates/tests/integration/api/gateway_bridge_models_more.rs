@@ -187,7 +187,7 @@ fn flatten_message_content_empty_is_empty_string() {
 
 #[test]
 fn upstream_registry_serves_builtin_wire_adapters() {
-    let registry = GatewayUpstreamRegistry::global();
+    let registry = GatewayUpstreamRegistry::new();
     assert!(registry.get("anthropic").is_some());
     assert!(registry.get("openai-chat").is_some());
     assert!(registry.get("nonexistent-wire").is_none());
@@ -196,7 +196,7 @@ fn upstream_registry_serves_builtin_wire_adapters() {
 
 #[test]
 fn safety_scanner_registry_carries_the_builtins() {
-    let registry = SafetyScannerRegistry::global();
+    let registry = SafetyScannerRegistry::new();
     let safety = SafetyConfig::default();
     assert!(registry.create("null", &safety).is_some());
     assert!(registry.create("heuristic", &safety).is_some());

@@ -19,9 +19,9 @@ use systemprompt_content::repository::ContentRepositories;
 use systemprompt_database::{
     CoordinationRepositories, DbPool, SchemaInstallReport, ServiceRepository,
 };
-use systemprompt_events::{EventBridgeHandle, EventRouter};
+use systemprompt_events::{EventBridgeHandle, EventBroadcasters, EventRouter};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_files::FileRepository;
+use systemprompt_files::{FileRepository, FilesConfig};
 use systemprompt_governance::authz::SharedAuthzHook;
 use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_manifest::Config;
@@ -33,6 +33,7 @@ use systemprompt_mcp::repository::McpSessionRepository;
 use systemprompt_mcp::services::registry::RegistryService;
 use systemprompt_models::{ContentConfigRaw, ContentRouting, RouteClassifier};
 use systemprompt_oauth::repository::OAuthRepositories;
+use systemprompt_security::credential::TokenCache;
 use systemprompt_traits::{BackgroundTasks, CacheEpochs, FileStorage};
 use systemprompt_users::{UserRepository, UserService};
 
@@ -74,6 +75,7 @@ pub struct DataPlane {
 pub struct ConfigPlane {
     pub config: Arc<Config>,
     pub app_paths: Arc<AppPaths>,
+    pub files_config: Arc<FilesConfig>,
     pub content_config: Option<Arc<ContentConfigRaw>>,
     pub route_classifier: Arc<RouteClassifier>,
 }
@@ -102,6 +104,7 @@ pub struct Subsystems {
     pub shutdown: ShutdownRequest,
     pub background_tasks: BackgroundTasks,
     pub publish_guard: Arc<tokio::sync::Mutex<PublishGuard>>,
+    pub connector_tokens: Arc<TokenCache>,
 }
 
 /// Application-wide runtime container shared across the HTTP server, the
@@ -228,6 +231,10 @@ impl AppContext {
         &self.cfg.app_paths
     }
 
+    pub const fn files_config(&self) -> &Arc<FilesConfig> {
+        &self.cfg.files_config
+    }
+
     pub fn marketplace_filter(&self) -> &Arc<dyn MarketplaceFilter> {
         &self.plugins.marketplace_filter
     }
@@ -244,9 +251,17 @@ impl AppContext {
         &self.subsystems.event_router
     }
 
+    pub const fn event_broadcasters(&self) -> &Arc<EventBroadcasters> {
+        self.subsystems.event_router.broadcasters()
+    }
+
     // Why: the guard memoises per-entry tree digests across passes; the
     // scheduled job and the manual route share it so neither re-captures a
     // tree the other already published.
+    pub const fn connector_tokens(&self) -> &Arc<TokenCache> {
+        &self.subsystems.connector_tokens
+    }
+
     pub const fn publish_guard(&self) -> &Arc<tokio::sync::Mutex<PublishGuard>> {
         &self.subsystems.publish_guard
     }

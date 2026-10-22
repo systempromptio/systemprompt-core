@@ -24,6 +24,5 @@ pub use cache_invalidation::{
 };
 pub use repository::EventsOwnerReassignment;
 pub use routing::{
-    A2A_BROADCASTER, AGUI_BROADCASTER, ANALYTICS_BROADCASTER, CONTEXT_BROADCASTER, EventRouter,
-    OUTBOX_CHANNEL, OutboxChannel,
+    BroadcasterConnections, EventBroadcasters, EventRouter, OUTBOX_CHANNEL, OutboxChannel,
 };

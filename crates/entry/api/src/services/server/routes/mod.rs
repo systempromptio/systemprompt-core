@@ -29,6 +29,7 @@ use systemprompt_manifest::profile::NodeRole;
 
 pub(super) use error::RouteMountError;
 use role::RouteGroup;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AppContext as AppContextTrait, StartupEventSender};
 
@@ -42,22 +43,25 @@ use crate::services::middleware::{
 pub(super) fn configure_routes(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
-    build_routes(ctx, ctx.config().role, events)
+    build_routes(ctx, ctx.config().role, events, engines)
 }
 
 pub fn configure_routes_for_role(
     ctx: &AppContext,
     role: NodeRole,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> anyhow::Result<Router> {
-    Ok(build_routes(ctx, role, events)?)
+    Ok(build_routes(ctx, role, events, engines)?)
 }
 
 fn build_routes(
     ctx: &AppContext,
     role: NodeRole,
     events: Option<&StartupEventSender>,
+    engines: &Arc<GatewayEngines>,
 ) -> Result<Router, RouteMountError> {
     let groups = role::route_groups(role);
     let serves = |group: RouteGroup| groups.contains(&group);
@@ -79,6 +83,7 @@ fn build_routes(
 
     let mount = protocol::MountCtx {
         ctx,
+        engines,
         limits: &limits,
         public_middleware: &public_middleware,
         user_middleware: &user_middleware,

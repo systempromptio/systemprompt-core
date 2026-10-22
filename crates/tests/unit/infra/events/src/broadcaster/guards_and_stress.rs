@@ -1,6 +1,6 @@
 //! Tests for connection guards, failed senders, and stress tests
 
-use std::sync::LazyLock;
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_events::{Broadcaster, ConnectionGuard, GenericBroadcaster};
 use systemprompt_identifiers::{ConnectionId, UserId};
@@ -19,13 +19,10 @@ fn test_event() -> SystemEvent {
 
 #[tokio::test]
 async fn test_connection_guard_debug() {
-    use systemprompt_events::AGUI_BROADCASTER;
-
-    static TEST_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
-        LazyLock::new(GenericBroadcaster::new);
+    let broadcaster: Arc<GenericBroadcaster<SystemEvent>> = Arc::new(GenericBroadcaster::new());
 
     let guard = ConnectionGuard::new(
-        &TEST_BROADCASTER,
+        Arc::clone(&broadcaster),
         fixture_user_id(),
         ConnectionId::new("test-conn"),
     );
@@ -35,54 +32,58 @@ async fn test_connection_guard_debug() {
     assert!(debug_str.contains(FIXTURE_USER_ID));
     assert!(debug_str.contains("test-conn"));
 
-    let _ = AGUI_BROADCASTER.total_connections().await;
+    assert_eq!(broadcaster.total_connections().await, 0);
 }
 
 #[tokio::test]
 async fn test_connection_guard_drop_unregisters() {
-    static DROP_TEST_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
-        LazyLock::new(GenericBroadcaster::new);
+    let drop_test_broadcaster: Arc<GenericBroadcaster<SystemEvent>> =
+        Arc::new(GenericBroadcaster::new());
 
     let user_id = fixture_user_id();
     let conn_id = ConnectionId::new("drop-test-conn");
     let (sender, _receiver) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    DROP_TEST_BROADCASTER
+    drop_test_broadcaster
         .register(&user_id, &conn_id, sender)
         .await;
 
-    assert_eq!(DROP_TEST_BROADCASTER.connection_count(&user_id).await, 1);
+    assert_eq!(drop_test_broadcaster.connection_count(&user_id).await, 1);
 
     {
-        let _guard = ConnectionGuard::new(&DROP_TEST_BROADCASTER, user_id.clone(), conn_id.clone());
+        let _guard = ConnectionGuard::new(
+            Arc::clone(&drop_test_broadcaster),
+            user_id.clone(),
+            conn_id.clone(),
+        );
     }
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    assert_eq!(DROP_TEST_BROADCASTER.connection_count(&user_id).await, 0);
+    assert_eq!(drop_test_broadcaster.connection_count(&user_id).await, 0);
 }
 
 #[tokio::test]
 async fn test_connection_guard_multiple_guards_same_user() {
-    static MULTI_GUARD_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
-        LazyLock::new(GenericBroadcaster::new);
+    let multi_guard_broadcaster: Arc<GenericBroadcaster<SystemEvent>> =
+        Arc::new(GenericBroadcaster::new());
 
     let user_id = fixture_user_id();
     let (sender1, _rx1) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
     let (sender2, _rx2) = tokio::sync::mpsc::channel(systemprompt_events::SSE_BUFFER);
 
-    MULTI_GUARD_BROADCASTER
+    multi_guard_broadcaster
         .register(&user_id, &ConnectionId::new("conn-1"), sender1)
         .await;
-    MULTI_GUARD_BROADCASTER
+    multi_guard_broadcaster
         .register(&user_id, &ConnectionId::new("conn-2"), sender2)
         .await;
 
-    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 2);
+    assert_eq!(multi_guard_broadcaster.connection_count(&user_id).await, 2);
 
     {
         let _guard1 = ConnectionGuard::new(
-            &MULTI_GUARD_BROADCASTER,
+            Arc::clone(&multi_guard_broadcaster),
             user_id.clone(),
             ConnectionId::new("conn-1"),
         );
@@ -90,11 +91,11 @@ async fn test_connection_guard_multiple_guards_same_user() {
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 1);
+    assert_eq!(multi_guard_broadcaster.connection_count(&user_id).await, 1);
 
     {
         let _guard2 = ConnectionGuard::new(
-            &MULTI_GUARD_BROADCASTER,
+            Arc::clone(&multi_guard_broadcaster),
             user_id.clone(),
             ConnectionId::new("conn-2"),
         );
@@ -102,7 +103,7 @@ async fn test_connection_guard_multiple_guards_same_user() {
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    assert_eq!(MULTI_GUARD_BROADCASTER.connection_count(&user_id).await, 0);
+    assert_eq!(multi_guard_broadcaster.connection_count(&user_id).await, 0);
 }
 
 #[tokio::test]

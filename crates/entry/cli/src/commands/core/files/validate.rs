@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, anyhow};
 use clap::Args;
-use systemprompt_files::{FileValidator, FilesConfig};
+use systemprompt_files::FileValidator;
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
@@ -31,7 +31,7 @@ pub(super) fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<Comman
 
     let mime_type = detect_mime_type(&file_path);
 
-    let files_config = FilesConfig::get()?;
+    let files_config = super::load_files_config()?;
     let upload_config = files_config.upload();
     let validator = FileValidator::new(*upload_config);
 

@@ -172,7 +172,9 @@ async fn run_startup(
 
     Ok(format!(
         "http://127.0.0.1:{}",
-        ProfileBootstrap::get().map_or(8080, |p| p.server.port)
+        ProfileBootstrap::get().map_or(systemprompt_models::defaults::DEFAULT_API_PORT, |p| p
+            .server
+            .port)
     ))
 }
 

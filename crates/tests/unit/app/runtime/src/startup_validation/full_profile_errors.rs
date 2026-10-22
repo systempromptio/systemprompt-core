@@ -10,7 +10,7 @@ use crate::boot::{BootOptions, boot};
 
 #[test]
 fn missing_internal_mcp_manifest_stops_validation_with_mcp_error() {
-    let mcp = "mcp_servers:\n  ghost:\n    type: internal\n    binary: ghost_binary\n    \
+    let mcp = "mcp_servers:\n  ghost:\n    server_type: internal\n    binary: ghost_binary\n    \
                package: ghost\n    port: 5055\n    enabled: true\n    display_in_web: false\n    \
                oauth:\n      required: false\n      scopes: []\n      audience: mcp\n      \
                client_id: null\n";

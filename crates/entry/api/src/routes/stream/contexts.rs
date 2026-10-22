@@ -10,9 +10,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use super::{StreamState, StreamWithGuard};
-use systemprompt_events::{
-    Broadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ToSse, standard_keep_alive,
-};
+use systemprompt_events::{Broadcaster, ConnectionGuard, ToSse, standard_keep_alive};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::events::ContextSummary;
 use systemprompt_models::{ContextEvent, RequestContext, SystemEventBuilder};
@@ -33,7 +31,9 @@ pub async fn stream_context_state(
 
     let (tx, rx) = mpsc::channel(1024);
 
-    if !CONTEXT_BROADCASTER
+    if !state
+        .broadcasters
+        .context
         .register(&user_id, &conn_id, tx.clone())
         .await
     {
@@ -71,7 +71,11 @@ pub async fn stream_context_state(
         },
     }
 
-    let cleanup_guard = ConnectionGuard::new(&CONTEXT_BROADCASTER, user_id.clone(), conn_id);
+    let cleanup_guard = ConnectionGuard::new(
+        std::sync::Arc::clone(&state.broadcasters.context),
+        user_id.clone(),
+        conn_id,
+    );
     let stream = ReceiverStream::new(rx);
     let stream_with_guard = StreamWithGuard::<ContextEvent>::new(stream, cleanup_guard);
 

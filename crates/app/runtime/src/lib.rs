@@ -40,9 +40,8 @@ pub use database_context::DatabaseContext;
 pub use error::{RuntimeError, RuntimeResult};
 pub use schema_currency::{SchemaState, assert_schema_current};
 pub use startup_validation::{
-    ExtensionConfigOutcome, FilesConfigValidator, StartupValidator, collect_manifest_errors,
-    display_validation_report, display_validation_warnings, merge_mcp_errors,
-    validate_extension_configs,
+    ExtensionConfigOutcome, StartupValidator, collect_manifest_errors, display_validation_report,
+    display_validation_warnings, merge_mcp_errors, validate_extension_configs,
 };
 pub use systemprompt_database::MigrationConfig;
 pub use systemprompt_provider_contracts::{ConfigPlaneSet, EffectiveAuthority};

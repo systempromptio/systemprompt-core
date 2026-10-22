@@ -56,6 +56,7 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
         Arc::clone(&db_pool),
         ctx.mcp_registry().clone(),
         &services_config.ai.mcp.resilience,
+        Arc::clone(ctx.connector_tokens()),
     ));
     let session_provider = Arc::new(UsersAiSessionProvider::from_repository(
         systemprompt_users::SessionRepository::new(&db_pool),

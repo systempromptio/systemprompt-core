@@ -1,10 +1,11 @@
-//! Static event broadcasters and the [`EventRouter`].
+//! The [`EventBroadcasters`] set and the [`EventRouter`].
 //!
-//! The four `LazyLock<…>` statics are the canonical fan-out points for
-//! each event kind in the system; service code should always go through
-//! an [`EventRouter`] rather than reaching for the underlying broadcaster
-//! directly so that derived events (e.g. AG-UI events also being placed on
-//! the unified context stream) are routed consistently.
+//! One [`EventBroadcasters`] is built at the composition root and shared by
+//! the router, the cross-replica bridge and the SSE endpoints; it holds the
+//! fan-out point for each event kind. Service code routes through an
+//! [`EventRouter`] rather than a broadcaster directly so that derived events
+//! (e.g. AG-UI events also being placed on the unified context stream) are
+//! routed consistently.
 //!
 //! # Cross-replica fan-out
 //!
@@ -25,7 +26,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::LazyLock;
+use std::sync::Arc;
 use systemprompt_identifiers::{EventOutboxId, InstanceId, UserId};
 use tracing::debug;
 
@@ -38,12 +39,39 @@ use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, Sys
 
 pub const OUTBOX_CHANNEL: &str = "systemprompt_events";
 
-pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> =
-    LazyLock::new(ContextBroadcaster::new);
-pub static AGUI_BROADCASTER: LazyLock<AgUiBroadcaster> = LazyLock::new(AgUiBroadcaster::new);
-pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcaster::new);
-pub static ANALYTICS_BROADCASTER: LazyLock<AnalyticsBroadcaster> =
-    LazyLock::new(AnalyticsBroadcaster::new);
+/// The fan-out points for every event kind, built once and shared by the
+/// router, the cross-replica bridge and the SSE endpoints of one process.
+#[derive(Debug, Default)]
+pub struct EventBroadcasters {
+    pub context: Arc<ContextBroadcaster>,
+    pub agui: Arc<AgUiBroadcaster>,
+    pub a2a: Arc<A2ABroadcaster>,
+    pub analytics: Arc<AnalyticsBroadcaster>,
+}
+
+impl EventBroadcasters {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn total_connections(&self) -> BroadcasterConnections {
+        BroadcasterConnections {
+            context: self.context.total_connections().await,
+            agui: self.agui.total_connections().await,
+            a2a: self.a2a.total_connections().await,
+            analytics: self.analytics.total_connections().await,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BroadcasterConnections {
+    pub context: usize,
+    pub agui: usize,
+    pub a2a: usize,
+    pub analytics: usize,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutboxChannel {
@@ -81,23 +109,40 @@ impl OutboxChannel {
 #[derive(Debug, Clone)]
 pub struct EventRouter {
     outbox: Option<EventOutboxRepository>,
+    broadcasters: Arc<EventBroadcasters>,
 }
 
 impl EventRouter {
     #[must_use]
-    pub const fn local_only() -> Self {
-        Self { outbox: None }
+    pub const fn local_only(broadcasters: Arc<EventBroadcasters>) -> Self {
+        Self {
+            outbox: None,
+            broadcasters,
+        }
     }
 
     #[must_use]
-    pub const fn with_outbox(pool: sqlx::PgPool, instance_id: InstanceId) -> Self {
-        Self::from_outbox(EventOutboxRepository::new(pool, instance_id))
+    pub const fn with_outbox(
+        pool: sqlx::PgPool,
+        instance_id: InstanceId,
+        broadcasters: Arc<EventBroadcasters>,
+    ) -> Self {
+        Self::from_outbox(EventOutboxRepository::new(pool, instance_id), broadcasters)
     }
 
-    pub(super) const fn from_outbox(outbox: EventOutboxRepository) -> Self {
+    pub(super) const fn from_outbox(
+        outbox: EventOutboxRepository,
+        broadcasters: Arc<EventBroadcasters>,
+    ) -> Self {
         Self {
             outbox: Some(outbox),
+            broadcasters,
         }
+    }
+
+    #[must_use]
+    pub const fn broadcasters(&self) -> &Arc<EventBroadcasters> {
+        &self.broadcasters
     }
 
     async fn enqueue_outbox<T: serde::Serialize + Sync>(
@@ -136,10 +181,16 @@ impl EventRouter {
         repo.notify(&id).await.map_err(RelayError::Notify)
     }
 
-    pub async fn route_agui_local(user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
+    pub async fn route_agui_local(&self, user_id: &UserId, event: AgUiEvent) -> (usize, usize) {
         let event_type = event.event_type();
-        let agui_count = AGUI_BROADCASTER.broadcast(user_id, event.clone()).await;
-        let context_count = CONTEXT_BROADCASTER
+        let agui_count = self
+            .broadcasters
+            .agui
+            .broadcast(user_id, event.clone())
+            .await;
+        let context_count = self
+            .broadcasters
+            .context
             .broadcast(user_id, ContextEvent::AgUi(event))
             .await;
         debug!(
@@ -152,20 +203,29 @@ impl EventRouter {
         (agui_count, context_count)
     }
 
-    pub async fn route_a2a_local(user_id: &UserId, event: A2AEvent) -> (usize, usize) {
-        let a2a_count = A2A_BROADCASTER.broadcast(user_id, event.clone()).await;
-        let context_count = CONTEXT_BROADCASTER.broadcast(user_id, event.into()).await;
+    pub async fn route_a2a_local(&self, user_id: &UserId, event: A2AEvent) -> (usize, usize) {
+        let a2a_count = self
+            .broadcasters
+            .a2a
+            .broadcast(user_id, event.clone())
+            .await;
+        let context_count = self
+            .broadcasters
+            .context
+            .broadcast(user_id, event.into())
+            .await;
         (a2a_count, context_count)
     }
 
-    pub async fn route_system_local(user_id: &UserId, event: SystemEvent) -> usize {
-        CONTEXT_BROADCASTER
+    pub async fn route_system_local(&self, user_id: &UserId, event: SystemEvent) -> usize {
+        self.broadcasters
+            .context
             .broadcast(user_id, ContextEvent::System(event))
             .await
     }
 
-    pub async fn route_analytics_local(user_id: &UserId, event: AnalyticsEvent) -> usize {
-        ANALYTICS_BROADCASTER.broadcast(user_id, event).await
+    pub async fn route_analytics_local(&self, user_id: &UserId, event: AnalyticsEvent) -> usize {
+        self.broadcasters.analytics.broadcast(user_id, event).await
     }
 
     pub async fn route_agui(
@@ -176,7 +236,7 @@ impl EventRouter {
         let relay = self
             .enqueue_outbox(OutboxChannel::AgUi, user_id, &event)
             .await;
-        let local = Self::route_agui_local(user_id, event).await;
+        let local = self.route_agui_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
@@ -188,7 +248,7 @@ impl EventRouter {
         let relay = self
             .enqueue_outbox(OutboxChannel::A2A, user_id, &event)
             .await;
-        let local = Self::route_a2a_local(user_id, event).await;
+        let local = self.route_a2a_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
@@ -196,7 +256,7 @@ impl EventRouter {
         let relay = self
             .enqueue_outbox(OutboxChannel::System, user_id, &event)
             .await;
-        let local = Self::route_system_local(user_id, event).await;
+        let local = self.route_system_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 
@@ -208,7 +268,7 @@ impl EventRouter {
         let relay = self
             .enqueue_outbox(OutboxChannel::Analytics, user_id, &event)
             .await;
-        let local = Self::route_analytics_local(user_id, event).await;
+        let local = self.route_analytics_local(user_id, event).await;
         RouteOutcome { local, relay }
     }
 }

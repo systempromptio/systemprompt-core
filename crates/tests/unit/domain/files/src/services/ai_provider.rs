@@ -2,12 +2,13 @@
 //! AI image pipeline's [`AiFilePersistenceProvider`] trait and the files
 //! [`FileRepository`].
 //!
-//! Each test uses unique ids and removes the rows it inserts. `storage_config`
-//! is not exercised here: it reads the process-global `FilesConfig`, which is
-//! only initialised through the full AppContext bootstrap (covered by the
-//! integration suite).
+//! Each test uses unique ids and removes the rows it inserts.
 
-use systemprompt_files::{FileRepository, FilesAiPersistenceProvider};
+use std::sync::Arc;
+
+use systemprompt_files::{
+    FileRepository, FilesAiPersistenceProvider, FilesConfig, FilesConfigYaml,
+};
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 use systemprompt_test_fixtures::test_db_pool;
 use systemprompt_traits::{AiFilePersistenceProvider, InsertAiFileParams};
@@ -31,22 +32,31 @@ fn insert_params(id: uuid::Uuid, user: &UserId) -> InsertAiFileParams {
     }
 }
 
+fn files_config() -> Arc<FilesConfig> {
+    Arc::new(FilesConfig::new(
+        std::env::temp_dir(),
+        FilesConfigYaml::default(),
+    ))
+}
+
 async fn cleanup(provider: &FilesAiPersistenceProvider, id: &FileId) {
     provider.delete(id).await.ok();
 }
 
 #[tokio::test]
-async fn from_repository_constructs() {
+async fn new_constructs() {
     let db = test_db_pool().await;
     let repo = FileRepository::new(&db);
-    let _ = FilesAiPersistenceProvider::from_repository(repo);
+    let _ = FilesAiPersistenceProvider::new(repo, files_config());
 }
 
 #[tokio::test]
 async fn insert_then_find_by_id_round_trips_all_fields() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
     let user = UserId::new(format!("u-{}", id.simple()));
@@ -79,8 +89,10 @@ async fn insert_then_find_by_id_round_trips_all_fields() {
 #[tokio::test]
 async fn insert_without_optional_fields_persists() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
     let params = InsertAiFileParams {
@@ -112,8 +124,10 @@ async fn insert_without_optional_fields_persists() {
 #[tokio::test]
 async fn find_by_id_missing_returns_none() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let missing = FileId::generate();
     let r = provider.find_by_id(&missing).await.expect("find");
     assert!(r.is_none());
@@ -122,8 +136,10 @@ async fn find_by_id_missing_returns_none() {
 #[tokio::test]
 async fn list_by_user_returns_inserted_files() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let id_a = new_uuid();
     let id_b = new_uuid();
@@ -155,8 +171,10 @@ async fn list_by_user_returns_inserted_files() {
 #[tokio::test]
 async fn list_by_user_respects_limit() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let id_a = new_uuid();
     let id_b = new_uuid();
@@ -181,8 +199,10 @@ async fn list_by_user_respects_limit() {
 #[tokio::test]
 async fn list_by_user_empty_for_unknown_user() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let user = UserId::new(format!("u-{}", uuid::Uuid::new_v4().simple()));
     let files = provider.list_by_user(&user, 10, 0).await.expect("list");
     assert!(files.is_empty());
@@ -191,8 +211,10 @@ async fn list_by_user_empty_for_unknown_user() {
 #[tokio::test]
 async fn delete_soft_deletes_file() {
     let db = test_db_pool().await;
-    let provider =
-        FilesAiPersistenceProvider::from_repository(systemprompt_files::FileRepository::new(&db));
+    let provider = FilesAiPersistenceProvider::new(
+        systemprompt_files::FileRepository::new(&db),
+        files_config(),
+    );
     let id = new_uuid();
     let file_id = FileId::new(id.to_string());
     let user = UserId::new(format!("u-{}", id.simple()));

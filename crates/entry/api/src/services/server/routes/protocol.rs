@@ -13,6 +13,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 
 use super::RouteMountError;
+use systemprompt_gateway::GatewayEngines;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::WebAuthnService;
@@ -56,6 +57,7 @@ fn create_oauth_state(ctx: &AppContext) -> Result<OAuthState, LoaderError> {
 
 pub(super) struct MountCtx<'a> {
     pub ctx: &'a AppContext,
+    pub engines: &'a Arc<GatewayEngines>,
     pub limits: &'a RateLimitState,
     pub public_middleware: &'a PublicContextMiddleware,
     pub user_middleware: &'a UserOnlyContextMiddleware,

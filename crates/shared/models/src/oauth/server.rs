@@ -85,6 +85,6 @@ impl OAuthServerConfig {
 
 impl Default for OAuthServerConfig {
     fn default() -> Self {
-        Self::from_api_server_url("http://localhost:8080")
+        Self::from_api_server_url(crate::defaults::DEFAULT_API_URL)
     }
 }

@@ -20,7 +20,9 @@ use systemprompt_gateway::protocol::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, InboundAdapter, Role, SystemBlock,
 };
 use systemprompt_gateway::service::{DispatchError, GatewayService};
-use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
+use systemprompt_gateway::{
+    DispatchInputs, GatewayEngines, GatewayRepositories, GatewayRequestContext,
+};
 use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
 };
@@ -299,6 +301,7 @@ pub(super) fn inputs_with(
         identity_headers: Vec::new(),
         trace_sampled: None,
         governance: systemprompt_test_fixtures::default_governance_engine(),
+        engines: Arc::new(GatewayEngines::new()),
     }
 }
 

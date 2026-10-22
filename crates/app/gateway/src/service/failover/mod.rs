@@ -49,9 +49,11 @@ use super::stages::ScannedDispatch;
 use crate::audit::GatewayAudit;
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::retry::{current_policy, with_policy};
+use crate::registry::GatewayEngines;
 
 pub(super) struct FailoverSend<'a, 'r> {
     pub registry: &'r ProviderRegistry,
+    pub engines: &'a GatewayEngines,
     pub primary: &'a ResolvedUpstream<'r>,
     pub forward_headers: &'a [(String, String)],
     pub ai_request_id: &'a AiRequestId,

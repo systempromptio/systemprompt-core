@@ -30,6 +30,7 @@ pub struct AnalyticsState {
     pub content: Arc<ContentRepository>,
     pub engagement: Arc<EngagementRepository>,
     pub content_routing: Option<Arc<dyn ContentRouting>>,
+    pub broadcasters: Arc<systemprompt_events::EventBroadcasters>,
 }
 
 impl std::fmt::Debug for AnalyticsState {

@@ -14,8 +14,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use systemprompt_api::services::middleware::LoadShed;
 use systemprompt_api::services::middleware::load_shed::shed;
-use systemprompt_api::services::server::metrics::{install_recorder, metrics_router};
-use systemprompt_api::services::server::{discovery_router, signal_ready};
+use systemprompt_api::services::server::metrics::{MetricsState, install_recorder, metrics_router};
+use systemprompt_api::services::server::{ReadinessState, discovery_router};
 use systemprompt_identifiers::InstanceId;
 use systemprompt_test_fixtures::{test_app_context, test_database_url, test_db_pool};
 use tokio::sync::Notify;
@@ -35,8 +35,14 @@ async fn app(limit: Arc<LoadShed>, release: Arc<Notify>, entered: Arc<Notify>) -
             "done"
         }
     });
+    let readiness = Arc::new(ReadinessState::new());
+    readiness.signal_ready();
     discovery_router(&ctx)
-        .merge(metrics_router(handle))
+        .layer(axum::Extension(readiness))
+        .merge(metrics_router(MetricsState {
+            handle,
+            broadcasters: Arc::clone(ctx.event_broadcasters()),
+        }))
         .route("/slow", slow)
         .layer(axum::middleware::from_fn_with_state(limit, shed))
 }
@@ -68,7 +74,6 @@ async fn get(app: &Router, uri: &str) -> (StatusCode, Option<String>, serde_json
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_saturated_replica_sheds_requests_but_keeps_answering_probes() {
-    signal_ready();
     let limit = Arc::new(LoadShed::new(NonZeroU32::new(1).expect("non-zero")));
     let release = Arc::new(Notify::new());
     let entered = Arc::new(Notify::new());

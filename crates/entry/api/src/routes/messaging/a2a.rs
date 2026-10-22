@@ -10,6 +10,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use axum::body::{Body, to_bytes};
 use axum::extract::Request;
 use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -151,7 +153,7 @@ pub(super) async fn run_agent(
         kind: ProxyKind::Agent,
     };
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let response = ProxyEngine::new(identities)
+    let response = ProxyEngine::new(identities, Arc::clone(ctx.connector_tokens()))
         .proxy_request(target, request, ctx.clone())
         .await
         .map_err(MessagingError::Dispatch)?;

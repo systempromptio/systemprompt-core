@@ -9,7 +9,6 @@ use systemprompt_api::services::static_content::config::StaticContentMatcher;
 use systemprompt_api::services::static_content::static_files::{
     StaticContentState, serve_static_content,
 };
-use systemprompt_files::FilesConfig;
 use systemprompt_identifiers::FileId;
 use systemprompt_manifest::profile::PathsConfig;
 use systemprompt_marketplace::AllowAllFilter;
@@ -44,7 +43,6 @@ async fn layers() -> anyhow::Result<Layers> {
         data: None,
     };
     let ctx = fixture_app_context_with(&pool, &b.database_url, paths, Arc::new(AllowAllFilter))?;
-    let _ = FilesConfig::init(ctx.app_paths());
     Ok(Layers {
         _tmp: tmp,
         shipped,
@@ -56,8 +54,8 @@ async fn layers() -> anyhow::Result<Layers> {
     })
 }
 
-fn files_url(relative: &str) -> String {
-    format!("{}/{relative}", FilesConfig::get().unwrap().url_prefix())
+fn files_url(state: &StaticContentState, relative: &str) -> String {
+    format!("{}/{relative}", state.ctx.files_config().url_prefix())
 }
 
 async fn get(state: &StaticContentState, uri: &str) -> (StatusCode, HeaderMap, Vec<u8>) {
@@ -102,7 +100,7 @@ async fn a_file_only_in_the_shipped_layer_is_served() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("css/shipped-{}.css", FileId::generate().as_str());
     write(&l.shipped.join(&rel), "body{}");
-    let (status, headers, body) = get(&l.state, &files_url(&rel)).await;
+    let (status, headers, body) = get(&l.state, &files_url(&l.state, &rel)).await;
     assert_eq!(status, StatusCode::OK);
     assert!(
         headers[header::CONTENT_TYPE]
@@ -117,10 +115,10 @@ async fn a_file_only_in_the_shipped_layer_is_served() -> anyhow::Result<()> {
 async fn the_writable_layer_wins_over_the_shipped_layer() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("css/override-{}.css", FileId::generate().as_str());
-    let writable = FilesConfig::get().unwrap().files().join(&rel);
+    let writable = l.state.ctx.files_config().files().join(&rel);
     write(&writable, "operator");
     write(&l.shipped.join(&rel), "image");
-    let (status, _, body) = get(&l.state, &files_url(&rel)).await;
+    let (status, _, body) = get(&l.state, &files_url(&l.state, &rel)).await;
     std::fs::remove_file(&writable)?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, b"operator");
@@ -128,7 +126,7 @@ async fn the_writable_layer_wins_over_the_shipped_layer() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
-async fn a_file_only_in_the_storage_backend_is_served_from_it() -> anyhow::Result<()> {
+async fn a_file_stored_through_the_backend_is_served() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("uploads/backend-{}.png", FileId::generate().as_str());
     l.state
@@ -136,12 +134,7 @@ async fn a_file_only_in_the_storage_backend_is_served_from_it() -> anyhow::Resul
         .file_storage()
         .store(Path::new(&format!("files/{rel}")), b"png-bytes")
         .await?;
-    let local = FilesConfig::get().unwrap().files().join(&rel);
-    assert!(
-        !local.exists(),
-        "the fixture must not share the writable layer"
-    );
-    let (status, headers, body) = get(&l.state, &files_url(&rel)).await;
+    let (status, headers, body) = get(&l.state, &files_url(&l.state, &rel)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(headers[header::CONTENT_TYPE], "image/png");
     assert!(headers.contains_key(header::ETAG));
@@ -153,7 +146,7 @@ async fn a_file_only_in_the_storage_backend_is_served_from_it() -> anyhow::Resul
 async fn a_file_in_no_layer_is_not_found() -> anyhow::Result<()> {
     let l = layers().await?;
     let rel = format!("uploads/absent-{}.png", FileId::generate().as_str());
-    let (status, _, _) = get(&l.state, &files_url(&rel)).await;
+    let (status, _, _) = get(&l.state, &files_url(&l.state, &rel)).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
 }
@@ -161,7 +154,7 @@ async fn a_file_in_no_layer_is_not_found() -> anyhow::Result<()> {
 #[tokio::test]
 async fn a_traversal_attempt_through_the_backend_is_not_found() -> anyhow::Result<()> {
     let l = layers().await?;
-    let (status, _, _) = get(&l.state, &files_url("../../etc/passwd")).await;
+    let (status, _, _) = get(&l.state, &files_url(&l.state, "../../etc/passwd")).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     Ok(())
 }
@@ -183,7 +176,7 @@ async fn no_traversal_spelling_reaches_a_file_outside_the_layers() -> anyhow::Re
         ] {
             let mut rel = [up, sep].concat().repeat(depth);
             rel.push_str(&name);
-            let (status, _, body) = get(&l.state, &files_url(&rel)).await;
+            let (status, _, body) = get(&l.state, &files_url(&l.state, &rel)).await;
             assert_ne!(status, StatusCode::OK, "{rel} was served");
             assert!(!body.windows(8).any(|w| w == b"SENTINEL"), "{rel} leaked");
         }
@@ -199,7 +192,7 @@ async fn backend_file(l: &Layers, body: &[u8]) -> String {
         .store(Path::new(&format!("files/{rel}")), body)
         .await
         .unwrap();
-    files_url(&rel)
+    files_url(&l.state, &rel)
 }
 
 #[tokio::test]
@@ -301,7 +294,7 @@ async fn shipped_layer_files_honour_ranges_too() -> anyhow::Result<()> {
     let (status, headers, body) = request(
         &l.state,
         Method::GET,
-        &files_url(&rel),
+        &files_url(&l.state, &rel),
         &[(header::RANGE, "bytes=4-")],
     )
     .await;

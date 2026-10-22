@@ -326,6 +326,10 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-bridge-globals
         if: ${{ !cancelled() }}
+      - run: just lint-core-globals
+        if: ${{ !cancelled() }}
+      - run: just lint-serde-aliases
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size
         if: ${{ !cancelled() }}
       - run: just bridge-bindings-check
@@ -361,6 +365,8 @@ jobs:
       - run: python3 scripts/test-test-shard.py
         if: ${{ !cancelled() }}
       - run: python3 scripts/test-collect-fallback-profraw.py
+        if: ${{ !cancelled() }}
+      - run: python3 scripts/test-gate-roots.py
         if: ${{ !cancelled() }}
       - run: just check-release-tag
         if: ${{ !cancelled() }}

@@ -30,6 +30,7 @@ use crate::shared::CommandOutput;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_manifest::none_if_blank;
+use systemprompt_models::defaults::DEFAULT_POSTGRES_PORT;
 
 pub use secrets::SecretsData;
 pub use types::*;
@@ -56,7 +57,7 @@ pub struct SetupArgs {
     #[arg(long, default_value = "localhost", help = "PostgreSQL host")]
     pub db_host: String,
 
-    #[arg(long, default_value = "5432", help = "PostgreSQL port")]
+    #[arg(long, default_value_t = DEFAULT_POSTGRES_PORT, help = "PostgreSQL port")]
     pub db_port: u16,
 
     #[arg(

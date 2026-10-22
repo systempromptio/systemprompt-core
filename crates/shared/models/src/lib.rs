@@ -74,6 +74,7 @@ pub mod auth;
 pub mod bridge;
 pub mod content;
 pub mod content_config;
+pub mod defaults;
 pub mod errors;
 pub mod events;
 pub mod execution;

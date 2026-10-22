@@ -2,11 +2,12 @@
 //! the statement triggers on the cached tables — reaches a running bridge and
 //! advances the matching cache epoch.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::{
-    CACHE_INVALIDATION_CHANNEL, EventBridgeHandle, PostgresEventBridge,
+    CACHE_INVALIDATION_CHANNEL, EventBridgeHandle, EventBroadcasters, PostgresEventBridge,
     invalidate_all_cache_domains, receive_cache_invalidation,
 };
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
@@ -70,11 +71,18 @@ fn invalidating_all_domains_advances_every_epoch() {
 
 #[tokio::test]
 async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let pool = fixture_pool().await;
     let _guard = BRIDGE_LOCK.lock().await;
     let epochs = CacheEpochs::new();
     assert!(!epochs.relay_live(), "a handle starts not live");
-    let handle = PostgresEventBridge::new(pool.clone(), unique_instance(), epochs.clone()).start();
+    let handle = PostgresEventBridge::new(
+        pool.clone(),
+        unique_instance(),
+        epochs.clone(),
+        Arc::clone(&broadcasters),
+    )
+    .start();
     await_listening(&handle).await;
     assert!(
         epochs.relay_live(),
@@ -95,10 +103,17 @@ async fn a_notify_on_the_cache_channel_reaches_the_bridge() {
 
 #[tokio::test]
 async fn writes_to_cached_tables_notify_through_their_triggers() {
+    let broadcasters = Arc::new(EventBroadcasters::new());
     let pool = fixture_pool().await;
     let _guard = BRIDGE_LOCK.lock().await;
     let epochs = CacheEpochs::new();
-    let handle = PostgresEventBridge::new(pool.clone(), unique_instance(), epochs.clone()).start();
+    let handle = PostgresEventBridge::new(
+        pool.clone(),
+        unique_instance(),
+        epochs.clone(),
+        Arc::clone(&broadcasters),
+    )
+    .start();
     await_listening(&handle).await;
 
     let cases = [

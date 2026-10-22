@@ -84,7 +84,6 @@ pub struct PluginManifest {
     #[serde(
         default,
         rename = "mcpServers",
-        alias = "mcp_servers",
         skip_serializing_if = "Option::is_none"
     )]
     // JSON: Claude plugin manifest importer keys; Claude Code owns the schema.

@@ -1,7 +1,7 @@
 //! Tests for StartupValidationReport, ValidationReport, ValidationIssue,
 //! ValidationWarning, and domain/expected domains
 
-use systemprompt_runtime::FilesConfigValidator;
+use systemprompt_files::FilesConfigValidator;
 use systemprompt_traits::{DomainConfig, StartupValidationReport, ValidationReport};
 
 #[test]

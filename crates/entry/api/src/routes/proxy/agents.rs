@@ -3,6 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
+
 use crate::services::proxy::ProxyEngine;
 use axum::Router;
 use axum::extract::Path;
@@ -11,7 +13,7 @@ use systemprompt_runtime::AppContext;
 
 pub fn router(ctx: &AppContext) -> Router {
     let identities = crate::repository::proxy_identities(ctx.db_pool());
-    let engine = ProxyEngine::new(identities);
+    let engine = ProxyEngine::new(identities, Arc::clone(ctx.connector_tokens()));
     let engine_with_path = engine.clone();
 
     Router::new()

@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
-use systemprompt_events::AGUI_BROADCASTER;
+use systemprompt_events::EventBroadcasters;
 use systemprompt_identifiers::{Actor, AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 
@@ -26,6 +26,7 @@ use crate::services::middleware::JwtContextExtractor;
 
 pub async fn handle(
     jwt_extractor: Arc<JwtContextExtractor>,
+    broadcasters: Arc<EventBroadcasters>,
     headers: HeaderMap,
 ) -> axum::response::Response {
     let (_claims, user) = match authenticate_bridge(&jwt_extractor, &headers).await {
@@ -41,7 +42,7 @@ pub async fn handle(
         Actor::user(user.id),
     );
 
-    create_sse_stream(request_context, &AGUI_BROADCASTER, "bridge")
+    create_sse_stream(request_context, Arc::clone(&broadcasters.agui), "bridge")
         .await
         .into_response()
 }

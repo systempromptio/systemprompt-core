@@ -1,15 +1,21 @@
 //! Extension discovery that builds the `ExtensionRegistry` from `inventory`
-//! submissions and injected extensions.
+//! submissions, optionally merged with an [`InjectedExtensions`] value the
+//! host binary supplies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use super::{ExtensionRegistration, ExtensionRegistry};
 use crate::error::LoaderError;
+use crate::runtime_config::InjectedExtensions;
 use tracing::{debug, warn};
 
 impl ExtensionRegistry {
     pub fn discover() -> Result<Self, LoaderError> {
+        Self::discover_with(&InjectedExtensions::default())
+    }
+
+    pub fn discover_with(injected: &InjectedExtensions) -> Result<Self, LoaderError> {
         let mut registry = Self::new();
 
         debug!("Starting extension discovery via inventory");
@@ -27,13 +33,12 @@ impl ExtensionRegistry {
             registry.insert(ext_arc)?;
         }
 
-        let injected = crate::runtime_config::get_injected_extensions();
-        if !injected.is_empty() {
+        if !injected.extensions.is_empty() {
             debug!(
-                count = injected.len(),
+                count = injected.extensions.len(),
                 "Including injected extensions in discovery"
             );
-            for ext in injected {
+            for ext in injected.extensions.iter().cloned() {
                 let ext_id = ext.id().to_owned();
                 if registry.extensions.contains_key(&ext_id) {
                     debug!(
