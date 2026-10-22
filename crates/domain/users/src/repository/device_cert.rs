@@ -27,7 +27,7 @@ impl UserRepository {
             r#"
             INSERT INTO user_device_certs (id, user_id, fingerprint, label)
             VALUES ($1, $2, $3, $4)
-            RETURNING id, user_id, fingerprint, label, enrolled_at, revoked_at
+            RETURNING id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             "#,
             params.id.as_str(),
             params.user_id.as_str(),
@@ -47,7 +47,7 @@ impl UserRepository {
         let row = sqlx::query_as!(
             UserDeviceCertRow,
             r#"
-            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
+            SELECT id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
             WHERE fingerprint = $1 AND revoked_at IS NULL
             "#,
@@ -66,7 +66,7 @@ impl UserRepository {
         let rows = sqlx::query_as!(
             UserDeviceCertRow,
             r#"
-            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at
+            SELECT id, user_id as "user_id: UserId", fingerprint, label, enrolled_at, revoked_at
             FROM user_device_certs
             WHERE user_id = $1
             ORDER BY enrolled_at DESC

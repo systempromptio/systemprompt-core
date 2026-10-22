@@ -84,7 +84,7 @@ impl TryFrom<UserRow> for User {
 
 #[derive(Debug)]
 pub(crate) struct UserActivityRow {
-    pub user_id: String,
+    pub user_id: UserId,
     pub last_active: Option<DateTime<Utc>>,
     pub session_count: i64,
     pub task_count: i64,
@@ -94,7 +94,7 @@ pub(crate) struct UserActivityRow {
 impl From<UserActivityRow> for UserActivity {
     fn from(row: UserActivityRow) -> Self {
         Self {
-            user_id: UserId::new(row.user_id),
+            user_id: row.user_id,
             last_active: row.last_active,
             session_count: row.session_count,
             task_count: row.task_count,
@@ -137,7 +137,7 @@ impl TryFrom<UserWithSessionsRow> for UserWithSessions {
 #[derive(Debug)]
 pub(crate) struct UserApiKeyRow {
     pub id: ApiKeyId,
-    pub user_id: String,
+    pub user_id: UserId,
     pub name: String,
     pub key_prefix: String,
     pub key_hash: String,
@@ -158,7 +158,7 @@ impl From<UserApiKeyRow> for UserApiKey {
     fn from(row: UserApiKeyRow) -> Self {
         Self {
             id: row.id,
-            user_id: UserId::new(row.user_id),
+            user_id: row.user_id,
             name: row.name,
             key_prefix: row.key_prefix,
             key_hash: row.key_hash,
@@ -189,7 +189,7 @@ impl From<UserApiKeyRow> for UserApiKey {
 #[derive(Debug)]
 pub(crate) struct UserDeviceCertRow {
     pub id: DeviceCertId,
-    pub user_id: String,
+    pub user_id: UserId,
     pub fingerprint: String,
     pub label: String,
     pub enrolled_at: Option<DateTime<Utc>>,
@@ -200,7 +200,7 @@ impl From<UserDeviceCertRow> for UserDeviceCert {
     fn from(row: UserDeviceCertRow) -> Self {
         Self {
             id: row.id,
-            user_id: UserId::new(row.user_id),
+            user_id: row.user_id,
             fingerprint: row.fingerprint,
             label: row.label,
             enrolled_at: row.enrolled_at,

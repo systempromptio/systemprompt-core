@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at\n            FROM user_device_certs\n            WHERE user_id = $1\n            ORDER BY enrolled_at DESC\n            ",
+  "query": "\n            SELECT id, user_id as \"user_id: UserId\", fingerprint, label, enrolled_at, revoked_at\n            FROM user_device_certs\n            WHERE user_id = $1\n            ORDER BY enrolled_at DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id",
+        "name": "user_id: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -84,5 +84,5 @@
       true
     ]
   },
-  "hash": "4af633865f970607afe924344b99a2e354c211e257db27549d8eedec16cb3c8d"
+  "hash": "1b6822f964ec9630ef7fb7e1f33b8ecbd21cf4cfbb4800cadac8f9358569bbae"
 }

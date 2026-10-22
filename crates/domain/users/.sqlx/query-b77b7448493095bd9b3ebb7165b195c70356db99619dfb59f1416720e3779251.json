@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, user_id, fingerprint, label, enrolled_at, revoked_at\n            FROM user_device_certs\n            WHERE fingerprint = $1 AND revoked_at IS NULL\n            ",
+  "query": "\n            SELECT id, user_id as \"user_id: UserId\", fingerprint, label, enrolled_at, revoked_at\n            FROM user_device_certs\n            WHERE fingerprint = $1 AND revoked_at IS NULL\n            ",
   "describe": {
     "columns": [
       {
@@ -16,7 +16,7 @@
       },
       {
         "ordinal": 1,
-        "name": "user_id",
+        "name": "user_id: UserId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -84,5 +84,5 @@
       true
     ]
   },
-  "hash": "63b434e9eea38d8af97015f0201b962d7b0fd4a7a4aab32175d9bcf628560eaa"
+  "hash": "b77b7448493095bd9b3ebb7165b195c70356db99619dfb59f1416720e3779251"
 }
