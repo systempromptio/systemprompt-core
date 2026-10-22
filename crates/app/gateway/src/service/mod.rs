@@ -23,6 +23,7 @@ mod rate;
 pub mod resolve;
 pub mod route_match;
 pub mod stages;
+mod traced;
 
 pub use self::error::{
     ContextWindowExceeded, DispatchError, GatewayError, GovernanceDenied, GuardForbidden,
@@ -42,19 +43,19 @@ use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
 use self::abandon::AbandonGuard;
 use self::admission::commit_admission;
 use self::client_session::with_client_session;
-use self::failover::{FailoverSend, send_with_failover};
+use self::failover::FailoverSend;
 use self::finalize::{FinalizeCtx, attach_request_id, finalize};
 use self::guards::{enforce_quota, enforce_request_guards};
 use self::opening::{dispatch_policy, open_audit};
 use self::pricing::{dispatch_pricing, trace_dispatch};
 use self::resolve::{ResolvedUpstream, UpstreamQuery, resolve_upstream};
 use self::stages::{GovernedDispatch, PreparedDispatch, ScannedDispatch, UpstreamRelay};
+use self::traced::send_traced;
 use super::audit::phases::GatewayPhase;
 use super::audit::{GatewayAudit, GatewayRequestContext};
 use super::protocol::canonical::CanonicalRequest;
 use super::protocol::inbound::InboundAdapter;
 use crate::policies::GatewayPolicySpec;
-use crate::protocol::outbound::OutboundOutcome;
 use crate::registry::GatewayEngines;
 use systemprompt_governance::policy::GovernanceEngine;
 
@@ -215,23 +216,6 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
         audit,
     )
     .await
-}
-
-async fn send_traced(
-    scanned: &mut ScannedDispatch,
-    send: FailoverSend<'_, '_>,
-    ctx: &GatewayRequestContext,
-    trace_sampled: Option<bool>,
-) -> Result<OutboundOutcome, DispatchError> {
-    let admitted_at = std::time::Instant::now();
-    let outcome = crate::protocol::outbound::trace_context::with_trace(
-        ctx.trace_id.clone(),
-        trace_sampled,
-        Box::pin(send_with_failover(scanned, send)),
-    )
-    .await?;
-    crate::audit::phases::record(GatewayPhase::UpstreamFirstByte, admitted_at.elapsed());
-    Ok(outcome)
 }
 
 async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, DispatchError> {

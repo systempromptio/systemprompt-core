@@ -1,9 +1,9 @@
 //! Embedding helper for the `systemprompt` CLI.
 //!
-//! [`RuntimeBuilder`] lets a custom binary inject [`Extension`] instances at
-//! compile time, choose a [`WebAssets`] strategy, and then hand control to the
-//! standard CLI entry point. It is the recommended way to embed the platform
-//! when the default `cargo install systemprompt` binary is not enough.
+//! [`RuntimeBuilder`] hands control to the standard CLI entry point from a
+//! custom binary. Extensions register at compile time through
+//! `systemprompt_extension::register_extension!`; a binary that links an
+//! extension crate carries it, and discovery finds it through `inventory`.
 //!
 //! ```no_run
 //! # #[cfg(all(feature = "runtime", feature = "core"))]
@@ -17,85 +17,28 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
-use systemprompt_extension::Extension;
-use systemprompt_extension::runtime_config::{
-    InjectedExtensions, WebAssetsStrategy, set_injected_extensions,
-};
 use thiserror::Error;
-
-pub use systemprompt_extension::runtime_config::WebAssetsStrategy as WebAssets;
 
 /// Typed error returned by [`RuntimeBuilder::run`].
 #[derive(Debug, Error)]
 pub enum RuntimeError {
-    #[error(
-        "InjectedExtensions already set: a RuntimeBuilder has already been run in this process"
-    )]
-    ExtensionsAlreadyInjected,
-
     #[error("CLI exited with error: {0}")]
     Cli(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Fluent builder that wires extensions and a web-asset strategy into the CLI
-/// before delegating to `systemprompt_cli::run`.
-pub struct RuntimeBuilder {
-    extensions: Vec<Arc<dyn Extension>>,
-    web_assets: WebAssetsStrategy,
-}
-
-impl std::fmt::Debug for RuntimeBuilder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RuntimeBuilder")
-            .field("extension_count", &self.extensions.len())
-            .field("web_assets", &self.web_assets)
-            .finish()
-    }
-}
+/// Entry point for a custom binary that embeds the CLI.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RuntimeBuilder;
 
 impl RuntimeBuilder {
     #[must_use]
-    pub fn new() -> Self {
-        Self {
-            extensions: Vec::new(),
-            web_assets: WebAssetsStrategy::default(),
-        }
-    }
-
-    #[must_use]
-    pub fn with_extension<E: Extension + Default + 'static>(mut self) -> Self {
-        self.extensions.push(Arc::new(E::default()));
-        self
-    }
-
-    #[must_use]
-    pub fn with_extension_instance(mut self, ext: Arc<dyn Extension>) -> Self {
-        self.extensions.push(ext);
-        self
-    }
-
-    #[must_use]
-    pub fn with_web_assets(mut self, strategy: WebAssetsStrategy) -> Self {
-        self.web_assets = strategy;
-        self
+    pub const fn new() -> Self {
+        Self
     }
 
     pub async fn run(self) -> Result<(), RuntimeError> {
-        let config = InjectedExtensions {
-            extensions: self.extensions,
-            web_assets: self.web_assets,
-        };
-        set_injected_extensions(config).map_err(|_e| RuntimeError::ExtensionsAlreadyInjected)?;
         Box::pin(systemprompt_cli::run())
             .await
             .map_err(|err| RuntimeError::Cli(err.into()))
-    }
-}
-
-impl Default for RuntimeBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,11 +1,11 @@
 //! Drives [`call_frontmatter_processors`] through the public ingest pipeline.
 //!
 //! The frontmatter-processor loop only runs when the discovered extension
-//! registry contains an extension that exposes processors. We inject one at
-//! runtime (process-isolated per nextest test) carrying two processors: one
-//! whose `applies_to_sources` excludes the ingest source (exercising the skip
-//! arm) and one that fails (exercising the error-logging arm). Creating a fresh
-//! content row then invokes the loop end to end.
+//! registry contains an extension that exposes processors. This test binary
+//! registers one through `inventory`, the way a real extension does, carrying
+//! two processors: one whose `applies_to_sources` excludes the ingest source
+//! (exercising the skip arm) and one that fails (exercising the error-logging
+//! arm). Creating a fresh content row then invokes the loop end to end.
 
 use std::sync::Arc;
 
@@ -13,7 +13,6 @@ use async_trait::async_trait;
 use systemprompt_content::models::IngestionSource;
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::{IngestionOptions, IngestionService};
-use systemprompt_extension::runtime_config::{InjectedExtensions, set_injected_extensions};
 use systemprompt_extension::{Extension, ExtensionMetadata};
 use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_provider_contracts::{
@@ -53,6 +52,7 @@ impl FrontmatterProcessor for FailingProcessor {
     }
 }
 
+#[derive(Default)]
 struct ProcessorExtension;
 
 impl Extension for ProcessorExtension {
@@ -69,16 +69,12 @@ impl Extension for ProcessorExtension {
     }
 }
 
+systemprompt_extension::register_extension!(ProcessorExtension);
+
 #[tokio::test]
 async fn ingest_runs_injected_frontmatter_processors() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
-
-    set_injected_extensions(InjectedExtensions {
-        extensions: vec![Arc::new(ProcessorExtension)],
-        ..Default::default()
-    })
-    .ok();
 
     let dir = tempfile::tempdir().expect("tempdir");
     let slug = format!("fp-{}", Uuid::new_v4().simple());
