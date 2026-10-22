@@ -1,5 +1,5 @@
 -- @no-transaction
--- @cost: rows=2000000 measured=1.0s triggers=live
+-- @cost: rows=2000000 measured=20s triggers=live
 -- The retention job deletes ai_request_messages and releases
 -- ai_request_payloads bodies in batches selected by created_at; each batch
 -- must reach its rows through an index, and the payload batch must skip the

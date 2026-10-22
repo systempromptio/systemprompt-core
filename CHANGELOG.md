@@ -46,6 +46,7 @@
 
 ### Changed
 
+- **Upgrade note:** migrations `users/028` (session traffic recount) and `ai/049` (retention indexes, built `CONCURRENTLY`) run in time proportional to `user_sessions` and `ai_request_messages`; their statement timeout is projected from a 2M-row baseline and capped at 30 minutes. An installation holding tens of millions of rows runs the upgrade attended with `SYSTEMPROMPT_MIGRATION_STATEMENT_TIMEOUT_SECS=0`.
 - The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
 - The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
 - `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.

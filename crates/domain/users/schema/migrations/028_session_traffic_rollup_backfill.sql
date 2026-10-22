@@ -1,4 +1,4 @@
--- @cost: rows=2000000 measured=1.0s triggers=live
+-- @cost: rows=2000000 measured=20s triggers=live
 -- Counts the sessions an upgraded database already holds into
 -- session_traffic_rollup_hourly: one sequential pass over user_sessions
 -- under ACCESS SHARE, so session writes continue throughout.
