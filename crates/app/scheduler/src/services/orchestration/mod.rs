@@ -7,6 +7,7 @@
 
 pub mod reconciler;
 pub mod service_records;
+mod service_row;
 pub mod state_types;
 pub mod state_verifier;
 pub mod supervision;

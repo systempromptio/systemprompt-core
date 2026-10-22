@@ -113,7 +113,9 @@ for parts in entries:
         continue
     if not any_check:
         fail(f"{column_ref}: {schema_path} declares no CHECK on `{column}`")
-    if enum_default is None:
+    if sql_default is None and enum_default is not None:
+        fail(f"{column_ref}: `{enum_name}` has #[default] but the column has no SQL DEFAULT")
+    elif sql_default is not None and enum_default is None:
         fail(f"{column_ref}: `{enum_name}` has no #[default] variant")
     elif sql_default is not None and strings.get(enum_default) != sql_default:
         fail(f"{column_ref}: SQL DEFAULT '{sql_default}' is not `{enum_name}::{enum_default}` ({strings.get(enum_default)!r})")
