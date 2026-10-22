@@ -125,6 +125,7 @@ async fn run(
     let tails = OtlpAuditTailRepository::new(pool.as_ref().clone());
     let requests =
         AiRequestRepository::new(&Arc::new(Database::from_pools(Arc::clone(pool), None)));
+    let client = transport::build_client();
     let mut report = ExportReport::default();
     for signal in OtlpSignal::ALL {
         if !config.exports(signal) {
@@ -143,6 +144,7 @@ async fn run(
         }
         repository.mark_attempt(signal).await?;
         let stores = SignalStores {
+            client: &client,
             state: &repository,
             tails: &tails,
             requests: &requests,
@@ -175,6 +177,7 @@ async fn run(
 
 #[derive(Debug, Clone, Copy)]
 struct SignalStores<'a> {
+    client: &'a reqwest::Client,
     state: &'a OtlpExportStateRepository,
     tails: &'a OtlpAuditTailRepository,
     requests: &'a AiRequestRepository,
@@ -201,7 +204,7 @@ async fn export_signal(
             let rows = batch.requests.len() as u64;
             if next.is_some() {
                 let envelope = spans::to_export_request(&batch, instance_id);
-                post(config, signal, &envelope).await?;
+                post(stores.client, config, signal, &envelope).await?;
             }
             (rows, 0, next)
         },
@@ -209,7 +212,7 @@ async fn export_signal(
             let tail = stores.tails.list_logs_after(&after, BATCH_ROWS).await?;
             if !tail.rows.is_empty() {
                 let envelope = logs::to_export_request(&tail.rows, instance_id);
-                post(config, signal, &envelope).await?;
+                post(stores.client, config, signal, &envelope).await?;
             }
             (tail.rows.len() as u64, tail.skipped, tail.last)
         },
@@ -257,11 +260,12 @@ async fn load_trace_batch(
 }
 
 async fn post<M: prost::Message>(
+    client: &reqwest::Client,
     config: &OtlpExportConfig,
     signal: OtlpSignal,
     envelope: &M,
 ) -> SchedulerResult<()> {
-    transport::post_signal(config, signal, envelope)
+    transport::post_signal(client, config, signal, envelope)
         .await
         .map_err(|source| SchedulerError::OtlpExport {
             signal,

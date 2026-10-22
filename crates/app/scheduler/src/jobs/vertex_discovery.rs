@@ -10,13 +10,11 @@
 //! warned about, so an operator hears about it from the log before Google's
 //! date arrives. The notice window is `LIFECYCLE_NOTICE_DAYS`;
 //! `lifecycle_notices` yields `(model id, what changes, on which date)` for
-//! every served rate-card model inside it, and `latest_report` exposes the
-//! last report this process produced.
+//! every served rate-card model inside it, and [`VertexDiscoveryJob::probe`]
+//! returns the report one pass produced.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
-
-use std::sync::RwLock;
 
 use async_trait::async_trait;
 use chrono::{Days, NaiveDate};
@@ -25,8 +23,6 @@ use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::{DiscoveryReport, ProviderRegistry, VertexRateCard};
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 use tracing::{info, warn};
-
-static LATEST: RwLock<Option<DiscoveryReport>> = RwLock::new(None);
 
 pub const LIFECYCLE_NOTICE_DAYS: u64 = 60;
 
@@ -55,14 +51,6 @@ pub fn lifecycle_notices(
     notices
 }
 
-#[must_use]
-pub fn latest_report() -> Option<DiscoveryReport> {
-    LATEST
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .clone()
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct VertexDiscoveryJob;
 
@@ -82,14 +70,24 @@ impl Job for VertexDiscoveryJob {
 
     async fn execute(&self, _ctx: &JobContext) -> ProviderResult<JobResult> {
         let start = std::time::Instant::now();
+        let scanned = Self::probe().await.map_or(0, |report| {
+            report.discovered_priced.len() + report.discovered_unpriced.len()
+        });
+        Ok(JobResult::success()
+            .with_stats(scanned as u64, 0)
+            .with_duration(start.elapsed().as_millis() as u64))
+    }
+}
 
+impl VertexDiscoveryJob {
+    pub async fn probe() -> Option<DiscoveryReport> {
         let Ok(booted) = ServicesBootstrap::providers() else {
             warn!("services config not initialized; skipping Vertex discovery");
-            return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
+            return None;
         };
         let Ok(secrets) = SecretsBootstrap::get() else {
             warn!("secret store unavailable; skipping Vertex discovery");
-            return Ok(JobResult::success().with_duration(start.elapsed().as_millis() as u64));
+            return None;
         };
 
         // Why: a clone, never the live registry. Every reader holds a
@@ -144,14 +142,7 @@ impl Job for VertexDiscoveryJob {
             "Vertex model discovery completed"
         );
 
-        let scanned = report.discovered_priced.len() + report.discovered_unpriced.len();
-        *LATEST
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(report);
-
-        Ok(JobResult::success()
-            .with_stats(scanned as u64, 0)
-            .with_duration(start.elapsed().as_millis() as u64))
+        Some(report)
     }
 }
 

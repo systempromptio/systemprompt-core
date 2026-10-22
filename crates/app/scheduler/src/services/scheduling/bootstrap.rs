@@ -85,6 +85,7 @@ impl SchedulerService {
             parameters: config_entry
                 .map(|job| job.parameters.clone())
                 .unwrap_or_default(),
+            inventory_memo: Arc::clone(&self.inventory_memo),
         })
         .await;
 

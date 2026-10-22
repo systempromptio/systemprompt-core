@@ -30,6 +30,7 @@
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 - **Breaking:** `systemprompt_database::mark_schema_changed()` → `Database::mark_schema_changed(&self)`; `PostgresProvider::new_with_pool` and `connection::build_pool_options` take a `&SchemaEpoch`, the stamp every pool a `Database` opens shares. Migrate by calling `mark_schema_changed` on the `Database` that ran the migrations.
 - **Breaking:** `systemprompt_cloud::CredentialsBootstrap::{init, get, try_init, is_initialized, init_empty, expires_within}` → `CredentialsBootstrap::load() -> CloudResult<Option<CloudCredentials>>`, an async `require() -> CloudResult<CloudCredentials>` and `read_unvalidated()`; `CredentialsBootstrapError::{NotInitialized, AlreadyInitialized}` and `CloudError::{CredentialsNotInitialized, CredentialsAlreadyInitialized}` are removed. Migrate by keeping the value `load` returns and passing it to its consumers; the CLI hands it to commands through `CommandContext::cloud_credentials()`.
+- **Breaking:** `systemprompt_scheduler::jobs::vertex_discovery::latest_report` → `VertexDiscoveryJob::probe()`, which returns the report of one pass. Migrate by keeping the returned report; `systemprompt_cli::admin::config::catalog_discovery::render_discovery` renders any report.
 
 ### Added
 
@@ -54,6 +55,7 @@
 - `SecretScanner` draws its evidence-fingerprint key when it is built; fingerprints do not correlate across scanner rebuilds.
 - `TokenCache` owns the bounded HTTP client its credential exchanges use.
 - The prerender jobs load their content config, web config and template registry on every run, so template edits apply on the next run without a restart.
+- The managed inventory refresh keeps its last-pass fingerprint in an `InventoryRefreshMemo` the scheduler owns and passes to each run through the job context; the OTLP export job builds its HTTP client once per run.
 
 ### Removed
 
