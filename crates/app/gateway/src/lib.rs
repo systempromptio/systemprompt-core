@@ -64,5 +64,5 @@ pub use protocol::{
     OutboundAdapterRegistration, OutboundCtx, OutboundOutcome,
 };
 pub use registry::{GatewayEngines, GatewayUpstreamRegistry, SafetyScannerRegistry};
-pub use repository::GatewayRepositories;
+pub use repository::{GatewayHandles, GatewayRepositories};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

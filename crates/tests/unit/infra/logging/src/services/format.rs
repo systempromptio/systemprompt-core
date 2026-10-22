@@ -53,11 +53,11 @@ fn make_subscriber(writer: CapturingWriter) -> impl Subscriber + Send + Sync {
 }
 
 #[test]
-fn filter_is_copy_default_debug() {
+fn filter_is_clone_default_debug() {
     let f = FilterSystemFields::new();
-    let copied = f;
+    let copied = f.clone();
     let _debug = format!("{f:?} {copied:?}");
-    let _default = FilterSystemFields;
+    let _default = FilterSystemFields::default();
 }
 
 #[test]

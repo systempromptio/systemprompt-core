@@ -215,6 +215,7 @@ async fn app_with_extensions(injected: Vec<Arc<dyn Extension>>) -> anyhow::Resul
         },
         Subsystems {
             system_admin: Arc::new(fixture_system_admin("admin")),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
             authz_hook: Arc::new(AllowAllHook::new(Arc::new(NullAuditSink))),
             governance: systemprompt_test_fixtures::default_governance_engine(),
             cache_epochs: systemprompt_traits::CacheEpochs::new(),

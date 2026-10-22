@@ -81,6 +81,10 @@ impl SchedulerService {
                 ),
                 actor,
             );
+            let entry = match self.app_context.logging().instance_id() {
+                Some(instance_id) => entry.with_instance_id(instance_id.clone()),
+                None => entry,
+            };
             if let Err(error) = repository.log(entry).await {
                 warn!(error = %error, job_name = %job.job_name, "failed to persist scheduler registration error to logs");
             }

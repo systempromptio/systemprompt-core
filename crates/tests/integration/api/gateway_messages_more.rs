@@ -71,8 +71,11 @@ fn gw_repos(db: &systemprompt_database::DbPool) -> systemprompt_gateway::Gateway
         std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
             systemprompt_agent::repository::ContextRepository::new(db),
         )),
-        systemprompt_traits::BackgroundTasks::new(),
-        systemprompt_traits::CacheEpochs::new(),
+        systemprompt_gateway::GatewayHandles {
+            background: systemprompt_traits::BackgroundTasks::new(),
+            cache_epochs: systemprompt_traits::CacheEpochs::new(),
+            logging: systemprompt_test_fixtures::fixture_logging_runtime(),
+        },
     )
 }
 
@@ -476,7 +479,7 @@ fn build_rejection_record_needs_user_id() {
     let partial = test_partial();
     let id = AiRequestId::generate();
     assert!(
-        build_rejection_record(&id, &partial).is_none(),
+        build_rejection_record(None, &id, &partial).is_none(),
         "no user_id yields no record"
     );
 }
@@ -486,7 +489,7 @@ fn build_rejection_record_leaves_unresolved_routing_absent() {
     let mut partial = test_partial();
     partial.user_id = Some(UserId::new("rej-user"));
     let id = AiRequestId::generate();
-    let record = build_rejection_record(&id, &partial).expect("record built");
+    let record = build_rejection_record(None, &id, &partial).expect("record built");
     assert_eq!(record.provider, None);
     assert_eq!(record.model, None);
     assert_eq!(record.status, RequestStatus::Rejected);
@@ -498,7 +501,7 @@ fn build_rejection_record_keeps_routing_it_did_resolve() {
     partial.user_id = Some(UserId::new("rej-user"));
     partial.model = Some("claude-test".to_owned());
     let id = AiRequestId::generate();
-    let record = build_rejection_record(&id, &partial).expect("record built");
+    let record = build_rejection_record(None, &id, &partial).expect("record built");
     assert_eq!(record.provider, None);
     assert_eq!(record.model.as_deref(), Some("claude-test"));
 }
@@ -509,8 +512,10 @@ fn build_rejection_record_without_a_context_gets_a_fresh_context_not_the_legacy_
     partial.user_id = Some(UserId::new("rej-user"));
     partial.context_id = None;
     partial.session_id = None;
-    let first = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
-    let second = build_rejection_record(&AiRequestId::generate(), &partial).expect("record built");
+    let first =
+        build_rejection_record(None, &AiRequestId::generate(), &partial).expect("record built");
+    let second =
+        build_rejection_record(None, &AiRequestId::generate(), &partial).expect("record built");
     let legacy = systemprompt_identifiers::ContextId::legacy_context_row();
     assert_ne!(first.context_id, legacy);
     assert_ne!(second.context_id, legacy);
