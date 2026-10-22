@@ -172,6 +172,15 @@ impl ProviderEntry {
     }
 
     #[must_use]
+    pub fn bills_same_credential(&self, other: &Self) -> bool {
+        match (self.is_user_credential(), other.is_user_credential()) {
+            (false, false) => true,
+            (true, true) => self.credential_owner() == other.credential_owner(),
+            _ => false,
+        }
+    }
+
+    #[must_use]
     pub const fn takes_own_personal_key(&self) -> bool {
         self.is_user_credential() && self.credential_from.is_none()
     }

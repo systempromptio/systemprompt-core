@@ -68,3 +68,53 @@ fn without_the_key_neither_entry_is_configured_and_only_the_owner_asks_for_it() 
         .collect();
     assert_eq!(asking, ["opencode-go"]);
 }
+
+const OTHER_PERSONAL: &str = "name: other-sub
+wire: anthropic
+surface: openai
+endpoint: https://other.example.test/v1
+credential: user
+models:
+  - id: other-model
+";
+
+const PLATFORM_A: &str = "name: platform-a
+wire: anthropic
+surface: anthropic
+endpoint: https://a.example.test/v1
+api_key_secret: a
+models:
+  - id: a-model
+";
+
+const PLATFORM_B: &str = "name: platform-b
+wire: anthropic
+surface: anthropic
+endpoint: https://b.example.test/v1
+api_key_secret: b
+models:
+  - id: b-model
+";
+
+#[test]
+fn entries_sharing_one_personal_key_bill_the_same_credential() {
+    assert!(entry(GO_CHAT).bills_same_credential(&entry(GO_ANTHROPIC)));
+    assert!(entry(GO_ANTHROPIC).bills_same_credential(&entry(GO_CHAT)));
+}
+
+#[test]
+fn two_different_personal_keys_never_bill_the_same_credential() {
+    assert!(!entry(GO_CHAT).bills_same_credential(&entry(OTHER_PERSONAL)));
+    assert!(!entry(OTHER_PERSONAL).bills_same_credential(&entry(GO_ANTHROPIC)));
+}
+
+#[test]
+fn personal_and_platform_entries_never_bill_the_same_credential() {
+    assert!(!entry(GO_CHAT).bills_same_credential(&entry(PLATFORM_A)));
+    assert!(!entry(PLATFORM_A).bills_same_credential(&entry(GO_CHAT)));
+}
+
+#[test]
+fn platform_entries_bill_the_deployment_and_may_fail_over_to_each_other() {
+    assert!(entry(PLATFORM_A).bills_same_credential(&entry(PLATFORM_B)));
+}

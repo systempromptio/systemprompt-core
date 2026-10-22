@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Fixed
+
+- The failover guard compares the credential owner, so a chain never fails over between two different personal subscriptions.
+
 ## [0.72.1] - 2026-10-22
 
 ### Changed
