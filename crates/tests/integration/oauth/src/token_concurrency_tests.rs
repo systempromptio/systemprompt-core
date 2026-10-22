@@ -216,7 +216,7 @@ async fn test_refresh_token_replay_revokes_family() {
     let r2 = test_token_id();
     repo.store_refresh_token(
         RefreshTokenParams::builder(&r2, &client_id, &user_id, "openid", expires_at)
-            .with_family(&family)
+            .with_family(family.as_str())
             .build(),
     )
     .await

@@ -207,10 +207,10 @@ fn create_respects_explicit_overrides() {
     let service = AgentConfigAuthoringService::new(dir.path());
 
     let mut request = create_request("custom_agent", 8102);
-    request.endpoint = Some("/custom/endpoint".to_owned());
-    request.provider = Some("openai".to_owned());
-    request.model = Some("gpt-test".to_owned());
-    request.streaming = Some(false);
+    request.placement.endpoint = Some("/custom/endpoint".to_owned());
+    request.model.provider = Some("openai".to_owned());
+    request.model.model = Some("gpt-test".to_owned());
+    request.capabilities.streaming = Some(false);
     request.mcp_servers = vec!["tools".to_owned()];
 
     let path = service.create(request).expect("create agent");
@@ -231,8 +231,8 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
     let mut request = create_request("no_provider_agent", 8107);
-    request.provider = None;
-    request.model = None;
+    request.model.provider = None;
+    request.model.model = None;
 
     let err = service
         .create(request)
@@ -258,7 +258,7 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
     let mut request = create_request("catalogue_model_agent", 8108);
-    request.model = None;
+    request.model.model = None;
 
     let path = service.create(request).expect("create agent");
     let agent = load_agent(&path, "catalogue_model_agent");
@@ -273,8 +273,8 @@ fn a_model_default_comes_from_the_provider_catalogue() {
     );
 
     let mut unknown = create_request("unknown_provider_agent", 8109);
-    unknown.provider = Some("no-such-provider".to_owned());
-    unknown.model = None;
+    unknown.model.provider = Some("no-such-provider".to_owned());
+    unknown.model.model = None;
     let err = service
         .create(unknown)
         .expect_err("a provider the catalogue does not list has no default model");
