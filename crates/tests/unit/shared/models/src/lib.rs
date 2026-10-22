@@ -28,6 +28,8 @@ mod ai;
 #[cfg(test)]
 mod api;
 #[cfg(test)]
+mod api_paths_bridge;
+#[cfg(test)]
 mod api_responses_specialized;
 
 #[cfg(test)]

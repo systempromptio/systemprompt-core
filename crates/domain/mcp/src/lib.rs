@@ -196,7 +196,7 @@ async fn mcp_request_logger(req: Request, next: Next) -> Response {
     let has_auth = req.headers().get("authorization").is_some();
     let proxy_verified = req
         .headers()
-        .get("x-proxy-verified")
+        .get(systemprompt_identifiers::headers::PROXY_VERIFIED)
         .and_then(|v| v.to_str().ok())
         .is_some_and(|v| v == "true");
     let accept = req

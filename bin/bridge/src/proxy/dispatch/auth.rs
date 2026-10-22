@@ -66,7 +66,7 @@ pub(super) fn verify_loopback_credential(
         Rejection::SecretMismatch => mismatch_body(ctx),
         Rejection::ScopeMismatch => scope_mismatch_body(ctx, &route),
     };
-    Err(Box::new(rejection_response(ctx, body, rejection)))
+    Err(Box::new(rejection_response(body, rejection)))
 }
 
 fn presented_bearer(req: &Request<Incoming>) -> String {
@@ -229,22 +229,11 @@ fn no_credential_body(ctx: &ProxyContext) -> String {
     )
 }
 
-fn rejection_response(
-    ctx: &ProxyContext,
-    body: String,
-    rejection: Rejection,
-) -> Response<ProxyBody> {
+fn rejection_response(body: String, rejection: Rejection) -> Response<ProxyBody> {
     let mut resp = owned_response(rejection.status(), body);
-    let headers = resp.headers_mut();
-    headers.insert(
-        "x-systemprompt-bridge-reason",
+    resp.headers_mut().insert(
+        crate::headers::REJECTION_REASON,
         http::HeaderValue::from_static(rejection.reason()),
     );
-    if let Ok(v) = http::HeaderValue::from_str(ctx.deps.install_id.as_str()) {
-        headers.insert("x-systemprompt-bridge-install", v);
-    }
-    if let Ok(v) = http::HeaderValue::from_str(&crate::proxy::identity::config_dir_display()) {
-        headers.insert("x-systemprompt-bridge-config-dir", v);
-    }
     resp
 }

@@ -148,11 +148,5 @@ fn write_models_block(value: &mut toml::Value, models: &[String]) -> Result<(), 
 }
 
 fn derive_otel_endpoint(gateway: &str) -> String {
-    if let Some(host_part) = gateway.strip_prefix("https://") {
-        return format!("https://{}/otel", host_part.trim_end_matches('/'));
-    }
-    if let Some(host_part) = gateway.strip_prefix("http://") {
-        return format!("http://{}/otel", host_part.trim_end_matches('/'));
-    }
-    format!("{gateway}/otel")
+    systemprompt_models::ApiPaths::otel_under(gateway)
 }

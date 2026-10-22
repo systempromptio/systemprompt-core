@@ -16,7 +16,7 @@ use axum::http::HeaderMap;
 use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
-use systemprompt_identifiers::ContextId;
+use systemprompt_identifiers::{ContextId, headers as sp_headers};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::{JwtUserContext, TokenExtractor, extract_user_context};
 use systemprompt_traits::{SessionProvider, UserProvider};
@@ -105,7 +105,7 @@ impl JwtContextExtractor {
         let user = self.validate(&jwt_context, "").await?;
 
         let context_id = headers
-            .get("x-context-id")
+            .get(sp_headers::CONTEXT_ID)
             .and_then(|h| h.to_str().ok())
             .filter(|s| !s.is_empty())
             .and_then(|s| ContextId::try_new(s).ok())
@@ -151,7 +151,7 @@ impl JwtContextExtractor {
         let headers = request.headers().clone();
         let has_auth = headers.get("authorization").is_some();
 
-        if headers.get("x-context-id").is_some() && !has_auth {
+        if headers.get(sp_headers::CONTEXT_ID).is_some() && !has_auth {
             return Err(ContextExtractionError::ForbiddenHeader {
                 header: "X-Context-ID".to_owned(),
                 reason: "Context ID must be in request body (A2A spec). Use contextId field in \

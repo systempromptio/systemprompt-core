@@ -17,8 +17,8 @@ use systemprompt_identifiers::{ClientSessionId, GatewayConversationId};
 
 
 use super::error::{ForwardError, ForwardResult};
-use crate::feedback::sessions::OPENCODE_SESSION_HEADER;
 use crate::proxy::session::{self, SessionContext};
+use systemprompt_identifiers::headers::OPENCODE_SESSION as OPENCODE_SESSION_HEADER;
 
 // Why: the OpenAI-compatible path OpenCode calls; the session stamp applies
 // only to bodies bound for it.

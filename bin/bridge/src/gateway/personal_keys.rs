@@ -16,7 +16,7 @@ use crate::gateway::errors::GatewayError;
 use crate::gateway::{GatewayClient, ensure_success, record_span};
 use crate::ids::BearerToken;
 
-const PATH: &str = "/v1/me/provider-credentials";
+const PATH: &str = systemprompt_models::ApiPaths::BRIDGE_PERSONAL_KEYS;
 
 impl GatewayClient {
     #[tracing::instrument(

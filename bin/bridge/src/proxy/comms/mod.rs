@@ -31,6 +31,7 @@ pub use inbox::{
 
 use crate::config::SharedRuntimeConfig;
 use crate::proxy::token_cache::TokenCache;
+use systemprompt_models::ApiPaths;
 
 const AUTH_THRESHOLD_SECS: u64 = 300;
 const RETRY_MIN: Duration = Duration::from_secs(1);
@@ -138,8 +139,9 @@ async fn subscribe_once(
     let token = token_cache.current(AUTH_THRESHOLD_SECS).await?;
 
     let url = format!(
-        "{base}/v1/bridge/stream",
+        "{base}{path}",
         base = gateway_base.as_str().trim_end_matches('/'),
+        path = ApiPaths::BRIDGE_STREAM,
     );
 
     let response = client
@@ -149,7 +151,7 @@ async fn subscribe_once(
         .await?;
 
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        token_cache.reject_upstream("/v1/bridge/stream").await;
+        token_cache.reject_upstream(ApiPaths::BRIDGE_STREAM).await;
         return Err(CommsError::Unauthorized);
     }
     if !response.status().is_success() {

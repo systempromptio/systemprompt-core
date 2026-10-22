@@ -10,6 +10,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_identifiers::headers;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_traits::{
@@ -137,9 +138,9 @@ pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {
     let mut tool_ctx = ToolContext::new(ctx.actor().clone())
         .with_session_id(ctx.session_id().clone())
         .with_trace_id(ctx.trace_id().clone())
-        .with_header("x-context-id", ctx.context_id().as_str())
-        .with_header("x-user-id", ctx.user_id().as_str())
-        .with_header("x-agent-name", ctx.agent_name().as_str());
+        .with_header(headers::CONTEXT_ID, ctx.context_id().as_str())
+        .with_header(headers::USER_ID, ctx.user_id().as_str())
+        .with_header(headers::AGENT_NAME, ctx.agent_name().as_str());
 
     if let Some(auth_token) = ctx.auth_token() {
         tool_ctx = tool_ctx.with_auth_token(auth_token.clone());
@@ -150,7 +151,7 @@ pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {
     }
 
     if let Some(task_id) = ctx.task_id() {
-        tool_ctx = tool_ctx.with_header("x-task-id", task_id.as_str());
+        tool_ctx = tool_ctx.with_header(headers::TASK_ID, task_id.as_str());
     }
 
     tool_ctx

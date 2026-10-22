@@ -23,6 +23,7 @@ use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_models::api::{CliExecuteRequest, CliOutputEvent};
 
 use crate::error::{ClientError, ClientResult};
+use systemprompt_identifiers::headers;
 
 const CLI_EVENT: &str = "cli";
 
@@ -79,7 +80,7 @@ impl RemoteCliExecutor {
             .header("Accept", "text/event-stream");
 
         if let Some(context) = request.context {
-            builder = builder.header("x-context-id", context.as_str());
+            builder = builder.header(headers::CONTEXT_ID, context.as_str());
         }
 
         let response = builder.json(&body).send().await?;

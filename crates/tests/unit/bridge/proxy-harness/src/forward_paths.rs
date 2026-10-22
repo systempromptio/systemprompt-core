@@ -541,7 +541,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(
             wrong
                 .headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("secret-mismatch"),
             "a host UI must be able to classify this without parsing prose"
@@ -565,7 +565,7 @@ fn a_rejection_says_it_is_a_local_port_problem_not_a_gateway_key_problem() {
         assert_eq!(none.status().as_u16(), 403);
         assert_eq!(
             none.headers()
-                .get("x-systemprompt-bridge-reason")
+                .get(systemprompt_bridge::headers::REJECTION_REASON)
                 .and_then(|v| v.to_str().ok()),
             Some("no-credential")
         );
