@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE sso_state_bindings\n                SET consumed_at = now()\n              WHERE state_hash = $1\n                AND provider_id = $2\n                AND consumed_at IS NULL\n                AND expires_at > now()\n              RETURNING provider_id, return_to, binder_hash, request_id, nonce, pkce_verifier",
+  "query": "UPDATE sso_state_bindings\n                SET consumed_at = now()\n              WHERE state_hash = $1\n                AND provider_id = $2\n                AND consumed_at IS NULL\n                AND expires_at > now()\n              RETURNING provider_id, return_to, binder_hash, request_id as \"request_id?: SsoRequestId\", nonce, pkce_verifier",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "request_id",
+        "name": "request_id?: SsoRequestId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -85,5 +85,5 @@
       true
     ]
   },
-  "hash": "acf687221949b222810667e5b78bd5fdd8c6a2979992a819453e426f7ac33c51"
+  "hash": "70ae1aa950e0eeac79b891dddba59fc21f133a9c82815aa2631137460f8e20dd"
 }

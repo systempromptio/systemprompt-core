@@ -4,8 +4,9 @@
 //! strings minted by the platform or presented back by a client. Their only
 //! shape is non-emptiness: `new` is for a value the platform minted or read
 //! back from storage, `try_new` for a value arriving from outside. A refresh
-//! token family groups every rotation of one grant, and an SSO provider id
-//! names a configured identity provider.
+//! token family groups every rotation of one grant, an SSO provider id
+//! names a configured identity provider, and an SSO request id correlates an
+//! outbound authentication request with its response.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,6 +23,7 @@ crate::define_id!(AuthorizationCode, checked, |value| {
 crate::define_id!(ChallengeId);
 crate::define_id!(RefreshTokenFamilyId);
 crate::define_id!(SsoProviderId);
+crate::define_id!(SsoRequestId);
 
 impl AccessTokenId {
     pub fn generate() -> Self {

@@ -211,7 +211,7 @@ impl SsoDriver {
         }
         Ok(Correlated {
             state: Some(SsoStateContext {
-                request_id: row.request_id,
+                request_id: row.request_id.map(|id| id.as_str().to_owned()),
                 nonce: row.nonce,
                 pkce_verifier: row.pkce_verifier,
             }),

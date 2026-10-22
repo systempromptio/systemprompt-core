@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id as \"id: EngagementEventId\", session_id, user_id, page_url,\n                content_id as \"content_id: ContentId\",\n                event_type,\n                time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,\n                max_scroll_depth, scroll_velocity_avg, scroll_direction_changes,\n                click_count, mouse_move_distance_px, keyboard_events, copy_events,\n                focus_time_ms as \"focus_time_ms!\",\n                blur_count as \"blur_count!\",\n                tab_switches as \"tab_switches!\",\n                visible_time_ms as \"visible_time_ms!\",\n                hidden_time_ms as \"hidden_time_ms!\",\n                is_rage_click, is_dead_click, reading_pattern,\n                created_at, updated_at\n            FROM engagement_events\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT\n                id as \"id: EngagementEventId\", session_id, user_id as \"user_id: UserId\", page_url,\n                content_id as \"content_id: ContentId\",\n                event_type,\n                time_on_page_ms as \"time_on_page_ms!\", time_to_first_interaction_ms, time_to_first_scroll_ms,\n                max_scroll_depth as \"max_scroll_depth!\", scroll_velocity_avg, scroll_direction_changes,\n                click_count as \"click_count!\", mouse_move_distance_px, keyboard_events, copy_events,\n                focus_time_ms as \"focus_time_ms!\",\n                blur_count as \"blur_count!\",\n                tab_switches as \"tab_switches!\",\n                visible_time_ms as \"visible_time_ms!\",\n                hidden_time_ms as \"hidden_time_ms!\",\n                is_rage_click, is_dead_click, reading_pattern,\n                created_at, updated_at\n            FROM engagement_events\n            WHERE user_id = $1\n            ORDER BY created_at DESC\n            LIMIT $2\n            ",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "user_id",
+        "name": "user_id: UserId",
         "type_info": "Varchar",
         "origin": {
           "Table": {
@@ -71,7 +71,7 @@
       },
       {
         "ordinal": 6,
-        "name": "time_on_page_ms",
+        "name": "time_on_page_ms!",
         "type_info": "Int4",
         "origin": {
           "Table": {
@@ -104,7 +104,7 @@
       },
       {
         "ordinal": 9,
-        "name": "max_scroll_depth",
+        "name": "max_scroll_depth!",
         "type_info": "Int4",
         "origin": {
           "Table": {
@@ -137,7 +137,7 @@
       },
       {
         "ordinal": 12,
-        "name": "click_count",
+        "name": "click_count!",
         "type_info": "Int4",
         "origin": {
           "Table": {
@@ -292,7 +292,8 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Text",
+        "Int8"
       ]
     },
     "nullable": [
@@ -324,5 +325,5 @@
       false
     ]
   },
-  "hash": "9dd43f2c9f769685294f0775baa8069a1c94362f98661af31c100063549f5386"
+  "hash": "88e60da6bdee5fd4075caf4346503e72210d10e49916d10c4d06811c90f21d42"
 }

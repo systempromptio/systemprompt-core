@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT\n            m.id as \"id!\",\n            m.task_id as \"task_id!: TaskId\",\n            m.message_id as \"message_id!: MessageId\",\n            m.client_message_id,\n            m.role as \"role!\",\n            m.context_id as \"context_id!: ContextId\",\n            m.user_id as \"user_id?: UserId\",\n            m.session_id as \"session_id?: SessionId\",\n            m.trace_id as \"trace_id?: TraceId\",\n            m.sequence_number as \"sequence_number!\",\n            m.created_at as \"created_at!\",\n            m.updated_at as \"updated_at!\",\n            m.metadata,\n            m.reference_task_ids\n        FROM task_messages m\n        JOIN agent_tasks t ON m.task_id = t.task_id\n        WHERE t.context_id = $1\n        ORDER BY m.created_at ASC",
+  "query": "SELECT\n            id as \"id!\",\n            task_id as \"task_id!: TaskId\",\n            message_id as \"message_id!: MessageId\",\n            client_message_id as \"client_message_id?: MessageId\",\n            role as \"role!\",\n            context_id as \"context_id!: ContextId\",\n            user_id as \"user_id?: UserId\",\n            session_id as \"session_id?: SessionId\",\n            trace_id as \"trace_id?: TraceId\",\n            sequence_number as \"sequence_number!\",\n            created_at as \"created_at!\",\n            updated_at as \"updated_at!\",\n            metadata,\n            reference_task_ids\n        FROM task_messages WHERE task_id = ANY($1) ORDER BY task_id, sequence_number ASC",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "client_message_id",
+        "name": "client_message_id?: MessageId",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -160,7 +160,7 @@
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "TextArray"
       ]
     },
     "nullable": [
@@ -180,5 +180,5 @@
       true
     ]
   },
-  "hash": "14c09f61e5beeb1fe1073f151fba9f09be3aed2b9759355b1cc898a2ac9f7dea"
+  "hash": "d034b7f2061c00593b324af7869ef77be323176885e09a764d9e19c3d9cdfd3a"
 }
