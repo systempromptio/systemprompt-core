@@ -28,6 +28,7 @@
 - **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
 - **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
+- **Breaking:** `QuotaSubjectUsage::subject_id` is a `QuotaSubjectId` and `QuotaUsageRepository::usage` takes `&QuotaSubjectId`. Migrate by wrapping the subject string with `QuotaSubjectId::new`.
 
 ### Added
 
@@ -41,6 +42,7 @@
 - `lint-header-literals` and `lint-path-literals`: a hand-spelled systemprompt header name or bridge-facing gateway path fails the gate.
 - `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
 - Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
+- `systemprompt_identifiers::QuotaSubjectId`: the subject a quota window is counted against.
 
 ### Changed
 
