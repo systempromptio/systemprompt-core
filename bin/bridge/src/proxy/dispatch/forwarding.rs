@@ -124,10 +124,7 @@ fn mcp_auth_challenge(
     if !err.is_credential_failure() {
         return None;
     }
-    let slug = path.strip_prefix("/mcp/")?.split('/').next()?;
-    if slug.is_empty() {
-        return None;
-    }
+    let slug = systemprompt_models::ApiPaths::mcp_server_slug(path)?;
     let base = gateway_base.as_str().trim_end_matches('/');
     let metadata = format!("{base}/.well-known/oauth-protected-resource/api/v1/mcp/{slug}/mcp");
     let mut response = owned_response(StatusCode::UNAUTHORIZED, err.client_detail());

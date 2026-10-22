@@ -21,17 +21,9 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{HostSessionId, PluginId};
 use systemprompt_models::attribution::ScopeBinding;
+pub use systemprompt_models::bridge::host::HostKind;
 
 use crate::macros::text_enum;
-
-text_enum!(
-    HostKind, UnknownHost {
-        ClaudeCode => "claude-code",
-        CodexCli => "codex-cli",
-        OpenCode => "opencode",
-        Hermes => "hermes",
-    }
-);
 
 text_enum!(
     PermissionMode, UnknownPermissionMode {

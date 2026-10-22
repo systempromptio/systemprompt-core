@@ -138,6 +138,10 @@ pub(super) fn desktop_candidates() -> Vec<PathBuf> {
     out
 }
 
+// Why: a process running from the Electron app's installer folder is the
+// desktop packaging; the CLI of the same name runs from a bin directory.
+pub(super) const APP_PROCESS_MARKERS: &[&str] = &["@opencodedesktop"];
+
 pub(super) const fn desktop_locator(
     candidates: &[PathBuf],
 ) -> crate::integration::app_launch::AppLocator<'_> {

@@ -657,7 +657,6 @@ setup-health-label-not-checked = not checked yet
 host-profile-absent = no configuration profile
 agent-kind-cli-tool = Command line
 agent-kind-desktop-app = Desktop app
-agent-kind-desktop-and-cli = Desktop app & CLI
 settings-schedule-not-installed = Manual — sync from the Marketplace pane
 
 update-phase-downloading = Downloading { $percent }%

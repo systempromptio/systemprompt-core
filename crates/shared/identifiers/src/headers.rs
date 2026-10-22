@@ -4,7 +4,9 @@
 //! `CALLER_PURPOSE` is the caller purpose sent to the credential broker, set
 //! only from a credential the issuer bound it to; an inbound copy is stripped
 //! at the API edge. `MCP_SERVER` names the MCP server a credential-broker
-//! request is for.
+//! request is for. `API_KEY` is the Anthropic-style credential header a client
+//! or upstream presents, and `OPENCODE_SESSION` the per-session header an
+//! `OpenCode` client sends and a metered provider reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +26,8 @@ pub const CALL_SOURCE: &str = "x-call-source";
 pub const CLIENT_ID: &str = "x-client-id";
 pub const POLICY_VERSION: &str = "x-policy-version";
 pub const INFERENCE_PROTOCOL: &str = "x-inference-protocol";
+pub const API_KEY: &str = "x-api-key";
+pub const OPENCODE_SESSION: &str = "x-opencode-session";
 pub const AUTHORIZATION: &str = "authorization";
 pub const PROXY_VERIFIED: &str = "x-proxy-verified";
 pub const USER_PERMISSIONS: &str = "x-user-permissions";

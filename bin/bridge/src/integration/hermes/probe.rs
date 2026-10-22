@@ -61,8 +61,8 @@ fn stringify(v: &serde_yaml::Value) -> String {
     }
 }
 
-pub(super) fn list_hermes_processes() -> Result<Vec<String>, sysproc::SysprocError> {
-    sysproc::find_processes("hermes")
+pub(super) fn list_hermes_processes() -> Result<Vec<sysproc::ProcessHit>, sysproc::SysprocError> {
+    sysproc::find_processes(config::BINARY, &[])
 }
 
 pub(super) fn write_dotted(

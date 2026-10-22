@@ -10,6 +10,7 @@ use systemprompt_bridge::host_sync::{HostSync, HostSyncCtx};
 use systemprompt_bridge::ids::{McpServerId, Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_test_fixtures::fixture_user_id;
 
 // Why: the MCP writer mints the loopback secret under the bridge config dir;
@@ -36,7 +37,7 @@ fn version() -> ManifestVersion {
 fn manifest_with(
     skills: Vec<SkillEntry>,
     mcp: Vec<ManagedMcpServer>,
-    enabled_hosts: Vec<String>,
+    enabled_hosts: Vec<HostKind>,
 ) -> SignedManifest {
     SignedManifest {
         min_schema_version: MANIFEST_SCHEMA_VERSION,
@@ -213,7 +214,7 @@ fn full_manifest() -> SignedManifest {
     manifest_with(
         vec![skill("research", "# Research\n")],
         vec![mcp("primary", "https://mcp.example.invalid/api")],
-        vec!["hermes".into()],
+        vec![HostKind::Hermes],
     )
 }
 
@@ -549,7 +550,7 @@ fn authored_frontmatter_keys_follow_name_and_description() {
         let mut entry = skill("tooled", "Body.");
         entry.frontmatter = Some(crate::skill_passthrough::authored_frontmatter());
         apply(
-            &manifest_with(vec![entry], vec![], vec!["hermes".into()]),
+            &manifest_with(vec![entry], vec![], vec![HostKind::Hermes]),
             home,
         );
         let written = fs::read_to_string(skill_md(home, "tooled")).unwrap();

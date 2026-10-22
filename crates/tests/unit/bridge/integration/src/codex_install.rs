@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use systemprompt_bridge::ids::HostToken;
-use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
+use systemprompt_bridge::integration::codex::CODEX_CLI_HOST;
 #[cfg(not(target_os = "macos"))]
 use systemprompt_bridge::integration::host_app::ProfileRemoval;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};

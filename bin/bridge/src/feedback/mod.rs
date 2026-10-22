@@ -117,14 +117,10 @@ impl From<reqwest::Error> for FeedbackError {
 
 pub type Result<T> = std::result::Result<T, FeedbackError>;
 
-// Why: the manifest names hosts in the gateway's vocabulary and the bridge in
-// its own; `EvaluatorClient::accepts_host_name` is the one place both are
-// listed, so no second alias table can drift from it.
 pub fn client_kind(host: &str) -> Option<systemprompt_models::feedback::EvaluatorClient> {
-    systemprompt_models::origin::ClientKind::ALL
-        .into_iter()
-        .filter_map(|kind| systemprompt_models::feedback::EvaluatorClient::try_from(kind).ok())
-        .find(|client| client.accepts_host_name(host))
+    host.parse::<systemprompt_models::bridge::host::HostKind>()
+        .ok()
+        .map(systemprompt_models::feedback::EvaluatorClient::from)
 }
 
 pub fn metadata_root() -> Result<std::path::PathBuf> {

@@ -33,10 +33,11 @@
 //! an `x-systemprompt-client` value outside the vocabulary, and an
 //! `x-systemprompt-client-attestation` header from anything but the bridge.
 //!
-//! The one wire vocabulary is [`ClientKind::as_str`]. The bridge's own host
-//! ids (`codex-cli`) are baked into HMAC labels and rendered host configs, so
-//! they stay bridge-internal and map through
-//! [`ClientKind::from_bridge_host_id`] / [`ClientKind::bridge_host_id`].
+//! The one wire vocabulary is [`ClientKind::as_str`]. A bridge host
+//! ([`HostKind`]) names a packaging of a product; the wire cannot tell a
+//! desktop app from its CLI, so both packagings map onto one `ClientKind`
+//! through [`From<HostKind>`], and [`ClientKind::hosts`] lists the packagings
+//! a wire value may stand for.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -54,6 +55,8 @@ pub use classify::{
 pub use evidence::ClientEvidence;
 
 use serde::{Deserialize, Serialize};
+
+use crate::bridge::host::{HostAppKind, HostKind, HostProduct};
 
 /// The client that produced an AI request.
 ///
@@ -178,15 +181,20 @@ impl ClientKind {
             .ok_or_else(|| OriginParseError::ClientKind(value.to_owned()))
     }
 
+    pub fn hosts(self) -> impl Iterator<Item = HostKind> {
+        HostKind::ALL
+            .into_iter()
+            .filter(move |host| Self::from(*host) == self)
+    }
+
     #[must_use]
-    pub fn from_bridge_host_id(host_id: &str) -> Option<Self> {
-        match host_id {
-            "claude-code" => Some(Self::ClaudeCode),
-            "claude-desktop" => Some(Self::ClaudeDesktop),
-            "codex-cli" => Some(Self::Codex),
-            "opencode" => Some(Self::OpenCode),
-            "hermes" => Some(Self::Hermes),
-            _ => None,
+    pub const fn product(self) -> Option<HostProduct> {
+        match self {
+            Self::ClaudeCode | Self::ClaudeDesktop => Some(HostProduct::Claude),
+            Self::Codex => Some(HostProduct::Codex),
+            Self::OpenCode => Some(HostProduct::OpenCode),
+            Self::Hermes => Some(HostProduct::Hermes),
+            Self::Pi | Self::Other | Self::Internal | Self::Unknown => None,
         }
     }
 
@@ -206,27 +214,28 @@ impl ClientKind {
 
     // Why: Claude Desktop runs the Claude Code runtime, so its requests wear
     // the `claude-cli` User-Agent and the CLI's metadata grammar; a signal
-    // naming either is agreement, not a conflict.
+    // naming either packaging of the Claude product is agreement, not a
+    // conflict.
     #[must_use]
     pub const fn same_runtime(self, other: Self) -> bool {
-        matches!(
-            (self, other),
-            (
-                Self::ClaudeCode | Self::ClaudeDesktop,
-                Self::ClaudeCode | Self::ClaudeDesktop
+        (self as u8) == (other as u8)
+            || matches!(
+                (self.product(), other.product()),
+                (Some(HostProduct::Claude), Some(HostProduct::Claude))
             )
-        ) || (self as u8) == (other as u8)
     }
+}
 
-    #[must_use]
-    pub const fn bridge_host_id(self) -> Option<&'static str> {
-        match self {
-            Self::ClaudeCode => Some("claude-code"),
-            Self::ClaudeDesktop => Some("claude-desktop"),
-            Self::Codex => Some("codex-cli"),
-            Self::OpenCode => Some("opencode"),
-            Self::Hermes => Some("hermes"),
-            Self::Pi | Self::Other | Self::Internal | Self::Unknown => None,
+impl From<HostKind> for ClientKind {
+    fn from(host: HostKind) -> Self {
+        match host.product() {
+            HostProduct::Claude => match host.kind() {
+                HostAppKind::DesktopApp => Self::ClaudeDesktop,
+                HostAppKind::CliTool => Self::ClaudeCode,
+            },
+            HostProduct::Codex => Self::Codex,
+            HostProduct::OpenCode => Self::OpenCode,
+            HostProduct::Hermes => Self::Hermes,
         }
     }
 }

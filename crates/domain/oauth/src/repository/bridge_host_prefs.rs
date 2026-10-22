@@ -13,10 +13,9 @@
 //!   a separate table precisely so a model-filter override never perturbs the
 //!   enable-state "no rows means all" heuristic above.
 //!
-//! A stored row may name a host the bridge does not define (`cowork`). Such a
-//! row is skipped with a warning rather than failing the read: it selects no
-//! host the bridge can run, but it still counts as a stored enable preference,
-//! so it never turns "some hosts" into "all hosts".
+//! Both tables constrain `host_id` to the [`HostKind`] vocabulary; a row that
+//! fails to parse is a schema and code version mismatch and is skipped with a
+//! warning rather than failing the read.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -33,7 +32,7 @@ use crate::error::OauthResult;
 /// A user's stored enable preferences.
 ///
 /// `any_enabled_row` is true when at least one enabled row exists, including
-/// rows naming a host outside [`HostKind`] that were skipped on read.
+/// rows this build could not parse into a [`HostKind`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnabledHostPrefs {
     pub hosts: Vec<HostKind>,

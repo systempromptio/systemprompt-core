@@ -6,6 +6,8 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub(super) const BINARY: &str = "hermes";
+
 // Why: Hermes resolves model.provider before its base_url; custom endpoints
 // require a named provider.
 pub const PROVIDER_ENTRY: &str = "systemprompt-gateway";
@@ -55,7 +57,7 @@ pub(super) fn hermes_home() -> PathBuf {
     if cfg!(target_os = "windows")
         && let Some(local) = crate::basedirs::data_local_dir()
     {
-        return local.join("hermes");
+        return local.join(BINARY);
     }
     if let Some(home) = crate::basedirs::home_dir() {
         return home.join(".hermes");

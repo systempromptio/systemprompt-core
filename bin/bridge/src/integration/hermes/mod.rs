@@ -30,9 +30,9 @@ use systemprompt_models::bridge::host::HostKind;
 
 use crate::drift::{DesiredProfile, EntryRole};
 use crate::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe,
-    ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostProcesses, ProbeEnv, ProfileGenInputs, ProfileInstalled, ProfileProbe, ProfileRemoval,
+    ProfileState,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -66,7 +66,10 @@ impl HostApp for HermesHost {
             read_error: read.probe_error.as_deref(),
             desired: &desired,
         });
-        let found = HostProcesses::from_enumeration(probe::list_hermes_processes());
+        let found = HostProcesses::from_enumeration(
+            probe::list_hermes_processes(),
+            systemprompt_models::bridge::host::HostAppKind::CliTool,
+        );
         HostAppSnapshot {
             host_id: self.id(),
             display_name: self.display_name(),
@@ -122,10 +125,6 @@ impl HostApp for HermesHost {
          written to HERMES_HOME/.env)"
     }
 
-    fn kind(&self) -> HostAppKind {
-        HostAppKind::DesktopApp
-    }
-
     fn description(&self) -> &'static str {
         "Nous Research's Hermes Agent Desktop. systemprompt-bridge writes managed configuration \
          that routes inference through the gateway, registers MCP connectors, and publishes \
@@ -146,7 +145,7 @@ const fn locator() -> crate::integration::app_launch::AppLocator<'static> {
         macos_name: "Hermes",
         windows_name: "Hermes",
         windows_candidates: &[],
-        linux_bin: "hermes",
+        linux_bin: config::BINARY,
         msix_family: None,
         msix_app_id: "App",
     }

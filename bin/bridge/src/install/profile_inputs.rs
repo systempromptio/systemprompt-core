@@ -38,7 +38,7 @@ pub struct ProfileGenInputs {
 }
 
 
-pub type ModelProtocolOverrides = BTreeMap<String, Vec<String>>;
+pub type ModelProtocolOverrides = BTreeMap<HostKind, Vec<String>>;
 
 /// Why the facts a host profile is rendered from could not be read.
 #[derive(Debug, thiserror::Error)]

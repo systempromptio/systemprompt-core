@@ -6,9 +6,9 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::HostProduct;
 
-use crate::gateway::manifest::{SignedManifest, SkillEntry, skill_targets_host};
+use crate::gateway::manifest::{SignedManifest, SkillEntry, skill_targets_product};
 use crate::hash::{safe_id_segment, sha256_hex};
 use crate::host_sync::ApplyError;
 use crate::integration::managed_skills::skill_markdown;
@@ -16,7 +16,7 @@ use crate::integration::managed_skills::skill_markdown;
 use super::io_err;
 
 pub(super) fn targets_codex(skill: &SkillEntry) -> bool {
-    skill_targets_host(skill, HostKind::CodexCli)
+    skill_targets_product(skill, HostProduct::Codex)
 }
 
 pub(super) fn bundle_version(

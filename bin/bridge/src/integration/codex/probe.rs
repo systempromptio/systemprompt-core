@@ -87,8 +87,8 @@ fn stringify(v: &toml::Value) -> String {
     }
 }
 
-pub(super) fn list_codex_processes() -> Result<Vec<String>, sysproc::SysprocError> {
-    sysproc::find_processes("codex")
+pub(super) fn list_codex_processes() -> Result<Vec<sysproc::ProcessHit>, sysproc::SysprocError> {
+    sysproc::find_processes(config::BINARY, config::APP_PROCESS_MARKERS)
 }
 
 pub(super) fn write_dotted(

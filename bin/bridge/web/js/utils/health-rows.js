@@ -5,6 +5,7 @@
 // the sync cannot write without UAC offers the UAC-backed repair.
 
 import { t } from "/assets/js/i18n.js";
+import { HOST_ID } from "/assets/js/utils/host-ids.js";
 
 const RANK = { err: 0, warn: 1, unknown: 2, probing: 3, ok: 4, info: 5 };
 
@@ -38,7 +39,7 @@ function syncAction() {
 
 // A failing `policy <key>` validation line is the Claude Desktop managed
 // policy drifting from what the gateway grants; that host's repair rewrites it.
-const POLICY_HOST = "claude-desktop";
+const POLICY_HOST = HOST_ID.claudeDesktop;
 
 function lineAction(line, tone) {
   if ((tone === "err" || tone === "warn") && String(line.label || "").startsWith("policy ")) {

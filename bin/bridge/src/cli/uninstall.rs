@@ -37,7 +37,14 @@ pub(super) fn cmd_uninstall(ctx: &BridgeContext, args: &[String]) -> ExitCode {
 }
 
 fn remove_hosts(selection: &Selection) -> ExitCode {
-    match enrol::remove_host_profiles(selection) {
+    let enabled = match crate::sync::last_synced_enabled_hosts() {
+        Ok(enabled) => enabled.unwrap_or_default(),
+        Err(e) => {
+            diag(&format!("last-sync sentinel: {e}"));
+            return ExitCode::from(1);
+        },
+    };
+    match enrol::remove_host_profiles(selection, &enabled) {
         Ok(reports) => {
             stdio::print_str(&enrol::render(&reports));
             if reports.iter().any(enrol::Report::is_failure) {

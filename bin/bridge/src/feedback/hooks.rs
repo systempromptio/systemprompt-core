@@ -16,8 +16,8 @@ pub fn authenticate_forwarded_hook(
     native_host: Option<&str>,
     headers: &mut http::HeaderMap,
 ) -> Result<()> {
-    headers.remove("x-systemprompt-device-credential");
-    headers.remove("x-systemprompt-host");
+    headers.remove(crate::headers::DEVICE_CREDENTIAL);
+    headers.remove(crate::headers::HOST);
     let Some(host) = native_host.and_then(super::client_kind) else {
         return Ok(());
     };
@@ -28,7 +28,7 @@ pub fn authenticate_forwarded_hook(
         .as_str()
         .ok_or(FeedbackError::Scope)?
         .to_owned();
-    headers.insert("x-systemprompt-device-credential", credential);
-    headers.insert("x-systemprompt-host", http::HeaderValue::from_str(&host)?);
+    headers.insert(crate::headers::DEVICE_CREDENTIAL, credential);
+    headers.insert(crate::headers::HOST, http::HeaderValue::from_str(&host)?);
     Ok(())
 }

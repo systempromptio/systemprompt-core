@@ -54,6 +54,7 @@ pub enum Outcome {
     Removed,
     NothingToRemove,
     ManualStep(String),
+    RetainedForSibling(HostKind),
     Failed(ProfileFailure),
 }
 
@@ -151,15 +152,11 @@ pub async fn enrol_hosts(
     bridge: &BridgeContext,
     selection: &Selection,
     overrides: &ModelProtocolOverrides,
-    enabled: Option<Vec<String>>,
+    enabled: Option<Vec<HostKind>>,
 ) -> Result<Vec<Report>, SelectionError> {
     let targets = resolve(selection)?;
     let env = ProbeEnv::for_bridge(bridge);
-    let not_enabled = |id: HostKind| {
-        enabled
-            .as_ref()
-            .is_some_and(|hosts| !hosts.iter().any(|h| h == id.as_str()))
-    };
+    let not_enabled = |id: HostKind| enabled.as_ref().is_some_and(|hosts| !hosts.contains(&id));
     // Why: `--host claude-code` has always enrolled regardless of the
     // instance's enabled hosts; only the implicit `all` selection respects it.
     let claude_code_gated =
@@ -228,8 +225,32 @@ async fn enrol_one(
     }
 }
 
-pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, SelectionError> {
+// Why: both packagings of Codex and OpenCode read one config tree, so a
+// removal aimed at one packaging while the other is enabled and not itself
+// being removed would cut the sibling off; the tree is kept until neither
+// packaging needs it.
+#[must_use]
+pub fn retained_for_sibling(
+    host: HostKind,
+    removing: &[HostKind],
+    enabled: &[HostKind],
+) -> Option<HostKind> {
+    host.shares_config_with()
+        .filter(|sibling| enabled.contains(sibling) && !removing.contains(sibling))
+}
+
+pub fn remove_host_profiles(
+    selection: &Selection,
+    enabled: &[HostKind],
+) -> Result<Vec<Report>, SelectionError> {
     let targets = resolve(selection)?;
+    let removing: Vec<HostKind> = targets
+        .iter()
+        .filter_map(|target| match target {
+            Target::Local(host) => Some(host.id()),
+            Target::SyncOnly(_) => None,
+        })
+        .collect();
     Ok(targets
         .into_iter()
         .map(|target| match target {
@@ -247,17 +268,21 @@ pub fn remove_host_profiles(selection: &Selection) -> Result<Vec<Report>, Select
                 host_id: host.id(),
                 display_name: host.display_name(),
                 install_action_label: host.install_action_label(),
-                outcome: match host.remove_profile() {
-                    Ok(ProfileRemoval::Removed { .. }) => Outcome::Removed,
-                    Ok(ProfileRemoval::NothingToRemove) => Outcome::NothingToRemove,
-                    Ok(ProfileRemoval::ManualStepRequired { instruction }) => {
-                        Outcome::ManualStep(instruction)
-                    },
-                    Err(e) if e.is_refusal() => Outcome::Declined,
-                    Err(e) => Outcome::Failed(e.into()),
-                },
+                outcome: retained_for_sibling(host.id(), &removing, enabled)
+                    .map_or_else(|| removal_outcome(host), Outcome::RetainedForSibling),
                 warnings: Vec::new(),
             },
         })
         .collect())
+}
+
+fn removal_outcome(host: &'static dyn HostApp) -> Outcome {
+    match host.remove_profile() {
+        Ok(ProfileRemoval::Removed { .. }) => Outcome::Removed,
+        Ok(ProfileRemoval::NothingToRemove) => Outcome::NothingToRemove,
+        Ok(ProfileRemoval::ManualStepRequired { instruction }) => Outcome::ManualStep(instruction),
+        Ok(ProfileRemoval::RetainedForSibling { sibling }) => Outcome::RetainedForSibling(sibling),
+        Err(e) if e.is_refusal() => Outcome::Declined,
+        Err(e) => Outcome::Failed(e.into()),
+    }
 }

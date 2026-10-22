@@ -25,6 +25,7 @@ use crate::dev_files::DevFileFilter;
 use crate::error::MarketplaceError;
 use crate::managed::RevisionFiles;
 use systemprompt_manifest::services::PluginConfig;
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::SkillEntry;
 use systemprompt_models::bridge::manifest::skill_frontmatter::render_passthrough_frontmatter;
 use systemprompt_models::plugin::ComponentSource;
@@ -45,7 +46,11 @@ const BINARY_EXTS: &[&str] = &[
     "woff2", "eot", "zip", "tar", "gz", "bz2", "7z", "rar", "pdf", "doc", "docx", "xls", "xlsx",
 ];
 
-const BUNDLE_HOSTS: &[&str] = &["cowork", "claude-desktop", "claude-code"];
+const BUNDLE_HOSTS: &[&str] = &[
+    "cowork",
+    HostKind::ClaudeDesktop.as_str(),
+    HostKind::ClaudeCode.as_str(),
+];
 
 pub(super) fn targets_bundle_hosts(hosts: &[String]) -> bool {
     hosts.is_empty() || hosts.iter().any(|h| BUNDLE_HOSTS.contains(&h.as_str()))

@@ -15,6 +15,7 @@ use crate::gateway::types::{
 };
 use crate::gateway::{GatewayClient, ensure_success, record_span};
 use crate::ids::{BearerToken, PatToken};
+use systemprompt_models::ApiPaths;
 
 impl GatewayClient {
     pub async fn session_exchange(
@@ -22,7 +23,7 @@ impl GatewayClient {
         req: &SessionExchangeRequest,
         session_id: &SessionId,
     ) -> Result<AuthResponse, GatewayError> {
-        self.post_json("/v1/auth/bridge/session", req, "session", session_id)
+        self.post_json(ApiPaths::BRIDGE_AUTH_SESSION, req, "session", session_id)
             .await
     }
 
@@ -33,7 +34,7 @@ impl GatewayClient {
     ) -> Result<PatToken, GatewayError> {
         let resp: DevicePatResponse = self
             .post_json(
-                "/v1/auth/bridge/session-pat",
+                ApiPaths::BRIDGE_AUTH_SESSION_PAT,
                 req,
                 "session-pat",
                 session_id,
@@ -52,7 +53,7 @@ impl GatewayClient {
         pat: &PatToken,
         session_id: &SessionId,
     ) -> Result<AuthResponse, GatewayError> {
-        let url = self.url("/v1/auth/bridge/pat");
+        let url = self.url(ApiPaths::BRIDGE_AUTH_PAT);
         let started = Instant::now();
         let resp = self
             .http()
@@ -80,7 +81,7 @@ impl GatewayClient {
         &self,
         bearer: &BearerToken,
     ) -> Result<BridgeOAuthClientResponse, GatewayError> {
-        let url = self.url("/v1/auth/bridge/oauth-client");
+        let url = self.url(ApiPaths::BRIDGE_AUTH_OAUTH_CLIENT);
         let started = Instant::now();
         let resp = self
             .http()

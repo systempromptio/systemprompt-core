@@ -6,6 +6,7 @@
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
+use systemprompt_identifiers::headers;
 use systemprompt_models::RequestContext;
 
 pub async fn inject_trace_header(request: Request, next: Next) -> Response {
@@ -19,7 +20,10 @@ pub async fn inject_trace_header(request: Request, next: Next) -> Response {
     if let Some(id) = trace_id
         && let Ok(header_value) = id.parse()
     {
-        response.headers_mut().insert("x-trace-id", header_value);
+        response.headers_mut().insert(
+            http::HeaderName::from_static(headers::TRACE_ID),
+            header_value,
+        );
     }
 
     response

@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS agent_runs (
     origin_id TEXT NOT NULL,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     host TEXT NOT NULL
-        CHECK (host IN ('claude-code', 'codex-cli', 'opencode', 'hermes')),
+        CONSTRAINT agent_runs_host_check
+        CHECK (host IN ('claude-code', 'codex-cli', 'opencode-cli', 'hermes')),
     status TEXT NOT NULL DEFAULT 'queued'
         CHECK (status IN ('queued', 'preparing', 'running', 'succeeded', 'failed', 'cancelled', 'timed_out')),
     request JSONB NOT NULL,

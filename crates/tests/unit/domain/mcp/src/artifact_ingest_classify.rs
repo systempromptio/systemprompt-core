@@ -9,6 +9,7 @@ use systemprompt_identifiers::{
 use systemprompt_mcp::{IngestRequest, from_hook_failure, from_hook_response, from_wire_value};
 use systemprompt_models::RequestContext;
 use systemprompt_models::artifacts::{EXECUTION_META_KEY, ToolResultArtifact};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::mcp::ExecutionSource;
 
 fn ctx() -> RequestContext {
@@ -124,11 +125,11 @@ fn execution_source_round_trips_and_maps_hosts() {
         assert_eq!(ExecutionSource::parse(source.as_str()), Some(source));
     }
     assert_eq!(
-        ExecutionSource::from_hook_host("opencode"),
+        ExecutionSource::from_hook_host(HostKind::OpenCode),
         ExecutionSource::HookOpenCode
     );
     assert_eq!(
-        ExecutionSource::from_hook_host("claude-code"),
+        ExecutionSource::from_hook_host(HostKind::ClaudeCode),
         ExecutionSource::HookClaudeCode
     );
     assert!(ExecutionSource::Proxy.is_server_observed());

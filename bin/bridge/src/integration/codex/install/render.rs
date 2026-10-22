@@ -6,7 +6,6 @@
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use systemprompt_models::bridge::host::HostKind;
 
 use super::super::config::{
     ANALYTICS_ENABLED, APPROVAL_POLICY, APPROVAL_POLICY_VALUE, OTEL_ENDPOINT, OTEL_LOG_USER_PROMPT,
@@ -22,7 +21,7 @@ use crate::integration::host_app::{HostAppError, ProfileGenInputs};
 const PROVIDER_ID: &str = "systemprompt";
 const MOBILECONFIG_TMPL: &str = include_str!("../templates/codex_managed.mobileconfig.tmpl");
 
-pub(in crate::integration::codex_cli) fn managed_toml(
+pub(in crate::integration::codex) fn managed_toml(
     inputs: &ProfileGenInputs,
 ) -> Result<String, HostAppError> {
     let exe = std::env::current_exe()?;
@@ -90,7 +89,7 @@ fn write_provider_block(
         toml::Value::Array(vec![
             toml::Value::String("credential-helper".to_owned()),
             toml::Value::String("--host".to_owned()),
-            toml::Value::String(HostKind::CodexCli.as_str().to_owned()),
+            toml::Value::String(super::super::TOKEN_HOST.as_str().to_owned()),
         ]),
     )?;
     write_dotted(value, PROVIDER_AUTH_TIMEOUT, toml::Value::Integer(5000))?;
@@ -149,11 +148,5 @@ fn write_models_block(value: &mut toml::Value, models: &[String]) -> Result<(), 
 }
 
 fn derive_otel_endpoint(gateway: &str) -> String {
-    if let Some(host_part) = gateway.strip_prefix("https://") {
-        return format!("https://{}/otel", host_part.trim_end_matches('/'));
-    }
-    if let Some(host_part) = gateway.strip_prefix("http://") {
-        return format!("http://{}/otel", host_part.trim_end_matches('/'));
-    }
-    format!("{gateway}/otel")
+    systemprompt_models::ApiPaths::otel_under(gateway)
 }

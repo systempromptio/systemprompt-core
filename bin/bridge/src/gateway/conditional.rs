@@ -19,6 +19,7 @@ use crate::gateway::manifest::{
 };
 use crate::gateway::{GatewayClient, ensure_success, record_span};
 use crate::ids::{BearerToken, PluginId, Sha256Digest};
+use systemprompt_models::ApiPaths;
 
 // Why: the archive of a large plugin runs to megabytes over a slow link, so
 // the client-wide 30s ceiling fails a healthy download.
@@ -54,7 +55,7 @@ impl GatewayClient {
         freshness: Freshness,
         if_none_match: Option<&str>,
     ) -> Result<ManifestResponse, GatewayError> {
-        let url = self.url("/v1/bridge/manifest");
+        let url = self.url(ApiPaths::BRIDGE_MANIFEST);
         let started = Instant::now();
         let mut request = self
             .http()
@@ -106,10 +107,7 @@ impl GatewayClient {
         plugin_id: &PluginId,
         sha256: &Sha256Digest,
     ) -> Result<ArchiveResponse, GatewayError> {
-        let url = self.url(&format!(
-            "/v1/bridge/plugins/{plugin_id}/archive/{}",
-            sha256.as_str()
-        ));
+        let url = self.url(&ApiPaths::bridge_plugin_archive(plugin_id, sha256.as_str()));
         let started = Instant::now();
         let fetch_error = |e: reqwest::Error| GatewayError::PluginFetch {
             plugin_id: plugin_id.clone(),

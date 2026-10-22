@@ -6,6 +6,8 @@
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub(super) const BINARY: &str = "codex";
+
 pub(super) const PROVIDER_NAME: &str = "model_providers.systemprompt.name";
 pub(super) const PROVIDER_BASE_URL: &str = "model_providers.systemprompt.base_url";
 pub(super) const PROVIDER_WIRE_API: &str = "model_providers.systemprompt.wire_api";
@@ -97,6 +99,56 @@ pub(super) fn macos_managed_prefs_paths() -> Vec<PathBuf> {
     }
     paths.push(PathBuf::from(ROOT).join(DOMAIN));
     paths
+}
+
+// Why: a GUI process launched from the desktop does not inherit the shell's
+// PATH, so the install prefixes npm and Homebrew put the CLI under are probed
+// as well.
+pub(super) fn extra_bin_dirs() -> Vec<PathBuf> {
+    let mut dirs = vec![
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+    ];
+    if let Some(home) = crate::basedirs::home_dir() {
+        dirs.push(home.join(".npm-global").join("bin"));
+        dirs.push(home.join(".bun").join("bin"));
+        dirs.push(home.join("scoop").join("shims"));
+    }
+    if let Some(appdata) = std::env::var_os("APPDATA") {
+        dirs.push(PathBuf::from(appdata).join("npm"));
+    }
+    dirs
+}
+
+// Why: the Codex desktop app is a per-user install under
+// `%LOCALAPPDATA%\Programs\Codex`; a process running from there, or from a
+// macOS bundle, is the app packaging rather than the CLI of the same name.
+pub(super) const APP_PROCESS_MARKERS: &[&str] = &["\\programs\\codex\\"];
+
+pub(super) fn desktop_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        out.push(
+            PathBuf::from(local)
+                .join("Programs")
+                .join("Codex")
+                .join("Codex.exe"),
+        );
+    }
+    out
+}
+
+pub(super) const fn desktop_locator(
+    candidates: &[PathBuf],
+) -> crate::integration::app_launch::AppLocator<'_> {
+    crate::integration::app_launch::AppLocator {
+        macos_name: "Codex",
+        windows_name: "Codex",
+        windows_candidates: candidates,
+        linux_bin: BINARY,
+        msix_family: None,
+        msix_app_id: "App",
+    }
 }
 
 pub(super) fn now_unix() -> u64 {

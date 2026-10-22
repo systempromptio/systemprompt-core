@@ -15,6 +15,7 @@ use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
+use systemprompt_models::ApiPaths;
 
 use super::{
     auth, bridge, bridge_device, bridge_heartbeat, bridge_manifest, bridge_plugin_file,
@@ -29,7 +30,7 @@ pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtrac
 
     Router::new()
         .route(
-            "/otel",
+            ApiPaths::OTEL,
             post(move |request| {
                 let extractor = Arc::clone(&jwt_root);
                 let context = ctx_root.clone();
@@ -37,7 +38,7 @@ pub(super) fn otel_routes(ctx: &AppContext, jwt_extractor: &Arc<JwtContextExtrac
             }),
         )
         .route(
-            "/otel/{*rest}",
+            ApiPaths::OTEL_REST_ROUTE,
             post(move |request| {
                 let extractor = Arc::clone(&jwt_rest);
                 let context = ctx_rest.clone();
@@ -109,35 +110,38 @@ pub(super) fn bridge_auth_routes(
 
     Router::new()
         .route(
-            "/auth/bridge/pat",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_PAT),
             post(move |request| {
                 let context = ctx_pat.clone();
                 async move { auth::pat(context, request).await }
             }),
         )
         .route(
-            "/auth/bridge/session",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_SESSION),
             post(move |caller_ip, headers, body| {
                 let context = ctx_session.clone();
                 async move { auth::session(context, caller_ip, headers, body).await }
             }),
         )
         .route(
-            "/auth/bridge/session-pat",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_SESSION_PAT),
             post(move |body| {
                 let context = ctx_session_pat.clone();
                 async move { auth::session_pat(context, body).await }
             }),
         )
         .route(
-            "/auth/bridge/oauth-client",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_OAUTH_CLIENT),
             post(move |request| {
                 let extractor = Arc::clone(&jwt_oauth_client);
                 let context = ctx_oauth_client.clone();
                 async move { auth::provision_oauth_client(extractor, context, request).await }
             }),
         )
-        .route("/auth/bridge/capabilities", get(auth::capabilities))
+        .route(
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_AUTH_CAPABILITIES),
+            get(auth::capabilities),
+        )
 }
 
 pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) -> Router {
@@ -149,7 +153,7 @@ pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) ->
 
     Router::new()
         .route(
-            "/bridge/latest",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
             get(move |headers, query| {
                 let extractor = Arc::clone(&jwt_latest);
                 let feed = Arc::clone(&feed_latest);
@@ -157,7 +161,7 @@ pub(super) fn bridge_release_routes(jwt_extractor: &Arc<JwtContextExtractor>) ->
             }),
         )
         .route(
-            "/bridge/download/{platform}",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DOWNLOAD_ROUTE),
             get(move |headers, path| {
                 let extractor = Arc::clone(&jwt_download);
                 let feed = Arc::clone(&feed_download);
@@ -185,9 +189,9 @@ pub(super) fn bridge_profile_routes(
     let ctx_profile = ctx.clone();
     let jwt_profile = Arc::clone(jwt_extractor);
     Router::new()
-        .route("/bridge/pubkey", get(bridge::pubkey))
+        .route(ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY), get(bridge::pubkey))
         .route(
-            "/bridge/profile",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE),
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_profile);
                 let context = ctx_profile.clone();
@@ -195,7 +199,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/whoami",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_WHOAMI),
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_whoami);
                 let context = ctx_whoami.clone();
@@ -203,7 +207,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/manifest",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_MANIFEST),
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_manifest);
                 let context = ctx_manifest.clone();
@@ -211,7 +215,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/plugins/{plugin_id}/{*path}",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE),
             get(move |headers, path| {
                 let extractor = Arc::clone(&jwt_plugin_file);
                 let context = ctx_plugin_file.clone();
@@ -219,7 +223,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/device",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_DEVICE),
             post(move |headers, body| {
                 let extractor = Arc::clone(&jwt_device);
                 let context = ctx_device.clone();
@@ -227,7 +231,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/profile/enabled_hosts",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_ENABLED_HOSTS),
             post(move |headers, body| {
                 let extractor = Arc::clone(&jwt_enabled_hosts);
                 let context = ctx_enabled_hosts.clone();
@@ -235,7 +239,7 @@ pub(super) fn bridge_profile_routes(
             }),
         )
         .route(
-            "/bridge/profile/host-model-filter",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_HOST_MODEL_FILTER),
             post(move |headers, body| {
                 let extractor = Arc::clone(&jwt_host_model_filter);
                 let context = ctx_host_model_filter.clone();
@@ -257,7 +261,7 @@ pub(super) fn bridge_session_routes(
     let jwt_stream = Arc::clone(jwt_extractor);
     Router::new()
         .route(
-            "/bridge/profile/usage",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_PROFILE_USAGE),
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_profile_usage);
                 let context = ctx_profile_usage.clone();
@@ -265,7 +269,7 @@ pub(super) fn bridge_session_routes(
             }),
         )
         .route(
-            "/bridge/heartbeat",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_HEARTBEAT),
             post(move |headers, body| {
                 let extractor = Arc::clone(&jwt_heartbeat);
                 let context = ctx_heartbeat.clone();
@@ -273,7 +277,7 @@ pub(super) fn bridge_session_routes(
             }),
         )
         .route(
-            "/bridge/stream",
+            ApiPaths::gateway_relative(ApiPaths::BRIDGE_STREAM),
             get(move |headers| {
                 let extractor = Arc::clone(&jwt_stream);
                 async move { bridge_stream::handle(extractor, headers).await }

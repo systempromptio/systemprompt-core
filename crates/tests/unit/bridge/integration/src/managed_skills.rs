@@ -12,6 +12,7 @@ use systemprompt_bridge::ids::{Sha256Digest, SkillId, SkillName};
 use systemprompt_bridge::integration::hermes::HermesSync;
 use systemprompt_bridge::integration::opencode::OpenCodeSync;
 use systemprompt_bridge::proxy::LoopbackEndpoint;
+use systemprompt_models::bridge::host::HostKind;
 
 static POLICY_STORE: std::sync::LazyLock<systemprompt_bridge::config::store::PolicyStore> =
     std::sync::LazyLock::new(|| {
@@ -109,7 +110,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         hooks: vec![],
         managed_mcp_servers: vec![],
         revocations: vec![],
-        enabled_hosts: vec!["hermes".into(), "opencode".into()],
+        enabled_hosts: vec![HostKind::Hermes, HostKind::OpenCode],
         host_model_protocols: BTreeMap::new(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,

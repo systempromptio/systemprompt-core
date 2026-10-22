@@ -142,9 +142,9 @@ pub fn host_model_view(health: &[ProviderHealth], accepted: &[ApiSurface]) -> Ho
 pub fn effective_surfaces(
     host_id: HostKind,
     default: &[ApiSurface],
-    overrides: &BTreeMap<String, Vec<String>>,
+    overrides: &BTreeMap<HostKind, Vec<String>>,
 ) -> Vec<ApiSurface> {
-    overrides.get(host_id.as_str()).map_or_else(
+    overrides.get(&host_id).map_or_else(
         || default.to_vec(),
         |tags| {
             tags.iter()
@@ -155,6 +155,9 @@ pub fn effective_surfaces(
 }
 
 #[must_use]
-pub fn has_surface_override(host_id: HostKind, overrides: &BTreeMap<String, Vec<String>>) -> bool {
-    overrides.contains_key(host_id.as_str())
+pub fn has_surface_override(
+    host_id: HostKind,
+    overrides: &BTreeMap<HostKind, Vec<String>>,
+) -> bool {
+    overrides.contains_key(&host_id)
 }

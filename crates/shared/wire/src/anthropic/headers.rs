@@ -21,7 +21,7 @@ const IDENTITY_NAMES: &[&str] = &[
     "cookie",
     "set-cookie",
     "authorization",
-    "x-api-key",
+    systemprompt_identifiers::headers::API_KEY,
     "x-forwarded-for",
     "x-real-ip",
 ];
@@ -40,7 +40,7 @@ pub fn is_identity_request_header(name: &str) -> bool {
 const CREDENTIAL_NAMES: &[&str] = &[
     "authorization",
     "proxy-authorization",
-    "x-api-key",
+    systemprompt_identifiers::headers::API_KEY,
     "cookie",
     "set-cookie",
 ];
