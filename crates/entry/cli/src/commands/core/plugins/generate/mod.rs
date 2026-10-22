@@ -50,9 +50,9 @@ pub struct PluginGenerateContext<'a> {
 
 pub(super) fn execute(args: &GenerateArgs, _config: &CliConfig) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
-    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
-    let services_path = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+    let services_path = ServicesRootBootstrap::require()?.path.clone();
+    let plugins_path = services_path.join("plugins");
+    let skills_path = services_path.join("skills");
 
     let plugin_ids = match &args.id {
         Some(id) => {

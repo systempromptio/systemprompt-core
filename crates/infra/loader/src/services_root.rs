@@ -7,8 +7,8 @@
 //! can say so rather than looking healthy.
 //!
 //! The cell is installed once, before [`crate::ConfigLoader`] reads anything;
-//! [`ServicesRootBootstrap::active_root_or`] is the accessor for callers that
-//! must work whether or not boot has reached that point yet.
+//! [`ServicesRootBootstrap::require`] is the accessor for callers that need
+//! it, and fails when boot has not installed it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +18,8 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
+
+use crate::error::ConfigLoadError;
 
 static ACTIVE_ROOT: OnceLock<ActiveServicesRoot> = OnceLock::new();
 
@@ -66,15 +68,9 @@ impl ServicesRootBootstrap {
         ACTIVE_ROOT.get().is_some()
     }
 
-    #[must_use]
-    pub fn active_root_or(fallback: &str) -> PathBuf {
+    pub fn require() -> Result<&'static ActiveServicesRoot, ConfigLoadError> {
         ACTIVE_ROOT
             .get()
-            .map_or_else(|| PathBuf::from(fallback), |root| root.path.clone())
-    }
-
-    #[must_use]
-    pub fn active_path_or(fallback: &str, relative: &str) -> PathBuf {
-        Self::active_root_or(fallback).join(relative)
+            .ok_or(ConfigLoadError::ServicesRootUninitialised)
     }
 }

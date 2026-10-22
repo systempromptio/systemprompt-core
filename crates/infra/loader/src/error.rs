@@ -23,6 +23,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ConfigLoadError {
+    #[error("services root not initialised; pass --profile")]
+    ServicesRootUninitialised,
+
     #[error("profile bootstrap unavailable: {0}")]
     ProfileBootstrap(#[from] systemprompt_config::ProfileBootstrapError),
 

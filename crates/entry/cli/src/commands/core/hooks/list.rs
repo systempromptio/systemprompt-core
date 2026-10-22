@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Args;
 use std::path::Path;
 
@@ -19,8 +19,7 @@ use super::types::{HookEntry, HookListOutput};
 pub struct ListArgs;
 
 pub(super) fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandOutput> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let hooks_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "hooks");
+    let hooks_path = ServicesRootBootstrap::require()?.path.join("hooks");
     execute_with_path(args, &hooks_path)
 }
 
