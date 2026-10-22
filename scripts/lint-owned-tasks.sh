@@ -23,32 +23,56 @@
 #                     `spawn_blocking` closure. Printed per crate with
 #                     --report.
 #
-#   scripts/lint-owned-tasks.sh            # gate
+#   scripts/lint-owned-tasks.sh            # gate over the core roots
 #   scripts/lint-owned-tasks.sh --count    # detached-spawn hit count only
 #   scripts/lint-owned-tasks.sh --report   # per-crate counts of both rules
+#   scripts/lint-owned-tasks.sh [--allowlist FILE] ROOT...
+#                                          # scan other source roots; FILE lists
+#                                          # the owner modules, one path per line
+#
+# Without roots the script runs from the repository root; with roots, paths
+# (and allowlist entries) resolve against the caller's working directory. A
+# directory literally named `tests` or `target` is never scanned.
 set -uo pipefail
-cd "$(dirname "$0")/.."
 command -v rg >/dev/null || { echo "lint-owned-tasks: ripgrep required" >&2; exit 2; }
 
 MODE=gate
-case "${1:-}" in
-    --count) MODE=count ;;
-    --report) MODE=report ;;
-    "") ;;
-    *) echo "usage: $0 [--count|--report]" >&2; exit 2 ;;
-esac
-
-ROOTS=(crates systemprompt/src bin/bridge/src)
-GLOBS=(-g '*.rs' -g '!crates/tests/**' -g '!**/target/**' -g '!**/build.rs')
+ALLOWLIST=""
+ROOTS=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --count) MODE=count; shift ;;
+        --report) MODE=report; shift ;;
+        --allowlist) ALLOWLIST="$2"; shift 2 ;;
+        --allowlist=*) ALLOWLIST="${1#--allowlist=}"; shift ;;
+        -*) echo "usage: $0 [--count|--report] [--allowlist FILE] [ROOT...]" >&2; exit 2 ;;
+        *) ROOTS+=("$1"); shift ;;
+    esac
+done
+if [ "${#ROOTS[@]}" -eq 0 ]; then
+    cd "$(dirname "$0")/.."
+    ROOTS=(crates systemprompt/src bin/bridge/src)
+fi
+GLOBS=(-g '*.rs' -g '!**/tests/**' -g '!**/target/**' -g '!**/build.rs')
 
 # The owner modules: the only places a raw spawn may appear.
-OWNERS=(
-    crates/shared/traits/src/background_tasks.rs
-    bin/bridge/src/tasks.rs
-)
+OWNERS=()
+if [ -n "$ALLOWLIST" ]; then
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
+        [ -n "$line" ] && OWNERS+=("$line")
+    done < "$ALLOWLIST"
+else
+    OWNERS=(
+        crates/shared/traits/src/background_tasks.rs
+        bin/bridge/src/tasks.rs
+    )
+fi
 
 owner_filter() {
     local pattern
+    [ "${#OWNERS[@]}" -gt 0 ] || { cat; return; }
     pattern=$(printf '%s\n' "${OWNERS[@]}" | sed 's/[.]/\\./g' | paste -sd'|' -)
     grep -Ev "^(${pattern}):"
 }

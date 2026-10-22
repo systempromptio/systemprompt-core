@@ -163,6 +163,9 @@ scripts/*
 !scripts/core-globals-allowlist.txt
 !scripts/lint-serde-aliases.sh
 !scripts/serde-aliases-allowlist.txt
+!scripts/repo-construction-allowlist.txt
+!scripts/sqlx-allowlist.txt
+!scripts/test-gate-roots.py
 !scripts/env-var-allowlist.txt
 !scripts/lint-native-test-deps.sh
 !scripts/bridge-native-crates.txt

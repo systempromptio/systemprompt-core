@@ -17,7 +17,7 @@
 ### Added
 
 - `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
-- Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals).
+- Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
 
 ## [0.72.1] - 2026-10-22
 

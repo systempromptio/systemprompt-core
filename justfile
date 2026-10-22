@@ -372,6 +372,11 @@ lint-core-globals *ARGS:
 lint-serde-aliases *ARGS:
     ./scripts/lint-serde-aliases.sh {{ARGS}}
 
+# The root-walking gates scan the roots they are given and default to core;
+# this proves both against a fixture tree per script.
+test-gate-roots:
+    python3 scripts/test-gate-roots.py
+
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
 # the cap a failure instead of a note, so files are split before they sprawl.

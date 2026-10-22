@@ -34,31 +34,53 @@
 # The test workspace (crates/tests/**) is out of scope: fixtures construct
 # repositories freely.
 
+#   scripts/lint-repo-construction.sh                        # core roots + allowlist
+#   scripts/lint-repo-construction.sh [--allowlist FILE] ROOT...
+#
+# Without roots the script runs from the repository root; with roots, paths
+# (and allowlist entries) resolve against the caller's working directory. A
+# directory literally named `tests` is never scanned.
+
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+ALLOWLIST=""
+ROOTS=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --allowlist) ALLOWLIST="$2"; shift 2 ;;
+        --allowlist=*) ALLOWLIST="${1#--allowlist=}"; shift ;;
+        -*) echo "usage: $0 [--allowlist FILE] [ROOT...]" >&2; exit 2 ;;
+        *) ROOTS+=("$1"); shift ;;
+    esac
+done
+if [ "${#ROOTS[@]}" -eq 0 ]; then
+    cd "$(dirname "$0")/.."
+    ALLOWLIST="${ALLOWLIST:-scripts/repo-construction-allowlist.txt}"
+fi
 
-ALLOWED_FILES=(
-  # infra sits below app/runtime and cannot name AppContext; each of these is
-  # the composition root for its own repository.
-  crates/infra/events/src/services/bridge.rs
-  crates/infra/events/src/services/routing.rs
-  crates/infra/logging/src/services/database_log.rs
-  crates/infra/logging/src/layer/mod.rs
-  # the services-tree authz reconcile is called from the CLI, a services
-  # refresh and a boot step; it takes a pool because none of those three has an
-  # AppContext to take the repository from.
-  crates/infra/governance/src/authz/reconcile.rs
-  crates/infra/logging/src/services/maintenance.rs
-  # scheduler-owned repos (SchedulerRepository, JobRepository,
-  # LoggingRepository) have exactly one consuming crate; an AppContext
-  # accessor for them is not warranted.
-  crates/app/scheduler/src/services/job_execution/mod.rs
-  crates/app/scheduler/src/services/scheduling/mod.rs
-  # the logging AnalyticsRepository is an infra repo with no AppContext
-  # accessor; the middleware constructs-and-stores it once at server build.
-  crates/entry/api/src/services/middleware/analytics/mod.rs
-)
+ALLOWED_FILES=()
+if [ -n "$ALLOWLIST" ]; then
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        line="$(printf '%s' "$line" | sed 's/[[:space:]]*$//')"
+        [ -n "$line" ] && ALLOWED_FILES+=("$line")
+    done < "$ALLOWLIST"
+fi
+
+list_sources() {
+    if [ "${#ROOTS[@]}" -eq 0 ]; then
+        git ls-files 'crates/*/*/src/**/*.rs'
+    else
+        local r
+        for r in "${ROOTS[@]}"; do
+            if git -C "$r" rev-parse --show-toplevel >/dev/null 2>&1; then
+                git -C "$r" ls-files -co --exclude-standard -- '*.rs' | sed "s|^|${r%/}/|"
+            else
+                find "$r" -name '*.rs' -type f
+            fi
+        done
+    fi | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+}
 
 declare -A allowed
 for f in "${ALLOWED_FILES[@]}"; do
@@ -71,10 +93,10 @@ fail=0
 declare -A seen
 while IFS= read -r file; do
   case "$file" in
-    crates/tests/*) continue ;;
-    crates/*/*/src/repository/*) continue ;;
-    crates/app/runtime/src/builder/*) continue ;;
-    crates/entry/cli/src/*) continue ;;
+    */tests/*|tests/*) continue ;;
+    */src/repository/*) continue ;;
+    */runtime/src/builder/*) continue ;;
+    */cli/src/*) continue ;;
     */jobs/*) continue ;;
   esac
   if ! grep -q "$pattern" "$file"; then
@@ -87,7 +109,7 @@ while IFS= read -r file; do
     grep -n "$pattern" "$file" | sed 's/^/  /'
     fail=1
   fi
-done < <(git ls-files 'crates/*/*/src/**/*.rs')
+done < <(list_sources)
 
 for f in "${ALLOWED_FILES[@]}"; do
   if [[ ! -f "$f" ]]; then
