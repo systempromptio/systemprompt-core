@@ -230,7 +230,7 @@ async fn model_protocols_do_not_perturb_enabled_state() {
 }
 
 #[tokio::test]
-async fn an_unknown_stored_host_is_skipped_but_still_counts_as_a_preference() {
+async fn an_unknown_host_id_is_refused_by_the_schema_and_valid_rows_still_read() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
     let repo = BridgeHostPrefsRepository::new(&pool);
@@ -242,33 +242,57 @@ async fn an_unknown_stored_host_is_skipped_but_still_counts_as_a_preference() {
     )
     .await
     .expect("seed user");
-    sqlx::query(
+
+    let refused_enable = sqlx::query(
         "INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled) VALUES ($1, 'cowork', true)",
     )
     .bind(user_id.as_str())
     .execute(pool.write_pool().as_ref())
     .await
-    .expect("insert a host id outside HostKind");
-    sqlx::query(
+    .expect_err("a host id outside HostKind must be refused");
+    assert!(
+        refused_enable
+            .as_database_error()
+            .is_some_and(|e| e.is_check_violation()),
+        "expected a check violation, got {refused_enable}"
+    );
+
+    let refused_model = sqlx::query(
         "INSERT INTO bridge_user_host_model_prefs (user_id, host_id, model_protocols) \
          VALUES ($1, 'cowork', ARRAY['anthropic'])",
     )
     .bind(user_id.as_str())
     .execute(pool.write_pool().as_ref())
     .await
-    .expect("insert a model pref for a host outside HostKind");
+    .expect_err("a model pref for a host outside HostKind must be refused");
+    assert!(
+        refused_model
+            .as_database_error()
+            .is_some_and(|e| e.is_check_violation()),
+        "expected a check violation, got {refused_model}"
+    );
+
+    let untouched = repo
+        .get_enabled_prefs(&user_id)
+        .await
+        .expect("read after refused inserts");
+    assert!(untouched.hosts.is_empty());
+    assert!(!untouched.any_enabled_row);
+
+    sqlx::query(
+        "INSERT INTO bridge_user_host_prefs (user_id, host_id, enabled) \
+         VALUES ($1, 'claude-code', true)",
+    )
+    .bind(user_id.as_str())
+    .execute(pool.write_pool().as_ref())
+    .await
+    .expect("insert a valid host id");
 
     let enabled = repo
         .get_enabled_prefs(&user_id)
         .await
-        .expect("an unknown host id must not fail the read");
-    assert!(enabled.hosts.is_empty());
+        .expect("read valid rows");
     assert!(enabled.any_enabled_row);
-    assert!(!enabled.admits(HostKind::ClaudeCode));
-    assert!(
-        repo.load_model_protocols(&user_id)
-            .await
-            .expect("an unknown host id must not fail the read")
-            .is_empty()
-    );
+    assert!(enabled.admits(HostKind::ClaudeCode));
+    assert!(!enabled.admits(HostKind::OpenCode));
 }
