@@ -61,6 +61,7 @@ members = [
     "unit/domain/teams",
     # Unit tests - app layer
     "unit/app/gateway",
+    "unit/app/gateway-golden",
     "unit/app/generator",
     "unit/app/oauth-issuance",
     "unit/app/runtime",

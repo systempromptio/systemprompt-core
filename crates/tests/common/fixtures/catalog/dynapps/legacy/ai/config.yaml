@@ -1,0 +1,33 @@
+ai:
+  default_provider: anthropic
+  default_max_output_tokens: 2048
+  sampling:
+    enable_smart_routing: false
+    fallback_enabled: false
+  providers:
+    anthropic:
+      enabled: true
+      google_search_enabled: true
+      default_model: claude-sonnet-5-5
+    # Second upstream for the Claude cost comparison; not the default.
+    deepseek:
+      enabled: true
+      google_search_enabled: false
+      default_model: deepseek-flash
+    # OpenCode Go, served only with a member's own key (credential: user).
+    opencode-go:
+      enabled: true
+      google_search_enabled: false
+      default_model: go-deepseek-v4-pro
+    opencode-go-anthropic:
+      enabled: true
+      google_search_enabled: false
+      default_model: go-minimax-m3
+  mcp:
+    auto_discover: true
+    connect_timeout_ms: 5000
+    execution_timeout_ms: 30000
+    retry_attempts: 3
+  history:
+    retention_days: 30
+    log_tool_executions: true
