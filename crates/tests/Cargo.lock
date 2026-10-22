@@ -8255,6 +8255,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-test-fixtures",
+ "systemprompt-traits",
  "tokio",
  "uuid",
 ]
@@ -8314,12 +8315,14 @@ dependencies = [
  "reqwest",
  "serde_json",
  "sqlx",
+ "systemprompt-database",
  "systemprompt-events",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
@@ -9864,6 +9867,7 @@ dependencies = [
 name = "systemprompt-traits"
 version = "0.72.1"
 dependencies = [
+ "arc-swap",
  "async-trait",
  "bytes",
  "chrono",

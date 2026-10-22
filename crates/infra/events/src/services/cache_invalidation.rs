@@ -6,7 +6,9 @@
 //! transaction, so a notification is sent exactly when the write commits and
 //! whichever replica or tool made it. The [`crate::PostgresEventBridge`]
 //! listens on [`CACHE_INVALIDATION_CHANNEL`] beside the event outbox and
-//! advances the matching [`CacheDomain`] epoch in the [`CacheEpochs`] handle
+//! advances the matching [`CacheDomain`] epoch (a bare domain label, or
+//! `config:<plane>` from a config plane's version trigger) in the
+//! [`CacheEpochs`] handle
 //! it was built with; each cache drops entries
 //! filled under an older epoch. There is no outbox: a lost notification
 //! leaves the cache's TTL as the bound, and the bridge advances every domain
@@ -32,7 +34,7 @@ pub const CACHE_INVALIDATION_CHANNEL: &str = "systemprompt_cache";
 pub const CACHE_INVALIDATIONS_RECEIVED_TOTAL: &str = "cache_invalidations_received_total";
 
 pub fn receive_cache_invalidation(epochs: &CacheEpochs, payload: &str) -> Option<CacheDomain> {
-    let Some(domain) = CacheDomain::parse(payload.trim()) else {
+    let Some(domain) = CacheDomain::from_notification(payload.trim()) else {
         debug!(payload, "cache invalidation: unknown domain; ignoring");
         return None;
     };

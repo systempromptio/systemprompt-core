@@ -11,6 +11,9 @@ mod auth;
 mod cache_epoch;
 
 #[cfg(test)]
+mod config_watch;
+
+#[cfg(test)]
 mod db_value;
 
 #[cfg(test)]

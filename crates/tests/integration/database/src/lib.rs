@@ -65,3 +65,7 @@ mod batch_atomicity;
 #[cfg(test)]
 #[path = "../projection_queue.rs"]
 mod projection_queue;
+
+#[cfg(test)]
+#[path = "../config_change_context.rs"]
+mod config_change_context;

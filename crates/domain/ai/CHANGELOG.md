@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `ai_gateway_policies` carries `source` (closed vocabulary, CHECK), `changed_by`, `changed_at` and `reason`, stamped by `sp_stamp_change()`, and bumps `config_version` (`config:gateway_policies`). Migration `050_ai_gateway_policies_change_provenance` (with down): catalog-only `ADD COLUMN`s; the CHECK is added `NOT VALID` and validated under SHARE UPDATE EXCLUSIVE. `ai_requests` is untouched.
+
 ### Fixed
 
 - Storing a personal key probes every entry that shares it (`credential_siblings`, `verify_personal_key`), not only the owner entry, so a key a sibling endpoint refuses is never stored as working.

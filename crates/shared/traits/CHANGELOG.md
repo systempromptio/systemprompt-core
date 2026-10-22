@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- `CacheDomain` gains `GatewayRoutes`, `Governance`, `Groups`, `AccessControl` and `GatewayPolicies`; exhaustive matches must handle them.
+
+### Added
+
+- `CacheDomain::from_notification` reads `config:<plane>` payloads; `CacheDomain::config_plane` names a domain's plane.
+- `CacheEpochs::subscribe`, a `watch` receiver woken on each advance of a domain.
+- `ConfigWatch<T>`: a lock-free `get()` over an `ArcSwap`, reloaded on the domain's epoch and on a moved `config_version` (`ConfigVersionSource`, 30 s `CONFIG_WATCH_POLL`).
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

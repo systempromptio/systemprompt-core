@@ -13,5 +13,11 @@ CREATE TABLE IF NOT EXISTS config_plane_state (
         CHECK (outcome IN ('in_sync', 'corrected', 'seeded', 'drift_reported', 'undeclared', 'failed')),
     last_error TEXT,
     reconciled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    corrected_at TIMESTAMPTZ
+    corrected_at TIMESTAMPTZ,
+    -- The last explicit apply (`config apply` / `/admin/sync`), distinct from
+    -- the reconcile pass above.
+    last_apply_declared_hash TEXT,
+    last_apply_actor TEXT,
+    last_apply_mode TEXT,
+    last_apply_at TIMESTAMPTZ
 );

@@ -51,6 +51,8 @@ pub mod background_tasks;
 pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochs};
+pub mod config_watch;
+pub use config_watch::{CONFIG_WATCH_POLL, ConfigVersionSource, ConfigWatch, WatchSignals};
 pub use stream_drain::{StreamDrain, StreamDrainWatch};
 pub mod analytics_events;
 pub mod auth;
@@ -82,10 +84,10 @@ pub mod validation;
 pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
-    BatchPlan, BatchedRun, DbBudget, Dependencies, Job, JobContext, JobResult, JobScope,
-    MissingDependency, ProviderError, ProviderResult, ServerListingFailure, ToolCallRequest,
-    ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory, ToolProvider,
-    ToolProviderError, ToolProviderResult, run_batched, submit_job,
+    BatchPlan, BatchedRun, ChangeActor, ChangeSource, DbBudget, Dependencies, Job, JobContext,
+    JobResult, JobScope, MissingDependency, ProviderError, ProviderResult, ServerListingFailure,
+    ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolInventory,
+    ToolProvider, ToolProviderError, ToolProviderResult, run_batched, submit_job,
 };
 
 pub use context::{

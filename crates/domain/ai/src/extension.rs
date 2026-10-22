@@ -111,6 +111,7 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
         SchemaDefinition::sql_only(include_str!(
             "../schema/ai_gateway_policies_cache_notify.sql"
         )),
+        SchemaDefinition::sql_only(include_str!("../schema/ai_gateway_policies_provenance.sql")),
         SchemaDefinition::new(
             "ai_gateway_thought_signatures",
             include_str!("../schema/ai_gateway_thought_signatures.sql"),

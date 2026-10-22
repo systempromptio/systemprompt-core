@@ -53,6 +53,27 @@ impl Extension for SchedulerExtension {
                 "after_value".into(),
             ]),
             SchemaDefinition::new(
+                "config_plane_base",
+                include_str!("../schema/config_plane_base.sql"),
+            )
+            .with_required_columns(vec![
+                "plane".into(),
+                "entity".into(),
+                "declared_hash".into(),
+                "source".into(),
+            ]),
+            SchemaDefinition::new(
+                "config_conflicts",
+                include_str!("../schema/config_conflicts.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "plane".into(),
+                "entity".into(),
+                "file_hash".into(),
+                "db_hash".into(),
+            ]),
+            SchemaDefinition::new(
                 "otlp_export_state",
                 include_str!("../schema/otlp_export_state.sql"),
             )

@@ -9,6 +9,7 @@
 
 pub mod advisory_lock;
 pub mod base;
+pub mod change_context;
 pub mod coordination;
 pub mod lease;
 pub mod release_stamp;
@@ -16,6 +17,7 @@ pub mod service;
 
 pub use advisory_lock::{EXTENSION_LOCK_CLASS, SessionAdvisoryLock, SessionAdvisoryLocks};
 pub use base::PgDbPool;
+pub use change_context::{PgConfigVersion, with_change_context};
 pub use coordination::CoordinationRepositories;
 pub use lease::InstanceLeaseRepository;
 pub use release_stamp::{

@@ -19,6 +19,8 @@ mod config_plane;
 #[cfg(test)]
 mod config_plane_set;
 #[cfg(test)]
+mod config_plane_sources;
+#[cfg(test)]
 mod contracts_misc;
 #[cfg(test)]
 mod dependencies;
