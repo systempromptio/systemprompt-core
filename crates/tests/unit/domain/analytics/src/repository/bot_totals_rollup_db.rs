@@ -170,5 +170,5 @@ async fn bot_totals_match_the_report_view_through_deletion_and_reclassification(
 }
 
 fn rand_offset() -> u16 {
-    u16::try_from(u128::from(Uuid::new_v4().as_u128() % 3000)).unwrap_or(0)
+    u16::try_from(Uuid::new_v4().as_u128() % 3000).unwrap_or(0)
 }
