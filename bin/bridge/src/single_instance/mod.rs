@@ -12,14 +12,19 @@ use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::Duration;
 
+mod error;
 mod handoff;
+
+pub(crate) use error::SingletonError;
+#[cfg(unix)]
+use error::lock_error;
 
 pub(crate) use handoff::{await_predecessor_exit, record_handoff};
 
 pub(crate) enum SingletonResult {
     Acquired(SingletonGuard),
     AlreadyRunning,
-    Error(String),
+    Error(SingletonError),
 }
 
 pub(crate) struct SingletonGuard {
@@ -62,7 +67,7 @@ mod unix {
         if let Some(parent) = path.parent()
             && let Err(e) = std::fs::create_dir_all(parent)
         {
-            return SingletonResult::Error(format!("create lock dir {}: {e}", parent.display()));
+            return super::lock_error("create lock dir", parent, e);
         }
         let mut file = match OpenOptions::new()
             .create(true)
@@ -73,7 +78,7 @@ mod unix {
         {
             Ok(f) => f,
             Err(e) => {
-                return SingletonResult::Error(format!("open lock {}: {e}", path.display()));
+                return super::lock_error("open lock", &path, e);
             },
         };
         let fd = file.as_raw_fd();
@@ -84,7 +89,7 @@ mod unix {
             let err = std::io::Error::last_os_error();
             return match err.raw_os_error() {
                 Some(libc::EWOULDBLOCK) => SingletonResult::AlreadyRunning,
-                _ => SingletonResult::Error(format!("flock {}: {err}", path.display())),
+                _ => super::lock_error("flock", &path, err),
             };
         }
         if let Err(e) = file
@@ -92,7 +97,7 @@ mod unix {
             .and_then(|()| writeln!(file, "{}", std::process::id()))
             .and_then(|()| file.sync_all())
         {
-            return SingletonResult::Error(format!("write lock {}: {e}", path.display()));
+            return super::lock_error("write lock", &path, e);
         }
         SingletonResult::Acquired(SingletonGuard { _file: file })
     }
@@ -130,7 +135,7 @@ mod windows {
         if handle.is_null() {
             // SAFETY: `GetLastError` reads thread-local error state with no preconditions.
             let err = unsafe { GetLastError() };
-            return SingletonResult::Error(format!("CreateMutexW failed: {err}"));
+            return SingletonResult::Error(super::SingletonError::Mutex { status: err });
         }
         // SAFETY: `GetLastError` reads thread-local error state with no preconditions.
         let last_error = unsafe { GetLastError() };

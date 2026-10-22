@@ -22,9 +22,10 @@ impl ConfigStore for Hives {
     ) -> Result<PolicyDocument, ConfigStoreError> {
         match hive {
             PolicyHive::Machine => Ok(self.machine.clone()),
-            PolicyHive::User if self.deny_user => {
-                Err(ConfigStoreError::Backend("HKCU read denied".into()))
-            },
+            PolicyHive::User if self.deny_user => Err(ConfigStoreError::AccessDenied {
+                hive: "HKCU".to_owned(),
+                subkey: "read".to_owned(),
+            }),
             PolicyHive::User => Ok(self.user.clone()),
         }
     }
@@ -122,7 +123,7 @@ fn an_unreadable_hive_is_an_error_not_a_guess() {
     let err = hive_report(&store, false).unwrap_err();
     assert_eq!(err.hive, PolicyHive::User);
     assert!(
-        matches!(&err.source, ConfigStoreError::Backend(text) if text == "HKCU read denied"),
+        matches!(&err.source, ConfigStoreError::AccessDenied { hive, .. } if hive == "HKCU"),
         "{err:?}"
     );
 }
