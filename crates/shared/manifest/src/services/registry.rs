@@ -53,12 +53,13 @@ impl FromStr for ServiceModule {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ServiceStatus {
     Starting,
     Running,
     Stopping,
+    #[default]
     Stopped,
     Error,
 }

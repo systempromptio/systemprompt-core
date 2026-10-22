@@ -28,6 +28,8 @@ lint-http-errors
 lint-no-untyped-admin
 check-headers
 lint-layers
+lint-mode-enums
+lint-sql-vocab
 lint-repo-construction
 lint-authoritative-reads
 lint-bridge-lints-sync

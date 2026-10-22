@@ -22,7 +22,7 @@ mod handler;
 
 pub use handler::{McpToolHandler, object_input_schema};
 
-use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use crate::repository::ToolUsageRepository;
 use crate::response::{McpResponseBuilder, ToolIdentity};
 use crate::schema::McpOutputSchema;
@@ -216,9 +216,9 @@ impl McpToolExecutor {
             output: response.as_ref().ok().and(output_value),
             output_schema: None,
             status: if response.is_ok() {
-                ExecutionStatus::Success.as_str().to_owned()
+                McpToolExecutionStatus::Success.as_str().to_owned()
             } else {
-                ExecutionStatus::Failed.as_str().to_owned()
+                McpToolExecutionStatus::Failed.as_str().to_owned()
             },
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,

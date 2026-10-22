@@ -66,10 +66,10 @@ pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     ApiListenerStop, DbServiceRecord, DesiredStatus, JobBatchReport, JobExecutionService,
     JobRunReport, JobSelection, OrphanCleanupReport, OrphanDisposition, OrphanOutcome,
-    ReconciliationResult, RestartPlan, RestartScope, RestartTarget, RuntimeStatus, SchedulerHandle,
+    ReconciliationResult, RestartPlan, RestartScope, RestartTarget, SchedulerHandle,
     SchedulerService, SchedulerStartup, ServiceAction, ServiceConfig, ServiceManagementService,
     ServiceReconciler, ServiceSnapshot, ServiceStateVerifier, ServiceType, StartupPlan,
-    StartupRequest, VerifiedServiceState, child_kind, parse_job_parameters, port_holders,
-    stop_api_listeners, stop_owned_port_holders, unknown_job_names, unlisted_job_names,
-    wait_for_port_free,
+    StartupRequest, VerifiedService, VerifiedServiceState, child_kind, parse_job_parameters,
+    port_holders, stop_api_listeners, stop_owned_port_holders, unknown_job_names,
+    unlisted_job_names, wait_for_port_free,
 };

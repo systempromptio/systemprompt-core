@@ -83,8 +83,8 @@ use unsupported::live_environ;
 pub use unsupported::{is_zombie, live_pid_is_subprocess};
 
 pub use control::{
-    StopOutcome, Termination, is_running, owns, pids_listening_on, process_group, stop_owned,
-    terminate_gracefully, terminate_group_gracefully,
+    StopOutcome, SubprocessLiveness, Termination, is_running, owns, pids_listening_on,
+    process_group, stop_owned, terminate_gracefully, terminate_group_gracefully,
 };
 pub use error::SupervisionError;
 pub use ports::{parse_lsof_pids, parse_netstat_listeners};

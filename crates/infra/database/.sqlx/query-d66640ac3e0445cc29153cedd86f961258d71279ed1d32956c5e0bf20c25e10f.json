@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT name, module_name, pid AS \"pid!\"\n            FROM services\n            WHERE instance_id = $1 AND status = $2 AND pid IS NOT NULL\n            ORDER BY name\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "module_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "module_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "pid!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "services",
+            "name": "pid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "d66640ac3e0445cc29153cedd86f961258d71279ed1d32956c5e0bf20c25e10f"
+}

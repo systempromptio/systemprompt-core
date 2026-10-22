@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Duration, DurationRound, Utc};
 use systemprompt_ai::repository::{AiUsageAnomalyRepository, HourlyUsageProfile};
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::QuotaSubjectKind;
 use systemprompt_traits::{Job, JobContext, JobResult, ProviderResult};
 
 pub const SPEND_RATIO: f64 = 3.0;
@@ -88,7 +89,7 @@ fn report(kind: AnomalyKind, profile: &HourlyUsageProfile, window_start: DateTim
     metrics::counter!(
         "systemprompt_usage_anomaly_total",
         "kind" => kind.as_str(),
-        "subject_kind" => "user",
+        "subject_kind" => QuotaSubjectKind::User.as_str(),
     )
     .increment(1);
     let (observed, baseline) = match kind {

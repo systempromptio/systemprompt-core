@@ -1,4 +1,4 @@
-//! `RuntimeStatus` lifecycle states with parse/display.
+//! `ServiceType` — the module family a managed service belongs to.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,53 +6,6 @@
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
-use systemprompt_models::errors::ParseEnumError;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RuntimeStatus {
-    Running,
-    Starting,
-    Stopped,
-    Crashed,
-    Orphaned,
-}
-
-impl RuntimeStatus {
-    pub const fn is_healthy(&self) -> bool {
-        matches!(self, Self::Running | Self::Starting)
-    }
-
-    pub const fn needs_cleanup(&self) -> bool {
-        matches!(self, Self::Crashed | Self::Orphaned)
-    }
-}
-
-impl fmt::Display for RuntimeStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Running => write!(f, "running"),
-            Self::Starting => write!(f, "starting"),
-            Self::Stopped => write!(f, "stopped"),
-            Self::Crashed => write!(f, "crashed"),
-            Self::Orphaned => write!(f, "orphaned"),
-        }
-    }
-}
-
-impl std::str::FromStr for RuntimeStatus {
-    type Err = ParseEnumError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "running" => Ok(Self::Running),
-            "starting" => Ok(Self::Starting),
-            "stopped" => Ok(Self::Stopped),
-            "crashed" | "error" => Ok(Self::Crashed),
-            "orphaned" => Ok(Self::Orphaned),
-            _ => Err(ParseEnumError::new("runtime status", s)),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ServiceType {

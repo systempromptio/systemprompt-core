@@ -7,6 +7,9 @@
 mod actor_tests;
 
 #[cfg(test)]
+mod quota_subject_kind;
+
+#[cfg(test)]
 mod agent_tests;
 
 #[cfg(test)]

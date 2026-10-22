@@ -17,6 +17,9 @@
 mod a2a;
 
 #[cfg(test)]
+mod enforcement_mode;
+
+#[cfg(test)]
 mod a2a_artifact_metadata;
 
 #[cfg(test)]

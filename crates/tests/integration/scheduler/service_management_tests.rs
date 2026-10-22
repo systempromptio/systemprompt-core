@@ -6,8 +6,8 @@
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_scheduler::{
-    DesiredStatus, RuntimeStatus, ServiceAction, ServiceConfig, ServiceManagementService,
-    ServiceStateVerifier, ServiceType,
+    DesiredStatus, ServiceAction, ServiceConfig, ServiceManagementService, ServiceStateVerifier,
+    ServiceType, VerifiedService,
 };
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
@@ -62,14 +62,14 @@ async fn get_running_services_with_pid_returns_only_running() {
 }
 
 #[tokio::test]
-async fn cleanup_stale_entries_runs() {
+async fn reap_stale_runs() {
     let pool = test_db_pool().await;
     let svc = ServiceManagementService::new(systemprompt_database::ServiceRepository::new(
         &pool,
         unique_instance(),
     ));
-    let cleaned = svc.cleanup_stale_entries().await.expect("cleanup");
-    let _ = cleaned;
+    let reaped = svc.reap_stale().await.expect("reap");
+    assert_eq!(reaped.total(), 0);
 }
 
 #[tokio::test]
@@ -164,7 +164,7 @@ async fn state_verifier_get_crashed_services_filters() {
     assert!(
         crashed
             .iter()
-            .all(|s| s.runtime_status == RuntimeStatus::Crashed),
+            .all(|s| s.runtime == VerifiedService::observed(ServiceStatus::Error)),
         "get_crashed_services must return only crashed states"
     );
 }

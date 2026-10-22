@@ -21,6 +21,7 @@ mod repo;
 
 pub use claim::{CLAIM_DEAD_PEER_SECS, INSTANCE_CLAIM_CLASS, InstanceClaim, InstanceClaimError};
 pub use liveness::INSTANCE_DEAD_AFTER_SECS;
+pub use maintenance::{Reaped, ReapedService};
 pub use model::{CreateServiceInput, ServiceConfig, UpsertServiceProcessInput};
 pub use repo::ServiceRepository;
 pub use systemprompt_manifest::services::{ServiceModule, ServiceStatus};

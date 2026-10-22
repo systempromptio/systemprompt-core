@@ -17,7 +17,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiToolCallId, McpExecutionId};
 use systemprompt_models::mcp::Correlation;
 
-use crate::models::{ExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
+use crate::models::{McpToolExecutionStatus, ToolExecutionRequest, ToolExecutionResult};
 use systemprompt_models::RequestContext;
 
 fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
@@ -52,7 +52,7 @@ impl ToolUsageRepository {
         let task_id = request.context.task_id().map(ToString::to_string);
         let session_id = request.context.session_id().to_string();
         let trace_id = extract_trace_id(&request.context);
-        let status = ExecutionStatus::Pending.as_str();
+        let status = McpToolExecutionStatus::Pending.as_str();
         let (actor_kind, actor_id) = request.context.auth.actor.audit_columns();
         sqlx::query!(
             r#"
@@ -139,7 +139,7 @@ impl ToolUsageRepository {
         result: &ToolExecutionResult,
         correlation: Correlation,
     ) -> McpDomainResult<()> {
-        let status = ExecutionStatus::from_error(result.error_message.is_some()).as_str();
+        let status = McpToolExecutionStatus::from_error(result.error_message.is_some()).as_str();
         let context_id = request.context.context_id().to_string();
         let user_id = request.context.user_id().to_string();
         let task_id = request.context.task_id().map(ToString::to_string);

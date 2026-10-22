@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::{InstanceId, ServiceName};
-use systemprompt_manifest::services::ServiceModule;
+use systemprompt_manifest::services::{ServiceModule, ServiceStatus};
 
 use super::model::{ServiceConfig, ServiceRow, into_configs};
 use super::repo::ServiceRepository;
@@ -33,10 +33,11 @@ impl ServiceRepository {
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services
-            WHERE instance_id = $1 AND status = 'running'
+            WHERE instance_id = $1 AND status = $2
             ORDER BY name
             "#,
-            self.instance_id.as_str()
+            self.instance_id.as_str(),
+            ServiceStatus::Running.as_str()
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -54,11 +55,12 @@ impl ServiceRepository {
                    heartbeat_at::text as "heartbeat_at!",
                    created_at::text as "created_at!", updated_at::text as "updated_at!"
             FROM services
-            WHERE instance_id = $1 AND module_name = $2 AND status = 'running'
+            WHERE instance_id = $1 AND module_name = $2 AND status = $3
             ORDER BY name
             "#,
             self.instance_id.as_str(),
-            module_name.as_str()
+            module_name.as_str(),
+            ServiceStatus::Running.as_str()
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -71,9 +73,10 @@ impl ServiceRepository {
     ) -> DatabaseResult<usize> {
         let row = sqlx::query!(
             r#"SELECT COUNT(*) as "count!" FROM services
-               WHERE instance_id = $1 AND module_name = $2 AND status = 'running'"#,
+               WHERE instance_id = $1 AND module_name = $2 AND status = $3"#,
             self.instance_id.as_str(),
-            module_name.as_str()
+            module_name.as_str(),
+            ServiceStatus::Running.as_str()
         )
         .fetch_one(&*self.pool)
         .await?;

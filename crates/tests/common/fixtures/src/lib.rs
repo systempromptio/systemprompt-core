@@ -17,6 +17,7 @@ pub mod disposable_db;
 pub mod instance;
 pub mod jwt;
 pub mod keys;
+pub mod liveness;
 pub mod messaging;
 pub mod net;
 pub mod oauth;
@@ -58,6 +59,7 @@ pub use disposable_db::DisposableDb;
 pub use instance::unique_instance;
 pub use jwt::{install_test_signing_key, mint_admin_jwt, mint_bridge_jwt};
 pub use keys::{next_test_key, test_key, AUTHORITY_KEY_INDEX, ROTATING_KEY_COUNT};
+pub use liveness::LivePids;
 pub use messaging::{agent_error_response_json, agent_reply_response_json, seed_agent_backend};
 pub use net::{bind_in_range, free_port_in_range, port_is_unheld};
 pub use oauth::{

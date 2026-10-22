@@ -29,7 +29,7 @@ use super::super::registry::{PolicyConfigurationError, PolicyRegistration};
 use super::super::types::{GovernancePolicy, PolicyContext, RateLimitWindow};
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
-const ID: &str = "rate_limit";
+pub(crate) const ID: &str = "rate_limit";
 const DEFAULT_WINDOW_SECS: u64 = 60;
 const DEFAULT_LIMIT: u64 = 300;
 

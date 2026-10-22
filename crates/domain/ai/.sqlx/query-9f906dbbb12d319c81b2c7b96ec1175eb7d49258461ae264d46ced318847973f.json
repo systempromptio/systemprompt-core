@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                provider as \"provider!\",\n                model as \"model!\",\n                COUNT(*)::bigint as \"request_count!\",\n                COALESCE(SUM(tokens_used), 0)::bigint as \"total_tokens!\",\n                COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as \"total_cost!\",\n                AVG(latency_ms)::bigint as \"avg_latency_ms\"\n            FROM ai_requests\n            WHERE created_at > $1 AND status = 'completed'\n              AND provider IS NOT NULL AND model IS NOT NULL\n            GROUP BY provider, model\n            ORDER BY COUNT(*) DESC\n            ",
+  "query": "\n            SELECT\n                provider as \"provider!\",\n                model as \"model!\",\n                COUNT(*)::bigint as \"request_count!\",\n                COALESCE(SUM(tokens_used), 0)::bigint as \"total_tokens!\",\n                COALESCE(SUM(cost_microdollars), 0)::float8 / 1000000.0 as \"total_cost!\",\n                AVG(latency_ms)::bigint as \"avg_latency_ms\"\n            FROM ai_requests\n            WHERE created_at > $1 AND status = $2\n              AND provider IS NOT NULL AND model IS NOT NULL\n            GROUP BY provider, model\n            ORDER BY COUNT(*) DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -52,7 +52,8 @@
     ],
     "parameters": {
       "Left": [
-        "Timestamptz"
+        "Timestamptz",
+        "Text"
       ]
     },
     "nullable": [
@@ -64,5 +65,5 @@
       null
     ]
   },
-  "hash": "06706a6c0fb09ae0931725dd88e1be842a5fdf5f9150525bb6bee08457f96094"
+  "hash": "9f906dbbb12d319c81b2c7b96ec1175eb7d49258461ae264d46ced318847973f"
 }

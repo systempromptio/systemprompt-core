@@ -27,7 +27,7 @@ use super::super::types::{AccessScope, GovernancePolicy, PolicyContext};
 use super::role_gate::RoleRule;
 use crate::authz::types::{Decision, DenyReason, MatchedBy};
 
-const ID: &str = "tool_blocklist";
+pub(crate) const ID: &str = "tool_blocklist";
 const DEFAULT_PATTERNS: &[&str] = &["delete", "drop", "destroy"];
 
 #[derive(Debug)]

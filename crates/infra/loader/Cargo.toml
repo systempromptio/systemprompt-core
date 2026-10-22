@@ -46,6 +46,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-security = { workspace = true }
 

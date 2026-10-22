@@ -6,6 +6,7 @@
 
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::{InstanceId, ServiceName};
+use systemprompt_test_fixtures::LivePids;
 
 use crate::services::db_helper::test_pool;
 
@@ -82,13 +83,13 @@ async fn delete_and_stale_cleanup_never_touch_other_instances() {
 
     b.clear_service_pid(&name).await.unwrap();
     register(&a, &name, 333).await;
-    a.cleanup_stale_entries().await.unwrap();
+    a.reap_stale(&LivePids::of([333])).await.unwrap();
     assert!(a.find_service_by_name(&name).await.unwrap().is_some());
     assert!(
         b.find_service_by_name(&name).await.unwrap().is_some(),
         "a's stale sweep must not reap b's pid-less running row"
     );
-    assert_eq!(b.cleanup_stale_entries().await.unwrap(), 1);
+    assert_eq!(b.reap_stale(&LivePids::none()).await.unwrap().total(), 1);
 }
 
 #[tokio::test]

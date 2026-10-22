@@ -14,6 +14,7 @@
 
 use crate::Result;
 use chrono::{DateTime, Utc};
+use systemprompt_models::mcp::McpToolExecutionStatus;
 
 use super::ToolAnalyticsRepository;
 use crate::models::ToolAgentUsageDbRow;
@@ -37,15 +38,18 @@ impl ToolAnalyticsRepository {
                 SELECT
                     COUNT(DISTINCT tool_name)::bigint as "total_tools!",
                     COUNT(*)::bigint as "total_executions!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "successful!",
-                    COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed!",
-                    COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
+                    COUNT(*) FILTER (WHERE status = $4)::bigint as "successful!",
+                    COUNT(*) FILTER (WHERE status = $5)::bigint as "failed!",
+                    COUNT(*) FILTER (WHERE status = $6)::bigint as "timeout!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
                 FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2 AND tool_name ILIKE $3
                 "#,
-                start, end, pattern
+                start, end, pattern,
+                McpToolExecutionStatus::Success.as_str(),
+                McpToolExecutionStatus::Failed.as_str(),
+                McpToolExecutionStatus::Timeout.as_str()
             )
             .fetch_one(&*self.pool)
             .await
@@ -57,15 +61,18 @@ impl ToolAnalyticsRepository {
                 SELECT
                     COUNT(DISTINCT tool_name)::bigint as "total_tools!",
                     COUNT(*)::bigint as "total_executions!",
-                    COUNT(*) FILTER (WHERE status = 'success')::bigint as "successful!",
-                    COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed!",
-                    COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
+                    COUNT(*) FILTER (WHERE status = $3)::bigint as "successful!",
+                    COUNT(*) FILTER (WHERE status = $4)::bigint as "failed!",
+                    COUNT(*) FILTER (WHERE status = $5)::bigint as "timeout!",
                     COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
                 FROM report_mcp_tool_executions
                 WHERE created_at >= $1 AND created_at < $2
                 "#,
-                start, end
+                start, end,
+                McpToolExecutionStatus::Success.as_str(),
+                McpToolExecutionStatus::Failed.as_str(),
+                McpToolExecutionStatus::Timeout.as_str()
             )
             .fetch_one(&*self.pool)
             .await
@@ -103,15 +110,18 @@ impl ToolAnalyticsRepository {
             r#"
             SELECT
                 COUNT(*)::bigint as "total!",
-                COUNT(*) FILTER (WHERE status = 'success')::bigint as "successful!",
-                COUNT(*) FILTER (WHERE status = 'failed')::bigint as "failed!",
-                COUNT(*) FILTER (WHERE status = 'timeout')::bigint as "timeout!",
+                COUNT(*) FILTER (WHERE status = $4)::bigint as "successful!",
+                COUNT(*) FILTER (WHERE status = $5)::bigint as "failed!",
+                COUNT(*) FILTER (WHERE status = $6)::bigint as "timeout!",
                 COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
                 COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as "p95_time!"
             FROM report_mcp_tool_executions
             WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3
             "#,
-            pattern, start, end
+            pattern, start, end,
+            McpToolExecutionStatus::Success.as_str(),
+            McpToolExecutionStatus::Failed.as_str(),
+            McpToolExecutionStatus::Timeout.as_str()
         )
         .fetch_one(&*self.pool)
         .await
@@ -157,14 +167,15 @@ impl ToolAnalyticsRepository {
                 COALESCE(SUBSTRING(error_message FROM 1 FOR 100), 'Unknown error') as "error_msg",
                 COUNT(*)::bigint as "error_count!"
             FROM report_mcp_tool_executions
-            WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3 AND status = 'failed'
+            WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3 AND status = $4
             GROUP BY SUBSTRING(error_message FROM 1 FOR 100)
             ORDER BY 2 DESC
             LIMIT 10
             "#,
             pattern,
             start,
-            end
+            end,
+            McpToolExecutionStatus::Failed.as_str()
         )
         .fetch_all(&*self.pool)
         .await

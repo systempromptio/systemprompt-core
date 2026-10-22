@@ -1,0 +1,15 @@
+# Persisted vocabularies: one Rust enum per CHECK-constrained column.
+#
+#   table.column|schema.sql|enum.rs|EnumName[|open]
+#
+# lint-sql-vocab.sh verifies, per line, that the schema's CHECK (column IN (...))
+# set equals the enum's as_str()/Display string set and that the SQL DEFAULT is
+# the enum's #[default] variant. An `open` vocabulary (closed principals plus
+# installation-defined names) only has to carry a CHECK and a DEFAULT that the
+# enum spells. For every registered column, a `column = '<lit>'`,
+# `column <> '<lit>'` or `column IN ('…')` literal inside a sqlx::query*! string
+# in crates/**/src fails: bind the enum's as_str() instead.
+ai_requests.status|crates/domain/ai/schema/ai_requests.sql|crates/shared/traits/src/ai_providers/trace.rs|RequestStatus
+ai_quota_buckets.subject_kind|crates/domain/ai/schema/ai_quota_buckets.sql|crates/shared/identifiers/src/quota.rs|QuotaSubjectKind|open
+mcp_tool_executions.status|crates/domain/mcp/schema/mcp_tool_executions.sql|crates/shared/models/src/mcp/execution_status.rs|McpToolExecutionStatus
+services.status|crates/infra/database/schema/services.sql|crates/shared/manifest/src/services/registry.rs|ServiceStatus

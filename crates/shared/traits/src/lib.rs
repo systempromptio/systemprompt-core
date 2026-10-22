@@ -65,10 +65,12 @@ pub mod jwt;
 pub mod log_service;
 pub mod managed_resources;
 pub mod ownership;
+pub mod process_liveness;
 pub mod registry;
 pub mod repository;
 pub mod runner_service;
 pub mod secret;
+pub use process_liveness::ProcessLiveness;
 pub use runner_service::RunnerService;
 pub use secret::ExtensionSecret;
 pub mod storage;
@@ -139,8 +141,9 @@ pub use storage::{
 pub use ai_providers::{
     AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult, AiRequestTrace,
     AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
-    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, TraceMessage,
-    TraceRequestStatus, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
+    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams, RequestStatus,
+    TraceMessage, TraceRequestUsage, TraceSample, TraceSampleFilter, TraceSampleMode,
+    UnknownRequestStatus,
 };
 
 pub use registry::{

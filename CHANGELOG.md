@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** `systemprompt_manifest::services::EnforcementMode` is the one `enforce`/`warn` vocabulary. `PolicyMode` (`systemprompt_governance::policy`), `SafetyMode` and `QuotaMode` (`systemprompt_gateway`) are removed. Migrate by using `EnforcementMode`; YAML values are unchanged.
+- **Breaking:** `systemprompt_manifest::RuntimeStatus` is removed. The scheduler's `VerifiedServiceState::runtime` is a `VerifiedService { status: ServiceStatus, orphaned: bool }`; a crashed service reads as `ServiceStatus::Error`. Migrate by matching on `runtime.status` and `runtime.orphaned`.
+- **Breaking:** `systemprompt_logging::services::cli::ServiceStatus` is renamed `StatusGlyph`.
+- **Breaking:** `systemprompt_traits::TraceRequestStatus` is removed and `RequestStatus` (`Pending`, `Completed`, `Failed`, `Rejected`; `Display`, `FromStr`, `Default = Pending`) lives in `systemprompt_traits`. `systemprompt_ai::models::RequestStatus` re-exports it. Migrate by importing `systemprompt_traits::RequestStatus`.
+- **Breaking:** `systemprompt_gateway::{USER_QUOTA_SUBJECT, API_KEY_QUOTA_SUBJECT, RateSubject}` are removed; `ReservedWindow::subject_kind` and `RateWindow::subject` are a `systemprompt_identifiers::QuotaSubjectKind` (`User`, `ApiKey`, `Dimension(ScopeDimension)`). A rate window still accepts only `user` or `api_key`.
+- **Breaking:** `systemprompt_mcp::models::ExecutionStatus` is removed; `systemprompt_models::mcp::McpToolExecutionStatus` (adds `Timeout`) is the `mcp_tool_executions.status` vocabulary.
+- **Breaking:** `ServiceRepository::cleanup_stale_entries` is replaced by `reap_stale(&dyn ProcessLiveness) -> Reaped`, which also deletes `running` rows whose pid is not a child this installation owns. `systemprompt_mcp::services::database::sync::{cleanup_stale_services, delete_crashed_services}` and `systemprompt_api::...::reconciliation::service_row_is_stale` are removed. Migrate by passing `systemprompt_loader::subprocess::SubprocessLiveness`.
+
+### Added
+
+- `systemprompt_traits::ProcessLiveness`, the pid-identity check every stale-row reaper consults, with `SubprocessLiveness` in `systemprompt_loader::subprocess` as the production implementation.
+- `systemprompt_governance::policy::builtin::BUILTIN_POLICY_IDS` lists the policies `GovernanceConfig::defaults` enables.
+- `ServiceStatus` defaults to `Stopped`, matching the `services.status` column default.
+- Migrations add CHECK constraints on `ai_requests.status`, `ai_quota_buckets.subject_kind` and `services.status`.
+
+### Changed
+
+- The MCP startup sync judges a recorded service by process identity only; the port probe is gone.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking

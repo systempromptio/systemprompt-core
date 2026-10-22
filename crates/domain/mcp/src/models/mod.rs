@@ -12,36 +12,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::mcp::{Correlation, ExecutionSource};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExecutionStatus {
-    Pending,
-    Success,
-    Failed,
-}
-
-impl ExecutionStatus {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Success => "success",
-            Self::Failed => "failed",
-        }
-    }
-
-    pub const fn from_error(has_error: bool) -> Self {
-        if has_error {
-            Self::Failed
-        } else {
-            Self::Success
-        }
-    }
-}
-
-impl std::fmt::Display for ExecutionStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
+pub use systemprompt_models::mcp::McpToolExecutionStatus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationResultType {

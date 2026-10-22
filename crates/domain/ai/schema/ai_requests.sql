@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     cache_creation_tokens INTEGER,
     reasoning_tokens INTEGER,
     is_streaming BOOLEAN NOT NULL DEFAULT FALSE,
-    status VARCHAR(255) NOT NULL DEFAULT 'pending',
+    status VARCHAR(255) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'completed', 'failed', 'rejected')),
     error_message TEXT,
     accounting_failed_at TIMESTAMPTZ,
     accounting_error TEXT,

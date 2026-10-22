@@ -28,3 +28,10 @@ mod tool_blocklist;
 pub use require_approval::ApprovalSettings;
 
 pub const SECRET_SCAN_ID: &str = "secret_scan";
+
+pub const BUILTIN_POLICY_IDS: &[&str] = &[
+    scope_check::ID,
+    SECRET_SCAN_ID,
+    tool_blocklist::ID,
+    rate_limit::ID,
+];

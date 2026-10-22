@@ -5,10 +5,11 @@ use systemprompt_governance::policy::types::{
     AccessScope, AgentScope, GovernancePolicy, PolicyContext,
 };
 use systemprompt_governance::policy::{
-    ChainEntryResult, GovernanceConfig, GovernanceConfigError, GovernanceEngine, PolicyMode,
+    ChainEntryResult, GovernanceConfig, GovernanceConfigError, GovernanceEngine,
 };
 use systemprompt_governance::register_governance_policy;
 use systemprompt_identifiers::{CallId, McpToolName, PolicyId, SessionId, UserId};
+use systemprompt_manifest::EnforcementMode;
 
 #[derive(Debug)]
 struct WarnModeDeny;
@@ -110,15 +111,20 @@ fn entry_result(
 #[test]
 fn a_parsed_config_defaults_to_enforce() {
     let cfg = GovernanceConfig::parse("governance:\n  policies:\n    - id: secret_scan\n").unwrap();
-    assert_eq!(cfg.mode, PolicyMode::Enforce);
-    assert_eq!(cfg.policies[0].mode, PolicyMode::Enforce);
+    assert_eq!(cfg.mode, EnforcementMode::Enforce);
+    assert_eq!(cfg.policies[0].mode, EnforcementMode::Enforce);
 }
 
 #[test]
 fn the_missing_config_fallback_is_warn_only() {
     let defaults = GovernanceConfig::defaults();
-    assert_eq!(defaults.mode, PolicyMode::Warn);
-    assert!(defaults.policies.iter().all(|p| p.mode == PolicyMode::Warn));
+    assert_eq!(defaults.mode, EnforcementMode::Warn);
+    assert!(
+        defaults
+            .policies
+            .iter()
+            .all(|p| p.mode == EnforcementMode::Warn)
+    );
 }
 
 #[test]
@@ -132,9 +138,9 @@ fn the_top_level_mode_is_inherited_and_a_policy_may_override_it() {
         "      mode: enforce\n"
     );
     let cfg = GovernanceConfig::parse(yaml).unwrap();
-    assert_eq!(cfg.mode, PolicyMode::Warn);
-    assert_eq!(cfg.policies[0].mode, PolicyMode::Warn);
-    assert_eq!(cfg.policies[1].mode, PolicyMode::Enforce);
+    assert_eq!(cfg.mode, EnforcementMode::Warn);
+    assert_eq!(cfg.policies[0].mode, EnforcementMode::Warn);
+    assert_eq!(cfg.policies[1].mode, EnforcementMode::Enforce);
 }
 
 #[test]

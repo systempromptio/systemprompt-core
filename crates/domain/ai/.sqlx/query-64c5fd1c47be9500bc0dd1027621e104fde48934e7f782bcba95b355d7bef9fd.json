@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE ai_requests\n            SET status = 'failed', error_message = $2,\n                completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),\n                updated_at = CURRENT_TIMESTAMP\n            WHERE status = 'pending'\n              AND created_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)\n            RETURNING id, user_id\n            ",
+  "query": "\n            UPDATE ai_requests\n            SET status = $3, error_message = $2,\n                completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),\n                updated_at = CURRENT_TIMESTAMP\n            WHERE status = $4\n              AND created_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)\n            RETURNING id, user_id\n            ",
   "describe": {
     "columns": [
       {
@@ -29,6 +29,8 @@
     "parameters": {
       "Left": [
         "Float8",
+        "Text",
+        "Varchar",
         "Text"
       ]
     },
@@ -37,5 +39,5 @@
       false
     ]
   },
-  "hash": "2e340d0f46766eff6a4042f88ab049133755ef78c693d35668aed18d31b2f9a3"
+  "hash": "64c5fd1c47be9500bc0dd1027621e104fde48934e7f782bcba95b355d7bef9fd"
 }
