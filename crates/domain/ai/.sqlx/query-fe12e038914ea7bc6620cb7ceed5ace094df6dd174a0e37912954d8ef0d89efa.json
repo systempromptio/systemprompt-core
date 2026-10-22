@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE user_provider_credentials AS k SET credential = $2\n               WHERE k.credential = $1 AND $1 <> $2\n                 AND NOT EXISTS (\n                     SELECT 1 FROM user_provider_credentials o\n                     WHERE o.user_id = k.user_id AND o.credential = $2\n                 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe12e038914ea7bc6620cb7ceed5ace094df6dd174a0e37912954d8ef0d89efa"
+}

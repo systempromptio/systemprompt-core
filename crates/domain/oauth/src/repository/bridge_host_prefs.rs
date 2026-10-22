@@ -174,6 +174,24 @@ impl BridgeHostPrefsRepository {
         Ok(HostPrefWrite::Written)
     }
 
+    /// Rewrites one stored host-filter tag everywhere (`config migrate
+    /// --data`: the 0.72 `anthropic` surface tag is the `claude` family).
+    pub async fn update_model_protocol_tag(&self, from: &str, to: &str) -> OauthResult<u64> {
+        let done = sqlx::query!(
+            r#"
+            UPDATE bridge_user_host_model_prefs
+            SET model_protocols = array_replace(model_protocols, $1, $2),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE $1 = ANY(model_protocols)
+            "#,
+            from,
+            to,
+        )
+        .execute(self.write_pool.as_ref())
+        .await?;
+        Ok(done.rows_affected())
+    }
+
     pub async fn load_model_protocols(
         &self,
         user_id: &UserId,

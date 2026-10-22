@@ -19,6 +19,7 @@ pub mod ai_request_payloads;
 pub mod ai_requests;
 pub mod ai_safety_findings;
 pub mod ai_usage_anomaly;
+pub mod catalog_migration;
 pub mod ownership;
 pub mod thought_signatures;
 pub mod user_provider_credentials;
@@ -41,6 +42,7 @@ pub use ai_safety_findings::{
     AiSafetyFindingRepository, InsertSafetyFinding, SafetyFindingRollupRow,
 };
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
+pub use catalog_migration::{CatalogMigrationRepository, LegacyMapRow};
 pub use ownership::AiOwnerReassignment;
 pub use thought_signatures::AiThoughtSignatureRepository;
 pub use user_provider_credentials::{UserProviderCredentialMeta, UserProviderCredentialRepository};
