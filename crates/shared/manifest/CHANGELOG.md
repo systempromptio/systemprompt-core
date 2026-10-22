@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Breaking
+
+- `ProviderEntry` gains `credential_from: Option<ProviderId>`, so struct literals need the new field (`None` keeps a provider on its own key).
+
+### Added
+
+- `ProviderEntry::credential_owner` names the entry whose personal key a provider uses, and `takes_own_personal_key` is true only for the entry that owns that key. The bridge profile reports a shared entry as configured when its owner's key is stored.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

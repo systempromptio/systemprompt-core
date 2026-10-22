@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Breaking
+
+- `systemprompt_manifest::services::providers::ProviderEntry` gains `credential_from`, so struct literals need the new field (`None` keeps a provider on its own key).
+
+### Added
+
+- **Manifest:** a provider entry can name `credential_from: <provider>` to use that provider's personal key, so one stored key configures every entry that shares it. Only the owner entry asks the member for the key.
+
+### Fixed
+
+- **Bridge:** the bridge profile is fetched with the member's cached bearer, so personal-key providers appear in it.
+- **Bridge:** when the gateway rejects a cached token as stale, the bridge mints a new one and resends the request once.
+- **Bridge:** OpenCode's MCP OAuth probe is disabled (`oauth: false`) on bridge-owned servers.
+
 ## [0.72.0] - 2026-10-22
 
 ### Breaking
