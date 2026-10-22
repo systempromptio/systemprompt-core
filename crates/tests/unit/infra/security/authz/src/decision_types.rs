@@ -107,6 +107,10 @@ fn deny_reason_not_assigned_display() {
     };
     let s = r.to_string();
     assert!(s.contains("bob"), "got: {s}");
+    assert!(
+        s.contains("services/access-control/rules.yaml") && !s.contains("roles.yaml"),
+        "the hint names the access-control file installs carry, got: {s}"
+    );
 }
 
 #[test]
@@ -115,6 +119,10 @@ fn deny_reason_unknown_entity_display() {
     let r = DenyReason::UnknownEntity { entity };
     let s = r.to_string();
     assert!(s.contains("unknown"), "got: {s}");
+    assert!(
+        s.contains("services/access-control/rules.yaml") && !s.contains("roles.yaml"),
+        "got: {s}"
+    );
 }
 
 #[test]

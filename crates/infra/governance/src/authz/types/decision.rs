@@ -70,7 +70,7 @@ pub enum DenyReason {
     },
     #[error(
         "{entity}: not assigned to user {user_id} with roles {roles:?} (no allow rule; \
-         default_included = false). Add an allow rule in services/access-control/roles.yaml."
+         default_included = false). Add an allow rule in services/access-control/rules.yaml."
     )]
     NotAssigned {
         entity: EntityRef,
@@ -79,7 +79,7 @@ pub enum DenyReason {
     },
     #[error(
         "{entity}: unknown to access control. Add an entity row via the publish pipeline or \
-         roles.yaml."
+         services/access-control/rules.yaml."
     )]
     UnknownEntity { entity: EntityRef },
     #[error("{entity_kind:?} id {id:?} is not a valid entity identifier: {detail}")]
