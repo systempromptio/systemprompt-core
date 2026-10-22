@@ -121,6 +121,7 @@ fn registry() -> ProviderRegistry {
                 endpoint: format!("https://{}.example.invalid/v1", row.provider),
                 api_key_secret: Some(SecretName::new(row.provider)),
                 credential: Default::default(),
+                credential_from: None,
                 user_agent: None,
                 forward_headers: Vec::new(),
                 governance: Default::default(),

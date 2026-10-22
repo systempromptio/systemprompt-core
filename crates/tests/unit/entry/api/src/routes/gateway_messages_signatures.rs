@@ -18,6 +18,7 @@ fn provider(name: &str, wire: WireProtocol) -> ProviderEntry {
         endpoint: "https://example.invalid/v1".to_owned(),
         api_key_secret: Some(SecretName::new(name)),
         credential: Default::default(),
+        credential_from: None,
         user_agent: None,
         forward_headers: Vec::new(),
         governance: Default::default(),

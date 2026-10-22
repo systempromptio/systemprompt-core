@@ -23,6 +23,7 @@ fn vertex(endpoint: &str) -> ProviderEntry {
         endpoint: endpoint.to_owned(),
         api_key_secret: Some(SecretName::new("vertex")),
         credential: Default::default(),
+        credential_from: None,
         user_agent: None,
         forward_headers: Vec::new(),
         governance: Default::default(),

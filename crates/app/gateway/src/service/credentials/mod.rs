@@ -71,7 +71,7 @@ pub async fn resolve(
         let call = target.call().await.map_err(pre_audit)?;
         return Ok((call, BillingSource::Platform));
     }
-    let name = provider.name.as_str();
+    let name = provider.credential_owner();
     let key = owner
         .credentials
         .find_key(&owner.user_id, name)

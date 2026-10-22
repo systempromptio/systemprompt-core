@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Changed
+
+- `personal_providers` lists only the entries that take their own personal key, so a provider sharing another entry's key is not offered for a second key.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

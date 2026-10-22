@@ -88,6 +88,7 @@ fn registry(name: &str) -> ProviderRegistry {
             endpoint: "https://example.test/v1".to_owned(),
             api_key_secret: Some(SecretName::new("test")),
             credential: Default::default(),
+            credential_from: None,
             user_agent: None,
             forward_headers: Vec::new(),
             governance: Default::default(),

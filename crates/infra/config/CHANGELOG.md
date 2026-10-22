@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Changed
+
+- Catalog-built provider entries set `credential_from: None`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

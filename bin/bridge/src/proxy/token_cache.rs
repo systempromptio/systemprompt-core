@@ -31,6 +31,14 @@ const FRESH_REJECTION_WINDOW: Duration = Duration::from_secs(120);
 // credential within seconds without paying for it per request.
 const STAMP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
+// Why: a gateway rejecting a token minted moments ago means the credential
+// itself is revoked; an older one was more likely voided by a redeploy or key
+// rotation, and one re-mint is worth trying.
+#[must_use]
+pub fn rejection_is_stale(token_age: Duration) -> bool {
+    token_age > FRESH_REJECTION_WINDOW
+}
+
 pub type RefreshFn = Arc<
     dyn Fn(u64) -> Pin<Box<dyn Future<Output = ForwardResult<HelperOutput>> + Send>> + Send + Sync,
 >;
@@ -180,19 +188,21 @@ impl TokenCache {
         }
     }
 
-    pub async fn reject_upstream(&self, endpoint: &str) {
+    pub async fn reject_upstream(&self, endpoint: &str) -> bool {
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.take() else {
-            return;
+            return false;
         };
-        if entry.minted_at.elapsed() <= FRESH_REJECTION_WINDOW {
+        if rejection_is_stale(entry.minted_at.elapsed()) {
+            tracing::info!(endpoint, "token cache invalidated (upstream rejected JWT)");
+            true
+        } else {
             drop(guard);
             self.latch.engage(&format!(
                 "{endpoint} rejected a credential issued {}s ago",
                 entry.minted_at.elapsed().as_secs()
             ));
-        } else {
-            tracing::info!(endpoint, "token cache invalidated (upstream rejected JWT)");
+            false
         }
     }
 

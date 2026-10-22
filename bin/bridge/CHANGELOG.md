@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Fixed
+
+- The bridge profile is fetched with the member's cached bearer, so personal-key providers show the member's own state.
+- When the gateway rejects a cached token as stale, the proxy mints a new one and resends the request once.
+- OpenCode MCP entries the bridge writes set `oauth: false`, so OpenCode does not run its OAuth probe against bridge-owned servers.
+
 ## [0.72.0] - 2026-10-22
 
 ### Changed

@@ -151,12 +151,13 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
-        ctx.client.fetch_bridge_profile().await.map_err(|source| {
-            crate::host_sync::ApplyError::Step {
+        ctx.client
+            .fetch_bridge_profile(crate::auth::cache::cached_bearer(ctx.client.base_url()).as_ref())
+            .await
+            .map_err(|source| crate::host_sync::ApplyError::Step {
                 context: "refresh the bridge profile",
                 source: Box::new(source),
-            }
-        })?;
+            })?;
         let report = refresh_tool_catalog(ctx).await?;
         let inputs = super::MdmPayloadInputs {
             policy_store: ctx.policy_store,

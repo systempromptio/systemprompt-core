@@ -58,7 +58,7 @@ fn entry_configured(
     personal_keys: &BTreeSet<String>,
 ) -> bool {
     if entry.is_user_credential() {
-        return personal_keys.contains(entry.name.as_str());
+        return personal_keys.contains(entry.credential_owner());
     }
     entry
         .platform_secret()
@@ -99,7 +99,7 @@ pub fn provider_health_for_user(
                     .collect(),
                 config_issue,
                 display_name: entry.display_name.clone(),
-                personal_key: entry.is_user_credential(),
+                personal_key: entry.takes_own_personal_key(),
             }
         })
         .collect()

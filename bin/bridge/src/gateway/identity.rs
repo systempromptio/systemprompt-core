@@ -114,12 +114,17 @@ impl GatewayClient {
         skip(self),
         fields(endpoint = "profile", status, latency_ms)
     )]
-    pub async fn fetch_bridge_profile(&self) -> Result<BridgeProfile, GatewayError> {
+    pub async fn fetch_bridge_profile(
+        &self,
+        bearer: Option<&BearerToken>,
+    ) -> Result<BridgeProfile, GatewayError> {
         let url = self.url("/v1/bridge/profile");
         let started = Instant::now();
-        let resp = self
-            .http()
-            .get(&url)
+        let mut request = self.http().get(&url);
+        if let Some(bearer) = bearer {
+            request = request.bearer_auth(bearer.expose());
+        }
+        let resp = request
             .send()
             .await
             .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;

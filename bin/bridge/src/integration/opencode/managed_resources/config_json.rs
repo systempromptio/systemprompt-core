@@ -1,6 +1,9 @@
 //! The `mcp.<slug>` remote entries the bridge registers in the user's global
 //! `opencode.json`. Every foreign key survives, including MCP servers the user
 //! added; only entries pointing at the loopback proxy are bridge-owned.
+//! Each entry sets `oauth: false`: the loopback bearer is the credential, and
+//! `OpenCode` otherwise answers any 401 with Dynamic Client Registration
+//! against the proxy, which has no OAuth server and refuses it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -46,6 +49,7 @@ pub(super) fn write_mcp_blocks(
                     "type": "remote",
                     "url": loopback.mcp_url(&slug),
                     "headers": { "Authorization": bearer },
+                    "oauth": false,
                     "enabled": true,
                 }),
             );

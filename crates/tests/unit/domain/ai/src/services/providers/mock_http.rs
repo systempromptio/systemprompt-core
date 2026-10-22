@@ -36,6 +36,7 @@ pub fn api_key_target(name: &str, wire: WireProtocol, endpoint: &str, key: &str)
         endpoint: endpoint.to_owned(),
         api_key_secret: Some(SecretName::new(name)),
         credential: Default::default(),
+        credential_from: None,
         user_agent: None,
         forward_headers: Vec::new(),
         extra_headers: HashMap::new(),

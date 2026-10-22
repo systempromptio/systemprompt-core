@@ -27,6 +27,7 @@ mod error;
 pub mod headers;
 mod hook;
 pub mod replay;
+mod retry;
 mod route;
 
 use body::prepare_upstream_body;
@@ -35,7 +36,7 @@ pub use error::{ForwardError, ForwardResult, HeaderBuildError, is_client_disconn
 use headers::{UpstreamHeaderInputs, build_upstream_headers, copy_response_headers};
 use hook::{authenticate_hook_track, require_hook_credential};
 pub use replay::{Replay, describe, replay_policy, should_replay};
-use replay::{UpstreamRequest, send_with_replay};
+use retry::{UpstreamSend, send_upstream};
 use route::{Route, RouteResolution, resolve_route, same_origin_as};
 
 pub type ProxyBody = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
@@ -164,14 +165,19 @@ pub(crate) async fn forward(
         )?;
     }
 
-    let upstream_response = send_with_replay(UpstreamRequest {
-        client: &client,
-        method: &method,
-        url: &route.url,
-        headers: &upstream_headers,
-        body: &buffered_body,
-        policy: replay_policy(&request_path, &buffered_body),
-    })
+    let gateway_signed = hook_plugin.is_none() && same_origin_as(&route.url, gateway_base);
+    let upstream_response = send_upstream(
+        UpstreamSend {
+            client: &client,
+            method: &method,
+            url: &route.url,
+            body: &buffered_body,
+            request_path: &request_path,
+            gateway_signed,
+        },
+        token_cache,
+        upstream_headers,
+    )
     .await?;
 
     let status = StatusCode::from_u16(upstream_response.status().as_u16())
@@ -183,22 +189,19 @@ pub(crate) async fn forward(
         tracing::debug!(upstream_status = status.as_u16(), "upstream forwarded");
     } else {
         tracing::warn!(upstream_status = status.as_u16(), url = %route.url, "upstream non-2xx");
-        if status == StatusCode::UNAUTHORIZED {
-            if let Some(plugin_id) = hook_plugin.as_ref() {
-                plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
-            } else if same_origin_as(&route.url, gateway_base) {
-                token_cache.reject_upstream(&request_path).await;
-            } else {
-                // Why: only the gateway that minted the credential can say it
-                // is bad. A managed MCP upstream elsewhere (or a stale entry
-                // for a previous gateway) rejecting it is neither a sign-out
-                // nor a reason to re-mint.
-                tracing::warn!(
-                    upstream = %route.url,
-                    gateway = %gateway_base,
-                    "401 from a non-gateway upstream; the gateway token is kept"
-                );
-            }
+        let unauthorized = status == StatusCode::UNAUTHORIZED;
+        if unauthorized && let Some(plugin_id) = hook_plugin.as_ref() {
+            plugin_tokens.invalidate(gateway_base.as_str(), plugin_id);
+        } else if unauthorized && !gateway_signed {
+            // Why: only the gateway that minted the credential can say it
+            // is bad. A managed MCP upstream elsewhere (or a stale entry
+            // for a previous gateway) rejecting it is neither a sign-out
+            // nor a reason to re-mint.
+            tracing::warn!(
+                upstream = %route.url,
+                gateway = %gateway_base,
+                "401 from a non-gateway upstream; the gateway token is kept"
+            );
         }
     }
 

@@ -84,9 +84,11 @@ pub async fn build_profile_inputs(
         });
     }
 
+    let gateway_url = config::gateway_url_or_default(&cfg);
+    let bearer = crate::auth::cache::cached_bearer(&gateway_url);
     let server_profile = bridge
-        .gateway_client(config::gateway_url_or_default(&cfg))
-        .fetch_bridge_profile()
+        .gateway_client(gateway_url)
+        .fetch_bridge_profile(bearer.as_ref())
         .await
         .map_err(ProfileInputsError::BridgeProfile)?;
 

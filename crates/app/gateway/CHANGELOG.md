@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.72.1] - 2026-10-22
+
+### Changed
+
+- A personal-key request resolves the member's key under `ProviderEntry::credential_owner`, so entries that share a subscription use one stored key.
+
 ## [0.72.0] - 2026-10-22
 
 ### Added
