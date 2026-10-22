@@ -1,4 +1,5 @@
-//! Process-wide cloud credentials bootstrap.
+//! Cloud credentials bootstrap: loads and validates the operator's cloud
+//! credentials and hands them to the caller, which owns them from there.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -6,7 +7,6 @@
 mod error;
 
 use std::path::Path;
-use std::sync::OnceLock;
 
 use chrono::{Duration, Utc};
 use systemprompt_identifiers::{CloudAuthToken, Email};
@@ -17,8 +17,6 @@ pub use error::CredentialsBootstrapError;
 use crate::error::{CloudError, CloudResult};
 use crate::{CloudApiClient, CloudCredentials};
 
-static CREDENTIALS: OnceLock<Option<CloudCredentials>> = OnceLock::new();
-
 const POD_CREDENTIALS_REJECTED: &str = "tenant pod credentials rejected by api.systemprompt.io \
                                         (token in SYSTEMPROMPT_API_TOKEN). Re-run 'systemprompt \
                                         cloud deploy' or set \
@@ -28,11 +26,7 @@ const POD_CREDENTIALS_REJECTED: &str = "tenant pod credentials rejected by api.s
 pub struct CredentialsBootstrap;
 
 impl CredentialsBootstrap {
-    pub async fn init() -> CloudResult<Option<&'static CloudCredentials>> {
-        if CREDENTIALS.get().is_some() {
-            return Err(CredentialsBootstrapError::AlreadyInitialized.into());
-        }
-
+    pub async fn load() -> CloudResult<Option<CloudCredentials>> {
         if Self::is_deployment_host() {
             tracing::debug!("Deployment host detected, loading credentials from environment");
             let creds = Self::load_from_env();
@@ -53,13 +47,7 @@ impl CredentialsBootstrap {
                     .into());
                 }
             }
-            CREDENTIALS
-                .set(creds)
-                .map_err(|_e| CredentialsBootstrapError::AlreadyInitialized)?;
-            return Ok(CREDENTIALS
-                .get()
-                .ok_or(CredentialsBootstrapError::NotInitialized)?
-                .as_ref());
+            return Ok(creds);
         }
 
         let cloud_paths = crate::paths::get_cloud_paths();
@@ -76,13 +64,7 @@ impl CredentialsBootstrap {
             }
         }
 
-        CREDENTIALS
-            .set(Some(creds))
-            .map_err(|_e| CredentialsBootstrapError::AlreadyInitialized)?;
-        Ok(CREDENTIALS
-            .get()
-            .ok_or(CredentialsBootstrapError::NotInitialized)?
-            .as_ref())
+        Ok(Some(creds))
     }
 
     async fn validate_with_api(creds: &CloudCredentials) -> CloudResult<()> {
@@ -134,45 +116,19 @@ impl CredentialsBootstrap {
         })
     }
 
-    pub fn get() -> Result<Option<&'static CloudCredentials>, CredentialsBootstrapError> {
-        CREDENTIALS
-            .get()
-            .map(|opt| opt.as_ref())
-            .ok_or(CredentialsBootstrapError::NotInitialized)
-    }
-
-    pub fn require() -> Result<&'static CloudCredentials, CredentialsBootstrapError> {
-        Self::get()?.ok_or(CredentialsBootstrapError::NotAvailable)
-    }
-
-    #[must_use]
-    pub fn is_initialized() -> bool {
-        CREDENTIALS.get().is_some()
-    }
-
-    pub fn init_empty() {
-        if CREDENTIALS.set(None).is_err() {
-            tracing::debug!("Credentials cell already initialised; init_empty is a no-op");
+    pub fn read_unvalidated() -> CloudResult<Option<CloudCredentials>> {
+        if Self::is_deployment_host() {
+            return Ok(Self::load_from_env());
         }
+        let cloud_paths = crate::paths::get_cloud_paths();
+        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
+        Self::load_credentials_from_path(&credentials_path).map(Some)
     }
 
-    pub async fn try_init() -> CloudResult<Option<&'static CloudCredentials>> {
-        if CREDENTIALS.get().is_some() {
-            return Self::get().map_err(Into::into);
-        }
-        Self::init().await
-    }
-
-    #[must_use]
-    pub fn expires_within(duration: Duration) -> bool {
-        match Self::get() {
-            Ok(Some(c)) => c.expires_within(duration),
-            Ok(None) => false,
-            Err(e) => {
-                tracing::debug!(error = %e, "Credentials not available for expiry check");
-                false
-            },
-        }
+    pub async fn require() -> CloudResult<CloudCredentials> {
+        Self::load()
+            .await?
+            .ok_or_else(|| CredentialsBootstrapError::NotAvailable.into())
     }
 
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {

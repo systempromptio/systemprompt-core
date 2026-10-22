@@ -178,7 +178,7 @@ pub async fn execute(cmd: CloudCommands, ctx: &CommandContext) -> Result<()> {
             .await
         },
         CloudCommands::Status => {
-            let result = status::execute(&ctx.cli).await?;
+            let result = status::execute(&ctx.cli, ctx.cloud_credentials()).await?;
             crate::shared::render_result(&result, &ctx.cli);
             Ok(())
         },

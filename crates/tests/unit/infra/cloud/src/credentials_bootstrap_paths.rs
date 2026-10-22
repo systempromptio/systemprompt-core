@@ -2,7 +2,7 @@
 //! skip, timestamp persistence after a live validation, `reload`, and the
 //! expired / soon-expiring token branches. Each test rebinds the process cwd
 //! to a fresh project root; nextest's process-per-test isolation keeps the
-//! `OnceLock` cell and the cwd private to each scenario.
+//! cwd private to each scenario.
 
 use base64::prelude::*;
 use chrono::{Duration, Utc};
@@ -67,12 +67,11 @@ async fn init_within_validation_ttl_skips_api_round_trip() {
     let (_guard, root) = project_root();
     write_credentials(&root, "http://127.0.0.1:9", 7200, Some(Utc::now()));
 
-    let creds = CredentialsBootstrap::init()
+    let creds = CredentialsBootstrap::load()
         .await
         .expect("init")
         .expect("credentials present");
     assert_eq!(creds.user_email.as_str(), "dev@example.com");
-    assert!(CredentialsBootstrap::is_initialized());
 }
 
 #[tokio::test]
@@ -82,7 +81,7 @@ async fn init_validates_and_persists_validation_timestamp() {
     mount_auth_me_ok(&server).await;
     let creds_path = write_credentials(&root, &server.uri(), 7200, None);
 
-    CredentialsBootstrap::init()
+    CredentialsBootstrap::load()
         .await
         .expect("init")
         .expect("credentials present");
@@ -101,7 +100,7 @@ async fn init_revalidates_when_token_expires_within_an_hour() {
     mount_auth_me_ok(&server).await;
     write_credentials(&root, &server.uri(), 1800, Some(Utc::now()));
 
-    let creds = CredentialsBootstrap::init()
+    let creds = CredentialsBootstrap::load()
         .await
         .expect("init")
         .expect("credentials present");
@@ -114,16 +113,15 @@ async fn init_rejects_expired_token() {
     let (_guard, root) = project_root();
     write_credentials(&root, "http://127.0.0.1:9", -3600, None);
 
-    let err = CredentialsBootstrap::init().await.unwrap_err();
+    let err = CredentialsBootstrap::load().await.unwrap_err();
     assert!(err.to_string().contains("expired"), "got {err}");
-    assert!(!CredentialsBootstrap::is_initialized());
 }
 
 #[tokio::test]
 async fn init_reports_missing_credentials_file() {
     let (_guard, _root) = project_root();
 
-    let err = CredentialsBootstrap::init().await.unwrap_err();
+    let err = CredentialsBootstrap::load().await.unwrap_err();
     let message = err.to_string();
     assert!(message.contains("not found"), "got {message}");
 }

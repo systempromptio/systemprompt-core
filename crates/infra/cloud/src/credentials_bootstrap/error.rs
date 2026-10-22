@@ -9,12 +9,6 @@ use crate::error::CloudError;
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum CredentialsBootstrapError {
-    #[error("Credentials not initialized")]
-    NotInitialized,
-
-    #[error("Credentials already initialized")]
-    AlreadyInitialized,
-
     #[error("Cloud credentials not available")]
     NotAvailable,
 
@@ -47,8 +41,6 @@ impl CredentialsBootstrapError {
 impl From<CredentialsBootstrapError> for CloudError {
     fn from(value: CredentialsBootstrapError) -> Self {
         match value {
-            CredentialsBootstrapError::NotInitialized => Self::CredentialsNotInitialized,
-            CredentialsBootstrapError::AlreadyInitialized => Self::CredentialsAlreadyInitialized,
             CredentialsBootstrapError::NotAvailable => Self::NotAuthenticated,
             CredentialsBootstrapError::FileNotFound { path } => {
                 Self::CredentialsFileNotFound { path }

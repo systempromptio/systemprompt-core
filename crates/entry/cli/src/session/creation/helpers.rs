@@ -214,17 +214,16 @@ pub async fn resolve_credentialed_user_email(session_email_hint: Option<&str>) -
         return Email::try_new(email).context("session email hint is not a valid email address");
     }
 
-    CredentialsBootstrap::try_init()
+    let creds = CredentialsBootstrap::load()
         .await
-        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
-
-    let creds = CredentialsBootstrap::require().map_err(|_e| {
-        anyhow::anyhow!(
-            "Cloud authentication required for new sessions.\n\nRun 'systemprompt cloud auth \
-             login' to authenticate."
-        )
-    })?;
-    Ok(creds.user_email.clone())
+        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Cloud authentication required for new sessions.\n\nRun 'systemprompt cloud \
+                 auth login' to authenticate."
+            )
+        })?;
+    Ok(creds.user_email)
 }
 
 #[doc(hidden)]
@@ -242,10 +241,14 @@ pub async fn resolve_admin_with_fallback(
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            if let Err(init_err) = CredentialsBootstrap::try_init().await {
-                tracing::debug!(error = %init_err, "Credentials init failed during fallback");
-            }
-            if let Ok(creds) = CredentialsBootstrap::require()
+            let creds = match CredentialsBootstrap::load().await {
+                Ok(creds) => creds,
+                Err(init_err) => {
+                    tracing::debug!(error = %init_err, "Credentials init failed during fallback");
+                    None
+                },
+            };
+            if let Some(creds) = creds
                 && creds.user_email.as_str() != user_email
             {
                 return get_or_create_admin(db_pool, creds.user_email.as_str(), context_type).await;

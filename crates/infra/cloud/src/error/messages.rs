@@ -22,8 +22,6 @@ impl CloudError {
             Self::ApiValidationFailed { .. } => "Cloud API rejected credentials",
             Self::InvalidCredentials { .. } => "Stored credentials are invalid",
             Self::CredentialsFileNotFound { .. } => "Credentials file is missing",
-            Self::CredentialsNotInitialized => "Credentials bootstrap not initialised",
-            Self::CredentialsAlreadyInitialized => "Credentials bootstrap already initialised",
             Self::SessionVersionMismatch { .. } => "CLI session file is out of date",
             Self::SessionStoreCorrupted { .. } => "CLI session store is stale or corrupt",
             Self::OAuthFlow { .. } => "OAuth login flow failed",
@@ -56,9 +54,6 @@ impl CloudError {
             Self::Json(_) => "Inspect the JSON file referenced in the error message",
             Self::InvalidCredentials { .. } | Self::CredentialsFileNotFound { .. } => {
                 "Run 'systemprompt cloud auth login' to refresh credentials"
-            },
-            Self::CredentialsNotInitialized | Self::CredentialsAlreadyInitialized => {
-                "Restart the process to re-run the bootstrap sequence"
             },
             Self::SessionVersionMismatch { .. } => "Delete the session file and re-authenticate",
             Self::SessionStoreCorrupted { .. } => {

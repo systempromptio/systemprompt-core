@@ -17,6 +17,7 @@ mod structured_output;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_loader::subprocess::{self, ApiServerStamp};
 use systemprompt_logging::set_startup_mode;
 use systemprompt_runtime::DatabaseContext;
@@ -71,6 +72,7 @@ async fn run_inner() -> Result<()> {
                     cli_config,
                     env,
                     &database_url,
+                    None,
                 ))
                 .await;
             },
@@ -92,8 +94,11 @@ async fn run_inner() -> Result<()> {
         systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
     }
 
+    let mut credentials = None;
     if desc.profile() {
-        match profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await? {
+        let (outcome, loaded) =
+            profile_routing::bootstrap_profile(&cli, &desc, &cli_config, &env).await?;
+        match outcome {
             profile_routing::BootstrapOutcome::RemoteExecuted => return Ok(()),
             profile_routing::BootstrapOutcome::ExternalDbUrl(external_db_url) => {
                 return Box::pin(run_with_database_url(
@@ -101,14 +106,15 @@ async fn run_inner() -> Result<()> {
                     cli_config,
                     env,
                     &external_db_url,
+                    loaded,
                 ))
                 .await;
             },
-            profile_routing::BootstrapOutcome::ContinueLocal => {},
+            profile_routing::BootstrapOutcome::ContinueLocal => credentials = loaded,
         }
     }
 
-    let ctx = CommandContext::new(cli_config, env);
+    let ctx = CommandContext::new(cli_config, env).with_cloud_credentials(credentials);
     Box::pin(dispatch_command(cli.command, &ctx)).await
 }
 
@@ -170,6 +176,7 @@ async fn run_with_database_url(
     cli_config: CliConfig,
     env: EnvOverrides,
     database_url: &str,
+    credentials: Option<CloudCredentials>,
 ) -> Result<()> {
     let db_ctx = DatabaseContext::from_url(database_url)
         .await
@@ -177,7 +184,8 @@ async fn run_with_database_url(
 
     systemprompt_logging::init_logging(&db_ctx.db_pool_arc());
 
-    let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned());
+    let ctx = CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned())
+        .with_cloud_credentials(credentials);
     Box::pin(dispatch_command(command, &ctx)).await
 }
 
