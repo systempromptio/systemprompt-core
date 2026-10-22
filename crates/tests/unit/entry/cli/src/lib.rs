@@ -113,6 +113,8 @@ mod session_resolution_helpers;
 mod session_store_reads;
 #[cfg(test)]
 mod shared;
+#[cfg(test)]
+mod time_format_tests;
 
 #[cfg(all(test, unix))]
 mod coverage_process_flows;

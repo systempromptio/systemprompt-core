@@ -8,6 +8,7 @@ mod grant;
 use crate::errors::ServicesValidationError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
 
 /// Outbound personal-account OAuth settings, separate from inbound MCP access.
 ///
@@ -44,9 +45,9 @@ pub struct ConnectorConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub private_key_secret: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub installation_id: Option<String>,
+    pub installation_id: Option<ConnectorInstallationId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_id: Option<String>,
+    pub app_id: Option<ConnectorAppId>,
 }
 
 /// How the connector obtains its token.

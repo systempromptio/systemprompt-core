@@ -121,7 +121,7 @@ async fn validate_system_passes_against_live_db() -> Result<()> {
 #[tokio::test]
 async fn files_config_validator_refuses_to_validate_before_load() {
     use systemprompt_files::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_manifest::validators::DomainConfig;
     let v = FilesConfigValidator::new();
     assert!(
         v.validate().is_err(),

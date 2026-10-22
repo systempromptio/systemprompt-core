@@ -23,7 +23,6 @@ crate::define_id!(AuthorizationCode, checked, |value| {
 crate::define_id!(ChallengeId);
 crate::define_id!(RefreshTokenFamilyId);
 crate::define_id!(SsoProviderId);
-crate::define_id!(SsoRequestId);
 
 impl AccessTokenId {
     pub fn generate() -> Self {

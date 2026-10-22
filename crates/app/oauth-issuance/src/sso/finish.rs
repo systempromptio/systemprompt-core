@@ -9,6 +9,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::SsoAssertionId;
 use systemprompt_traits::SessionAnalytics;
 use systemprompt_traits::sso::{
     CookieSameSite, SsoError, SsoLoginRefused, SsoLoginSuccess, SsoProvider, SsoReturn,
@@ -104,7 +105,7 @@ impl SsoDriver {
         }
         attempt.external_sub = Some(identity.subject.clone());
 
-        if let Some(assertion_id) = identity.assertion_id.as_deref() {
+        if let Some(assertion_id) = identity.assertion_id.as_ref().map(SsoAssertionId::as_str) {
             let expires_at = identity
                 .assertion_expires_at
                 .unwrap_or_else(|| Utc::now() + Duration::seconds(DEFAULT_REPLAY_WINDOW_SECS));
@@ -211,7 +212,7 @@ impl SsoDriver {
         }
         Ok(Correlated {
             state: Some(SsoStateContext {
-                request_id: row.request_id.map(|id| id.as_str().to_owned()),
+                request_id: row.request_id,
                 nonce: row.nonce,
                 pkce_verifier: row.pkce_verifier,
             }),

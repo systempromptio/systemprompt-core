@@ -52,6 +52,16 @@
 - **Breaking:** `systemprompt_cloud::CredentialsBootstrap::{init, get, try_init, is_initialized, init_empty, expires_within}` → `CredentialsBootstrap::load() -> CloudResult<Option<CloudCredentials>>`, an async `require() -> CloudResult<CloudCredentials>` and `read_unvalidated()`; `CredentialsBootstrapError::{NotInitialized, AlreadyInitialized}` and `CloudError::{CredentialsNotInitialized, CredentialsAlreadyInitialized}` are removed. Migrate by keeping the value `load` returns and passing it to its consumers; the CLI hands it to commands through `CommandContext::cloud_credentials()`.
 - **Breaking:** `systemprompt_loader::bundle::sources_provenance()` → `sources_provenance(&BaseTreeHashMemo)`; the base-tree hash memo is owned by `ManagedRepository`. Migrate by keeping one `BaseTreeHashMemo` per recorder and passing it on every call.
 - **Breaking:** `systemprompt_scheduler::jobs::vertex_discovery::latest_report` → `VertexDiscoveryJob::probe()`, which returns the report of one pass. Migrate by keeping the returned report; `systemprompt_cli::admin::config::catalog_discovery::render_discovery` renders any report.
+- **Breaking:** `systemprompt_models::time_format` → `systemprompt_cli::shared::time_format`. Migrate by importing the formatting helpers from the CLI crate or formatting with `chrono` directly.
+- **Breaking:** the glob re-exports in `systemprompt_models::{events::payloads, artifacts::dashboard, auth}` are explicit lists naming every public item, so each item keeps its path. Migrate nothing unless a downstream glob import relied on a name outside those lists.
+- **Breaking:** `systemprompt_models::mcp::CallToolResultExt` is removed. Migrate by calling `McpToolResultMetadata::from_call_tool_result(&result)`.
+- **Breaking:** `systemprompt_logging::services::cli::table::truncate_to_width` is removed; table cells truncate through `systemprompt_models::text::truncate_with_ellipsis`. Migrate by calling that function.
+- - **Breaking:** `AgentEditRequest` and `AgentCreateRequest` are composed of `AgentPlacement`, `AgentCardEdit`/`AgentCardLinks`, `AgentCapabilityFlags`, `AgentModelChoice`, `SystemPromptSource` and `MembershipEdit` (`add`/`remove`), all in `systemprompt_agent::services::config_authoring`. Migrate by moving each flat field into its group, for example `endpoint` to `placement.endpoint` and `remove_skills` to `skills.remove`.
+- **Breaking:** identifier fields are typed: `CloudPlan.id`/`CloudPlanInfo.id` are `CloudPlanId`, `CloudEnterpriseLicenseInfo.id` is `EnterpriseLicenseId`, `AgentSkill.id` is `SkillId`, `CardCta.id` and `ListItem.id` (and `CardCta::new`, `ListItem::with_id`) take `ArtifactElementId`, `ConnectorConfig::{installation_id, app_id}` are `ConnectorInstallationId`/`ConnectorAppId`, `AgentRunLaunch.origin_id` is `AgentRunOriginId`, `AnalyticsEventRecord.id` and `AnalyticsEventCreated.id` are `AnalyticsEventId`, `SsoStateSeed.request_id`/`SsoStateContext.request_id` are `SsoRequestId`, and `ExternalIdentity::{tenant_id, assertion_id}` are `IdpTenantId`/`SsoAssertionId`. Wire shapes are unchanged. Migrate by constructing with `Id::new(..)` and reading with `.as_str()`.
+- **Breaking:** `systemprompt_traits::{validation_report, domain_config}` → `systemprompt_manifest::validators::{validation_report, domain_config}`; `ValidationReport`, `ValidationIssue`, `ValidationWarning`, `StartupValidationReport`, `StartupValidationError`, `DomainConfig`, `DomainConfigError` and `DomainConfigRegistry` are re-exported from `systemprompt_manifest::validators`. Migrate by importing them from there.
+- **Breaking:** `systemprompt_traits::session_store::CreateSessionParams` groups its fields as `identity: SessionIdentity`, `network: SessionNetwork` and `attribution: SessionAttribution` beside `is_bot`, `is_ai_crawler` and `expires_at`; `SessionSnapshot` groups them as `client`, `attribution`, `classification`, `timing` and `activity` (`SessionClientSnapshot`, `SessionAttributionSnapshot`, `SessionClassification`, `SessionTiming`, `SessionActivityCounts`), flattened so its serialised shape is unchanged. Migrate by moving each field into its group; `SessionNetwork` and `SessionAttribution` implement `Default`.
+- - **Breaking:** `SsoStateRow::request_id` is `Option<SsoRequestId>` and `TaskMessage::client_message_id` is `Option<MessageId>`; user-keyed rows in users, analytics and oauth decode `user_id`/`owner_user_id` as `UserId` through query type overrides. Migrate by reading the values through `as_str()`.
+- **Breaking:** the `systemprompt-models` `web` feature and its `axum` dependency are removed, and with them the `IntoResponse` impls for `ApiError`, `SingleResponse`, `CollectionResponse`, `SuccessResponse`, `CreatedResponse`, `AcceptedResponse` and `MarkdownResponse`. `ErrorCode::status_code` returns `http::StatusCode` unconditionally. Migrate by returning `systemprompt_api::error::ApiHttpError` (`ApiHttpError::from(api_error)`), which logs once by status class and writes the redacting wire shape, and by wrapping envelopes in `axum::Json` with the status the handler chooses.
 
 ### Added
 
@@ -69,6 +79,7 @@
 - `systemprompt_database::escape_like`: escapes `\`, `%` and `_` for a `LIKE … ESCAPE '\'` pattern.
 - `ProviderCapability::BatchImageGeneration` and `AiError::capability_unsupported(provider, capability)`.
 - `systemprompt_database::owner_reassignment!` declares a domain's `OwnerReassignment` repository from per-table `update`/`delete` statements; the agent, analytics, content, files and mcp reassignments are declared through it and run every statement in one transaction.
+- `systemprompt_identifiers::{CloudPlanId, EnterpriseLicenseId, ArtifactElementId, ConnectorAppId, ConnectorInstallationId, AgentRunOriginId, AnalyticsEventId, SsoRequestId, SsoAssertionId, IdpTenantId}`.
 
 ### Changed
 
@@ -87,6 +98,7 @@
 - The managed inventory refresh keeps its last-pass fingerprint in an `InventoryRefreshMemo` the scheduler owns and passes to each run through the job context; the OTLP export job builds its HTTP client once per run.
 - The "no GeoIP reader" notice is logged once when `AnalyticsService` is built.
 - The verified-revision memo lives on `ManagedRepository`.
+- `systemprompt_traits` re-exports the startup-event items by name instead of through a glob; every path is unchanged.
 
 ### Removed
 

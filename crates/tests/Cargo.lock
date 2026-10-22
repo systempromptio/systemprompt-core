@@ -8416,6 +8416,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
@@ -8788,6 +8789,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
+ "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
@@ -9008,7 +9010,6 @@ name = "systemprompt-models"
 version = "0.72.1"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "futures",
  "hex",

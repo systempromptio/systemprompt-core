@@ -1,11 +1,11 @@
 //! Tests for validation_report module types.
 
 use std::path::PathBuf;
-use systemprompt_traits::{
+use systemprompt_manifest::validators::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
 };
 
-use systemprompt_traits::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
 
 mod validation_error_tests {
     use super::*;

@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use systemprompt_models::time_format::{
+use systemprompt_cli::shared::time_format::{
     format_date, format_date_range, format_duration_ms, format_optional_duration_ms,
     format_period_label, format_timestamp,
 };

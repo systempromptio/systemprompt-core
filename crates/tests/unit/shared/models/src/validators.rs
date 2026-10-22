@@ -1,9 +1,8 @@
 use systemprompt_config::SkillConfigValidator;
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, WebConfigValidator,
+    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfig,
+    McpConfigValidator, RateLimitsConfigValidator, WebConfigValidator,
 };
-use systemprompt_traits::DomainConfig;
 
 #[test]
 fn agent_validator_new_creates_instance() {

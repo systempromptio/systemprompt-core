@@ -13,7 +13,9 @@ use systemprompt_analytics::{
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_test_fixtures::{ensure_test_bootstrap, test_db_pool};
-use systemprompt_traits::session_store::CreateSessionParams;
+use systemprompt_traits::session_store::{
+    CreateSessionParams, SessionAttribution, SessionIdentity, SessionNetwork,
+};
 use uuid::Uuid;
 
 struct SeededSession<'a> {
@@ -38,28 +40,18 @@ async fn seed_session(pool: &DbPool, spec: &SeededSession<'_>) -> SessionId {
         .map(|repositories| repositories.session_store)
         .expect("session store");
     let params = CreateSessionParams {
-        session_id: &sid,
-        user_id: None,
-        session_source: SessionSource::Web,
-        fingerprint_hash: Some("fp"),
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: spec.referrer_source,
-        referrer_url: None,
-        landing_page: Some(spec.landing_page),
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        utm_content: None,
-        utm_term: None,
+        identity: SessionIdentity {
+            session_id: &sid,
+            user_id: None,
+            session_source: SessionSource::Web,
+            fingerprint_hash: Some("fp"),
+        },
+        network: SessionNetwork::default(),
+        attribution: SessionAttribution {
+            referrer_source: spec.referrer_source,
+            landing_page: Some(spec.landing_page),
+            ..SessionAttribution::default()
+        },
         is_bot: spec.is_bot,
         is_ai_crawler: false,
         expires_at: Utc::now() + Duration::hours(1),

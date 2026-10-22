@@ -11,8 +11,8 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_manifest::Config;
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 
 use super::config_loaders::{ConfigFileError, load_extension_config};
 

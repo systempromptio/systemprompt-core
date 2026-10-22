@@ -11,6 +11,8 @@
 use std::io::Write;
 use std::time::Duration;
 
+use systemprompt_models::text::truncate_with_ellipsis;
+
 use crate::services::cli::sink::{report_write_failure, stdout_write, stdout_writeln};
 use crate::services::cli::theme::{BrandColors, ServiceStatus};
 
@@ -36,15 +38,6 @@ impl ServiceTableEntry {
             status,
         }
     }
-}
-
-pub fn truncate_to_width(s: &str, width: usize) -> String {
-    if s.chars().count() <= width {
-        return s.to_owned();
-    }
-    let truncate_to = width.saturating_sub(3);
-    let truncated: String = s.chars().take(truncate_to).collect();
-    format!("{truncated}...")
 }
 
 fn calculate_column_widths(headers: &[&str], rows: &[Vec<String>]) -> Vec<usize> {
@@ -75,7 +68,7 @@ fn render_table_border(widths: &[usize], left: &str, middle: &str, right: &str) 
 fn render_table_row(cells: &[&str], widths: &[usize]) {
     stdout_write(format_args!("\u{2502}"));
     for (i, (&cell, &width)) in cells.iter().zip(widths.iter()).enumerate() {
-        let truncated = truncate_to_width(cell, width);
+        let truncated = truncate_with_ellipsis(cell, width);
         stdout_write(format_args!(" {truncated:<width$} "));
         if i < widths.len() - 1 {
             stdout_write(format_args!("\u{2502}"));
@@ -235,8 +228,8 @@ fn render_service_row(
         out,
         "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
          {colored_status} \u{2502}",
-        truncate_to_width(&service.name, name_width),
-        truncate_to_width(&service.service_type, type_width),
+        truncate_with_ellipsis(&service.name, name_width),
+        truncate_with_ellipsis(&service.service_type, type_width),
         port_str,
     )
 }

@@ -6,6 +6,7 @@
 
 use super::{ConnectorConfig, ConnectorGrant};
 use crate::errors::ServicesValidationError;
+use systemprompt_identifiers::{ConnectorAppId, ConnectorInstallationId};
 
 impl ConnectorConfig {
     pub(super) fn validate_grant(&self, name: &str) -> Result<(), ServicesValidationError> {
@@ -15,17 +16,16 @@ impl ConnectorConfig {
                 "MCP server '{name}': connector grant {grant} {message}"
             ))
         };
-        let present =
-            |field: &Option<String>| field.as_deref().is_some_and(|v| !v.trim().is_empty());
-        let require = |field: &Option<String>, label: &str| {
+        let present = |field: Option<&str>| field.is_some_and(|v| !v.trim().is_empty());
+        let require = |field: Option<&str>, label: &str| {
             if present(field) {
                 Ok(())
             } else {
                 Err(invalid(format!("requires {label}")))
             }
         };
-        let forbid = |field: &Option<String>, label: &str| {
-            if field.is_some() {
+        let forbid = |set: bool, label: &str| {
+            if set {
                 Err(invalid(format!("does not use {label}")))
             } else {
                 Ok(())
@@ -34,24 +34,29 @@ impl ConnectorConfig {
 
         match self.grant {
             ConnectorGrant::AuthorizationCode => {
-                forbid(&self.token_url, "token_url")?;
-                forbid(&self.private_key_secret, "private_key_secret")?;
-                forbid(&self.installation_id, "installation_id")?;
-                forbid(&self.app_id, "app_id")?;
+                forbid(self.token_url.is_some(), "token_url")?;
+                forbid(self.private_key_secret.is_some(), "private_key_secret")?;
+                forbid(self.installation_id.is_some(), "installation_id")?;
+                forbid(self.app_id.is_some(), "app_id")?;
             },
             ConnectorGrant::ClientCredentials => {
-                require(&self.token_url, "token_url")?;
-                require(&self.client_id_secret, "client_id_secret")?;
-                require(&self.client_secret, "client_secret")?;
-                forbid(&self.private_key_secret, "private_key_secret")?;
-                forbid(&self.installation_id, "installation_id")?;
-                forbid(&self.app_id, "app_id")?;
+                require(self.token_url.as_deref(), "token_url")?;
+                require(self.client_id_secret.as_deref(), "client_id_secret")?;
+                require(self.client_secret.as_deref(), "client_secret")?;
+                forbid(self.private_key_secret.is_some(), "private_key_secret")?;
+                forbid(self.installation_id.is_some(), "installation_id")?;
+                forbid(self.app_id.is_some(), "app_id")?;
             },
             ConnectorGrant::AppInstallation => {
-                require(&self.token_url, "token_url")?;
-                require(&self.private_key_secret, "private_key_secret")?;
-                require(&self.app_id, "app_id")?;
-                require(&self.installation_id, "installation_id")?;
+                require(self.token_url.as_deref(), "token_url")?;
+                require(self.private_key_secret.as_deref(), "private_key_secret")?;
+                require(self.app_id.as_ref().map(ConnectorAppId::as_str), "app_id")?;
+                require(
+                    self.installation_id
+                        .as_ref()
+                        .map(ConnectorInstallationId::as_str),
+                    "installation_id",
+                )?;
             },
         }
 

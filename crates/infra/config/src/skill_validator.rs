@@ -6,9 +6,10 @@
 
 use std::path::Path;
 
+use systemprompt_manifest::validators::validation_report::{ValidationIssue, ValidationReport};
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
 use systemprompt_manifest::{DiskSkillConfig, SKILL_CONFIG_FILENAME};
-use systemprompt_traits::validation_report::{ValidationIssue, ValidationReport};
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 #[derive(Debug, Default)]
 pub struct SkillConfigValidator {

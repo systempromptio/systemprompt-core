@@ -5,10 +5,10 @@
 
 use std::path::Path;
 use systemprompt_loader::ExtensionBinaryIndex;
+use systemprompt_manifest::validators::validation_report::ValidationIssue;
+use systemprompt_manifest::validators::{StartupValidationReport, ValidationReport};
 use systemprompt_manifest::{Config, ServicesConfig};
 use systemprompt_models::mcp::McpServerType;
-use systemprompt_traits::validation_report::ValidationIssue;
-use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 pub(super) fn validate_mcp_manifests(
     config: &Config,

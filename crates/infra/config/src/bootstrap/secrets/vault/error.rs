@@ -2,15 +2,16 @@
 //!
 //! No variant carries a response body, a token, or a secret value. The only
 //! upstream text that reaches an operator is Vault's own `errors[]` array,
-//! truncated to [`MAX_VAULT_ERROR_CHARS`], because that array is documented to
+//! truncated to [`MAX_VAULT_ERROR_BYTES`], because that array is documented to
 //! hold policy diagnostics rather than secret material.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use systemprompt_models::text::floor_char_boundary;
 use systemprompt_traits::BoxedSource;
 
-pub(super) const MAX_VAULT_ERROR_CHARS: usize = 200;
+pub(super) const MAX_VAULT_ERROR_BYTES: usize = 200;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -118,6 +119,6 @@ pub(super) fn truncate_detail(raw: &str) -> String {
     if trimmed.is_empty() {
         return String::new();
     }
-    let clipped: String = trimmed.chars().take(MAX_VAULT_ERROR_CHARS).collect();
+    let clipped = &trimmed[..floor_char_boundary(trimmed, MAX_VAULT_ERROR_BYTES)];
     format!(": {clipped}")
 }

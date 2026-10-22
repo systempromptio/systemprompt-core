@@ -1,8 +1,10 @@
 //! Tests for domain_config: DomainConfigError, DomainConfigRegistry, and trait
 //! defaults.
 
-use systemprompt_traits::domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
-use systemprompt_traits::validation_report::ValidationReport;
+use systemprompt_manifest::validators::domain_config::{
+    DomainConfig, DomainConfigError, DomainConfigRegistry,
+};
+use systemprompt_manifest::validators::validation_report::ValidationReport;
 
 // A DomainConfig that always succeeds, has default priority.
 #[derive(Debug)]

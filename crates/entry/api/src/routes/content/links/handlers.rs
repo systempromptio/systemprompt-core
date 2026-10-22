@@ -36,7 +36,7 @@ pub async fn redirect_handler(
     let link = match link_gen_service.find_link_by_short_code(&short_code).await {
         Ok(Some(link)) => link,
         Ok(None) => {
-            return ApiError::not_found("Link not found").into_response();
+            return ApiHttpError::not_found("Link not found").into_response();
         },
         Err(e) => return ApiHttpError::from(e).into_response(),
     };
@@ -69,7 +69,7 @@ pub async fn generate_link_handler(
         "utm" => systemprompt_content::LinkType::Utm,
         "both" => systemprompt_content::LinkType::Both,
         _ => {
-            return ApiError::bad_request(
+            return ApiHttpError::bad_request(
                 "Invalid link_type. Must be 'redirect', 'utm', or 'both'",
             )
             .into_response();
@@ -141,11 +141,11 @@ pub async fn get_link_performance_handler(
 
     let link_id = match LinkId::try_new(link_id) {
         Ok(id) => id,
-        Err(e) => return ApiError::from(e).into_response(),
+        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
     };
     match analytics_service.find_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
-        Ok(None) => ApiError::not_found("Link not found").into_response(),
+        Ok(None) => ApiHttpError::not_found("Link not found").into_response(),
         Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
@@ -163,14 +163,14 @@ pub async fn get_campaign_performance_handler(
 
     let campaign_id = match CampaignId::try_new(campaign_id) {
         Ok(id) => id,
-        Err(e) => return ApiError::from(e).into_response(),
+        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
     };
     match analytics_service
         .find_campaign_performance(&campaign_id)
         .await
     {
         Ok(Some(performance)) => Json(performance).into_response(),
-        Ok(None) => ApiError::not_found("Campaign not found").into_response(),
+        Ok(None) => ApiHttpError::not_found("Campaign not found").into_response(),
         Err(e) => ApiHttpError::from(e).into_response(),
     }
 }
@@ -220,7 +220,7 @@ pub async fn list_links_handler(
             Err(e) => ApiHttpError::from(e).into_response(),
         }
     } else {
-        ApiError::bad_request("Must provide either campaign_id or source_content_id")
+        ApiHttpError::bad_request("Must provide either campaign_id or source_content_id")
             .into_response()
     }
 }
@@ -239,7 +239,7 @@ pub async fn get_link_clicks_handler(
 
     let link_id = match LinkId::try_new(link_id) {
         Ok(id) => id,
-        Err(e) => return ApiError::from(e).into_response(),
+        Err(e) => return ApiHttpError::from(ApiError::from(e)).into_response(),
     };
     match analytics_service
         .get_link_clicks(&link_id, query.limit, query.offset)
