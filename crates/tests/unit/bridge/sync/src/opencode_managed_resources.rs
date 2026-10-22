@@ -1,3 +1,6 @@
+//! `OpenCodeSync` apply/clear against a sandboxed `opencode.json` and skills
+//! tree: MCP entries, skills, the hook plugin and user-owned config survival.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -46,6 +49,14 @@ fn with_sandbox<R>(body: impl FnOnce(&Sandbox) -> R) -> R {
         (
             "XDG_DATA_HOME",
             Some(temp.path().join("data").display().to_string()),
+        ),
+        (
+            "XDG_STATE_HOME",
+            Some(temp.path().join("state").display().to_string()),
+        ),
+        (
+            "XDG_CACHE_HOME",
+            Some(temp.path().join("cache").display().to_string()),
         ),
         ("SP_BRIDGE_CONFIG", None),
     ];
@@ -492,5 +503,46 @@ fn authored_frontmatter_keys_follow_name_and_description() {
         apply(&manifest_with(vec![entry], vec![]), &sb.skills).unwrap();
         let written = fs::read_to_string(sb.skills.join("deep-tooled").join("SKILL.md")).unwrap();
         crate::skill_passthrough::assert_passthrough_block(&written, "deep-tooled");
+    });
+}
+
+#[test]
+fn every_bridge_mcp_entry_disables_oauth_and_user_entries_are_untouched() {
+    with_sandbox(|sb| {
+        fs::create_dir_all(sb.config.parent().unwrap()).unwrap();
+        let mine = serde_json::json!({
+            "type": "remote",
+            "url": "https://example.com/mcp",
+            "oauth": { "clientId": "user-client" },
+        });
+        fs::write(
+            &sb.config,
+            serde_json::json!({ "mcp": { "mine": mine } }).to_string(),
+        )
+        .unwrap();
+        apply(
+            &manifest_with(vec![], vec![mcp("primary"), mcp("secondary")]),
+            &sb.skills,
+        )
+        .unwrap();
+        let doc = read_json(&sb.config);
+        for slug in ["primary", "secondary"] {
+            let entry = &doc["mcp"][slug];
+            assert_eq!(entry["oauth"], false, "{slug}: {doc}");
+            assert_eq!(entry["type"], "remote", "{slug}: {doc}");
+            assert!(
+                entry["url"]
+                    .as_str()
+                    .is_some_and(|u| u.starts_with("http://127.0.0.1:")),
+                "{slug}: {doc}"
+            );
+            assert!(
+                entry["headers"]["Authorization"]
+                    .as_str()
+                    .is_some_and(|a| a.starts_with("Bearer ")),
+                "{slug}: {doc}"
+            );
+        }
+        assert_eq!(doc["mcp"]["mine"], mine, "{doc}");
     });
 }

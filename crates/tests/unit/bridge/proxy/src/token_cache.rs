@@ -4,7 +4,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::forward::ForwardError;
-use systemprompt_bridge::proxy::token_cache::{AuthState, RefreshFn, TokenCache};
+use systemprompt_bridge::proxy::token_cache::{
+    AuthState, RefreshFn, TokenCache, rejection_is_stale,
+};
 
 const PAT_ENV: &str = "SP_BRIDGE_PAT";
 
@@ -946,4 +948,33 @@ fn credential_rotation_during_refresh_discards_the_minted_token_then_retries() {
                 });
         },
     );
+}
+
+#[test]
+fn a_rejection_is_stale_only_past_the_two_minute_window() {
+    use std::time::Duration;
+
+    assert!(!rejection_is_stale(Duration::ZERO));
+    assert!(!rejection_is_stale(Duration::from_secs(120)));
+    assert!(rejection_is_stale(Duration::from_secs(121)));
+    assert!(
+        rejection_is_stale(Duration::from_secs(52 * 60)),
+        "the 52-minute-old token a redeploy voided is re-minted, not latched"
+    );
+}
+
+#[test]
+fn rejecting_a_fresh_token_reports_no_retry() {
+    with_credentials(2, async {
+        let cache = TokenCache::new(counting_refresh(Arc::new(AtomicUsize::new(0)), 3600));
+        cache.current(300).await.expect("mint");
+        assert!(
+            !cache.reject_upstream("/mcp/dynbrain").await,
+            "a fresh rejection latches; the forward path must not resend"
+        );
+        assert!(
+            !cache.reject_upstream("/mcp/dynbrain").await,
+            "nothing cached, nothing to retry"
+        );
+    });
 }
