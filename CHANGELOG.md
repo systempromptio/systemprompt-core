@@ -28,6 +28,10 @@
 - **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
 - **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
+- **Breaking:** `systemprompt_logging::{set_instance_id, instance_id, enqueue_background, dropped_log_entries, shutdown_database_logging}` are removed. `init_logging(db, instance_id: Option<InstanceId>)`, `init_console_logging` and `init_console_logging_with_level` return a `LogSink` (`enqueue`, `dropped_entries`, `instance_id`, `shutdown`), and `LoggingRuntime::new(sink, Arc<SystemAdmin>)` pairs it with the platform owner on `AppContext::logging()`. Migrate by reading the instance id from `ctx.logging().instance_id()` or `Config::instance_id`, enqueueing through `ctx.logging().enqueue(entry)`, and awaiting `ctx.logging().sink().shutdown()` on drain.
+- **Breaking:** `systemprompt_logging::attribution` (`install_log_attribution`, `platform_attribution`, `LogAttributionUnset`) is removed, and `LogActor::platform(owner: &SystemAdmin, trace_id)` is infallible. Migrate by `ctx.logging().platform_actor(trace_id)` or passing `ctx.system_admin()`.
+- **Breaking:** `GatewayRepositories::new(db, journal, context_materializer, handles: GatewayHandles)` takes `GatewayHandles { background, cache_epochs, logging }`; `log_gateway_terminal` takes the `&LoggingRuntime` and `TerminalOutcome::actor` is a `LogActor`. `ingest_traces`, `ingest_logs` and `ingest_envelope` take the `&LoggingRuntime`, `build_rejection_record` takes the instance id, and `OpsSampler::new` takes the `LogSink`. Migrate by passing the values from `AppContext`.
+- **Breaking:** `JsonEventFormat` and `FilterSystemFields` are no longer unit structs. Migrate by `JsonEventFormat::default()` and `FilterSystemFields::new()`.
 
 ### Added
 
@@ -48,6 +52,8 @@
 - The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
 - `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
 - **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
+- Reading a log row whose stored level, metadata or context id does not decode returns `LoggingError::Repository(RepositoryError::Decode)` with the parse error as its source, instead of an `Info` row with the field dropped.
+- An entry enqueued before the database sink attaches counts toward `LogSink::dropped_entries`.
 
 ### Removed
 
