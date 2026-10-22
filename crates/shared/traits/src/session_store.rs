@@ -7,12 +7,16 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
-#[derive(Debug)]
-pub struct CreateSessionParams<'a> {
+#[derive(Debug, Clone, Copy)]
+pub struct SessionIdentity<'a> {
     pub session_id: &'a SessionId,
     pub user_id: Option<&'a UserId>,
     pub session_source: SessionSource,
     pub fingerprint_hash: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SessionNetwork<'a> {
     pub ip_address: Option<&'a str>,
     pub user_agent: Option<&'a str>,
     pub device_type: Option<&'a str>,
@@ -22,6 +26,10 @@ pub struct CreateSessionParams<'a> {
     pub region: Option<&'a str>,
     pub city: Option<&'a str>,
     pub preferred_locale: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SessionAttribution<'a> {
     pub referrer_source: Option<&'a str>,
     pub referrer_url: Option<&'a str>,
     pub landing_page: Option<&'a str>,
@@ -31,6 +39,13 @@ pub struct CreateSessionParams<'a> {
     pub utm_campaign: Option<&'a str>,
     pub utm_content: Option<&'a str>,
     pub utm_term: Option<&'a str>,
+}
+
+#[derive(Debug)]
+pub struct CreateSessionParams<'a> {
+    pub identity: SessionIdentity<'a>,
+    pub network: SessionNetwork<'a>,
+    pub attribution: SessionAttribution<'a>,
     pub is_bot: bool,
     pub is_ai_crawler: bool,
     pub expires_at: DateTime<Utc>,
@@ -71,11 +86,8 @@ impl SessionMigrationResult {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SessionSnapshot {
-    pub session_id: SessionId,
-    pub user_id: Option<UserId>,
-    pub fingerprint_hash: Option<String>,
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SessionClientSnapshot {
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub device_type: Option<String>,
@@ -83,23 +95,64 @@ pub struct SessionSnapshot {
     pub os: Option<String>,
     pub country: Option<String>,
     pub city: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SessionAttributionSnapshot {
     pub referrer_url: Option<String>,
     pub utm_source: Option<String>,
     pub utm_medium: Option<String>,
     pub utm_campaign: Option<String>,
     pub utm_content: Option<String>,
     pub utm_term: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SessionClassification {
     pub is_bot: bool,
     pub is_scanner: Option<bool>,
     pub is_behavioral_bot: Option<bool>,
     pub behavioral_bot_reason: Option<String>,
+}
+
+#[expect(
+    clippy::struct_field_names,
+    reason = "field names are the user_sessions columns and the flattened snapshot keys"
+)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SessionTiming {
     pub started_at: Option<DateTime<Utc>>,
     pub last_activity_at: Option<DateTime<Utc>>,
     pub ended_at: Option<DateTime<Utc>>,
+}
+
+#[expect(
+    clippy::struct_field_names,
+    reason = "field names are the user_sessions columns and the flattened snapshot keys"
+)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct SessionActivityCounts {
     pub request_count: Option<i32>,
     pub task_count: Option<i32>,
     pub ai_request_count: Option<i32>,
     pub message_count: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionSnapshot {
+    pub session_id: SessionId,
+    pub user_id: Option<UserId>,
+    pub fingerprint_hash: Option<String>,
+    #[serde(flatten)]
+    pub client: SessionClientSnapshot,
+    #[serde(flatten)]
+    pub attribution: SessionAttributionSnapshot,
+    #[serde(flatten)]
+    pub classification: SessionClassification,
+    #[serde(flatten)]
+    pub timing: SessionTiming,
+    #[serde(flatten)]
+    pub activity: SessionActivityCounts,
 }
 
 use crate::{AnalyticsResult, SessionProvider, SessionUsageCounters};

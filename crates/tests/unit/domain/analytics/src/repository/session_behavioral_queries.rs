@@ -174,7 +174,7 @@ async fn count_unique_ips_by_fingerprint() {
     for ip in ["1.1.1.1", "2.2.2.2", "1.1.1.1"] {
         let sid = unique_session_id();
         let mut params = base_params(&sid, Some(&fp), Utc::now() + Duration::hours(1));
-        params.ip_address = Some(ip);
+        params.network.ip_address = Some(ip);
         store
             .insert_session(&params)
             .await
