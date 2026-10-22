@@ -195,4 +195,8 @@ impl SubjectProviderSet {
     pub fn iter(&self) -> impl Iterator<Item = &SharedSubjectAttributeProvider> {
         self.0.iter()
     }
+
+    pub async fn gather(&self, user_id: &UserId) -> Result<SubjectAttributes, super::AuthzError> {
+        gather_subject_attributes(&self.0, user_id).await
+    }
 }

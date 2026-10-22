@@ -328,6 +328,10 @@ impl AuthzDecisionHook for RequireRoleHook {
             policy,
         }
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
+    }
 }
 
 fn proxied_headers(roles: Option<&str>) -> Vec<(String, String)> {

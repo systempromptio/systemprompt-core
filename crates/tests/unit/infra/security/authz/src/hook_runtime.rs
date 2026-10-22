@@ -22,6 +22,10 @@ impl AuthzDecisionHook for LocalDenyAllHook {
             policy: "deny_all_test".into(),
         }
     }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.evaluate(req).await
+    }
 }
 
 fn fixture_request(entity: EntityRef) -> AuthzRequest {
