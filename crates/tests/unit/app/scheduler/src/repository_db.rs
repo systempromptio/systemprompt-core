@@ -399,8 +399,8 @@ mod analytics_repository {
             .await
             .expect("seed session");
 
-        let live_ctx = format!("schedgc_live_{}", session_id.as_str());
-        let orphan_ctx = format!("schedgc_orphan_{}", session_id.as_str());
+        let live_ctx = systemprompt_identifiers::ContextId::generate().to_string();
+        let orphan_ctx = systemprompt_identifiers::ContextId::generate().to_string();
         let old = chrono::Utc::now() - chrono::Duration::hours(48);
         for (ctx, sess) in [(&live_ctx, Some(session_id.as_str())), (&orphan_ctx, None)] {
             sqlx::query(
@@ -654,7 +654,7 @@ mod empty_context_audit_guards {
         let repo = AnalyticsRepository::new(&seed.pool);
         // The audit row is written first: a concurrent sweep would otherwise
         // collect the context through the gap before it is protected.
-        let ctx_id = unique_job_name("auditctx_mte");
+        let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_tool_execution(&unique_job_name("auditexec"), &ctx_id)
             .await;
         seed.seed_old_context(&ctx_id).await;
@@ -672,7 +672,7 @@ mod empty_context_audit_guards {
     async fn context_with_governance_decision_survives_cleanup() {
         let seed = Seed::new("auditgd").await;
         let repo = AnalyticsRepository::new(&seed.pool);
-        let ctx_id = unique_job_name("auditctx_gd");
+        let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_governance_decision(&unique_job_name("auditdec"), &ctx_id)
             .await;
         seed.seed_old_context(&ctx_id).await;
@@ -690,7 +690,7 @@ mod empty_context_audit_guards {
     async fn truly_empty_old_context_is_deleted() {
         let seed = Seed::new("auditbare").await;
         let repo = AnalyticsRepository::new(&seed.pool);
-        let ctx_id = unique_job_name("auditctx_bare");
+        let ctx_id = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_old_context(&ctx_id).await;
 
         repo.cleanup_empty_contexts(1).await.expect("cleanup runs");
@@ -706,8 +706,8 @@ mod empty_context_audit_guards {
     async fn count_empty_contexts_counts_what_cleanup_deletes() {
         let seed = Seed::new("auditcount").await;
         let repo = AnalyticsRepository::new(&seed.pool);
-        let collectable = unique_job_name("auditctx_count_bare");
-        let protected = unique_job_name("auditctx_count_mte");
+        let collectable = systemprompt_identifiers::ContextId::generate().to_string();
+        let protected = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_tool_execution(&unique_job_name("auditexec"), &protected)
             .await;
         seed.seed_old_context(&protected).await;
@@ -738,7 +738,7 @@ mod empty_context_audit_guards {
         let seed = Seed::new("auditorphan").await;
         let repo = AnalyticsRepository::new(&seed.pool);
         let exec_id = unique_job_name("auditexec_orphan");
-        let missing_ctx = unique_job_name("auditctx_missing");
+        let missing_ctx = systemprompt_identifiers::ContextId::generate().to_string();
         seed.seed_tool_execution(&exec_id, &missing_ctx).await;
 
         repo.cleanup_empty_contexts(1).await.expect("context sweep");
