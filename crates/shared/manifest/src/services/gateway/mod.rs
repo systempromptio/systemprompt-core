@@ -1,20 +1,17 @@
-//! Gateway services section: routes that map external model names onto entries
-//! in the services provider registry.
+//! Gateway services section: the one default model and the policy routes.
 //!
-//! Carries the cross-check that ties the two together. Lives in the services
-//! tree (`services/ai/gateway.yaml` by convention) beside the catalog it
-//! references, not in the profile.
+//! Lives in the services tree (`services/ai/gateway.yaml` by convention)
+//! beside the catalog it references, not in the profile.
 //!
-//! - [`GatewayProfileError`] / [`GatewayResult`] — failure modes emitted by
-//!   route-id and provider-reference validation.
+//! - [`GatewayProfileError`] / [`GatewayResult`] — failure modes of the section
+//!   on its own (route ids and shape, predicates, `[1m]` refusal).
 //! - [`GatewayConfigSpec`] — the on-disk shape under `gateway:` in a services
 //!   YAML document.
 //! - [`GatewayConfig`] — the runtime shape produced by
-//!   [`GatewayConfigSpec::resolve`]. The gateway owns no catalog: every route
-//!   resolves its provider against `services.providers` (the merged
-//!   `providers:` list of the services tree) at use time.
-//! - [`GatewayRoute`] — routing patterns and the stable id synthesis used to
-//!   address routes from `access_control_rules`.
+//!   [`GatewayConfigSpec::resolve`]. The gateway owns no catalog: routes and
+//!   `default_model` are resolved against the catalog by
+//!   [`ResolvedCatalog`](crate::services::catalog::ResolvedCatalog).
+//! - [`GatewayRoute`] — a policy route with a declared, stable id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,9 +27,8 @@ pub use config::{BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, QuotaFaul
 pub use error::{GatewayProfileError, GatewayResult};
 pub use override_rule::{OverrideRuleAction, SystemPromptRule};
 pub use route::{
-    ChainSelection, GatewayRoute, ResponseFormatKind, RouteDeployment, RouteMatch,
-    RouteRequirements, RouteScopeChains, ScopeChain, SelectionStrategy, UnmappedScope,
-    estimate_input_tokens,
+    GatewayRoute, ModelGlobs, ResponseFormatKind, RouteAlias, RouteDeployment, RouteMatch,
+    RouteRequirements, SelectionStrategy, WeightedDeployment, estimate_input_tokens,
 };
 pub use route_id::{slugify_pattern, synthesize_route_id};
 pub use state::GatewayState;

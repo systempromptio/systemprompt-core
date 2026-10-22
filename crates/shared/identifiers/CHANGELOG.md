@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Added
+
+- `CredentialId` and `EndpointId`, the keys of `services/ai/credentials.yaml` and of a provider's `endpoints:`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

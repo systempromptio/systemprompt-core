@@ -1,64 +1,62 @@
-//! Client-facing API surface for an upstream AI provider.
+//! Client-facing families a catalog model is advertised to.
 //!
-//! [`ApiSurface`] names the *vendor API family* a provider's models are
-//! advertised under, independent of the wire protocol the gateway speaks to
-//! reach it. A provider can speak the Anthropic wire yet not be the Anthropic
-//! vendor: `minimax` declares `wire: anthropic` (so the gateway reuses the
-//! Anthropic codec) and `surface: backend` (so its `MiniMax-M2` model is never
-//! advertised to any client API, only reached through an explicit gateway
-//! route). Keeping these two facts orthogonal is what stops a backend provider
-//! from masquerading as an Anthropic model in a client's catalog.
+//! [`ClientFamily`] names the *client* side of the gateway: which host family
+//! lists a model in its picker (Claude Code and Desktop, OpenAI-protocol
+//! hosts such as Codex and `OpenCode`, Gemini-protocol hosts). It is
+//! independent of the wire the gateway speaks upstream, because the gateway
+//! transcodes every inbound wire to every outbound one. A model's
+//! `clients: [...]` list is its whole visibility rule, and `clients: []` is
+//! "not advertised" — the model still dispatches when asked for by id.
 //!
 //! [`without_context_variant`] strips the client-side context-window marker
-//! from a requested model id, so the bridge and the gateway resolve the same
-//! catalog entry.
+//! from a requested model id, and [`with_context_variant`] adds it, so the
+//! bridge profile and the gateway agree on one catalog entry.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
-pub enum ApiSurface {
-    #[serde(rename = "anthropic")]
-    Anthropic,
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum ClientFamily {
+    Claude,
     #[serde(rename = "openai")]
     OpenAi,
-    #[serde(rename = "gemini")]
     Gemini,
-    #[serde(rename = "backend")]
-    Backend,
 }
 
-impl ApiSurface {
+impl ClientFamily {
+    pub const ALL: [Self; 3] = [Self::Claude, Self::OpenAi, Self::Gemini];
+
     #[must_use]
     pub const fn as_tag(self) -> &'static str {
         match self {
-            Self::Anthropic => "anthropic",
+            Self::Claude => "claude",
             Self::OpenAi => "openai",
             Self::Gemini => "gemini",
-            Self::Backend => "backend",
         }
     }
 
     #[must_use]
     pub fn from_tag(tag: &str) -> Option<Self> {
-        match tag {
-            "anthropic" => Some(Self::Anthropic),
-            "openai" => Some(Self::OpenAi),
-            "gemini" => Some(Self::Gemini),
-            "backend" => Some(Self::Backend),
-            _ => None,
-        }
-    }
-
-    #[must_use]
-    pub const fn is_advertised(self) -> bool {
-        !matches!(self, Self::Backend)
+        Self::ALL.into_iter().find(|family| family.as_tag() == tag)
     }
 }
 
-impl std::fmt::Display for ApiSurface {
+impl std::fmt::Display for ClientFamily {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_tag())
     }
@@ -68,11 +66,23 @@ impl std::fmt::Display for ApiSurface {
 // `[1m]` variant (`claude-sonnet-5[1m]`). The suffix is a client-side context
 // marker, not a vendor id: it resolves to the base catalog entry and never
 // reaches the upstream.
-const CONTEXT_VARIANT_SUFFIX: &str = "[1m]";
+pub const CONTEXT_VARIANT_SUFFIX: &str = "[1m]";
+
+pub const LONG_CONTEXT_WINDOW: u32 = 1_000_000;
 
 #[must_use]
 pub fn without_context_variant(requested: &str) -> &str {
     requested
         .strip_suffix(CONTEXT_VARIANT_SUFFIX)
         .unwrap_or(requested)
+}
+
+#[must_use]
+pub fn has_context_variant(requested: &str) -> bool {
+    requested.ends_with(CONTEXT_VARIANT_SUFFIX)
+}
+
+#[must_use]
+pub fn with_context_variant(model: &str) -> String {
+    format!("{}{CONTEXT_VARIANT_SUFFIX}", without_context_variant(model))
 }

@@ -135,7 +135,10 @@ pub use engagement::EngagementEventId;
 pub use events::EventOutboxId;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use extension::ExtensionId;
-pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
+pub use gateway_boot::{
+    CredentialId, DepartmentId, DepartmentName, EndpointId, ModelId, ProviderId, RouteId,
+    SecretName,
+};
 pub use gateway_conversation::GatewayConversationId;
 pub use hook::HookId;
 pub use instance::{AdvisoryLockKey, InstanceId, LeaseKey};

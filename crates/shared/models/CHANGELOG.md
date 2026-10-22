@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `providers::ApiSurface` is replaced by `ClientFamily` (`claude`, `openai`, `gemini`); "not advertised" is an empty `clients` list, not a `backend` variant.
+- `ProviderHealth` replaces `surface` with `clients: Vec<ClientFamily>` and gains `credential`; `ProviderCredentialStatus.provider` is `credential`.
+
+### Added
+
+- `providers::{CONTEXT_VARIANT_SUFFIX, LONG_CONTEXT_WINDOW, has_context_variant, with_context_variant}`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

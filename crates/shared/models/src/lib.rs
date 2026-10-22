@@ -37,7 +37,7 @@
 //! - [`origin`] — client attribution of an AI request (client kind, attestation
 //!   tier, evidence).
 //! - [`plugin`] — plugin component references carried in the bridge manifest.
-//! - [`providers`] — the client-facing API surface of an upstream provider.
+//! - [`providers`] — the client families a catalog model is advertised to.
 //! - [`routing`] — request routing classification.
 //! - [`scope`] — per-request scoping identity for scoped DB transactions.
 //! - [`subprocess`] — identity contract for supervised child processes.
