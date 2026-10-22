@@ -51,6 +51,7 @@
 - `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
 - **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
 - Private temp files, state-dir write probes and generator staging files take a random suffix instead of a process-wide counter.
+- `SecretScanner` draws its evidence-fingerprint key when it is built; fingerprints do not correlate across scanner rebuilds.
 
 ### Removed
 

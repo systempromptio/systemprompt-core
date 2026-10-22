@@ -14,12 +14,12 @@ mod patterns;
 mod recovery;
 mod signatures;
 
-
 use regex::Captures;
 use systemprompt_identifiers::SecretPatternId;
 
 use super::governed::{GovernedInput, GovernedString};
 pub use entropy::{DEFAULT_MIN_LEN, DEFAULT_THRESHOLD, EntropyConfig, find_high_entropy_token};
+use fingerprint::FingerprintKey;
 use patterns::{CompiledSecretPattern, HIGH_ENTROPY_PATTERN_NAME, compile_patterns, field_matches};
 pub use patterns::{SecretPattern, SecretPatternError};
 pub use recovery::{
@@ -31,6 +31,7 @@ pub use signatures::SignatureExemptions;
 pub struct SecretScanner {
     patterns: Vec<CompiledSecretPattern>,
     entropy: EntropyConfig,
+    fingerprint: FingerprintKey,
 }
 
 impl SecretScanner {
@@ -38,6 +39,7 @@ impl SecretScanner {
         Ok(Self {
             patterns: compile_patterns(value.get("patterns"))?,
             entropy: entropy_yaml::from_yaml(value),
+            fingerprint: FingerprintKey::generate(),
         })
     }
 
@@ -71,7 +73,7 @@ impl SecretScanner {
                                 name: HIGH_ENTROPY_PATTERN_NAME.to_owned(),
                             },
                             path: found.path.clone(),
-                            redacted: redacted_snippet(found.value, span.start, span.end),
+                            redacted: self.redacted_snippet(found.value, span.start, span.end),
                             observation: true,
                         })
                 })
@@ -81,6 +83,13 @@ impl SecretScanner {
     #[must_use]
     pub fn findings(&self, input: &GovernedInput) -> Vec<SecretFinding> {
         recovery::secret_findings(self, input)
+    }
+
+    fn redacted_snippet(&self, value: &str, start: usize, end: usize) -> String {
+        format!(
+            "fingerprint:{}...[REDACTED]",
+            self.fingerprint.of(&value[start..end])
+        )
     }
 
     fn detect_confirmed(&self, found: &GovernedString<'_>) -> Option<SecretHit> {
@@ -95,7 +104,7 @@ impl SecretScanner {
                         name: pattern.definition.name.clone(),
                     },
                     path: found.path.clone(),
-                    redacted: redacted_snippet(found.value, matched.start(), matched.end()),
+                    redacted: self.redacted_snippet(found.value, matched.start(), matched.end()),
                     observation: false,
                 })
             })
@@ -114,12 +123,6 @@ fn selected_match<'a>(
         .map_or_else(|| captures.get(0), |name| captures.name(name))
 }
 
-fn redacted_snippet(value: &str, start: usize, end: usize) -> String {
-    format!(
-        "fingerprint:{}...[REDACTED]",
-        fingerprint::of(&value[start..end])
-    )
-}
 
 #[derive(Debug)]
 pub struct MatchedSecretPattern {
