@@ -58,7 +58,10 @@ pub mod services;
 
 pub use extension::AiExtension;
 
-pub use services::core::{AiService, AiServiceProviders, ImageService, ImageServiceParts};
+pub use services::core::{
+    AiService, AiServiceProviders, ImageService, ImageServiceParts, ProviderClients,
+    WithheldEndpoint,
+};
 
 pub use services::storage::{ImageStorage, StorageConfig, StorageConfigError};
 pub use services::tools::NoopToolProvider;
@@ -74,6 +77,7 @@ pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 
 pub use systemprompt_manifest::services::AiConfig;
 
+pub use models::BillingSource;
 pub use models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,
     ImageResolution, ReferenceImage,
@@ -89,7 +93,9 @@ pub use repository::{
 };
 
 pub use services::personal_keys::{
-    PersonalKeyError, PersonalKeyRequest, credential_siblings, personal_provider,
-    personal_providers, provider_label, store_personal_key, verify_personal_key,
+    PersonalKeyError, PersonalKeyRequest, credential_endpoints, credential_label,
+    personal_credential, personal_credentials, store_personal_key, verify_personal_key,
 };
-pub use services::upstream::{UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError};
+pub use services::upstream::{
+    EndpointBinding, UpstreamCall, UpstreamDialect, UpstreamTarget, UpstreamTargetError,
+};
