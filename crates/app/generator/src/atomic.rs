@@ -10,12 +10,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-
-static SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 fn staging_path(target: &Path) -> PathBuf {
     let name = target
@@ -24,7 +21,7 @@ fn staging_path(target: &Path) -> PathBuf {
     let unique = format!(
         ".{name}.tmp-{}-{}",
         std::process::id(),
-        SEQUENCE.fetch_add(1, Ordering::Relaxed)
+        rand::random::<u64>()
     );
     target.with_file_name(unique)
 }

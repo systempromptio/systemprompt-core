@@ -13,13 +13,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::paths::WritableRoot;
 
 const PROBE: &str = ".systemprompt-write-probe";
-
-static PROBE_SEQ: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, thiserror::Error)]
 #[error("{}{}: {source}{ownership}", label(*.name), dir.display())]
@@ -54,7 +51,7 @@ fn probe_dir(name: Option<&'static str>, dir: &Path) -> Result<(), StateDirError
     let probe = dir.join(format!(
         "{PROBE}-{}-{}",
         std::process::id(),
-        PROBE_SEQ.fetch_add(1, Ordering::Relaxed)
+        rand::random::<u64>()
     ));
     let outcome = std::fs::create_dir_all(dir)
         .and_then(|()| std::fs::write(&probe, b""))

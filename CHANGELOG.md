@@ -48,6 +48,7 @@
 - The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
 - `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
 - **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
+- Private temp files, state-dir write probes and generator staging files take a random suffix instead of a process-wide counter.
 
 ### Removed
 

@@ -5025,6 +5025,7 @@ dependencies = [
  "indicatif",
  "inventory",
  "quick-xml",
+ "rand 0.10.3",
  "serde",
  "serde_json",
  "serde_yaml_ng",
