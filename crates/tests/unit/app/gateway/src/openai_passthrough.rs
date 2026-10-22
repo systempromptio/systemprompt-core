@@ -10,34 +10,22 @@
 use super::support;
 use bytes::Bytes;
 use serde_json::{Value, json};
-use std::collections::HashMap;
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_gateway::protocol::outbound::OutboundCtx;
 use systemprompt_gateway::protocol::outbound::openai_chat::raw::normalize_raw_body;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use systemprompt_wire::ModelLimits;
 
-fn route() -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new("openai"),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "openai",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn canonical() -> CanonicalRequest {
@@ -63,7 +51,7 @@ fn normalize_for(upstream_model: &str, body: &Value, limits: Option<ModelLimits>
     let route = route();
     let request = canonical();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
         request: &request,
         upstream_model,
@@ -228,7 +216,7 @@ fn a_body_that_is_not_a_json_object_declines_the_passthrough() {
     let route = route();
     let request = canonical();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call("https://upstream.invalid/v1/chat/completions", "sk-test"),
         request: &request,
         upstream_model: "upstream-1",

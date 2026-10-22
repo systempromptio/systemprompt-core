@@ -18,7 +18,6 @@ use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessag
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::outbound::anthropic::{AnthropicOutbound, request};
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
-use systemprompt_manifest::services::GatewayRoute;
 
 /// The shape Claude Code sends: breakpoints on the last system block, the last
 /// tool, and the last block of the newest user turn.
@@ -57,8 +56,14 @@ fn parse(body: &Value) -> CanonicalRequest {
         .expect("a cached body is well-formed")
 }
 
-fn route() -> GatewayRoute {
-    serde_json::from_value(json!({ "model_pattern": "*", "provider": "anthropic" })).expect("route")
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "anthropic",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "m",
+    )
 }
 
 #[test]
@@ -124,7 +129,7 @@ fn automatic_caching_marks_an_unmarked_rebuilt_request() {
         .expect("OpenAI-compatible request parses");
     let route = route();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",
@@ -165,7 +170,7 @@ fn passthrough_prepared_body_digest_equals_request_body_digest() {
     let req = parse(&cached_body());
     let route = route();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &route,
         upstream: &support::api_key_call("http://unused.invalid", "k"),
         request: &req,
         upstream_model: "claude-x",

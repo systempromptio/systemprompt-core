@@ -17,8 +17,7 @@ use systemprompt_gateway::protocol::outbound::openai_responses::OpenAiResponsesO
 use systemprompt_gateway::protocol::outbound::{
     OutboundAdapter, OutboundCtx, OutboundError, OutboundOutcome, UpstreamError,
 };
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -43,26 +42,16 @@ fn expect_failure(outcome: Result<OutboundOutcome, OutboundError>) -> OutboundEr
     }
 }
 
-fn route(provider: &str) -> GatewayRoute {
+fn route(provider: &str) -> systemprompt_manifest::services::catalog::ResolvedHop {
     let mut extra = HashMap::new();
     extra.insert("x-custom".to_owned(), "value".to_owned());
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new(provider),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: extra,
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+    systemprompt_catalog_fixtures::hop(
+        provider,
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 fn rich_request() -> CanonicalRequest {
@@ -167,7 +156,7 @@ async fn anthropic_outbound_with_rich_request_and_extra_headers() {
     let r = route("anthropic");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -200,7 +189,7 @@ async fn openai_chat_outbound_with_rich_request() {
     let r = route("openai");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -234,7 +223,7 @@ async fn openai_responses_outbound_with_rich_request_buffered() {
     let r = route("openai");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -258,7 +247,7 @@ async fn openai_responses_outbound_propagates_upstream_error() {
     let r = route("openai");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -282,7 +271,7 @@ async fn openai_responses_outbound_handles_invalid_json() {
     let r = route("openai");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -335,7 +324,7 @@ async fn anthropic_outbound_no_system_no_tools() {
         forwarded_surface: Default::default(),
     };
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -365,7 +354,7 @@ async fn openai_chat_outbound_streaming_with_extra_headers() {
     let mut req = rich_request();
     req.stream = true;
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -399,7 +388,7 @@ async fn gemini_outbound_with_rich_request_buffered() {
     let r = route("gemini");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -420,7 +409,6 @@ async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
     Mock::given(method("POST"))
         .and(path("/models/upstream-1:generateContent"))
         .and(header("x-goog-api-key", "secret-key"))
-        .and(header("x-custom", "value"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "candidates": [{
                 "content": {"role": "model", "parts": [{"text": "ok"}]},
@@ -432,7 +420,7 @@ async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
     let r = route("gemini");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "secret-key"),
         request: &req,
         upstream_model: "upstream-1",
@@ -442,11 +430,11 @@ async fn gemini_outbound_sends_the_api_key_as_a_header_not_a_query_parameter() {
         raw_body: None,
     };
 
-    // The mock only matches when both the credential header and the route's
-    // extra headers are present, so a match is the assertion.
+    // The mock only matches when the credential header is present, so a match
+    // is the assertion.
     send_via(&GeminiOutbound, ctx)
         .await
-        .expect("the request must carry the api key header and the route extras");
+        .expect("the request must carry the api key header");
 }
 
 #[tokio::test]
@@ -468,7 +456,7 @@ async fn gemini_outbound_streams_from_the_sse_endpoint() {
     let mut req = rich_request();
     req.stream = true;
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -499,7 +487,7 @@ async fn a_gemini_upstream_rejection_is_reported_as_an_upstream_status_error() {
     let r = route("gemini");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -525,7 +513,7 @@ async fn an_unreachable_gemini_endpoint_is_a_transport_error() {
     let r = route("gemini");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call("http://127.0.0.1:1", "k"),
         request: &req,
         upstream_model: "upstream-1",
@@ -554,7 +542,7 @@ async fn a_gemini_response_that_is_not_json_is_refused() {
     let r = route("gemini");
     let req = rich_request();
     let ctx = OutboundCtx {
-        route: &r,
+        target: &r,
         upstream: &support::api_key_call(&server.uri(), "k"),
         request: &req,
         upstream_model: "upstream-1",

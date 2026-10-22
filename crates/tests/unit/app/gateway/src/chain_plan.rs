@@ -1,15 +1,19 @@
 //! Chain planning before dispatch: the selection-strategy attempt order and
 //! the context-window pre-check with its fallbacks.
 
+use systemprompt_catalog_fixtures::{CatalogFixture, model, platform, priced};
 use systemprompt_gateway::protocol::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, Role,
 };
 use systemprompt_gateway::service::chain_plan::{fit_context_window, order_chain};
 use systemprompt_gateway::service::failover::{DeploymentState, plan_selection};
-use systemprompt_identifiers::ModelId;
-use systemprompt_manifest::services::{
-    GatewayRoute, ProviderEntry, ProviderRegistry, SelectionStrategy,
+use systemprompt_identifiers::{ModelId, RouteId};
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ProviderConfig, ResolvedCatalog, ResolvedHop,
 };
+use systemprompt_manifest::services::{GatewayRoute, SelectionStrategy};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::WireProtocol;
 
 const fn state(tripped: bool, weight: u32, in_flight: u64) -> DeploymentState {
     DeploymentState {
@@ -81,59 +85,112 @@ fn least_busy_leads_with_the_fewest_in_flight_and_ties_go_to_chain_order() {
     );
 }
 
-fn route(yaml: &str) -> GatewayRoute {
-    serde_yaml::from_str(yaml).expect("route fixture")
+fn catalog() -> ResolvedCatalog {
+    let mut fixture = CatalogFixture::new();
+    for name in [
+        "small",
+        "large",
+        "lb-plan-a",
+        "lb-plan-b",
+        "lb-plan-c",
+        "w-plan-a",
+        "w-plan-b",
+        "w-plan-solo",
+        "unregistered",
+    ] {
+        fixture = fixture
+            .credential(name, platform(name))
+            .provider(name, ProviderConfig::new(name))
+            .endpoint(
+                name,
+                "api",
+                EndpointConfig::new(WireProtocol::Anthropic, "https://example.test/v1"),
+            );
+    }
+    fixture
+        .model(
+            "small-m",
+            model(&[ClientFamily::Claude], 100, priced(1.0, 1.0, 0.0)),
+        )
+        .model(
+            "large-m",
+            model(&[ClientFamily::Claude], 100_000, priced(1.0, 1.0, 0.0)),
+        )
+        .model(
+            "open-m",
+            model(&[ClientFamily::Claude], 0, priced(1.0, 1.0, 0.0)),
+        )
+        .model(
+            "plan-m",
+            model(&[ClientFamily::Claude], 100_000, priced(1.0, 1.0, 0.0)),
+        )
+        .deploy("small-m", ["small/api"])
+        .deploy("large-m", ["large/api"])
+        .deploy("open-m", ["unregistered/api"])
+        .deploy(
+            "plan-m",
+            [
+                "lb-plan-a/api",
+                "lb-plan-b/api",
+                "lb-plan-c/api",
+                "w-plan-a/api",
+                "w-plan-b/api",
+                "w-plan-solo/api",
+            ],
+        )
+        .build()
+}
+
+fn hop(catalog: &ResolvedCatalog, model: &str, provider: &str, weight: Option<u32>) -> ResolvedHop {
+    let hop = catalog
+        .deployments(model)
+        .iter()
+        .find(|h| h.provider.as_str() == provider)
+        .unwrap_or_else(|| panic!("{model} on {provider}"));
+    ResolvedHop {
+        weight,
+        ..hop.clone()
+    }
+}
+
+fn route_id() -> RouteId {
+    RouteId::new("r")
 }
 
 #[test]
-fn route_strategy_and_weights_reach_every_view() {
-    let r = route(
-        "model_pattern: m\nprovider: a\nweight: 3\nstrategy: weighted\nfallbacks:\n  - {provider: b, weight: 2}\n  - {provider: c}\n",
-    );
-    let views = r.chain_views(&systemprompt_manifest::services::ChainSelection::Route);
-    let weights: Vec<u32> = views.iter().map(GatewayRoute::effective_weight).collect();
+fn hop_weights_default_to_one() {
+    let c = catalog();
+    let weights: Vec<u32> = [
+        hop(&c, "plan-m", "w-plan-a", Some(3)),
+        hop(&c, "plan-m", "w-plan-b", Some(2)),
+        hop(&c, "plan-m", "lb-plan-a", None),
+    ]
+    .iter()
+    .map(ResolvedHop::effective_weight)
+    .collect();
     assert_eq!(weights, vec![3, 2, 1]);
-    assert!(
-        views
-            .iter()
-            .all(|v| v.strategy == SelectionStrategy::Weighted)
-    );
 }
 
 #[test]
 fn ordered_chain_is_unchanged_and_not_described() {
-    let r = route("model_pattern: m\nprovider: a\nfallbacks:\n  - {provider: b}\n");
+    let c = catalog();
     let planned = order_chain(
-        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
-        "m",
+        vec![
+            hop(&c, "small-m", "small", None),
+            hop(&c, "large-m", "large", None),
+        ],
+        SelectionStrategy::Ordered,
+        &route_id(),
     );
-    let providers: Vec<&str> = planned
-        .deployments
-        .iter()
-        .map(|v| v.provider.as_str())
-        .collect();
-    assert_eq!(providers, vec!["a", "b"]);
+    assert_eq!(providers_of(&planned), vec!["small", "large"]);
     assert_eq!(planned.descriptor, None);
 }
 
 #[test]
-fn a_bare_route_without_new_keys_serializes_without_them() {
-    let r = route("model_pattern: m\nprovider: a\n");
+fn a_bare_route_serializes_without_strategy_or_fallbacks() {
+    let r = GatewayRoute::new("r");
     let yaml = serde_yaml::to_string(&r).expect("serialize");
     assert!(!yaml.contains("strategy") && !yaml.contains("weight") && !yaml.contains("context"));
-}
-
-fn provider(name: &str, context_window: u32) -> ProviderEntry {
-    serde_yaml::from_str(&format!(
-        "name: {name}\nwire: anthropic\nsurface: anthropic\nendpoint: https://example.test/v1\napi_key_secret: {name}\nmodels:\n  - id: {name}-m\n    upstream_model: m\n    pricing:\n      input_per_million: 1.0\n      output_per_million: 1.0\n    limits:\n      context_window: {context_window}\n      max_output_tokens: 1000\n"
-    ))
-    .expect("provider fixture")
-}
-
-fn registry() -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![provider("small", 100), provider("large", 100_000)],
-    }
 }
 
 fn request_of(chars: usize) -> CanonicalRequest {
@@ -146,44 +203,48 @@ fn request_of(chars: usize) -> CanonicalRequest {
     }
 }
 
-fn chain(r: &GatewayRoute) -> (Vec<GatewayRoute>, Vec<GatewayRoute>) {
-    let selection = systemprompt_manifest::services::ChainSelection::Route;
-    (
-        r.chain_views(&selection),
-        r.context_fallback_views(&selection),
-    )
-}
-
 #[test]
 fn a_request_that_fits_keeps_its_chain() {
-    let r = route("model_pattern: m\nprovider: small\ncontext_fallbacks:\n  - {provider: large}\n");
-    let (deployments, fallbacks) = chain(&r);
-    let planned =
-        fit_context_window(&registry(), &request_of(40), deployments, fallbacks).expect("fits");
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(40),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("fits");
     assert_eq!(planned.deployments[0].provider.as_str(), "small");
     assert_eq!(planned.descriptor, None);
 }
 
 #[test]
 fn an_oversized_request_moves_to_the_context_fallback() {
-    let r = route("model_pattern: m\nprovider: small\ncontext_fallbacks:\n  - {provider: large}\n");
-    let (deployments, fallbacks) = chain(&r);
-    let planned = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
-        .expect("falls back");
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        vec![hop(&c, "large-m", "large", None)],
+    )
+    .expect("falls back");
     assert_eq!(planned.deployments.len(), 1);
     assert_eq!(planned.deployments[0].provider.as_str(), "large");
     assert_eq!(
         planned.descriptor.as_deref(),
-        Some("context_window:small->large")
+        Some("context_window:small/api->large/api")
     );
 }
 
 #[test]
 fn an_oversized_request_with_no_fitting_fallback_is_refused_with_the_numbers() {
-    let r = route("model_pattern: m\nprovider: small\n");
-    let (deployments, fallbacks) = chain(&r);
-    let exceeded = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
-        .expect_err("refused");
+    let c = catalog();
+    let exceeded = fit_context_window(
+        &c,
+        &request_of(4_000),
+        vec![hop(&c, "small-m", "small", None)],
+        Vec::new(),
+    )
+    .expect_err("refused");
     assert_eq!(exceeded.limit, 100);
     assert!(exceeded.estimate > 100);
     assert!(exceeded.to_string().starts_with("context_window_exceeded"));
@@ -191,16 +252,18 @@ fn an_oversized_request_with_no_fitting_fallback_is_refused_with_the_numbers() {
 
 #[test]
 fn failover_deployments_too_small_for_the_request_are_dropped() {
-    let r = route("model_pattern: m\nprovider: large\nfallbacks:\n  - {provider: small}\n");
-    let (deployments, fallbacks) = chain(&r);
-    let planned = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
-        .expect("fits the primary");
-    let providers: Vec<&str> = planned
-        .deployments
-        .iter()
-        .map(|v| v.provider.as_str())
-        .collect();
-    assert_eq!(providers, vec!["large"]);
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(4_000),
+        vec![
+            hop(&c, "large-m", "large", None),
+            hop(&c, "small-m", "small", None),
+        ],
+        Vec::new(),
+    )
+    .expect("fits the primary");
+    assert_eq!(providers_of(&planned), vec!["large"]);
 }
 
 fn providers_of(planned: &systemprompt_gateway::service::chain_plan::PlannedChain) -> Vec<&str> {
@@ -213,19 +276,22 @@ fn providers_of(planned: &systemprompt_gateway::service::chain_plan::PlannedChai
 
 #[test]
 fn an_empty_chain_plans_to_nothing() {
-    let planned = order_chain(Vec::new(), "m");
+    let planned = order_chain(Vec::new(), SelectionStrategy::Ordered, &route_id());
     assert!(planned.deployments.is_empty());
     assert_eq!(planned.descriptor, None);
 }
 
 #[test]
 fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
-    let r = route(
-        "model_pattern: m\nprovider: lb-plan-a\nstrategy: least_busy\nfallbacks:\n  - {provider: lb-plan-b}\n  - {provider: lb-plan-c}\n",
-    );
+    let c = catalog();
     let planned = order_chain(
-        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
-        "m",
+        vec![
+            hop(&c, "plan-m", "lb-plan-a", None),
+            hop(&c, "plan-m", "lb-plan-b", None),
+            hop(&c, "plan-m", "lb-plan-c", None),
+        ],
+        SelectionStrategy::LeastBusy,
+        &route_id(),
     );
     assert_eq!(
         providers_of(&planned),
@@ -236,12 +302,14 @@ fn an_idle_least_busy_chain_keeps_chain_order_and_is_described() {
 
 #[test]
 fn a_weighted_chain_is_a_permutation_of_its_deployments() {
-    let r = route(
-        "model_pattern: m\nprovider: w-plan-a\nweight: 5\nstrategy: weighted\nfallbacks:\n  - {provider: w-plan-b, weight: 1}\n",
-    );
+    let c = catalog();
     let planned = order_chain(
-        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
-        "m",
+        vec![
+            hop(&c, "plan-m", "w-plan-a", Some(5)),
+            hop(&c, "plan-m", "w-plan-b", Some(1)),
+        ],
+        SelectionStrategy::Weighted,
+        &route_id(),
     );
     let mut providers = providers_of(&planned);
     providers.sort_unstable();
@@ -251,10 +319,11 @@ fn a_weighted_chain_is_a_permutation_of_its_deployments() {
 
 #[test]
 fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
-    let r = route("model_pattern: m\nprovider: w-plan-solo\nstrategy: weighted\n");
+    let c = catalog();
     let planned = order_chain(
-        r.chain_views(&systemprompt_manifest::services::ChainSelection::Route),
-        "m",
+        vec![hop(&c, "plan-m", "w-plan-solo", None)],
+        SelectionStrategy::Weighted,
+        &route_id(),
     );
     assert_eq!(providers_of(&planned), vec!["w-plan-solo"]);
     assert_eq!(planned.descriptor.as_deref(), Some("strategy:weighted"));
@@ -262,9 +331,16 @@ fn a_single_weighted_deployment_is_not_reordered_but_is_described() {
 
 #[test]
 fn a_deployment_with_no_known_window_is_never_refused() {
-    let r = route("model_pattern: m\nprovider: unregistered\nfallbacks:\n  - {provider: small}\n");
-    let (deployments, fallbacks) = chain(&r);
-    let planned = fit_context_window(&registry(), &request_of(4_000), deployments, fallbacks)
-        .expect("an unknown window is not a refusal");
+    let c = catalog();
+    let planned = fit_context_window(
+        &c,
+        &request_of(4_000),
+        vec![
+            hop(&c, "open-m", "unregistered", None),
+            hop(&c, "small-m", "small", None),
+        ],
+        Vec::new(),
+    )
+    .expect("an unknown window is not a refusal");
     assert_eq!(providers_of(&planned), vec!["unregistered"]);
 }

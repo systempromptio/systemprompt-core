@@ -1,153 +1,112 @@
+use systemprompt_catalog_fixtures::{CatalogFixture, model, platform};
 use systemprompt_gateway::pricing::resolve;
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId, SecretName};
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderModel, ProviderRegistry,
+use systemprompt_manifest::services::ModelPricing;
+use systemprompt_manifest::services::catalog::{
+    DeploymentDetail, DeploymentTarget, EndpointConfig, EndpointRef, PricingOverride,
+    ProviderConfig, ResolvedCatalog,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::usage;
 use systemprompt_wire::WireProtocol;
 
-fn route(pattern: &str, provider: &str, pricing: Option<ModelPricing>) -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new(format!("{pattern}-{provider}"))),
-        name: None,
-        description: None,
-        model_pattern: pattern.to_owned(),
-        provider: ProviderId::new(provider),
-        upstream_model: None,
-        extra_headers: Default::default(),
-        pricing,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
+fn price(input: f64, output: f64) -> ModelPricing {
+    ModelPricing {
+        input_per_million: input,
+        output_per_million: output,
+        cache_read_per_million: Some(0.0),
+        ..ModelPricing::default()
     }
 }
 
-fn gateway_with(routes: Vec<GatewayRoute>) -> GatewayConfig {
-    GatewayConfig {
-        enabled: true,
-        routes,
-        default_provider: None,
-        default_model: None,
-        allow_unlisted_models: false,
-        hidden_requires_route: true,
-        automatic_prompt_caching: true,
-        auth_scheme: "bearer".to_owned(),
-        inference_path_prefix: "/v1".to_owned(),
-        system_prompt_overrides: Vec::new(),
-        bridge_releases: None,
-        quota_fault_mode: Default::default(),
-        require_scopes: Vec::new(),
-    }
+fn catalog() -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential("anthropic", platform("anthropic"))
+        .credential("openai", platform("openai"))
+        .provider("anthropic", ProviderConfig::new("anthropic"))
+        .provider("openai", ProviderConfig::new("openai"))
+        .endpoint(
+            "anthropic",
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, "https://api.anthropic.com/v1"),
+        )
+        .endpoint(
+            "anthropic",
+            "eu",
+            EndpointConfig {
+                price_multiplier: Some(1.1),
+                ..EndpointConfig::new(WireProtocol::Anthropic, "https://eu.example.test/v1")
+            },
+        )
+        .endpoint(
+            "openai",
+            "api",
+            EndpointConfig::new(WireProtocol::OpenAiResponses, "https://api.openai.com/v1"),
+        )
+        .model(
+            "claude-sonnet-4-rare",
+            model(&[ClientFamily::Claude], 0, price(7.0, 9.0)),
+        )
+        .model(
+            "gpt-5-mini",
+            model(&[ClientFamily::OpenAi], 0, price(0.25, 2.0)),
+        )
+        .model(
+            "claude-eu",
+            model(&[ClientFamily::Claude], 0, price(10.0, 20.0)),
+        )
+        .deploy("claude-sonnet-4-rare", ["anthropic/api"])
+        .deploy("gpt-5-mini", ["openai/api"])
+        .deploy(
+            "claude-eu",
+            [
+                DeploymentTarget::Endpoint(EndpointRef::new("anthropic", "eu")),
+                DeploymentTarget::Detailed(DeploymentDetail {
+                    endpoint: EndpointRef::new("openai", "api"),
+                    upstream_model: Some("claude-eu-on-openai".to_owned()),
+                    pricing: Some(PricingOverride {
+                        input_per_million: Some(1.0),
+                        ..PricingOverride::default()
+                    }),
+                    clients: None,
+                }),
+            ],
+        )
+        .build()
 }
 
 #[test]
-fn route_pricing_takes_precedence() {
-    let custom = ModelPricing {
-        input_per_million: 1.0,
-        output_per_million: 2.0,
-        ..ModelPricing::default()
-    };
-    let gw = gateway_with(vec![route("claude-opus-4-7*", "anthropic", Some(custom))]);
-    let registry = ProviderRegistry::default();
-    let p = resolve(
-        "anthropic",
-        &["claude-opus-4-7-something"],
-        Some(&gw),
-        &registry,
-    )
-    .unwrap();
-    assert!((p.input_per_million - 1.0).abs() < f64::EPSILON);
-    assert!((p.output_per_million - 2.0).abs() < f64::EPSILON);
-}
-
-#[test]
-fn registry_pricing_used_when_no_route_override() {
-    let custom = ModelPricing {
-        input_per_million: 7.0,
-        output_per_million: 9.0,
-        ..ModelPricing::default()
-    };
-    let registry = ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new("anthropic"),
-            display_name: None,
-            description: None,
-            wire: WireProtocol::Anthropic,
-            surface: ApiSurface::Anthropic,
-            endpoint: "https://api.anthropic.com".to_owned(),
-            api_key_secret: Some(SecretName::new("anthropic")),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: Default::default(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new("claude-sonnet-4-rare"),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
-                upstream_model: None,
-                pricing: custom,
-                capabilities: Default::default(),
-                limits: Default::default(),
-            }],
-        }],
-    };
-    let gw = gateway_with(vec![]);
-    let p = resolve("anthropic", &["claude-sonnet-4-rare"], Some(&gw), &registry).unwrap();
+fn model_base_price_is_used_for_a_plain_deployment() {
+    let p = resolve("anthropic", &["claude-sonnet-4-rare"], &catalog()).unwrap();
     assert!((p.input_per_million - 7.0).abs() < f64::EPSILON);
     assert!((p.output_per_million - 9.0).abs() < f64::EPSILON);
 }
 
 #[test]
+fn endpoint_multiplier_scales_the_base_price() {
+    let p = resolve("anthropic", &["claude-eu"], &catalog()).unwrap();
+    assert!((p.input_per_million - 11.0).abs() < 1e-9);
+    assert!((p.output_per_million - 22.0).abs() < 1e-9);
+}
+
+#[test]
+fn deployment_override_beats_the_multiplied_base_on_the_served_provider() {
+    let p = resolve("openai", &["claude-eu"], &catalog()).unwrap();
+    assert!((p.input_per_million - 1.0).abs() < 1e-9);
+    assert!((p.output_per_million - 20.0).abs() < 1e-9);
+}
+
+#[test]
+fn an_echoed_upstream_name_prices_its_deployment() {
+    let p = resolve("openai", &["claude-eu-on-openai"], &catalog()).unwrap();
+    assert!((p.input_per_million - 1.0).abs() < 1e-9);
+}
+
+#[test]
 fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
-    let custom = ModelPricing {
-        input_per_million: 0.25,
-        output_per_million: 2.0,
-        ..ModelPricing::default()
-    };
-    let registry = ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new("openai"),
-            display_name: None,
-            description: None,
-            wire: WireProtocol::OpenAiResponses,
-            surface: ApiSurface::OpenAi,
-            endpoint: "https://api.openai.com/v1".to_owned(),
-            api_key_secret: Some(SecretName::new("openai")),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: Default::default(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new("gpt-5-mini"),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
-                upstream_model: None,
-                pricing: custom,
-                capabilities: Default::default(),
-                limits: Default::default(),
-            }],
-        }],
-    };
-    // First candidate is the dated alias the provider echoes (no catalog entry);
-    // the configured upstream model resolves.
     let p = resolve(
         "openai",
         &["gpt-5-mini-2025-08-07", "gpt-5-mini"],
-        None,
-        &registry,
+        &catalog(),
     )
     .unwrap();
     assert!((p.input_per_million - 0.25).abs() < f64::EPSILON);
@@ -155,37 +114,30 @@ fn resolve_falls_back_to_configured_model_when_served_alias_unknown() {
 }
 
 #[test]
-fn resolve_reads_pricing_from_seeded_registry() {
-    let registry = ProviderRegistry::default_seed().expect("embedded default catalog parses");
-    let p = resolve("anthropic", &["claude-haiku-4-5-20251001"], None, &registry).unwrap();
+fn resolve_reads_pricing_from_the_default_catalog() {
+    let catalog = CatalogFixture::embedded_default().build();
+    let p = resolve("anthropic", &["claude-haiku-4-5-20251001"], &catalog).unwrap();
     assert!((p.input_per_million - 1.0).abs() < 1e-9);
     assert!((p.output_per_million - 5.0).abs() < 1e-9);
 }
 
 #[test]
-fn empty_registry_and_no_route_is_missing_pricing() {
+fn an_empty_catalog_is_missing_pricing() {
     let err = resolve(
         "anthropic",
         &["claude-3-haiku-20240307"],
-        None,
-        &ProviderRegistry::default(),
+        &CatalogFixture::new().build(),
     )
-    .expect_err("an empty registry prices nothing");
+    .expect_err("an empty catalog prices nothing");
     assert_eq!(err.provider, "anthropic");
     assert_eq!(err.models, vec!["claude-3-haiku-20240307".to_owned()]);
 }
 
 #[test]
-fn unknown_provider_is_missing_pricing() {
-    let err = resolve(
-        "never-heard-of-it",
-        &["wat"],
-        None,
-        &ProviderRegistry::default(),
-    )
-    .expect_err("an unknown provider prices nothing");
-    assert_eq!(err.provider, "never-heard-of-it");
-    assert_eq!(err.models, vec!["wat".to_owned()]);
+fn unknown_model_is_missing_pricing() {
+    let err = resolve("anthropic", &["claude-99-mystery"], &catalog())
+        .expect_err("an unpriced model must not be billed at zero");
+    assert_eq!(err.models, vec!["claude-99-mystery".to_owned()]);
 }
 
 #[test]
@@ -198,18 +150,6 @@ fn cost_microdollars_uses_per_million_units() {
     // 1M input * $1 + 1M output * $2 = $3 = 3_000_000 microdollars.
     let u = usage().input(1_000_000).output(1_000_000).build();
     assert_eq!(p.cost_microdollars(&u), 3_000_000);
-}
-
-#[test]
-fn unknown_model_in_known_provider_is_missing_pricing() {
-    let err = resolve(
-        "anthropic",
-        &["claude-99-mystery"],
-        None,
-        &ProviderRegistry::default(),
-    )
-    .expect_err("an unpriced model must not be billed at zero");
-    assert_eq!(err.models, vec!["claude-99-mystery".to_owned()]);
 }
 
 #[test]
@@ -388,8 +328,7 @@ fn an_unknown_provider_has_no_measured_price() {
         resolve(
             "some-new-provider",
             &["mystery-model"],
-            None,
-            &ProviderRegistry::default()
+            &CatalogFixture::new().build()
         )
         .is_err()
     );

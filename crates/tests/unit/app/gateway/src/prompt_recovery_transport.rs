@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::support;
 use serde_json::{Value, json};
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
@@ -8,8 +6,6 @@ use systemprompt_gateway::protocol::outbound::openai_chat::OpenAiChatOutbound;
 use systemprompt_gateway::protocol::outbound::openai_responses::OpenAiResponsesOutbound;
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
 use systemprompt_governance::authz::types::Decision;
-use systemprompt_identifiers::{ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -70,28 +66,18 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                     .expect(1)
                     .mount(&server)
                     .await;
-                let route = GatewayRoute {
-                    id: Some(RouteId::new("recovery-route")),
-                    name: None,
-                    description: None,
-                    model_pattern: "*".to_owned(),
-                    provider: ProviderId::new(provider),
-                    upstream_model: Some("upstream-1".to_owned()),
-                    extra_headers: HashMap::new(),
-                    pricing: None,
-                    when: None,
-                    requires: None,
-                    fallbacks: Vec::new(),
-                    by_scope: None,
-                    strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-                    weight: None,
-                    context_fallbacks: Vec::new(),
-                };
+                let route = systemprompt_catalog_fixtures::hop(
+                    provider,
+                    systemprompt_wire::WireProtocol::Anthropic,
+                    "https://upstream.invalid/v1",
+                    "m",
+                    "upstream-1",
+                );
                 let endpoint = server.uri();
                 let mut request = request();
                 request.stream = streaming;
                 let initial = OutboundCtx {
-                    route: &route,
+                    target: &route,
                     upstream: &support::api_key_call(&endpoint, "unused"),
                     request: &request,
                     upstream_model: "upstream-1",
@@ -116,7 +102,7 @@ async fn recovery_sends_only_sanitized_bytes_for_every_adapter_and_transport_mod
                 let outcome = adapter
                     .send(
                         OutboundCtx {
-                            route: &route,
+                            target: &route,
                             upstream: &support::api_key_call(&endpoint, "unused"),
                             request: &request,
                             upstream_model: "upstream-1",

@@ -21,17 +21,17 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::catalog::{
-    CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput, CatalogResult,
-    CredentialEntry, DefaultCatalog, DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry,
-    ProviderConfig, ResolvedCatalog, CATALOG_FILES,
+    CATALOG_FILES, CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput,
+    CatalogResult, CredentialEntry, DefaultCatalog, DeploymentTarget, EndpointConfig, EndpointRef,
+    ModelEntry, ProviderConfig, ResolvedCatalog,
 };
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute, ModelPricing};
 use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::ModelLimits;
 
 pub use canned::{
-    one_platform_provider, opencode_go, vertex_regions, OPENCODE_GO_CHAT_URL,
-    OPENCODE_GO_MESSAGES_URL,
+    OPENCODE_GO_CHAT_URL, OPENCODE_GO_MESSAGES_URL, one_platform_provider, opencode_go,
+    vertex_regions,
 };
 
 #[must_use]
@@ -275,4 +275,29 @@ pub fn read_ai_dir(dir: &std::path::Path) -> Result<CatalogDocument, String> {
 
 fn render(error: CatalogDocumentError) -> String {
     error.to_string()
+}
+
+/// One resolved hop for a test that needs an outbound target: provider
+/// `provider` with a platform credential of the same name, one endpoint `api`
+/// on `wire` at `url`, serving model `model` as `upstream_model`.
+#[must_use]
+pub fn hop(
+    provider: &str,
+    wire: systemprompt_wire::WireProtocol,
+    url: &str,
+    model_id: &str,
+    upstream_model: &str,
+) -> systemprompt_manifest::services::catalog::ResolvedHop {
+    let entry = ModelEntry {
+        upstream_model: Some(upstream_model.to_owned()),
+        ..model(&[ClientFamily::Claude], 200_000, priced(1.0, 2.0, 0.1))
+    };
+    let catalog = CatalogFixture::new()
+        .credential(provider, platform(provider))
+        .provider(provider, ProviderConfig::new(provider))
+        .endpoint(provider, "api", EndpointConfig::new(wire, url))
+        .model(model_id, entry)
+        .deploy(model_id, [format!("{provider}/api").as_str()])
+        .build();
+    catalog.deployments(model_id)[0].clone()
 }

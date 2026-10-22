@@ -1,33 +1,26 @@
-use std::collections::HashMap;
-
 use async_trait::async_trait;
 use systemprompt_gateway::{
     RouteSelector, RouteSelectorEngine, RouteSelectorError, register_route_selector,
 };
-use systemprompt_identifiers::{ModelId, ProviderId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
+use systemprompt_manifest::services::catalog::EndpointRef;
+use systemprompt_manifest::services::{GatewayRoute, ModelGlobs, RouteDeployment};
 use systemprompt_wire::canonical::CanonicalRequest;
 
+fn pinned(provider: &str) -> Vec<RouteDeployment> {
+    vec![RouteDeployment::Endpoint(EndpointRef::new(provider, "api"))]
+}
+
 fn route(pattern: &str, provider: &str) -> GatewayRoute {
-    let mut r = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: pattern.to_owned(),
-        provider: ProviderId::new(provider),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    r.ensure_id();
-    r
+    GatewayRoute {
+        models: ModelGlobs(vec![pattern.to_owned()]),
+        deployments: pinned(provider),
+        ..GatewayRoute::new(format!("{pattern}-{provider}"))
+    }
+}
+
+fn pinned_provider(route: &GatewayRoute) -> &str {
+    route.deployments[0].endpoint().provider.as_str()
 }
 
 fn req(model: &str) -> CanonicalRequest {
@@ -77,8 +70,7 @@ impl RouteSelector for RerouteToGemini {
     ) -> Result<Option<GatewayRoute>, RouteSelectorError> {
         if request.model == "reroute-me" {
             let mut refined = matched.clone();
-            refined.provider = ProviderId::new("gemini");
-            refined.ensure_id();
+            refined.deployments = pinned("gemini");
             return Ok(Some(refined));
         }
         Ok(None)
@@ -114,7 +106,7 @@ async fn selector_reroutes_and_reports_its_name() {
         .refine(&matched, &req("reroute-me"))
         .await
         .expect("selector must re-route the matching request");
-    assert_eq!(refined.provider.as_str(), "gemini");
+    assert_eq!(pinned_provider(&refined), "gemini");
     assert_eq!(name, "reroute-to-gemini");
 }
 
@@ -125,7 +117,7 @@ async fn selector_trait_refine_is_invoked_directly() {
         .refine(&matched, &req("reroute-me"))
         .await
         .expect("refine must not error");
-    assert_eq!(out.expect("re-routed").provider.as_str(), "gemini");
+    assert_eq!(pinned_provider(&out.expect("re-routed")), "gemini");
 }
 
 struct AlwaysErrors;
@@ -175,7 +167,7 @@ async fn a_failing_selector_does_not_abort_the_chain_or_the_matched_route() {
         .refine(&matched, &req("reroute-me"))
         .await
         .expect("a later healthy selector must still be reached");
-    assert_eq!(refined.provider.as_str(), "gemini");
+    assert_eq!(pinned_provider(&refined), "gemini");
     assert_eq!(name, "reroute-to-gemini");
 }
 

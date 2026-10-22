@@ -15,18 +15,16 @@ use systemprompt_manifest::services::catalog::{
 };
 use systemprompt_manifest::services::{GatewayRoute, RouteDeployment, RouteMatch};
 use systemprompt_models::providers::ClientFamily;
-use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::WireProtocol;
+use systemprompt_wire::anthropic::AnthropicBeta;
 
-use super::{claude_model, model, personal, platform, priced, CatalogFixture};
+use super::{CatalogFixture, claude_model, model, personal, platform, priced};
 
 pub const OPENCODE_GO_CHAT_URL: &str = "https://opencode.ai/zen/go/v1";
 pub const OPENCODE_GO_MESSAGES_URL: &str = "https://opencode.ai/zen/go/anthropic/v1";
-const VERTEX_GLOBAL: &str =
-    "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic/models";
+const VERTEX_GLOBAL: &str = "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/anthropic/models";
 const VERTEX_EU: &str = "https://europe-west4-aiplatform.googleapis.com/v1/projects/{project}/locations/europe-west4/publishers/anthropic/models";
-const VERTEX_GEMINI: &str =
-    "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google/models";
+const VERTEX_GEMINI: &str = "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google/models";
 
 #[must_use]
 pub fn one_platform_provider() -> CatalogFixture {

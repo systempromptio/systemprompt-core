@@ -66,7 +66,7 @@ fn ctx(provider: &str, model: &str, system: Option<&str>) -> OverrideContext {
 fn replace_rule(provider: Option<&str>, pattern: Option<&str>, prompt: &str) -> SystemPromptRule {
     SystemPromptRule {
         provider: provider.map(ProviderId::new),
-        model_pattern: pattern.map(ToOwned::to_owned),
+        models: pattern.map(|p| systemprompt_manifest::services::ModelGlobs(vec![p.to_owned()])),
         action: OverrideRuleAction::Replace,
         prompt: Some(prompt.to_owned()),
     }
@@ -93,7 +93,7 @@ async fn replace_rule_substitutes_prompt() {
 async fn strip_rule_removes_prompt() {
     let rules = vec![SystemPromptRule {
         provider: Some(ProviderId::new("cerebras")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     }];

@@ -8585,6 +8585,7 @@ dependencies = [
  "sha2 0.11.1",
  "sqlx",
  "systemprompt-ai",
+ "systemprompt-catalog-fixtures",
  "systemprompt-database",
  "systemprompt-gateway",
  "systemprompt-governance",

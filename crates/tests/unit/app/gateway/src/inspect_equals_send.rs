@@ -13,7 +13,6 @@
 //! that: the surface is derived from the bytes that will actually be sent, and
 //! it reaches the accessor blocking scanners read.
 
-use std::collections::HashMap;
 use systemprompt_ai::UpstreamCall;
 
 use super::support;
@@ -24,31 +23,20 @@ use systemprompt_gateway::protocol::canonical::{
 };
 use systemprompt_gateway::protocol::outbound::anthropic::AnthropicOutbound;
 use systemprompt_gateway::protocol::outbound::{OutboundAdapter, OutboundCtx};
-use systemprompt_identifiers::{ModelId, ProviderId, RouteId};
-use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_identifiers::ModelId;
 use systemprompt_wire::ModelLimits;
 use systemprompt_wire::inspect::{SurfaceBudget, string_leaves};
 
 const LEAKED_KEY: &str = "AKIAIOSFODNN7EXAMPLE";
 
-fn route() -> GatewayRoute {
-    GatewayRoute {
-        id: Some(RouteId::new("r1")),
-        name: None,
-        description: None,
-        model_pattern: "*".into(),
-        provider: ProviderId::new("anthropic"),
-        upstream_model: Some("upstream-1".into()),
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    }
+fn route() -> systemprompt_manifest::services::catalog::ResolvedHop {
+    systemprompt_catalog_fixtures::hop(
+        "anthropic",
+        systemprompt_wire::WireProtocol::Anthropic,
+        "https://upstream.invalid/v1",
+        "m",
+        "upstream-1",
+    )
 }
 
 /// A canonical request whose modelled content is entirely innocuous.
@@ -87,13 +75,13 @@ static UNUSED_UPSTREAM: std::sync::LazyLock<UpstreamCall> =
     std::sync::LazyLock::new(|| support::api_key_call("http://unused.invalid", "k"));
 
 fn ctx<'a>(
-    route: &'a GatewayRoute,
+    target: &'a systemprompt_manifest::services::catalog::ResolvedHop,
     request: &'a CanonicalRequest,
     raw: Option<&'a bytes::Bytes>,
     limits: Option<ModelLimits>,
 ) -> OutboundCtx<'a> {
     OutboundCtx {
-        route,
+        target,
         upstream: &UNUSED_UPSTREAM,
         request,
         upstream_model: "upstream-1",
