@@ -71,11 +71,6 @@ impl Extension for UsersExtension {
                 "value".into(),
             ]),
             SchemaDefinition::new(
-                "api_key_sessions",
-                include_str!("../schema/api_key_sessions.sql"),
-            )
-            .with_required_columns(vec!["api_key_id".into(), "session_id".into()]),
-            SchemaDefinition::new(
                 "user_device_certs",
                 include_str!("../schema/user_device_certs.sql"),
             )
@@ -97,6 +92,7 @@ impl Extension for UsersExtension {
             ]),
         ]
         .into_iter()
+        .chain(std::iter::once(api_key_session_schema()))
         .chain(federation_schemas())
         .collect()
     }
@@ -133,4 +129,12 @@ fn federation_schemas() -> [SchemaDefinition; 2] {
             "occurred_at".into(),
         ]),
     ]
+}
+
+fn api_key_session_schema() -> SchemaDefinition {
+    SchemaDefinition::new(
+        "api_key_sessions",
+        include_str!("../schema/api_key_sessions.sql"),
+    )
+    .with_required_columns(vec!["api_key_id".into(), "session_id".into()])
 }

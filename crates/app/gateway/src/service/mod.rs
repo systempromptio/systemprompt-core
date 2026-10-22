@@ -118,14 +118,8 @@ impl GatewayService {
         .await?;
         let forward_headers = with_client_session(
             forward_headers,
-            ctx.client_session_id
-                .as_ref()
-                .map(systemprompt_identifiers::ClientSessionId::as_str)
-                .or_else(|| {
-                    ctx.session_id
-                        .as_ref()
-                        .map(systemprompt_identifiers::SessionId::as_str)
-                }),
+            ctx.client_session_id.as_ref(),
+            ctx.session_id.as_ref(),
         );
         let pricing = dispatch_pricing(&request, &upstream)?;
 

@@ -12,8 +12,12 @@ const OPENCODE_SESSION_HEADER: &str = "x-opencode-session";
 // reaches only a provider whose `forward_headers` lists the header.
 pub(super) fn with_client_session(
     mut forward: Vec<(String, String)>,
-    metering_key: Option<&str>,
+    client_session: Option<&systemprompt_identifiers::ClientSessionId>,
+    session_id: Option<&systemprompt_identifiers::SessionId>,
 ) -> Vec<(String, String)> {
+    let metering_key = client_session
+        .map(systemprompt_identifiers::ClientSessionId::as_str)
+        .or_else(|| session_id.map(systemprompt_identifiers::SessionId::as_str));
     let present = forward
         .iter()
         .any(|(name, _)| name.eq_ignore_ascii_case(OPENCODE_SESSION_HEADER));
