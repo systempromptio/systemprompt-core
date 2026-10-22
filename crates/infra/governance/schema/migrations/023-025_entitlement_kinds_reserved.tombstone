@@ -1,0 +1,5 @@
+Slots 023 to 025 are spent, not free.
+
+They were reserved for the 0.73 entitlement-kind migration while
+026_access_control_change_provenance.sql landed above them; that migration
+takes a later slot, and this marker keeps the three slots from being reused.
