@@ -167,7 +167,7 @@ mod cleanup_empty_contexts_enforce_gate {
         .await
         .expect("seed user");
 
-        let context_id = format!("{tag}-{}", uuid::Uuid::new_v4());
+        let context_id = uuid::Uuid::new_v4().to_string();
         let raw = pool.pool();
         sqlx::query(
             "INSERT INTO user_contexts (context_id, user_id, session_id, name, kind, created_at, \

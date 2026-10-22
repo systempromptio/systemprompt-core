@@ -1098,7 +1098,8 @@ lint-owned-tasks:
 lint-json-value:
     ./scripts/lint-json-value.sh
 
-# A crate queries only the tables its own schema/*.sql declares (infra may read infra).
+# A crate queries only the tables its own schema/*.sql declares (infra may read
+# infra; app/entry may read what scripts/table-ownership-reads.txt lists, never write).
 lint-table-ownership:
     ./scripts/lint-table-ownership.sh
 

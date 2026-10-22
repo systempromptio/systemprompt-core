@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -58,6 +59,35 @@ pub struct PreparedPayload {
 }
 
 impl AiRequestPayloadRepository {
+    // Why: the payload row stays (excerpts, hashes, sizes are the audit
+    // trail); only the raw bodies, the bulk of the table, are released.
+    pub async fn release_bodies_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        batch: i64,
+    ) -> Result<u64, RepositoryError> {
+        let result = sqlx::query!(
+            "UPDATE ai_request_payloads SET request_body = NULL, response_body = NULL, updated_at = NOW() \
+             WHERE ctid = ANY(ARRAY(SELECT ctid FROM ai_request_payloads WHERE created_at < $1 \
+             AND (request_body IS NOT NULL OR response_body IS NOT NULL) LIMIT $2))",
+            cutoff,
+            batch
+        )
+        .execute(&*self.write_pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn count_bodies_before(&self, cutoff: DateTime<Utc>) -> Result<i64, RepositoryError> {
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*) AS "count!" FROM ai_request_payloads WHERE created_at < $1 AND (request_body IS NOT NULL OR response_body IS NOT NULL)"#,
+            cutoff
+        )
+        .fetch_one(&*self.pool)
+        .await?;
+        Ok(count)
+    }
+
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();
         let write_pool = db.write_pool();

@@ -58,8 +58,12 @@ impl LoggingRepository {
         operations::list_logs_by_module_patterns(&self.pool, patterns, limit).await
     }
 
-    pub async fn cleanup_old_logs(&self, older_than: DateTime<Utc>) -> Result<u64, LoggingError> {
-        operations::cleanup_logs_before(&self.write_pool, older_than).await
+    pub async fn purge_before(
+        &self,
+        cutoff: DateTime<Utc>,
+        batch: i64,
+    ) -> Result<u64, LoggingError> {
+        operations::purge_logs_before(&self.write_pool, cutoff, batch).await
     }
 
     pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {

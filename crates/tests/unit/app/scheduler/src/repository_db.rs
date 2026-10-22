@@ -752,7 +752,7 @@ mod empty_context_audit_guards {
         logs.delete_logs_for_users(&orphans)
             .await
             .expect("orphaned logs");
-        logs.cleanup_old_logs(chrono::Utc::now() - chrono::Duration::days(30))
+        logs.purge_before(chrono::Utc::now() - chrono::Duration::days(30), 5000)
             .await
             .expect("old logs");
         systemprompt_oauth::repository::OauthCleanupRepository::new(&seed.pool)

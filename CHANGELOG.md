@@ -15,6 +15,13 @@
 ### Changed
 
 - The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
+- The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
+- `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.
+
+### Removed
+
+- `LoggingRepository::cleanup_old_logs` and `DurableOutbox::prune_processed_before`. Migrate by calling `purge_before(cutoff, batch)` / `purge_processed_before(cutoff, batch)` in a loop until a batch comes back short.
+- `SchedulerError::UnknownRetentionTable`; the retention plan is the `RetentionTarget` enum.
 
 ## [0.72.1] - 2026-10-22
 

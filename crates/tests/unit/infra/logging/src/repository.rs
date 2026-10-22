@@ -285,7 +285,7 @@ async fn cleanup_old_logs_removes_old_rows() {
     let count = repo.count_logs_before(cutoff).await.unwrap();
     assert!(count >= 1);
 
-    let deleted = repo.cleanup_old_logs(cutoff).await.unwrap();
+    let deleted = repo.purge_before(cutoff, 5000).await.unwrap();
     assert!(deleted >= 1);
     assert!(repo.get_by_id(&id).await.unwrap().is_none());
 }

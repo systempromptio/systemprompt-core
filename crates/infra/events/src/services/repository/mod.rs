@@ -21,6 +21,10 @@ use super::routing::{OUTBOX_CHANNEL, OutboxChannel};
 
 pub use ownership::EventsOwnerReassignment;
 
+// Why: the bridge prunes on every relay tick, so one bounded batch per tick
+// keeps the statement short and leaves the remainder for the next tick.
+const PRUNE_BATCH_ROWS: i64 = 5000;
+
 pub(super) struct OutboxRow {
     pub channel: String,
     pub user_id: UserId,
@@ -101,6 +105,11 @@ impl EventOutboxRepository {
         &self,
         cutoff: chrono::DateTime<chrono::Utc>,
     ) -> Result<u64, sqlx::Error> {
-        durable::DurableOutboxRepository::prune_processed(&self.pool, cutoff).await
+        durable::DurableOutboxRepository::purge_processed_before(
+            &self.pool,
+            cutoff,
+            PRUNE_BATCH_ROWS,
+        )
+        .await
     }
 }
