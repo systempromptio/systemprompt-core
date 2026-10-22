@@ -210,7 +210,11 @@ async fn a_json_log_export_is_decoded_and_counted() {
     let request = post("/v1/logs", "application/json; charset=utf-8")
         .body(Body::from(body.to_string()))
         .expect("request");
-    let resp = ingest_envelope(request).await;
+    let resp = ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        request,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
     assert!(exports("logs") > before, "a JSON log export is ingested");
 }
