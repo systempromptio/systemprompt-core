@@ -5138,6 +5138,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-manifest",
+ "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",

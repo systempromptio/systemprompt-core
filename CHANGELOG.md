@@ -31,6 +31,7 @@
 - **Breaking:** `systemprompt_models::time_format` → `systemprompt_cli::shared::time_format`. Migrate by importing the formatting helpers from the CLI crate or formatting with `chrono` directly.
 - **Breaking:** the glob re-exports in `systemprompt_models::{events::payloads, artifacts::dashboard, auth}` are explicit lists naming every public item, so each item keeps its path. Migrate nothing unless a downstream glob import relied on a name outside those lists.
 - **Breaking:** `systemprompt_models::mcp::CallToolResultExt` is removed. Migrate by calling `McpToolResultMetadata::from_call_tool_result(&result)`.
+- **Breaking:** `systemprompt_logging::services::cli::table::truncate_to_width` is removed; table cells truncate through `systemprompt_models::text::truncate_with_ellipsis`. Migrate by calling that function.
 
 ### Added
 
