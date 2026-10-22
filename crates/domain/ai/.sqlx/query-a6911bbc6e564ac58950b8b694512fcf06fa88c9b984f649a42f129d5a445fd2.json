@@ -1,16 +1,16 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT provider, label, created_at, verified_at, last_used_at\n            FROM user_provider_credentials\n            WHERE user_id = $1\n            ORDER BY provider\n            ",
+  "query": "\n            INSERT INTO user_provider_credentials\n                (user_id, credential, ciphertext, nonce, label, verified_at)\n            VALUES ($1, $2, $3, $4, $5, NOW())\n            ON CONFLICT (user_id, credential) DO UPDATE SET\n                ciphertext = EXCLUDED.ciphertext,\n                nonce = EXCLUDED.nonce,\n                label = EXCLUDED.label,\n                created_at = NOW(),\n                verified_at = NOW(),\n                last_used_at = NULL\n            RETURNING credential, label, created_at, verified_at, last_used_at\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "provider",
+        "name": "credential",
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "user_provider_credentials",
-            "name": "provider"
+            "name": "credential"
           }
         }
       },
@@ -61,6 +61,10 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
         "Text"
       ]
     },
@@ -72,5 +76,5 @@
       true
     ]
   },
-  "hash": "7dfa702b330078bd438b9bccc2482f297f0092d39b6ef63beba7ec8908d56336"
+  "hash": "a6911bbc6e564ac58950b8b694512fcf06fa88c9b984f649a42f129d5a445fd2"
 }
