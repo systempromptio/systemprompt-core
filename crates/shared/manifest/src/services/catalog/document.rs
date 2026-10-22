@@ -3,8 +3,9 @@
 //! A [`CatalogDocument`] is whatever one catalog file declares — any of
 //! `credentials:`, `providers:`, `models:`, `deployments:` and `gateway:` —
 //! and [`CatalogDocument::merge`] folds several into one, refusing an id
-//! declared twice. [`CATALOG_FILES`] are the files of the convention, read by
-//! [`CatalogDocument::from_ai_dir`].
+//! declared twice. [`CATALOG_FILES`] are the files of the convention, in the
+//! order a reader merges them; reading them is the loader's job, so this crate
+//! stays free of I/O.
 //!
 //! The pre-0.73 shape (a `providers:` list, `ai.default_provider`,
 //! `ai.providers`, a gateway `default_provider`, a route with
@@ -15,7 +16,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
@@ -50,7 +50,6 @@ pub struct CatalogDocument {
     pub gateway: Option<GatewayConfigSpec>,
 }
 
-/// Names the pre-0.73 construct a document still uses, if any.
 #[must_use]
 pub fn detect_legacy_shape(document: &Value) -> Option<&'static str> {
     if document.get("providers").is_some_and(Value::is_sequence) {
@@ -96,24 +95,6 @@ impl CatalogDocument {
             return Ok(Self::default());
         }
         serde_yaml::from_value(value).map_err(parse)
-    }
-
-    pub fn from_ai_dir(dir: &Path) -> Result<Self, CatalogDocumentError> {
-        let mut merged = Self::default();
-        for file in CATALOG_FILES {
-            let path = dir.join(file);
-            if !path.exists() {
-                continue;
-            }
-            let origin = path.display().to_string();
-            let text =
-                std::fs::read_to_string(&path).map_err(|source| CatalogDocumentError::Io {
-                    origin: origin.clone(),
-                    source,
-                })?;
-            merged.merge(Self::from_yaml_str(&origin, &text)?)?;
-        }
-        Ok(merged)
     }
 
     pub fn merge(&mut self, other: Self) -> Result<(), CatalogDocumentError> {

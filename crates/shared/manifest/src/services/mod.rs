@@ -60,6 +60,10 @@ pub use bundle::{
     FileEntry, MARKETPLACE_BUNDLE_DIRS, ServicesBundleManifest, ServicesBundleState,
     SignedBundleManifest,
 };
+pub use catalog::vertex::{
+    DiscoveryReport, DocumentedLaunchStage, RETIREMENT_NOTICE_DAYS, VertexRateCard,
+    VertexRateCardEntry,
+};
 pub use catalog::{
     CatalogContext, CatalogError, CatalogInput, CredentialRegistry, DeploymentRegistry,
     ModelRegistry, ModelRequest, ProviderRegistry, ResolvedCatalog,

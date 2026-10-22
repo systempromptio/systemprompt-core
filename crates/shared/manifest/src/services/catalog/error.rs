@@ -204,13 +204,6 @@ pub enum CatalogDocumentError {
         source: serde_yaml::Error,
     },
 
-    #[error("{origin}: {source}")]
-    Io {
-        origin: String,
-        #[source]
-        source: std::io::Error,
-    },
-
     #[error("{origin}: {what} is the pre-0.73 catalog shape; {MIGRATE_HINT}")]
     LegacyShape { origin: String, what: &'static str },
 
