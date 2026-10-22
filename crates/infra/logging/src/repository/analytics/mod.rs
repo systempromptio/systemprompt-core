@@ -49,16 +49,6 @@ impl AnalyticsRepository {
         .await?;
         Ok(result.rows_affected())
     }
-
-    pub async fn count_before(&self, cutoff: DateTime<Utc>) -> Result<i64, LoggingError> {
-        let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM analytics_events WHERE timestamp < $1"#,
-            cutoff
-        )
-        .fetch_one(&*self.write_pool)
-        .await?;
-        Ok(count)
-    }
 }
 
 async fn execute_insert(pool: &PgPool, event: &AnalyticsEvent) -> Result<u64, LoggingError> {

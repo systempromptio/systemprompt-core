@@ -139,16 +139,4 @@ impl DurableOutboxRepository {
         .await
         .map(|result| result.rows_affected())
     }
-
-    pub(crate) async fn count_processed_before(
-        pool: &PgPool,
-        cutoff: chrono::DateTime<chrono::Utc>,
-    ) -> Result<i64, sqlx::Error> {
-        sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM event_outbox WHERE created_at < $1 AND (consumer IS NULL OR processed_at IS NOT NULL)"#,
-            cutoff
-        )
-        .fetch_one(pool)
-        .await
-    }
 }

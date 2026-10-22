@@ -78,15 +78,6 @@ impl AiRequestPayloadRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn count_bodies_before(&self, cutoff: DateTime<Utc>) -> Result<i64, RepositoryError> {
-        let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM ai_request_payloads WHERE created_at < $1 AND (request_body IS NOT NULL OR response_body IS NOT NULL)"#,
-            cutoff
-        )
-        .fetch_one(&*self.pool)
-        .await?;
-        Ok(count)
-    }
 
     pub fn new(db: &DbPool) -> Self {
         let pool = db.pool();

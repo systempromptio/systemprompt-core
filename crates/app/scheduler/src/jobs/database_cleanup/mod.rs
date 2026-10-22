@@ -3,8 +3,8 @@
 //! `profile.retention`. Each [`RetentionTarget`] dispatches to the repository
 //! of the crate that owns the table; the scheduler issues no delete itself.
 //!
-//! Deletion requires `enforce`; without it the job reports what it would
-//! delete.
+//! Deletion requires `enforce`; without it the job only reports each window
+//! and deletes nothing.
 //!
 //! Tables are deleted message rows first, so the request rows they hang off
 //! are still present for the cascade-free path. Quota windows are at most a
@@ -116,22 +116,6 @@ impl RetentionTarget {
         };
         Ok(deleted)
     }
-
-    async fn count(self, owners: &RetentionOwners, cutoff: DateTime<Utc>) -> SchedulerResult<i64> {
-        let count = match self {
-            Self::Logs => {
-                i64::try_from(owners.logs.count_logs_before(cutoff).await?).unwrap_or(i64::MAX)
-            },
-            Self::AnalyticsEvents => owners.analytics_events.count_before(cutoff).await?,
-            Self::AiRequestMessages => owners.requests.count_messages_before(cutoff).await?,
-            Self::McpToolExecutions => owners.tool_executions.count_before(cutoff).await?,
-            Self::EventOutbox => owners.outbox.count_processed_before(cutoff).await?,
-            Self::AiRequestPayloads => owners.payloads.count_bodies_before(cutoff).await?,
-            Self::GovernanceDecisions => owners.decisions.count_before(cutoff).await?,
-            Self::AiQuotaBuckets => owners.quota_buckets.count_before(cutoff).await?,
-        };
-        Ok(count)
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -174,12 +158,10 @@ impl Job for DatabaseCleanupJob {
             let pass = if ctx.enforce() {
                 delete_in_batches(&owners, target, days, cutoff, start_time).await?
             } else {
-                let would = target.count(&owners, cutoff).await?;
                 info!(
                     table = target.table(),
-                    would_delete = would,
                     retention_days = days,
-                    "enforce disabled: rows qualify for deletion but were not deleted"
+                    "enforce disabled: rows past the window were not deleted"
                 );
                 RetentionPass {
                     table: target.table(),
