@@ -64,9 +64,7 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
     copy_request_headers(src, &mut headers);
     stamp_attestation(&mut headers, attest)?;
 
-    let bearer = reqwest::header::HeaderValue::try_from(format!("Bearer {bearer}"))
-        .map_err(|e| invalid_header("authorization", e))?;
-    headers.insert(reqwest::header::AUTHORIZATION, bearer);
+    headers.insert(reqwest::header::AUTHORIZATION, bearer_value(bearer)?);
     let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
         .map_err(|e| invalid_header(sp_headers::SESSION_ID, e))?;
     headers.insert(
@@ -90,6 +88,11 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
     }
 
     Ok(headers)
+}
+
+pub(super) fn bearer_value(token: &str) -> ForwardResult<reqwest::header::HeaderValue> {
+    reqwest::header::HeaderValue::try_from(format!("Bearer {token}"))
+        .map_err(|e| invalid_header("authorization", e))
 }
 
 pub fn stamp_attestation(

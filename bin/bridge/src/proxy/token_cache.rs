@@ -180,10 +180,10 @@ impl TokenCache {
         }
     }
 
-    pub async fn reject_upstream(&self, endpoint: &str) {
+    pub async fn reject_upstream(&self, endpoint: &str) -> bool {
         let mut guard = self.cached.lock().await;
         let Some(entry) = guard.take() else {
-            return;
+            return false;
         };
         if entry.minted_at.elapsed() <= FRESH_REJECTION_WINDOW {
             drop(guard);
@@ -191,8 +191,10 @@ impl TokenCache {
                 "{endpoint} rejected a credential issued {}s ago",
                 entry.minted_at.elapsed().as_secs()
             ));
+            false
         } else {
             tracing::info!(endpoint, "token cache invalidated (upstream rejected JWT)");
+            true
         }
     }
 
