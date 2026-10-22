@@ -5251,7 +5251,6 @@ name = "systemprompt-models"
 version = "0.72.1"
 dependencies = [
  "async-trait",
- "axum",
  "chrono",
  "futures",
  "hex",

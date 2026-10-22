@@ -10,6 +10,7 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::error::ApiHttpError;
 use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository};
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, LocaleCode, SessionId};
@@ -88,7 +89,7 @@ pub(super) async fn record_engagement(
     State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<StatusCode, ApiHttpError> {
     let content_id = resolve_content_id(
         &state.content_repo,
         state.content_routing.as_deref(),

@@ -13,6 +13,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use std::sync::Arc;
 
+use crate::error::ApiHttpError;
 use systemprompt_analytics::{
     AnalyticsEventBatchResponse, AnalyticsEventType, AnalyticsEventsRepository,
     CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
@@ -71,7 +72,7 @@ pub(super) async fn record_event(
     State(state): State<AnalyticsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventInput>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     if input.content_id.is_none() {
         input.content_id = resolve_content_id(
             &state.content,
@@ -102,7 +103,7 @@ pub(super) async fn record_events_batch(
     State(state): State<AnalyticsState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(mut input): Json<CreateAnalyticsEventBatchInput>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<impl IntoResponse, ApiHttpError> {
     for event in &mut input.events {
         if event.content_id.is_none() {
             event.content_id = resolve_content_id(

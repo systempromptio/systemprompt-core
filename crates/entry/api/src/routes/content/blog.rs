@@ -8,7 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use axum::extract::{Path, State};
-use axum::http::header::LINK;
+use axum::http::StatusCode;
+use axum::http::header::{CONTENT_TYPE, LINK};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use systemprompt_content::Content;
@@ -53,7 +54,7 @@ pub async fn get_content_handler(
     let wants_markdown =
         accepted_format.is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
     if wants_markdown {
-        return Ok(content_to_markdown_response(&content).into_response());
+        return Ok(markdown_response(&content_to_markdown_response(&content)));
     }
 
     let config = ctx.config();
@@ -90,11 +91,26 @@ pub async fn get_content_markdown_handler(
         .await
         .map_err(RepositoryError::from)?
         .ok_or_else(content_not_found)?;
-    Ok(content_to_markdown_response(&content).into_response())
+    Ok(markdown_response(&content_to_markdown_response(&content)))
 }
 
 fn content_not_found() -> ApiHttpError {
     ApiHttpError::not_found("Content not found")
+}
+
+fn markdown_response(markdown: &MarkdownResponse) -> Response {
+    match markdown.to_markdown() {
+        Ok(body) => (
+            StatusCode::OK,
+            [(CONTENT_TYPE, "text/markdown; charset=utf-8")],
+            body,
+        )
+            .into_response(),
+        Err(e) => {
+            tracing::error!(error = %e, "MarkdownResponse frontmatter serialization failed");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        },
+    }
 }
 
 fn content_to_markdown_response(content: &Content) -> MarkdownResponse {

@@ -3,12 +3,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use axum::Json;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
+use crate::error::ApiHttpError;
+use systemprompt_models::CollectionResponse;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::{ApiError, CollectionResponse};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -31,7 +33,7 @@ pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResp
         Ok(configs) => configs,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load MCP server configs");
-            return ApiError::internal_error("Failed to retrieve MCP registry").into_response();
+            return ApiHttpError::internal_error("Failed to retrieve MCP registry").into_response();
         },
     };
 
@@ -60,5 +62,5 @@ pub async fn handle_mcp_registry(State(ctx): State<AppContext>) -> impl IntoResp
         })
         .collect();
 
-    CollectionResponse::new(servers).into_response()
+    Json(CollectionResponse::new(servers)).into_response()
 }

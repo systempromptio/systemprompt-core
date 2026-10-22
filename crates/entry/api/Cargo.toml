@@ -69,7 +69,7 @@ metrics-exporter-prometheus = { workspace = true }
 
 
 # systemprompt.io crates
-systemprompt-models = { workspace = true, features = ["web"] }
+systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-client = { workspace = true }

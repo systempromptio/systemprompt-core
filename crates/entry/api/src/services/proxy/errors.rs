@@ -3,6 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::error::ApiHttpError;
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -208,7 +209,7 @@ impl IntoResponse for ProxyError {
                 .with_details(cause_chain(&self)),
             _ => ApiError::internal_error("Proxy request failed").with_details(cause_chain(&self)),
         };
-        api_error.with_error_key(error_key).into_response()
+        ApiHttpError::from(api_error.with_error_key(error_key)).into_response()
     }
 }
 

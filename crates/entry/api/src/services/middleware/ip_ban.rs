@@ -25,12 +25,12 @@ use axum::response::{IntoResponse, Response};
 use ipnet::IpNet;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_users::BannedIpRepository;
 use tracing::warn;
 
 use super::client_addr::resolve_client_ip;
+use crate::error::ApiHttpError;
 
 fn is_probe_path(path: &str) -> bool {
     path == "/health"
@@ -40,7 +40,7 @@ fn is_probe_path(path: &str) -> bool {
 }
 
 fn deny(reason: &'static str) -> Response {
-    let mut response = ApiError::forbidden("Access denied").into_response();
+    let mut response = ApiHttpError::forbidden("Access denied").into_response();
     response
         .headers_mut()
         .insert("X-Blocked-Reason", http::HeaderValue::from_static(reason));
