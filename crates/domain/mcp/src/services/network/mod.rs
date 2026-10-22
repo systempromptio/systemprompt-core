@@ -56,7 +56,11 @@ impl NetworkService {
         routing::apply_cors_layer(router)
     }
 
-    pub fn create_proxy(target_host: &str, target_port: u16) -> axum::Router {
-        proxy::create_proxy_router(target_host, target_port)
+    pub fn create_proxy(
+        client: reqwest::Client,
+        target_host: &str,
+        target_port: u16,
+    ) -> axum::Router {
+        proxy::create_proxy_router(client, target_host, target_port)
     }
 }

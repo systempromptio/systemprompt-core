@@ -31,6 +31,8 @@
 - **Breaking:** `SsoLoginEvent::provider_id` is `SsoProviderId`, `SsoStateRow::provider_id` is `SsoProviderId` and `ConsumedRefreshToken::family_id` is `RefreshTokenFamilyId` (new in `systemprompt_identifiers`). Migrate by reading the value through `as_str()`.
 - **Breaking:** `systemprompt_oauth::TemplateEngine` is `TemplateService`. Migrate by renaming the import.
 - **Breaking:** `systemprompt_oauth` re-exports an explicit list from `models` (the `cimd`, `clients` and `oauth` modules plus their public types) and from `services::validation`; the `error::kind` module is folded into `error` (`OauthErrorKind` stays at `systemprompt_oauth::OauthErrorKind`). Migrate a path that went through `error::kind` to `error::OauthErrorKind`.
+- **Breaking:** `systemprompt_mcp::services::network::proxy::create_proxy_router` and `NetworkService::create_proxy` take the `reqwest::Client` they forward through; the process-wide proxy client is removed. Migrate by passing the caller's client.
+- **Breaking:** `systemprompt_mcp::{TaskContext, TaskManager, TaskOptions}` re-exports are removed, and `services::registry::trait_impl` is folded into `services::registry` (`McpDeploymentProviderImpl` stays at the crate root). Migrate by importing from `rmcp::task_manager`.
 
 ### Added
 
