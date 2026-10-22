@@ -20,11 +20,11 @@ pub(crate) fn on_uninstall(app: &GuiApp, host_id: HostKind, reply_to: ReplyId) {
         return;
     };
     let enabled = app.state.snapshot().enabled_hosts;
-    let removal =
-        match crate::integration::enrol::retained_for_sibling(host_id, &[host_id], &enabled) {
-            Some(sibling) => Ok(ProfileRemoval::RetainedForSibling { sibling }),
-            None => host.remove_profile(),
-        };
+    let removal = crate::integration::enrol::retained_for_sibling(host_id, &[host_id], &enabled)
+        .map_or_else(
+            || host.remove_profile(),
+            |sibling| Ok(ProfileRemoval::RetainedForSibling { sibling }),
+        );
     let result = match removal {
         Ok(ProfileRemoval::Removed { path }) => {
             app.append_log(format!(
