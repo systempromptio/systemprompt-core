@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_manifest::split_frontmatter;
 use walkdir::WalkDir;
 
-pub(super) struct ParsedFrontmatter {
+pub(crate) struct ParsedFrontmatter {
     pub metadata: ContentMetadata,
     pub raw_yaml: serde_yaml::Value,
     pub body: String,
@@ -80,9 +80,10 @@ fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
     Ok(())
 }
 
-pub(super) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
-    let frontmatter = split_frontmatter(markdown)
-        .ok_or_else(|| ContentError::Parse("Invalid frontmatter format".to_owned()))?;
+pub(crate) fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
+    let frontmatter = split_frontmatter(markdown).ok_or_else(|| {
+        ContentError::Parse("Invalid frontmatter format - missing '---' delimiters".to_owned())
+    })?;
 
     let raw_yaml: serde_yaml::Value = serde_yaml::from_str(frontmatter.yaml)?;
     let metadata: ContentMetadata = serde_yaml::from_value(raw_yaml.clone())?;
