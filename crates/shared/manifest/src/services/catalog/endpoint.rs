@@ -1,7 +1,8 @@
 //! An endpoint: one wire plus one URL under a provider.
 //!
 //! The wire, the URL, the `anthropic-beta` flags the upstream accepts, the
-//! region, the price multiplier and the hosting are facts of one endpoint, not
+//! region, the price multiplier, the hosting and any resilience override are
+//! facts of one endpoint, not
 //! of the vendor account, so a provider serving two wires or three regions
 //! declares one endpoint per wire or region under one credential. An
 //! endpoint's `accepted_betas` is either its own list or `inherit:<endpoint>`,
@@ -21,6 +22,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{EndpointId, ProviderId};
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::{Hosting, WireProtocol};
+
+use crate::services::ai::ResilienceSettings;
 
 const INHERIT_PREFIX: &str = "inherit:";
 
@@ -82,6 +85,8 @@ pub struct EndpointConfig {
     pub price_multiplier: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hosting: Option<EndpointHosting>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resilience: Option<ResilienceSettings>,
 }
 
 impl EndpointConfig {
@@ -94,6 +99,7 @@ impl EndpointConfig {
             region: None,
             price_multiplier: None,
             hosting: None,
+            resilience: None,
         }
     }
 

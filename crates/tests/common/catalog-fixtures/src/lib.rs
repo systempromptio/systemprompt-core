@@ -21,9 +21,9 @@ use std::collections::BTreeMap;
 
 use systemprompt_identifiers::{CredentialId, EndpointId, ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::catalog::{
-    CatalogContext, CatalogDocument, CatalogDocumentError, CatalogResult, CredentialEntry,
-    DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry, ProviderConfig, ResolvedCatalog,
-    CATALOG_FILES,
+    CatalogContext, CatalogDocument, CatalogDocumentError, CatalogInput, CatalogResult,
+    CredentialEntry, DeploymentTarget, EndpointConfig, EndpointRef, ModelEntry, ProviderConfig,
+    ResolvedCatalog, CATALOG_FILES,
 };
 use systemprompt_manifest::services::{GatewayConfigSpec, GatewayRoute, ModelPricing};
 use systemprompt_models::providers::ClientFamily;
@@ -81,6 +81,7 @@ pub fn claude_model(context_window: u32) -> ModelEntry {
 pub struct CatalogFixture {
     document: CatalogDocument,
     context: CatalogContext,
+    default_image_model: Option<ModelId>,
 }
 
 impl CatalogFixture {
@@ -181,8 +182,29 @@ impl CatalogFixture {
         &self.document
     }
 
+    #[must_use]
+    pub fn default_image_model(mut self, model: &str) -> Self {
+        self.default_image_model = Some(ModelId::new(model));
+        self
+    }
+
     pub fn try_build(&self) -> CatalogResult<ResolvedCatalog> {
-        self.document.resolve(&self.context)
+        let gateway = self
+            .document
+            .gateway
+            .clone()
+            .map(GatewayConfigSpec::resolve);
+        ResolvedCatalog::build(
+            CatalogInput {
+                credentials: &self.document.credentials,
+                providers: &self.document.providers,
+                models: &self.document.models,
+                deployments: &self.document.deployments,
+                gateway: gateway.as_ref(),
+                default_image_model: self.default_image_model.as_ref(),
+            },
+            &self.context,
+        )
     }
 
     #[must_use]

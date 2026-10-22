@@ -34,6 +34,7 @@ pub struct CatalogInput<'a> {
     pub models: &'a ModelRegistry,
     pub deployments: &'a DeploymentRegistry,
     pub gateway: Option<&'a GatewayConfig>,
+    pub default_image_model: Option<&'a ModelId>,
 }
 
 impl ResolvedCatalog {
@@ -83,6 +84,7 @@ impl ResolvedCatalog {
             default_model: input.gateway.and_then(|g| g.default_model.clone()),
             catalog_route_id,
             gateway_enabled: input.gateway.is_some_and(|g| g.enabled),
+            default_image_model: input.default_image_model.cloned(),
         };
         for (id, entry) in input.models.iter() {
             let targets = input
@@ -156,6 +158,8 @@ impl ResolvedCatalog {
             governance: entry.governance.unwrap_or(provider.governance),
             hosting: endpoint.hosting,
             region: endpoint.region.clone(),
+            resilience: endpoint.resilience,
+            google_search_enabled: provider.google_search_enabled,
             clients: target
                 .clients()
                 .map_or_else(|| entry.clients.clone(), <[_]>::to_vec),
@@ -193,6 +197,7 @@ fn project_providers(
                     region: endpoint.region.clone(),
                     price_multiplier: endpoint.price_multiplier,
                     hosting: endpoint.effective_hosting(),
+                    resilience: endpoint.resilience.unwrap_or(provider.resilience),
                 },
             );
         }
@@ -213,6 +218,8 @@ fn project_providers(
                 governance: provider.governance,
                 enabled: provider.enabled,
                 capabilities: provider.capabilities,
+                resilience: provider.resilience,
+                google_search_enabled: provider.google_search_enabled,
                 endpoints: provider.endpoints.keys().cloned().collect(),
             },
         );

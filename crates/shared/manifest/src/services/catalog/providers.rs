@@ -3,8 +3,11 @@
 //! A provider is one vendor account: the credential it authenticates with,
 //! the headers and user agent every request to it carries, its data
 //! governance posture, the capability defaults its models start from, and the
-//! endpoints it serves. `enabled: false` takes every endpoint of the provider
-//! out of every chain, everywhere.
+//! endpoints it serves. `resilience` is the outbound timeout/retry/breaker
+//! default for every endpoint (an endpoint may override it), and
+//! `google_search_enabled` turns on Gemini's search grounding, so it needs a
+//! `gemini`-wire endpoint. `enabled: false` takes every endpoint of the
+//! provider out of every chain, everywhere.
 //!
 //! `user_agent` and `extra_headers` values may name `{install}`, expanded
 //! from the profile by [`CatalogContext::expand`] when the catalog is
@@ -19,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{CredentialId, EndpointId, ProviderId};
 
 use super::endpoint::EndpointConfig;
-use crate::services::ai::{ModelCapabilities, ModelGovernance};
+use crate::services::ai::{ModelCapabilities, ModelGovernance, ResilienceSettings};
 
 const INSTALL_PLACEHOLDER: &str = "{install}";
 
@@ -47,6 +50,10 @@ pub struct ProviderConfig {
     pub enabled: bool,
     #[serde(default)]
     pub capabilities: ModelCapabilities,
+    #[serde(default)]
+    pub resilience: ResilienceSettings,
+    #[serde(default)]
+    pub google_search_enabled: bool,
     pub endpoints: BTreeMap<EndpointId, EndpointConfig>,
 }
 
@@ -63,6 +70,8 @@ impl ProviderConfig {
             governance: ModelGovernance::default(),
             enabled: true,
             capabilities: ModelCapabilities::default(),
+            resilience: ResilienceSettings::default(),
+            google_search_enabled: false,
             endpoints: BTreeMap::new(),
         }
     }

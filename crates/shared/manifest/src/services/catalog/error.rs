@@ -152,6 +152,17 @@ pub enum CatalogError {
     )]
     CacheRateUndeclared { model: ModelId, endpoint: String },
 
+    #[error(
+        "provider '{provider}' sets google_search_enabled but declares no `gemini`-wire endpoint"
+    )]
+    GoogleSearchWithoutGemini { provider: ProviderId },
+
+    #[error("ai.default_image_model '{model}' is not a deployed catalog model")]
+    UnknownDefaultImageModel { model: ModelId },
+
+    #[error("ai.default_image_model '{model}' does not have the image_generation capability")]
+    DefaultImageModelNotImageCapable { model: ModelId },
+
     #[error("gateway default_model '{model}' is not a catalog model")]
     UnknownDefaultModel { model: ModelId },
 

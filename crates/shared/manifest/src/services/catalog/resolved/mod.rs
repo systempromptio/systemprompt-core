@@ -42,6 +42,7 @@ pub struct ResolvedCatalog {
     default_model: Option<ModelId>,
     catalog_route_id: RouteId,
     gateway_enabled: bool,
+    default_image_model: Option<ModelId>,
 }
 
 impl ResolvedCatalog {
@@ -139,6 +140,11 @@ impl ResolvedCatalog {
     #[must_use]
     pub const fn default_model(&self) -> Option<&ModelId> {
         self.default_model.as_ref()
+    }
+
+    #[must_use]
+    pub const fn default_image_model(&self) -> Option<&ModelId> {
+        self.default_image_model.as_ref()
     }
 
     #[must_use]

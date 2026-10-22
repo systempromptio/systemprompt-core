@@ -69,6 +69,16 @@ fn validate_provider(
     provider: &ProviderConfig,
     trusted: &[String],
 ) -> CatalogResult<()> {
+    if provider.google_search_enabled
+        && !provider
+            .endpoints
+            .values()
+            .any(|e| e.wire == systemprompt_wire::WireProtocol::Gemini)
+    {
+        return Err(CatalogError::GoogleSearchWithoutGemini {
+            provider: id.clone(),
+        });
+    }
     if provider.endpoints.is_empty() {
         return Err(CatalogError::ProviderWithoutEndpoints {
             provider: id.clone(),
@@ -176,6 +186,7 @@ pub(super) fn validate_routes(catalog: &ResolvedCatalog) -> CatalogResult<()> {
             });
         }
     }
+    super::validate_hops::check_default_image_model(catalog)?;
     let mut aliases: HashSet<&ModelId> = HashSet::new();
     for route in &catalog.routes {
         let mut matched: Vec<&ModelId> = Vec::new();

@@ -17,7 +17,7 @@ use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::anthropic::AnthropicBeta;
 use systemprompt_wire::{Hosting, ModelLimits, WireProtocol};
 
-use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing};
+use crate::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing, ResilienceSettings};
 use crate::services::catalog::credentials::CredentialKind;
 use crate::services::catalog::endpoint::EndpointRef;
 use crate::services::gateway::SelectionStrategy;
@@ -57,6 +57,8 @@ pub struct ResolvedProvider {
     pub governance: ModelGovernance,
     pub enabled: bool,
     pub capabilities: ModelCapabilities,
+    pub resilience: ResilienceSettings,
+    pub google_search_enabled: bool,
     pub endpoints: Vec<EndpointId>,
 }
 
@@ -79,6 +81,7 @@ pub struct ResolvedEndpoint {
     pub region: Option<String>,
     pub price_multiplier: Option<f64>,
     pub hosting: Hosting,
+    pub resilience: ResilienceSettings,
 }
 
 impl ResolvedEndpoint {
@@ -131,6 +134,8 @@ pub struct ResolvedHop {
     pub hosting: Hosting,
     pub region: Option<String>,
     pub clients: Vec<ClientFamily>,
+    pub resilience: ResilienceSettings,
+    pub google_search_enabled: bool,
     pub weight: Option<u32>,
 }
 

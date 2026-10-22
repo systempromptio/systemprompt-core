@@ -247,6 +247,7 @@ impl ServicesConfig {
                 models: &self.models,
                 deployments: &self.deployments,
                 gateway: gateway.as_deref(),
+                default_image_model: self.ai.default_image_model.as_ref(),
             },
             context,
         )

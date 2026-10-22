@@ -16,6 +16,8 @@ mod deployments_serde;
 #[cfg(test)]
 mod legacy_refusal;
 #[cfg(test)]
+mod provider_settings;
+#[cfg(test)]
 mod resolved_catalog;
 #[cfg(test)]
 mod resolved_routes;

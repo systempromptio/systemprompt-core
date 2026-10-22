@@ -131,6 +131,7 @@ impl CatalogDocument {
                 models: &self.models,
                 deployments: &self.deployments,
                 gateway: gateway.as_ref(),
+                default_image_model: None,
             },
             context,
         )

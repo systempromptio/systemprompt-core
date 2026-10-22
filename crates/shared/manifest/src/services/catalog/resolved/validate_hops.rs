@@ -1,9 +1,11 @@
-//! Per-hop checks: a route's governance demands, and that every hop the
-//! gateway can dispatch is priced with a declared cache-read rate.
+//! Per-hop checks: a route's governance demands, that every hop the gateway
+//! can dispatch is priced with a declared cache-read rate, and that
+//! `ai.default_image_model` is a deployed image-generation model.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use super::ResolvedCatalog;
 use super::types::ResolvedHop;
 use crate::services::catalog::error::{CatalogError, CatalogResult};
 use crate::services::gateway::GatewayRoute;
@@ -47,4 +49,22 @@ pub(super) fn check_pricing(hops: &[ResolvedHop]) -> CatalogResult<()> {
         }
     }
     Ok(())
+}
+
+pub(super) fn check_default_image_model(catalog: &ResolvedCatalog) -> CatalogResult<()> {
+    let Some(model) = catalog.default_image_model.as_ref() else {
+        return Ok(());
+    };
+    let Some(resolved) = catalog.models.get(model) else {
+        return Err(CatalogError::UnknownDefaultImageModel {
+            model: model.clone(),
+        });
+    };
+    if resolved.capabilities.image_generation {
+        Ok(())
+    } else {
+        Err(CatalogError::DefaultImageModelNotImageCapable {
+            model: model.clone(),
+        })
+    }
 }
