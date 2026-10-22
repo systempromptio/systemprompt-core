@@ -167,10 +167,11 @@ impl ImageProvider for StubImageProvider {
         request: &ImageGenerationRequest,
     ) -> systemprompt_ai::error::Result<ImageGenerationResponse> {
         if self.fail {
-            return Err(systemprompt_ai::error::AiError::ProviderError {
-                provider: self.name.clone(),
-                message: "stub image failure".to_owned(),
-            });
+            return Err(systemprompt_ai::error::AiError::Provider(
+                systemprompt_ai::error::ProviderError::NoImageData {
+                    provider: systemprompt_identifiers::ProviderId::new(self.name.clone()),
+                },
+            ));
         }
         Ok(ImageGenerationResponse::new(NewImageGenerationResponse {
             provider: self.name.clone(),
@@ -344,8 +345,9 @@ async fn generate_image_unknown_model_errors() {
         .expect_err("unknown model");
     assert!(matches!(
         err,
-        systemprompt_ai::error::AiError::NoProviderForModel { ref model }
-            if model == "nonexistent-model"
+        systemprompt_ai::error::AiError::Routing(
+            systemprompt_ai::error::RoutingError::NoProviderForModel { ref model }
+        ) if model.as_str() == "nonexistent-model"
     ));
 }
 
@@ -495,7 +497,7 @@ async fn provider_registry_accessors_report_state() {
 // --- persistence failure arms ---
 //
 // Every `image_persistence` helper keeps a provider error as
-// `AiError::FilePersistence`. The in-memory provider above never fails, so
+// `StorageError::FilePersistence`. The in-memory provider above never fails, so
 // those arms need a provider that always does.
 
 #[derive(Debug, Default)]
@@ -571,7 +573,12 @@ async fn a_failing_file_record_write_surfaces_as_a_file_persistence_error() {
         .await
         .expect_err("a file store that cannot record the image must fail the generation");
     assert!(
-        matches!(err, systemprompt_ai::error::AiError::FilePersistence(_)),
+        matches!(
+            err,
+            systemprompt_ai::error::AiError::Storage(
+                systemprompt_ai::error::StorageError::FilePersistence(_)
+            )
+        ),
         "a persistence failure must be reported as a file-persistence error, got {err:?}"
     );
 }
@@ -587,7 +594,9 @@ async fn a_failing_lookup_is_reported_rather_than_read_as_absent() {
         .expect_err("a failing store must not be indistinguishable from an empty one");
     assert!(matches!(
         err,
-        systemprompt_ai::error::AiError::FilePersistence(_)
+        systemprompt_ai::error::AiError::Storage(
+            systemprompt_ai::error::StorageError::FilePersistence(_)
+        )
     ));
 }
 
@@ -603,7 +612,9 @@ async fn a_failing_listing_is_reported_rather_than_read_as_empty() {
         .expect_err("a failing listing must surface, not read as no images");
     assert!(matches!(
         err,
-        systemprompt_ai::error::AiError::FilePersistence(_)
+        systemprompt_ai::error::AiError::Storage(
+            systemprompt_ai::error::StorageError::FilePersistence(_)
+        )
     ));
 
     // The default limit/offset arm takes the same path.
@@ -622,7 +633,9 @@ async fn deleting_an_image_the_store_cannot_look_up_is_an_error() {
         .expect_err("a failing lookup must abort the delete");
     assert!(matches!(
         err,
-        systemprompt_ai::error::AiError::FilePersistence(_)
+        systemprompt_ai::error::AiError::Storage(
+            systemprompt_ai::error::StorageError::FilePersistence(_)
+        )
     ));
 }
 

@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::{AiError, Result};
+use crate::error::{AiError, ProviderError, RequestError, Result, RoutingError};
 use crate::models::image_generation::{
     AspectRatio, ImageGenerationRequest, ImageGenerationResponse, ImageResolution,
     NewImageGenerationResponse,
@@ -20,6 +20,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_identifiers::{ModelId, ProviderId};
 use systemprompt_manifest::services::ModelDefinition;
 use systemprompt_models::net::IMAGE_GEN_OPENAI_TIMEOUT;
 use systemprompt_wire::WireProtocol;
@@ -73,31 +74,25 @@ impl OpenAiImageProvider {
 
     fn validate_request(&self, request: &ImageGenerationRequest) -> Result<()> {
         if request.prompt.len() > self.capabilities().max_prompt_length {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Prompt length {} exceeds maximum {}",
-                    request.prompt.len(),
-                    self.capabilities().max_prompt_length
-                ),
-            });
+            return Err(AiError::Request(RequestError::PromptTooLong {
+                provider: ProviderId::new(self.name()),
+                length: request.prompt.len(),
+                max: self.capabilities().max_prompt_length,
+            }));
         }
 
         if !self.supports_resolution(&request.resolution) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Resolution {} not supported", request.resolution.as_str()),
-            });
+            return Err(AiError::Request(RequestError::UnsupportedResolution {
+                provider: ProviderId::new(self.name()),
+                resolution: request.resolution,
+            }));
         }
 
         if !self.supports_aspect_ratio(&request.aspect_ratio) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!(
-                    "Aspect ratio {} not supported",
-                    request.aspect_ratio.as_str()
-                ),
-            });
+            return Err(AiError::Request(RequestError::UnsupportedAspectRatio {
+                provider: ProviderId::new(self.name()),
+                aspect_ratio: request.aspect_ratio,
+            }));
         }
 
         Ok(())
@@ -117,29 +112,22 @@ impl OpenAiImageProvider {
             .json(dalle_request)
             .send()
             .await
-            .map_err(AiError::Http)?;
+            .map_err(AiError::from)?;
 
         if !response.status().is_success() {
-            let status = response.status();
-            let error_body = response
-                .text()
-                .await
-                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("API returned status {status}: {error_body}"),
-            });
+            return Err(AiError::from_error_response(self.name(), response).await);
         }
 
-        let dalle_response: DalleResponse = response.json().await.map_err(AiError::Http)?;
+        let dalle_response: DalleResponse = response.json().await.map_err(AiError::from)?;
 
         dalle_response
             .data
             .first()
             .and_then(|d| d.b64_json.clone())
-            .ok_or_else(|| AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: "No image data in response".to_owned(),
+            .ok_or_else(|| {
+                AiError::Provider(ProviderError::NoImageData {
+                    provider: ProviderId::new(self.name()),
+                })
             })
     }
 }
@@ -221,10 +209,10 @@ impl ImageProvider for OpenAiImageProvider {
             .unwrap_or_else(|| self.default_model());
 
         if !self.supports_model(model) {
-            return Err(AiError::ProviderError {
-                provider: self.name().to_owned(),
-                message: format!("Model {model} not supported"),
-            });
+            return Err(AiError::Routing(RoutingError::ModelUnsupported {
+                provider: ProviderId::new(self.name()),
+                model: ModelId::new(model),
+            }));
         }
 
         let dalle_request = DalleRequest {

@@ -12,7 +12,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::error::Result;
+use crate::error::{AiError, ProviderCapability, Result};
 use crate::models::ai::{
     AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse, StreamChunk,
 };
@@ -261,20 +261,20 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::Streaming,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::Streaming,
+        ))
     }
 
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::ToolStreaming,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::ToolStreaming,
+        ))
     }
 
     fn supports_streaming(&self) -> bool {
@@ -289,9 +289,9 @@ pub trait ProviderClient: Send + Sync {
         &self,
         _params: SearchGenerationParams<'_>,
     ) -> Result<SearchGroundedResponse> {
-        Err(crate::error::AiError::CapabilityUnsupported {
-            provider: self.name().to_owned(),
-            capability: crate::error::ProviderCapability::GoogleSearch,
-        })
+        Err(AiError::capability_unsupported(
+            self.name(),
+            ProviderCapability::GoogleSearch,
+        ))
     }
 }

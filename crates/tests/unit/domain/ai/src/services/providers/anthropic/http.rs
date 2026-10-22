@@ -63,13 +63,15 @@ async fn generate_returns_error_on_4xx() {
     let params = GenerationParams::new(&messages, "claude-sonnet-5", 32);
     let err = p.generate(params).await.expect_err("must fail");
     match err {
-        systemprompt_ai::error::AiError::HttpStatus {
-            provider,
-            status,
-            retry_after,
-            body,
-        } => {
-            assert_eq!(provider, "anthropic");
+        systemprompt_ai::error::AiError::Provider(
+            systemprompt_ai::error::ProviderError::HttpStatus {
+                provider,
+                status,
+                retry_after,
+                body,
+            },
+        ) => {
+            assert_eq!(provider.as_str(), "anthropic");
             assert_eq!(status, 429);
             assert_eq!(retry_after, None);
             assert!(body.contains("slow down"));

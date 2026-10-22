@@ -30,6 +30,7 @@
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 - **Breaking:** `QuotaSubjectUsage::subject_id` is a `QuotaSubjectId` and `QuotaUsageRepository::usage` takes `&QuotaSubjectId`. Migrate by wrapping the subject string with `QuotaSubjectId::new`.
 - **Breaking:** `systemprompt_ai::models::AiRequest` (the `ai_requests` row) groups its fields into `identity: AiRequestIdentity`, `routing: AiRequestRouting`, `accounting: AiRequestAccounting`, `origin: AiRequestOrigin` and `lifecycle: AiRequestLifecycle`, and no longer derives `sqlx::FromRow`; its serialised form stays flat. Migrate field reads such as `request.cost_microdollars` to `request.accounting.cost_microdollars`.
+- **Breaking:** `systemprompt_ai::error::AiError` is `Provider(ProviderError)`, `Routing(RoutingError)`, `Request(RequestError)`, `Tool(ToolError)`, `Storage(StorageError)`, `Repository`, `Serialization`, `Io` and `Regex`. Provider and model names are `ProviderId` and `ModelId`; `StorageError::Operation` names its `StorageOperation`; `ToolError::DiscoveryIncomplete` carries the agent and each `ServerListingFailure`; `ToolError::MissingField::field` is `&'static str`. Removed: `InvalidInput`, `ToolDiscovery`, `ProviderError { provider, message }`, `ConfigurationError`, `RateLimit`, `AuthenticationFailed`, `AuthenticationRequired`, `ModelNotSpecified`, `MissingMetadata`, `MissingUserContext`, `InvalidToolSchema`, `StructuredOutputFailed`, `MessageSerializationFailed`, `NoToolCalls`, `McpServiceNotFound`, `McpAuthenticationMissing` and `ServiceAuthCheckFailed`. `SerializationError` is `Serialization`. Foreign causes (`reqwest::Error`, `WireStreamError`, `WireParseError`, `UpstreamTargetError`, `AiConfigError`, `SecretsBootstrapError`, `ToolProviderError`, `StorageConfigError`, `base64::DecodeError`, `AiProviderError`) still convert with `?`. Migrate matches to the nested variant, for example `AiError::HttpStatus { .. }` to `AiError::Provider(ProviderError::HttpStatus { .. })`. Image providers now report a non-success response as `ProviderError::HttpStatus`, which the inference seam maps to `Unavailable`.
 
 ### Added
 
@@ -45,6 +46,7 @@
 - Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
 - `systemprompt_identifiers::QuotaSubjectId`: the subject a quota window is counted against.
 - `systemprompt_database::escape_like`: escapes `\`, `%` and `_` for a `LIKE … ESCAPE '\'` pattern.
+- `ProviderCapability::BatchImageGeneration` and `AiError::capability_unsupported(provider, capability)`.
 
 ### Changed
 
