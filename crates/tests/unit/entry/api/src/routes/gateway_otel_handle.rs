@@ -58,7 +58,12 @@ fn log_payload() -> Vec<u8> {
 }
 
 async fn status_of(body: Vec<u8>) -> StatusCode {
-    ingest_envelope(request(body)).await.status()
+    ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        request(body),
+    )
+    .await
+    .status()
 }
 
 #[tokio::test]
