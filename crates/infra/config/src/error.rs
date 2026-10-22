@@ -15,8 +15,9 @@
 
 use std::path::PathBuf;
 
-use systemprompt_identifiers::{ModelId, ProviderId};
+use systemprompt_identifiers::{CredentialId, ModelId, ProviderId};
 use systemprompt_manifest::profile::ProfileError;
+use systemprompt_manifest::services::catalog::{CatalogDocumentError, CatalogError, EndpointRef};
 use systemprompt_models::errors::{GlobalConfigError, SecretsError};
 
 use crate::bootstrap::{ProfileBootstrapError, SecretsBootstrapError};
@@ -104,8 +105,23 @@ pub enum ConfigError {
     #[error("No provider named {name}")]
     ProviderNotFound { name: ProviderId },
 
-    #[error("No model with id {id} under provider {provider}")]
-    ModelNotFound { id: ModelId, provider: ProviderId },
+    #[error("No model with id {id} in the catalog")]
+    ModelNotFound { id: ModelId },
+
+    #[error("No credential with id {id} in the catalog")]
+    CredentialNotFound { id: CredentialId },
+
+    #[error("No endpoint {endpoint} in the catalog")]
+    EndpointNotFound { endpoint: EndpointRef },
+
+    #[error("A model upsert needs at least one deployment: {id}")]
+    ModelWithoutDeployments { id: ModelId },
+
+    #[error("The catalog edit was refused because the result does not resolve: {0}")]
+    CatalogRefused(#[source] CatalogError),
+
+    #[error("Catalog file could not be read: {0}")]
+    CatalogDocument(#[source] CatalogDocumentError),
 
     #[error("Access token expiry must be positive")]
     NonPositiveAccessTokenExpiry,
