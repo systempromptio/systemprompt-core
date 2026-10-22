@@ -31,6 +31,7 @@ use systemprompt_traits::{OwnedTask, StartupEvent, StartupEventExt, StartupEvent
 use tower::ServiceExt;
 
 use super::readiness::ReadinessState;
+use super::scheduler_health::SchedulerHealth;
 
 #[derive(Debug)]
 pub struct EarlyServer {
@@ -38,6 +39,7 @@ pub struct EarlyServer {
     join: OwnedTask<Result<()>>,
     local_addr: SocketAddr,
     readiness: Arc<ReadinessState>,
+    scheduler_health: Arc<SchedulerHealth>,
 }
 
 impl EarlyServer {
@@ -47,6 +49,10 @@ impl EarlyServer {
 
     pub const fn readiness(&self) -> &Arc<ReadinessState> {
         &self.readiness
+    }
+
+    pub const fn scheduler_health(&self) -> &Arc<SchedulerHealth> {
+        &self.scheduler_health
     }
 
     pub fn activate(&self, router: Router) {
@@ -112,6 +118,7 @@ pub async fn bind_and_serve(
         join,
         local_addr,
         readiness,
+        scheduler_health: Arc::new(SchedulerHealth::new()),
     })
 }
 

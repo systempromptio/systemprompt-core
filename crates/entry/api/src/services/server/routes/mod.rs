@@ -27,6 +27,7 @@ use systemprompt_extension::LoaderError;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::profile::NodeRole;
 
+use crate::routes::admin::services::RefreshLock;
 pub(super) use error::RouteMountError;
 use role::RouteGroup;
 use systemprompt_gateway::GatewayEngines;
@@ -81,6 +82,8 @@ fn build_routes(
     let a2a_middleware = A2AContextMiddleware::new(jwt_extractor.clone());
     let mcp_middleware = McpContextMiddleware::new(jwt_extractor);
 
+    let refresh_lock = RefreshLock::default();
+
     let mount = protocol::MountCtx {
         ctx,
         engines,
@@ -110,12 +113,20 @@ fn build_routes(
         router = protocol::mount_messaging(router, &mount)?;
     }
     if serves(RouteGroup::Extensions) {
-        router = extension_mount::mount_extension_routes(router, ctx, &user_middleware, events)?;
+        router = extension_mount::mount_extension_routes(
+            router,
+            ctx,
+            &user_middleware,
+            &refresh_lock,
+            events,
+        )?;
     }
     router = mount_discovery(router, ctx, &serves, public_middleware, user_middleware)?;
     if serves(RouteGroup::Oauth) {
         router = router.merge(link_passkey_router(ctx, &limits, public_middleware)?);
     }
+
+    router = router.layer(axum::Extension(refresh_lock));
 
     let banned_ip_repo = crate::repository::banned_ips(ctx.db_pool());
     let trusted_proxies = Arc::new(ctx.config().trusted_proxies.clone());

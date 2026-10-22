@@ -23,6 +23,7 @@ use super::lifecycle::{
 };
 use super::readiness::ReadinessState;
 use super::routes::role::LifecyclePlan;
+use super::scheduler_health::SchedulerHealth;
 
 pub async fn run_server(
     ctx: AppContext,
@@ -39,13 +40,15 @@ pub async fn run_server(
     let plan = super::routes::role::lifecycle_plan(ctx.config().role);
     tracing::info!(role = %ctx.config().role, "node role");
 
-    let scheduler_handle = start_role_phases(&ctx, plan, events.as_ref()).await?;
+    let scheduler_handle =
+        start_role_phases(&ctx, plan, events.as_ref(), early.scheduler_health()).await?;
 
     if let Some(ref tx) = events {
         tx.phase_started(Phase::ApiServer);
     }
     let router =
-        crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?;
+        crate::services::server::setup_api_server(&ctx, events.as_ref(), early.readiness())?
+            .layer(axum::Extension(Arc::clone(early.scheduler_health())));
     start_accounting_recovery(&ctx).await?;
     let addr = ctx.server_address();
 
@@ -77,6 +80,7 @@ async fn start_role_phases(
     ctx: &AppContext,
     plan: LifecyclePlan,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx);
     start_registry_heartbeat(ctx);
@@ -90,7 +94,7 @@ async fn start_role_phases(
         run_agents_phase(ctx, events).await?;
     }
     let scheduler_handle = if plan.scheduler {
-        run_scheduler_phase(ctx, events).await?
+        run_scheduler_phase(ctx, events, scheduler_health).await?
     } else {
         None
     };
@@ -196,11 +200,12 @@ async fn run_agents_phase(ctx: &AppContext, events: Option<&StartupEventSender>)
 async fn run_scheduler_phase(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
+    scheduler_health: &SchedulerHealth,
 ) -> Result<Option<SchedulerHandle>> {
     if let Some(tx) = events {
         tx.phase_started(Phase::Scheduler);
     }
-    match initialize_scheduler(ctx, events).await {
+    match initialize_scheduler(ctx, events, scheduler_health).await {
         Ok(handle) => {
             if let Some(tx) = events {
                 tx.phase_completed(Phase::Scheduler);

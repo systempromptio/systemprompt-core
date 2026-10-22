@@ -16,7 +16,7 @@ use systemprompt_api::services::server::health::human_bytes;
 use systemprompt_api::services::server::health_detail::handle_health_detail;
 use systemprompt_api::services::server::lifecycle::reconciliation::cleanup_stale_service_entries;
 use systemprompt_api::services::server::{
-    ReadinessState, handle_health, scheduler_health, shutdown,
+    ReadinessState, SchedulerHealth, handle_health, shutdown,
 };
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_identifiers::ServiceName;
@@ -92,9 +92,11 @@ fn human_bytes_scales_units() {
 }
 
 #[test]
-fn scheduler_health_records() {
-    scheduler_health::record(Vec::new());
-    assert!(scheduler_health::degraded().is_empty());
+fn scheduler_health_records_the_latest_degraded_set() {
+    let health = SchedulerHealth::new();
+    assert!(health.degraded().is_empty());
+    health.record(Vec::new());
+    assert!(health.degraded().is_empty());
 }
 
 #[tokio::test]
@@ -269,6 +271,7 @@ async fn handle_health_is_degraded_until_the_event_relay_listens() -> anyhow::Re
     let (_pool, ctx) = setup_ctx().await?;
     let app = Router::new()
         .route("/health", get(handle_health))
+        .layer(axum::Extension(Arc::new(SchedulerHealth::new())))
         .with_state((*ctx).clone());
     let (status, body) = body_json(app, "/health").await;
     assert_eq!(status, StatusCode::OK);
@@ -297,6 +300,7 @@ async fn handle_health_reports_healthy_with_a_listening_relay() -> anyhow::Resul
         .expect("a fresh fixture context has no relay");
     let app = Router::new()
         .route("/health", get(handle_health))
+        .layer(axum::Extension(Arc::new(SchedulerHealth::new())))
         .with_state((*ctx).clone());
     let (status, body) = body_json(app, "/health").await;
     if let Some(handle) = ctx.event_bridge().get() {
