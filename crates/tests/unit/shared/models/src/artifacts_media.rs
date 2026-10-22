@@ -7,8 +7,8 @@
 
 use serde_json::json;
 use systemprompt_identifiers::{
-    Actor, AgentName, ContextId, McpExecutionId, SessionId, SkillId, SkillName, SourceId, TraceId,
-    UserId,
+    Actor, AgentName, ArtifactElementId, ContextId, McpExecutionId, SessionId, SkillId, SkillName,
+    SourceId, TraceId, UserId,
 };
 use systemprompt_models::artifacts::audio::AudioArtifact;
 use systemprompt_models::artifacts::card::{
@@ -206,7 +206,7 @@ fn image_with_request_roundtrip() {
 #[test]
 fn list_item_new_and_builder() {
     let item = ListItem::new("Title", "Summary", "https://x/y")
-        .with_id("id-1")
+        .with_id(ArtifactElementId::new("id-1"))
         .with_uri("scheme://blog/slug")
         .with_slug("slug")
         .with_source_id(SourceId::new("src-1"))
@@ -215,7 +215,10 @@ fn list_item_new_and_builder() {
     assert_eq!(item.title, "Title");
     assert_eq!(item.summary, "Summary");
     assert_eq!(item.link, "https://x/y");
-    assert_eq!(item.id.as_deref(), Some("id-1"));
+    assert_eq!(
+        item.id.as_ref().map(ArtifactElementId::as_str),
+        Some("id-1")
+    );
     assert_eq!(item.uri.as_deref(), Some("scheme://blog/slug"));
     assert_eq!(item.slug.as_deref(), Some("slug"));
     assert_eq!(item.source_id, Some(SourceId::new("src-1")));
@@ -302,7 +305,13 @@ fn card_section_structured_content_serializes_as_nested_json() {
 
 #[test]
 fn card_cta_builder() {
-    let cta = CardCta::new("id", "Label", "msg", CtaVariant::Primary).with_icon("arrow");
+    let cta = CardCta::new(
+        ArtifactElementId::new("id"),
+        "Label",
+        "msg",
+        CtaVariant::Primary,
+    )
+    .with_icon("arrow");
     assert_eq!(cta.id, "id");
     assert_eq!(cta.label, "Label");
     assert_eq!(cta.message, "msg");
@@ -331,8 +340,18 @@ fn card_builder_chain() {
         .with_subtitle("sub")
         .with_sections(vec![CardSection::new("h", "c")])
         .add_section(CardSection::new("h2", "c2"))
-        .with_ctas(vec![CardCta::new("i", "l", "m", CtaVariant::Primary)])
-        .add_cta(CardCta::new("i2", "l2", "m2", CtaVariant::Danger))
+        .with_ctas(vec![CardCta::new(
+            ArtifactElementId::new("i"),
+            "l",
+            "m",
+            CtaVariant::Primary,
+        )])
+        .add_cta(CardCta::new(
+            ArtifactElementId::new("i2"),
+            "l2",
+            "m2",
+            CtaVariant::Danger,
+        ))
         .with_theme(CardTheme::Muted)
         .with_request(&test_context())
         .with_execution_id(McpExecutionId::new("exec-9"))
@@ -383,7 +402,12 @@ fn card_response_default_and_serde() {
         title: "T".to_owned(),
         subtitle: Some("s".to_owned()),
         sections: vec![CardSection::new("h", "c")],
-        ctas: vec![CardCta::new("i", "l", "m", CtaVariant::Primary)],
+        ctas: vec![CardCta::new(
+            ArtifactElementId::new("i"),
+            "l",
+            "m",
+            CtaVariant::Primary,
+        )],
         theme: CardTheme::Gradient,
         execution_id: Some(McpExecutionId::new("e")),
         skill_id: Some(SkillId::new("sk")),

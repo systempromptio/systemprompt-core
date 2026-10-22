@@ -21,6 +21,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::{IdpTenantId, SsoAssertionId, SsoRequestId};
 
 pub use error::SsoError;
 pub use events::{AuthEventSink, ReplayGuard, SsoLoginRefused, SsoLoginSuccess};
@@ -69,7 +70,7 @@ pub struct SsoStart<'a> {
 #[derive(Debug, Clone, Default)]
 pub struct SsoStateSeed {
     pub state: String,
-    pub request_id: Option<String>,
+    pub request_id: Option<SsoRequestId>,
     pub nonce: Option<String>,
     pub pkce_verifier: Option<String>,
 }
@@ -99,7 +100,7 @@ impl SsoReturn {
 /// The remembered half of [`SsoStateSeed`], handed back to `finish`.
 #[derive(Debug, Clone, Default)]
 pub struct SsoStateContext {
-    pub request_id: Option<String>,
+    pub request_id: Option<SsoRequestId>,
     pub nonce: Option<String>,
     pub pkce_verifier: Option<String>,
 }
@@ -113,8 +114,8 @@ pub struct ExternalIdentity {
     pub display_name: Option<String>,
     pub groups: Vec<String>,
     pub groups_overage: bool,
-    pub tenant_id: Option<String>,
-    pub assertion_id: Option<String>,
+    pub tenant_id: Option<IdpTenantId>,
+    pub assertion_id: Option<SsoAssertionId>,
     pub assertion_expires_at: Option<DateTime<Utc>>,
     // JSON: the IdP's claim set is provider-defined; kept verbatim for audit.
     pub raw_claims: serde_json::Value,

@@ -7,13 +7,13 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{AnalyticsEventId, SessionId, UserId};
 
 use crate::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsEventRecord {
-    pub id: String,
+    pub id: AnalyticsEventId,
     pub user_id: UserId,
     pub session_id: SessionId,
     pub event_type: String,

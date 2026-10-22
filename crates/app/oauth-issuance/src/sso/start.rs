@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Duration, Utc};
+use systemprompt_identifiers::SsoRequestId;
 use systemprompt_oauth::repository::SsoStateParams;
 use systemprompt_oauth::services::generate_secure_token;
 use systemprompt_traits::sso::{SsoError, SsoStart};
@@ -58,7 +59,7 @@ impl SsoDriver {
                 provider_id: id,
                 return_to: &return_to,
                 binder: &binder,
-                request_id: seed.request_id.as_deref(),
+                request_id: seed.request_id.as_ref().map(SsoRequestId::as_str),
                 nonce: seed.nonce.as_deref(),
                 pkce_verifier: seed.pkce_verifier.as_deref(),
                 expires_at: Utc::now() + Duration::seconds(SSO_STATE_TTL_SECS),

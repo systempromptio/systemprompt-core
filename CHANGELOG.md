@@ -32,6 +32,8 @@
 - **Breaking:** the glob re-exports in `systemprompt_models::{events::payloads, artifacts::dashboard, auth}` are explicit lists naming every public item, so each item keeps its path. Migrate nothing unless a downstream glob import relied on a name outside those lists.
 - **Breaking:** `systemprompt_models::mcp::CallToolResultExt` is removed. Migrate by calling `McpToolResultMetadata::from_call_tool_result(&result)`.
 - **Breaking:** `systemprompt_logging::services::cli::table::truncate_to_width` is removed; table cells truncate through `systemprompt_models::text::truncate_with_ellipsis`. Migrate by calling that function.
+- - **Breaking:** `AgentEditRequest` and `AgentCreateRequest` are composed of `AgentPlacement`, `AgentCardEdit`/`AgentCardLinks`, `AgentCapabilityFlags`, `AgentModelChoice`, `SystemPromptSource` and `MembershipEdit` (`add`/`remove`), all in `systemprompt_agent::services::config_authoring`. Migrate by moving each flat field into its group, for example `endpoint` to `placement.endpoint` and `remove_skills` to `skills.remove`.
+- **Breaking:** identifier fields are typed: `CloudPlan.id`/`CloudPlanInfo.id` are `CloudPlanId`, `CloudEnterpriseLicenseInfo.id` is `EnterpriseLicenseId`, `AgentSkill.id` is `SkillId`, `CardCta.id` and `ListItem.id` (and `CardCta::new`, `ListItem::with_id`) take `ArtifactElementId`, `ConnectorConfig::{installation_id, app_id}` are `ConnectorInstallationId`/`ConnectorAppId`, `AgentRunLaunch.origin_id` is `AgentRunOriginId`, `AnalyticsEventRecord.id` and `AnalyticsEventCreated.id` are `AnalyticsEventId`, `SsoStateSeed.request_id`/`SsoStateContext.request_id` are `SsoRequestId`, and `ExternalIdentity::{tenant_id, assertion_id}` are `IdpTenantId`/`SsoAssertionId`. Wire shapes are unchanged. Migrate by constructing with `Id::new(..)` and reading with `.as_str()`.
 
 ### Added
 
@@ -45,6 +47,7 @@
 - `lint-header-literals` and `lint-path-literals`: a hand-spelled systemprompt header name or bridge-facing gateway path fails the gate.
 - `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
 - Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals). Every root-walking gate script accepts source roots as positional arguments and `--allowlist FILE` where it has an allowlist, so an install can run the same gates over its own tree.
+- `systemprompt_identifiers::{CloudPlanId, EnterpriseLicenseId, ArtifactElementId, ConnectorAppId, ConnectorInstallationId, AgentRunOriginId, AnalyticsEventId, SsoRequestId, SsoAssertionId, IdpTenantId}`.
 
 ### Changed
 

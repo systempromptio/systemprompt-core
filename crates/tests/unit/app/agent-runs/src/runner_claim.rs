@@ -19,6 +19,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::execute_support::ShHost;
 use crate::repository::{fixture, request};
+use systemprompt_identifiers::AgentRunOriginId;
 
 #[tokio::test]
 async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
@@ -46,7 +47,7 @@ async fn claim_loop_runs_an_enqueued_a2a_run_to_completion() {
             context_id,
             request: serde_json::to_value(request()).expect("request json"),
             origin_kind: f.origin_kind.clone(),
-            origin_id: task_id.to_string(),
+            origin_id: AgentRunOriginId::new(task_id.to_string()),
         })
         .await
         .expect("enqueue");

@@ -5,7 +5,7 @@
 
 use chrono::{Duration as ChronoDuration, Utc};
 use serde_json::json;
-use systemprompt_identifiers::{LogId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AnalyticsEventId, LogId, SessionId, TraceId, UserId};
 use systemprompt_logging::models::{LogEntry, LogFilter, LogLevel};
 use systemprompt_logging::{AnalyticsRepository, DatabaseLogService, LoggingRepository};
 use systemprompt_test_fixtures::test_db_pool;
@@ -37,7 +37,7 @@ async fn analytics_ingestion_preserves_payloads_and_rejects_batches_atomically()
     assert!(!store.has_analytics_events(&session_id).await.unwrap());
     store.persist_events(&[]).await.unwrap();
     let first = AnalyticsEventRecord {
-        id: format!("evt_{}", uuid::Uuid::new_v4()),
+        id: AnalyticsEventId::new(format!("evt_{}", uuid::Uuid::new_v4())),
         user_id: UserId::new("anon"),
         session_id: session_id.clone(),
         event_type: "page_view".to_owned(),

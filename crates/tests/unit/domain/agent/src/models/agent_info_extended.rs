@@ -1,6 +1,6 @@
 use systemprompt_agent::models::AgentInfo;
 use systemprompt_agent::models::a2a::{AgentCapabilities, AgentCard, AgentSkill};
-use systemprompt_identifiers::AgentId;
+use systemprompt_identifiers::{AgentId, SkillId};
 use systemprompt_models::plugin::PluginComponentRef;
 
 fn minimal_card(name: &str, version: &str) -> AgentCard {
@@ -56,7 +56,7 @@ fn agent_info_skills_count_with_skills() {
     let card = minimal_card("SkillsAgent", "1.0.0");
     let skills = vec![
         AgentSkill {
-            id: "s1".to_string(),
+            id: SkillId::new("s1"),
             name: "Search".to_string(),
             description: "Search tool".to_string(),
             tags: vec![],
@@ -66,7 +66,7 @@ fn agent_info_skills_count_with_skills() {
             security_requirements: None,
         },
         AgentSkill {
-            id: "s2".to_string(),
+            id: SkillId::new("s2"),
             name: "Summarize".to_string(),
             description: "Summarize content".to_string(),
             tags: vec![],
@@ -129,7 +129,7 @@ fn agent_info_with_skills_and_mcp_combined() {
     let id = AgentId::new("combined");
     let card = minimal_card("CombinedAgent", "1.0.0");
     let skills = vec![AgentSkill {
-        id: "sk1".to_string(),
+        id: SkillId::new("sk1"),
         name: "Skill1".to_string(),
         description: "A skill".to_string(),
         tags: vec![],

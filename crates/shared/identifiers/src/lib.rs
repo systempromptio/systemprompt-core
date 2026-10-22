@@ -99,6 +99,7 @@ mod section;
 mod service;
 mod session;
 mod slack;
+mod sso;
 mod task;
 mod teams;
 mod tenant;
@@ -114,7 +115,7 @@ pub mod macros;
 
 pub use actor::{Actor, ActorKind, ActorKindTag};
 pub use agent::{AgentId, AgentName, ExternalAgentId};
-pub use agent_run::{AgentRunId, HostSessionId};
+pub use agent_run::{AgentRunId, AgentRunOriginId, HostSessionId};
 pub use ai::{
     AiGatewayPolicyId, AiQuotaBucketId, AiRequestId, AiSafetyFindingId, ConfigId, MessageId,
 };
@@ -126,14 +127,14 @@ pub use bridge::{
 };
 pub use client::{ClientId, ClientType};
 pub use client_session::ClientSessionId;
-pub use cloud::{CloudAppId, CloudUserId, PriceId};
+pub use cloud::{CloudAppId, CloudPlanId, CloudUserId, EnterpriseLicenseId, PriceId};
 pub use connection::ConnectionId;
 pub use content::{CategoryId, ContentId, FileId, SkillId, SkillName, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
-pub use engagement::EngagementEventId;
+pub use engagement::{AnalyticsEventId, EngagementEventId};
 pub use events::EventOutboxId;
-pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
+pub use execution::{ArtifactElementId, ArtifactId, ExecutionStepId, LogId, TokenId};
 pub use extension::ExtensionId;
 pub use gateway_boot::{DepartmentId, DepartmentName, ModelId, ProviderId, RouteId, SecretName};
 pub use gateway_conversation::GatewayConversationId;
@@ -148,7 +149,9 @@ pub use managed::{
     PublicationId, PublicationReviewId, ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
 pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleName};
-pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
+pub use mcp::{
+    AiToolCallId, ConnectorAppId, ConnectorInstallationId, McpExecutionId, McpServerId, McpToolName,
+};
 pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
 pub use path::ValidatedFilePath;
 pub use plugin::PluginId;
@@ -161,6 +164,7 @@ pub use section::SectionId;
 pub use service::ServiceName;
 pub use session::{SessionId, SessionSource};
 pub use slack::{SlackChannelId, SlackUserId, SlackWorkspaceId};
+pub use sso::{IdpTenantId, SsoAssertionId, SsoRequestId};
 pub use task::TaskId;
 pub use teams::{TeamsAppId, TeamsConversationId, TeamsTenantId, TeamsUserId};
 pub use tenant::TenantId;
