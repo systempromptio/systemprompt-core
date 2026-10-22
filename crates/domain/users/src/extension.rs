@@ -71,6 +71,11 @@ impl Extension for UsersExtension {
                 "value".into(),
             ]),
             SchemaDefinition::new(
+                "api_key_sessions",
+                include_str!("../schema/api_key_sessions.sql"),
+            )
+            .with_required_columns(vec!["api_key_id".into(), "session_id".into()]),
+            SchemaDefinition::new(
                 "user_device_certs",
                 include_str!("../schema/user_device_certs.sql"),
             )

@@ -74,6 +74,7 @@ mod extension_schema_tests {
                 "banned_ips",
                 "user_api_keys",
                 "user_api_key_scopes",
+                "api_key_sessions",
                 "user_device_certs",
                 "user_rate_limit_buckets",
                 "federated_identities",

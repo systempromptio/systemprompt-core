@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- `api_key_sessions` binds each API key to the gateway session minted for it (migration `027_api_key_sessions`): one new empty table whose only foreign key is to `user_api_keys`, so it locks `user_api_keys` for milliseconds and touches neither `user_sessions` nor `ai_requests`.
+- `UserRepository::find_api_key_session` and `UserRepository::set_api_key_session`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO api_key_sessions (api_key_id, session_id)\n            VALUES ($1, $2)\n            ON CONFLICT (api_key_id)\n            DO UPDATE SET session_id = EXCLUDED.session_id, bound_at = CURRENT_TIMESTAMP\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb4b920df09221e3d059ca680ddc9287999e1db6bdd922a29590838a06675c8c"
+}
