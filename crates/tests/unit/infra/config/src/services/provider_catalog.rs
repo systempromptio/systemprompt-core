@@ -1,12 +1,13 @@
 #![allow(clippy::all)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use systemprompt_config::{ConfigError, ModelSpec, ProviderCatalogService, ProviderSpec};
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
 use systemprompt_manifest::services::ProviderRegistry;
 use systemprompt_models::providers::ApiSurface;
 use systemprompt_wire::WireProtocol;
+use systemprompt_wire::anthropic::AnthropicBeta;
 
 fn spec(name: &str, endpoint: &str) -> ProviderSpec {
     ProviderSpec {
@@ -164,4 +165,55 @@ fn remove_model_unknown_provider_errors() {
     .unwrap_err();
 
     assert!(matches!(err, ConfigError::ProviderNotFound { .. }));
+}
+
+#[test]
+fn upsert_provider_preserves_personal_credential_and_headers() {
+    use systemprompt_manifest::services::ProviderCredentialSource;
+
+    let mut registry = registry_with_provider_and_model();
+    {
+        let entry = &mut registry.providers[0];
+        entry.credential = ProviderCredentialSource::User;
+        entry.credential_from = Some(ProviderId::new("minimax-owner"));
+        entry.user_agent = Some("opencode/1.0".to_owned());
+        entry.forward_headers = vec!["x-session-affinity".to_owned()];
+        entry
+            .extra_headers
+            .insert("x-keep".to_owned(), "kept".to_owned());
+        entry.accepted_betas = Some(BTreeSet::from([AnthropicBeta::new(
+            "context-1m-2025-08-07",
+        )]));
+    }
+
+    let mut next = spec("minimax", "https://b.example");
+    next.extra_headers
+        .insert("x-new".to_owned(), "added".to_owned());
+    ProviderCatalogService::upsert_provider(&mut registry, next);
+
+    assert_eq!(registry.providers.len(), 1);
+    let entry = &registry.providers[0];
+    assert_eq!(entry.endpoint, "https://b.example");
+    assert_eq!(entry.credential, ProviderCredentialSource::User);
+    assert_eq!(
+        entry.credential_from.as_ref().map(ProviderId::as_str),
+        Some("minimax-owner")
+    );
+    assert_eq!(entry.user_agent.as_deref(), Some("opencode/1.0"));
+    assert_eq!(entry.forward_headers, vec!["x-session-affinity".to_owned()]);
+    assert_eq!(
+        entry.extra_headers.get("x-keep").map(String::as_str),
+        Some("kept")
+    );
+    assert_eq!(
+        entry.extra_headers.get("x-new").map(String::as_str),
+        Some("added")
+    );
+    assert_eq!(
+        entry.accepted_betas,
+        Some(BTreeSet::from([AnthropicBeta::new(
+            "context-1m-2025-08-07"
+        )]))
+    );
+    assert_eq!(entry.models.len(), 1);
 }

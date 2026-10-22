@@ -4,7 +4,9 @@
 //! `providers:` list of `services/ai/providers.yaml`: declaring or removing
 //! upstream providers and the models each provider serves. Upserts replace an
 //! entry in place; a provider upsert preserves the existing model catalog so
-//! connectivity can be re-declared without re-listing models. Callers
+//! connectivity can be re-declared without re-listing models, and every field
+//! the spec does not carry (credential source, `credential_from`, user agent,
+//! forwarded and extra headers, accepted betas) survives the upsert. Callers
 //! revalidate and persist the services file after a successful mutation.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -13,8 +15,10 @@
 use std::collections::HashMap;
 
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName};
-use systemprompt_manifest::services::ai::{ModelCapabilities, ModelPricing};
-use systemprompt_manifest::services::{ProviderEntry, ProviderModel, ProviderRegistry};
+use systemprompt_manifest::services::ai::{ModelCapabilities, ModelGovernance, ModelPricing};
+use systemprompt_manifest::services::{
+    ProviderCredentialSource, ProviderEntry, ProviderModel, ProviderRegistry,
+};
 use systemprompt_models::providers::ApiSurface;
 use systemprompt_wire::{ModelLimits, WireProtocol};
 
@@ -43,37 +47,34 @@ pub struct ProviderCatalogService;
 
 impl ProviderCatalogService {
     pub fn upsert_provider(registry: &mut ProviderRegistry, spec: ProviderSpec) {
-        let (models, governance, display_name, description) = registry
-            .find_provider(spec.name.as_str())
-            .map(|p| {
-                (
-                    p.models.clone(),
-                    p.governance,
-                    p.display_name.clone(),
-                    p.description.clone(),
-                )
-            })
-            .unwrap_or_default();
-        registry
+        let existing = registry
             .providers
-            .retain(|p| p.name.as_str() != spec.name.as_str());
-        registry.providers.push(ProviderEntry {
-            name: spec.name,
-            display_name,
-            description,
+            .iter()
+            .position(|p| p.name.as_str() == spec.name.as_str())
+            .map(|idx| registry.providers.remove(idx));
+        let mut entry = existing.unwrap_or_else(|| ProviderEntry {
+            name: spec.name.clone(),
+            display_name: None,
+            description: None,
             wire: spec.wire,
             surface: spec.surface,
-            endpoint: spec.endpoint,
-            api_key_secret: Some(spec.api_key_secret),
-            credential: systemprompt_manifest::services::ProviderCredentialSource::Platform,
+            endpoint: String::new(),
+            api_key_secret: None,
+            credential: ProviderCredentialSource::Platform,
             credential_from: None,
             user_agent: None,
             forward_headers: Vec::new(),
-            extra_headers: spec.extra_headers,
+            extra_headers: HashMap::new(),
             accepted_betas: None,
-            models,
-            governance,
+            models: Vec::new(),
+            governance: ModelGovernance::default(),
         });
+        entry.wire = spec.wire;
+        entry.surface = spec.surface;
+        entry.endpoint = spec.endpoint;
+        entry.api_key_secret = Some(spec.api_key_secret);
+        entry.extra_headers.extend(spec.extra_headers);
+        registry.providers.push(entry);
     }
 
     pub fn remove_provider(registry: &mut ProviderRegistry, name: &ProviderId) -> ConfigResult<()> {

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Fixed
+
+- `ProviderCatalogService::upsert_provider` keeps the existing entry's credential source, `credential_from`, user agent, forwarded headers, extra headers and accepted betas instead of resetting a personal provider to Platform.
+
 ## [0.72.1] - 2026-10-22
 
 ### Changed
