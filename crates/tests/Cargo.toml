@@ -14,6 +14,7 @@ members = [
     "integration/analytics",
     "integration/api",
     "integration/cli",
+    "integration/config-migrate",
     "integration/cloud",
     "integration/content",
     "integration/database",

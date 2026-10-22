@@ -8123,6 +8123,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-config-migrate-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-cli",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "tempfile",
+]
+
+[[package]]
 name = "systemprompt-config-tests"
 version = "0.0.11"
 dependencies = [
