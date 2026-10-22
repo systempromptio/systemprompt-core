@@ -70,6 +70,7 @@ mod extension_schema_tests {
             vec![
                 "users",
                 "user_sessions",
+                "session_traffic_rollup_hourly",
                 "banned_ips",
                 "user_api_keys",
                 "user_api_key_scopes",
