@@ -30,6 +30,7 @@
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 - **Breaking:** `systemprompt_models::time_format` → `systemprompt_cli::shared::time_format`. Migrate by importing the formatting helpers from the CLI crate or formatting with `chrono` directly.
 - **Breaking:** the glob re-exports in `systemprompt_models::{events::payloads, artifacts::dashboard, auth}` are explicit lists naming every public item, so each item keeps its path. Migrate nothing unless a downstream glob import relied on a name outside those lists.
+- **Breaking:** `systemprompt_models::mcp::CallToolResultExt` is removed. Migrate by calling `McpToolResultMetadata::from_call_tool_result(&result)`.
 
 ### Added
 
