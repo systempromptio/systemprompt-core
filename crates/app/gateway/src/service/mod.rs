@@ -116,7 +116,11 @@ impl GatewayService {
             },
         )
         .await?;
-        let forward_headers = with_client_session(forward_headers, ctx.session_id.as_ref());
+        let forward_headers = with_client_session(
+            forward_headers,
+            ctx.client_session_id.as_ref(),
+            ctx.session_id.as_ref(),
+        );
         let pricing = dispatch_pricing(&request, &upstream)?;
 
         trace_dispatch(&ctx, &request, &upstream);

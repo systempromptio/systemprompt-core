@@ -30,9 +30,16 @@ use super::types::{AuthzDecision, AuthzRequest, DenyReason};
 /// `#[async_trait]`: this trait is consumed as `Arc<dyn AuthzDecisionHook>`
 /// (see `authz::runtime`), so it must be `dyn`-compatible — native
 /// `async fn` in traits is not yet object-safe.
+///
+/// `evaluate` decides an enforced request and records the decision to the
+/// audit sink. `probe` decides a request the caller is only asking about —
+/// the bridge profile admitting a model it would list — without writing an
+/// audit row, and must return what `evaluate` would for the same request.
 #[async_trait]
 pub trait AuthzDecisionHook: Send + Sync + std::fmt::Debug {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision;
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision;
 }
 
 pub type SharedAuthzHook = Arc<dyn AuthzDecisionHook>;
@@ -57,18 +64,26 @@ impl DenyAllHook {
 #[async_trait]
 impl AuthzDecisionHook for DenyAllHook {
     async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
-        let policy = AuthzSource::DenyAllDefault.policy().to_owned();
-        let decision = AuthzDecision::Deny {
-            reason: DenyReason::HookUnavailable {
-                policy: policy.clone(),
-                detail: "no authz hook is configured; the default denies".to_owned(),
-            },
-            policy,
-        };
+        let decision = deny_all_decision();
         self.sink
             .record(&req, &decision, AuthzSource::DenyAllDefault)
             .await;
         decision
+    }
+
+    async fn probe(&self, _req: AuthzRequest) -> AuthzDecision {
+        deny_all_decision()
+    }
+}
+
+fn deny_all_decision() -> AuthzDecision {
+    let policy = AuthzSource::DenyAllDefault.policy().to_owned();
+    AuthzDecision::Deny {
+        reason: DenyReason::HookUnavailable {
+            policy: policy.clone(),
+            detail: "no authz hook is configured; the default denies".to_owned(),
+        },
+        policy,
     }
 }
 
@@ -97,6 +112,10 @@ impl AuthzDecisionHook for AllowAllHook {
             .record(&req, &decision, AuthzSource::AllowAllUnrestricted)
             .await;
         decision
+    }
+
+    async fn probe(&self, _req: AuthzRequest) -> AuthzDecision {
+        AuthzDecision::Allow
     }
 }
 
@@ -128,14 +147,7 @@ impl WebhookHook {
     }
 
     async fn fault(&self, req: &AuthzRequest, detail: String) -> AuthzDecision {
-        let policy = AuthzSource::WebhookFault.policy().to_owned();
-        let decision = AuthzDecision::Deny {
-            reason: DenyReason::HookUnavailable {
-                policy: policy.clone(),
-                detail,
-            },
-            policy,
-        };
+        let decision = webhook_fault_decision(detail);
         self.sink
             .record(req, &decision, AuthzSource::WebhookFault)
             .await;
@@ -143,10 +155,19 @@ impl WebhookHook {
     }
 }
 
-#[async_trait]
-impl AuthzDecisionHook for WebhookHook {
-    async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
-        let response = self.client.post(&self.url).json(&req).send().await;
+#[derive(Debug, thiserror::Error)]
+enum WebhookFault {
+    #[error("transport failure: {0}")]
+    Transport(#[source] reqwest::Error),
+    #[error("hook returned status {0}")]
+    Status(u16),
+    #[error("undecodable response: {0}")]
+    Decode(#[source] reqwest::Error),
+}
+
+impl WebhookHook {
+    async fn decide(&self, req: &AuthzRequest) -> Result<AuthzDecision, WebhookFault> {
+        let response = self.client.post(&self.url).json(req).send().await;
         let response = match response {
             Ok(r) => r,
             Err(err) => {
@@ -155,7 +176,7 @@ impl AuthzDecisionHook for WebhookHook {
                     url = %self.url,
                     "authz hook transport failure",
                 );
-                return self.fault(&req, format!("transport failure: {err}")).await;
+                return Err(WebhookFault::Transport(err));
             },
         };
         if !response.status().is_success() {
@@ -164,24 +185,44 @@ impl AuthzDecisionHook for WebhookHook {
                 url = %self.url,
                 "authz hook returned non-success status",
             );
-            return self
-                .fault(
-                    &req,
-                    format!("hook returned status {}", response.status().as_u16()),
-                )
-                .await;
+            return Err(WebhookFault::Status(response.status().as_u16()));
         }
-        match response.json::<AuthzDecision>().await {
+        response.json::<AuthzDecision>().await.map_err(|err| {
+            tracing::warn!(
+                error = %err,
+                url = %self.url,
+                "authz hook response decode failure",
+            );
+            WebhookFault::Decode(err)
+        })
+    }
+}
+
+fn webhook_fault_decision(detail: String) -> AuthzDecision {
+    let policy = AuthzSource::WebhookFault.policy().to_owned();
+    AuthzDecision::Deny {
+        reason: DenyReason::HookUnavailable {
+            policy: policy.clone(),
+            detail,
+        },
+        policy,
+    }
+}
+
+// Why: the webhook is an extension's HTTP handler, so whether it writes its
+// own audit row for a probe is the extension's call; core writes none.
+#[async_trait]
+impl AuthzDecisionHook for WebhookHook {
+    async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
+        match self.decide(&req).await {
             Ok(decision) => decision,
-            Err(err) => {
-                tracing::warn!(
-                    error = %err,
-                    url = %self.url,
-                    "authz hook response decode failure",
-                );
-                self.fault(&req, format!("undecodable response: {err}"))
-                    .await
-            },
+            Err(fault) => self.fault(&req, format!("{fault}")).await,
         }
+    }
+
+    async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+        self.decide(&req)
+            .await
+            .unwrap_or_else(|fault| webhook_fault_decision(format!("{fault}")))
     }
 }

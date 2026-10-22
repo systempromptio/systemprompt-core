@@ -51,9 +51,13 @@ fn the_last_session_segment_wins() {
 }
 
 #[test]
-fn try_new_accepts_only_lowercase_hyphenated_uuids() {
+fn try_new_accepts_any_bounded_printable_token() {
     assert!(ClientSessionId::try_new("9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f").is_ok());
-    assert!(ClientSessionId::try_new("9D2C4E6F-1A3B-4C5D-8E7F-0A1B2C3D4E5F").is_err());
-    assert!(ClientSessionId::try_new("sess_9d2c4e6f-1a3b-4c5d-8e7f-0a1b2c3d4e5f").is_err());
+    assert!(ClientSessionId::try_new("9D2C4E6F-1A3B-4C5D-8E7F-0A1B2C3D4E5F").is_ok());
+    assert!(ClientSessionId::try_new("ses_01opencodeownsessionid").is_ok());
     assert!(ClientSessionId::try_new("").is_err());
+    assert!(ClientSessionId::try_new("has space").is_err());
+    assert!(ClientSessionId::try_new("tab\there").is_err());
+    assert!(ClientSessionId::try_new("x".repeat(129)).is_err());
+    assert!(ClientSessionId::try_new("x".repeat(128)).is_ok());
 }

@@ -1,111 +1,92 @@
-//! Unit tests for the gateway message-dispatch principal: accessor mapping and
-//! session-binding enforcement for JWT vs API-key credentials.
+//! Unit tests for the gateway principal: every credential kind resolves to one
+//! `Principal`, so an API key carries its user's roles exactly as a JWT does,
+//! and its scopes narrow that principal rather than replacing it.
 
 use std::collections::BTreeMap;
-use systemprompt_api::routes::gateway::messages::error::RejectionError;
 
-use axum::http::StatusCode;
 use serde_json::json;
-use systemprompt_api::routes::gateway::messages::auth::{
-    ApiKeyPrincipal, AuthedPrincipal, JwtPrincipal,
-};
-use systemprompt_identifiers::{Actor, SessionId, TraceId, UserId};
+use systemprompt_api::routes::gateway::messages::auth::{AuthedPrincipal, KeyScopes, Principal};
+use systemprompt_governance::authz::SubjectAttributes;
+use systemprompt_governance::policy::types::AccessScope;
+use systemprompt_identifiers::{Actor, ClientId, SessionId, TraceId, UserId};
 
-fn jwt_principal(session: &SessionId) -> AuthedPrincipal {
-    let mut attributes = BTreeMap::new();
-    attributes.insert("team".to_owned(), json!("core"));
-    AuthedPrincipal::Jwt(JwtPrincipal {
-        user_id: UserId::new("user-jwt"),
-        trace_id: TraceId::new("trace-jwt"),
-        roles: vec!["admin".to_owned()],
-        attributes,
-        act_chain: vec![Actor::user(UserId::new("delegator"))],
-        attested_session: session.clone(),
+fn principal(roles: &[&str], scopes: Option<KeyScopes>) -> Principal {
+    Principal {
+        user_id: UserId::new("user-1"),
+        roles: roles.iter().map(|r| (*r).to_owned()).collect(),
+        subject: SubjectAttributes::new(),
+        attributes: BTreeMap::new(),
+        act_chain: Vec::new(),
         client_id: None,
-    })
+        scopes,
+    }
 }
 
-fn api_key_principal(session: &SessionId) -> AuthedPrincipal {
-    AuthedPrincipal::ApiKey(ApiKeyPrincipal {
+fn key_scopes() -> KeyScopes {
+    KeyScopes {
         api_key_id: systemprompt_identifiers::ApiKeyId::generate(),
         limits: systemprompt_users::ApiKeyLimits::default(),
         scopes: Vec::new(),
-        user_id: UserId::new("user-key"),
-        trace_id: TraceId::new("trace-key"),
-        attested_session: session.clone(),
-    })
+    }
+}
+
+fn authed(principal: Principal, session: &SessionId) -> AuthedPrincipal {
+    AuthedPrincipal {
+        principal,
+        trace_id: TraceId::new("trace-1"),
+        session_id: session.clone(),
+        client_session: None,
+    }
 }
 
 #[test]
-fn accessors_map_per_variant() {
+fn accessors_read_the_principal_and_its_session() {
     let session = SessionId::generate();
-    let jwt = jwt_principal(&session);
-    assert_eq!(jwt.user_id().as_str(), "user-jwt");
-    assert_eq!(jwt.trace_id().as_str(), "trace-jwt");
-    assert_eq!(jwt.attested_session(), &session);
-
-    let key = api_key_principal(&session);
-    assert_eq!(key.user_id().as_str(), "user-key");
-    assert_eq!(key.trace_id().as_str(), "trace-key");
-    assert_eq!(key.attested_session(), &session);
+    let key = authed(principal(&["user"], Some(key_scopes())), &session);
+    assert_eq!(key.user_id().as_str(), "user-1");
+    assert_eq!(key.trace_id().as_str(), "trace-1");
+    assert_eq!(key.session_id(), &session);
+    assert!(key.api_key().is_some());
+    assert!(key.client_session().is_none());
 }
 
 #[test]
-fn authz_attributes_come_from_jwt_only() {
+fn an_api_key_principal_carries_its_users_roles() {
     let session = SessionId::generate();
-    let (roles, attributes, act_chain) = jwt_principal(&session).authz_attributes();
+    let key = authed(principal(&["admin"], Some(key_scopes())), &session);
+    let (roles, attributes, act_chain) = key.authz_attributes();
+    assert_eq!(roles, vec!["admin".to_owned()]);
+    assert!(attributes.is_empty());
+    assert!(act_chain.is_empty());
+    assert_eq!(key.access_scope(), AccessScope::Admin);
+}
+
+#[test]
+fn jwt_and_api_key_principals_with_the_same_roles_get_the_same_scope() {
+    let session = SessionId::generate();
+    let jwt = authed(principal(&["user"], None), &session);
+    let key = authed(principal(&["user"], Some(key_scopes())), &session);
+    assert_eq!(jwt.access_scope(), key.access_scope());
+    assert_eq!(jwt.authz_attributes().0, key.authz_attributes().0);
+}
+
+#[test]
+fn jwt_attributes_and_act_chain_pass_through() {
+    let session = SessionId::generate();
+    let mut jwt = principal(&["admin"], None);
+    jwt.attributes.insert("team".to_owned(), json!("core"));
+    jwt.act_chain = vec![Actor::user(UserId::new("delegator"))];
+    let (roles, attributes, act_chain) = authed(jwt, &session).authz_attributes();
     assert_eq!(roles, vec!["admin".to_owned()]);
     assert_eq!(attributes.get("team"), Some(&json!("core")));
     assert_eq!(act_chain.len(), 1);
-
-    let (roles, attributes, act_chain) = api_key_principal(&session).authz_attributes();
-    assert!(roles.is_empty());
-    assert!(attributes.is_empty());
-    assert!(act_chain.is_empty());
 }
 
 #[test]
-fn session_binding_accepts_matching_session() {
+fn only_the_bridge_client_reads_as_bridge() {
     let session = SessionId::generate();
-    assert!(
-        jwt_principal(&session)
-            .enforce_session_binding(&session)
-            .is_ok()
-    );
-}
-
-#[test]
-fn session_binding_rejects_mismatched_session() {
-    let session = SessionId::generate();
-    let other = SessionId::generate();
-    let RejectionError {
-        status, message, ..
-    } = jwt_principal(&session)
-        .enforce_session_binding(&other)
-        .expect_err("mismatched session must be rejected");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(message.contains("X-Session-ID"));
-}
-
-#[test]
-fn session_binding_accepts_attested_api_key_session() {
-    let session = SessionId::generate();
-    assert!(
-        api_key_principal(&session)
-            .enforce_session_binding(&session)
-            .is_ok()
-    );
-}
-
-#[test]
-fn session_binding_rejects_mismatched_api_key_session() {
-    let session = SessionId::generate();
-    let other = SessionId::generate();
-    let RejectionError {
-        status, message, ..
-    } = api_key_principal(&session)
-        .enforce_session_binding(&other)
-        .expect_err("an api-key principal is bound to its attested session too");
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(message.contains("X-Session-ID"));
+    let mut bridge = principal(&["user"], None);
+    bridge.client_id = Some(ClientId::bridge());
+    assert!(authed(bridge, &session).is_bridge());
+    assert!(!authed(principal(&["user"], Some(key_scopes())), &session).is_bridge());
 }

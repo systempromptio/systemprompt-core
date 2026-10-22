@@ -12,7 +12,7 @@ use systemprompt_manifest::services::providers::surface_for;
 
 use axum::http::HeaderMap;
 use systemprompt_api::error::ApiHttpError;
-use systemprompt_api::routes::gateway::bridge::{canonicalize_org_uuid, provider_health};
+use systemprompt_api::routes::gateway::bridge::provider_health;
 use systemprompt_api::routes::gateway::models::{model_entries, surfaces_from_header};
 use systemprompt_identifiers::headers::INFERENCE_PROTOCOL;
 use systemprompt_identifiers::{ModelId, ProviderId, SecretName, TenantId};
@@ -418,7 +418,7 @@ fn provider_health_excludes_backend_provider() {
 fn canonicalize_org_uuid_peels_local_prefix_from_uuid_tenant() {
     let tenant = TenantId::new("local_6fa459ea-ee8a-3ca4-894e-db77e160355e");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
@@ -427,7 +427,7 @@ fn canonicalize_org_uuid_peels_local_prefix_from_uuid_tenant() {
 fn canonicalize_org_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
     let tenant = TenantId::new("6FA459EA-EE8A-3CA4-894E-DB77E160355E");
     assert_eq!(
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "6fa459ea-ee8a-3ca4-894e-db77e160355e"
     );
 }
@@ -435,17 +435,17 @@ fn canonicalize_org_uuid_normalizes_bare_uuid_to_lowercase_canonical() {
 #[test]
 fn canonicalize_org_uuid_derives_stable_v5_for_non_uuid_tenant() {
     let tenant = TenantId::new("local_acme-corp");
-    let got = canonicalize_org_uuid(&tenant);
+    let got = tenant.organization_uuid();
     assert_eq!(got.len(), 36, "{got}");
     assert_eq!(got.as_bytes()[14], b'5', "expected a v5 UUID: {got}");
     assert_eq!(
         got,
-        canonicalize_org_uuid(&tenant),
+        tenant.organization_uuid(),
         "derivation must be deterministic"
     );
     assert_ne!(
         got,
-        canonicalize_org_uuid(&TenantId::new("local_other-corp")),
+        TenantId::new("local_other-corp").organization_uuid(),
         "distinct tenants must not collide"
     );
 }
@@ -564,4 +564,228 @@ fn a_model_routed_to_an_unconfigured_provider_is_withheld() {
     .collect();
 
     assert!(ids.is_empty(), "{ids:?}");
+}
+
+mod admission {
+    //! `ModelAdmission` against dispatch: for every model the profile could
+    //! list, admission says yes exactly when `/v1/messages` would route,
+    //! serve and entitle it — and asking never writes an audit row.
+
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use async_trait::async_trait;
+    use axum::http::{HeaderMap, HeaderValue};
+    use systemprompt_api::error::ApiHttpError;
+    use systemprompt_api::routes::gateway::bridge::profile;
+    use systemprompt_api::routes::gateway::bridge_admission::{
+        AdmissionPrincipal, ModelAdmission, probe_route,
+    };
+    use systemprompt_api::services::middleware::{JtiRevocationChecker, JwtContextExtractor};
+    use systemprompt_governance::authz::{
+        AuthzDecision, AuthzDecisionHook, AuthzRequest, DenyReason, EntityRef, SharedAuthzHook,
+    };
+    use systemprompt_identifiers::{RouteId, SessionId, UserId};
+    use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
+    use systemprompt_models::api::ErrorCode;
+    use systemprompt_test_fixtures::{ensure_test_bootstrap, test_app_context, test_db_pool};
+    use systemprompt_traits::AppContext as _;
+    use systemprompt_wire::WireProtocol;
+
+    use super::{model, provider_with_secret, routed};
+
+    #[derive(Debug, Default)]
+    struct DenyRoute {
+        denied: Option<RouteId>,
+        evaluated: AtomicUsize,
+    }
+
+    impl DenyRoute {
+        fn decide(&self, req: &AuthzRequest) -> AuthzDecision {
+            match (&req.entity, &self.denied) {
+                (EntityRef::GatewayRoute(route), Some(denied)) if route == denied => {
+                    AuthzDecision::Deny {
+                        reason: DenyReason::PolicyViolation {
+                            policy: "test".to_owned(),
+                            detail: std::borrow::Cow::Borrowed("not entitled"),
+                        },
+                        policy: "test".to_owned(),
+                    }
+                },
+                _ => AuthzDecision::Allow,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl AuthzDecisionHook for DenyRoute {
+        async fn evaluate(&self, req: AuthzRequest) -> AuthzDecision {
+            self.evaluated.fetch_add(1, Ordering::SeqCst);
+            self.decide(&req)
+        }
+
+        async fn probe(&self, req: AuthzRequest) -> AuthzDecision {
+            self.decide(&req)
+        }
+    }
+
+    fn registry() -> ProviderRegistry {
+        let mut legacy = model("claude-legacy", &[]);
+        legacy.hidden = true;
+        let mut secret = model("claude-secret", &[]);
+        secret.hidden = true;
+        ProviderRegistry {
+            providers: vec![
+                provider_with_secret(
+                    "anthropic",
+                    WireProtocol::Anthropic,
+                    "anthropic_key",
+                    vec![model("claude-sonnet-4-6", &[]), legacy, secret],
+                ),
+                provider_with_secret(
+                    "vertex-maas",
+                    WireProtocol::OpenAiChat,
+                    "vertex_maas",
+                    vec![model("qwen3-coder", &[])],
+                ),
+            ],
+        }
+    }
+
+    fn gateway() -> GatewayConfig {
+        let mut gateway = routed("claude-legacy", "anthropic");
+        gateway
+            .routes
+            .extend(routed("claude-sonnet-*", "anthropic").routes);
+        gateway
+            .routes
+            .extend(routed("qwen3-*", "vertex-maas").routes);
+        gateway
+    }
+
+    fn principal() -> AdmissionPrincipal {
+        AdmissionPrincipal {
+            user_id: UserId::new("admission-user"),
+            roles: vec!["user".to_owned()],
+            client_id: None,
+            session_id: SessionId::generate(),
+        }
+    }
+
+    fn servable(model: &str) -> bool {
+        systemprompt_manifest::bridge_profile::is_model_servable(
+            &registry(),
+            Some(&gateway()),
+            model,
+            &|name: &str| name == "anthropic_key",
+        )
+    }
+
+    async fn dispatch_would_serve(
+        gateway: &GatewayConfig,
+        registry: &ProviderRegistry,
+        hook: &SharedAuthzHook,
+        model: &str,
+    ) -> bool {
+        let request = systemprompt_wire::canonical::CanonicalRequest::new(
+            systemprompt_identifiers::ModelId::new(model),
+            Vec::new(),
+            1,
+        );
+        let Some(route) = gateway.resolve_route(registry, &request) else {
+            return false;
+        };
+        if !servable(model) {
+            return false;
+        }
+        let p = principal();
+        let req = systemprompt_api::routes::gateway::messages::build_gateway_authz_request(
+            systemprompt_api::routes::gateway::messages::GatewayAuthzRequestInput {
+                user_id: p.user_id,
+                roles: p.roles,
+                attributes: std::collections::BTreeMap::new(),
+                act_chain: Vec::new(),
+                trace_id: systemprompt_identifiers::TraceId::generate(),
+                route_id: route.effective_id(),
+                model: systemprompt_identifiers::ModelId::new(model),
+                session_id: Some(p.session_id.clone()),
+                client_id: None,
+                context_id: systemprompt_identifiers::ContextId::derived_from_session(
+                    &p.session_id,
+                ),
+            },
+        );
+        matches!(hook.evaluate(req).await, AuthzDecision::Allow)
+    }
+
+    #[tokio::test]
+    async fn admission_equals_dispatch_for_hidden_unentitled_and_unconfigured_models() {
+        let registry = registry();
+        let gateway = gateway();
+        let sonnet_route = probe_route(&gateway, &registry, "claude-sonnet-4-6")
+            .expect("sonnet routes")
+            .effective_id();
+        let deny = Arc::new(DenyRoute {
+            denied: Some(sonnet_route),
+            ..DenyRoute::default()
+        });
+        let hook: SharedAuthzHook = deny.clone();
+        let p = principal();
+        let admission = ModelAdmission {
+            gateway: &gateway,
+            registry: &registry,
+            hook: &hook,
+            principal: &p,
+            servable: &servable,
+        };
+
+        for (model, expected) in [
+            ("claude-legacy", true),
+            ("claude-secret", false),
+            ("claude-sonnet-4-6", false),
+            ("qwen3-coder", false),
+        ] {
+            let admitted = admission.admits(model).await;
+            assert_eq!(admitted, expected, "{model}");
+            assert_eq!(
+                admitted,
+                dispatch_would_serve(&gateway, &registry, &hook, model).await,
+                "admission and dispatch disagree on {model}"
+            );
+        }
+        let evaluated_by_dispatch = deny.evaluated.load(Ordering::SeqCst);
+        let _ = admission.retain(vec!["claude-legacy".to_owned()]).await;
+        assert_eq!(
+            deny.evaluated.load(Ordering::SeqCst),
+            evaluated_by_dispatch,
+            "admission probes; it never evaluates, so it writes no audit row"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_profile_request_with_a_bad_bearer_is_401_never_anonymous() {
+        let boot = ensure_test_bootstrap();
+        let pool = test_db_pool().await;
+        let ctx = test_app_context(&pool, &boot.database_url);
+        let extractor = Arc::new(JwtContextExtractor::new(
+            ctx.session_provider().expect("session provider"),
+            ctx.user_provider().expect("user provider"),
+            JtiRevocationChecker::from_repository(
+                ctx.oauth_repositories().oauth.clone(),
+                systemprompt_traits::CacheEpochs::new(),
+            ),
+            ctx.config().jwt_issuer.clone(),
+        ));
+        for bearer in [Some("Bearer not-a-token"), None] {
+            let mut headers = HeaderMap::new();
+            if let Some(value) = bearer {
+                headers.insert("authorization", HeaderValue::from_static(value));
+            }
+            let err = profile(Arc::clone(&extractor), (*ctx).clone(), headers)
+                .await
+                .expect_err("no verified caller, no profile");
+            let err: ApiHttpError = err;
+            assert_eq!(err.into_inner().code, ErrorCode::Unauthorized, "{bearer:?}");
+        }
+    }
 }

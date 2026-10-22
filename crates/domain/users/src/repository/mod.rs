@@ -11,6 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod api_key;
+mod api_key_session;
 mod banned_ip;
 mod device_cert;
 mod federated_identity;

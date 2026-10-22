@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking
+
+- One gateway principal for every credential kind: `messages::auth::AuthedPrincipal` is a struct holding a `Principal { user_id, roles, subject, attributes, act_chain, client_id, scopes }` plus the bound `session_id` and the client's own `client_session`. `JwtPrincipal`, `ApiKeyPrincipal` and `enforce_session_binding` are removed. An API key's principal carries its user's roles, loaded through the same user record and cache as the JWT path; its `KeyScopes` narrow that principal.
+- `messages::auth::authenticate(credential, AuthInputs { header_session, headers, jwt_extractor, providers, ctx })`. `Principal::subject` holds the caller's groups, projects and every other registered subject dimension, gathered once through `SubjectProviderSet::gather` for every credential kind; `extract::scope::ScopeResolution` takes that `subject` instead of a `user_id` and no longer queries the providers again. `extract::headers::require_session_id` is replaced by `optional_session_id`.
+- `GET /v1/bridge/profile` requires a verified bearer; a missing, invalid or stale one is 401. Its model list is filtered through `bridge_admission::ModelAdmission`, which is dispatch's own check.
+- `routes::gateway::bridge::canonicalize_org_uuid` is removed; use `TenantId::organization_uuid`.
+
+### Added
+
+- `messages::session_binding`: an API-key request without a gateway-issued `x-session-id` lands on the session bound to the key, minted on first use; the client's header is recorded as the audit row's `client_session_id` when the body names none, and never rejected.
+- `JwtContextExtractor::load_user`. The user cache is bounded.
+
 ## [0.72.0] - 2026-10-22
 
 ### Added

@@ -2,9 +2,14 @@
 
 ## [Unreleased]
 
+### Breaking
+
+- `AuthzDecisionHook` gains a required `probe`, which decides a request without writing an audit row and must return what `evaluate` would. Every implementation, including an extension's, adds one. `RuleBasedHook`, `CompositeAuthzHook`, `WebhookHook`, `DenyAllHook` and `AllowAllHook` implement it without touching their audit sink.
+
 ### Added
 
 - `access_control_rules` and `access_control_entities` carry `changed_by`, `changed_at` and `reason`, stamped by `sp_stamp_change()`, and bump `config_version` (`config:access_control`). Migration `026_access_control_change_provenance` (with down): catalog-only `ADD COLUMN`s, ACCESS EXCLUSIVE for milliseconds, no rewrite or scan.
+- `SubjectProviderSet::gather`: every registered dimension's values for one user.
 
 ### Fixed
 

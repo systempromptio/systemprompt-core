@@ -76,6 +76,7 @@ mod extension_schema_tests {
                 "user_api_key_scopes",
                 "user_device_certs",
                 "user_rate_limit_buckets",
+                "api_key_sessions",
                 "federated_identities",
                 "sso_login_events",
             ]

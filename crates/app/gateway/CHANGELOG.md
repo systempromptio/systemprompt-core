@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The derived `x-opencode-session` is keyed on the request's client session id when there is one, falling back to the gateway session, so OpenCode sessions sharing one API key's bound session are metered separately.
+
 ### Fixed
 
 - The failover guard compares the credential owner, so a chain never fails over between two different personal subscriptions.

@@ -1,5 +1,9 @@
 //! Header and body extraction for inbound gateway requests.
 //!
+//! `x-session-id` is optional and never an error: the credential decides
+//! which session a request is bound to, so an absent or unreadable header
+//! leaves the choice to it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -17,8 +21,13 @@ use crate::routes::gateway::messages::error::RejectionError;
 use systemprompt_gateway::protocol::canonical::CanonicalRequest;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 
-pub fn require_session_id(headers: &HeaderMap) -> Result<SessionId, RejectionError> {
-    require_typed_header(headers, SESSION_ID, SessionId::new)
+pub fn optional_session_id(headers: &HeaderMap) -> Option<SessionId> {
+    headers
+        .get(SESSION_ID)
+        .and_then(|raw| raw.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| SessionId::new(value.to_owned()))
 }
 
 pub fn optional_gateway_conversation_id(
@@ -41,31 +50,6 @@ pub fn optional_gateway_conversation_id(
 
 fn invalid_header(name: &str) -> RejectionError {
     RejectionError::client(StatusCode::BAD_REQUEST, format!("invalid {name} header"))
-}
-
-fn require_typed_header<T>(
-    headers: &HeaderMap,
-    name: &'static str,
-    ctor: fn(String) -> T,
-) -> Result<T, RejectionError> {
-    let raw = headers
-        .get(name)
-        .ok_or_else(|| {
-            RejectionError::client(
-                StatusCode::BAD_REQUEST,
-                format!("missing required {name} header"),
-            )
-        })?
-        .to_str()
-        .map_err(|e| invalid_header(name).with_cause(e))?;
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err(RejectionError::client(
-            StatusCode::BAD_REQUEST,
-            format!("empty {name} header"),
-        ));
-    }
-    Ok(ctor(trimmed.to_owned()))
 }
 
 pub async fn read_gateway_body(

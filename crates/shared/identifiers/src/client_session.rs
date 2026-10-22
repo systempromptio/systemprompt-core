@@ -6,6 +6,10 @@
 //! Parsing it lets the gateway land a request on the same context the hooks
 //! pipeline writes, without the caller having to send a dedicated header.
 //!
+//! The value is opaque: a bounded, printable, whitespace-free string, so a
+//! harness's own id (an `x-session-id` such as `ses_…` from `OpenCode`) is
+//! recorded as is.
+//!
 //! Distinct from [`crate::SessionId`]: that is the gateway's own attested
 //! `sess_` session, minted once per credential and shared by every Claude Code
 //! run that credential drives.
@@ -17,13 +21,19 @@ use crate::error::IdValidationError;
 
 const SESSION_SEGMENT: &str = "_session_";
 
+const MAX_LEN: usize = 128;
+
 fn validate(value: &str) -> Result<(), IdValidationError> {
-    let parsed =
-        uuid::Uuid::parse_str(value).map_err(|e| IdValidationError::uuid("ClientSessionId", e))?;
-    if parsed.hyphenated().to_string() != value {
+    if value.is_empty() || value.len() > MAX_LEN {
         return Err(IdValidationError::invalid(
             "ClientSessionId",
-            "must be a lowercase hyphenated UUID",
+            "must be 1 to 128 characters",
+        ));
+    }
+    if !value.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err(IdValidationError::invalid(
+            "ClientSessionId",
+            "must be printable ASCII with no whitespace",
         ));
     }
     Ok(())

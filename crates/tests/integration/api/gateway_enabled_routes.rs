@@ -188,6 +188,21 @@ async fn app() -> anyhow::Result<Router> {
     Ok(gateway_router(&ctx).expect("gateway router builds"))
 }
 
+async fn signed_in_get(uri: &str, email: &str) -> anyhow::Result<Request<Body>> {
+    boot();
+    let pool = test_db_pool().await;
+    install_test_signing_key();
+    let cred = seed_admin_credential(&pool, email).await?;
+    Ok(Request::builder()
+        .uri(uri)
+        .header(
+            header::AUTHORIZATION,
+            format!("Bearer {}", cred.jwt.as_str()),
+        )
+        .body(Body::empty())
+        .expect("request must build"))
+}
+
 fn get(uri: &str) -> Request<Body> {
     Request::builder()
         .uri(uri)
@@ -280,7 +295,7 @@ async fn a_request_with_no_credential_is_refused_before_anything_else() -> anyho
 }
 
 #[tokio::test]
-async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
+async fn a_jwt_request_with_no_session_header_binds_to_its_claim() -> anyhow::Result<()> {
     boot();
     let pool = test_db_pool().await;
     install_test_signing_key();
@@ -298,8 +313,11 @@ async fn a_request_with_no_session_header_is_refused() -> anyhow::Result<()> {
     )
     .await?;
 
-    assert_eq!(status.as_u16(), 400, "{body}");
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(
+        status.as_u16() != 400 && status.as_u16() != 401,
+        "the credential names the session; an absent header is not an error: {status} {body}"
+    );
+    assert!(!body.contains(SESSION_ID), "{body}");
     Ok(())
 }
 
@@ -474,6 +492,7 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
             header::AUTHORIZATION,
             format!("Bearer {}", cred.jwt.as_str()),
         )
+        .header(SESSION_ID, "sess-belonging-to-nobody")
         .body(Body::from(message_body("gpt-fixture-1").to_string()))
         .expect("request must build");
 
@@ -481,10 +500,10 @@ async fn the_responses_wire_shares_the_same_extraction_rules() -> anyhow::Result
 
     assert_eq!(
         status.as_u16(),
-        400,
-        "the session header is mandatory on every inference wire: {body}"
+        401,
+        "a session header that contradicts the token is refused on every inference wire: {body}"
     );
-    assert!(body.contains(SESSION_ID), "{body}");
+    assert!(body.contains("X-Session-ID"), "{body}");
     Ok(())
 }
 
@@ -544,9 +563,18 @@ async fn the_gateway_root_describes_itself() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+async fn the_bridge_profile_refuses_a_caller_with_no_bearer() -> anyhow::Result<()> {
     let (status, body) =
         body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+
+    assert_eq!(status.as_u16(), 401, "{body}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()> {
+    let req = signed_in_get("/bridge/profile", "gw-profile@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(req).await?).await?;
 
     assert_eq!(status.as_u16(), 200, "{body}");
     let profile: serde_json::Value = serde_json::from_str(&body)?;
@@ -567,8 +595,8 @@ async fn the_bridge_profile_describes_the_enabled_gateway() -> anyhow::Result<()
 
 #[tokio::test]
 async fn the_bridge_profile_reports_which_providers_have_a_usable_key() -> anyhow::Result<()> {
-    let (status, body) =
-        body_to_string(app().await?.oneshot(get("/bridge/profile")).await?).await?;
+    let req = signed_in_get("/bridge/profile", "gw-profile-keys@example.invalid").await?;
+    let (status, body) = body_to_string(app().await?.oneshot(req).await?).await?;
     assert_eq!(status.as_u16(), 200, "{body}");
 
     let profile: serde_json::Value = serde_json::from_str(&body)?;

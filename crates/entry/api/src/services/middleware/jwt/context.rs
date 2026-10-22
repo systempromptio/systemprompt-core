@@ -5,6 +5,8 @@
 //! revocation) and building a `RequestContext`. It resolves the context id from
 //! the `x-context-id` header on standard routes and from the JSON-RPC body on
 //! A2A routes, and exposes a gateway decode path for pre-authenticated tokens.
+//! `load_user` reads the user an API key names through the same record and
+//! short-TTL cache, so both credential kinds see the same roles.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -86,7 +88,7 @@ impl JwtContextExtractor {
         let validated = validate_user_exists(
             &self.user_provider,
             &self.user_cache,
-            jwt_context,
+            &jwt_context.user_id,
             route_context,
         )
         .await?;
@@ -129,6 +131,21 @@ impl JwtContextExtractor {
             auth_token,
             user_type,
         }))
+    }
+
+    pub async fn load_user(
+        &self,
+        user_id: &systemprompt_identifiers::UserId,
+        route_context: &str,
+    ) -> Result<systemprompt_traits::AuthUser, ContextExtractionError> {
+        validate_user_exists(
+            &self.user_provider,
+            &self.user_cache,
+            user_id,
+            route_context,
+        )
+        .await
+        .map(|validated| validated.user)
     }
 
     pub async fn decode_for_gateway(
