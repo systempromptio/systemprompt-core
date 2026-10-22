@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod lifecycle;
 mod shapes;
 mod stream_collection;
 
@@ -17,33 +18,18 @@ use std::sync::Arc;
 
 use crate::services::a2a_server::active_tasks::ActiveTasks;
 
-use self::stream_collection::{
-    BroadcastAguiLifecycleParams, broadcast_agui_lifecycle, collect_stream_response,
-};
-use crate::models::a2a::{Message, Task, TaskState};
-use crate::services::a2a_server::processing::message::persistence::{
-    PersistOutcome, broadcast_completion, persist_completed_task,
-};
+use self::lifecycle::{FinalizeParams, PersistAndAnnounceParams};
+use self::stream_collection::collect_stream_response;
+use crate::models::a2a::{Artifact, Message, Task, TaskState};
 use crate::services::a2a_server::processing::message::stream_service::StreamService;
 use crate::services::a2a_server::processing::message::{
     MessageHandler, ProcessMessageStreamParams,
 };
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
-use crate::services::a2a_server::streaming::broadcast::{
-    BroadcastTaskCreatedParams, broadcast_task_created,
-};
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::{AgentName, ContextId, TaskId};
 use systemprompt_models::RequestContext;
-
-struct PersistAndAnnounceParams<'a> {
-    task: &'a Task,
-    message: &'a Message,
-    agent_name: &'a AgentName,
-    context: &'a RequestContext,
-    webhooks: &'a WebhookContext,
-}
 
 impl MessageHandler {
     pub(in crate::services::a2a_server) async fn handle_message(
@@ -94,27 +80,19 @@ impl MessageHandler {
         })
         .await?;
 
-        let stream = self
-            .stream_processor()
-            .process_message_stream(ProcessMessageStreamParams {
-                a2a_message: &message,
-                agent_runtime,
-                agent_name,
-                context,
-                task_id: task_id.clone(),
-                cancel: guard.token(),
-            })
+        let (response_text, tool_artifacts) = self
+            .run_to_completion(
+                ProcessMessageStreamParams {
+                    a2a_message: &message,
+                    agent_runtime,
+                    agent_name,
+                    context,
+                    task_id: task_id.clone(),
+                    cancel: guard.token(),
+                },
+                &webhooks,
+            )
             .await?;
-
-        let (response_text, tool_artifacts) = match collect_stream_response(stream, &webhooks).await
-        {
-            Ok(collected) => collected,
-            Err(AgentServiceError::TaskCancelled) => {
-                self.mark_cancelled(&task_id).await?;
-                return Err(AgentServiceError::TaskCancelled);
-            },
-            Err(e) => return Err(e),
-        };
 
         let task = build_completed_task(
             task_id,
@@ -125,31 +103,33 @@ impl MessageHandler {
         );
 
         let agent_message = resolve_agent_message(&task, &message, &response_text);
-
-        if context.user_type() == systemprompt_models::auth::UserType::Anon {
-            tracing::warn!(
-                context_id = %context_id,
-                session_id = %context.session_id(),
-                "Saving messages for anonymous user"
-            );
-        }
-
-        self.persist_or_mark_failed(&task, &message, &agent_message, context)
-            .await?
-            .record_undelivered_broadcasts();
-
-        broadcast_completion(self.webhooks(), &task, context).await;
-
-        broadcast_agui_lifecycle(BroadcastAguiLifecycleParams {
-            webhooks: &webhooks,
-            context_id,
+        self.finalize(FinalizeParams {
             task: &task,
+            message: &message,
             agent_message: &agent_message,
             response_text: &response_text,
+            context,
+            webhooks: &webhooks,
         })
-        .await;
+        .await?;
 
         Ok(task)
+    }
+
+    async fn run_to_completion(
+        &self,
+        params: ProcessMessageStreamParams<'_>,
+        webhooks: &WebhookContext,
+    ) -> Result<(String, Vec<Artifact>)> {
+        let task_id = params.task_id.clone();
+        let stream = self.stream_service().process_message_stream(params).await?;
+        match collect_stream_response(stream, webhooks).await {
+            Err(AgentServiceError::TaskCancelled) => {
+                self.mark_cancelled(&task_id).await?;
+                Err(AgentServiceError::TaskCancelled)
+            },
+            collected => collected,
+        }
     }
 
     async fn validate_context(
@@ -179,7 +159,7 @@ impl MessageHandler {
         Ok(())
     }
 
-    fn stream_processor(&self) -> StreamService {
+    fn stream_service(&self) -> StreamService {
         StreamService {
             ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),
@@ -196,99 +176,5 @@ impl MessageHandler {
             .map_err(|e| {
                 AgentServiceError::operation(format!("Failed to mark task {task_id} cancelled"), e)
             })
-    }
-
-    async fn persist_and_announce(&self, params: PersistAndAnnounceParams<'_>) -> Result<()> {
-        let PersistAndAnnounceParams {
-            task,
-            message,
-            agent_name,
-            context,
-            webhooks,
-        } = params;
-        if let Err(e) = self
-            .repositories
-            .tasks
-            .create_task(crate::repository::task::RepoCreateTaskParams {
-                task,
-                user_id: context.user_id(),
-                session_id: context.session_id(),
-                trace_id: context.trace_id(),
-                agent_name,
-            })
-            .await
-        {
-            return Err(AgentServiceError::operation(
-                "Failed to persist task at start",
-                e,
-            ));
-        }
-
-        tracing::info!(task_id = %task.id, "Task persisted to database");
-
-        broadcast_task_created(BroadcastTaskCreatedParams {
-            webhooks,
-            task_id: &task.id,
-            context_id: &task.context_id,
-            user_message: message,
-            agent_name,
-        })
-        .await;
-
-        let working_timestamp = chrono::Utc::now();
-        if let Err(e) = self
-            .repositories
-            .tasks
-            .update_task_state(&task.id, TaskState::Working, &working_timestamp)
-            .await
-        {
-            return Err(AgentServiceError::operation(
-                format!("Failed to mark task {} as working", task.id),
-                e,
-            ));
-        }
-
-        Ok(())
-    }
-
-    async fn persist_or_mark_failed(
-        &self,
-        task: &Task,
-        user_message: &Message,
-        agent_message: &Message,
-        context: &RequestContext,
-    ) -> Result<PersistOutcome> {
-        let outcome = persist_completed_task(
-            crate::services::a2a_server::processing::message::persistence::PersistCompletedTaskParams {
-                task,
-                user_message,
-                agent_message,
-                context,
-                repositories: &self.repositories,
-                publishing: &self.publishing,
-                webhooks: self.webhooks(),
-                artifacts_already_published: false,
-            },
-        )
-        .await;
-        let e = match outcome {
-            Ok(outcome) => return Ok(outcome),
-            Err(e) => e,
-        };
-
-        let error_msg = format!("Failed to persist completed task: {e}");
-        tracing::error!(task_id = %task.id, error = %e, "Failed to persist completed task");
-
-        let failed_timestamp = chrono::Utc::now();
-        if let Err(update_err) = self
-            .repositories
-            .tasks
-            .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
-            .await
-        {
-            tracing::error!(task_id = %task.id, error = %update_err, "Failed to update task to failed state");
-        }
-
-        Err(e)
     }
 }
