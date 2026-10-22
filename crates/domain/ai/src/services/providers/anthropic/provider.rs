@@ -4,10 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Client;
-use systemprompt_manifest::services::ProviderModel;
-use systemprompt_manifest::services::providers::upstream_model_in;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 
+use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::services::providers::http_client::build_client;
 use crate::services::upstream::UpstreamTarget;
 
@@ -16,7 +15,7 @@ pub struct AnthropicProvider {
     pub(crate) client: Client,
     pub(crate) target: UpstreamTarget,
     pub(crate) web_search_enabled: bool,
-    pub(crate) models: Vec<ProviderModel>,
+    pub(crate) models: Vec<ServedModel>,
     pub(crate) default_model_override: Option<String>,
 }
 
@@ -41,7 +40,7 @@ impl AnthropicProvider {
     }
 
     #[must_use]
-    pub fn with_models(mut self, models: Vec<ProviderModel>) -> Self {
+    pub fn with_models(mut self, models: Vec<ServedModel>) -> Self {
         self.models = models;
         self
     }

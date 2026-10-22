@@ -23,24 +23,24 @@ use futures::stream::Stream;
 use rmcp::model::ContentBlock;
 use std::pin::Pin;
 
-use systemprompt_manifest::services::ProviderModel;
+use super::served_model::ServedModel;
 pub use systemprompt_manifest::services::ai::ModelPricing;
 
 #[must_use]
-pub fn catalog_supports_model(models: &[ProviderModel], model: &str) -> bool {
+pub fn catalog_supports_model(models: &[ServedModel], model: &str) -> bool {
     models.iter().any(|m| m.matches(model))
 }
 
 #[must_use]
 // Why: a model the catalogue does not price cannot be billed; `None` is
 // withheld so the caller refuses the request instead of settling it at zero.
-pub fn catalog_pricing(models: &[ProviderModel], model: &str) -> Option<ModelPricing> {
+pub fn catalog_pricing(models: &[ServedModel], model: &str) -> Option<ModelPricing> {
     models.iter().find(|m| m.matches(model)).map(|m| m.pricing)
 }
 
 #[must_use]
 pub fn catalog_default_model<'a>(
-    models: &'a [ProviderModel],
+    models: &'a [ServedModel],
     override_model: Option<&'a str>,
 ) -> &'a str {
     override_model

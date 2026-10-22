@@ -3,11 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::error::Result;
 use crate::services::upstream::UpstreamTarget;
 use reqwest::Client;
-use systemprompt_manifest::services::ProviderModel;
-use systemprompt_manifest::services::providers::upstream_model_in;
 
 use super::transport;
 
@@ -16,7 +15,7 @@ pub struct GeminiProvider {
     pub(crate) client: Client,
     pub(crate) target: UpstreamTarget,
     pub(crate) google_search_enabled: bool,
-    pub(crate) models: Vec<ProviderModel>,
+    pub(crate) models: Vec<ServedModel>,
     pub(crate) default_model_override: Option<String>,
 }
 
@@ -41,7 +40,7 @@ impl GeminiProvider {
     }
 
     #[must_use]
-    pub fn with_models(mut self, models: Vec<ProviderModel>) -> Self {
+    pub fn with_models(mut self, models: Vec<ServedModel>) -> Self {
         self.models = models;
         self
     }

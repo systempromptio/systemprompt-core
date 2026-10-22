@@ -6,12 +6,11 @@
 use reqwest::{Client, Response};
 // JSON: protocol boundary — the rendered wire body is dynamic JSON.
 use serde_json::Value;
-use systemprompt_manifest::services::ProviderModel;
-use systemprompt_manifest::services::providers::upstream_model_in;
 use systemprompt_models::net::{AI_PROVIDER_REQUEST_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 use systemprompt_wire::canonical::{CanonicalRequest, CanonicalResponse};
 use systemprompt_wire::{WireProtocol, openai_chat, openai_responses};
 
+use crate::services::providers::served_model::{ServedModel, upstream_model_in};
 use crate::error::Result;
 use crate::services::providers::http_client::build_client;
 use crate::services::upstream::UpstreamTarget;
@@ -21,7 +20,7 @@ pub struct OpenAiProvider {
     pub(crate) client: Client,
     pub(crate) target: UpstreamTarget,
     pub(crate) web_search_enabled: bool,
-    pub(crate) models: Vec<ProviderModel>,
+    pub(crate) models: Vec<ServedModel>,
     pub(crate) default_model_override: Option<String>,
 }
 
@@ -42,7 +41,7 @@ impl OpenAiProvider {
     }
 
     #[must_use]
-    pub fn with_models(mut self, models: Vec<ProviderModel>) -> Self {
+    pub fn with_models(mut self, models: Vec<ServedModel>) -> Self {
         self.models = models;
         self
     }
