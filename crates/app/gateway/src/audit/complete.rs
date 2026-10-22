@@ -136,13 +136,12 @@ impl GatewayAudit {
         if let Some(pricing) = self.pricing_snapshot.lock().ok().and_then(|slot| *slot) {
             return Ok(pricing);
         }
-        let services = systemprompt_loader::ServicesBootstrap::get()?;
+        let catalog = systemprompt_loader::ServicesBootstrap::catalog()?;
         let candidates = [effective_model, self.ctx.model.as_str()];
         Ok(pricing::resolve(
             &self.served_provider(),
             &candidates,
-            services.gateway_config(),
-            &services.providers,
+            catalog,
         )?)
     }
 }

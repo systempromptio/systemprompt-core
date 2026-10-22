@@ -36,6 +36,7 @@ pub(crate) use admission::PendingFinding;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use systemprompt_ai::models::CatalogHop;
 use systemprompt_ai::repository::{
     AiQuotaBucketRepository, AiRequestPayloadRepository, AiRequestRepository,
 };
@@ -44,10 +45,23 @@ use systemprompt_identifiers::{
     AiRequestId, ClientId, ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId,
     UserId,
 };
+use systemprompt_manifest::services::catalog::ResolvedHop;
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
 pub use access_log::GatewayAccessLog;
+
+impl GatewayRequestContext {
+    /// Opens the audit row on the hop dispatch resolved: its provider name
+    /// (the historical report dimension) plus its credential and endpoint.
+    pub fn open_on(&mut self, hop: &ResolvedHop) {
+        hop.provider.as_str().clone_into(&mut self.provider);
+        self.hop = Some(CatalogHop {
+            credential: hop.credential.id.as_str().to_owned(),
+            endpoint: hop.endpoint_ref().to_string(),
+        });
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GatewayRequestContext {
@@ -61,6 +75,7 @@ pub struct GatewayRequestContext {
     pub access_scope: AccessScope,
     pub client_id: Option<ClientId>,
     pub provider: String,
+    pub hop: Option<CatalogHop>,
     pub model: String,
     pub requested_model: Option<String>,
     pub max_tokens: Option<u32>,
@@ -150,19 +165,24 @@ impl GatewayAudit {
         }
     }
 
-    pub async fn set_served_provider(&self, provider: &str) {
+    pub async fn set_served_hop(&self, hop: &ResolvedHop) {
+        let served = admission::OwnedHop {
+            provider: hop.provider.as_str().to_owned(),
+            credential: hop.credential.id.as_str().to_owned(),
+            endpoint: hop.endpoint_ref().to_string(),
+        };
         if let Ok(mut slot) = self.served_provider.lock() {
-            *slot = Some(provider.to_owned());
+            *slot = Some(served.provider.clone());
         }
-        if self.stash_served_provider(provider) {
+        if self.stash_served_hop(&served) {
             return;
         }
         if let Err(e) = self
             .requests
-            .update_served_provider(&self.ctx.ai_request_id, provider)
+            .update_served_hop(&self.ctx.ai_request_id, served.as_served())
             .await
         {
-            tracing::warn!(error = %e, "update_served_provider failed");
+            tracing::warn!(error = %e, "update_served_hop failed");
         }
     }
 

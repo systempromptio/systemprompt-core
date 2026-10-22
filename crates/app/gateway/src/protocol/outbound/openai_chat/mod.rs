@@ -64,10 +64,7 @@ impl OutboundAdapter for OpenAiChatOutbound {
         {
             req = req.header(name, value);
         }
-        for (name, value) in &ctx.route.extra_headers {
-            req = req.header(name.as_str(), value.as_str());
-        }
-        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
+        let upstream_response = super::send_checked(ctx.target.provider.as_str(), req).await?;
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
@@ -90,14 +87,14 @@ impl OutboundAdapter for OpenAiChatOutbound {
             })?;
         if let Some(defect) = codec::buffered_defect(&value) {
             return Err(super::reject_defective_body(
-                ctx.route.provider.as_str(),
+                ctx.target.provider.as_str(),
                 "openai-chat",
                 &defect,
                 &bytes,
             ));
         }
         let canon = codec::parse_response(&value, ctx.request.model.as_str()).map_err(|e| {
-            super::reject_unparsable_body(ctx.route.provider.as_str(), "openai-chat", &e, &bytes)
+            super::reject_unparsable_body(ctx.target.provider.as_str(), "openai-chat", &e, &bytes)
         })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }

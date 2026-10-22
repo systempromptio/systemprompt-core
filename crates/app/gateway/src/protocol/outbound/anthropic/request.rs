@@ -27,7 +27,7 @@ pub(super) fn dropped_betas(ctx: &OutboundCtx<'_>) -> BetaHeader {
     let mut dropped = ctx
         .upstream
         .dropped_betas(WireProtocol::Anthropic, ctx.forward_headers);
-    let learned = super::rejected_betas::learned(ctx.route.provider.as_str());
+    let learned = super::rejected_betas::learned(&ctx.target.endpoint_ref().to_string());
     dropped.extend(BetaHeader::parse(
         &learned.iter().cloned().collect::<Vec<_>>().join(","),
     ));
@@ -56,12 +56,12 @@ pub(super) fn normalize_raw_body(raw: &Bytes, ctx: &OutboundCtx<'_>) -> Option<B
         );
     }
     anthropic::strip_user_id(&mut obj);
-    let provider = ctx.route.provider.as_str();
+    let key = ctx.target.endpoint_ref().to_string();
     drop_refused(
         &mut obj,
-        provider,
+        &key,
         &dropped_betas(ctx),
-        &super::refused_fields::learned(provider),
+        &super::refused_fields::learned(&key),
     );
     if ctx.automatic_prompt_caching && !ctx.request.has_cache_control() {
         obj.insert(

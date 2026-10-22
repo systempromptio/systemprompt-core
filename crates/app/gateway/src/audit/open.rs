@@ -30,6 +30,9 @@ impl GatewayAudit {
         if let Some(instance_id) = systemprompt_logging::instance_id() {
             record = record.instance_id(instance_id.clone());
         }
+        if let Some(hop) = &self.ctx.hop {
+            record = record.hop(hop.clone());
+        }
         if let Some(s) = &self.ctx.session_id {
             record = record.session_id(s.clone());
         }

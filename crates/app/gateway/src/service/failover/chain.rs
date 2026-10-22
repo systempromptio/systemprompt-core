@@ -7,11 +7,11 @@
 use systemprompt_database::resilience::Probe;
 
 use super::FailoverSend;
-use super::breakers::{ProviderBreakers, acquire, breaker_settings, settle};
+use super::breakers::{ProviderBreakers, acquire, breaker_key, settle};
 use super::decision::{FailoverReason, failover_reason, plan_attempts};
 use crate::protocol::outbound::OutboundOutcome;
 use crate::protocol::outbound::retry::{current_policy, with_policy};
-use crate::service::pricing::failover_pricing;
+use crate::service::pricing::dispatch_pricing;
 use crate::service::resolve::{DeploymentHop, ResolvedUpstream, resolve_deployment_upstream};
 use crate::service::stages::{ScannedDispatch, audit_upstream_failure};
 use crate::service::{DispatchError, GatewayError};
@@ -22,16 +22,14 @@ pub(super) async fn run(
     scanned: &mut ScannedDispatch,
     send: FailoverSend<'_, '_>,
 ) -> Result<OutboundOutcome, DispatchError> {
-    let names: Vec<String> = send
+    let names: Vec<String> = send.primary.deployments.iter().map(breaker_key).collect();
+    let breakers = ProviderBreakers::global();
+    let handles: Vec<_> = send
         .primary
         .deployments
         .iter()
-        .map(|view| view.provider.as_str().to_owned())
-        .collect();
-    let breakers = ProviderBreakers::global();
-    let handles: Vec<_> = names
-        .iter()
-        .map(|name| breakers.for_provider(name, &breaker_settings(name)))
+        .zip(&names)
+        .map(|(hop, name)| breakers.for_endpoint(name, &hop.resilience))
         .collect();
     let mut probes: Vec<Option<Probe<'_>>> = handles.iter().map(|b| acquire(b)).collect();
     let tripped: Vec<bool> = probes.iter().map(Option::is_none).collect();
@@ -104,7 +102,7 @@ impl<'r> Chain<'_, 'r> {
             self.record_hop(&name);
         }
         let upstream = rebound.as_ref().unwrap_or(self.send.primary);
-        let _in_flight = super::enter_deployment(upstream, &self.request_model);
+        let _in_flight = super::enter_deployment(upstream);
         let outcome = with_policy(
             current_policy(),
             scanned.send_attempt(upstream, self.send.forward_headers, self.send.audit),
@@ -174,10 +172,8 @@ impl<'r> Chain<'_, 'r> {
         let mut hops = self.hops.clone();
         hops.push(self.names[index].clone());
         let bound = resolve_deployment_upstream(
-            self.send.registry,
             self.send.primary,
             DeploymentHop { index, hops: &hops },
-            &self.request_model,
             self.send.ai_request_id,
         )
         .await;
@@ -185,12 +181,7 @@ impl<'r> Chain<'_, 'r> {
             Ok(upstream) => upstream?,
             Err(error) => return self.skip(index, "deployment could not be bound", &error),
         };
-        let pricing = match failover_pricing(&upstream, &self.request_model) {
-            Ok(pricing) => pricing,
-            Err(error) => {
-                return self.skip(index, "deployment has no pricing for the model", &error);
-            },
-        };
+        let pricing = dispatch_pricing(&upstream);
         if let Err(error) = scanned.rebind(&upstream, self.send.audit).await {
             self.bound = None;
             return self.skip(
@@ -203,9 +194,7 @@ impl<'r> Chain<'_, 'r> {
         self.hops = hops;
         let audit = self.send.audit;
         audit.reprice(pricing);
-        audit
-            .set_served_provider(upstream.provider.name.as_str())
-            .await;
+        audit.set_served_hop(&upstream.hop).await;
         if let Some(descriptor) = upstream.route_match_descriptor.as_deref() {
             audit.set_route_match(descriptor).await;
         }

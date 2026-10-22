@@ -1,22 +1,18 @@
 //! Pricing resolution for gateway requests.
 //!
-//! `candidates` is tried in priority order — typically the provider-echoed
-//! served model first, then the route's upstream model, then the
-//! client-requested model. A provider that echoes a dated alias
-//! (`gpt-5-mini-2025-08-07`) absent from the catalog must still bill against
-//! the configured model, so the first candidate that resolves wins. For each
-//! candidate, resolution is top-down:
-//!   1. Profile `GatewayRoute.pricing` whose `model_pattern` matches (operator
-//!      override, the strongest "we pay a custom rate here" signal).
-//!   2. The matching `ProviderModel.pricing` in the services provider registry
-//!      — the route provider's catalog entry, else any provider that serves it.
-//!      The provider registry is the single source of model pricing.
+//! A dispatched hop carries its final price already: the catalog resolved it
+//! with the precedence a deployment's `pricing` override, then the endpoint's
+//! `price_multiplier` applied to the model's base price, then the model's
+//! base price ([`resolve_hop`]). With the gateway enabled the catalog refuses
+//! to load a deployment that is unpriced, so a dispatch never bills a guessed
+//! zero.
 //!
-//! Missing pricing is an explicit error. Callers must not record an unknown
-//! provider charge as a measured zero.
-//!
-//! Resolved dispatches use their selected route and provider directly, so
-//! conditional routing cannot bill another provider's catalog or override.
+//! [`resolve`] prices a completion that carries no pinned price, by model id
+//! or upstream name: `candidates` is tried in order — the provider-echoed
+//! served model first, then the requested model — and a hop on the served
+//! provider wins over another provider's deployment of the same model.
+//! Missing pricing is an explicit error; callers must not record an unknown
+//! charge as a measured zero.
 //!
 //! The arithmetic itself is not here: `ModelPricing::cost_microdollars` in the
 //! shared models crate is the one cost function, shared with the internal
@@ -25,9 +21,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ModelPricing, ProviderEntry, ProviderRegistry,
-};
+use systemprompt_manifest::services::ModelPricing;
+use systemprompt_manifest::services::catalog::{ResolvedCatalog, ResolvedHop};
 
 #[derive(Debug, thiserror::Error)]
 #[error("No configured pricing for provider {provider} and models {models:?}")]
@@ -36,77 +31,36 @@ pub struct MissingPricing {
     pub models: Vec<String>,
 }
 
-pub fn resolve_upstream(
-    route: &GatewayRoute,
-    provider: &ProviderEntry,
-    requested: &str,
-) -> Result<ModelPricing, MissingPricing> {
-    if let Some(pricing) = route.pricing {
-        return Ok(pricing);
-    }
-    let candidates = [route.upstream_model.as_deref(), Some(requested)];
-    candidates
-        .into_iter()
-        .flatten()
-        .find_map(|model| provider.find_served_model(model))
-        .map(|model| model.pricing)
-        .ok_or_else(|| MissingPricing {
-            provider: provider.name.as_str().to_owned(),
-            models: candidates
-                .into_iter()
-                .flatten()
-                .map(ToOwned::to_owned)
-                .collect(),
-        })
+#[must_use]
+pub const fn resolve_hop(hop: &ResolvedHop) -> ModelPricing {
+    hop.pricing
 }
 
 pub fn resolve(
     provider: &str,
     candidates: &[&str],
-    gateway: Option<&GatewayConfig>,
-    registry: &ProviderRegistry,
+    catalog: &ResolvedCatalog,
 ) -> Result<ModelPricing, MissingPricing> {
     for model in candidates.iter().filter(|m| !m.is_empty()) {
-        if let Some(p) = lookup(model, gateway, registry) {
-            return Ok(p);
+        if let Some(pricing) = lookup(catalog, provider, model) {
+            return Ok(pricing);
         }
     }
-
     Err(MissingPricing {
         provider: provider.to_owned(),
         models: candidates.iter().map(|model| (*model).to_owned()).collect(),
     })
 }
 
-fn lookup(
-    model: &str,
-    gateway: Option<&GatewayConfig>,
-    registry: &ProviderRegistry,
-) -> Option<ModelPricing> {
-    if let Some(gw) = gateway
-        && let Some(route) = gw.find_route(model)
-        && let Some(p) = route.pricing
-    {
-        return Some(p);
-    }
-    registry_pricing(registry, gateway, model)
-}
-
-fn registry_pricing(
-    registry: &ProviderRegistry,
-    gateway: Option<&GatewayConfig>,
-    model: &str,
-) -> Option<ModelPricing> {
-    if let Some(route) = gateway.and_then(|gw| gw.find_route(model))
-        && let Some(m) = route
-            .resolve(registry)
-            .and_then(|entry| entry.find_model(model))
-    {
-        return Some(m.pricing);
-    }
-    registry
-        .providers
-        .iter()
-        .find_map(|entry| entry.find_model(model))
-        .map(|m| m.pricing)
+fn lookup(catalog: &ResolvedCatalog, provider: &str, model: &str) -> Option<ModelPricing> {
+    let names = |hop: &&ResolvedHop| hop.model.as_str() == model || hop.upstream_model == model;
+    let hops: Vec<&ResolvedHop> = catalog
+        .models()
+        .flat_map(|m| catalog.deployments(m.id.as_str()))
+        .filter(names)
+        .collect();
+    hops.iter()
+        .find(|hop| hop.provider.as_str() == provider)
+        .or_else(|| hops.first())
+        .map(|hop| hop.pricing)
 }

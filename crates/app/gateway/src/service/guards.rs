@@ -36,10 +36,7 @@ impl<'a> QuotaAdmission<'a> {
         request: &CanonicalRequest,
         priced: Priced<'_>,
     ) -> Self {
-        let model_limits = upstream
-            .provider
-            .find_served_model(request.model.as_str())
-            .map(|m| m.limits);
+        let model_limits = Some(upstream.model_limits());
         Self {
             policy,
             fault_mode,
@@ -174,12 +171,12 @@ pub(super) async fn enforce_request_guards(
     if systemprompt_extension::gateway_guards().is_empty() {
         return Ok(());
     }
-    let route_id = upstream.route.effective_id();
+    let route_id = &upstream.route_id;
     let guard_request = systemprompt_extension::GatewayGuardRequest {
         user_id,
         model: &request.model,
-        route_id: Some(&route_id),
-        provider: &upstream.route.provider,
+        route_id: Some(route_id),
+        provider: &upstream.hop.provider,
         streaming: request.stream,
         attribution: &audit.ctx.attribution,
         api_key_id: audit.ctx.attribution.api_key_id.as_ref(),

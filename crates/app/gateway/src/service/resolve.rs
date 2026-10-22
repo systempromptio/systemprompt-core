@@ -1,25 +1,25 @@
-//! Pre-dispatch upstream resolution: model-exposure check, route and provider
-//! lookup, API-key secret, and outbound wire adapter.
+//! Pre-dispatch upstream resolution: the catalog resolution, the planned
+//! chain, the credential and the outbound wire adapter.
 //!
-//! The matched route's deployment chain is selected from the request's scope
-//! attribution (`by_scope`); an attributed value the route does not map is
-//! refused unless the route opts into `unmapped: shared`.
-//! The chain is then planned (`chain_plan`): reordered by its selection
-//! strategy and checked against the leading deployment's context window.
-//! `resolve_deployment_upstream` binds the same request to a later deployment
-//! of that chain when an earlier one has failed.
+//! [`resolve_upstream`] resolves the request through the catalog
+//! ([`crate::routing::resolve_route`]): an unknown model is refused as not
+//! permitted, a model with no enabled deployment has no route. Route
+//! selectors may then narrow the chain, which is planned (`chain_plan`):
+//! reordered by its selection strategy and checked against the leading
+//! deployment's context window. [`resolve_deployment_upstream`] binds the
+//! same request to a later hop of that chain when an earlier one has failed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::borrow::Cow;
 use std::sync::Arc;
 
-use crate::policies::RouteSelectorEngine;
 use systemprompt_ai::UpstreamCall;
-use systemprompt_identifiers::AiRequestId;
-use systemprompt_manifest::services::{
-    ChainSelection, GatewayConfig, GatewayRoute, ProviderEntry, ProviderRegistry,
+use systemprompt_ai::models::BillingSource;
+use systemprompt_identifiers::{AiRequestId, RouteId};
+use systemprompt_manifest::services::GatewayRoute;
+use systemprompt_manifest::services::catalog::{
+    ResolveError, ResolvedCatalog, ResolvedHop, ResolvedModel, ResolvedTarget,
 };
 use systemprompt_models::attribution::RequestAttribution;
 
@@ -27,20 +27,31 @@ use super::super::protocol::canonical::CanonicalRequest;
 use super::super::protocol::outbound::OutboundAdapter;
 use super::super::registry::GatewayUpstreamRegistry;
 use super::chain_plan::{PlannedChain, fit_context_window, order_chain};
-use super::credentials::{BillingSource, KeyOwner};
-use super::route_match::{describe_route_match, enforce_route_requirements};
+use super::credentials::KeyOwner;
+use super::route_match::{describe_route_match, enforce_route_requirements, refine_chain};
 use super::{DispatchError, GatewayError, PolicyDenied};
+use crate::routing::{RouteSource, resolve_route};
 
 pub(super) struct ResolvedUpstream<'a> {
-    pub(super) route: Cow<'a, GatewayRoute>,
-    pub(super) provider: &'a ProviderEntry,
+    pub(super) catalog: &'a ResolvedCatalog,
+    pub(super) hop: ResolvedHop,
+    pub(super) model: ResolvedModel,
+    pub(super) route: Option<GatewayRoute>,
+    pub(super) route_id: RouteId,
     pub(super) call: UpstreamCall,
     pub(super) adapter: &'static Arc<dyn OutboundAdapter>,
     pub(super) route_match_descriptor: Option<String>,
-    pub(super) deployments: Vec<GatewayRoute>,
-    pub(super) scoped: bool,
+    pub(super) deployments: Vec<ResolvedHop>,
     pub(super) billing: BillingSource,
     pub(super) owner: KeyOwner,
+}
+
+impl ResolvedUpstream<'_> {
+    pub(super) fn model_limits(&self) -> systemprompt_wire::ModelLimits {
+        self.catalog
+            .model(self.hop.model.as_str())
+            .map_or(self.model.limits, |model| model.limits)
+    }
 }
 
 pub(super) struct UpstreamQuery<'r> {
@@ -51,8 +62,7 @@ pub(super) struct UpstreamQuery<'r> {
 }
 
 pub(super) async fn resolve_upstream<'a>(
-    config: &'a GatewayConfig,
-    registry: &'a ProviderRegistry,
+    catalog: &'a ResolvedCatalog,
     query: UpstreamQuery<'_>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let UpstreamQuery {
@@ -61,52 +71,42 @@ pub(super) async fn resolve_upstream<'a>(
         ai_request_id,
         owner,
     } = query;
-    ensure_model_exposed(config, registry, request, ai_request_id)?;
-
-    let matched = config.resolve_route(registry, request).ok_or_else(|| {
-        DispatchError::pre_audit(GatewayError::NoRoute {
-            model: request.model.to_string(),
-        })
-    })?;
-
-    let declarative = matched.when.as_ref().and_then(|w| {
+    let resolution = resolve_route(RouteSource::Catalog(catalog), request, attribution)
+        .map_err(|error| refusal(&error, request, ai_request_id))?;
+    let mut target = resolution.target;
+    let route = target
+        .route
+        .as_ref()
+        .and_then(|id| catalog.route(id.as_str()))
+        .cloned();
+    let declarative = route.as_ref().and_then(|r| r.when.as_ref()).and_then(|w| {
         let predicates = w.matched_predicates();
         (!predicates.is_empty()).then(|| format!("when:{}", predicates.join(",")))
     });
-    let (route, selector) = refine_route(matched, request).await;
-
-    let selection = route.chain_for(attribution);
-    if let ChainSelection::Unmapped { dimension, value } = selection {
-        tracing::warn!(
-            ai_request_id = %ai_request_id,
-            route = %route.effective_id(),
-            dimension = %dimension,
-            value = %value,
-            "Gateway denied: scope value has no deployment chain on the route"
-        );
-        return Err(DispatchError::pre_audit(PolicyDenied(format!(
-            "scope {dimension}='{value}' has no deployment on route '{}'",
-            route.effective_id()
-        ))));
-    }
-    let scope = selection.descriptor();
-    let scoped = matches!(selection, ChainSelection::Scope { .. });
-    let planned = plan_chain(registry, request, &route, &selection, ai_request_id)?;
-    let deployments = planned.deployments;
+    let selector = refine_chain(catalog, &mut target, route.as_ref(), request).await;
+    let planned = plan_chain(catalog, request, &target.chain, &target, ai_request_id)?;
     let route_match_descriptor = join_segments(
-        Some(describe_route_match(&route, declarative, selector, scope)),
+        Some(describe_route_match(
+            &target.access_route_id,
+            route.as_ref(),
+            declarative,
+            selector,
+        )),
         planned.descriptor,
     );
+    let deployments = planned.deployments;
     let Some(primary) = deployments.first().cloned() else {
         return Err(DispatchError::pre_audit(GatewayError::NoRoute {
             model: request.model.to_string(),
         }));
     };
-    let mut bound = bind_route(
-        registry,
-        Cow::Owned(primary),
+    let mut bound = bind_hop(
+        catalog,
+        primary,
         BindTarget {
-            requested_model: request.model.as_str(),
+            model: target.model,
+            route,
+            route_id: target.access_route_id,
             ai_request_id,
             owner,
         },
@@ -114,65 +114,59 @@ pub(super) async fn resolve_upstream<'a>(
     )
     .await?;
     bound.deployments = deployments;
-    bound.scoped = scoped;
     Ok(bound)
 }
 
-fn ensure_model_exposed(
-    config: &GatewayConfig,
-    registry: &ProviderRegistry,
+fn refusal(
+    error: &ResolveError,
     request: &CanonicalRequest,
     ai_request_id: &AiRequestId,
-) -> Result<(), DispatchError> {
-    if config.is_model_exposed(registry, request.model.as_str()) {
-        return Ok(());
-    }
-    tracing::warn!(
-        ai_request_id = %ai_request_id,
-        model = %request.model,
-        "Gateway denied: model not exposed by gateway policy or registry"
-    );
-    Err(DispatchError::pre_audit(PolicyDenied(format!(
-        "model '{}' is not permitted by gateway policy",
-        request.model
-    ))))
-}
-
-async fn refine_route<'a>(
-    matched: Cow<'a, GatewayRoute>,
-    request: &CanonicalRequest,
-) -> (Cow<'a, GatewayRoute>, Option<String>) {
-    let engine = RouteSelectorEngine::global();
-    if !engine.has_selectors() {
-        return (matched, None);
-    }
-    match engine.refine(matched.as_ref(), request).await {
-        Some((refined, name)) => (Cow::Owned(refined), Some(format!("selector:{name}"))),
-        None => (matched, None),
+) -> DispatchError {
+    match error {
+        ResolveError::UnknownModel { .. } => {
+            tracing::warn!(
+                ai_request_id = %ai_request_id,
+                model = %request.model,
+                "Gateway denied: model is not in the catalog"
+            );
+            DispatchError::pre_audit(PolicyDenied(format!(
+                "model '{}' is not permitted by gateway policy",
+                request.model
+            )))
+        },
+        ResolveError::NoEnabledDeployment { .. } => {
+            DispatchError::pre_audit(GatewayError::NoRoute {
+                model: request.model.to_string(),
+            })
+        },
     }
 }
 
 fn plan_chain(
-    registry: &ProviderRegistry,
+    catalog: &ResolvedCatalog,
     request: &CanonicalRequest,
-    route: &GatewayRoute,
-    selection: &ChainSelection<'_>,
+    chain: &[ResolvedHop],
+    target: &ResolvedTarget,
     ai_request_id: &AiRequestId,
 ) -> Result<PlannedChain, DispatchError> {
-    let ordered = order_chain(route.chain_views(selection), request.model.as_str());
-    let context_fallbacks = route.context_fallback_views(selection);
-    let fitted = fit_context_window(registry, request, ordered.deployments, context_fallbacks)
-        .map_err(|exceeded| {
-            tracing::warn!(
-                ai_request_id = %ai_request_id,
-                route = %route.effective_id(),
-                model = %exceeded.model,
-                estimate = exceeded.estimate,
-                limit = exceeded.limit,
-                "Gateway denied: request exceeds the model's context window"
-            );
-            DispatchError::pre_audit(exceeded)
-        })?;
+    let ordered = order_chain(chain.to_vec(), target.strategy, &target.access_route_id);
+    let fitted = fit_context_window(
+        catalog,
+        request,
+        ordered.deployments,
+        target.context_fallbacks.clone(),
+    )
+    .map_err(|exceeded| {
+        tracing::warn!(
+            ai_request_id = %ai_request_id,
+            route = %target.access_route_id,
+            model = %exceeded.model,
+            estimate = exceeded.estimate,
+            limit = exceeded.limit,
+            "Gateway denied: request exceeds the model's context window"
+        );
+        DispatchError::pre_audit(exceeded)
+    })?;
     Ok(PlannedChain {
         deployments: fitted.deployments,
         descriptor: join_segments(ordered.descriptor, fitted.descriptor),
@@ -192,26 +186,19 @@ pub(super) struct DeploymentHop<'h> {
 }
 
 pub(super) async fn resolve_deployment_upstream<'a>(
-    registry: &'a ProviderRegistry,
     primary: &ResolvedUpstream<'a>,
     hop: DeploymentHop<'_>,
-    requested_model: &str,
     ai_request_id: &AiRequestId,
 ) -> Result<Option<ResolvedUpstream<'a>>, DispatchError> {
-    let Some(view) = primary.deployments.get(hop.index).cloned() else {
+    let Some(next) = primary.deployments.get(hop.index).cloned() else {
         return Ok(None);
     };
-    // Why: a personal subscription and a deployment secret, or two members'
-    // personal subscriptions, bill different accounts; a failover hop between
-    // them would move a request onto a bill nobody chose.
-    if view
-        .resolve(registry)
-        .is_some_and(|entry| !entry.bills_same_credential(primary.provider))
-    {
+    if !may_fail_over(&primary.hop, &next) {
         return Err(DispatchError::pre_audit(PolicyDenied(format!(
-            "deployment '{}' bills a different credential than '{}'",
-            view.provider.as_str(),
-            primary.provider.name.as_str()
+            "deployment '{}' bills credential '{}', not '{}'",
+            next.endpoint_ref(),
+            next.credential.id,
+            primary.hop.credential.id
         ))));
     }
     let failover = format!("failover:{}", hop.hops.join("->"));
@@ -219,11 +206,13 @@ pub(super) async fn resolve_deployment_upstream<'a>(
         Some(existing) => format!("{existing};{failover}"),
         None => failover,
     });
-    bind_route(
-        registry,
-        Cow::Owned(view),
+    bind_hop(
+        primary.catalog,
+        next,
         BindTarget {
-            requested_model,
+            model: primary.model.clone(),
+            route: primary.route.clone(),
+            route_id: primary.route_id.clone(),
             ai_request_id,
             owner: primary.owner.clone(),
         },
@@ -233,50 +222,62 @@ pub(super) async fn resolve_deployment_upstream<'a>(
     .map(Some)
 }
 
+// Why: a personal subscription and a deployment secret, or two members'
+// personal subscriptions, bill different accounts; a failover hop between them
+// would move a request onto a bill nobody chose. Two platform credentials are
+// both the deployment's own bill, so failing over between them is allowed.
+#[must_use]
+pub fn may_fail_over(from: &ResolvedHop, to: &ResolvedHop) -> bool {
+    match (from.credential.is_personal(), to.credential.is_personal()) {
+        (false, false) => true,
+        (true, true) => from.bills_same_credential(to),
+        _ => false,
+    }
+}
+
 struct BindTarget<'r> {
-    requested_model: &'r str,
+    model: ResolvedModel,
+    route: Option<GatewayRoute>,
+    route_id: RouteId,
     ai_request_id: &'r AiRequestId,
     owner: KeyOwner,
 }
 
-async fn bind_route<'a>(
-    registry: &'a ProviderRegistry,
-    route: Cow<'a, GatewayRoute>,
+async fn bind_hop<'a>(
+    catalog: &'a ResolvedCatalog,
+    hop: ResolvedHop,
     target: BindTarget<'_>,
     route_match_descriptor: Option<String>,
 ) -> Result<ResolvedUpstream<'a>, DispatchError> {
     let BindTarget {
-        requested_model,
+        model,
+        route,
+        route_id,
         ai_request_id,
         owner,
     } = target;
-    let provider = route.resolve(registry).ok_or_else(|| {
-        DispatchError::pre_audit(GatewayError::UndeclaredProvider {
-            route: route.effective_id().to_string(),
-            provider: route.provider.as_str().to_owned(),
-        })
-    })?;
+    enforce_route_requirements(route.as_ref(), &route_id, &hop, ai_request_id)?;
 
-    enforce_route_requirements(&route, provider, requested_model, ai_request_id)?;
-
-    let (call, billing) = super::credentials::resolve(provider, &owner).await?;
+    let (call, billing) = super::credentials::resolve(catalog, &hop, &owner).await?;
 
     let adapter = GatewayUpstreamRegistry::global()
-        .get(provider.wire.as_tag())
+        .get(hop.wire.as_tag())
         .ok_or_else(|| {
             DispatchError::pre_audit(GatewayError::NoAdapter {
-                wire: provider.wire.as_tag().to_owned(),
+                wire: hop.wire.as_tag().to_owned(),
             })
         })?;
 
     Ok(ResolvedUpstream {
+        catalog,
+        hop,
+        model,
         route,
-        provider,
+        route_id,
         call,
         adapter,
         route_match_descriptor,
         deployments: Vec::new(),
-        scoped: false,
         billing,
         owner,
     })

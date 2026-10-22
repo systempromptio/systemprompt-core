@@ -37,7 +37,8 @@ use axum::body::Body;
 use axum::response::Response;
 use bytes::Bytes;
 use systemprompt_database::DbPool;
-use systemprompt_manifest::services::{GatewayConfig, ProviderRegistry};
+use systemprompt_manifest::services::GatewayConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 
 use self::abandon::AbandonGuard;
 use self::admission::commit_admission;
@@ -77,7 +78,7 @@ pub struct DispatchInputs {
 impl GatewayService {
     pub async fn dispatch(
         config: &GatewayConfig,
-        registry: &ProviderRegistry,
+        catalog: &ResolvedCatalog,
         db: &DbPool,
         repos: &super::GatewayRepositories,
         inputs: DispatchInputs,
@@ -85,7 +86,7 @@ impl GatewayService {
         let DispatchInputs {
             request,
             raw_body,
-            ctx,
+            mut ctx,
             inbound,
             forward_headers,
             identity_headers,
@@ -100,8 +101,7 @@ impl GatewayService {
             user_id: ctx.user_id.clone(),
         };
         let upstream = resolve_upstream(
-            config,
-            registry,
+            catalog,
             UpstreamQuery {
                 request: &request,
                 attribution: &ctx.attribution,
@@ -111,7 +111,8 @@ impl GatewayService {
         )
         .await?;
         let forward_headers = with_client_session(forward_headers, ctx.session_id.as_ref());
-        let pricing = dispatch_pricing(&request, &upstream)?;
+        let pricing = dispatch_pricing(&upstream);
+        ctx.open_on(&upstream.hop);
 
         trace_dispatch(&ctx, &request, &upstream);
         let audit = open_audit(repos, &ctx, &request, &raw_body, &identity_headers).await?;
@@ -119,7 +120,6 @@ impl GatewayService {
         let mut guard = AbandonGuard::arm(Arc::clone(&audit));
         let result = Box::pin(dispatch_opened(OpenedDispatch {
             config,
-            registry,
             db,
             repos,
             audit,
@@ -153,7 +153,6 @@ impl GatewayService {
 
 struct OpenedDispatch<'a> {
     config: &'a GatewayConfig,
-    registry: &'a ProviderRegistry,
     db: &'a DbPool,
     repos: &'a super::GatewayRepositories,
     audit: Arc<GatewayAudit>,
@@ -173,7 +172,7 @@ struct OpenedDispatch<'a> {
 
 async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
     let audit = &opened.audit;
-    if opened.upstream.billing == credentials::BillingSource::UserKey {
+    if opened.upstream.billing == systemprompt_ai::models::BillingSource::UserKey {
         audit.bill_to_user_key();
     }
     audit
@@ -182,11 +181,6 @@ async fn admit(opened: &OpenedDispatch<'_>) -> Result<(), DispatchError> {
 
     if let Some(descriptor) = opened.upstream.route_match_descriptor.as_deref() {
         audit.set_route_match(descriptor).await;
-    }
-    if opened.upstream.scoped {
-        audit
-            .set_served_provider(opened.upstream.provider.name.as_str())
-            .await;
     }
 
     let admission = guards::QuotaAdmission::for_request(
@@ -215,7 +209,6 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
     admit(&opened).await?;
     let OpenedDispatch {
         config,
-        registry,
         db,
         repos,
         audit,
@@ -258,7 +251,6 @@ async fn dispatch_opened(opened: OpenedDispatch<'_>) -> Result<Response<Body>, D
         Box::pin(send_with_failover(
             &mut scanned,
             FailoverSend {
-                registry,
                 primary: &upstream,
                 forward_headers: &forward_headers,
                 ai_request_id: &ai_request_id,

@@ -31,6 +31,7 @@ pub mod protocol;
 pub mod quota;
 pub mod registry;
 pub mod repository;
+pub mod routing;
 pub mod service;
 pub mod signature_cache;
 pub mod stream_tap;
@@ -65,4 +66,5 @@ pub use protocol::{
 };
 pub use registry::{GatewayUpstreamRegistry, SafetyScannerRegistry};
 pub use repository::GatewayRepositories;
+pub use routing::{RouteResolution, RouteSource, resolve_route};
 pub use service::{DispatchInputs, GatewayService, REQUEST_ID_HEADER};

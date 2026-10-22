@@ -50,10 +50,7 @@ impl OutboundAdapter for GeminiOutbound {
         {
             req = req.header(name, value);
         }
-        for (name, value) in &ctx.route.extra_headers {
-            req = req.header(name.as_str(), value.as_str());
-        }
-        let upstream_response = super::send_checked(ctx.route.provider.as_str(), req).await?;
+        let upstream_response = super::send_checked(ctx.target.provider.as_str(), req).await?;
 
         if ctx.request.stream {
             let stream = upstream_response.bytes_stream();
@@ -76,7 +73,7 @@ impl OutboundAdapter for GeminiOutbound {
             })?;
         if let Some(defect) = gemini::buffered_defect(&value) {
             return Err(super::reject_defective_body(
-                ctx.route.provider.as_str(),
+                ctx.target.provider.as_str(),
                 "gemini",
                 &defect,
                 &bytes,
@@ -84,7 +81,7 @@ impl OutboundAdapter for GeminiOutbound {
         }
         let canon: CanonicalResponse = gemini::parse_response(&value, ctx.request.model.as_str())
             .map_err(|e| {
-            super::reject_unparsable_body(ctx.route.provider.as_str(), "gemini", &e, &bytes)
+            super::reject_unparsable_body(ctx.target.provider.as_str(), "gemini", &e, &bytes)
         })?;
         Ok(OutboundOutcome::Buffered(Box::new(canon)))
     }

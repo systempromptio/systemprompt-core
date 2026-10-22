@@ -1,9 +1,9 @@
 //! The in-process in-flight gauge `least_busy` selection reads.
 //!
-//! One counter per deployment, keyed by provider and upstream model. A send
-//! holds an [`InFlight`] guard from the moment it leaves until the upstream
-//! answers (headers for a stream), so the gauge measures concurrent upstream
-//! calls in this process, not cluster-wide load.
+//! One counter per endpoint, keyed by `provider/endpoint` like the breakers. A
+//! send holds an [`InFlight`] guard from the moment it leaves until the
+//! upstream answers (headers for a stream), so the gauge measures concurrent
+//! upstream calls in this process, not cluster-wide load.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,11 +32,6 @@ impl DeploymentLoad {
     pub fn global() -> &'static Self {
         static LOAD: OnceLock<DeploymentLoad> = OnceLock::new();
         LOAD.get_or_init(Self::default)
-    }
-
-    #[must_use]
-    pub fn key(provider: &str, upstream_model: &str) -> String {
-        format!("{provider}/{upstream_model}")
     }
 
     fn counter(&self, key: &str) -> Arc<AtomicU64> {
