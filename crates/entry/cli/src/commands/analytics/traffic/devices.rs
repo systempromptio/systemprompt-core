@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use systemprompt_analytics::TrafficAnalyticsRepository;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::DatabaseContext;
+use systemprompt_users::SessionTrafficRollupRepository;
 
 use super::{DeviceRow, DevicesOutput};
 use crate::CliConfig;
@@ -43,7 +44,10 @@ pub(super) async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool());
+    let repo = TrafficAnalyticsRepository::new(
+        db_ctx.db_pool(),
+        std::sync::Arc::new(SessionTrafficRollupRepository::new(db_ctx.db_pool())),
+    );
     execute_internal(args, &repo).await
 }
 

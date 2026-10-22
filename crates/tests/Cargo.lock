@@ -7042,6 +7042,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
  "uuid",
 ]
@@ -7063,6 +7064,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-test-fixtures",
  "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
  "tracing",
  "tracing-subscriber",

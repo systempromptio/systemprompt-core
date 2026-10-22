@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_traffic_rollup_rebuild() AS \"written!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "written!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "cc498dd3150c0fe57499773b9c2518f0edaa31bda254395bbdffb19874488b25"
+}

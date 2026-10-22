@@ -2,6 +2,7 @@
 
 mod types;
 
+mod bot_totals_rollup_db;
 mod engagement_events;
 mod events;
 mod fingerprint_reputation;

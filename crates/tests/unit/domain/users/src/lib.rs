@@ -61,3 +61,5 @@ mod privacy_fixture;
 mod behavioral_bot_reasons_db;
 #[cfg(test)]
 mod session_source_default_db;
+#[cfg(test)]
+mod session_traffic_rollup_db;

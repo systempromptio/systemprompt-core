@@ -17,6 +17,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_traits::DynTrafficClassCounts;
 
 use crate::models::reporting::TrafficSourceRow;
 
@@ -42,12 +43,15 @@ pub struct NavigationQuery<'a> {
 #[derive(Debug)]
 pub struct TrafficAnalyticsRepository {
     pool: Arc<PgPool>,
+    traffic_counts: DynTrafficClassCounts,
 }
 
 impl TrafficAnalyticsRepository {
-    pub fn new(db: &DbPool) -> Self {
-        let pool = db.pool();
-        Self { pool }
+    pub fn new(db: &DbPool, traffic_counts: DynTrafficClassCounts) -> Self {
+        Self {
+            pool: db.pool(),
+            traffic_counts,
+        }
     }
 
     pub async fn get_sources(

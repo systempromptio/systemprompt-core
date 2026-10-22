@@ -17,6 +17,7 @@ mod federated_identity;
 mod rate_limit_bucket;
 mod role_directory;
 mod session;
+mod session_traffic;
 mod sso_login_events;
 mod user;
 
@@ -28,6 +29,7 @@ pub use device_cert::EnrollDeviceCertParams;
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::UsersRoleDirectory;
 pub use session::SessionRepository;
+pub use session_traffic::SessionTrafficRollupRepository;
 pub use sso_login_events::{NewSsoLoginEvent, SsoLoginEvent, SsoLoginEventRepository};
 pub use user::{
     ArchiveOutcome, ArchiveParams, ArchiveState, EnsuredServiceAccount,

@@ -37,6 +37,15 @@ impl Extension for UsersExtension {
                     "bot_type".into(),
                 ]),
             SchemaDefinition::sql_only(include_str!("../schema/session_bot_type.sql")),
+            SchemaDefinition::new(
+                "session_traffic_rollup_hourly",
+                include_str!("../schema/session_traffic_rollup_hourly.sql"),
+            )
+            .with_required_columns(vec![
+                "bucket".into(),
+                "traffic_class".into(),
+                "sessions".into(),
+            ]),
             SchemaDefinition::new("banned_ips", include_str!("../schema/banned_ips.sql"))
                 .with_required_columns(vec![
                     "ip_address".into(),
