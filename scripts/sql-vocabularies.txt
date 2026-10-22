@@ -11,3 +11,4 @@
 # (crates/domain/users/schema/user_sessions.sql), called directly or through
 # v_clean_traffic / v_engaged_traffic. The allowlist is empty.
 user_sessions.session_source|crates/domain/users/schema/user_sessions.sql|crates/shared/identifiers/src/session.rs|SessionSource
+session_traffic_rollup_hourly.traffic_class|crates/domain/users/schema/session_traffic_rollup_hourly.sql|crates/shared/models/src/analytics/traffic_class.rs|TrafficClass

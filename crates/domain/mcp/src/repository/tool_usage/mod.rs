@@ -49,15 +49,6 @@ impl ToolUsageRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn count_before(&self, cutoff: DateTime<Utc>) -> McpDomainResult<i64> {
-        let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM mcp_tool_executions WHERE created_at < $1"#,
-            cutoff
-        )
-        .fetch_one(&*self.pool)
-        .await?;
-        Ok(count)
-    }
 
     pub async fn start_execution(
         &self,

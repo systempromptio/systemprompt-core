@@ -99,15 +99,6 @@ impl AiQuotaBucketRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn count_before(&self, cutoff: DateTime<Utc>) -> Result<i64, RepositoryError> {
-        let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*) AS "count!" FROM ai_quota_buckets WHERE window_start < $1"#,
-            cutoff
-        )
-        .fetch_one(&*self.write_pool)
-        .await?;
-        Ok(count)
-    }
 
     pub fn new(db: &DbPool) -> Self {
         let write_pool = db.write_pool();

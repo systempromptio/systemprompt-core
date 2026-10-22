@@ -15,6 +15,7 @@ reqwest = { workspace = true }
 systemprompt-test-fixtures = { workspace = true }
 systemprompt-analytics = { workspace = true, features = ["geolocation"] }
 systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-identifiers = { workspace = true }

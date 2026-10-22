@@ -75,13 +75,6 @@ impl DurableOutbox {
         DurableOutboxRepository::purge_processed_before(&self.pool, cutoff, batch).await
     }
 
-    pub async fn count_processed_before(
-        &self,
-        cutoff: chrono::DateTime<chrono::Utc>,
-    ) -> Result<i64, sqlx::Error> {
-        DurableOutboxRepository::count_processed_before(&self.pool, cutoff).await
-    }
-
     pub async fn append<T: Serialize + Sync>(
         &self,
         tx: &mut Transaction<'_, Postgres>,

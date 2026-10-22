@@ -21,6 +21,7 @@ crates/app/scheduler/src/repository/otlp/tail.rs|tool_call_ledger|OTLP export ta
 crates/app/scheduler/src/repository/otlp/tail.rs|governance_decisions|OTLP export tails governance decisions by watermark
 crates/app/scheduler/src/repository/otlp/tail.rs|logs|OTLP export tails log rows by watermark
 crates/app/scheduler/src/repository/security/mod.rs|user_sessions|malicious-IP blacklist aggregates sessions per IP
+crates/app/scheduler/src/repository/security/mod.rs|v_clean_traffic|malicious-IP blacklist aggregates human sessions per IP through the canonical view
 crates/app/scheduler/src/repository/analytics/mod.rs|user_contexts|empty-context sweep selects candidates; the delete goes through the agent repository
 crates/app/scheduler/src/repository/analytics/mod.rs|task_messages|empty-context sweep excludes contexts with messages
 crates/app/scheduler/src/repository/analytics/mod.rs|mcp_tool_executions|empty-context sweep excludes contexts with tool executions

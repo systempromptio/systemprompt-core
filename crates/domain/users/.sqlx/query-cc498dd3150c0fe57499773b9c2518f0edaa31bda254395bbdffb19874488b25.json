@@ -1,23 +1,21 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) AS \"count!\" FROM analytics_events WHERE timestamp < $1",
+  "query": "SELECT session_traffic_rollup_rebuild() AS \"written!\"",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "count!",
+        "name": "written!",
         "type_info": "Int8",
         "origin": "Expression"
       }
     ],
     "parameters": {
-      "Left": [
-        "Timestamptz"
-      ]
+      "Left": []
     },
     "nullable": [
       null
     ]
   },
-  "hash": "be1cb48030239a0a04743757a28cf48ce2c7f4e150bc588a62ffdd57436b4437"
+  "hash": "cc498dd3150c0fe57499773b9c2518f0edaa31bda254395bbdffb19874488b25"
 }

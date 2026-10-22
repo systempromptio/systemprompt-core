@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::TrafficAnalyticsRepository;
-use crate::Result;
 use crate::models::reporting::{BotTotalsRow, BotTypeRow, DeviceRow, GeoRow};
+use crate::{AnalyticsError, Result};
 use chrono::{DateTime, Utc};
 
 impl TrafficAnalyticsRepository {
@@ -116,22 +116,16 @@ impl TrafficAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<BotTotalsRow> {
-        sqlx::query_as!(
-            BotTotalsRow,
-            r#"
-            SELECT
-                COUNT(*) FILTER (WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot) AND landing_page IS NOT NULL AND request_count > 0)::bigint as "human!",
-                COUNT(*) FILTER (WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot) AND (landing_page IS NULL OR request_count = 0))::bigint as "ghost!",
-                COUNT(*) FILTER (WHERE NOT is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot))::bigint as "bot!"
-            FROM report_user_sessions
-            WHERE started_at >= $1 AND started_at < $2
-            "#,
-            start,
-            end
-        )
-        .fetch_one(&*self.pool)
-        .await
-        .map_err(Into::into)
+        let totals = self
+            .traffic_counts
+            .session_totals(start, end)
+            .await
+            .map_err(AnalyticsError::from)?;
+        Ok(BotTotalsRow {
+            human: totals.human,
+            ghost: totals.ghost,
+            bot: totals.bot,
+        })
     }
 
     pub async fn get_bot_breakdown(
