@@ -5,7 +5,7 @@
 //! non-secret JSON file and the OS keyring; it is exercised by integration
 //! tests against a real keyring rather than here.
 
-use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, PluginTokenCache};
+use systemprompt_bridge::auth::plugin_oauth::{CachedHookToken, PluginTokenCache, SecretStore};
 use systemprompt_identifiers::PluginId;
 
 const LOCAL: &str = "http://localhost:8081";
@@ -27,7 +27,7 @@ fn token(value: &str, lifetime_secs: u64) -> CachedHookToken {
 
 #[test]
 fn cache_returns_fresh_token() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     cache.put(LOCAL, &PluginId::new("plugin-a"), token("jwt.value", 3600));
 
     let got = cache
@@ -38,7 +38,7 @@ fn cache_returns_fresh_token() {
 
 #[test]
 fn cache_drops_token_within_threshold_of_expiry() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     // Expires in 30s, but we ask for tokens with at least 300s lifetime.
     cache.put(LOCAL, &PluginId::new("plugin-a"), token("jwt.value", 30));
 
@@ -47,7 +47,7 @@ fn cache_drops_token_within_threshold_of_expiry() {
 
 #[test]
 fn cache_invalidate_drops_specific_plugin() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
 
     cache.put(LOCAL, &PluginId::new("plugin-a"), token("jwt.a", 3600));
     cache.put(LOCAL, &PluginId::new("plugin-b"), token("jwt.b", 3600));
@@ -66,7 +66,7 @@ fn cache_invalidate_drops_specific_plugin() {
 
 #[test]
 fn cache_miss_for_unknown_plugin_id() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     assert!(
         cache
             .get(LOCAL, &PluginId::new("never-cached"), 60)
@@ -81,7 +81,7 @@ fn cache_miss_for_unknown_plugin_id() {
 // signing key and blocked every tool call.
 #[test]
 fn a_token_minted_for_one_gateway_is_never_served_to_another() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     let plugin = PluginId::new("systemprompt-admin");
 
     cache.put(PROD, &plugin, token("jwt.prod", 3600));
@@ -101,7 +101,7 @@ fn a_token_minted_for_one_gateway_is_never_served_to_another() {
 
 #[test]
 fn each_gateway_keeps_its_own_token_for_the_same_plugin() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     let plugin = PluginId::new("systemprompt-admin");
 
     cache.put(PROD, &plugin, token("jwt.prod", 3600));
@@ -121,7 +121,7 @@ fn each_gateway_keeps_its_own_token_for_the_same_plugin() {
 // gateway's working token for the same plugin.
 #[test]
 fn invalidating_one_gateways_token_leaves_the_others_intact() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     let plugin = PluginId::new("systemprompt-admin");
 
     cache.put(PROD, &plugin, token("jwt.prod", 3600));
@@ -138,7 +138,7 @@ fn invalidating_one_gateways_token_leaves_the_others_intact() {
 // problem.
 #[test]
 fn removing_a_plugin_drops_its_token_on_every_gateway() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     let gone = PluginId::new("removed-plugin");
     let kept = PluginId::new("kept-plugin");
 
@@ -161,7 +161,7 @@ fn removing_a_plugin_drops_its_token_on_every_gateway() {
 // able to collide or to be caught by the suffix match in `invalidate_plugin`.
 #[test]
 fn plugin_and_gateway_names_cannot_collide_across_keys() {
-    let cache = PluginTokenCache::default();
+    let cache = PluginTokenCache::new(SecretStore::resolve());
     let short = PluginId::new("admin");
     let long = PluginId::new("systemprompt-admin");
 

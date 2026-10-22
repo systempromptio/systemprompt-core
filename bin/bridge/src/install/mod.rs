@@ -209,7 +209,7 @@ pub fn uninstall(
     };
 
     let credentials = if purge {
-        match crate::auth::setup::logout() {
+        match crate::auth::setup::logout(bridge.secrets()) {
             Ok(p) => CredentialsOutcome::Purged(p.pat_file),
             Err(e) => return Err(InstallError::CredentialPurge(e)),
         }

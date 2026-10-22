@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{OAuthClientCreds, PluginOAuthError, ensure_creds, refresh_creds};
+use super::{OAuthClientCreds, PluginOAuthError, SecretStore, ensure_creds, refresh_creds};
 use crate::gateway::{GatewayClient, GatewayError, HookTokenResponse};
 use crate::ids::BearerToken;
 use std::collections::HashMap;
@@ -46,7 +46,8 @@ fn cache_key(gateway: &str, plugin_id: &PluginId) -> String {
 }
 
 /// Hook tokens held in memory, keyed on the gateway that minted them as well as
-/// the plugin they were minted for.
+/// the plugin they were minted for, together with the [`SecretStore`] holding
+/// the OAuth client secret they are minted with.
 ///
 /// Why the gateway is part of the key: a hook token is signed by one gateway's
 /// RSA authority and is meaningless to any other. Keyed on the plugin alone,
@@ -54,12 +55,26 @@ fn cache_key(gateway: &str, plugin_id: &PluginId) -> String {
 /// still-fresh production token to the local governance webhook, which rejected
 /// it as an unknown signing key and blocked every tool call — with nothing to
 /// invalidate the entry, so it never recovered.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PluginTokenCache {
     entries: Mutex<HashMap<String, CachedHookToken>>,
+    secrets: SecretStore,
 }
 
 impl PluginTokenCache {
+    #[must_use]
+    pub fn new(secrets: SecretStore) -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            secrets,
+        }
+    }
+
+    #[must_use]
+    pub const fn secrets(&self) -> &SecretStore {
+        &self.secrets
+    }
+
     fn entries(&self) -> std::sync::MutexGuard<'_, HashMap<String, CachedHookToken>> {
         self.entries
             .lock()
@@ -143,7 +158,7 @@ pub async fn mint_or_refresh_plugin_token(
     if let Some(cached) = cache.get(&gateway_key, plugin_id, REFRESH_THRESHOLD_SECS) {
         return Ok(cached);
     }
-    let creds = ensure_creds(gateway, bearer).await?;
+    let creds = ensure_creds(&cache.secrets, gateway, bearer).await?;
     let response = match mint(gateway, &creds, plugin_id).await {
         Ok(r) => r,
         Err(GatewayError::Rejected { status, .. }) if status.as_u16() == 401 => {
@@ -151,7 +166,7 @@ pub async fn mint_or_refresh_plugin_token(
                 plugin_id = plugin_id.as_str(),
                 "hook token mint 401; rotating client secret and retrying"
             );
-            let creds = refresh_creds(gateway, bearer).await?;
+            let creds = refresh_creds(&cache.secrets, gateway, bearer).await?;
             mint(gateway, &creds, plugin_id).await?
         },
         Err(e) => return Err(e.into()),

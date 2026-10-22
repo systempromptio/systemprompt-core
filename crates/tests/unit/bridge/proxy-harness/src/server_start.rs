@@ -44,7 +44,9 @@ fn parts(uri: &str) -> ServerParts {
             activity: systemprompt_bridge::activity::ActivityLog::new(),
             http: reqwest::Client::new(),
             plugin_tokens: Arc::new(
-                systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::default(),
+                systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::new(
+                    systemprompt_bridge::auth::plugin_oauth::SecretStore::resolve(),
+                ),
             ),
             update_gate: systemprompt_bridge::update::automatic::UpdateGate::default(),
         },

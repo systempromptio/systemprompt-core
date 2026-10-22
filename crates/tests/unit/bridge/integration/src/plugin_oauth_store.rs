@@ -4,6 +4,7 @@
 //! path.
 
 use std::sync::atomic::{AtomicU32, Ordering};
+use systemprompt_bridge::auth::plugin_oauth::SecretStore;
 
 use systemprompt_bridge::auth::plugin_oauth::{
     self, OAuthClientCreds, mint_or_refresh_plugin_token,
@@ -23,21 +24,23 @@ static UNIQUE: AtomicU32 = AtomicU32::new(0);
 // the in-memory mock plays the same role without reaching for the platform
 // keychain, which would prompt or fail on a developer's machine.
 #[cfg(target_os = "linux")]
-fn use_headless_keystore() {
+fn use_headless_keystore() -> SecretStore {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         keyring_core::set_default_store(
             linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
         );
     });
+    SecretStore::resolve()
 }
 
 #[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() {
+fn use_headless_keystore() -> SecretStore {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     });
+    SecretStore::resolve()
 }
 
 fn unique(prefix: &str) -> String {
@@ -48,10 +51,12 @@ fn unique(prefix: &str) -> String {
     )
 }
 
-fn with_cache_home<T>(body: impl FnOnce() -> T) -> (T, TempDir) {
-    use_headless_keystore();
+fn with_cache_home<T>(body: impl FnOnce(&SecretStore) -> T) -> (T, TempDir) {
+    let secrets = use_headless_keystore();
     let temp = tempfile::tempdir().unwrap();
-    let out = temp_env::with_var("XDG_CACHE_HOME", Some(temp.path().as_os_str()), body);
+    let out = temp_env::with_var("XDG_CACHE_HOME", Some(temp.path().as_os_str()), || {
+        body(&secrets)
+    });
     (out, temp)
 }
 
@@ -67,7 +72,7 @@ fn creds(client_id: &str) -> OAuthClientCreds {
 
 #[test]
 fn creds_path_is_under_cache_dir() {
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|_| {
         let path = plugin_oauth::creds_path().unwrap();
         assert!(path.ends_with("systemprompt-bridge/oauth_client.json"));
     });
@@ -76,8 +81,8 @@ fn creds_path_is_under_cache_dir() {
 #[test]
 fn store_then_load_round_trips_via_keyring() {
     let id = unique("client-roundtrip");
-    let ((), _temp) = with_cache_home(|| {
-        plugin_oauth::store_creds(&creds(&id)).unwrap();
+    let ((), _temp) = with_cache_home(|secrets| {
+        plugin_oauth::store_creds(secrets, &creds(&id)).unwrap();
 
         let path = plugin_oauth::creds_path().unwrap();
         let on_disk: serde_json::Value =
@@ -87,27 +92,27 @@ fn store_then_load_round_trips_via_keyring() {
             "secret must not be written to disk"
         );
 
-        let loaded = plugin_oauth::load_creds().unwrap().unwrap();
+        let loaded = plugin_oauth::load_creds(secrets).unwrap().unwrap();
         assert_eq!(loaded.client_id.as_str(), id);
         assert_eq!(loaded.client_secret, "super-secret");
         assert_eq!(loaded.scopes.len(), 2);
 
-        plugin_oauth::delete_creds().unwrap();
-        assert!(plugin_oauth::load_creds().unwrap().is_none());
+        plugin_oauth::delete_creds(secrets).unwrap();
+        assert!(plugin_oauth::load_creds(secrets).unwrap().is_none());
     });
 }
 
 #[test]
 fn load_creds_none_when_file_missing() {
-    let ((), _temp) = with_cache_home(|| {
-        assert!(plugin_oauth::load_creds().unwrap().is_none());
+    let ((), _temp) = with_cache_home(|secrets| {
+        assert!(plugin_oauth::load_creds(secrets).unwrap().is_none());
     });
 }
 
 #[test]
 fn metadata_without_keyring_entry_is_unprovisioned() {
     let id = unique("client-nokeyring");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         let path = plugin_oauth::creds_path().unwrap();
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(
@@ -120,14 +125,14 @@ fn metadata_without_keyring_entry_is_unprovisioned() {
         )
         .unwrap();
 
-        assert!(plugin_oauth::load_creds().unwrap().is_none());
+        assert!(plugin_oauth::load_creds(secrets).unwrap().is_none());
     });
 }
 
 #[test]
 fn delete_creds_when_missing_is_noop() {
-    let ((), _temp) = with_cache_home(|| {
-        plugin_oauth::delete_creds().unwrap();
+    let ((), _temp) = with_cache_home(|secrets| {
+        plugin_oauth::delete_creds(secrets).unwrap();
     });
 }
 
@@ -151,7 +156,7 @@ fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
 #[test]
 fn ensure_creds_provisions_once_then_reuses_local_state() {
     let id = unique("client-ensure");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -169,21 +174,23 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
                 ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
                 reqwest::Client::new(),
             );
-            let first = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
-                .await
-                .unwrap();
+            let first =
+                plugin_oauth::ensure_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
+                    .await
+                    .unwrap();
             assert_eq!(first.client_secret, "minted-secret");
 
-            let second = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
-                .await
-                .unwrap();
+            let second =
+                plugin_oauth::ensure_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
+                    .await
+                    .unwrap();
             assert_eq!(
                 second.client_id.as_str(),
                 id,
                 "second call must reuse local state"
             );
 
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -191,7 +198,7 @@ fn ensure_creds_provisions_once_then_reuses_local_state() {
 #[test]
 fn refresh_creds_always_reprovisions() {
     let id = unique("client-refresh");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -209,11 +216,12 @@ fn refresh_creds_always_reprovisions() {
                 ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
                 reqwest::Client::new(),
             );
-            let out = plugin_oauth::refresh_creds(&client, &BearerToken::new("bridge-jwt"))
-                .await
-                .unwrap();
+            let out =
+                plugin_oauth::refresh_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
+                    .await
+                    .unwrap();
             assert_eq!(out.client_secret, "rotated");
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -239,7 +247,7 @@ impl Respond for MintOnceRotate {
 fn mint_or_refresh_rotates_client_on_401_and_retries() {
     let id = unique("client-mint401");
     let plugin = unique("plugin-mint401");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -286,7 +294,7 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
                 "second call must come from the fresh-token cache"
             );
 
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -295,7 +303,7 @@ fn mint_or_refresh_rotates_client_on_401_and_retries() {
 fn mint_or_refresh_success_path_caches_token() {
     let id = unique("client-mintok");
     let plugin = unique("plugin-mintok");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -340,7 +348,7 @@ fn mint_or_refresh_success_path_caches_token() {
             assert_eq!(first.access_token, "hook.jwt.ok");
             assert_eq!(second.access_token, "hook.jwt.ok");
 
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -355,7 +363,7 @@ fn mint_or_refresh_success_path_caches_token() {
 fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
     let first_id = unique("client-gw-a");
     let second_id = unique("client-gw-b");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let gateway_a = MockServer::start().await;
             Mock::given(method("POST"))
@@ -385,7 +393,7 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
                 ValidatedUrl::try_new(gateway_a.uri()).expect("valid ValidatedUrl"),
                 reqwest::Client::new(),
             );
-            let a = plugin_oauth::ensure_creds(&client_a, &BearerToken::new("bridge-jwt"))
+            let a = plugin_oauth::ensure_creds(secrets, &client_a, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
             assert_eq!(a.gateway.as_deref(), Some(gateway_a.uri().as_str()));
@@ -394,7 +402,7 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
                 ValidatedUrl::try_new(gateway_b.uri()).expect("valid ValidatedUrl"),
                 reqwest::Client::new(),
             );
-            let b = plugin_oauth::ensure_creds(&client_b, &BearerToken::new("bridge-jwt"))
+            let b = plugin_oauth::ensure_creds(secrets, &client_b, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
 
@@ -409,7 +417,7 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
             );
             assert_eq!(b.gateway.as_deref(), Some(gateway_b.uri().as_str()));
 
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -420,7 +428,7 @@ fn a_client_registered_with_one_gateway_is_not_reused_for_another() {
 #[test]
 fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
     let id = unique("client-legacy-gw");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -436,30 +444,32 @@ fn a_stored_client_with_no_recorded_gateway_is_reprovisioned() {
 
             let mut stale = creds(&unique("client-stale"));
             stale.gateway = None;
-            plugin_oauth::store_creds(&stale).unwrap();
+            plugin_oauth::store_creds(secrets, &stale).unwrap();
 
             let client = GatewayClient::new(
                 ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"),
                 reqwest::Client::new(),
             );
-            let out = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
+            let out = plugin_oauth::ensure_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
                 .await
                 .unwrap();
 
             assert_eq!(out.client_secret, "reprovisioned");
             assert_eq!(out.gateway.as_deref(), Some(server.uri().as_str()));
 
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
 
 static TOKENS: std::sync::LazyLock<systemprompt_bridge::auth::plugin_oauth::PluginTokenCache> =
-    std::sync::LazyLock::new(Default::default);
+    std::sync::LazyLock::new(|| {
+        systemprompt_bridge::auth::plugin_oauth::PluginTokenCache::new(SecretStore::resolve())
+    });
 #[test]
 fn corrupt_oauth_metadata_blocks_network_provisioning_until_operator_repair() {
     let id = unique("client-corrupt-repair");
-    let ((), _temp) = with_cache_home(|| {
+    let ((), _temp) = with_cache_home(|secrets| {
         block_on(async {
             let server = MockServer::start().await;
             Mock::given(method("POST"))
@@ -481,9 +491,10 @@ fn corrupt_oauth_metadata_blocks_network_provisioning_until_operator_repair() {
                 reqwest::Client::new(),
             );
 
-            let error = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
-                .await
-                .expect_err("corrupt durable identity must fail closed");
+            let error =
+                plugin_oauth::ensure_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
+                    .await
+                    .expect_err("corrupt durable identity must fail closed");
             assert!(matches!(
                 error,
                 plugin_oauth::PluginOAuthError::CredsDecode(_)
@@ -499,9 +510,10 @@ fn corrupt_oauth_metadata_blocks_network_provisioning_until_operator_repair() {
             );
 
             std::fs::remove_file(&metadata).expect("operator repairs corrupt metadata");
-            let repaired = plugin_oauth::ensure_creds(&client, &BearerToken::new("bridge-jwt"))
-                .await
-                .expect("repair permits provisioning");
+            let repaired =
+                plugin_oauth::ensure_creds(secrets, &client, &BearerToken::new("bridge-jwt"))
+                    .await
+                    .expect("repair permits provisioning");
             assert_eq!(repaired.client_id.as_str(), id);
             assert_eq!(repaired.client_secret, "repaired-secret");
             let stored: serde_json::Value =
@@ -521,7 +533,7 @@ fn corrupt_oauth_metadata_blocks_network_provisioning_until_operator_repair() {
                 Some("Bearer bridge-jwt")
             );
             assert_eq!(requests[0].body, b"{}");
-            plugin_oauth::delete_creds().unwrap();
+            plugin_oauth::delete_creds(secrets).unwrap();
         });
     });
 }
@@ -532,6 +544,7 @@ fn keyring_write_failure_publishes_no_metadata_and_retry_persists_one_usable_ide
         keyring_core::set_default_store(
             keyring_core::mock::Store::new().expect("isolated mock keyring"),
         );
+        let secrets = &SecretStore::resolve();
         let id = unique("client-keyring-retry");
         let credential =
             keyring_core::Entry::new(systemprompt_bridge::brand::brand().keyring_service, &id)
@@ -546,7 +559,7 @@ fn keyring_write_failure_publishes_no_metadata_and_retry_persists_one_usable_ide
         ));
         let expected = creds(&id);
 
-        let error = plugin_oauth::store_creds(&expected)
+        let error = plugin_oauth::store_creds(secrets, &expected)
             .expect_err("keyring refusal must stop credential publication");
         assert!(matches!(error, plugin_oauth::PluginOAuthError::Keyring(_)));
         let metadata = plugin_oauth::creds_path().expect("metadata path");
@@ -554,10 +567,11 @@ fn keyring_write_failure_publishes_no_metadata_and_retry_persists_one_usable_ide
             !metadata.exists(),
             "metadata must never name a client whose secret was not stored"
         );
-        assert!(plugin_oauth::load_creds().unwrap().is_none());
+        assert!(plugin_oauth::load_creds(secrets).unwrap().is_none());
 
-        plugin_oauth::store_creds(&expected).expect("one-shot keyring fault clears for retry");
-        let loaded = plugin_oauth::load_creds()
+        plugin_oauth::store_creds(secrets, &expected)
+            .expect("one-shot keyring fault clears for retry");
+        let loaded = plugin_oauth::load_creds(secrets)
             .expect("read retried identity")
             .expect("identity exists");
         assert_eq!(loaded.client_id.as_str(), id);
@@ -566,6 +580,6 @@ fn keyring_write_failure_publishes_no_metadata_and_retry_persists_one_usable_ide
             serde_json::from_slice(&std::fs::read(&metadata).unwrap()).unwrap();
         assert_eq!(stored["client_id"], id);
         assert!(stored.get("client_secret").is_none());
-        plugin_oauth::delete_creds().unwrap();
+        plugin_oauth::delete_creds(secrets).unwrap();
     });
 }
