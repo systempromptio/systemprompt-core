@@ -47,7 +47,8 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_config::SecretsBootstrap::encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("gateway journal opens")
 }
@@ -1532,7 +1533,8 @@ fn owned_gateway_repos(
 ) -> systemprompt_gateway::GatewayRepositories {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
-        systemprompt_config::SecretsBootstrap::get().expect("secrets bootstrapped"),
+        systemprompt_config::SecretsBootstrap::encryption_master_key()
+            .expect("encryption master key"),
     )
     .expect("owned gateway journal");
     systemprompt_gateway::GatewayRepositories::new(

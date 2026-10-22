@@ -175,6 +175,10 @@ impl ExtensionContext for MockExtensionContext {
         self.instance.clone()
     }
 
+    fn background_tasks(&self) -> systemprompt_traits::BackgroundTasks {
+        systemprompt_traits::BackgroundTasks::new()
+    }
+
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extensions.get(id).cloned()
     }
