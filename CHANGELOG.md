@@ -8,6 +8,7 @@
 - **Gateway:** failover never moves a request between two different personal subscriptions; the guard compares the credential owner, not only the credential source.
 - **AI:** personal-key verification probes every endpoint the key will be sent to, including `credential_from` siblings.
 - **AI:** entries sharing one personal credential share one cached token instead of minting separately.
+- **Governance:** deny messages name `services/access-control/rules.yaml`.
 
 ## [0.72.1] - 2026-10-22
 

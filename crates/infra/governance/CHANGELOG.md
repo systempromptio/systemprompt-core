@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Fixed
+
+- Entitlement deny hints name `services/access-control/rules.yaml` instead of `roles.yaml`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added
