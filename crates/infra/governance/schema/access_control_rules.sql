@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS access_control_rules (
     -- overwrites only rows carrying its own source; 'dashboard' rows are never
     -- touched by any ingestion pass.
     source TEXT NOT NULL DEFAULT 'yaml',
+    -- Last writer, from the transaction's change context (sp_stamp_change).
+    changed_by TEXT,
+    changed_at TIMESTAMPTZ,
+    reason TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(entity_type, entity_id, rule_type, rule_value),

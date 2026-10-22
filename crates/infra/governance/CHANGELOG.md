@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `access_control_rules` and `access_control_entities` carry `changed_by`, `changed_at` and `reason`, stamped by `sp_stamp_change()`, and bump `config_version` (`config:access_control`). Migration `026_access_control_change_provenance` (with down): catalog-only `ADD COLUMN`s, ACCESS EXCLUSIVE for milliseconds, no rewrite or scan.
+
 ### Fixed
 
 - Entitlement deny hints name `services/access-control/rules.yaml` instead of `roles.yaml`.
