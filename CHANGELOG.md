@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
+- **Breaking:** `systemprompt_traits::SessionStore` drops `mark_as_behavioral_bot(&str)` and gains `mark_ghost_sessions_as_bots()` and `mark_no_js_sessions_as_bots(&[SessionId])`. Migrate by implementing the two sweep methods; a typed `SessionRepository::mark_as_behavioral_bot(BehavioralBotReason)` remains on the concrete repository.
+
+### Added
+
+- `systemprompt_models::analytics::BehavioralBotReason`: the one vocabulary for `user_sessions.behavioral_bot_reason`, carrying each reason's score.
+- SQL function `is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)`; `v_clean_traffic` and `v_engaged_traffic` are defined over it, and every aggregate human-traffic filter calls it.
+
+### Changed
+
+- The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking

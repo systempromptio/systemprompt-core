@@ -5,6 +5,7 @@ mod types;
 mod engagement_events;
 mod events;
 mod fingerprint_reputation;
+mod human_traffic_parity_db;
 mod per_user_cost_boundaries;
 mod reasoning_reporting_db;
 mod session_behavioral_queries;

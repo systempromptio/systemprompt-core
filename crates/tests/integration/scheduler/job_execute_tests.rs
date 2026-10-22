@@ -19,9 +19,9 @@ fn make_ctx(pool: &DbPool) -> JobContext {
     JobContext::new(fixture_actor(), Dependencies::new().with(Arc::clone(pool)))
 }
 
-// database_cleanup reads its per-table windows from `profile.retention`, so
-// unlike the other jobs here it needs a real AppContext rather than the unit
-// placeholder `make_ctx` supplies.
+// database_cleanup reads its per-table windows from `profile.retention` and
+// the session-flag jobs reach the injected session store, so they need a real
+// AppContext rather than the unit placeholder `make_ctx` supplies.
 async fn make_ctx_with_app(pool: &DbPool) -> JobContext {
     let url = test_database_url();
     let app = test_app_context(pool, &url);
@@ -103,7 +103,7 @@ async fn behavioral_analysis_job_execute_succeeds() {
 #[tokio::test]
 async fn ghost_session_cleanup_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = make_ctx(&pool);
+    let ctx = make_ctx_with_app(&pool).await;
     let result = GhostSessionCleanupJob
         .execute(&ctx)
         .await
@@ -125,7 +125,7 @@ async fn malicious_ip_blacklist_job_execute_succeeds() {
 #[tokio::test]
 async fn no_js_cleanup_job_execute_succeeds() {
     let pool = test_db_pool().await;
-    let ctx = make_ctx(&pool);
+    let ctx = make_ctx_with_app(&pool).await;
     let result = NoJsCleanupJob.execute(&ctx).await.expect("job runs");
     assert!(result.success);
 }

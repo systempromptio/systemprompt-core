@@ -203,6 +203,8 @@ rustc-ice-*.txt
 !scripts/lint-json-value.sh
 !scripts/lint-tracing-messages.sh
 !scripts/lint-table-ownership.sh
+!scripts/table-ownership-reads.txt
+!scripts/sql-vocabularies.txt
 !scripts/lint-swallowed-errors.sh
 !scripts/lint-bridge-typed-warnings.sh
 !scripts/rust-contracts/

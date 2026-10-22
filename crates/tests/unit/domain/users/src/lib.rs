@@ -56,3 +56,8 @@ mod session_store_lifecycle;
 
 #[cfg(test)]
 mod privacy_fixture;
+
+#[cfg(test)]
+mod behavioral_bot_reasons_db;
+#[cfg(test)]
+mod session_source_default_db;

@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     is_behavioral_bot BOOLEAN NOT NULL DEFAULT false,
     behavioral_bot_reason TEXT,
     behavioral_bot_score INTEGER NOT NULL DEFAULT 0,
-    session_source VARCHAR(50) DEFAULT 'web'
+    session_source VARCHAR(50) DEFAULT 'unknown'
         CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'mcp', 'bridge', 'unknown')),
     revoked_at TIMESTAMPTZ,
     -- Last on purpose: `v_clean_traffic` / `v_bot_sessions` are `SELECT *`
@@ -63,7 +63,7 @@ COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits sca
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
 COMMENT ON COLUMN user_sessions.bot_type IS 'The bot taxonomy label (session_bot_type) stamped on every session with any bot classification; NULL on human sessions and on a bot session queued for session_bot_type_rollup';
 COMMENT ON COLUMN user_sessions.behavioral_bot_reason IS 'Reason for behavioral bot classification (e.g., request_count_exceeded, high_page_coverage)';
-COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), oauth (token endpoint)';
+COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), oauth (token endpoint), mcp, bridge; unknown when the client could not be classified';
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON user_sessions(last_activity_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_country ON user_sessions(country);
@@ -111,23 +111,30 @@ DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
 DROP VIEW IF EXISTS v_bot_sessions CASCADE;
 
 -- Canonical human-traffic predicate. Every consumer (Rust repositories,
--- downstream extensions) must derive from v_clean_traffic / v_engaged_traffic
--- rather than restating flag combinations.
+-- downstream extensions) calls is_human_traffic() or reads
+-- v_clean_traffic / v_engaged_traffic rather than restating flag combinations.
+CREATE OR REPLACE FUNCTION is_human_traffic(
+    is_bot BOOLEAN,
+    is_ai_crawler BOOLEAN,
+    is_scanner BOOLEAN,
+    is_behavioral_bot BOOLEAN
+) RETURNS BOOLEAN
+LANGUAGE sql IMMUTABLE PARALLEL SAFE
+AS $$
+    SELECT NOT (is_bot OR is_ai_crawler OR is_scanner OR is_behavioral_bot)
+$$;
+
+COMMENT ON FUNCTION is_human_traffic(BOOLEAN, BOOLEAN, BOOLEAN, BOOLEAN) IS 'Canonical human-traffic predicate: true when no bot classification is set. v_clean_traffic, v_engaged_traffic and every Rust FILTER call this instead of restating the four flags';
+
 CREATE OR REPLACE VIEW v_clean_traffic AS
 SELECT * FROM user_sessions
-WHERE is_bot = false
-  AND is_ai_crawler = false
-  AND is_scanner = false
-  AND is_behavioral_bot = false;
+WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot);
 
 COMMENT ON VIEW v_clean_traffic IS 'Canonical human traffic: excludes every bot classification (is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)';
 
 CREATE OR REPLACE VIEW v_engaged_traffic AS
 SELECT * FROM user_sessions
-WHERE is_bot = false
-  AND is_ai_crawler = false
-  AND is_scanner = false
-  AND is_behavioral_bot = false
+WHERE is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)
   AND landing_page IS NOT NULL
   AND request_count > 0;
 
