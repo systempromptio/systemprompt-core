@@ -23,7 +23,7 @@ impl AiService {
     ) -> Result<systemprompt_models::ai::PlanningResult> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
         let model = request.model();
 
         let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
@@ -128,8 +128,8 @@ impl AiService {
 
     pub(super) fn estimate_cost(&self, response: &AiResponse) -> Result<i64> {
         let pricing = self
-            .providers
-            .get(&response.provider)
+            .clients
+            .for_request(&self.catalog, Some(&response.provider), &response.model)
             .and_then(|p| p.get_pricing(&response.model))
             .ok_or_else(|| AiError::UnknownModel {
                 provider: response.provider.clone(),

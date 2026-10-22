@@ -27,7 +27,7 @@ impl AiService {
     pub async fn generate(&self, request: &AiRequest) -> Result<AiResponse> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
         let model = request.model();
 
         request_logging::log_request_start(&request_id, request, request.provider(), model);

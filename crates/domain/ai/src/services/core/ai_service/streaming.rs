@@ -24,7 +24,7 @@ impl AiService {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
 
         if !provider.supports_streaming() {
             return Err(AiError::CapabilityUnsupported {
@@ -66,7 +66,7 @@ impl AiService {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = AiRequestId::generate();
         let start = std::time::Instant::now();
-        let provider = self.get_provider(request.provider())?;
+        let provider = self.get_provider(request)?;
 
         if !provider.supports_streaming() {
             return Err(AiError::CapabilityUnsupported {
@@ -109,7 +109,7 @@ impl AiService {
         params: GoogleSearchParams<'_>,
     ) -> Result<SearchGroundedResponse> {
         let provider = self
-            .providers
+            .clients
             .values()
             .find(|p| p.supports_google_search())
             .ok_or(AiError::NoProviderWithCapability {
@@ -138,8 +138,8 @@ impl AiService {
 
     pub async fn health_check(&self) -> Result<HashMap<String, bool>> {
         let mut health = HashMap::new();
-        for (name, provider) in &self.providers {
-            health.insert(format!("provider_{name}"), provider.is_available());
+        for (endpoint, provider) in self.clients.iter() {
+            health.insert(format!("provider_{endpoint}"), provider.is_available());
         }
         let tool_health = self.tool_provider.health_check().await?;
         for (service_id, is_healthy) in tool_health {

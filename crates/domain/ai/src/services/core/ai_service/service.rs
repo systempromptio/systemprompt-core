@@ -1,32 +1,37 @@
-//! `AiService` construction: provider clients from policy plus registry.
+//! `AiService` construction: provider clients from the resolved catalog.
+//!
+//! The in-process default is `gateway.default_model` served by its first
+//! deployment that has a client, so there is no separate default provider to
+//! configure; a provider with `enabled: false` has no client and is never the
+//! default.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::Result;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::models::RequestStatus;
 use crate::models::ai::AiRequest;
 use crate::repository::AiRepositories;
 use crate::services::config::{AiConfigError, ConfigValidator};
-use crate::services::providers::{ProviderClient, ProviderClientParams, ProviderFactory};
+use crate::services::providers::ProviderClient;
 use crate::services::tooled::{ResponseSynthesizer, TooledExecutor};
 use crate::services::tools::ToolDiscovery;
-use crate::services::upstream::UpstreamTarget;
+
+use super::clients::{ProviderClients, WithheldEndpoint};
 
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_config::SecretsBootstrap;
-use systemprompt_manifest::services::{
-    AiConfig, AiProviderConfig, ProviderEntry, ProviderRegistry,
-};
+use systemprompt_manifest::services::AiConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 use tokio_util::task::TaskTracker;
 
 pub struct AiService {
-    pub(super) providers: HashMap<String, Arc<dyn ProviderClient>>,
+    pub(super) clients: ProviderClients,
+    pub(super) catalog: Arc<ResolvedCatalog>,
     pub(super) tool_provider: Arc<dyn ToolProvider>,
     pub(super) tool_discovery: Arc<ToolDiscovery>,
     pub(super) tooled_executor: TooledExecutor,
@@ -60,7 +65,7 @@ impl std::fmt::Debug for AiServiceProviders {
 
 impl AiService {
     pub fn new(
-        registry: &ProviderRegistry,
+        catalog: Arc<ResolvedCatalog>,
         ai_config: &AiConfig,
         providers: AiServiceProviders,
         repositories: &AiRepositories,
@@ -69,27 +74,10 @@ impl AiService {
             tools: tool_provider,
             sessions: session_provider,
         } = providers;
-        let mut missing_env_vars = Vec::new();
-        let providers = Self::build_providers(registry, ai_config, &mut missing_env_vars)?;
-        ConfigValidator::validate(ai_config, &providers, &missing_env_vars)?;
-
-        let default_provider = ai_config.default_provider.clone();
-        let provider = providers.get(&default_provider).ok_or_else(|| {
-            crate::error::AiError::from(AiConfigError::DefaultProviderNoConnectivity {
-                provider: default_provider.clone(),
-                connected: providers.keys().cloned().collect(),
-                withheld: None,
-            })
-        })?;
-
-        let default_model = ai_config
-            .providers
-            .get(&default_provider)
-            .filter(|pc| !pc.default_model.is_empty())
-            .map_or_else(
-                || provider.default_model().to_owned(),
-                |pc| pc.default_model.clone(),
-            );
+        SecretsBootstrap::get()?;
+        let (clients, withheld) = ProviderClients::build(&catalog)?;
+        ConfigValidator::validate(ai_config, &catalog, &clients, &withheld)?;
+        let (default_provider, default_model) = Self::derive_default(&catalog, &clients, &withheld)?;
 
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
@@ -101,7 +89,8 @@ impl AiService {
         );
 
         Ok(Self {
-            providers,
+            clients,
+            catalog,
             tool_provider,
             tool_discovery,
             tooled_executor,
@@ -112,6 +101,32 @@ impl AiService {
             default_model,
             default_max_output_tokens: ai_config.default_max_output_tokens.unwrap_or(8192),
         })
+    }
+
+    fn derive_default(
+        catalog: &ResolvedCatalog,
+        clients: &ProviderClients,
+        withheld: &[WithheldEndpoint],
+    ) -> Result<(String, String)> {
+        let model = catalog
+            .default_model()
+            .ok_or(AiConfigError::NoDefaultModel)?;
+        let hop = clients
+            .hop_for(catalog, None, model.as_str())
+            .ok_or_else(|| AiConfigError::DefaultModelNoConnectivity {
+                model: model.as_str().to_owned(),
+                deployments: catalog
+                    .deployments(model.as_str())
+                    .iter()
+                    .map(|hop| hop.endpoint_ref().to_string())
+                    .collect(),
+                connected: clients.endpoints().iter().map(ToString::to_string).collect(),
+                withheld: withheld
+                    .iter()
+                    .map(|w| format!("{}: {}", w.endpoint, w.reason))
+                    .collect(),
+            })?;
+        Ok((hop.provider.as_str().to_owned(), model.as_str().to_owned()))
     }
 
     #[must_use]
@@ -131,75 +146,6 @@ impl AiService {
         &self.audit_tasks
     }
 
-    fn build_providers(
-        registry: &ProviderRegistry,
-        ai_config: &AiConfig,
-        missing_env_vars: &mut Vec<String>,
-    ) -> Result<HashMap<String, Arc<dyn ProviderClient>>> {
-        SecretsBootstrap::get()?;
-        let mut providers: HashMap<String, Arc<dyn ProviderClient>> = HashMap::new();
-
-        for (name, policy) in &ai_config.providers {
-            if !policy.enabled {
-                continue;
-            }
-            let Some(entry) = registry.find_provider(name) else {
-                tracing::warn!(
-                    provider = %name,
-                    "AI policy enables provider but the profile registry has no connectivity \
-                     entry — skipping"
-                );
-                continue;
-            };
-
-            // Why: a personal-subscription provider is served only through the
-            // gateway, per caller, from that caller's stored key; the
-            // in-process service has no caller to bind one to.
-            if entry.is_user_credential() {
-                tracing::debug!(provider = %name, "personal-key provider left to the gateway");
-                continue;
-            }
-
-            // Why: a provider without a usable credential cannot serve a
-            // request; registering it would fail every call at the wire
-            // instead of at boot, so it is withheld and reported.
-            let target = match UpstreamTarget::from_secrets(entry) {
-                Ok(target) => target,
-                Err(e) => {
-                    tracing::warn!(
-                        provider = %name,
-                        error = %e,
-                        "upstream credential unusable — provider withheld from the registry"
-                    );
-                    missing_env_vars.push(format!("Provider '{name}': {e}"));
-                    continue;
-                },
-            };
-
-            let provider = Self::build_one(entry, policy, target)?;
-            providers.insert(name.clone(), provider);
-        }
-
-        Ok(providers)
-    }
-
-    fn build_one(
-        entry: &ProviderEntry,
-        policy: &AiProviderConfig,
-        target: UpstreamTarget,
-    ) -> Result<Arc<dyn ProviderClient>> {
-        let params = ProviderClientParams {
-            name: entry.name.as_str(),
-            target,
-            google_search_enabled: policy.google_search_enabled,
-            resilience: &policy.resilience,
-            models: &entry.models,
-            default_model: (!policy.default_model.is_empty())
-                .then_some(policy.default_model.as_str()),
-        };
-        ProviderFactory::create(&params)
-    }
-
     pub fn default_provider(&self) -> &str {
         &self.default_provider
     }
@@ -212,12 +158,20 @@ impl AiService {
         self.default_max_output_tokens
     }
 
-    pub(super) fn get_provider(&self, name: &str) -> Result<Arc<dyn ProviderClient>> {
-        self.providers
-            .get(name)
-            .cloned()
+    #[must_use]
+    pub fn catalog(&self) -> &ResolvedCatalog {
+        &self.catalog
+    }
+
+    pub(super) fn get_provider(&self, request: &AiRequest) -> Result<Arc<dyn ProviderClient>> {
+        let provider = Some(request.provider()).filter(|p| !p.is_empty());
+        self.clients
+            .for_request(&self.catalog, provider, request.model())
             .ok_or_else(|| crate::error::AiError::ProviderNotFound {
-                provider: name.to_owned(),
+                provider: provider.map_or_else(
+                    || request.model().to_owned(),
+                    |p| format!("{p} (model {})", request.model()),
+                ),
             })
     }
 
