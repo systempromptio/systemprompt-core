@@ -26,10 +26,7 @@ const CATALOG_DIR: &str = "ai";
 
 #[must_use]
 pub fn catalog_dir(config_dir: &Path) -> PathBuf {
-    config_dir
-        .parent()
-        .unwrap_or(config_dir)
-        .join(CATALOG_DIR)
+    config_dir.parent().unwrap_or(config_dir).join(CATALOG_DIR)
 }
 
 pub(super) fn refuse_legacy(path: &Path, content: &str) -> ConfigLoadResult<()> {

@@ -92,7 +92,10 @@ pub enum ConfigLoadError {
         files = systemprompt_manifest::services::catalog::CATALOG_FILES.join(","),
         hint = systemprompt_manifest::services::catalog::MIGRATE_HINT
     )]
-    CatalogOutsideConvention { path: PathBuf, section: &'static str },
+    CatalogOutsideConvention {
+        path: PathBuf,
+        section: &'static str,
+    },
 
     #[error("the services catalog does not resolve: {0}")]
     Catalog(#[from] systemprompt_manifest::services::catalog::CatalogError),

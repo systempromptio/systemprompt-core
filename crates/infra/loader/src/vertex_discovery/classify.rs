@@ -166,10 +166,7 @@ pub fn classify_discovered<'a>(
     if !model.serverless {
         return (Classification::NotServerless, None);
     }
-    let Some(entry) = card
-        .lookup(&model.upstream)
-        .filter(|e| e.wire == wire)
-    else {
+    let Some(entry) = card.lookup(&model.upstream).filter(|e| e.wire == wire) else {
         return (Classification::Unpriced, None);
     };
     if !model.launch_stage.is_generally_available() && !entry.allow_preview {

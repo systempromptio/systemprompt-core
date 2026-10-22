@@ -11,8 +11,9 @@
 //! that carries no Google in it: given a provider and the credential its
 //! secret parsed into, do I apply to this one endpoint, and if so what does
 //! it say it serves? Discovery runs per `(provider, endpoint)`: one vendor
-//! account can expose a listing on one wire and none on another. The next source — an Azure deployment listing, a self-hosted
-//! `/v1/models` — is a new implementation and no change to the caller.
+//! account can expose a listing on one wire and none on another. The next
+//! source — an Azure deployment listing, a self-hosted `/v1/models` — is a new
+//! implementation and no change to the caller.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
