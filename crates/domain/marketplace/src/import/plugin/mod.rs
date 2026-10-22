@@ -108,44 +108,18 @@ pub(super) fn import_plugin(
     scripts::copy_plugin_scripts(&id, dir, &sidecar.plugin.scripts, sink)?;
     scripts::copy_node_package_files(&id, dir, sink)?;
 
-    let config = PluginConfig {
-        id: id.clone(),
-        name: sidecar
-            .plugin
-            .title
-            .clone()
-            .filter(|t| !t.trim().is_empty())
-            .unwrap_or_else(|| id.as_str().to_owned()),
-        description: description(&manifest, entry),
-        version: version(&manifest, entry),
-        enabled: sidecar.plugin.enabled,
-        author: author(&manifest, entry),
-        keywords: keywords(&manifest, entry),
-        license: manifest
-            .license
-            .clone()
-            .or_else(|| entry.license.clone())
-            .unwrap_or_else(|| DEFAULT_LICENSE.to_owned()),
-        category,
-        skills: PluginComponentRef {
-            source: ComponentSource::Explicit,
-            filter: None,
-            include: skills.clone(),
-            exclude: Vec::new(),
+    let config = plugin_config(
+        &id,
+        entry,
+        &manifest,
+        &sidecar,
+        ImportedComponents {
+            category,
+            skills: &skills,
+            rules: &rules,
+            hooks: &imported_hooks.ids,
         },
-        agents: sidecar.plugin.agents.clone(),
-        rules: rules_ref(&sidecar, &rules),
-        mcp_servers: sidecar.plugin.mcp_servers.clone(),
-        content_sources: sidecar.plugin.content_sources.clone(),
-        artifacts: sidecar.plugin.artifacts.clone(),
-        hooks: hooks_ref(&sidecar, &imported_hooks.ids),
-        scripts: sidecar.plugin.scripts.clone(),
-        dependencies: manifest
-            .dependencies
-            .iter()
-            .map(PluginDependency::from)
-            .collect(),
-    };
+    );
 
     config
         .validate(id.as_str())
@@ -161,6 +135,60 @@ pub(super) fn import_plugin(
         hooks: imported_hooks.ids,
         warnings,
     })
+}
+
+struct ImportedComponents<'a> {
+    category: String,
+    skills: &'a [String],
+    rules: &'a [String],
+    hooks: &'a [String],
+}
+
+fn plugin_config(
+    id: &PluginId,
+    entry: &MarketplacePluginEntry,
+    manifest: &PluginManifest,
+    sidecar: &PluginSidecar,
+    imported: ImportedComponents<'_>,
+) -> PluginConfig {
+    PluginConfig {
+        id: id.clone(),
+        name: sidecar
+            .plugin
+            .title
+            .clone()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or_else(|| id.as_str().to_owned()),
+        description: description(manifest, entry),
+        version: version(manifest, entry),
+        enabled: sidecar.plugin.enabled,
+        author: author(manifest, entry),
+        keywords: keywords(manifest, entry),
+        license: manifest
+            .license
+            .clone()
+            .or_else(|| entry.license.clone())
+            .unwrap_or_else(|| DEFAULT_LICENSE.to_owned()),
+        category: imported.category,
+        skills: PluginComponentRef {
+            source: ComponentSource::Explicit,
+            filter: None,
+            include: imported.skills.to_vec(),
+            exclude: Vec::new(),
+        },
+        agents: sidecar.plugin.agents.clone(),
+        rules: rules_ref(sidecar, imported.rules),
+        mcp_servers: sidecar.plugin.mcp_servers.clone(),
+        content_sources: sidecar.plugin.content_sources.clone(),
+        artifacts: sidecar.plugin.artifacts.clone(),
+        hooks: hooks_ref(sidecar, imported.hooks),
+        scripts: sidecar.plugin.scripts.clone(),
+        dependencies: manifest
+            .dependencies
+            .iter()
+            .map(PluginDependency::from)
+            .collect(),
+    }
 }
 
 fn import_skills(
