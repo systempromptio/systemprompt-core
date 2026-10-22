@@ -10,6 +10,7 @@ use crate::models::{
 use crate::repository::content::artifact::artifact_from_row;
 use crate::repository::parts::part_from_row;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use systemprompt_identifiers::{ArtifactId, MessageId};
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 use systemprompt_traits::RepositoryError;
@@ -50,13 +51,9 @@ pub fn build_execution_steps(
     Ok(Some(result))
 }
 
-#[expect(
-    clippy::implicit_hasher,
-    reason = "internal batch-assembly helper; callers always pass the default hasher"
-)]
-pub fn build_messages(
+pub fn build_messages<S: BuildHasher>(
     messages: Option<&Vec<&TaskMessage>>,
-    parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
+    parts_by_message: &HashMap<MessageId, Vec<&MessagePart>, S>,
 ) -> Result<Option<Vec<Message>>, RepositoryError> {
     let Some(messages) = messages else {
         return Ok(None);
@@ -74,13 +71,9 @@ pub fn build_messages(
     Ok(Some(result))
 }
 
-#[expect(
-    clippy::implicit_hasher,
-    reason = "internal batch-assembly helper; callers always pass the default hasher"
-)]
-pub fn build_artifacts(
+pub fn build_artifacts<S: BuildHasher>(
     artifacts: Option<&Vec<&ArtifactRow>>,
-    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
+    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>, S>,
 ) -> Result<Option<Vec<Artifact>>, RepositoryError> {
     let Some(artifacts) = artifacts else {
         return Ok(None);

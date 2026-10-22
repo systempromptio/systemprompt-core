@@ -17,10 +17,7 @@ const fn role_to_str(role: &MessageRole) -> &'static str {
     }
 }
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
+#[derive(Debug)]
 pub struct PersistMessageSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub message: &'a Message,

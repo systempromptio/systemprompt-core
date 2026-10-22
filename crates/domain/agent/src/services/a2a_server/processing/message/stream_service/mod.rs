@@ -18,13 +18,18 @@ use crate::repository::execution::ExecutionStepRepository;
 use crate::services::{ContextService, SkillService};
 use systemprompt_models::ai::DynAiProvider;
 
-#[expect(
-    missing_debug_implementations,
-    reason = "params struct holds non-Debug references"
-)]
 pub struct StreamService {
     pub ai_service: DynAiProvider,
     pub context_service: ContextService,
     pub skill_service: Arc<SkillService>,
     pub execution_step_repo: Arc<ExecutionStepRepository>,
+}
+
+impl std::fmt::Debug for StreamService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamService")
+            .field("context_service", &self.context_service)
+            .field("skill_service", &self.skill_service)
+            .finish_non_exhaustive()
+    }
 }
