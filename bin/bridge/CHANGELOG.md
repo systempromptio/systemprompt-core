@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Changed
+
+- Version follows core 0.73.0.
+
 ## [0.72.1] - 2026-10-22
 
 ### Fixed

@@ -7266,7 +7266,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-bridge"
-version = "0.72.1"
+version = "0.73.0"
 dependencies = [
  "apple-native-keyring-store",
  "arc-swap",
