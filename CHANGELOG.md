@@ -29,6 +29,7 @@
 - **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
 - **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 - **Breaking:** `QuotaSubjectUsage::subject_id` is a `QuotaSubjectId` and `QuotaUsageRepository::usage` takes `&QuotaSubjectId`. Migrate by wrapping the subject string with `QuotaSubjectId::new`.
+- **Breaking:** `systemprompt_ai::models::AiRequest` (the `ai_requests` row) groups its fields into `identity: AiRequestIdentity`, `routing: AiRequestRouting`, `accounting: AiRequestAccounting`, `origin: AiRequestOrigin` and `lifecycle: AiRequestLifecycle`, and no longer derives `sqlx::FromRow`; its serialised form stays flat. Migrate field reads such as `request.cost_microdollars` to `request.accounting.cost_microdollars`.
 
 ### Added
 
