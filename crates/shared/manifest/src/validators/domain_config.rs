@@ -10,8 +10,8 @@
 
 use std::fmt::Debug;
 
-use crate::context::ConfigProvider;
-use crate::validation_report::ValidationReport;
+use super::validation_report::ValidationReport;
+use systemprompt_traits::ConfigProvider;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -23,7 +23,7 @@ pub enum DomainConfigError {
     Load {
         context: &'static str,
         #[source]
-        source: crate::BoxedSource,
+        source: systemprompt_traits::BoxedSource,
     },
 
     #[error("Failed to load config: {context}: {source}")]
@@ -44,7 +44,10 @@ pub enum DomainConfigError {
 }
 
 impl DomainConfigError {
-    pub fn load(context: &'static str, source: impl Into<crate::BoxedSource>) -> Self {
+    pub fn load(
+        context: &'static str,
+        source: impl Into<systemprompt_traits::BoxedSource>,
+    ) -> Self {
         Self::Load {
             context,
             source: source.into(),

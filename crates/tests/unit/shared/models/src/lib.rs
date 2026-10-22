@@ -264,7 +264,13 @@ mod errors_models;
 mod env_interpolation;
 
 #[cfg(test)]
+mod domain_config;
+
+#[cfg(test)]
 mod users_summary;
+
+#[cfg(test)]
+mod validation_report;
 
 #[cfg(test)]
 mod oauth_models;

@@ -1,7 +1,8 @@
 #![allow(clippy::all)]
 
 use systemprompt_config::SkillConfigValidator;
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 struct StubConfig {
     skills_path: Option<String>,

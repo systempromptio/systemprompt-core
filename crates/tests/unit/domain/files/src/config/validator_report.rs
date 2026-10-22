@@ -5,8 +5,9 @@
 //! the exact errors/warnings the validator reports for it.
 
 use systemprompt_files::FilesConfigValidator;
+use systemprompt_manifest::validators::{DomainConfig, DomainConfigError};
 use systemprompt_test_fixtures::ensure_test_bootstrap;
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+use systemprompt_traits::ConfigProvider;
 
 struct StubProvider;
 

@@ -104,7 +104,7 @@ fn files_config_upload_returns_config() {
 #[test]
 fn files_config_validator_load_and_validate() {
     use systemprompt_files::FilesConfigValidator;
-    use systemprompt_traits::DomainConfig;
+    use systemprompt_manifest::validators::DomainConfig;
 
     let _env = test_env();
 

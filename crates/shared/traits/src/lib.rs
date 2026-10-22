@@ -60,7 +60,6 @@ pub use traffic_class_counts::{DynTrafficClassCounts, TrafficClassCounts, Traffi
 pub mod context;
 pub mod context_provider;
 pub mod coordination;
-pub mod domain_config;
 pub mod extension_error;
 pub mod jwt;
 pub mod log_service;
@@ -77,7 +76,6 @@ pub mod stream_drain;
 pub mod tool_executions;
 pub mod traffic_class_counts;
 pub mod validation;
-pub mod validation_report;
 
 pub use systemprompt_provider_contracts::{
     BatchPlan, BatchedRun, DbBudget, Dependencies, Job, JobContext, JobResult, JobScope,
@@ -151,12 +149,6 @@ pub use registry::{
 };
 
 pub use extension_error::{ExtensionError, McpErrorData};
-
-pub use domain_config::{DomainConfig, DomainConfigError, DomainConfigRegistry};
-
-pub use validation_report::{
-    StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
-};
 
 pub use jwt::{
     AgentJwtClaims, DynJwtValidationProvider, GenerateTokenParams, JwtProviderError, JwtResult,
