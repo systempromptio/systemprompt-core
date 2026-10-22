@@ -84,7 +84,7 @@ pub enum ConfigLoadError {
     LegacyCatalog { path: PathBuf, what: &'static str },
 
     #[error("catalog file unreadable: {0}")]
-    CatalogDocument(#[from] systemprompt_manifest::services::catalog::CatalogDocumentError),
+    CatalogDocument(Box<systemprompt_manifest::services::catalog::CatalogDocumentError>),
 
     #[error(
         "{path} declares `{section}:`; the model catalog is read only from services/ai/{{{files}}}, \
@@ -98,7 +98,7 @@ pub enum ConfigLoadError {
     },
 
     #[error("the services catalog does not resolve: {0}")]
-    Catalog(#[from] systemprompt_manifest::services::catalog::CatalogError),
+    Catalog(Box<systemprompt_manifest::services::catalog::CatalogError>),
 
     #[error(
         "Services config not initialized. Call ServicesBootstrap::init() after \
@@ -117,6 +117,18 @@ pub enum ConfigLoadError {
          the values to the root or remove them from the include."
     )]
     IncludeMustNotSetGlobalSettings { path: PathBuf },
+}
+
+impl From<systemprompt_manifest::services::catalog::CatalogDocumentError> for ConfigLoadError {
+    fn from(error: systemprompt_manifest::services::catalog::CatalogDocumentError) -> Self {
+        Self::CatalogDocument(Box::new(error))
+    }
+}
+
+impl From<systemprompt_manifest::services::catalog::CatalogError> for ConfigLoadError {
+    fn from(error: systemprompt_manifest::services::catalog::CatalogError) -> Self {
+        Self::Catalog(Box::new(error))
+    }
 }
 
 #[derive(Debug, Error)]

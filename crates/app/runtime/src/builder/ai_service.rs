@@ -1,9 +1,10 @@
 //! The process-wide [`AiService`] handed to every consumer of [`AppContext`].
 //!
 //! One service per process: its audit tasks are never closed, they drain with
-//! the runtime. A catalog without a usable default provider (a bridge-only
-//! deployment, say) yields `None` after a single warning, so boot never
-//! depends on inference being configured.
+//! the runtime. It is built from the booted `ResolvedCatalog`; a catalog
+//! without a servable default model (a bridge-only deployment, say) yields
+//! `None` after a single warning, so boot never depends on inference being
+//! configured.
 //!
 //! [`AppContext`]: crate::context::AppContext
 //!
@@ -38,8 +39,9 @@ pub(super) fn build_ai_service(
     let materializer = Arc::new(systemprompt_agent::services::ContextProviderService::new(
         repositories.a2a.contexts.clone(),
     ));
+    let catalog = Arc::new(systemprompt_loader::ServicesBootstrap::catalog()?.clone());
     match AiService::new(
-        &services.providers,
+        catalog,
         &services.ai,
         AiServiceProviders {
             tools: tool_provider,

@@ -14,7 +14,7 @@ use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::bridge_profile;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_oauth::repository::HostPrefWrite;
 
 use systemprompt_security::manifest_signing;
@@ -105,8 +105,8 @@ pub async fn set_host_model_filter(
         .map(|tags| {
             tags.iter()
                 .map(|tag| {
-                    ApiSurface::from_tag(tag)
-                        .map(|s| s.as_tag().to_owned())
+                    ClientFamily::from_tag(tag)
+                        .map(|family| family.as_tag().to_owned())
                         .ok_or_else(|| BridgeError::UnknownSurface(tag.clone()))
                 })
                 .collect::<Result<Vec<String>, _>>()
@@ -148,6 +148,8 @@ pub async fn profile(
         ProfileBootstrap::get().map_err(|e| BridgeError::unavailable("profile not ready", e))?;
     let services = ServicesBootstrap::get()
         .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
+    let catalog = ServicesBootstrap::catalog()
+        .map_err(|e| BridgeError::unavailable("services config not ready", e))?;
     let gateway = services
         .gateway_config()
         .filter(|g| g.enabled)
@@ -166,40 +168,40 @@ pub async fn profile(
     let secrets = systemprompt_config::SecretsBootstrap::get()
         .map_err(|e| BridgeError::unavailable("secrets not ready", e))?;
     let personal_keys = personal_keys(&jwt_extractor, &ctx, &headers).await?;
-    let response = bridge_profile::build_for_user(
+    let secret_present = |name: &str| secrets.get(name).is_some_and(|k| !k.is_empty());
+    let response = bridge_profile::build(
         bridge_profile::BridgeProfileParams {
             inference_gateway_base_url,
             auth_scheme: gateway.auth_scheme.clone(),
             organization_uuid,
-            default_model: gateway.default_model.clone(),
-            registry: &services.providers,
-            gateway: Some(gateway),
+            catalog,
         },
-        |name| secrets.get(name).is_some_and(|k| !k.is_empty()),
-        &personal_keys,
+        &bridge_profile::CredentialFacts {
+            secret_present: &secret_present,
+            personal_keys: &personal_keys,
+        },
     );
 
     Ok(Json(response))
 }
 
-// Why: the profile predates per-user credentials and is fetched before
-// sign-in completes, so an anonymous or stale caller still gets the
-// deployment's view; only a verified caller sees their personal providers.
+// Why: the bridge caches the profile per (gateway, user) and re-mints once
+// on a 401, so the profile is only ever served to a verified caller; an
+// anonymous or stale bearer is refused rather than given a deployment view
+// that would hide the caller's personal credentials.
 async fn personal_keys(
     jwt_extractor: &JwtContextExtractor,
     ctx: &systemprompt_runtime::AppContext,
     headers: &HeaderMap,
 ) -> Result<BTreeSet<String>, ApiHttpError> {
-    let Ok((claims, _user)) = authenticate_bridge(jwt_extractor, headers).await else {
-        return Ok(BTreeSet::new());
-    };
+    let (claims, _user) = authenticate_bridge(jwt_extractor, headers).await?;
     let stored = ctx
         .ai_repositories()
         .user_provider_credentials
         .list_metadata(&claims.user_id)
         .await
         .map_err(|e| BridgeError::internal("personal key lookup failed", e))?;
-    Ok(stored.into_iter().map(|meta| meta.provider).collect())
+    Ok(stored.into_iter().map(|meta| meta.credential).collect())
 }
 
 pub fn canonicalize_org_uuid(tenant_id: &TenantId) -> String {

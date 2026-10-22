@@ -19,12 +19,11 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use bytes::Bytes;
-use std::borrow::Cow;
 use std::sync::Arc;
+use systemprompt_gateway::{RouteResolution, RouteSource};
 use systemprompt_identifiers::{
     ClientSessionId, ContextId, GatewayConversationId, SessionId, TraceId, UserId,
 };
-use systemprompt_manifest::services::gateway::{GatewayConfig, GatewayRoute};
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{ClientEvidence, RequestOrigin};
 
@@ -148,10 +147,9 @@ pub(super) async fn extract_request_context(
         &gateway_request,
         partial,
     )?;
-    let route = resolve_route(rc, gateway_config, &gateway_request, partial)?;
+    let resolution = resolve_route(rc, &gateway_request, &attribution, partial)?;
     scope::enforce_key_model_allowlist(&principal, gateway_request.model.as_str())?;
-    let signatures_required =
-        signatures::route_needs_thought_signatures(&rc.services.providers, &route);
+    let signatures_required = signatures::route_needs_thought_signatures(&resolution);
     ensure_owned_context(rc, principal.user_id(), &context_id, &session_id).await?;
     rc.repos
         .thought_signatures
@@ -163,15 +161,15 @@ pub(super) async fn extract_request_context(
         )
         .await;
 
-    let upstream_model = upstream_model_for(
-        &rc.services.providers,
-        &route,
-        gateway_request.model.as_str(),
-    );
+    let primary = resolution
+        .primary()
+        .ok_or_else(|| unservable(&gateway_request))?;
+    let upstream_model = primary.upstream_model.clone();
+    let provider = primary.provider.as_str().to_owned();
 
     enforce_authz_pre_dispatch(
         &principal,
-        route.as_ref(),
+        resolution.access_route_id(),
         gateway_request.model.as_str(),
         &context_id,
         rc.ctx.authz_hook(),
@@ -186,7 +184,7 @@ pub(super) async fn extract_request_context(
         body_bytes,
         client_headers,
         gateway_request,
-        provider: route.provider.as_str().to_owned(),
+        provider,
         upstream_model,
         session_id,
         context_id,
@@ -195,22 +193,27 @@ pub(super) async fn extract_request_context(
     })
 }
 
-fn resolve_route<'a>(
+fn resolve_route(
     rc: &RequestContext<'_>,
-    gateway_config: &'a GatewayConfig,
     gateway_request: &CanonicalRequest,
+    attribution: &RequestAttribution,
     partial: &mut RejectionPartial,
-) -> Result<Cow<'a, GatewayRoute>, RejectionError> {
-    let route = gateway_config
-        .resolve_route(&rc.services.providers, gateway_request)
-        .ok_or_else(|| {
-            RejectionError::client(
-                StatusCode::NOT_FOUND,
-                format!("No gateway route matches model '{}'", gateway_request.model),
-            )
-        })?;
-    partial.provider = Some(route.provider.as_str().to_owned());
-    Ok(route)
+) -> Result<RouteResolution, RejectionError> {
+    let resolution = systemprompt_gateway::resolve_route(
+        RouteSource::Catalog(rc.catalog),
+        gateway_request,
+        attribution,
+    )
+    .map_err(|error| unservable(gateway_request).with_cause(error))?;
+    partial.provider = resolution.provider().map(str::to_owned);
+    Ok(resolution)
+}
+
+fn unservable(gateway_request: &CanonicalRequest) -> RejectionError {
+    RejectionError::client(
+        StatusCode::NOT_FOUND,
+        format!("No gateway route matches model '{}'", gateway_request.model),
+    )
 }
 
 // Why: the bridge supplies a thread hash even when the harness supplies its
@@ -244,23 +247,6 @@ pub fn derive_conversation(
     partial.gateway_conversation_id = Some(gateway_conversation_id.clone());
     partial.client_session_id.clone_from(&client_session_id);
     Ok((gateway_conversation_id, context_id, client_session_id))
-}
-
-fn upstream_model_for(
-    providers: &systemprompt_manifest::services::ProviderRegistry,
-    route: &GatewayRoute,
-    requested: &str,
-) -> String {
-    providers
-        .find_provider(route.provider.as_str())
-        .map_or_else(
-            || route.effective_upstream_model(requested).to_owned(),
-            |provider| {
-                provider
-                    .upstream_model_for(route.upstream_model.as_deref(), requested)
-                    .to_owned()
-            },
-        )
 }
 
 async fn ensure_owned_context(

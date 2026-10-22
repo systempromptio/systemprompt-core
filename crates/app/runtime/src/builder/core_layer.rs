@@ -8,8 +8,8 @@
 //! context self-sufficiently while a CLI that already ran them sees a no-op.
 //!
 //! Upstreams publish and retire models without an operator edit, so the
-//! provider registry is augmented at boot from their live listings
-//! (`discover_vertex_models`). That pass is fail-open: a provider no catalog
+//! catalog is augmented at boot from their live listings
+//! (`discover_vertex_models`). That pass is fail-open: an endpoint no catalog
 //! source recognises or a missing or unusable credential leaves the YAML
 //! catalog exactly as authored. Which providers are discoverable is decided by
 //! the loader's catalog sources from the credential their secret parses into —
@@ -47,8 +47,8 @@ pub(super) struct CoreLayer {
 async fn init_services(
     secrets: &systemprompt_manifest::secrets::Secrets,
 ) -> RuntimeResult<&'static systemprompt_manifest::services::ServicesConfig> {
-    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|providers| {
-        Box::pin(discover_vertex_models(providers))
+    let services = systemprompt_loader::ServicesBootstrap::try_init_with_discovery(|catalog| {
+        Box::pin(discover_vertex_models(catalog))
     })
     .await?;
     if let Some(gateway) = services.gateway_config() {
@@ -151,7 +151,7 @@ pub(super) async fn init_core(
 }
 
 pub async fn discover_vertex_models(
-    providers: &mut systemprompt_manifest::services::ProviderRegistry,
+    catalog: &mut systemprompt_manifest::services::catalog::CatalogDocument,
 ) -> systemprompt_manifest::services::DiscoveryReport {
     use systemprompt_manifest::services::DiscoveryReport;
 
@@ -161,7 +161,7 @@ pub async fn discover_vertex_models(
     };
     let lookup = |name: &str| secrets.get(name).cloned();
     systemprompt_loader::vertex_discovery::discover(
-        providers,
+        catalog,
         &lookup,
         std::time::Duration::from_secs(10),
     )

@@ -26,6 +26,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::AiRequestId;
 use systemprompt_loader::ServicesBootstrap;
 use systemprompt_manifest::services::ServicesConfig;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
 use systemprompt_models::origin::RequestOrigin;
 use systemprompt_runtime::AppContext;
 
@@ -42,6 +43,7 @@ pub(super) struct RequestContext<'a> {
     pub ctx: &'a AppContext,
     pub repos: &'a systemprompt_gateway::GatewayRepositories,
     pub services: &'static ServicesConfig,
+    pub catalog: &'static ResolvedCatalog,
     pub ai_request_id: &'a AiRequestId,
     pub access_log: Option<GatewayAccessLog>,
 }
@@ -148,12 +150,17 @@ impl HandleInner<'_> {
             RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
                 .with_cause(e)
         })?;
+        let catalog = ServicesBootstrap::catalog().map_err(|e| {
+            RejectionError::server(StatusCode::SERVICE_UNAVAILABLE, "services config not ready")
+                .with_cause(e)
+        })?;
         let access_log = request.extensions().get::<GatewayAccessLog>().cloned();
         let request_ctx = RequestContext {
             jwt_extractor: self.jwt_extractor,
             ctx: self.ctx,
             repos: self.repos,
             services,
+            catalog,
             ai_request_id: self.ai_request_id,
             access_log,
         };
