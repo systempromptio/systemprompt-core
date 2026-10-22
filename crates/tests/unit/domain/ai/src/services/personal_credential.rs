@@ -1,9 +1,10 @@
 //! One personal key serves every entry that names it in `credential_from`.
 //!
 //! Pins that storing the key probes every sibling endpoint, not only the
-//! owner's.
+//! owner's, and that the sibling entries share one token-cache key while two
+//! different credentials never do.
 
-use systemprompt_ai::{PersonalKeyError, credential_siblings, verify_personal_key};
+use systemprompt_ai::{PersonalKeyError, UpstreamTarget, credential_siblings, verify_personal_key};
 use systemprompt_identifiers::UserId;
 use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry};
 use wiremock::matchers::{method, path};
@@ -88,4 +89,24 @@ async fn a_key_one_sibling_refuses_is_rejected() {
     .await
     .unwrap_err();
     assert!(matches!(err, PersonalKeyError::Rejected(_)), "{err:?}");
+}
+
+#[test]
+fn entries_sharing_a_credential_share_one_token_cache_key() {
+    let registry = go_registry("https://go.example.test");
+    let user = UserId::new("member-1");
+    let key = |name: &str| {
+        let e = registry.find_provider(name).expect("entry");
+        UpstreamTarget::resolve_personal(e, "sk-x", &user)
+            .expect("resolves")
+            .cache_key()
+            .to_owned()
+    };
+    assert_eq!(key("go"), key("go-anthropic"));
+    assert_ne!(key("go"), key("other"));
+
+    let e = registry.find_provider("go").expect("entry");
+    let other_user =
+        UpstreamTarget::resolve_personal(e, "sk-x", &UserId::new("member-2")).expect("resolves");
+    assert_ne!(other_user.cache_key(), key("go"));
 }
