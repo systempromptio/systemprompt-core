@@ -132,7 +132,7 @@ async fn mark_stopped_and_error_clear_pid() {
 }
 
 #[tokio::test]
-async fn unrecognised_stored_status_is_invalid_data() {
+async fn unrecognised_stored_status_is_refused_by_the_check() {
     let pool = test_db_pool().await;
     let r = repos(&pool);
     let name = unique_name("svc-garbled");
@@ -142,18 +142,15 @@ async fn unrecognised_stored_status_is_invalid_data() {
         .expect("register");
 
     let raw = pool.pool();
-    sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
+    let refused = sqlx::query("UPDATE services SET status = 'degraded' WHERE name = $1")
         .bind(name.as_str())
         .execute(raw.as_ref())
         .await
-        .expect("garble status");
-
-    let err = r
-        .agent_services
-        .find_agent_status(&name)
-        .await
-        .expect_err("a status outside the agent vocabulary is corrupt");
-    assert!(matches!(err, RepositoryError::Decode { .. }), "got {err}");
+        .expect_err("a status outside the service vocabulary is refused by the CHECK");
+    let code = refused
+        .as_database_error()
+        .and_then(|e| e.code().map(|c| c.to_string()));
+    assert_eq!(code.as_deref(), Some("23514"), "got {refused}");
 
     r.agent_services.remove_agent_service(&name).await.ok();
 }

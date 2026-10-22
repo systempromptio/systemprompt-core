@@ -216,7 +216,7 @@ fn host(id: HostKind, profile_state: ProfileState, update_needs_approval: bool) 
 }
 
 fn with_hosts(mut snap: AppStateSnapshot, hosts: Vec<(HostKind, HostState)>) -> AppStateSnapshot {
-    snap.enabled_hosts = hosts.iter().map(|(id, _)| id.as_str().to_owned()).collect();
+    snap.enabled_hosts = hosts.iter().map(|(id, _)| *id).collect();
     snap.hosts.by_id.extend(hosts);
     snap
 }
