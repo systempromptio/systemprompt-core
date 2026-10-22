@@ -1,4 +1,4 @@
-//! Helpers for the planned execution strategy.
+//! The AI request the planned execution strategy sends for each step.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

@@ -150,7 +150,10 @@ pub use managed::{
 };
 pub use marketplace::{LibraryArtifactId, MarketplaceId, MarketplaceRuleId, RuleName};
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId, McpToolName};
-pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
+pub use oauth::{
+    AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenFamilyId, RefreshTokenId,
+    SsoProviderId,
+};
 pub use path::ValidatedFilePath;
 pub use plugin::PluginId;
 pub use policy::{CallId, PolicyId, PolicyVersion, SecretPatternId};

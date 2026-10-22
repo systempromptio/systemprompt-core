@@ -12,6 +12,7 @@
 
 use chrono::{DateTime, Utc};
 use subtle::ConstantTimeEq;
+use systemprompt_identifiers::SsoProviderId;
 
 use super::OAuthRepository;
 use super::at_rest::hash_at_rest;
@@ -31,7 +32,7 @@ pub struct SsoStateParams<'a> {
 
 #[derive(Debug, Clone)]
 pub struct SsoStateRow {
-    pub provider_id: String,
+    pub provider_id: SsoProviderId,
     pub return_to: String,
     pub binder_hash: String,
     pub request_id: Option<String>,

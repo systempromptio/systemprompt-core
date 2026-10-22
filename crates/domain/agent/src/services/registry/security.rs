@@ -80,11 +80,10 @@ fn absolutize(url: &mut String, api_external_url: &str) {
     }
 }
 
-#[expect(
-    clippy::implicit_hasher,
-    reason = "concrete HashMap is the documented input type"
-)]
-pub fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_external_url: &str) {
+pub fn override_oauth_urls<S: BuildHasher>(
+    schemes: &mut HashMap<String, SecurityScheme, S>,
+    api_external_url: &str,
+) {
     let Some(SecurityScheme::OAuth2(oauth2)) = schemes.get_mut("oauth2") else {
         return;
     };

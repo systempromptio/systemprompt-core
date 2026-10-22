@@ -1,4 +1,4 @@
-//! Stream-processor helpers.
+//! Artifacts built from tool results and the synthesized final response.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

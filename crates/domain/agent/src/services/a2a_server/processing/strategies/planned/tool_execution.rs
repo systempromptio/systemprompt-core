@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod recording;
 
 use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::TaskId;
@@ -22,9 +21,9 @@ use super::super::plan_executor::{
 };
 use super::super::tool_executor::ContextToolExecutor;
 use super::super::{ExecutionContext, ExecutionResult};
+use super::tool_recording::{build_tool_summary, record_execution_status};
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::message::StreamEvent;
-use recording::{build_tool_summary, record_execution_status};
 
 pub(super) struct HandleToolCallsParams<'a> {
     pub reasoning: String,

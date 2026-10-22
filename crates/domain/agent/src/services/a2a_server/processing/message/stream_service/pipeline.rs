@@ -1,6 +1,6 @@
 //! The spawned streaming pipeline run.
 //!
-//! Implements [`StreamProcessor::process_message_stream`] and the worker it
+//! Implements [`StreamService::process_message_stream`] and the worker it
 //! spawns: it assembles AI messages, selects an execution strategy, runs it,
 //! builds artifacts, synthesizes a final response, and emits exactly one
 //! terminal event (`Complete`, `Error`, or `Cancelled`).
@@ -8,17 +8,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod execution;
-mod messages;
 
 use std::sync::Arc;
 
 use tokio::sync::mpsc;
 
-use self::execution::{build_artifacts, run_strategy};
-use self::messages::{BuildAiMessagesParams, build_ai_messages};
-use super::StreamProcessor;
-use super::helpers::{SynthesizeFinalResponseParams, synthesize_final_response};
+use super::StreamService;
+use super::execution::{build_artifacts, run_strategy};
+use super::messages::{BuildAiMessagesParams, build_ai_messages};
+use super::synthesis::{SynthesizeFinalResponseParams, synthesize_final_response};
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Artifact;
 use crate::services::a2a_server::processing::message::content::extract_message_content;
@@ -30,7 +28,7 @@ use crate::services::shared::{AgentServiceError, Result};
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::{AiMessage, RequestContext};
 
-impl StreamProcessor {
+impl StreamService {
     pub async fn process_message_stream(
         &self,
         params: ProcessMessageStreamParams<'_>,
@@ -123,7 +121,7 @@ async fn run_stream_pipeline(params: RunStreamPipelineParams) {
         Err(AgentServiceError::StreamClosed) => {
             tracing::debug!("Stream receiver dropped; pipeline stopped");
         },
-        Err(e) => report_stream_error(&tx, e.to_string()).await,
+        Err(e) => report_stream_error(&tx, e).await,
     }
 }
 
@@ -194,8 +192,8 @@ async fn run_pipeline(params: RunStreamPipelineParams) -> Result<(String, Vec<Ar
     Ok((final_text, artifacts))
 }
 
-async fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, message: String) {
-    if tx.send(StreamEvent::Error(message)).await.is_err() {
+async fn report_stream_error(tx: &mpsc::Sender<StreamEvent>, error: AgentServiceError) {
+    if tx.send(StreamEvent::Error(Arc::new(error))).await.is_err() {
         tracing::trace!("Failed to send error event, channel closed");
     }
 }

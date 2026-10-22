@@ -38,7 +38,7 @@ pub use registration_token::{
 pub use session::{
     AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
 };
-pub use templating::TemplateEngine;
+pub use templating::TemplateService;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 
 pub use generation::{

@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use super::super::helpers::build_artifacts_from_results;
+use super::synthesis::build_artifacts_from_results;
 use crate::models::a2a::Artifact;
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionResult, ExecutionStrategySelector,

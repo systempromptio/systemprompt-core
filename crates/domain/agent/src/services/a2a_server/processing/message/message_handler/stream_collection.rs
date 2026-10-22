@@ -1,4 +1,5 @@
-//! Message-handler helpers.
+//! Collecting a message stream into its response and broadcasting the AG-UI
+//! lifecycle around it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -30,12 +31,14 @@ pub(super) async fn collect_stream_response(
                 tool_artifacts = artifacts;
             },
             StreamEvent::Error(error) => {
-                let error_event =
-                    AgUiEventBuilder::run_error(error.clone(), Some("EXECUTION_ERROR".to_owned()));
+                let error_event = AgUiEventBuilder::run_error(
+                    error.to_string(),
+                    Some("EXECUTION_ERROR".to_owned()),
+                );
                 if let Err(e) = webhooks.broadcast_agui(error_event).await {
                     tracing::debug!(error = %e, "Failed to broadcast error event");
                 }
-                return Err(AgentServiceError::StreamFailed { message: error });
+                return Err(AgentServiceError::StreamFailed { source: error });
             },
             StreamEvent::Cancelled => return Err(AgentServiceError::TaskCancelled),
             StreamEvent::ToolCallStarted(_)

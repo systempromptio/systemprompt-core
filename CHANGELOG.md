@@ -38,6 +38,13 @@
 - **Breaking:** `systemprompt_logging::attribution` (`install_log_attribution`, `platform_attribution`, `LogAttributionUnset`) is removed, and `LogActor::platform(owner: &SystemAdmin, trace_id)` is infallible. Migrate by `ctx.logging().platform_actor(trace_id)` or passing `ctx.system_admin()`.
 - **Breaking:** `GatewayRepositories::new(db, journal, context_materializer, handles: GatewayHandles)` takes `GatewayHandles { background, cache_epochs, logging }`; `log_gateway_terminal` takes the `&LoggingRuntime` and `TerminalOutcome::actor` is a `LogActor`. `ingest_traces`, `ingest_logs` and `ingest_envelope` take the `&LoggingRuntime`, `build_rejection_record` takes the instance id, and `OpsSampler::new` takes the `LogSink`. Migrate by passing the values from `AppContext`.
 - **Breaking:** `JsonEventFormat` and `FilterSystemFields` are no longer unit structs. Migrate by `JsonEventFormat::default()` and `FilterSystemFields::new()`.
+- **Breaking:** `SsoLoginEvent::provider_id` is `SsoProviderId`, `SsoStateRow::provider_id` is `SsoProviderId` and `ConsumedRefreshToken::family_id` is `RefreshTokenFamilyId` (new in `systemprompt_identifiers`). Migrate by reading the value through `as_str()`.
+- **Breaking:** `systemprompt_oauth::TemplateEngine` is `TemplateService`. Migrate by renaming the import.
+- **Breaking:** `systemprompt_oauth` re-exports an explicit list from `models` (the `cimd`, `clients` and `oauth` modules plus their public types) and from `services::validation`; the `error::kind` module is folded into `error` (`OauthErrorKind` stays at `systemprompt_oauth::OauthErrorKind`). Migrate a path that went through `error::kind` to `error::OauthErrorKind`.
+- **Breaking:** `systemprompt_mcp::services::network::proxy::create_proxy_router` and `NetworkService::create_proxy` take the `reqwest::Client` they forward through; the process-wide proxy client is removed. Migrate by passing the caller's client.
+- **Breaking:** `systemprompt_mcp::{TaskContext, TaskManager, TaskOptions}` re-exports are removed, and `services::registry::trait_impl` is folded into `services::registry` (`McpDeploymentProviderImpl` stays at the crate root). Migrate by importing from `rmcp::task_manager`.
+- **Breaking:** `StreamEvent::Error` carries `Arc<AgentServiceError>` and `AgentServiceError::StreamFailed` is `{ source: Arc<AgentServiceError> }`. Migrate by matching the typed error and formatting it where text is needed.
+- **Breaking:** in `systemprompt_agent::services::a2a_server`, `MessageProcessor` is `MessageHandler` and `StreamProcessor` is `StreamService`; `processing::message::stream_processor` is `stream_service` (its `helpers` module is `synthesis`), and `handlers::request::helpers` is `handlers::request::routing`. Migrate by renaming the imports.
 
 ### Added
 
@@ -54,6 +61,7 @@
 - `systemprompt_identifiers::QuotaSubjectId`: the subject a quota window is counted against.
 - `systemprompt_database::escape_like`: escapes `\`, `%` and `_` for a `LIKE … ESCAPE '\'` pattern.
 - `ProviderCapability::BatchImageGeneration` and `AiError::capability_unsupported(provider, capability)`.
+- `systemprompt_database::owner_reassignment!` declares a domain's `OwnerReassignment` repository from per-table `update`/`delete` statements; the agent, analytics, content, files and mcp reassignments are declared through it and run every statement in one transaction.
 
 ### Changed
 
@@ -64,6 +72,7 @@
 - **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
 - Reading a log row whose stored level, metadata or context id does not decode returns `LoggingError::Repository(RepositoryError::Decode)` with the parse error as its source, instead of an `Info` row with the field dropped.
 - An entry enqueued before the database sink attaches counts toward `LogSink::dropped_entries`.
+- `systemprompt_analytics::models`, its `reporting` module and `systemprompt_marketplace::inventory` re-export explicit item lists instead of globs; the exported set is unchanged.
 
 ### Removed
 

@@ -57,7 +57,6 @@ crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
 crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HTTP client
 crates/app/scheduler/src/jobs/otlp_export/transport.rs:CLIENT — debt: process-wide HTTP client
-crates/domain/mcp/src/services/network/proxy.rs:CLIENT — debt: process-wide HTTP client
 crates/app/scheduler/src/jobs/inventory.rs:LAST — debt: per-job memo
 crates/app/scheduler/src/jobs/vertex_discovery.rs:LATEST — debt: last discovery report
 crates/app/oauth-issuance/src/token_exchange/subject.rs:SHARED_JWKS — debt: JWKS client cache

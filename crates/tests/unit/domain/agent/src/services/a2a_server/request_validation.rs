@@ -8,7 +8,7 @@ use axum::http::StatusCode;
 use systemprompt_agent::models::a2a::A2aJsonRpcRequest;
 use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 use systemprompt_agent::models::a2a::protocol::A2aRequestParams;
-use systemprompt_agent::services::a2a_server::handlers::request::helpers::parse_a2a_request;
+use systemprompt_agent::services::a2a_server::handlers::request::routing::parse_a2a_request;
 use systemprompt_agent::services::a2a_server::handlers::request::validation::{
     ContextValidationError, should_require_oauth, validate_message_context, validate_task_owner,
 };
