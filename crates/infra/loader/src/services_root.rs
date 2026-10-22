@@ -8,7 +8,8 @@
 //!
 //! The cell is installed once, before [`crate::ConfigLoader`] reads anything;
 //! [`ServicesRootBootstrap::require`] is the accessor for callers that need
-//! it, and installs the profile's baked tree when no bundle bootstrap ran.
+//! it, and answers the profile's baked tree while no bundle bootstrap has
+//! installed one, without claiming the cell.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -69,15 +70,15 @@ impl ServicesRootBootstrap {
         ACTIVE_ROOT.get().is_some()
     }
 
-    pub fn require() -> Result<&'static ActiveServicesRoot, ConfigLoadError> {
+    pub fn require() -> Result<ActiveServicesRoot, ConfigLoadError> {
         if let Some(root) = ACTIVE_ROOT.get() {
-            return Ok(root);
+            return Ok(root.clone());
         }
         let path = PathBuf::from(&ProfileBootstrap::get()?.paths.services);
-        Ok(Self::install(ActiveServicesRoot {
+        Ok(ActiveServicesRoot {
             base: path.clone(),
             path,
             provenance: ServicesProvenance::Bundled,
-        }))
+        })
     }
 }

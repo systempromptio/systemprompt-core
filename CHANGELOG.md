@@ -4,7 +4,7 @@
 
 ### Breaking
 
-- **Breaking:** `ServicesRootBootstrap::{active_root_or, active_path_or}` are removed. Migrate by `ServicesRootBootstrap::require()?`, which installs the active profile's `paths.services` tree as the root when no bundle bootstrap has run; code examining a named profile reads `profile.paths.services`.
+- **Breaking:** `ServicesRootBootstrap::{active_root_or, active_path_or}` are removed. Migrate by `ServicesRootBootstrap::require()?`, which answers the active profile's `paths.services` tree while no bundle bootstrap has installed a root; code examining a named profile reads `profile.paths.services`.
 - **Breaking:** `systemprompt_api::services::server::scheduler_health::{record, degraded}` and `routes::admin::services::process_refresh_lock` are removed; `ServicesRefresh::with_lock` is folded into `ServicesRefresh::new(ctx, lock)`. The server owns a `SchedulerHealth` (`EarlyServer::scheduler_health()`), which `handle_health` reads as an `Extension<Arc<SchedulerHealth>>`, and the route builder owns one `RefreshLock`. Migrate by layering both as axum extensions on a router that serves `handle_health` or the refresh route.
 - **Breaking:** `systemprompt_api::routes::messaging::guarded_http_client` is removed and `slack_router` takes a `MessagingState`. Migrate by building `MessagingState::guarded()?` once where the routes are mounted and passing it to `slack_router`; a guarded client that cannot be built fails route mounting.
 - **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
