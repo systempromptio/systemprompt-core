@@ -10,7 +10,7 @@ use axum::body::to_bytes;
 use systemprompt_api::services::server::metrics::install_recorder;
 use systemprompt_gateway::service::GatewayService;
 use systemprompt_identifiers::InstanceId;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -56,7 +56,7 @@ async fn dispatch_once(label: &str, stream: bool) -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repos = gw_repos(&pool);
     let resp = GatewayService::dispatch(

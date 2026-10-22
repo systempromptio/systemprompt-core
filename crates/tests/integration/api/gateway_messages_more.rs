@@ -287,26 +287,8 @@ fn api_key_principal(user: &str) -> AuthedPrincipal {
     })
 }
 
-fn gateway_route() -> systemprompt_manifest::services::GatewayRoute {
-    let mut route = systemprompt_manifest::services::GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: "claude-*".to_owned(),
-        provider: systemprompt_identifiers::ProviderId::new("anthropic"),
-        upstream_model: None,
-        extra_headers: std::collections::HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
-    route
+fn gateway_route() -> systemprompt_identifiers::RouteId {
+    systemprompt_identifiers::RouteId::new("claude-route")
 }
 
 #[tokio::test]

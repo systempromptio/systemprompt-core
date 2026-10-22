@@ -31,58 +31,75 @@ use tower::ServiceExt;
 use super::common::body_to_string;
 
 const GATEWAY_YAML: &str = r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: enabled_routes_anthropic_key
+  openai:
+    kind: platform
+    secret: enabled_routes_openai_key
+  unkeyed:
+    kind: platform
+    secret: enabled_routes_unset_key
 providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_anthropic_key
-    models:
-      - id: claude-fixture-1
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
-      - id: claude-fixture-2
-        pricing:
-          input_per_million: 1.0
-          output_per_million: 5.0
-          cache_read_per_million: 0.0
-  - name: openai
-    wire: openai_chat
-    surface: openai
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_openai_key
-    models:
-      - id: gpt-fixture-1
-        pricing:
-          input_per_million: 2.5
-          output_per_million: 10.0
-          cache_read_per_million: 0.0
-  - name: unkeyed
-    wire: openai_chat
-    surface: openai
-    endpoint: http://127.0.0.1:1
-    api_key_secret: enabled_routes_unset_key
-    models:
-      - id: unkeyed-fixture-1
-        pricing:
-          input_per_million: 1.0
-          output_per_million: 1.0
-          cache_read_per_million: 0.0
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: http://127.0.0.1:1
+  openai:
+    credential: openai
+    endpoints:
+      api:
+        wire: openai-chat
+        url: http://127.0.0.1:1
+  unkeyed:
+    credential: unkeyed
+    endpoints:
+      api:
+        wire: openai-chat
+        url: http://127.0.0.1:1
+models:
+  claude-fixture-1:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+  claude-fixture-2:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 5.0
+      cache_read_per_million: 0.0
+  gpt-fixture-1:
+    clients:
+    - openai
+    pricing:
+      input_per_million: 2.5
+      output_per_million: 10.0
+      cache_read_per_million: 0.0
+  unkeyed-fixture-1:
+    clients:
+    - openai
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 1.0
+      cache_read_per_million: 0.0
+deployments:
+  claude-fixture-1:
+  - anthropic/api
+  claude-fixture-2:
+  - anthropic/api
+  gpt-fixture-1:
+  - openai/api
+  unkeyed-fixture-1:
+  - unkeyed/api
 gateway:
   enabled: true
-  allow_unlisted_models: false
-  routes:
-    - id: claude
-      model_pattern: "claude-*"
-      provider: anthropic
-    - id: gpt
-      model_pattern: "gpt-*"
-      provider: openai
-    - id: unkeyed
-      model_pattern: "unkeyed-*"
-      provider: unkeyed
 "#;
 
 static BOOT: OnceLock<TestBootstrap> = OnceLock::new();

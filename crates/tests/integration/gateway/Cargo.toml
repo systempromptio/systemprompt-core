@@ -11,6 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+systemprompt-catalog-fixtures = { workspace = true }
 reqwest = { workspace = true }
 systemprompt-gateway = { workspace = true }
 systemprompt-config = { workspace = true }

@@ -39,25 +39,30 @@ static HARNESS: OnceCell<Harness> = OnceCell::const_new();
 fn gateway_yaml(endpoint: &str) -> String {
     format!(
         r#"
+credentials:
+  anthropic:
+    kind: platform
+    secret: {SECRET_NAME}
 providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: {endpoint}
-    api_key_secret: {SECRET_NAME}
-    models:
-      - id: {MODEL}
-        pricing:
-          input_per_million: 3.0
-          output_per_million: 15.0
-          cache_read_per_million: 0.0
+  anthropic:
+    credential: anthropic
+    endpoints:
+      api:
+        wire: anthropic
+        url: {endpoint}
+models:
+  {MODEL}:
+    clients:
+    - claude
+    pricing:
+      input_per_million: 3.0
+      output_per_million: 15.0
+      cache_read_per_million: 0.0
+deployments:
+  {MODEL}:
+  - anthropic/api
 gateway:
   enabled: true
-  allow_unlisted_models: false
-  routes:
-    - id: tool-choice-fixture
-      model_pattern: "{MODEL}"
-      provider: anthropic
 "#
     )
 }

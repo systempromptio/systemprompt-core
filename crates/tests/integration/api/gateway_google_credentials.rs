@@ -37,24 +37,30 @@ async fn dispatch(
         }))).expect(if expected_success { 2 } else { 0 }).mount(&upstream).await;
     let boot = init_services_bootstrap(&format!(
         r#"
+credentials:
+  google-fixture:
+    kind: platform
+    secret: coverage_google_key
 providers:
-  - name: google-fixture
-    wire: gemini
-    surface: gemini
-    endpoint: {}
-    api_key_secret: coverage_google_key
-    models:
-      - id: gemini-fixture
-        pricing:
-          input_per_million: 1.0
-          output_per_million: 1.0
-          cache_read_per_million: 0.0
+  google-fixture:
+    credential: google-fixture
+    endpoints:
+      api:
+        wire: gemini
+        url: {}
+models:
+  gemini-fixture:
+    clients:
+    - gemini
+    pricing:
+      input_per_million: 1.0
+      output_per_million: 1.0
+      cache_read_per_million: 0.0
+deployments:
+  gemini-fixture:
+  - google-fixture/api
 gateway:
   enabled: true
-  routes:
-    - id: google-coverage
-      model_pattern: gemini-fixture
-      provider: google-fixture
 "#,
         upstream.uri()
     ));

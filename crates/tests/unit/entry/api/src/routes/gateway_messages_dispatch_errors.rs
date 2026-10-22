@@ -103,7 +103,7 @@ fn an_unconfigured_provider_secret_is_a_non_retryable_404() {
         cause,
         ..
     } = classify_dispatch_error(GatewayError::from(UpstreamTargetError::MissingSecret {
-        provider: "vertex-maas".to_owned(),
+        credential: "vertex-maas".to_owned(),
         secret: "vertex_maas".to_owned(),
     }));
 
@@ -146,7 +146,7 @@ fn a_secrets_store_outage_stays_a_502() {
 fn an_unservable_model_is_still_persisted_for_audit() {
     let (status, _, persist) = rejection(DispatchError::PreAudit(GatewayError::from(
         UpstreamTargetError::MissingSecret {
-            provider: "vertex-maas".to_owned(),
+            credential: "vertex-maas".to_owned(),
             secret: "vertex_maas".to_owned(),
         },
     )));

@@ -13,7 +13,7 @@ use systemprompt_api::routes::gateway::messages::extract::scope::{
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
 use systemprompt_identifiers::{ScopeDimension, SessionId, TraceId};
 use systemprompt_models::attribution::{RequestAttribution, ScopeBinding};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_users::{ApiKeyLimits, ApiKeyService, IssueApiKeyParams, UserApiKey};
 use systemprompt_wire::WireProtocol;
@@ -147,7 +147,7 @@ async fn a_per_key_request_ceiling_denies_the_second_request_as_api_key() -> any
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repos = gw_repos(&pool);
     let keyed = |request| {

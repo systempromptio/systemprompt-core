@@ -9,8 +9,8 @@ use systemprompt_database::DbPool;
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::policies::{GatewayPolicyConfig, GatewayPolicyEntry, GatewayPolicySpec};
 use systemprompt_gateway::service::{DispatchError, GatewayService};
-use systemprompt_manifest::services::ProviderRegistry;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_manifest::services::catalog::ResolvedCatalog;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{AuthedFixture, DisposableDb, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::method;
@@ -55,7 +55,7 @@ async fn fixture(schema: &str, policy: serde_json::Value) -> anyhow::Result<Fixt
 impl Fixture {
     async fn dispatch(
         &self,
-        registry: &ProviderRegistry,
+        registry: &ResolvedCatalog,
     ) -> Result<http::StatusCode, DispatchError> {
         let dispatch = inputs(&self.cred, canonical_request(MODEL, false), false);
         let config = gateway_config(PROVIDER);
@@ -101,12 +101,12 @@ async fn upstream(expected: u64) -> MockServer {
     server
 }
 
-fn registry(server: &MockServer) -> ProviderRegistry {
+fn registry(server: &MockServer) -> ResolvedCatalog {
     provider_registry(
         &server.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     )
 }
 

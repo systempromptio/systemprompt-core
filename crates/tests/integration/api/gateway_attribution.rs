@@ -19,7 +19,7 @@ use systemprompt_models::attribution::{AttributionSource, RequestAttribution, Sc
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -429,7 +429,7 @@ async fn a_completed_request_persists_its_attribution_and_api_key() -> anyhow::R
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut dispatch = inputs(&cred, canonical_request(MODEL, false), false);
     dispatch.ctx.attribution = RequestAttribution {

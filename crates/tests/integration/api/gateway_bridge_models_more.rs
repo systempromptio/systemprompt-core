@@ -13,7 +13,7 @@ use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use systemprompt_api::error::ApiHttpError;
 use systemprompt_api::routes::gateway::bridge::canonicalize_org_uuid;
 use systemprompt_api::routes::gateway::gateway_router;
-use systemprompt_api::routes::gateway::models::{humanize_model_id, surfaces_from_header};
+use systemprompt_api::routes::gateway::models::{humanize_model_id, families_from_header};
 use systemprompt_database::DbPool;
 use systemprompt_gateway::audit::GatewayAudit;
 use systemprompt_gateway::audit::message_text::flatten_message_content;
@@ -25,7 +25,7 @@ use systemprompt_identifiers::{
     AiRequestId, ContextId, GatewayConversationId, TenantId, TraceId, UserId,
 };
 use systemprompt_models::api::ErrorCode;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{install_test_signing_key, seed_admin_credential};
 use tower::ServiceExt;
 
@@ -100,34 +100,26 @@ fn canonicalize_org_uuid_hashes_non_uuid_deterministically() {
 }
 
 #[test]
-fn surfaces_from_header_absent_is_empty() {
-    let surfaces = surfaces_from_header(&HeaderMap::new()).expect("ok");
-    assert!(surfaces.is_empty());
+fn families_from_header_absent_is_empty() {
+    let families = families_from_header(&HeaderMap::new()).expect("ok");
+    assert!(families.is_empty());
 }
 
 #[test]
-fn surfaces_from_header_parses_known_tags() {
-    let h = header_map(&[(INFERENCE_PROTOCOL, "anthropic")]);
-    let surfaces = surfaces_from_header(&h).expect("ok");
-    assert_eq!(surfaces, vec![ApiSurface::Anthropic]);
+fn families_from_header_parses_known_tags() {
+    let h = header_map(&[(INFERENCE_PROTOCOL, "claude")]);
+    let families = families_from_header(&h).expect("ok");
+    assert_eq!(families, vec![ClientFamily::Claude]);
 }
 
 #[test]
-fn surfaces_from_header_rejects_unknown_tag() {
+fn families_from_header_rejects_unknown_tag() {
     let h = header_map(&[(INFERENCE_PROTOCOL, "quantum")]);
-    let err = surfaces_from_header(&h).expect_err("unknown must fail");
+    let err = families_from_header(&h).expect_err("unknown must fail");
     assert_eq!(err.tag, "quantum");
     let err = ApiHttpError::from(err).into_inner();
     assert_eq!(err.code, ErrorCode::BadRequest);
     assert!(err.message.contains("unknown"), "{}", err.message);
-}
-
-#[test]
-fn surfaces_from_header_rejects_backend_surface() {
-    let h = header_map(&[(INFERENCE_PROTOCOL, "backend")]);
-    let err = surfaces_from_header(&h).expect_err("backend is not a client surface");
-    let err = ApiHttpError::from(err).into_inner();
-    assert_eq!(err.code, ErrorCode::BadRequest);
 }
 
 #[test]
@@ -216,6 +208,7 @@ fn gateway_ctx(id: &AiRequestId, user: &UserId, upstream_model: &str) -> Gateway
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),
+        hop: None,
         requested_model: Some("claude-test".to_owned()),
         model: upstream_model.to_owned(),
         max_tokens: Some(64),

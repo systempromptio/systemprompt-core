@@ -1,10 +1,8 @@
-//! Per-scope upstream routing: a route's `by_scope` chain is selected by the
-//! value the registered `project` dimension attributes the request to, an
-//! unmapped value is refused before any upstream call unless the route opts
-//! into `unmapped: shared`, and a quota window keyed by the dimension counts
-//! the scoped request.
-
-use std::collections::BTreeMap;
+//! Per-scope upstream routing: a policy route whose `when: scope` matches the
+//! value the registered `project` dimension attributes the request to pins its
+//! deployment; any other value, or an unattributed request, is served by the
+//! model's own chain; and a quota window keyed by the dimension counts the
+//! scoped request.
 
 use axum::body::to_bytes;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
@@ -14,15 +12,19 @@ use systemprompt_api::routes::gateway::messages::extract::scope::{
 };
 use systemprompt_gateway::GatewayRepositories;
 use systemprompt_gateway::service::{DispatchError, GatewayError, GatewayService};
-use systemprompt_identifiers::{ApiKeyId, ProviderId, ScopeDimension, UserId};
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
+use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, EndpointRef, ModelEntry, ProviderConfig, ResolvedCatalog,
+};
 use systemprompt_manifest::services::{
-    GatewayConfig, ProviderRegistry, RouteScopeChains, ScopeChain, UnmappedScope,
+    GatewayConfig, GatewayRoute, ModelGlobs, RouteDeployment, RouteMatch,
 };
 use systemprompt_models::attribution::RequestAttribution;
 use systemprompt_models::origin::{
     ClientAttestation, ClientKind, InboundWireProtocol, RequestOrigin,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{AuthedFixture, DisposableDb, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -31,7 +33,6 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use super::common::setup_ctx;
 use super::gateway_pipeline::{
     MODEL, canonical_request, gateway_config, gw_repos, inputs, install_provider_api_key,
-    provider_registry,
 };
 
 const SCOPED_USER_PREFIX: &str = "scope-attr-";
@@ -62,59 +63,65 @@ async fn hits(server: &MockServer) -> usize {
         .len()
 }
 
+const SCOPED_ROUTE: &str = "scope-p-other";
+
 struct Topology {
     shared: MockServer,
     scoped: MockServer,
-    registry: ProviderRegistry,
-    shared_name: String,
+    registry: ResolvedCatalog,
     scoped_name: String,
 }
 
+// Why: `MODEL` is deployed on the shared endpoint first and the scoped one
+// second, so a request no policy route narrows is served by the shared
+// upstream; the `p-other` project route pins the scoped deployment.
 async fn topology() -> Topology {
     let shared = upstream("shared served").await;
     let scoped = upstream("scoped served").await;
     let shared_name = format!("vertex-shared-{}", uuid::Uuid::new_v4().simple());
     let scoped_name = format!("vertex-scoped-{}", uuid::Uuid::new_v4().simple());
-    let mut registry = provider_registry(
-        &shared.uri(),
-        &shared_name,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut entry = registry.providers[0].clone();
-    entry.name = ProviderId::new(&scoped_name);
-    entry.endpoint = scoped.uri();
-    registry.providers.push(entry);
+    let scope = [(
+        ScopeDimension::try_new("project").expect("dimension"),
+        "p-other".to_owned(),
+    )]
+    .into_iter()
+    .collect();
+    let registry = CatalogFixture::new()
+        .credential(&shared_name, platform("anthropic"))
+        .credential(&scoped_name, platform("anthropic"))
+        .provider(&shared_name, ProviderConfig::new(&shared_name))
+        .provider(&scoped_name, ProviderConfig::new(&scoped_name))
+        .endpoint(&shared_name, "api", EndpointConfig::new(WireProtocol::Anthropic, shared.uri()))
+        .endpoint(&scoped_name, "api", EndpointConfig::new(WireProtocol::Anthropic, scoped.uri()))
+        .model(MODEL, ModelEntry::new(vec![ClientFamily::Claude]))
+        .deploy(
+            MODEL,
+            [
+                format!("{shared_name}/api").as_str(),
+                format!("{scoped_name}/api").as_str(),
+            ],
+        )
+        .route(GatewayRoute {
+            models: ModelGlobs(vec![MODEL.to_owned()]),
+            when: Some(RouteMatch {
+                scope,
+                ..RouteMatch::default()
+            }),
+            deployments: vec![RouteDeployment::Endpoint(EndpointRef::new(&scoped_name, "api"))],
+            ..GatewayRoute::new(SCOPED_ROUTE)
+        })
+        .build();
     Topology {
         shared,
         scoped,
         registry,
-        shared_name,
         scoped_name,
     }
 }
 
 impl Topology {
-    fn config(&self, unmapped: UnmappedScope) -> GatewayConfig {
-        let mut config = gateway_config(&self.shared_name);
-        let mut chains = BTreeMap::new();
-        chains.insert(
-            "p-other".to_owned(),
-            ScopeChain {
-                provider: ProviderId::new(&self.scoped_name),
-                upstream_model: None,
-                fallbacks: Vec::new(),
-                strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-                weight: None,
-                context_fallbacks: Vec::new(),
-            },
-        );
-        config.routes[0].by_scope = Some(RouteScopeChains {
-            dimension: ScopeDimension::try_new("project").expect("dimension"),
-            chains,
-            unmapped,
-        });
-        config
+    fn config(&self) -> GatewayConfig {
+        gateway_config(&self.scoped_name)
     }
 }
 
@@ -154,7 +161,7 @@ async fn send(
     repos: &GatewayRepositories,
     cred: &AuthedFixture,
     config: &GatewayConfig,
-    registry: &ProviderRegistry,
+    registry: &ResolvedCatalog,
     attribution: RequestAttribution,
 ) -> Result<String, DispatchError> {
     let mut dispatch = inputs(cred, canonical_request(MODEL, false), false);
@@ -178,7 +185,7 @@ async fn a_mapped_scope_value_reaches_its_own_deployment_and_records_the_scope()
     let mut dispatch = inputs(&cred, canonical_request(MODEL, false), false);
     dispatch.ctx.attribution = attribution;
     let id = dispatch.ctx.ai_request_id.clone();
-    let config = topo.config(UnmappedScope::Deny);
+    let config = topo.config();
     let response = GatewayService::dispatch(&config, &topo.registry, &pool, &repos, dispatch)
         .await
         .expect("scoped dispatch succeeds");
@@ -186,58 +193,37 @@ async fn a_mapped_scope_value_reaches_its_own_deployment_and_records_the_scope()
     assert!(String::from_utf8_lossy(&body).contains("scoped served"));
     assert_eq!(hits(&topo.scoped).await, 1);
     assert_eq!(hits(&topo.shared).await, 0, "the shared chain is not used");
-    let (served, route_match): (Option<String>, Option<String>) =
-        sqlx::query_as("SELECT served_provider, route_match FROM ai_requests WHERE id = $1")
+    let (provider, endpoint, route_match): (Option<String>, Option<String>, Option<String>) =
+        sqlx::query_as("SELECT provider, endpoint, route_match FROM ai_requests WHERE id = $1")
             .bind(id.as_str())
             .fetch_one(pool.pool().as_ref())
             .await?;
-    assert_eq!(served.as_deref(), Some(topo.scoped_name.as_str()));
+    assert_eq!(provider.as_deref(), Some(topo.scoped_name.as_str()));
+    assert_eq!(endpoint, Some(format!("{}/api", topo.scoped_name)));
     assert!(
         route_match
             .unwrap_or_default()
-            .contains("scope:project=p-other")
+            .contains(&format!("route:{SCOPED_ROUTE}"))
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn an_unmapped_scope_value_is_denied_before_any_upstream_call() -> anyhow::Result<()> {
-    install_provider_api_key();
-    let (pool, _) = setup_ctx().await?;
-    let cred = seed_admin_credential(&pool, "scope-route-unmapped@example.invalid").await?;
-    let repos = gw_repos(&pool);
-    let topo = topology().await;
-    let attribution = attribute(&repos, None).await;
-    assert_eq!(attribution.value_for("project"), Some("p-primary"));
-    let config = topo.config(UnmappedScope::Deny);
-    let error = send(&pool, &repos, &cred, &config, &topo.registry, attribution)
-        .await
-        .expect_err("an unmapped value is refused");
-    let DispatchError::PreAudit(GatewayError::PolicyDenied(denied)) = error else {
-        panic!("expected a pre-audit policy denial, got {error:?}");
-    };
-    assert!(denied.0.contains("project='p-primary'"), "{}", denied.0);
-    assert_eq!(hits(&topo.shared).await + hits(&topo.scoped).await, 0);
-    Ok(())
-}
-
-#[tokio::test]
-async fn shared_opt_in_and_unattributed_requests_take_the_route_chain() -> anyhow::Result<()> {
+async fn other_and_unattributed_requests_take_the_models_chain() -> anyhow::Result<()> {
     install_provider_api_key();
     let (pool, _) = setup_ctx().await?;
     let cred = seed_admin_credential(&pool, "scope-route-shared@example.invalid").await?;
     let repos = gw_repos(&pool);
     let topo = topology().await;
-    let shared = topo.config(UnmappedScope::Shared);
-    let unmapped = attribute(&repos, Some("p-primary")).await;
-    let body = send(&pool, &repos, &cred, &shared, &topo.registry, unmapped).await?;
+    let config = topo.config();
+    let other = attribute(&repos, Some("p-primary")).await;
+    let body = send(&pool, &repos, &cred, &config, &topo.registry, other).await?;
     assert!(body.contains("shared served"), "{body}");
-    let denying = topo.config(UnmappedScope::Deny);
     let body = send(
         &pool,
         &repos,
         &cred,
-        &denying,
+        &config,
         &topo.registry,
         RequestAttribution::none(),
     )
@@ -266,7 +252,7 @@ async fn a_quota_window_on_the_routing_dimension_counts_the_scoped_request() -> 
     .await?;
     let repos = gw_repos(&pool);
     let topo = topology().await;
-    let config = topo.config(UnmappedScope::Deny);
+    let config = topo.config();
     let first = attribute(&repos, Some("p-other")).await;
     let body = send(&pool, &repos, &cred, &config, &topo.registry, first).await?;
     assert!(body.contains("scoped served"), "{body}");

@@ -8,7 +8,7 @@ use systemprompt_ai::repository::InsertToolCallParams;
 use systemprompt_gateway::protocol::{CanonicalContent, CanonicalMessage, Role};
 use systemprompt_gateway::service::GatewayService;
 use systemprompt_identifiers::{AiToolCallId, McpToolName};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{fixture_artifact_ingest, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use uuid::Uuid;
@@ -56,7 +56,7 @@ async fn replayed_tool_results_are_deduplicated_and_correlated_as_artifacts() ->
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let config = gateway_config(PROVIDER);
 
@@ -266,7 +266,7 @@ async fn tool_result_artifact_uses_the_live_gateway_safety_policy() -> anyhow::R
             &upstream.uri(),
             PROVIDER,
             WireProtocol::Anthropic,
-            ApiSurface::Anthropic,
+            ClientFamily::Claude,
         ),
         &pool,
         &repositories,

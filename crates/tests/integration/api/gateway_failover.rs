@@ -4,9 +4,11 @@
 use axum::body::to_bytes;
 use systemprompt_gateway::protocol::outbound::UpstreamError;
 use systemprompt_gateway::service::{DispatchError, GatewayService};
-use systemprompt_identifiers::ProviderId;
-use systemprompt_manifest::services::RouteDeployment;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
+};
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -64,22 +66,8 @@ async fn gateway_rebinds_one_governed_request_to_its_fallback_after_primary_500(
         .mount(&fallback)
         .await;
 
-    let mut registry = provider_registry(
-        &primary.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut fallback_provider = registry.providers[0].clone();
-    fallback_provider.name = ProviderId::new("anthropic-fallback");
-    fallback_provider.endpoint = fallback.uri();
-    registry.providers.push(fallback_provider);
-    let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new("anthropic-fallback"),
-        upstream_model: None,
-        weight: None,
-    }];
+    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-fallback", &fallback)]);
+    let config = gateway_config(PROVIDER);
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -135,22 +123,8 @@ async fn gateway_does_not_send_client_errors_to_a_configured_fallback() -> anyho
         .respond_with(ResponseTemplate::new(200).set_body_json(upstream_response("must not run")))
         .mount(&fallback)
         .await;
-    let mut registry = provider_registry(
-        &primary.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut fallback_provider = registry.providers[0].clone();
-    fallback_provider.name = ProviderId::new("anthropic-client-error-fallback");
-    fallback_provider.endpoint = fallback.uri();
-    registry.providers.push(fallback_provider);
-    let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new("anthropic-client-error-fallback"),
-        upstream_model: None,
-        weight: None,
-    }];
+    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-client-error-fallback", &fallback)]);
+    let config = gateway_config(PROVIDER);
 
     let error = GatewayService::dispatch(
         &config,
@@ -193,18 +167,12 @@ async fn gateway_preserves_primary_failure_when_fallback_provider_cannot_be_boun
         .respond_with(ResponseTemplate::new(500).set_body_string("primary unavailable"))
         .mount(&primary)
         .await;
-    let registry = provider_registry(
-        &primary.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new("missing-fallback-provider"),
-        upstream_model: None,
-        weight: None,
-    }];
+    let unbindable = MockServer::start().await;
+    let registry = chain_catalog_with_secrets(&[
+        (PROVIDER, &primary, "anthropic"),
+        ("unbindable-fallback", &unbindable, "missing_fallback_secret"),
+    ]);
+    let config = gateway_config(PROVIDER);
 
     let error = GatewayService::dispatch(
         &config,
@@ -241,22 +209,8 @@ async fn gateway_records_the_fallback_when_both_upstreams_fail() -> anyhow::Resu
             .mount(server)
             .await;
     }
-    let mut registry = provider_registry(
-        &primary.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut fallback_provider = registry.providers[0].clone();
-    fallback_provider.name = ProviderId::new("anthropic-both-fail-fallback");
-    fallback_provider.endpoint = fallback.uri();
-    registry.providers.push(fallback_provider);
-    let mut config = gateway_config(PROVIDER);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new("anthropic-both-fail-fallback"),
-        upstream_model: None,
-        weight: None,
-    }];
+    let registry = chain_catalog(&[(PROVIDER, &primary), ("anthropic-both-fail-fallback", &fallback)]);
+    let config = gateway_config(PROVIDER);
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -305,10 +259,9 @@ async fn gateway_without_a_fallback_records_primary_failure_once() -> anyhow::Re
         &primary.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let config = gateway_config(PROVIDER);
-    assert!(config.routes[0].fallbacks.is_empty());
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
 
@@ -352,10 +305,9 @@ async fn gateway_without_a_fallback_returns_and_attributes_primary_success() -> 
         &primary.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let config = gateway_config(PROVIDER);
-    assert!(config.routes[0].fallbacks.is_empty());
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
 
@@ -408,22 +360,8 @@ async fn open_primary_circuit_routes_directly_to_fallback_and_records_the_served
         .await;
     let primary_name = format!("primary-circuit-{}", uuid::Uuid::new_v4().simple());
     let fallback_name = format!("fallback-circuit-{}", uuid::Uuid::new_v4().simple());
-    let mut registry = provider_registry(
-        &primary.uri(),
-        &primary_name,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut fallback_provider = registry.providers[0].clone();
-    fallback_provider.name = ProviderId::new(&fallback_name);
-    fallback_provider.endpoint = fallback.uri();
-    registry.providers.push(fallback_provider);
-    let mut config = gateway_config(&primary_name);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new(&fallback_name),
-        upstream_model: None,
-        weight: None,
-    }];
+    let registry = chain_catalog(&[(&primary_name, &primary), (&fallback_name, &fallback)]);
+    let config = gateway_config(&primary_name);
 
     for _ in 0..5 {
         let response = GatewayService::dispatch(
@@ -500,22 +438,8 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
         .await;
     let failing_name = format!("open-fallback-{}", uuid::Uuid::new_v4().simple());
     let training_name = format!("training-fallback-{}", uuid::Uuid::new_v4().simple());
-    let mut training_registry = provider_registry(
-        &failing.uri(),
-        &failing_name,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut training_provider = training_registry.providers[0].clone();
-    training_provider.name = ProviderId::new(&training_name);
-    training_provider.endpoint = training_fallback.uri();
-    training_registry.providers.push(training_provider);
-    let mut training_config = gateway_config(&failing_name);
-    training_config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new(&training_name),
-        upstream_model: None,
-        weight: None,
-    }];
+    let training_registry = chain_catalog(&[(&failing_name, &failing), (&training_name, &training_fallback)]);
+    let training_config = gateway_config(&failing_name);
     for _ in 0..5 {
         let response = GatewayService::dispatch(
             &training_config,
@@ -537,22 +461,8 @@ async fn open_fallback_circuit_keeps_a_healthy_primary_on_the_primary_only_path(
     );
 
     let healthy_name = format!("healthy-primary-{}", uuid::Uuid::new_v4().simple());
-    let mut registry = provider_registry(
-        &healthy_primary.uri(),
-        &healthy_name,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    let mut open_fallback = registry.providers[0].clone();
-    open_fallback.name = ProviderId::new(&failing_name);
-    open_fallback.endpoint = failing.uri();
-    registry.providers.push(open_fallback);
-    let mut config = gateway_config(&healthy_name);
-    config.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new(&failing_name),
-        upstream_model: None,
-        weight: None,
-    }];
+    let registry = chain_catalog(&[(&healthy_name, &healthy_primary), (&failing_name, &failing)]);
+    let config = gateway_config(&healthy_name);
     let failing_before = failing
         .received_requests()
         .await
@@ -636,23 +546,35 @@ async fn mock_answering(status: u16, text: &str) -> MockServer {
     server
 }
 
-fn chain_registry(
-    deployments: &[(&str, &MockServer)],
-) -> systemprompt_manifest::services::ProviderRegistry {
-    let (first, first_server) = deployments[0];
-    let mut registry = provider_registry(
-        &first_server.uri(),
-        first,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    for (name, server) in &deployments[1..] {
-        let mut entry = registry.providers[0].clone();
-        entry.name = ProviderId::new(*name);
-        entry.endpoint = server.uri();
-        registry.providers.push(entry);
+/// `MODEL` deployed on each `(provider, upstream)` in order — the order is the
+/// failover chain — every provider on its own platform credential resolving
+/// the pipeline's `anthropic` secret.
+fn chain_catalog(deployments: &[(&str, &MockServer)]) -> ResolvedCatalog {
+    let with_secrets: Vec<(&str, &MockServer, &str)> = deployments
+        .iter()
+        .map(|(name, server)| (*name, *server, "anthropic"))
+        .collect();
+    chain_catalog_with_secrets(&with_secrets)
+}
+
+fn chain_catalog_with_secrets(deployments: &[(&str, &MockServer, &str)]) -> ResolvedCatalog {
+    let mut fixture = CatalogFixture::new();
+    let mut chain = Vec::new();
+    for (name, server, secret) in deployments {
+        fixture = fixture
+            .credential(name, platform(secret))
+            .provider(name, ProviderConfig::new(*name))
+            .endpoint(
+                name,
+                "api",
+                EndpointConfig::new(WireProtocol::Anthropic, server.uri()),
+            );
+        chain.push(format!("{name}/api"));
     }
-    registry
+    fixture
+        .model(MODEL, ModelEntry::new(vec![ClientFamily::Claude]))
+        .deploy(MODEL, chain.iter().map(String::as_str))
+        .build()
 }
 
 fn unique(prefix: &str) -> String {
@@ -688,20 +610,8 @@ async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow:
     let second = mock_answering(500, "second down").await;
     let third = mock_answering(200, "third served").await;
     let (a, b, c) = (unique("chain-a"), unique("chain-b"), unique("chain-c"));
-    let registry = chain_registry(&[(&a, &first), (&b, &second), (&c, &third)]);
-    let mut config = gateway_config(&a);
-    config.routes[0].fallbacks = vec![
-        RouteDeployment {
-            provider: ProviderId::new(&b),
-            upstream_model: None,
-            weight: None,
-        },
-        RouteDeployment {
-            provider: ProviderId::new(&c),
-            upstream_model: None,
-            weight: None,
-        },
-    ];
+    let registry = chain_catalog(&[(&a, &first), (&b, &second), (&c, &third)]);
+    let config = gateway_config(&a);
 
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -721,7 +631,7 @@ async fn three_deployments_fail_over_in_order_and_record_the_server() -> anyhow:
     assert_eq!(served.as_deref(), Some(c.as_str()));
     let route_match = route_match.expect("a failover is described");
     assert!(
-        route_match.contains(&format!("failover:{a}->{b}->{c}")),
+        route_match.contains(&format!("failover:{a}/api->{b}/api->{c}/api")),
         "{route_match}"
     );
     Ok(())
@@ -736,16 +646,8 @@ async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> a
     let second = mock_answering(200, "second served").await;
     let third = mock_answering(200, "third must not run").await;
     let (a, b, c) = (unique("trip-a"), unique("trip-b"), unique("trip-c"));
-    let registry = chain_registry(&[(&a, &first), (&b, &second), (&c, &third)]);
-    let mut config = gateway_config(&a);
-    config.routes[0].fallbacks = [&b, &c]
-        .into_iter()
-        .map(|p| RouteDeployment {
-            provider: ProviderId::new(p),
-            upstream_model: None,
-            weight: None,
-        })
-        .collect();
+    let registry = chain_catalog(&[(&a, &first), (&b, &second), (&c, &third)]);
+    let config = gateway_config(&a);
     for _ in 0..5 {
         let response = GatewayService::dispatch(
             &config,
@@ -779,7 +681,7 @@ async fn a_tripped_primary_is_skipped_while_a_later_deployment_is_healthy() -> a
     assert!(
         route_match
             .unwrap_or_default()
-            .contains(&format!("failover:{a}->{b}"))
+            .contains(&format!("failover:{a}/api->{b}/api"))
     );
     Ok(())
 }
@@ -792,18 +694,19 @@ async fn anthropic_is_only_tried_when_listed() -> anyhow::Result<()> {
     let vertex = mock_answering(500, "vertex down").await;
     let anthropic = mock_answering(200, "anthropic served").await;
     let (vertex_name, anthropic_name) = (unique("vertex-eu"), unique("anthropic"));
-    let registry = chain_registry(&[(&vertex_name, &vertex), (&anthropic_name, &anthropic)]);
+    let unlisted_registry = chain_catalog(&[(&vertex_name, &vertex)]);
+    let registry = chain_catalog(&[(&vertex_name, &vertex), (&anthropic_name, &anthropic)]);
 
     let unlisted = gateway_config(&vertex_name);
     let error = GatewayService::dispatch(
         &unlisted,
-        &registry,
+        &unlisted_registry,
         &pool,
         &gw_repos(&pool),
         inputs(&credential, canonical_request(MODEL, false), false),
     )
     .await
-    .expect_err("a route without fallbacks keeps the vertex verdict");
+    .expect_err("a model deployed only on vertex keeps the vertex verdict");
     assert_recorded_status(error, 500);
     assert_eq!(
         hits(&anthropic).await,
@@ -811,12 +714,7 @@ async fn anthropic_is_only_tried_when_listed() -> anyhow::Result<()> {
         "an unlisted provider is never tried"
     );
 
-    let mut listed = gateway_config(&vertex_name);
-    listed.routes[0].fallbacks = vec![RouteDeployment {
-        provider: ProviderId::new(&anthropic_name),
-        upstream_model: None,
-        weight: None,
-    }];
+    let listed = gateway_config(&vertex_name);
     let response = GatewayService::dispatch(
         &listed,
         &registry,

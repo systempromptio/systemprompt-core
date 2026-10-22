@@ -95,6 +95,7 @@ pub(super) async fn open_audit(db: &DbPool, user_id: UserId) -> (Arc<GatewayAudi
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_string(),
+        hop: None,
         requested_model: Some("claude-requested".to_string()),
         model: "claude-test".to_string(),
         max_tokens: Some(16),

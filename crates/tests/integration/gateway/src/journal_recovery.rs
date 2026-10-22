@@ -60,6 +60,7 @@ fn request_ctx(user_id: UserId, ai_request_id: AiRequestId) -> GatewayRequestCon
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: "anthropic".to_owned(),
+        hop: None,
         requested_model: Some("claude-requested".to_owned()),
         model: "claude-test".to_owned(),
         max_tokens: Some(16),

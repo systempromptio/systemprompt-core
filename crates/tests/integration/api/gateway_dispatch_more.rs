@@ -202,7 +202,7 @@ fn config_with_rule(rule: SystemPromptRule) -> GatewayConfig {
 async fn apply_system_prompt_override_replace_swaps_system_prompt() {
     let config = config_with_rule(SystemPromptRule {
         provider: Some(ProviderId::new("anthropic")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Replace,
         prompt: Some("governed prompt".to_owned()),
     });
@@ -225,7 +225,7 @@ async fn apply_system_prompt_override_replace_swaps_system_prompt() {
 async fn apply_system_prompt_override_strip_clears_system_prompt() {
     let config = config_with_rule(SystemPromptRule {
         provider: None,
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     });
@@ -249,7 +249,7 @@ async fn apply_system_prompt_override_strip_clears_system_prompt() {
 async fn apply_system_prompt_override_non_matching_provider_passes_through() {
     let config = config_with_rule(SystemPromptRule {
         provider: Some(ProviderId::new("gemini")),
-        model_pattern: None,
+        models: None,
         action: OverrideRuleAction::Strip,
         prompt: None,
     });

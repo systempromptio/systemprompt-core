@@ -18,7 +18,10 @@ use systemprompt_gateway::GatewayUpstreamRegistry;
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::outbound::{OutboundCtx, OutboundOutcome};
-use systemprompt_manifest::services::{GatewayRoute, ProviderEntry};
+use systemprompt_catalog_fixtures::{CatalogFixture, model, platform, priced};
+use systemprompt_manifest::services::catalog::{EndpointConfig, ProviderConfig, ResolvedCatalog};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::WireProtocol;
 
 type Captured = Arc<Mutex<Option<Value>>>;
 
@@ -69,36 +72,37 @@ async fn recording_upstream() -> (String, Captured) {
     (format!("http://{addr}/anthropic/v1"), captured)
 }
 
-fn deepseek(endpoint: &str) -> ProviderEntry {
-    serde_json::from_value(json!({
-        "name": "deepseek",
-        "wire": "anthropic",
-        "surface": "openai",
-        "endpoint": endpoint,
-        "models": [{ "id": "deepseek-flash" }]
-    }))
-    .expect("provider entry")
-}
-
-fn route() -> GatewayRoute {
-    serde_json::from_value(json!({ "model_pattern": "deepseek-*", "provider": "deepseek" }))
-        .expect("gateway route")
+fn deepseek(endpoint: &str) -> ResolvedCatalog {
+    CatalogFixture::new()
+        .credential("deepseek", platform("deepseek"))
+        .provider("deepseek", ProviderConfig::new("deepseek"))
+        .endpoint(
+            "deepseek",
+            "messages",
+            EndpointConfig::new(WireProtocol::Anthropic, endpoint),
+        )
+        .model(
+            "deepseek-flash",
+            model(&[ClientFamily::OpenAi], 0, priced(1.0, 1.0, 0.0)),
+        )
+        .deploy("deepseek-flash", ["deepseek/messages"])
+        .build()
 }
 
 #[tokio::test]
 async fn opencode_parallel_tool_results_reach_an_anthropic_wire_upstream_as_one_turn() {
     let (endpoint, captured) = recording_upstream().await;
-    let provider = deepseek(&endpoint);
-    let call = UpstreamTarget::resolve(&provider, "sk-test")
+    let catalog = deepseek(&endpoint);
+    let hop = catalog.deployments("deepseek-flash")[0].clone();
+    let call = UpstreamTarget::resolve(&catalog, &hop, "sk-test")
         .expect("target")
         .call()
         .await
         .expect("call");
     let raw = Bytes::from(serde_json::to_vec(&opencode_body()).expect("body"));
     let request = OpenAiChatInbound.parse_request(&raw).expect("parse");
-    let route = route();
     let ctx = OutboundCtx {
-        route: &route,
+        target: &hop,
         upstream: &call,
         request: &request,
         upstream_model: "deepseek-flash",

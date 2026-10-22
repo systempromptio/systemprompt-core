@@ -24,7 +24,7 @@ use bytes::Bytes;
 use serde_json::{Value, json};
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -54,11 +54,11 @@ impl OutWire {
         }
     }
 
-    const fn surface(self) -> ApiSurface {
+    const fn surface(self) -> ClientFamily {
         match self {
-            Self::Anthropic => ApiSurface::Anthropic,
-            Self::Gemini => ApiSurface::Gemini,
-            Self::OpenAiChat | Self::OpenAiResponses => ApiSurface::OpenAi,
+            Self::Anthropic => ClientFamily::Claude,
+            Self::Gemini => ClientFamily::Gemini,
+            Self::OpenAiChat | Self::OpenAiResponses => ClientFamily::OpenAi,
         }
     }
 

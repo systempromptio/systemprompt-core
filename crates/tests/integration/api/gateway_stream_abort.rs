@@ -15,7 +15,7 @@ use axum::body::to_bytes;
 use bytes::Bytes;
 use systemprompt_gateway::protocol::InboundAdapter;
 use systemprompt_gateway::service::GatewayService;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::seed_admin_credential;
 use systemprompt_wire::WireProtocol;
 use wiremock::matchers::{method, path};
@@ -65,7 +65,7 @@ async fn run_headless(label: &str, inbound: InWire) -> anyhow::Result<String> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs_with(&cred, request, true, Arc::clone(&adapter), raw);
 

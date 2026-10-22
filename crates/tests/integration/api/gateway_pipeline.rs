@@ -7,7 +7,6 @@
 //! endpoint; the provider api-key secret resolves from `ANTHROPIC_API_KEY`, set
 //! before the process bootstrap.
 
-use std::collections::HashMap;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -21,13 +20,13 @@ use systemprompt_gateway::protocol::{
 };
 use systemprompt_gateway::service::{DispatchError, GatewayService};
 use systemprompt_gateway::{DispatchInputs, GatewayRepositories, GatewayRequestContext};
-use systemprompt_identifiers::{
-    AiRequestId, ContextId, GatewayConversationId, ModelId, ProviderId, SecretName, TraceId,
+use systemprompt_catalog_fixtures::{CatalogFixture, platform};
+use systemprompt_identifiers::{AiRequestId, ContextId, GatewayConversationId, ModelId, TraceId};
+use systemprompt_manifest::services::GatewayConfig;
+use systemprompt_manifest::services::catalog::{
+    EndpointConfig, ModelEntry, ProviderConfig, ResolvedCatalog,
 };
-use systemprompt_manifest::services::{
-    GatewayConfig, GatewayRoute, ProviderEntry, ProviderModel, ProviderRegistry,
-};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_test_fixtures::{AuthedFixture, seed_admin_credential};
 use systemprompt_wire::WireProtocol;
 use tracing_subscriber::prelude::*;
@@ -128,60 +127,33 @@ pub(super) fn provider_registry(
     endpoint: &str,
     provider: &str,
     wire: WireProtocol,
-    surface: ApiSurface,
-) -> ProviderRegistry {
-    ProviderRegistry {
-        providers: vec![ProviderEntry {
-            name: ProviderId::new(provider),
-            display_name: None,
-            description: None,
-            wire,
-            surface,
-            endpoint: endpoint.to_owned(),
-            api_key_secret: Some(SecretName::new(API_KEY_SECRET)),
-            credential: Default::default(),
-            credential_from: None,
-            user_agent: None,
-            forward_headers: Vec::new(),
-            governance: Default::default(),
-            extra_headers: HashMap::new(),
-            accepted_betas: None,
-            models: vec![ProviderModel {
-                id: ModelId::new(MODEL),
-                aliases: Vec::new(),
-                hidden: false,
-                governance: None,
-                upstream_model: None,
-                pricing: Default::default(),
-                capabilities: Default::default(),
-                limits: Default::default(),
-            }],
-        }],
-    }
+    family: ClientFamily,
+) -> ResolvedCatalog {
+    catalog_fixture(endpoint, provider, wire, family).build()
 }
 
-pub(super) fn gateway_config(route_provider: &str) -> GatewayConfig {
-    let mut route = GatewayRoute {
-        id: None,
-        name: None,
-        description: None,
-        model_pattern: "claude-*".to_owned(),
-        provider: ProviderId::new(route_provider),
-        upstream_model: None,
-        extra_headers: HashMap::new(),
-        pricing: None,
-        when: None,
-        requires: None,
-        fallbacks: Vec::new(),
-        by_scope: None,
-        strategy: systemprompt_manifest::services::SelectionStrategy::Ordered,
-        weight: None,
-        context_fallbacks: Vec::new(),
-    };
-    route.ensure_id();
+/// The one-provider catalog every pipeline test dispatches through: provider
+/// `provider` with platform credential secret `anthropic` (resolved from
+/// `ANTHROPIC_API_KEY`), endpoint `api` on `wire` at `endpoint`, and
+/// [`MODEL`] deployed on it, unpriced (the gateway is not enabled in the
+/// catalog, so pricing is not demanded).
+pub(super) fn catalog_fixture(
+    endpoint: &str,
+    provider: &str,
+    wire: WireProtocol,
+    family: ClientFamily,
+) -> CatalogFixture {
+    CatalogFixture::new()
+        .credential(provider, platform(API_KEY_SECRET))
+        .provider(provider, ProviderConfig::new(provider))
+        .endpoint(provider, "api", EndpointConfig::new(wire, endpoint))
+        .model(MODEL, ModelEntry::new(vec![family]))
+        .deploy(MODEL, [format!("{provider}/api").as_str()])
+}
+
+pub(super) fn gateway_config(_route_provider: &str) -> GatewayConfig {
     GatewayConfig {
         enabled: true,
-        routes: vec![route],
         ..GatewayConfig::default()
     }
 }
@@ -264,6 +236,7 @@ pub(super) fn dispatch_ctx(
         access_scope: AccessScope::Unknown,
         client_id: None,
         provider: PROVIDER.to_owned(),
+        hop: None,
         requested_model: Some(model.to_owned()),
         model: model.to_owned(),
         max_tokens: Some(256),
@@ -397,7 +370,7 @@ async fn buffered_dispatch_returns_rendered_response_and_completes_audit() -> an
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -498,7 +471,7 @@ async fn audit_admission_failure_blocks_provider_dispatch_and_a_retry_recovers()
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repositories = gw_repos(&pool);
     let rejected_id = AiRequestId::generate();
@@ -583,7 +556,7 @@ async fn streaming_dispatch_taps_events_and_completes_audit() -> anyhow::Result<
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, true);
     let di = inputs(&cred, request, true);
@@ -636,7 +609,7 @@ async fn enforcing_secret_scan_denies_before_upstream_and_persists_the_decision(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let secret = format!("{}{}", "XGATE-", 12345678);
     let mut request = canonical_request(MODEL, false);
@@ -701,7 +674,7 @@ async fn warn_secret_scan_allows_upstream_and_persists_a_correlated_warning() ->
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(format!("{}{}", "XGATE-", 87654321))];
@@ -745,7 +718,7 @@ async fn missing_session_binding_is_pre_audit_error() -> anyhow::Result<()> {
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let mut di = inputs(&cred, request, false);
@@ -769,7 +742,7 @@ async fn unexposed_model_is_policy_denied() -> anyhow::Result<()> {
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request("ghost-model-not-exposed", false);
     let di = inputs(&cred, request, false);
@@ -801,7 +774,7 @@ async fn route_provider_absent_from_registry_is_pre_audit_error() -> anyhow::Res
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -823,13 +796,14 @@ async fn missing_api_key_secret_is_pre_audit_error() -> anyhow::Result<()> {
     let cred = seed_admin_credential(&pool, "gw-nokey@example.invalid").await?;
 
     let config = gateway_config(PROVIDER);
-    let mut registry = provider_registry(
+    let registry = catalog_fixture(
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    registry.providers[0].api_key_secret = Some(SecretName::new("definitely_absent_secret_key"));
+        ClientFamily::Claude,
+    )
+    .credential(PROVIDER, platform("definitely_absent_secret_key"))
+    .build();
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
 
@@ -861,7 +835,7 @@ async fn upstream_4xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -900,7 +874,7 @@ async fn upstream_5xx_is_recorded_upstream_error() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let di = inputs(&cred, request, false);
@@ -981,7 +955,7 @@ async fn buffered_dispatch_persists_request_and_response_safety_findings() -> an
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1056,7 +1030,7 @@ async fn identifiers_and_ordinary_prose_produce_no_card_or_jailbreak_finding() -
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1117,7 +1091,7 @@ async fn jailbreak_request_is_blocked_by_safety_policy_and_finding_persisted() -
         "http://127.0.0.1:1",
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let mut request = canonical_request(MODEL, false);
     request.messages[0].content = vec![CanonicalContent::text(
@@ -1210,7 +1184,7 @@ async fn dispatch_against_jailbreak_upstream(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(cred, canonical_request(MODEL, false), false);
     let request_id = di.ctx.ai_request_id.clone();
@@ -1306,7 +1280,7 @@ async fn a_streaming_response_is_never_blocked() -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let di = inputs(&cred, canonical_request(MODEL, true), true);
     let request_id = di.ctx.ai_request_id.clone();
@@ -1360,7 +1334,7 @@ async fn coverage_quota_dispatch(mode: &str) -> anyhow::Result<()> {
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let repositories = gw_repos(&pool);
     let first = GatewayService::dispatch(
@@ -1472,13 +1446,17 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .expect(0)
         .mount(&upstream)
         .await;
-    let mut registry = provider_registry(
-        &upstream.uri(),
-        PROVIDER,
-        WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
-    );
-    registry.providers[0].models[0].id = ModelId::new(model);
+    let registry = CatalogFixture::new()
+        .credential(PROVIDER, platform(API_KEY_SECRET))
+        .provider(PROVIDER, ProviderConfig::new(PROVIDER))
+        .endpoint(
+            PROVIDER,
+            "api",
+            EndpointConfig::new(WireProtocol::Anthropic, upstream.uri()),
+        )
+        .model(model, ModelEntry::new(vec![ClientFamily::Claude]))
+        .deploy(model, [format!("{PROVIDER}/api").as_str()])
+        .build();
     let di = inputs(&cred, canonical_request(model, false), false);
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(
@@ -1586,7 +1564,7 @@ pub(super) async fn admitted_receipt_fixture(
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let request = canonical_request(MODEL, false);
     let dispatch = inputs(&credential, request, false);
@@ -1717,7 +1695,7 @@ async fn terminal_receipt_survives_accounting_failure_and_recovery_settles_exact
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let dispatch = inputs(&credential, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
@@ -1866,7 +1844,7 @@ async fn exposed_registry_model_without_a_matching_route_fails_before_audit_or_d
         &upstream.uri(),
         PROVIDER,
         WireProtocol::Anthropic,
-        ApiSurface::Anthropic,
+        ClientFamily::Claude,
     );
     let dispatch = inputs(&cred, canonical_request(MODEL, false), false);
     let request_id = dispatch.ctx.ai_request_id.clone();
