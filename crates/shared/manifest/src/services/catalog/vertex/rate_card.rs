@@ -33,16 +33,26 @@
 //! is a 404 the caller pays latency for. The notice window warns; the
 //! retirement date deselects.
 //!
+//! Entries are keyed by endpoint shape: `wire` is the wire of the Vertex
+//! endpoint that serves the model (`gemini` for Google's publisher models,
+//! `openai-chat` for Model-as-a-Service), so discovery merges an entry into
+//! whichever endpoint of that shape a catalog declares, under any provider
+//! name.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{Days, NaiveDate};
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{ModelId, ProviderId};
+use systemprompt_identifiers::ModelId;
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::{ModelLimits, WireProtocol};
 
-use super::{ProviderModel, ProviderRegistryError, ProviderRegistryResult, VertexRateCardDefect};
+use super::error::{VertexRateCardDefect, VertexRateCardError};
 use crate::services::ai::{ModelCapabilities, ModelPricing};
-use systemprompt_wire::ModelLimits;
+use crate::services::catalog::models::{ModelEntry, capability_flags};
+
+type RateCardResult<T> = Result<T, VertexRateCardError>;
 
 const VERTEX_RATE_CARD_YAML: &str = include_str!("vertex_rate_card.yaml");
 
@@ -72,7 +82,7 @@ pub enum DocumentedLaunchStage {
 pub struct VertexRateCardEntry {
     pub upstream: String,
 
-    pub provider: ProviderId,
+    pub wire: WireProtocol,
 
     pub id: ModelId,
 
@@ -102,9 +112,6 @@ pub struct VertexRateCardEntry {
 
     #[serde(default)]
     pub limits: ModelLimits,
-
-    #[serde(default)]
-    pub aliases: Vec<ModelId>,
 }
 
 impl VertexRateCardEntry {
@@ -133,21 +140,20 @@ impl VertexRateCardEntry {
     }
 
     #[must_use]
-    pub fn to_provider_model(&self) -> ProviderModel {
-        ProviderModel {
-            id: self.id.clone(),
-            aliases: self.aliases.clone(),
-            hidden: false,
+    pub fn to_model_entry(&self, clients: Vec<ClientFamily>) -> ModelEntry {
+        ModelEntry {
             upstream_model: Some(self.upstream_model.clone()),
-            pricing: self.pricing,
-            capabilities: self.capabilities,
+            display_name: None,
+            capabilities: capability_flags(self.capabilities),
             limits: self.limits,
+            pricing: self.pricing,
             governance: None,
+            clients,
         }
     }
 
-    fn validate(&self) -> ProviderRegistryResult<()> {
-        let invalid = |defect| ProviderRegistryError::InvalidVertexRateCard {
+    fn validate(&self) -> RateCardResult<()> {
+        let invalid = |defect| VertexRateCardError::InvalidEntry {
             entry: self.id.clone(),
             defect,
         };
@@ -174,14 +180,14 @@ pub struct VertexRateCard {
 }
 
 impl VertexRateCard {
-    pub fn embedded() -> ProviderRegistryResult<Self> {
-        let card: Self = serde_yaml::from_str(VERTEX_RATE_CARD_YAML)
-            .map_err(ProviderRegistryError::VertexRateCardParse)?;
+    pub fn embedded() -> RateCardResult<Self> {
+        let card: Self =
+            serde_yaml::from_str(VERTEX_RATE_CARD_YAML).map_err(VertexRateCardError::Parse)?;
         card.validate()?;
         Ok(card)
     }
 
-    pub fn validate(&self) -> ProviderRegistryResult<()> {
+    pub fn validate(&self) -> RateCardResult<()> {
         self.entries
             .iter()
             .try_for_each(VertexRateCardEntry::validate)
@@ -197,19 +203,14 @@ impl VertexRateCard {
         self.entries.iter().find(|e| e.id.as_str() == id)
     }
 
-    pub fn entries_for<'a>(
-        &'a self,
-        provider: &'a str,
-    ) -> impl Iterator<Item = &'a VertexRateCardEntry> {
-        self.entries
-            .iter()
-            .filter(move |e| e.provider.as_str() == provider)
+    pub fn entries_for(&self, wire: WireProtocol) -> impl Iterator<Item = &VertexRateCardEntry> {
+        self.entries.iter().filter(move |e| e.wire == wire)
     }
 
     #[must_use]
-    pub fn publishers_for(&self, provider: &str) -> Vec<String> {
+    pub fn publishers_for(&self, wire: WireProtocol) -> Vec<String> {
         let mut publishers: Vec<String> = Vec::new();
-        for entry in self.entries_for(provider) {
+        for entry in self.entries_for(wire) {
             let publisher = entry.publisher();
             if !publishers.iter().any(|p| p == publisher) {
                 publishers.push(publisher.to_owned());

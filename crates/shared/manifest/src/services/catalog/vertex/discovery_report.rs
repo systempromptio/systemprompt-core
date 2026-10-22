@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// The buckets of one discovery run.
 ///
 /// `discovered_priced`: priced models Vertex published that the catalog did
-/// not declare — added to the registry. `discovered_unpriced`: published but
+/// not declare — added to the catalog. `discovered_unpriced`: published but
 /// not on the rate card — left unpublished. `priced_not_published`: rate-card
 /// entries no listing returned — explicit declarations untouched.
 /// `explicit_wins`: the catalog already declared the id, so discovery changed

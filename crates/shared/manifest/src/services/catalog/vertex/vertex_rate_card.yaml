@@ -34,7 +34,7 @@ entries:
 # 1.50/7.50. `price_until` is the step-up date; the scheduler warns 60 days
 # ahead so the card is re-read before the standard rate applies.
 - upstream: google/gemini-3.8-flash
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.8-flash
   upstream_model: gemini-3.8-flash
   launch_stage: ga
@@ -59,7 +59,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-3.7-flash
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.7-flash
   upstream_model: gemini-3.7-flash
   launch_stage: ga
@@ -84,7 +84,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-3.6-flash
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.6-flash
   upstream_model: gemini-3.6-flash
   launch_stage: ga
@@ -109,7 +109,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-3.5-flash
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.5-flash
   upstream_model: gemini-3.5-flash
   launch_stage: ga
@@ -134,7 +134,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-3.5-flash-lite
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.5-flash-lite
   upstream_model: gemini-3.5-flash-lite
   launch_stage: ga
@@ -159,7 +159,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-3.1-flash-lite
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.1-flash-lite
   upstream_model: gemini-3.1-flash-lite
   launch_stage: ga
@@ -186,7 +186,7 @@ entries:
 # Why allow_preview: 3.1 Pro has no GA successor yet, so it is the only Pro
 # tier Google serves; it has been priced and documented since February.
 - upstream: google/gemini-3.1-pro-preview
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-3.1-pro-preview
   upstream_model: gemini-3.1-pro-preview
   allow_preview: true
@@ -214,7 +214,7 @@ entries:
 # an explicit catalog declaration still bills correctly; discovery stops
 # publishing them 30 days before the date.
 - upstream: google/gemini-2.5-pro
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-2.5-pro
   upstream_model: gemini-2.5-pro
   launch_stage: ga
@@ -239,7 +239,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 32768
 - upstream: google/gemini-2.5-flash
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-2.5-flash
   upstream_model: gemini-2.5-flash
   launch_stage: ga
@@ -264,7 +264,7 @@ entries:
     max_output_tokens: 65536
     max_thinking_budget: 24576
 - upstream: google/gemini-2.5-flash-lite
-  provider: vertex
+  wire: gemini
   id: vertex-gemini-2.5-flash-lite
   upstream_model: gemini-2.5-flash-lite
   launch_stage: ga
@@ -300,7 +300,7 @@ entries:
 # which then sends the model's own output cap instead of the caller's
 # max_tokens so hidden reasoning cannot starve the visible answer.
 - upstream: qwen/qwen3-coder-480b-a35b-instruct-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: qwen.qwen3-coder-480b
   upstream_model: qwen/qwen3-coder-480b-a35b-instruct-maas
   launch_stage: ga
@@ -325,7 +325,7 @@ entries:
 # still marks it EXPERIMENTAL; without the opt-in the only GA GLM would be
 # withheld on the listing's word against the docs'.
 - upstream: zai-org/glm-5-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: zai.glm-5
   upstream_model: zai-org/glm-5-maas
   allow_preview: true
@@ -351,7 +351,7 @@ entries:
 # Why allow_preview: 5.2 is the current GLM and is served beside 5 so a
 # developer can choose; it is priced and documented, preview or not.
 - upstream: zai-org/glm-5.2-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: zai.glm-5.2
   upstream_model: zai-org/glm-5.2-maas
   allow_preview: true
@@ -374,7 +374,7 @@ entries:
     max_output_tokens: 32768
     max_thinking_budget: 16384
 - upstream: openai/gpt-oss-120b-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: openai.gpt-oss-120b
   upstream_model: openai/gpt-oss-120b-maas
   launch_stage: ga
@@ -400,7 +400,7 @@ entries:
 # discovery withholds them from 2026-09-21. Delete after retirement. Their
 # model pages are gone, so `released` is omitted rather than guessed.
 - upstream: qwen/qwen3-next-80b-a3b-instruct-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: qwen.qwen3-next-instruct
   upstream_model: qwen/qwen3-next-80b-a3b-instruct-maas
   launch_stage: ga
@@ -421,7 +421,7 @@ entries:
     context_window: 262144
     max_output_tokens: 32768
 - upstream: qwen/qwen3-next-80b-a3b-thinking-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: qwen.qwen3-next-thinking
   upstream_model: qwen/qwen3-next-80b-a3b-thinking-maas
   launch_stage: ga
@@ -444,7 +444,7 @@ entries:
     max_output_tokens: 32768
     max_thinking_budget: 16384
 - upstream: qwen/qwen3-235b-a22b-instruct-2507-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: qwen.qwen3-235b
   upstream_model: qwen/qwen3-235b-a22b-instruct-2507-maas
   launch_stage: ga
@@ -465,7 +465,7 @@ entries:
     context_window: 262144
     max_output_tokens: 16384
 - upstream: moonshotai/kimi-k2-thinking-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: moonshotai.kimi-k2-thinking
   upstream_model: moonshotai/kimi-k2-thinking-maas
   launch_stage: ga
@@ -488,7 +488,7 @@ entries:
     max_output_tokens: 32768
     max_thinking_budget: 16384
 - upstream: deepseek-ai/deepseek-v3.2-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: deepseek.v3.2
   upstream_model: deepseek-ai/deepseek-v3.2-maas
   launch_stage: ga
@@ -510,7 +510,7 @@ entries:
     max_output_tokens: 32768
     max_thinking_budget: 16384
 - upstream: openai/gpt-oss-20b-maas
-  provider: vertex-maas
+  wire: openai-chat
   id: openai.gpt-oss-20b
   upstream_model: openai/gpt-oss-20b-maas
   launch_stage: ga

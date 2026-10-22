@@ -1,19 +1,18 @@
-# Canonical default provider catalog.
+# Default models: core's out-of-the-box model knowledge.
 #
-# Single source of truth for the out-of-the-box model knowledge (ids, aliases,
-# per-million pricing, capabilities, limits) seeded into a fresh profile. The
-# setup wizard, cloud-init scaffolding, and the catalog-parity tests all read
-# this one file via `ProviderRegistry::default_seed()`. Operators extend or
-# override it by editing `profile.providers` directly — nothing here is
-# compiled into model behaviour.
+# Part of core's embedded default catalog (`DefaultCatalog`); the setup
+# wizard and cloud-init seed an install's services/ai from these files, and
+# the catalog-parity tests read them. Each model is defined once: identity,
+# client families, capability overrides on its provider's defaults, limits
+# and base price. Where it is served is deployments.yaml.
 #
-# Pricing is per *million* tokens (the registry `ModelPricing` unit).
-# `cache_read_per_million` is mandatory: an absent rate is a boot failure, so a
-# cached prompt slice can never be billed at nothing by omission. OpenAI and
-# Google both discount a cached input token to 25% of the uncached rate, which
-# is the figure below; a provider or model that bills no cache reads carries an
-# explicit 0.0. The first
-# model under each provider is its agent-side default model.
+# Pricing is per *million* tokens (`ModelPricing`). `cache_read_per_million`
+# is mandatory on every token-priced model: an absent rate is a boot failure,
+# so a cached prompt slice can never be billed at nothing by omission. OpenAI
+# and Google both discount a cached input token to 25% of the uncached rate,
+# which is the figure below; a model that bills no cache reads carries an
+# explicit 0.0. `clients: []` is a model that dispatches by id but is never
+# advertised.
 #
 # Model sets are reconciled against each vendor's live `/models` endpoint and
 # their published rate cards. Anthropic lifecycle and visibility were last
@@ -25,176 +24,169 @@
 # Every id below is a real model at its provider; retired ids (Claude 3.x,
 # o1-mini/o1-preview, dall-e-2/3, Gemini 1.5) have been dropped.
 
-providers:
-  - name: anthropic
-    wire: anthropic
-    surface: anthropic
-    endpoint: https://api.anthropic.com/v1
-    api_key_secret: anthropic
-    models:
-      - id: claude-sonnet-5
-        pricing: { input_per_million: 2.0, output_per_million: 10.0, cache_read_per_million: 0.2, cache_write_per_million: 2.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-opus-5-5
-        pricing: { input_per_million: 4.0, output_per_million: 20.0, cache_read_per_million: 0.4, cache_write_per_million: 5.0 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-opus-5
-        pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-fable-5-1
-        pricing: { input_per_million: 10.0, output_per_million: 50.0, cache_read_per_million: 1.0, cache_write_per_million: 12.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-fable-5
-        hidden: true
-        pricing: { input_per_million: 10.0, output_per_million: 50.0, cache_read_per_million: 1.0, cache_write_per_million: 12.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 1000000, max_output_tokens: 128000 }
-      - id: claude-haiku-4-5-20251001
-        aliases: [claude-haiku-4-5]
-        pricing: { input_per_million: 1.0, output_per_million: 5.0, cache_read_per_million: 0.1, cache_write_per_million: 1.25 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, prompt_caching: true }
-        limits: { context_window: 200000, max_output_tokens: 64000 }
-  - name: openai
-    wire: openai-chat
-    surface: openai
-    endpoint: https://api.openai.com/v1
-    api_key_secret: openai
-    models:
-      - id: gpt-4.1
-        pricing: { input_per_million: 2.0, output_per_million: 8.0, cache_read_per_million: 0.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 32768 }
-      - id: gpt-4.1-mini
-        pricing: { input_per_million: 0.4, output_per_million: 1.6, cache_read_per_million: 0.1 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 32768 }
-      - id: gpt-4.1-nano
-        pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 32768 }
-      - id: gpt-5
-        pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 400000, max_output_tokens: 128000 }
-      - id: gpt-5.1
-        pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 400000, max_output_tokens: 128000 }
-      - id: gpt-5-mini
-        pricing: { input_per_million: 0.25, output_per_million: 2.0, cache_read_per_million: 0.0625 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 400000, max_output_tokens: 128000 }
-      - id: gpt-5-nano
-        pricing: { input_per_million: 0.05, output_per_million: 0.4, cache_read_per_million: 0.0125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 400000, max_output_tokens: 128000 }
-      - id: o4-mini
-        pricing: { input_per_million: 1.1, output_per_million: 4.4, cache_read_per_million: 0.275 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 200000, max_output_tokens: 100000 }
-      - id: o3
-        pricing: { input_per_million: 10.0, output_per_million: 40.0, cache_read_per_million: 2.5 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 200000, max_output_tokens: 100000 }
-      - id: o3-mini
-        pricing: { input_per_million: 1.1, output_per_million: 4.4, cache_read_per_million: 0.275 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 200000, max_output_tokens: 100000 }
-      - id: gpt-4o
-        pricing: { input_per_million: 2.5, output_per_million: 10.0, cache_read_per_million: 0.625 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 128000, max_output_tokens: 16384 }
-      - id: gpt-4o-mini
-        pricing: { input_per_million: 0.15, output_per_million: 0.6, cache_read_per_million: 0.0375 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 128000, max_output_tokens: 16384 }
-      - id: gpt-4-turbo
-        pricing: { input_per_million: 10.0, output_per_million: 30.0, cache_read_per_million: 2.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 128000, max_output_tokens: 4096 }
-      - id: gpt-4
-        pricing: { input_per_million: 10.0, output_per_million: 30.0, cache_read_per_million: 2.5 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 8192, max_output_tokens: 4096 }
-      - id: gpt-3.5-turbo
-        pricing: { input_per_million: 0.5, output_per_million: 1.5, cache_read_per_million: 0.125 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 16385, max_output_tokens: 4096 }
-      - id: o1
-        pricing: { input_per_million: 15.0, output_per_million: 60.0, cache_read_per_million: 3.75 }
-        capabilities: { streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 200000, max_output_tokens: 100000 }
-      - id: gpt-image-1
-        pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
-        capabilities: { image_generation: true }
-      - id: gpt-image-1-mini
-        pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
-        capabilities: { image_generation: true }
-
-  - name: gemini
-    wire: gemini
-    surface: gemini
-    endpoint: https://generativelanguage.googleapis.com/v1beta
-    api_key_secret: gemini
-    models:
-      - id: gemini-3.1-flash-lite-preview
-        pricing: { input_per_million: 0.25, output_per_million: 1.5, cache_read_per_million: 0.0625 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-3.1-pro-preview
-        pricing: { input_per_million: 2.0, output_per_million: 12.0, cache_read_per_million: 0.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
-      - id: gemini-3.5-flash
-        pricing: { input_per_million: 1.5, output_per_million: 9.0, cache_read_per_million: 0.375 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-3.1-flash-image-preview
-        pricing: { input_per_million: 0.5, output_per_million: 3.0, per_image_cents: 4.0, cache_read_per_million: 0.125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, image_generation: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536 }
-      - id: gemini-3-flash-preview
-        pricing: { input_per_million: 0.5, output_per_million: 3.0, cache_read_per_million: 0.125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-3-pro-image-preview
-        pricing: { input_per_million: 2.0, output_per_million: 12.0, per_image_cents: 4.0, cache_read_per_million: 0.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true, image_generation: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536 }
-      # Rotating aliases — the vendor repoints these at the current pro/flash
-      # release; priced to the model each currently resolves to.
-      - id: gemini-pro-latest
-        pricing: { input_per_million: 2.0, output_per_million: 12.0, cache_read_per_million: 0.5 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
-      - id: gemini-flash-latest
-        pricing: { input_per_million: 1.5, output_per_million: 9.0, cache_read_per_million: 0.375 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-2.5-flash-lite
-        pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-2.5-flash
-        pricing: { input_per_million: 0.3, output_per_million: 2.5, cache_read_per_million: 0.075 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
-      - id: gemini-2.5-pro
-        pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
-      - id: gemini-2.0-flash
-        pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 8192, max_thinking_budget: 24576 }
-      - id: gemini-2.0-flash-lite
-        pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
-        capabilities: { vision: true, streaming: true, tools: true, structured_output: true, system_prompts: true }
-        limits: { context_window: 1000000, max_output_tokens: 8192, max_thinking_budget: 24576 }
-      - id: gemini-2.5-flash-image
-        pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
-        capabilities: { image_generation: true }
+models:
+  # -- anthropic -------------------------------------------------------------
+  claude-sonnet-5:
+    clients: [claude]
+    limits: { context_window: 1000000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 2.0, output_per_million: 10.0, cache_read_per_million: 0.2, cache_write_per_million: 2.5 }
+  claude-opus-5-5:
+    clients: [claude]
+    limits: { context_window: 1000000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 4.0, output_per_million: 20.0, cache_read_per_million: 0.4, cache_write_per_million: 5.0 }
+  claude-opus-5:
+    clients: [claude]
+    limits: { context_window: 1000000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 5.0, output_per_million: 25.0, cache_read_per_million: 0.5, cache_write_per_million: 6.25 }
+  claude-fable-5-1:
+    clients: [claude]
+    limits: { context_window: 1000000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 10.0, output_per_million: 50.0, cache_read_per_million: 1.0, cache_write_per_million: 12.5 }
+  claude-fable-5:
+    clients: []
+    limits: { context_window: 1000000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 10.0, output_per_million: 50.0, cache_read_per_million: 1.0, cache_write_per_million: 12.5 }
+  claude-haiku-4-5-20251001:
+    clients: [claude]
+    limits: { context_window: 200000, max_output_tokens: 64000 }
+    pricing: { input_per_million: 1.0, output_per_million: 5.0, cache_read_per_million: 0.1, cache_write_per_million: 1.25 }
+  # -- openai ----------------------------------------------------------------
+  gpt-4.1:
+    clients: [openai]
+    limits: { context_window: 1000000, max_output_tokens: 32768 }
+    pricing: { input_per_million: 2.0, output_per_million: 8.0, cache_read_per_million: 0.5 }
+  gpt-4.1-mini:
+    clients: [openai]
+    limits: { context_window: 1000000, max_output_tokens: 32768 }
+    pricing: { input_per_million: 0.4, output_per_million: 1.6, cache_read_per_million: 0.1 }
+  gpt-4.1-nano:
+    clients: [openai]
+    limits: { context_window: 1000000, max_output_tokens: 32768 }
+    pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
+  gpt-5:
+    clients: [openai]
+    limits: { context_window: 400000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
+  gpt-5.1:
+    clients: [openai]
+    limits: { context_window: 400000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
+  gpt-5-mini:
+    clients: [openai]
+    limits: { context_window: 400000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 0.25, output_per_million: 2.0, cache_read_per_million: 0.0625 }
+  gpt-5-nano:
+    clients: [openai]
+    limits: { context_window: 400000, max_output_tokens: 128000 }
+    pricing: { input_per_million: 0.05, output_per_million: 0.4, cache_read_per_million: 0.0125 }
+  o4-mini:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 200000, max_output_tokens: 100000 }
+    pricing: { input_per_million: 1.1, output_per_million: 4.4, cache_read_per_million: 0.275 }
+  o3:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 200000, max_output_tokens: 100000 }
+    pricing: { input_per_million: 10.0, output_per_million: 40.0, cache_read_per_million: 2.5 }
+  o3-mini:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 200000, max_output_tokens: 100000 }
+    pricing: { input_per_million: 1.1, output_per_million: 4.4, cache_read_per_million: 0.275 }
+  gpt-4o:
+    clients: [openai]
+    limits: { context_window: 128000, max_output_tokens: 16384 }
+    pricing: { input_per_million: 2.5, output_per_million: 10.0, cache_read_per_million: 0.625 }
+  gpt-4o-mini:
+    clients: [openai]
+    limits: { context_window: 128000, max_output_tokens: 16384 }
+    pricing: { input_per_million: 0.15, output_per_million: 0.6, cache_read_per_million: 0.0375 }
+  gpt-4-turbo:
+    clients: [openai]
+    limits: { context_window: 128000, max_output_tokens: 4096 }
+    pricing: { input_per_million: 10.0, output_per_million: 30.0, cache_read_per_million: 2.5 }
+  gpt-4:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 8192, max_output_tokens: 4096 }
+    pricing: { input_per_million: 10.0, output_per_million: 30.0, cache_read_per_million: 2.5 }
+  gpt-3.5-turbo:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 16385, max_output_tokens: 4096 }
+    pricing: { input_per_million: 0.5, output_per_million: 1.5, cache_read_per_million: 0.125 }
+  o1:
+    clients: [openai]
+    capabilities: { vision: false }
+    limits: { context_window: 200000, max_output_tokens: 100000 }
+    pricing: { input_per_million: 15.0, output_per_million: 60.0, cache_read_per_million: 3.75 }
+  gpt-image-1:
+    clients: [openai]
+    capabilities: { vision: false, image_generation: true, streaming: false, tools: false, structured_output: false, system_prompts: false }
+    pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
+  gpt-image-1-mini:
+    clients: [openai]
+    capabilities: { vision: false, image_generation: true, streaming: false, tools: false, structured_output: false, system_prompts: false }
+    pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
+  # -- gemini ----------------------------------------------------------------
+  gemini-3.1-flash-lite-preview:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.25, output_per_million: 1.5, cache_read_per_million: 0.0625 }
+  gemini-3.1-pro-preview:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
+    pricing: { input_per_million: 2.0, output_per_million: 12.0, cache_read_per_million: 0.5 }
+  gemini-3.5-flash:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 1.5, output_per_million: 9.0, cache_read_per_million: 0.375 }
+  gemini-3.1-flash-image-preview:
+    clients: [gemini]
+    capabilities: { image_generation: true }
+    limits: { context_window: 1000000, max_output_tokens: 65536 }
+    pricing: { input_per_million: 0.5, output_per_million: 3.0, per_image_cents: 4.0, cache_read_per_million: 0.125 }
+  gemini-3-flash-preview:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.5, output_per_million: 3.0, cache_read_per_million: 0.125 }
+  gemini-3-pro-image-preview:
+    clients: [gemini]
+    capabilities: { image_generation: true }
+    limits: { context_window: 1000000, max_output_tokens: 65536 }
+    pricing: { input_per_million: 2.0, output_per_million: 12.0, per_image_cents: 4.0, cache_read_per_million: 0.5 }
+  # Rotating names: the vendor repoints these at the current pro/flash
+  # release; priced to the model each currently resolves to.
+  gemini-pro-latest:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
+    pricing: { input_per_million: 2.0, output_per_million: 12.0, cache_read_per_million: 0.5 }
+  gemini-flash-latest:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 1.5, output_per_million: 9.0, cache_read_per_million: 0.375 }
+  gemini-2.5-flash-lite:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
+  gemini-2.5-flash:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.3, output_per_million: 2.5, cache_read_per_million: 0.075 }
+  gemini-2.5-pro:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 65536, max_thinking_budget: 32768 }
+    pricing: { input_per_million: 1.25, output_per_million: 10.0, cache_read_per_million: 0.3125 }
+  gemini-2.0-flash:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 8192, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
+  gemini-2.0-flash-lite:
+    clients: [gemini]
+    limits: { context_window: 1000000, max_output_tokens: 8192, max_thinking_budget: 24576 }
+    pricing: { input_per_million: 0.1, output_per_million: 0.4, cache_read_per_million: 0.025 }
+  gemini-2.5-flash-image:
+    clients: [gemini]
+    capabilities: { vision: false, image_generation: true, streaming: false, tools: false, structured_output: false, system_prompts: false }
+    pricing: { input_per_million: 0.0, output_per_million: 0.0, per_image_cents: 4.0, cache_read_per_million: 0.0 }
