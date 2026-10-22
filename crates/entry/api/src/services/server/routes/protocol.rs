@@ -163,9 +163,11 @@ pub(super) fn mount_messaging(
     let (ctx, limits) = (mount.ctx, mount.limits);
     let rate_config = &ctx.config().rate_limits;
 
+    let messaging = crate::routes::messaging::MessagingState::guarded()
+        .map_err(|source| RouteMountError::initialization("slack_reply_client", source))?;
     router = router.nest(
         ApiPaths::SLACK_BASE,
-        crate::routes::slack::slack_router()
+        crate::routes::slack::slack_router(messaging)
             .with_state(ctx.clone())
             .with_rate_limit(limits, rate_config.agents_per_second, "agents")?,
     );

@@ -4,6 +4,7 @@
 
 ### Breaking
 
+- **Breaking:** `systemprompt_api::routes::messaging::guarded_http_client` is removed and `slack_router` takes a `MessagingState`. Migrate by building `MessagingState::guarded()?` once where the routes are mounted and passing it to `slack_router`; a guarded client that cannot be built fails route mounting.
 - **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
 - **Breaking:** `systemprompt_extension::ExtensionContext` gains the required method `background_tasks(&self) -> BackgroundTasks`. Migrate by returning a clone of the process's `BackgroundTasks` owner (`AppContext` implements it); a fresh `BackgroundTasks::new()` is only for stubs.
 - **Breaking:** `GatewayJournal::open(state_dir, key: [u8; 32])` takes the decoded master key; `GatewayAuditError::MissingJournalKey` and `GatewayAuditError::JournalKey` are removed. Migrate by passing `SecretsBootstrap::encryption_master_key()?`.
