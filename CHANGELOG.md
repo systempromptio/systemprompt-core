@@ -11,10 +11,13 @@
 - **Breaking:** `systemprompt_security::credential::TokenCache` is a value: `google::access_token`, `MachineGrant::{token, authorization}` and `connector_grant::machine_token` take a `&TokenCache`. `McpClient` is constructed with `McpClient::new(Arc<TokenCache>)` and its operations are methods; `McpToolProvider::new` and `ProxyEngine::new` take the shared cache (`AppContext::connector_tokens()`).
 - **Breaking:** `systemprompt_extension::runtime_config::{set_injected_extensions, get_injected_extensions, get_web_assets_strategy}` are removed. Migrate by passing the `InjectedExtensions` value to `ExtensionRegistry::discover_with`.
 - **Breaking:** `GatewayUpstreamRegistry::global`, `SafetyScannerRegistry::global`, `OverrideEngine::global` and `RouteSelectorEngine::global` are removed; `GatewayEngines` owns one of each (each gains `new()`), `DispatchInputs` carries it as `engines`, `GatewayArtifactScanner::new` takes the `Arc<SafetyScannerRegistry>` it scans with, `TapFinalizeCtx` carries `scanners`, and `apply_system_prompt_override`, `run_request_safety_scan` and `run_response_safety_scan` take the engine they use.
+- **Breaking:** `TaskState::from_str` is the one task-state parser and accepts the short names (`submitted`, `working`, `input-required`, `auth-required`, `completed`, `canceled`, `failed`, `rejected`); `cancelled` is not accepted. `GET /api/v1/agent/tasks?status=…` answers 400 for an unknown status instead of ignoring the filter.
+- **Breaking:** retired serde aliases are removed: a plugin hooks block says `judge` (not `evaluation`), an MCP deployment says `server_type` (not `type`), an agent card says `agentRun`, a Claude plugin manifest says `mcpServers`, and an Anthropic `marketplace.json` says `pluginRoot` and `allowCrossMarketplaceDependenciesOn`.
 
 ### Added
 
-- Gates: `lint-core-globals` fails on a process static outside the reasoned allowlist.
+- `systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL, DEFAULT_POSTGRES_PORT}` are the one source of the default ports and URL; `systemprompt_cli::commands::admin::setup::docker_compose::postgres_compose` renders both the local and the tenant PostgreSQL compose file.
+- Gates: `lint-core-globals` (process statics outside the reasoned allowlist), `lint-serde-aliases` (serde aliases and port literals).
 
 ## [0.72.1] - 2026-10-22
 

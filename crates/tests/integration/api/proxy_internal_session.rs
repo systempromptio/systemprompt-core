@@ -27,7 +27,7 @@ async fn internal_mcp_followup_restores_cached_identity_before_forwarding() -> a
     let services = format!(
         r#"mcp_servers:
   {name}:
-    type: internal
+    server_type: internal
     binary: fixture
     package: fixture
     port: {}

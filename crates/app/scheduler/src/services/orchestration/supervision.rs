@@ -25,7 +25,7 @@ use systemprompt_manifest::services::ServiceModule;
 
 use crate::error::{SchedulerError, SchedulerResult};
 
-const PROTECTED_PORTS: &[u16] = &[5432, 6432];
+const PROTECTED_PORTS: &[u16] = &[systemprompt_models::defaults::DEFAULT_POSTGRES_PORT, 6432];
 const PORT_FREE_POLL: Duration = Duration::from_millis(50);
 
 #[must_use]

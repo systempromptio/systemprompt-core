@@ -1,0 +1,9 @@
+# Serde aliases the gate accepts, one per line:
+#   path:field_or_variant — reason
+# Only a vendor format we do not own earns an alias; "hand-off" entries are
+# removed by the session that owns the file.
+crates/shared/wire/src/openai_chat/response.rs:reasoning_content — vendor: DeepSeek, Qwen and Moonshot emit `reasoning_content`; some OpenAI-compatible servers spell it `reasoning`
+crates/shared/manifest/src/profile/mod.rs:judge — hand-off: profile/** is owned by the config-arch session
+crates/shared/wire/src/protocol.rs:OpenAiChat — hand-off: the `wire` field is deleted by the config-arch session
+crates/shared/wire/src/protocol.rs:OpenAiResponses — hand-off: the `wire` field is deleted by the config-arch session
+crates/shared/models/src/feedback/mod.rs:OpenCode — hand-off: removed with the host-identity package (P7)

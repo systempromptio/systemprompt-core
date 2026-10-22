@@ -23,6 +23,12 @@ mod a2a_artifact_metadata;
 mod a2a_task_metadata;
 
 #[cfg(test)]
+mod task_state_short_names;
+
+#[cfg(test)]
+mod plugin_manifest_no_alias;
+
+#[cfg(test)]
 mod ai;
 
 #[cfg(test)]

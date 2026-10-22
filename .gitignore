@@ -161,6 +161,8 @@ scripts/*
 !scripts/lint-env-vars.sh
 !scripts/lint-core-globals.sh
 !scripts/core-globals-allowlist.txt
+!scripts/lint-serde-aliases.sh
+!scripts/serde-aliases-allowlist.txt
 !scripts/env-var-allowlist.txt
 !scripts/lint-native-test-deps.sh
 !scripts/bridge-native-crates.txt

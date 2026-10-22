@@ -328,6 +328,8 @@ jobs:
         if: ${{ !cancelled() }}
       - run: just lint-core-globals
         if: ${{ !cancelled() }}
+      - run: just lint-serde-aliases
+        if: ${{ !cancelled() }}
       - run: just lint-bridge-file-size
         if: ${{ !cancelled() }}
       - run: just bridge-bindings-check

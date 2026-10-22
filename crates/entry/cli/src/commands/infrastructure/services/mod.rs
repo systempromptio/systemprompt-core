@@ -21,10 +21,9 @@ mod types;
 use clap::Subcommand;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_models::defaults::DEFAULT_API_PORT;
 
 pub use dispatch::{execute, load_service_configs};
-
-const DEFAULT_API_PORT: u16 = 8080;
 
 pub(super) fn get_api_port() -> u16 {
     ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)

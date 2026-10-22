@@ -366,6 +366,12 @@ lint-bridge-globals:
 lint-core-globals *ARGS:
     ./scripts/lint-core-globals.sh {{ARGS}}
 
+# A field has one wire name: `#[serde(alias = ...)]` fails unless
+# scripts/serde-aliases-allowlist.txt names it with a vendor reason. The same
+# gate rejects a bare `8080`/`5432` outside `systemprompt_models::defaults`.
+lint-serde-aliases *ARGS:
+    ./scripts/lint-serde-aliases.sh {{ARGS}}
+
 # The web tree has no bundler or type checker, so a file is only ever reviewed
 # by reading it. The standard caps JS at 150 lines and CSS at 300; this makes
 # the cap a failure instead of a note, so files are split before they sprawl.

@@ -22,6 +22,7 @@ use systemprompt_manifest::{
     SecurityConfig, SecurityHeadersConfig, ServerConfig,
 };
 use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::defaults::{DEFAULT_API_PORT, DEFAULT_API_URL};
 
 
 pub(super) fn server(is_prod: bool) -> ServerConfig {
@@ -31,15 +32,15 @@ pub(super) fn server(is_prod: bool) -> ServerConfig {
         } else {
             "127.0.0.1".to_owned()
         },
-        port: 8080,
-        api_server_url: "http://localhost:8080".to_owned(),
-        api_internal_url: "http://localhost:8080".to_owned(),
-        api_external_url: "http://localhost:8080".to_owned(),
+        port: DEFAULT_API_PORT,
+        api_server_url: DEFAULT_API_URL.to_owned(),
+        api_internal_url: DEFAULT_API_URL.to_owned(),
+        api_external_url: DEFAULT_API_URL.to_owned(),
         use_https: is_prod,
         cors_allowed_origins: vec![
-            "http://localhost:8080".to_owned(),
+            DEFAULT_API_URL.to_owned(),
             "http://localhost:5173".to_owned(),
-            "http://127.0.0.1:8080".to_owned(),
+            format!("http://127.0.0.1:{DEFAULT_API_PORT}"),
         ],
         content_negotiation: ContentNegotiationConfig::default(),
         security_headers: SecurityHeadersConfig::default(),

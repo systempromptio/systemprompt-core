@@ -79,7 +79,7 @@ fn services_yaml(healthy: &str, stopped: &str) -> String {
       audience: a2a
 mcp_servers:
   {HEALTHY}:
-    type: external
+    server_type: external
     endpoint: {healthy}/mcp
     enabled: true
     display_in_web: false
@@ -89,7 +89,7 @@ mcp_servers:
       audience: mcp
       client_id: null
   {STOPPED}:
-    type: external
+    server_type: external
     endpoint: {stopped}/mcp
     enabled: true
     display_in_web: false

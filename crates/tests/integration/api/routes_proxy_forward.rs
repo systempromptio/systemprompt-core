@@ -88,7 +88,7 @@ async fn declared_backend(prefix: &str, port: u16) -> anyhow::Result<DeclaredBac
     let services = format!(
         r#"mcp_servers:
   {name}:
-    type: internal
+    server_type: internal
     binary: fixture
     package: fixture
     port: {port}
