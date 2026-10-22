@@ -53,6 +53,7 @@
 - Private temp files, state-dir write probes and generator staging files take a random suffix instead of a process-wide counter.
 - `SecretScanner` draws its evidence-fingerprint key when it is built; fingerprints do not correlate across scanner rebuilds.
 - `TokenCache` owns the bounded HTTP client its credential exchanges use.
+- The prerender jobs load their content config, web config and template registry on every run, so template edits apply on the next run without a restart.
 
 ### Removed
 

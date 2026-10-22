@@ -16,7 +16,8 @@ use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
 
 use crate::error::{GeneratorResult, PublishError};
-use crate::prerender::utils::{merge_json_data, render_components};
+use crate::prerender::components::render_components;
+use crate::prerender::json_merge::merge_json_data;
 
 pub(super) struct RenderListParams<'a> {
     // JSON: Handlebars page context item; the page data model is dynamic.
