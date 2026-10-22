@@ -1,21 +1,44 @@
 //! Which hosts a signed manifest enables and which hosts each of its skills
-//! targets. The manifest carries host ids as strings, so an id this build
-//! does not know is reported rather than matched.
+//! targets. Enabled hosts arrive typed; skill `hosts` lists are strings from
+//! skill frontmatter, so an id this build does not know is reported rather
+//! than matched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::bridge::host::HostKind;
+use std::collections::BTreeMap;
+
+use systemprompt_models::bridge::host::{HostKind, HostProduct};
 use systemprompt_models::bridge::manifest::{SignedManifest, SkillEntry};
 
 #[must_use]
 pub fn enables_host(manifest: &SignedManifest, host: HostKind) -> bool {
-    manifest.enabled_hosts.iter().any(|h| h == host.as_str())
+    manifest.enabled_hosts.contains(&host)
 }
 
 #[must_use]
 pub fn skill_targets_host(skill: &SkillEntry, host: HostKind) -> bool {
     skill.hosts.is_empty() || skill.hosts.iter().any(|h| h == host.as_str())
+}
+
+// Why: both packagings of a product read one skills tree, so a skill aimed at
+// either packaging is written there.
+#[must_use]
+pub fn skill_targets_product(skill: &SkillEntry, product: HostProduct) -> bool {
+    skill.hosts.is_empty()
+        || skill.hosts.iter().any(|h| {
+            h.parse::<HostKind>()
+                .is_ok_and(|host| host.product() == product)
+        })
+}
+
+#[must_use]
+pub fn model_protocol_overrides(manifest: &SignedManifest) -> BTreeMap<String, Vec<String>> {
+    manifest
+        .host_model_protocols
+        .iter()
+        .map(|(host, protocols)| (host.as_str().to_owned(), protocols.clone()))
+        .collect()
 }
 
 pub fn unknown_skill_hosts(manifest: &SignedManifest) -> impl Iterator<Item = (&str, &str)> {

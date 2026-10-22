@@ -163,7 +163,7 @@ fn an_enabled_list_naming_a_host_lets_that_one_through_while_skipping_the_rest()
                 &ctx,
                 &Selection::All,
                 &ModelProtocolOverrides::new(),
-                Some(vec![first.as_str().to_owned()]),
+                Some(vec![first]),
             ))
             .expect("enrol with one host enabled");
 

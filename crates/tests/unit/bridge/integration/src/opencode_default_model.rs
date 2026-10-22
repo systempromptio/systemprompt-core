@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use systemprompt_bridge::ids::HostToken;
 use systemprompt_bridge::integration::host_app::{HostApp, ProfileGenInputs};
-use systemprompt_bridge::integration::opencode::OPENCODE_HOST;
+use systemprompt_bridge::integration::opencode::OPENCODE_CLI_HOST as OPENCODE_HOST;
 use tempfile::TempDir;
 
 fn sandbox<R>(f: impl FnOnce() -> R) -> R {

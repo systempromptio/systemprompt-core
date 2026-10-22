@@ -95,7 +95,7 @@ fn presenting_client(
     body: &[u8],
 ) -> Option<ClientKind> {
     if let Some(host) = verified_host {
-        return ClientKind::from_bridge_host_id(host.as_str());
+        return Some(ClientKind::from(host));
     }
     if let Some(marker) = native_marker(body) {
         return Some(marker.client());

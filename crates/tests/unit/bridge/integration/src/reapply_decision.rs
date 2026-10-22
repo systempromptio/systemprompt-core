@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use systemprompt_bridge::context::{BridgeContext, ProxyMode};
-use systemprompt_bridge::integration::codex_cli::CODEX_CLI_HOST;
+use systemprompt_bridge::integration::codex::CODEX_CLI_HOST;
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot, ProbeEnv,
     ProfileGenInputs, ProfileInstalled, ProfileState, StaleReason,
@@ -200,7 +200,9 @@ fn a_profile_baked_for_a_dead_port_is_repaired_and_reported_reapplied() {
             (names, outcomes, rewritten)
         });
 
-    assert_eq!(names, vec!["Codex CLI"], "only the stale host was visited");
+    // Why: both Codex packagings read the one managed config; the first host
+    // by id repairs it and the second then reads it as current.
+    assert_eq!(names, vec!["Codex"], "only the stale host was visited");
     assert_eq!(
         outcomes,
         vec!["Reapplied".to_owned()],

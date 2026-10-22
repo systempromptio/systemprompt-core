@@ -117,6 +117,24 @@ pub(crate) fn is_installed(
     }
 }
 
+// Why: the desktop packagings of Codex and OpenCode ship for macOS and Windows
+// only; on Linux the binary on PATH is the CLI packaging, never the app.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(crate) fn desktop_installed(
+    loc: &AppLocator<'_>,
+    start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
+    is_installed(loc, start_menu)
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+pub(crate) const fn desktop_installed(
+    _loc: &AppLocator<'_>,
+    _start_menu: &crate::probe_cache::StartMenuCache,
+) -> AppInstallState {
+    AppInstallState::NotInstalled
+}
+
 // Why: a Start-menu lookup shells out to PowerShell, so a per-render "can this
 // host be opened" question is answered from the filesystem alone.
 #[cfg(target_os = "macos")]

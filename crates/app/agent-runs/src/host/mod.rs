@@ -117,7 +117,10 @@ pub fn host_for(kind: HostKind) -> Execution {
     match kind {
         HostKind::ClaudeCode => claude_code::execution(),
         HostKind::CodexCli => codex_cli::execution(),
-        HostKind::OpenCode => opencode::execution(),
+        HostKind::OpenCodeCli => opencode::execution(),
         HostKind::Hermes => hermes::execution(),
+        HostKind::ClaudeDesktop | HostKind::Codex | HostKind::OpenCode => Execution::Unsupported {
+            reason: "desktop applications do not run headless; queue the CLI packaging",
+        },
     }
 }

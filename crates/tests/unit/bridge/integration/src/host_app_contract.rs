@@ -93,9 +93,14 @@ fn a_host_that_implements_only_the_required_methods_gets_the_default_contract() 
     let host = BareHost;
     assert!(
         host.can_open(),
-        "a desktop host is openable unless it says otherwise"
+        "a host is openable unless it says otherwise"
     );
-    assert_eq!(host.kind(), HostAppKind::DesktopApp);
+    assert_eq!(
+        host.kind(),
+        HostAppKind::CliTool,
+        "the packaging is the host id's, never restated by the host"
+    );
+    assert_eq!(host.profile_identity(), host.id());
     assert_eq!(host.description(), "");
     assert_eq!(host.icon_id(), "hermes", "the icon defaults to the host id");
     assert_eq!(host.config_format(), ConfigFormat::Json);

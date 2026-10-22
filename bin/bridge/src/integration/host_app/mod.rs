@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+pub use systemprompt_models::bridge::host::HostAppKind;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::providers::ApiSurface;
 
@@ -22,7 +23,7 @@ pub use probe::{DesiredError, ProbeEnv};
 pub use crate::integration::profile_state::{
     AppInstallState, ProfileCode, ProfileProbe, ProfileState, StaleReason,
 };
-use crate::sysproc::SysprocError;
+use crate::sysproc::{ProcessHit, SysprocError};
 
 /// The outcome of looking for a host's processes: `running` is `None` when
 /// the enumeration itself failed, which is not the same as "none found".
@@ -35,12 +36,22 @@ pub struct HostProcesses {
 
 impl HostProcesses {
     #[must_use]
-    pub fn from_enumeration(found: Result<Vec<String>, SysprocError>) -> Self {
+    pub fn from_enumeration(
+        found: Result<Vec<ProcessHit>, SysprocError>,
+        packaging: HostAppKind,
+    ) -> Self {
         match found {
-            Ok(processes) => Self {
-                running: Some(!processes.is_empty()),
-                processes,
-                error: None,
+            Ok(hits) => {
+                let processes: Vec<String> = hits
+                    .into_iter()
+                    .filter(|hit| hit.packaging == packaging)
+                    .map(|hit| hit.path)
+                    .collect();
+                Self {
+                    running: Some(!processes.is_empty()),
+                    processes,
+                    error: None,
+                }
             },
             Err(e) => Self {
                 running: None,
@@ -50,7 +61,6 @@ impl HostProcesses {
         }
     }
 }
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HostAppSnapshot {
@@ -78,17 +88,6 @@ pub struct GeneratedProfile {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
-#[cfg_attr(feature = "ts-export", ts(rename = "HostKind"))]
-pub enum HostAppKind {
-    DesktopApp,
-    CliTool,
-    DesktopAndCli,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
@@ -105,12 +104,14 @@ pub enum ConfigFormat {
 /// `ManualStepRequired` is not a failure: on macOS both hosts are configured by
 /// a profile the OS holds on the user's behalf, and only the user can withdraw
 /// it. Reporting that as a removal would be a lie, and reporting it as an error
-/// would be wrong.
+/// would be wrong. `RetainedForSibling` is the shared-config case: the other
+/// packaging of the same product still reads the file, so nothing was removed.
 #[derive(Debug)]
 pub enum ProfileRemoval {
     Removed { path: Option<String> },
     NothingToRemove,
     ManualStepRequired { instruction: String },
+    RetainedForSibling { sibling: HostKind },
 }
 
 /// Outcome of a successful profile install.
@@ -188,7 +189,14 @@ pub trait HostApp: Send + Sync + 'static {
     }
 
     fn kind(&self) -> HostAppKind {
-        HostAppKind::DesktopApp
+        self.id().kind()
+    }
+
+    // Why: two packagings of a product read one config tree, so the profile
+    // written for either carries one loopback credential and one override
+    // key; the host that owns them answers here for both.
+    fn profile_identity(&self) -> HostKind {
+        self.id()
     }
 
     fn description(&self) -> &'static str {

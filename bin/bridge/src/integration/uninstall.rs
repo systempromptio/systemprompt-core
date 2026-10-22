@@ -38,7 +38,7 @@ pub fn clear_hosts() -> Vec<String> {
     // Why: a profile left on any host keeps pointing that host at a proxy port
     // and secret the purge has just discarded; every enrolled host is cleared,
     // not only the two the Cowork path knew about.
-    match super::enrol::remove_host_profiles(&super::enrol::Selection::All) {
+    match super::enrol::remove_host_profiles(&super::enrol::Selection::All, &[]) {
         Ok(reports) => {
             for report in reports {
                 match report.outcome {

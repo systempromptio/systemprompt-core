@@ -51,8 +51,8 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::drift::DesiredProfile;
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::host_app::{
-    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppKind,
-    HostAppSnapshot, HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
+    AppInstallState, ConfigFormat, GeneratedProfile, HostApp, HostAppError, HostAppSnapshot,
+    HostProcesses, ProbeEnv, ProfileInstalled, ProfileRemoval, ProfileState,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use crate::integration::profile_state::ProfileProbe;
@@ -152,10 +152,6 @@ impl HostApp for ClaudeDesktopHost {
         } else {
             "offered to System Settings — approve it under General › Device Management"
         }
-    }
-
-    fn kind(&self) -> HostAppKind {
-        HostAppKind::DesktopApp
     }
 
     fn description(&self) -> &'static str {

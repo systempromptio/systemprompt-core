@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.73.0] - 2026-10-22
+
+### Breaking
+
+- **Breaking:** `systemprompt_models::bridge::host::HostKind` has seven ids: `claude-code`, `claude-desktop`, `codex`, `codex-cli`, `opencode`, `opencode-cli` and `hermes`. `codex` and `opencode` name the desktop apps, `codex-cli` and `opencode-cli` the command-line tools. `HostKind::kind()` gives the packaging (`HostAppKind`) and `HostKind::product()` the product (`HostProduct`). Migrate host rules, enabled-host preferences and `hosts:` lists that mean the OpenCode CLI to `opencode-cli` and those that mean the Codex app to `codex`.
+- **Breaking:** `SignedManifest::enabled_hosts` is `Vec<HostKind>` and `host_model_protocols` is `BTreeMap<HostKind, Vec<String>>`; a manifest naming an unknown host id fails to deserialise, and an empty `enabled_hosts` enables no host. The gateway and the bridge ship together.
+- **Breaking:** `ClientKind::from_bridge_host_id` and `ClientKind::bridge_host_id` are removed. Migrate by `ClientKind::from(host)` and `ClientKind::hosts()`.
+- **Breaking:** `EvaluatorClient::accepts_host_name(&str)` and the `opencode` serde alias are removed. Migrate by `EvaluatorClient::accepts(HostKind)` or `EvaluatorClient::from(HostKind)`.
+- **Breaking:** `ExecutionSource::from_hook_host` takes a `HostKind`.
+- **Breaking:** `systemprompt_agent_runs::HostKind` is the shared `systemprompt_models::bridge::host::HostKind`; `AgentRunsError::UnknownHost` is removed, and a desktop packaging (`claude-desktop`, `codex`, `opencode`) is `Execution::Unsupported`. The `agent_runs.host` column is constrained to the CLI ids and rows queued as `opencode` move to `opencode-cli` (migration `001_agent_runs_host_cli_ids`).
+- **Breaking:** `bridge_user_host_prefs.host_id` and `bridge_user_host_model_prefs.host_id` are constrained to the seven ids (migration `021_bridge_host_prefs_host_check`); rows naming any other id are dropped.
+- **Breaking:** **Bridge:** `HostAppKind` is `systemprompt_models::bridge::host::HostAppKind` with `DesktopApp` and `CliTool` only; `HostApp::kind()` derives from the host id. `integration::codex_cli` is `integration::codex` with `CODEX_APP_HOST`, `CODEX_CLI_HOST` and `CodexSync`; `integration::opencode` exposes `OPENCODE_APP_HOST` and `OPENCODE_CLI_HOST`, and `install_state` is removed. `HostSync::serves` lets one emitter serve every packaging of a product. `enrol::remove_host_profiles` takes the enabled host list, and `ProfileRemoval::RetainedForSibling` / `enrol::Outcome::RetainedForSibling` report a shared config kept for the other packaging. `sysproc::find_processes` returns `ProcessHit`s carrying their packaging.
+
+### Added
+
+- **Bridge:** Codex and OpenCode each install as two hosts, the desktop app and the CLI, over one shared configuration tree written once. The app host is detected by its bundle or installer folder and can be launched; the CLI host by the binary on `PATH`. Removing one packaging keeps the shared configuration while the other remains enabled.
+- `lint-host-ids`: a bridge host id literal outside `HostKind` and the web mirror `host-ids.js` fails the gate.
+
+### Changed
+
+- **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
+
 ## [0.72.1] - 2026-10-22
 
 ### Breaking

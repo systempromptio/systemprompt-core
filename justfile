@@ -365,6 +365,10 @@ lint-bridge-globals:
 lint-bridge-file-size:
     ./scripts/lint-bridge-file-size.sh
 
+# A bridge host id is spelled only in HostKind (and its web mirror host-ids.js).
+lint-host-ids:
+    ./scripts/lint-host-ids.sh
+
 # Reject unverified sqlx::query calls outside the allowlist
 lint-sqlx:
     ./scripts/check-sqlx.sh

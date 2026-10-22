@@ -23,6 +23,7 @@ lint-test-seams
 lint-test-value
 lint-shared-test-ids
 lint-raw-ids
+lint-host-ids
 lint-sqlx
 lint-http-errors
 lint-no-untyped-admin

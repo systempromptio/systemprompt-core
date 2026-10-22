@@ -10,7 +10,7 @@ use crate::integration::agent_health::{
     AgentFleets, AgentSurface, AgentVerdict, ApplyFailure, HostCapabilities, HostHealthInputs,
     HostModelViewRef, PendingStep, SYNC_ONLY_AGENTS, SyncOnlyAgent,
 };
-use crate::integration::host_app::{ConfigFormat, HostAppKind};
+use crate::integration::host_app::ConfigFormat;
 pub(crate) use crate::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
@@ -110,18 +110,14 @@ fn model_view(
 }
 
 fn is_enabled(snap: &AppStateSnapshot, id: HostKind) -> bool {
-    snap.enabled_hosts.iter().any(|h| h == id.as_str())
-}
-
-fn shown(snap: &AppStateSnapshot, id: HostKind) -> bool {
-    snap.enabled_hosts.is_empty() || is_enabled(snap, id)
+    snap.enabled_hosts.contains(&id)
 }
 
 pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
     let mut out: Vec<(HostKind, AgentVerdict)> = crate::integration::host_apps()
         .iter()
         .copied()
-        .filter(|host| shown(snap, host.id()))
+        .filter(|host| is_enabled(snap, host.id()))
         .map(|host| {
             (
                 host.id(),
@@ -132,7 +128,7 @@ pub fn host_verdicts(snap: &AppStateSnapshot) -> Vec<(HostKind, AgentVerdict)> {
     out.extend(
         SYNC_ONLY_AGENTS
             .iter()
-            .filter(|agent| shown(snap, agent.id))
+            .filter(|agent| is_enabled(snap, agent.id))
             .map(|agent| (agent.id, sync_only_verdict(snap, agent))),
     );
     out
@@ -187,7 +183,7 @@ fn build_sync_only_entry<'a>(
     HostEntryPayload {
         id: agent.id,
         display_name: agent.display_name,
-        kind: HostAppKind::CliTool,
+        kind: agent.id.kind(),
         description: agent.description,
         icon: agent.icon,
         config_format: ConfigFormat::Json,
@@ -239,9 +235,7 @@ pub(crate) fn payload(snap: &AppStateSnapshot) -> HostsPayload<'_> {
             .iter()
             .map(|agent| build_sync_only_entry(snap, agent)),
     );
-    if !snap.enabled_hosts.is_empty() {
-        entries.retain(|e| e.enabled);
-    }
+    entries.retain(|e| e.enabled);
     let agent_fleet = AgentFleets::fold(
         &entries
             .iter()

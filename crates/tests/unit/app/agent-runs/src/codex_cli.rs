@@ -96,7 +96,7 @@ fn host_for_codex_is_supported() {
     let caps = host.capabilities();
     assert!(!caps.hooks && caps.resume && caps.structured_output && caps.mcp);
     assert!(matches!(
-        host_for(HostKind::OpenCode),
+        host_for(HostKind::OpenCodeCli),
         Execution::Unsupported { .. }
     ));
     assert!(matches!(

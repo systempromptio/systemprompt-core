@@ -57,7 +57,7 @@ pub mod schedule;
 pub(crate) mod single_instance;
 pub mod stdio;
 pub mod sync;
-pub(crate) mod sysproc;
+pub mod sysproc;
 pub mod update;
 pub mod user_alert;
 pub mod validate;
@@ -131,7 +131,8 @@ Commands (plugin + MCP sync):
                                           but no credential, which the proxy
                                           rejects with 403.
                                           Ids: claude-code, claude-desktop,
-                                          codex-cli, hermes, opencode.
+                                          codex, codex-cli, opencode,
+                                          opencode-cli, hermes.
     [--hosts all]                         Enrol every host this build offers.
                                           Undo one with
                                           `uninstall --host <id>`, which touches

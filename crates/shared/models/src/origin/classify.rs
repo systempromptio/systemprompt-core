@@ -214,7 +214,9 @@ fn claude_entrypoint(value: &serde_json::Value) -> Option<NativeMarker> {
     match entrypoint {
         "cli" => Some(NativeMarker::ClaudeCliEntrypoint),
         "local-agent" => Some(NativeMarker::ClaudeDesktopEntrypoint),
-        entry if entry.starts_with("claude-desktop") => Some(NativeMarker::ClaudeDesktopEntrypoint),
+        entry if entry.starts_with(ClientKind::ClaudeDesktop.as_str()) => {
+            Some(NativeMarker::ClaudeDesktopEntrypoint)
+        },
         _ => None,
     }
 }

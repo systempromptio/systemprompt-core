@@ -87,6 +87,6 @@ fn stringify(v: &Value) -> String {
     }
 }
 
-pub(super) fn list_opencode_processes() -> Result<Vec<String>, sysproc::SysprocError> {
-    sysproc::find_processes("opencode")
+pub(super) fn list_opencode_processes() -> Result<Vec<sysproc::ProcessHit>, sysproc::SysprocError> {
+    sysproc::find_processes(config::BINARY, config::APP_PROCESS_MARKERS)
 }

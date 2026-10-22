@@ -1,4 +1,4 @@
-//! Codex CLI sync emitter.
+//! Codex sync emitter, shared by the desktop app and the CLI.
 //!
 //! Codex only loads plugins it resolves *through a marketplace*; a bare plugin
 //! folder plus a `[plugins.*].enabled` flag is ignored. So skills ship as a
@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{HostKind, HostProduct};
 
 use crate::gateway::manifest::SignedManifest;
 use crate::host_sync::{ApplyError, HostSync, HostSyncCtx, HostSyncReport};
@@ -39,12 +39,16 @@ const MARKETPLACE: &str = "systemprompt";
 const PLUGIN_NAME: &str = "systemprompt-managed";
 
 #[derive(Clone, Copy, Debug)]
-pub struct CodexCliSync;
+pub struct CodexSync;
 
 #[async_trait]
-impl HostSync for CodexCliSync {
+impl HostSync for CodexSync {
     fn host_id(&self) -> HostKind {
-        HostKind::CodexCli
+        super::TOKEN_HOST
+    }
+
+    fn serves(&self, host: HostKind) -> bool {
+        host.product() == HostProduct::Codex
     }
 
     async fn apply(&self, ctx: &HostSyncCtx<'_>) -> Result<HostSyncReport, ApplyError> {
