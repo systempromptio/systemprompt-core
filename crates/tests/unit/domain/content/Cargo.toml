@@ -36,3 +36,7 @@ sqlx = { workspace = true }
 
 [package.metadata.cargo-machete]
 ignored = ["reqwest"]
+
+[package.metadata.cargo-machete]
+# Why: `register_extension!` expands to `::inventory::submit!`, which machete cannot see.
+ignored = ["inventory"]
