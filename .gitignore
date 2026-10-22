@@ -133,6 +133,8 @@ scripts/*
 # the `just lint-*` recipes.
 !scripts/lint-schema.sh
 !scripts/lint-extensions.sh
+!scripts/lint-migrations.sh
+!scripts/large-tables.txt
 !scripts/lint-raw-ids.sh
 !scripts/lint-host-ids.sh
 !scripts/lint-header-literals.sh

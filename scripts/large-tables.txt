@@ -1,0 +1,20 @@
+# Tables that hold tens of millions of rows on an established database.
+# scripts/lint-migrations.sh judges a new migration's DDL and bulk writes on
+# these tables by the rules in internal/guides/rust.md "Migrations at scale".
+# One table per line; `#` starts a comment.
+ai_requests
+ai_request_messages
+ai_request_payloads
+ai_request_tool_calls
+user_sessions
+analytics_events
+engagement_events
+logs
+log_rollup_hourly
+event_outbox
+mcp_tool_executions
+governance_decisions
+ai_quota_buckets
+agent_tasks
+task_messages
+message_parts

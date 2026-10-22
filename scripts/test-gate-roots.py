@@ -77,6 +77,37 @@ class GateRoots(unittest.TestCase):
         self.assert_reports(run("lint-stringly-errors.sh", str(root)), path)
         self.assert_default_is_core("lint-stringly-errors.sh", path)
 
+    def test_migrations(self):
+        root, path = self.fixture(
+            "crates/domain/users/schema/migrations/099_unsafe.sql",
+            "ALTER TABLE user_sessions ADD CONSTRAINT user_sessions_kind_check CHECK (kind IN ('a'));\n"
+            "CREATE INDEX idx_user_sessions_kind ON user_sessions(kind);\n"
+            "UPDATE user_sessions SET kind = 'a';\n"
+            "ALTER TABLE user_sessions ADD COLUMN kind TEXT NOT NULL;\n"
+            "CREATE INDEX CONCURRENTLY idx_user_sessions_kind2 ON user_sessions(kind);\n"
+            "CREATE OR REPLACE FUNCTION is_kind(kind TEXT) RETURNS BOOLEAN LANGUAGE plpgsql AS $$ BEGIN RETURN true; END $$;\n"
+            "CREATE OR REPLACE VIEW v_kind AS SELECT * FROM user_sessions WHERE is_kind(kind);\n",
+        )
+        result = run("lint-migrations.sh", str(root))
+        self.assert_reports(result, path)
+        for rule in ("constraint", "index", "bulk-write", "not-null", "inline"):
+            self.assertIn(f"[{rule}]", result.stdout, result.stdout + result.stderr)
+        safe = Path(self.tmp.name) / "safe" / "crates" / "domain" / "users" / "schema" / "migrations" / "099_safe.sql"
+        safe.parent.mkdir(parents=True)
+        safe.write_text(
+            "-- @no-transaction\n"
+            "ALTER TABLE user_sessions ADD CONSTRAINT user_sessions_kind_check CHECK (kind IN ('a')) NOT VALID;\n"
+            "ALTER TABLE user_sessions VALIDATE CONSTRAINT user_sessions_kind_check;\n"
+            "CREATE INDEX CONCURRENTLY idx_user_sessions_kind ON user_sessions(kind);\n"
+            "-- Why: bounded: one row per fixture.\n"
+            "UPDATE user_sessions SET kind = 'a';\n"
+            "DELETE FROM user_sessions WHERE ctid = ANY(ARRAY(SELECT ctid FROM user_sessions LIMIT 10));\n"
+            "ALTER TABLE user_sessions ADD COLUMN kind TEXT NOT NULL DEFAULT 'a';\n"
+        )
+        passed = run("lint-migrations.sh", str(safe.parents[5]))
+        self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+        self.assert_default_is_core("lint-migrations.sh", path)
+
     def test_env_vars(self):
         root, path = self.fixture(
             "src/reader.rs", 'pub fn home() -> Option<String> {\n    std::env::var("HOME").ok()\n}\n'
