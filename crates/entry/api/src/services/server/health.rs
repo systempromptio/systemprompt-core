@@ -8,12 +8,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Json;
 use serde_json::json;
 use systemprompt_database::{DatabaseQuery, JsonRow};
 use systemprompt_runtime::AppContext;
+
+use super::scheduler_health::SchedulerHealth;
 
 pub(super) const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");
 
@@ -212,11 +215,10 @@ pub(super) const HEALTH_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
+    axum::Extension(scheduler_health): axum::Extension<Arc<SchedulerHealth>>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
     use systemprompt_database::DatabaseProvider;
-
-    use super::scheduler_health;
 
     let probe = ctx.db_pool().fetch_optional(&HEALTH_CHECK_QUERY, &[]);
     let db_healthy = matches!(
@@ -224,7 +226,7 @@ pub async fn handle_health(
         Ok(Ok(_))
     );
 
-    let degraded_jobs = scheduler_health::degraded();
+    let degraded_jobs = scheduler_health.degraded();
     let relay_status = ctx
         .event_bridge()
         .get()

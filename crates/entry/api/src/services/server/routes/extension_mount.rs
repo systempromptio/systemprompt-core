@@ -18,7 +18,7 @@ use axum::{Extension, Router};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
-use crate::routes::admin::services::ServicesRefresh;
+use crate::routes::admin::services::{RefreshLock, ServicesRefresh};
 use crate::services::middleware::authz::AuthzPolicy;
 use crate::services::middleware::{RouterExt, UserOnlyContextMiddleware};
 
@@ -26,6 +26,7 @@ pub(super) fn mount_extension_routes(
     mut router: Router,
     ctx: &AppContext,
     user_middleware: &UserOnlyContextMiddleware,
+    refresh_lock: &RefreshLock,
     events: Option<&StartupEventSender>,
 ) -> Result<Router, RouteMountError> {
     let registry = ctx.extension_registry();
@@ -66,7 +67,7 @@ pub(super) fn mount_extension_routes(
         .layer(Extension(ctx.governance_arc()))
         .layer(Extension(ctx.ai_service_arc()))
         .layer(Extension(ctx.artifact_ingest_arc()))
-        .layer(Extension(ServicesRefresh::new(ctx)));
+        .layer(Extension(ServicesRefresh::new(ctx, refresh_lock.clone())));
 
         if let Some(frame_options) = ext_router_config.frame_options {
             tracing::debug!(

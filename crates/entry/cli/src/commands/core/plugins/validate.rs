@@ -7,7 +7,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 
@@ -28,9 +28,9 @@ pub struct ValidateArgs {
 }
 
 pub(super) fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<(CommandOutput, bool)> {
-    let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
-    let plugins_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "plugins");
-    let skills_path = ServicesRootBootstrap::active_path_or(&profile.paths.services, "skills");
+    let services_root = &ServicesRootBootstrap::require()?.path;
+    let plugins_path = services_root.join("plugins");
+    let skills_path = services_root.join("skills");
 
     let plugin_ids = match args.id {
         Some(id) => {

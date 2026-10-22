@@ -4,6 +4,9 @@
 
 ### Breaking
 
+- **Breaking:** `ServicesRootBootstrap::{active_root_or, active_path_or}` are removed. Migrate by `ServicesRootBootstrap::require()?`, which returns `ConfigLoadError::ServicesRootUninitialised` before boot installs the root; code examining a named profile reads `profile.paths.services`.
+- **Breaking:** `systemprompt_api::services::server::scheduler_health::{record, degraded}` and `routes::admin::services::process_refresh_lock` are removed; `ServicesRefresh::with_lock` is folded into `ServicesRefresh::new(ctx, lock)`. The server owns a `SchedulerHealth` (`EarlyServer::scheduler_health()`), which `handle_health` reads as an `Extension<Arc<SchedulerHealth>>`, and the route builder owns one `RefreshLock`. Migrate by layering both as axum extensions on a router that serves `handle_health` or the refresh route.
+- **Breaking:** `systemprompt_api::routes::messaging::guarded_http_client` is removed and `slack_router` takes a `MessagingState`. Migrate by building `MessagingState::guarded()?` once where the routes are mounted and passing it to `slack_router`; a guarded client that cannot be built fails route mounting.
 - **Breaking:** `user_sessions.session_source` defaults to `unknown` (migration `users/026`), matching `SessionSource::default()`. Migrate by binding `session_source` explicitly on every insert that means `web`.
 - **Breaking:** `systemprompt_extension::ExtensionContext` gains the required method `background_tasks(&self) -> BackgroundTasks`. Migrate by returning a clone of the process's `BackgroundTasks` owner (`AppContext` implements it); a fresh `BackgroundTasks::new()` is only for stubs.
 - **Breaking:** `GatewayJournal::open(state_dir, key: [u8; 32])` takes the decoded master key; `GatewayAuditError::MissingJournalKey` and `GatewayAuditError::JournalKey` are removed. Migrate by passing `SecretsBootstrap::encryption_master_key()?`.
@@ -50,6 +53,7 @@
 
 ### Changed
 
+- Authorization logs a warning naming the marketplace id when a marketplace has no access-control entity row and its declared `default_included` from the services YAML is used; with neither, `default_included` stays withheld.
 - The ghost-session and no-JavaScript sweeps run through the injected session store; every statement that sets `is_behavioral_bot` lives in the users crate's session repository.
 - The `database_cleanup` job dispatches each `RetentionTarget` to the owning crate's repository (`LoggingRepository::purge_before`, `AnalyticsRepository::purge_before`, `AiRequestRepository::purge_messages_before`, `AiRequestPayloadRepository::release_bodies_before`, `AiQuotaBucketRepository::purge_before`, `ToolUsageRepository::purge_before`, `DurableOutbox::purge_processed_before`, `GovernanceDecisionRetention::purge_before`); the scheduler issues no delete of its own.
 - `lint-table-ownership` also scans `crates/app/**` and `crates/entry/**`: an app or entry crate may read a foreign table only when `scripts/table-ownership-reads.txt` lists it, and may never write one.

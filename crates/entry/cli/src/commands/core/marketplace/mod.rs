@@ -72,7 +72,7 @@ pub async fn explain(args: &ExplainArgs) -> Result<CommandOutput> {
     let profile = systemprompt_config::ProfileBootstrap::get().context("Failed to get profile")?;
     let services =
         systemprompt_loader::ConfigLoader::load().context("Failed to load services config")?;
-    let services_root = ServicesRootBootstrap::active_root_or(&profile.paths.services);
+    let services_root = ServicesRootBootstrap::require()?.path.clone();
     let user_id = UserId::new(
         args.user
             .clone()
