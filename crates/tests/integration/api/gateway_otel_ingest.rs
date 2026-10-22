@@ -21,19 +21,31 @@ fn post(body: Body) -> Request<Body> {
 
 #[tokio::test]
 async fn empty_body_is_accepted() {
-    let resp = ingest_envelope(post(Body::empty())).await;
+    let resp = ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        post(Body::empty()),
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
 }
 
 #[tokio::test]
 async fn undecodable_bytes_are_accepted() {
-    let resp = ingest_envelope(post(Body::from(vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe]))).await;
+    let resp = ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        post(Body::from(vec![0x01, 0x02, 0x03, 0x04, 0xff, 0xfe])),
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
 }
 
 #[tokio::test]
 async fn oversize_body_is_accepted() {
     let oversize = vec![0u8; 4 * 1024 * 1024 + 1024];
-    let resp = ingest_envelope(post(Body::from(oversize))).await;
+    let resp = ingest_envelope(
+        &systemprompt_test_fixtures::fixture_logging_runtime(),
+        post(Body::from(oversize)),
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::ACCEPTED);
 }

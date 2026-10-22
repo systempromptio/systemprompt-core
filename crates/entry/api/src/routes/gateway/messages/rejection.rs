@@ -10,7 +10,7 @@ use systemprompt_ai::repository::{
     AiRequestClientEvidenceRepository, AiRequestPayloadRepository, AiRequestRepository,
     UpsertPayloadParams,
 };
-use systemprompt_identifiers::AiRequestId;
+use systemprompt_identifiers::{AiRequestId, InstanceId};
 use systemprompt_models::origin::ClientEvidence;
 
 use super::extract::RejectionPartial;
@@ -22,7 +22,8 @@ pub async fn persist_rejection(
     status: StatusCode,
     message: &str,
 ) {
-    let Some(record) = build_rejection_record(ai_request_id, partial) else {
+    let Some(record) = build_rejection_record(repos.logging.instance_id(), ai_request_id, partial)
+    else {
         return;
     };
     write_rejection_record(&repos.requests, ai_request_id, &record, status, message).await;
@@ -36,6 +37,7 @@ pub async fn persist_rejection(
 }
 
 pub fn build_rejection_record(
+    instance_id: Option<&InstanceId>,
     ai_request_id: &AiRequestId,
     partial: &RejectionPartial,
 ) -> Option<AiRequestRecord> {
@@ -62,7 +64,7 @@ pub fn build_rejection_record(
     if let Some(cs) = &partial.client_session_id {
         builder = builder.client_session_id(cs.clone());
     }
-    if let Some(instance_id) = systemprompt_logging::instance_id() {
+    if let Some(instance_id) = instance_id {
         builder = builder.instance_id(instance_id.clone());
     }
     if let Some(provider) = &partial.provider {

@@ -193,7 +193,7 @@ pub async fn drain(ctx: &AppContext, scheduler: Option<SchedulerHandle>) {
         );
     }
 
-    if let Err(e) = systemprompt_logging::shutdown_database_logging().await {
+    if let Err(e) = ctx.logging().sink().shutdown().await {
         tracing::warn!(error = %e, "Database log writer failed to flush on shutdown");
     }
 }

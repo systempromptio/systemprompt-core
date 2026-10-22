@@ -40,12 +40,6 @@ crates/entry/api/src/services/server/metrics.rs:RECORDER_INIT — serialises the
 
 # Debt: service state a later package moves onto an owner (logging, boot
 # display, process-wide HTTP clients, per-job memo, cloud credentials).
-crates/infra/logging/src/lib.rs:INSTANCE_ID — debt: logging layer state
-crates/infra/logging/src/lib.rs:DB_PROXY — debt: logging layer state
-crates/infra/logging/src/lib.rs:DB_WRITER — debt: logging layer state
-crates/infra/logging/src/layer/mod.rs:BACKGROUND_SENDER — debt: logging layer state
-crates/infra/logging/src/layer/mod.rs:DROPPED — debt: logging layer state
-crates/infra/logging/src/attribution.rs:PLATFORM_OWNER — debt: logging attribution state
 crates/infra/logging/src/services/json_format.rs:JSON_CONSOLE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STARTUP_MODE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI output mode

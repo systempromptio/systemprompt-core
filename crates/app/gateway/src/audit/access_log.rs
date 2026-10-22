@@ -25,7 +25,7 @@
 
 use std::time::Instant;
 
-use systemprompt_logging::{LogActor, LogEntry, LogLevel};
+use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRuntime};
 
 pub const PHASE_HEADERS: &str = "headers";
 pub const PHASE_TERMINAL: &str = "terminal";
@@ -68,11 +68,11 @@ pub const fn level_for(status: u16) -> LogLevel {
 pub struct TerminalOutcome<'a> {
     pub access: &'a GatewayAccessLog,
     pub status: u16,
-    pub actor: Option<LogActor>,
+    pub actor: LogActor,
     pub error: Option<&'a str>,
 }
 
-pub fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
+pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'_>) {
     let TerminalOutcome {
         access,
         status,
@@ -111,9 +111,6 @@ pub fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
     if !persist {
         return;
     }
-    let Some(actor) = actor else {
-        return;
-    };
     let metadata = serde_json::json!({
         "kind": "access_log",
         "method": method,
@@ -130,5 +127,5 @@ pub fn log_gateway_terminal(outcome: TerminalOutcome<'_>) {
         actor,
     )
     .with_metadata(metadata);
-    systemprompt_logging::enqueue_background(entry);
+    logging.enqueue(entry);
 }
