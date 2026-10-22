@@ -47,6 +47,8 @@ fn make_profile(services: &Path) -> Profile {
             port: 8080,
             api_server_url: "http://localhost:8080".to_string(),
             api_internal_url: "http://localhost:8080".to_string(),
+            external_url: "https://example.com".to_string(),
+            extra_cors_origins: Vec::new(),
             api_external_url: "https://example.com".to_string(),
             use_https: false,
             cors_allowed_origins: vec![],
@@ -61,6 +63,7 @@ fn make_profile(services: &Path) -> Profile {
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
+            root: None,
             system: services.parent().unwrap().to_string_lossy().to_string(),
             services: services.to_string_lossy().to_string(),
             bin: "/tmp/test/bin".to_string(),
@@ -218,9 +221,14 @@ fn validate_accepts_a_serialized_profile_document() {
     let dir = tempfile::tempdir().unwrap();
     let services = dir.path().join("services");
     std::fs::create_dir_all(&services).unwrap();
-    let yaml = make_profile(&services).to_yaml().unwrap();
+    let mut profile = make_profile(&services);
+    profile.paths.system = ".".to_owned();
+    profile.paths.services = "services".to_owned();
+    profile.paths.bin = "bin".to_owned();
+    profile.paths.storage = None;
+    profile.security.signing_key_path = "signing_key.pem".into();
     let profile_path = dir.path().join("profile.yaml");
-    std::fs::write(&profile_path, yaml).unwrap();
+    std::fs::write(&profile_path, profile.to_yaml().unwrap()).unwrap();
 
     let args = ValidateArgs {
         target: Some(profile_path.to_string_lossy().to_string()),
@@ -229,6 +237,23 @@ fn validate_accepts_a_serialized_profile_document() {
     };
     let (_output, all_valid) = execute(&args, &cfg()).unwrap();
     assert!(all_valid);
+}
+
+#[test]
+fn validate_refuses_a_committed_absolute_temp_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let services = dir.path().join("services");
+    std::fs::create_dir_all(&services).unwrap();
+    let profile_path = dir.path().join("profile.yaml");
+    std::fs::write(&profile_path, make_profile(&services).to_yaml().unwrap()).unwrap();
+
+    let args = ValidateArgs {
+        target: Some(profile_path.to_string_lossy().to_string()),
+        strict: false,
+        schema: false,
+    };
+    let err = execute(&args, &cfg()).unwrap_err();
+    assert!(err.to_string().contains("absolute temp path"), "{err}");
 }
 
 #[test]

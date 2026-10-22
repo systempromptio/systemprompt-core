@@ -117,6 +117,7 @@ pub fn test_app_context(pool: &DbPool, database_url: &str) -> Arc<AppContext> {
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),

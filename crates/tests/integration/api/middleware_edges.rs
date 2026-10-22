@@ -40,6 +40,7 @@ async fn boot_server() -> anyhow::Result<axum::Router> {
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
 
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),

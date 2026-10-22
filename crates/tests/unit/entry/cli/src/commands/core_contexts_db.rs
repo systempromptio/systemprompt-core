@@ -337,6 +337,8 @@ fn minimal_profile() -> systemprompt_manifest::Profile {
             port: 8080,
             api_server_url: "http://localhost:8080".to_string(),
             api_internal_url: "http://localhost:8080".to_string(),
+            external_url: "https://example.com".to_string(),
+            extra_cors_origins: Vec::new(),
             api_external_url: "https://example.com".to_string(),
             use_https: false,
             cors_allowed_origins: vec![],
@@ -351,6 +353,7 @@ fn minimal_profile() -> systemprompt_manifest::Profile {
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
+            root: None,
             system: "/tmp/ctxcmd".to_string(),
             services: "/tmp/ctxcmd/services".to_string(),
             bin: "/tmp/ctxcmd/bin".to_string(),

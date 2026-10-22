@@ -62,6 +62,7 @@ async fn copy_extension_assets_copies_required_and_tolerates_optional_missing() 
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_manifest::profile::PathsConfig {
+            root: None,
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),
@@ -101,6 +102,7 @@ async fn copy_extension_assets_fails_when_required_asset_missing() {
     let p = tmp.path().to_string_lossy().to_string();
     let paths = systemprompt_config::paths::AppPaths::from_profile(
         &systemprompt_manifest::profile::PathsConfig {
+            root: None,
             system: p.clone(),
             services: p.clone(),
             bin: p.clone(),

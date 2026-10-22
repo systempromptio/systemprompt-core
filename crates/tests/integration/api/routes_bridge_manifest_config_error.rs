@@ -20,6 +20,7 @@ async fn malformed_services_config_fails_manifest_with_500() -> anyhow::Result<(
     );
     let pool = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
         bin: b.bin_path.to_string_lossy().into_owned(),

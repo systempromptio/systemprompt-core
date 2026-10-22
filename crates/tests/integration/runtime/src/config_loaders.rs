@@ -82,6 +82,7 @@ fn make_app_paths(base: &std::path::Path) -> AppPaths {
     fs::create_dir_all(&services).expect("mkdir services");
     fs::create_dir_all(&bin).expect("mkdir bin");
     let paths = PathsConfig {
+        root: None,
         system: system.to_string_lossy().to_string(),
         services: services.to_string_lossy().to_string(),
         bin: bin.to_string_lossy().to_string(),

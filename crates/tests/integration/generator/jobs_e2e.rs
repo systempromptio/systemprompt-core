@@ -23,6 +23,7 @@ fn paths_in(tmp: &TempDir) -> AppPaths {
     std::fs::create_dir_all(root.join("web/dist")).expect("mkdir web/dist");
 
     let paths = PathsConfig {
+        root: None,
         system: root.to_string_lossy().to_string(),
         services: services.to_string_lossy().to_string(),
         bin: bin.to_string_lossy().to_string(),

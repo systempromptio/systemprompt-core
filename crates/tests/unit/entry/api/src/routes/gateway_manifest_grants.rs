@@ -69,6 +69,7 @@ fn boot() -> &'static TestBootstrap {
 
 fn boot_paths(boot: &TestBootstrap) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: boot.system_path.display().to_string(),
         services: boot.services_path.display().to_string(),
         bin: boot.bin_path.display().to_string(),

@@ -162,6 +162,7 @@ async fn harness_with_database(
         systemprompt_test_fixtures::test_db_pool().await
     };
     let paths = PathsConfig {
+        root: None,
         system: b.system_path.to_string_lossy().into_owned(),
         services: b.services_path.to_string_lossy().into_owned(),
         bin: b.bin_path.to_string_lossy().into_owned(),

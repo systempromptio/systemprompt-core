@@ -27,7 +27,7 @@ fn cloud_profile() -> Profile {
             allowed_client_ids: Vec::new(),
             can_issue_id_jag: false,
         })
-        .build()
+        .build().unwrap()
 }
 
 fn local_profile() -> Profile {

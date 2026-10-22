@@ -491,11 +491,8 @@ database:
 server:
   host: 127.0.0.1
   port: {api_port}
-  api_server_url: {api_base}
-  api_internal_url: {api_base}
-  api_external_url: {api_base}
-  use_https: false
-  cors_allowed_origins:
+  external_url: {api_base}
+  extra_cors_origins:
     - http://127.0.0.1
   content_negotiation:
     enabled: false
@@ -519,7 +516,6 @@ paths:
   storage: {storage}
   geoip_database: null
 security:
-  jwt_issuer: https://issuer.test
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 86400
   jwt_audiences:

@@ -59,6 +59,8 @@ pub fn profile(
             port: 8080,
             api_server_url: "http://localhost:8080".to_owned(),
             api_internal_url: "http://localhost:8080".to_owned(),
+            external_url: "https://example.com".to_owned(),
+            extra_cors_origins: Vec::new(),
             api_external_url: "https://example.com".to_owned(),
             use_https: false,
             cors_allowed_origins: vec![],
@@ -73,6 +75,7 @@ pub fn profile(
             trusted_proxies: vec!["fc00::/7".parse().expect("cidr")],
         },
         paths: PathsConfig {
+            root: None,
             system: "/tmp/system".to_owned(),
             services: services_root.to_string_lossy().into_owned(),
             bin: "/tmp/bin".to_owned(),

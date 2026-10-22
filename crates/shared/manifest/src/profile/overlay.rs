@@ -32,7 +32,12 @@ pub fn apply_changes(overlay: &mut Value, before: &Value, after: &Value) {
     };
     for (key, after_value) in after_map {
         let before_value = before_map.get(key).cloned().unwrap_or(Value::Null);
-        let slot = overlay_map.entry(key.clone()).or_insert(Value::Null);
+        if &before_value == after_value {
+            continue;
+        }
+        let slot = overlay_map
+            .entry(key.clone())
+            .or_insert_with(|| Value::Mapping(Mapping::new()));
         apply_changes(slot, &before_value, after_value);
     }
     for (key, before_value) in before_map {

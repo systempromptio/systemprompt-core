@@ -317,6 +317,8 @@ mod wire_stream_usage_order;
 mod profile_config_planes;
 #[cfg(test)]
 mod profile_validation;
+#[cfg(test)]
+mod profile_layering;
 
 #[cfg(test)]
 mod profile_database_scaling;

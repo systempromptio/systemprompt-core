@@ -24,6 +24,7 @@ fn app_paths() -> AppPaths {
 
 fn app_paths_rooted(root: &str) -> AppPaths {
     let paths = PathsConfig {
+        root: None,
         system: root.to_owned(),
         services: root.to_owned(),
         bin: root.to_owned(),

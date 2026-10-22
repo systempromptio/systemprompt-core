@@ -43,6 +43,7 @@ async fn router_with_marketplace() -> anyhow::Result<Router> {
     refresh_services_config();
 
     let paths = PathsConfig {
+        root: None,
         system: b.system_path.display().to_string(),
         services: b.services_path.display().to_string(),
         bin: b.bin_path.display().to_string(),

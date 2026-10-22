@@ -18,6 +18,7 @@ use systemprompt_test_fixtures::{fixture_system_admin, unique_instance};
 
 fn tmp_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),

@@ -102,7 +102,7 @@ impl CloudProfileBuilder {
             security: security_config(self.trusted_issuers, false),
             server: {
                 let mut server =
-                    ServerConfig::new(consts::CLOUD_HOST, consts::DEFAULT_PORT, external.clone());
+                    ServerConfig::new(consts::CLOUD_HOST, consts::DEFAULT_PORT, external);
                 server.role = systemprompt_manifest::profile::NodeRole::All;
                 server.trusted_proxies = crate::trusted_proxies::default_cloud_trusted_proxies();
                 server

@@ -34,7 +34,7 @@ fn test_generate_display_name_capitalizes_unknown_names() {
 
 #[test]
 fn test_local_profile_defaults() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
 
     assert_eq!(profile.name, "local");
     assert_eq!(profile.display_name, "Local Development");
@@ -45,7 +45,7 @@ fn test_local_profile_defaults() {
     assert_eq!(profile.server.host, "127.0.0.1");
     assert_eq!(profile.server.port, 8080);
     assert_eq!(profile.server.api_server_url, "http://localhost:8080");
-    assert_eq!(profile.server.api_internal_url, "http://localhost:8080");
+    assert_eq!(profile.server.api_internal_url, "http://127.0.0.1:8080");
     assert_eq!(profile.server.api_external_url, "http://localhost:8080");
     assert!(!profile.server.use_https);
     assert_eq!(
@@ -79,7 +79,7 @@ fn test_local_profile_defaults() {
 fn test_local_profile_cloud_and_secrets_sections() {
     let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services")
         .with_tenant_id(TenantId::new("local_tenant"))
-        .build();
+        .build().unwrap();
 
     let cloud = profile.cloud.as_ref().unwrap();
     assert_eq!(
@@ -96,14 +96,14 @@ fn test_local_profile_cloud_and_secrets_sections() {
 
 #[test]
 fn test_local_profile_governance_webhook() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
     assert!(matches!(authz.hook.mode, AuthzMode::Webhook));
     assert_eq!(
         authz.hook.url.as_deref(),
-        Some("http://localhost:8080/api/public/govern/authz")
+        Some("http://127.0.0.1:8080/api/public/govern/authz")
     );
     assert_eq!(authz.hook.timeout_ms, 500);
     assert!(authz.hook.acknowledgement.is_none());
@@ -111,7 +111,7 @@ fn test_local_profile_governance_webhook() {
 
 #[test]
 fn test_cloud_profile_defaults() {
-    let profile = CloudProfileBuilder::new("prod").build();
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
     assert!(!profile.security.allow_registration);
     assert!(!profile.security.allow_dynamic_client_registration);
 
@@ -176,7 +176,7 @@ fn test_cloud_profile_custom_fields() {
         .with_external_db_access(true)
         .with_secrets_path("./secrets.json")
         .with_trusted_issuer(issuer)
-        .build();
+        .build().unwrap();
 
     assert!(profile.database.external_db_access);
     assert_eq!(profile.server.api_server_url, "https://example.com");
@@ -207,7 +207,7 @@ fn test_cloud_profile_custom_fields() {
 
 #[test]
 fn test_cloud_profile_secrets_path_defaults_to_unset() {
-    let profile = CloudProfileBuilder::new("prod").build();
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
     let secrets = profile.secrets.as_ref().unwrap();
     assert!(
         secrets.secrets_path.is_none(),
@@ -219,7 +219,7 @@ fn test_cloud_profile_secrets_path_defaults_to_unset() {
 fn test_cloud_profile_governance_targets_internal_url() {
     let profile = CloudProfileBuilder::new("prod")
         .with_external_url("https://example.com")
-        .build();
+        .build().unwrap();
 
     let governance = profile.governance.as_ref().unwrap();
     let authz = governance.authz.as_ref().unwrap();
@@ -234,21 +234,21 @@ fn test_cloud_profile_governance_targets_internal_url() {
 fn cloud_profile_carries_forward_a_hand_set_geoip_database() {
     let profile = CloudProfileBuilder::new("prod")
         .with_geoip_database(Some("/x.mmdb".to_owned()))
-        .build();
+        .build().unwrap();
 
     assert_eq!(profile.paths.geoip_database.as_deref(), Some("/x.mmdb"));
 }
 
 #[test]
 fn cloud_profile_without_geoip_database_leaves_it_unset() {
-    let profile = CloudProfileBuilder::new("prod").build();
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
 
     assert!(profile.paths.geoip_database.is_none());
 }
 
 #[test]
 fn cloud_profile_paths_are_resolved_lexically() {
-    let profile = CloudProfileBuilder::new("prod").build();
+    let profile = CloudProfileBuilder::new("prod").build().unwrap();
 
     assert_eq!(
         profile.path_resolution(),
@@ -259,7 +259,7 @@ fn cloud_profile_paths_are_resolved_lexically() {
 
 #[test]
 fn local_profile_paths_are_canonicalized() {
-    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build();
+    let profile = LocalProfileBuilder::new("local", "./secrets.json", "/srv/services").build().unwrap();
 
     assert_eq!(
         profile.path_resolution(),

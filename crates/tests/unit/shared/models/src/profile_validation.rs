@@ -31,6 +31,8 @@ fn server_config() -> ServerConfig {
         port: 8080,
         api_server_url: "http://localhost:8080".to_string(),
         api_internal_url: "http://localhost:8080".to_string(),
+        external_url: "https://example.com".to_string(),
+        extra_cors_origins: Vec::new(),
         api_external_url: "https://example.com".to_string(),
         use_https: false,
         cors_allowed_origins: vec![],
@@ -65,6 +67,7 @@ fn security_config() -> SecurityConfig {
 
 fn local_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/tmp/system".to_string(),
         services: "/tmp/services".to_string(),
         bin: "/tmp/bin".to_string(),
@@ -78,6 +81,7 @@ fn local_paths() -> PathsConfig {
 
 fn cloud_paths() -> PathsConfig {
     PathsConfig {
+        root: None,
         system: "/app".to_string(),
         services: "/app/services".to_string(),
         bin: "/app/bin".to_string(),
@@ -229,15 +233,10 @@ mod required_fields {
     }
 
     #[test]
-    fn empty_api_urls_rejected() {
+    fn empty_external_url_rejected() {
         let mut p = valid_profile();
-        p.server.api_server_url = String::new();
-        p.server.api_internal_url = String::new();
-        p.server.api_external_url = String::new();
-        let msg = errors_of(&p);
-        assert!(msg.contains("api_server_url"));
-        assert!(msg.contains("api_internal_url"));
-        assert!(msg.contains("api_external_url"));
+        p.server.external_url = String::new();
+        assert!(errors_of(&p).contains("external_url"));
     }
 
     #[test]
@@ -281,7 +280,7 @@ mod security_settings {
 
     #[test]
     fn registration_flags_default_closed() {
-        let yaml = "jwt_issuer: https://issuer.test\njwt_access_token_expiration: 3600\njwt_refresh_token_expiration: 86400\njwt_audiences: [api]\n";
+        let yaml = "jwt_access_token_expiration: 3600\njwt_refresh_token_expiration: 86400\njwt_audiences: [api]\n";
         let security: SecurityConfig = serde_yaml::from_str(yaml).unwrap();
         assert!(!security.allow_registration);
         assert!(!security.allow_dynamic_client_registration);

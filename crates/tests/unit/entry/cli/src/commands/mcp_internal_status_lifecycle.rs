@@ -59,6 +59,7 @@ async fn internal_status_helper() {
     let database = DisposableDb::with_schema("cli_mcp_internal_status").await;
     let pool = database.test_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: boot.system_path.to_string_lossy().into_owned(),
         services: boot.services_path.to_string_lossy().into_owned(),
         bin: selected_bin.to_string_lossy().into_owned(),

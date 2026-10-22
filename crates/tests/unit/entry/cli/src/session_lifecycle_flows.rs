@@ -475,11 +475,8 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
                 "0",
                 "127.0.0.2",
                 "8123",
-                "http://127.0.0.2:8123",
                 "https://fixture.example",
-                "yes",
                 "1",
-                "https://issuer.example",
                 "600",
                 "1200",
                 "2",
@@ -496,7 +493,7 @@ async fn coverage_profile_edit_persists_server_security_and_runtime_choices() {
     assert_eq!(after.server.host, "127.0.0.2");
     assert_eq!(after.server.port, 8123);
     assert!(after.server.use_https);
-    assert_eq!(after.security.issuer, "https://issuer.example");
+    assert_eq!(after.security.issuer, "https://fixture.example");
     assert_eq!(after.security.access_token_expiration, 600);
     assert_eq!(after.security.refresh_token_expiration, 1200);
     assert_eq!(after.runtime.environment.to_string(), "staging");

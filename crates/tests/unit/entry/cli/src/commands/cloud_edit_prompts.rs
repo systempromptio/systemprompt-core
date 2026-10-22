@@ -44,6 +44,8 @@ fn make_profile() -> Profile {
             port: 8080,
             api_server_url: "http://localhost:8080".to_string(),
             api_internal_url: "http://localhost:8080".to_string(),
+            external_url: "https://example.com".to_string(),
+            extra_cors_origins: Vec::new(),
             api_external_url: "https://example.com".to_string(),
             use_https: false,
             cors_allowed_origins: vec![],
@@ -58,6 +60,7 @@ fn make_profile() -> Profile {
             trusted_proxies: Vec::new(),
         },
         paths: PathsConfig {
+            root: None,
             system: "/tmp/test/system".to_string(),
             services: "/tmp/test/services".to_string(),
             bin: "/tmp/test/bin".to_string(),
@@ -103,33 +106,25 @@ fn edit_server_settings_applies_scripted_answers() {
     let prompter = scripted(&[
         "0.0.0.0",
         "9090",
-        "http://internal:9090",
         "https://public.example.com",
-        "yes",
     ]);
 
     edit_server_settings(&prompter, &mut profile).expect("edit succeeds");
 
     assert_eq!(profile.server.host, "0.0.0.0");
     assert_eq!(profile.server.port, 9090);
-    assert_eq!(profile.server.api_server_url, "http://internal:9090");
-    assert_eq!(
-        profile.server.api_external_url,
-        "https://public.example.com"
-    );
-    assert!(profile.server.use_https);
+    assert_eq!(profile.server.external_url, "https://public.example.com");
 }
 
 #[test]
 fn edit_server_settings_keeps_defaults_on_empty_answers() {
     let mut profile = make_profile();
-    let prompter = scripted(&["", "", "", "", "no"]);
+    let prompter = scripted(&["", "", ""]);
 
     edit_server_settings(&prompter, &mut profile).expect("edit succeeds");
 
     assert_eq!(profile.server.host, "127.0.0.1");
     assert_eq!(profile.server.port, 8080);
-    assert!(!profile.server.use_https);
 }
 
 #[test]
@@ -144,11 +139,10 @@ fn edit_server_settings_rejects_non_numeric_port() {
 #[test]
 fn edit_security_settings_applies_scripted_answers() {
     let mut profile = make_profile();
-    let prompter = scripted(&["new-issuer", "7200", "172800"]);
+    let prompter = scripted(&["7200", "172800"]);
 
     edit_security_settings(&prompter, &mut profile).expect("edit succeeds");
 
-    assert_eq!(profile.security.issuer, "new-issuer");
     assert_eq!(profile.security.access_token_expiration, 7200);
     assert_eq!(profile.security.refresh_token_expiration, 172_800);
 }
@@ -156,7 +150,7 @@ fn edit_security_settings_applies_scripted_answers() {
 #[test]
 fn edit_security_settings_rejects_non_numeric_expiration() {
     let mut profile = make_profile();
-    let prompter = scripted(&["issuer", "soon"]);
+    let prompter = scripted(&["soon"]);
 
     let err = edit_security_settings(&prompter, &mut profile).unwrap_err();
     assert!(err.to_string().contains("Invalid access token expiration"));

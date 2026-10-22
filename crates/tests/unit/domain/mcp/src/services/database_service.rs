@@ -15,6 +15,7 @@ use systemprompt_test_fixtures::unique_instance;
 async fn make_db_service() -> (DatabaseService, systemprompt_database::ServiceRepository) {
     let db = test_db_pool().await;
     let paths = PathsConfig {
+        root: None,
         system: "/tmp".to_string(),
         services: "/tmp".to_string(),
         bin: "/tmp".to_string(),
