@@ -149,7 +149,6 @@ pub(crate) async fn forward(
     let mut upstream_headers = build_upstream_headers(&UpstreamHeaderInputs {
         src: &parts.headers,
         bearer: &upstream_bearer,
-        session_id: session_context.session_id(),
         gateway_conversation_id: gateway_conversation_id.as_ref(),
         extra: &route.extra_headers,
         attest,

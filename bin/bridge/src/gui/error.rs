@@ -28,6 +28,8 @@ pub enum GuiError {
 
     #[error("gateway: {0}")]
     Gateway(#[from] crate::gateway::GatewayError),
+    #[error(transparent)]
+    ProfileFetch(#[from] crate::auth::profile::ProfileFetchError),
 
     #[error("update: {0}")]
     Update(#[from] crate::update::UpdateError),

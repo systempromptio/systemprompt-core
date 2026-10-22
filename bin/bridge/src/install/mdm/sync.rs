@@ -151,8 +151,7 @@ impl crate::host_sync::HostSync for ClaudeDesktopMdmSync {
         &self,
         ctx: &crate::host_sync::HostSyncCtx<'_>,
     ) -> Result<crate::host_sync::HostSyncReport, crate::host_sync::ApplyError> {
-        ctx.client
-            .fetch_bridge_profile(crate::auth::cache::cached_bearer(ctx.client.base_url()).as_ref())
+        crate::auth::profile::fetch_signed_in(ctx.client)
             .await
             .map_err(|source| crate::host_sync::ApplyError::Step {
                 context: "refresh the bridge profile",

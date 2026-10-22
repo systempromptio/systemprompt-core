@@ -269,10 +269,20 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
                 "organization_uuid": "org-enrol-test",
                 "providers": [{
                     "name": "openai-upstream",
-                    "surface": "openai",
+                    "credential": "openai",
+                    "clients": ["openai"],
                     "configured": true,
                     "models": ["gpt-5"],
                 }],
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/v1/auth/bridge/pat"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": "h.eyJzdWIiOiAidXNlci1hbGljZSJ9.s",
+                "ttl": 3600,
             })))
             .expect(1)
             .mount(&server)
@@ -295,9 +305,15 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
         fs::create_dir_all(dir).expect("sandbox directory");
     }
     let bridge_config = config_home.join("systemprompt-bridge.toml");
+    let pat_file = home.path().join("pat.txt");
+    fs::write(&pat_file, "sp-live-test-pat").expect("pat file");
     fs::write(
         &bridge_config,
-        format!("gateway_url = {:?}\n", server.uri()),
+        format!(
+            "gateway_url = {:?}\n[pat]\nfile = {:?}\n",
+            server.uri(),
+            pat_file.display().to_string()
+        ),
     )
     .expect("bridge config");
     let secret_dir = config_home.join("systemprompt");
@@ -369,6 +385,17 @@ fn enrolling_codex_through_the_public_host_workflow_writes_a_usable_managed_prov
     let requests = rt
         .block_on(server.received_requests())
         .expect("mock request recording");
-    assert_eq!(requests.len(), 1);
-    assert_eq!(requests[0].url.path(), "/v1/bridge/profile");
+    let paths: Vec<&str> = requests.iter().map(|r| r.url.path()).collect();
+    assert_eq!(
+        paths,
+        ["/v1/auth/bridge/pat", "/v1/bridge/profile"],
+        "the profile is fetched once, as the user the minted bearer names"
+    );
+    assert_eq!(
+        requests[1]
+            .headers
+            .get("authorization")
+            .and_then(|v| v.to_str().ok()),
+        Some("Bearer h.eyJzdWIiOiAidXNlci1hbGljZSJ9.s")
+    );
 }

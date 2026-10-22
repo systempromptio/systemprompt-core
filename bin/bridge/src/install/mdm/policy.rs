@@ -92,9 +92,6 @@ pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
     crate::proxy::scoped_token::host_token(secret, HostKind::ClaudeDesktop)
 }
 
-pub const DESKTOP_SURFACES: &[systemprompt_models::providers::ApiSurface] =
-    &[systemprompt_models::providers::ApiSurface::Anthropic];
-
 // Why: Claude Desktop budgets a gateway model at 200k unless its id carries
 // `[1m]`, and Cowork's picker folds `<id>` and `<id>[1m]` into one row, so a
 // model served at 1M is listed only as `<id>[1m]` (the gateway strips it).

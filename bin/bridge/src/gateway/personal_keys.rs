@@ -1,15 +1,23 @@
-//! Gateway endpoints for the caller's personal provider keys
-//! (`/v1/me/provider-credentials`): list which personal-subscription providers
-//! hold a key, store one (the gateway verifies it upstream first) and remove
-//! it. The key travels only in the PUT body; nothing here logs it.
+//! Gateway endpoints for the caller's personal credentials.
+//!
+//! `/v1/me/provider-credentials` is keyed by credential id: list which
+//! personal credentials hold a key, store one (the gateway verifies it
+//! upstream first) and remove it. The key travels only in the PUT body;
+//! nothing here logs it.
+//!
+//! [`personal_key_rows`] is what the GUI lists: one row per credential, with
+//! every provider endpoint that one key serves, so a credential serving
+//! several endpoints (`OpenCode` Go) is asked for once.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Instant;
 
+use serde::Serialize;
+use systemprompt_identifiers::CredentialId;
 use systemprompt_models::bridge::profile::{
-    ProviderCredentialStatus, SetProviderCredentialRequest,
+    ProviderCredentialStatus, ProviderHealth, SetProviderCredentialRequest,
 };
 
 use crate::gateway::errors::GatewayError;
@@ -51,13 +59,13 @@ impl GatewayClient {
     pub async fn set_personal_key(
         &self,
         bearer: &BearerToken,
-        provider: &str,
+        credential: &CredentialId,
         body: &SetProviderCredentialRequest,
     ) -> Result<ProviderCredentialStatus, GatewayError> {
         let started = Instant::now();
         let resp = self
             .http()
-            .put(self.url(&format!("{PATH}/{provider}")))
+            .put(self.url(&format!("{PATH}/{}", credential.as_str())))
             .bearer_auth(bearer.expose())
             .json(body)
             .send()
@@ -78,12 +86,12 @@ impl GatewayClient {
     pub async fn delete_personal_key(
         &self,
         bearer: &BearerToken,
-        provider: &str,
+        credential: &CredentialId,
     ) -> Result<(), GatewayError> {
         let started = Instant::now();
         let resp = self
             .http()
-            .delete(self.url(&format!("{PATH}/{provider}")))
+            .delete(self.url(&format!("{PATH}/{}", credential.as_str())))
             .bearer_auth(bearer.expose())
             .send()
             .await
@@ -92,4 +100,39 @@ impl GatewayClient {
         ensure_success(resp, "provider-credentials").await?;
         Ok(())
     }
+}
+
+/// One personal credential as the GUI lists it.
+#[derive(Debug, Clone, Serialize)]
+pub struct PersonalKeyRow {
+    #[serde(flatten)]
+    pub status: ProviderCredentialStatus,
+    pub endpoints: Vec<String>,
+}
+
+#[must_use]
+pub fn personal_key_rows(
+    statuses: Vec<ProviderCredentialStatus>,
+    providers: &[ProviderHealth],
+) -> Vec<PersonalKeyRow> {
+    let mut rows: Vec<PersonalKeyRow> = Vec::with_capacity(statuses.len());
+    for status in statuses {
+        if rows
+            .iter()
+            .any(|r| r.status.credential == status.credential)
+        {
+            continue;
+        }
+        let mut endpoints: Vec<String> = Vec::new();
+        for provider in providers
+            .iter()
+            .filter(|p| p.personal_key && p.credential == status.credential)
+        {
+            if !endpoints.contains(&provider.name) {
+                endpoints.push(provider.name.clone());
+            }
+        }
+        rows.push(PersonalKeyRow { status, endpoints });
+    }
+    rows
 }

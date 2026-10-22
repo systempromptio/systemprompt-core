@@ -96,17 +96,34 @@ fn model_view(
     snap: &AppStateSnapshot,
     host: &'static dyn crate::integration::HostApp,
 ) -> (
-    Vec<systemprompt_models::providers::ApiSurface>,
+    crate::gateway::model_view::HostClients,
     crate::gateway::model_view::HostModelView,
 ) {
-    let effective = crate::gateway::model_view::effective_surfaces(
-        host.id(),
-        host.accepted_surfaces(),
-        &snap.host_model_protocols,
+    let clients =
+        crate::gateway::model_view::HostClients::for_host(host.id(), &snap.host_model_protocols);
+    let view = crate::gateway::model_view::host_model_view(
+        &snap.inference_catalog.providers,
+        &clients.families,
     );
-    let view =
-        crate::gateway::model_view::host_model_view(&snap.inference_catalog.providers, &effective);
-    (effective, view)
+    (clients, view)
+}
+
+fn cowork_session(id: HostKind) -> Option<crate::wire::hosts::CoworkSessionPayload> {
+    if id != HostKind::ClaudeDesktop {
+        return None;
+    }
+    let (target, source) = crate::integration::cowork_plugins::resolve_target_with_source()
+        .ok()
+        .flatten()?;
+    let path = target.session_org_dir;
+    Some(crate::wire::hosts::CoworkSessionPayload {
+        org: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        path: path.display().to_string(),
+        source: source.as_str(),
+    })
 }
 
 fn is_enabled(snap: &AppStateSnapshot, id: HostKind) -> bool {
@@ -143,9 +160,7 @@ fn build_entry<'a>(
     host: &'static dyn crate::integration::HostApp,
 ) -> HostEntryPayload<'a> {
     let st = snap.hosts.get(host.id());
-    let (effective, view) = model_view(snap, host);
-    let overridden =
-        crate::gateway::model_view::has_surface_override(host.id(), &snap.host_model_protocols);
+    let (clients, view) = model_view(snap, host);
     let snapshot = st.and_then(|s| s.snapshot.as_ref());
     let verdict = host_verdict(snap, host, &view);
     let caps = HostCapabilities::for_surface(AgentSurface::LocalProfile, host.can_open());
@@ -171,8 +186,9 @@ fn build_entry<'a>(
         models_checked: view.checked,
         compatible_models_available: view.available,
         unconfigured_providers: view.unconfigured_providers,
-        model_protocols: effective.iter().map(|s| s.as_tag().to_owned()).collect(),
-        model_protocols_overridden: overridden,
+        model_protocols: clients.tags(),
+        model_protocols_overridden: clients.filtered,
+        cowork_session: cowork_session(host.id()),
         surface: AgentSurface::LocalProfile,
         verdict,
     }
@@ -208,6 +224,7 @@ fn build_sync_only_entry<'a>(
         unconfigured_providers: Vec::new(),
         model_protocols: Vec::new(),
         model_protocols_overridden: false,
+        cowork_session: None,
         surface: AgentSurface::SyncOnly,
         verdict,
     }

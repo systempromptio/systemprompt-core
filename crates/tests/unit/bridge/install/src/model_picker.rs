@@ -3,7 +3,7 @@ use systemprompt_bridge::gateway::types::ProviderHealth;
 use systemprompt_bridge::install::mdm::claude_code_settings::model_picker::{
     PickerRow, is_claude_family, merged_picker, picker_rows,
 };
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 
 fn rows() -> Vec<PickerRow> {
     vec![PickerRow {
@@ -13,13 +13,14 @@ fn rows() -> Vec<PickerRow> {
 }
 
 fn provider(configured: bool, models: &[&str]) -> ProviderHealth {
-    on_surface(ApiSurface::Anthropic, configured, models)
+    for_clients(&[ClientFamily::Claude], configured, models)
 }
 
-fn on_surface(surface: ApiSurface, configured: bool, models: &[&str]) -> ProviderHealth {
+fn for_clients(clients: &[ClientFamily], configured: bool, models: &[&str]) -> ProviderHealth {
     ProviderHealth {
         name: "fixture".to_owned(),
-        surface,
+        credential: "fixture-key".to_owned(),
+        clients: clients.to_vec(),
         configured,
         models: models.iter().map(|model| (*model).to_owned()).collect(),
         config_issue: (!configured).then(|| "credential absent".to_owned()),
@@ -52,12 +53,17 @@ fn picker_rows_excludes_claude_models_and_unconfigured_providers() {
 }
 
 #[test]
-fn picker_rows_keep_claude_code_on_anthropic_surface_providers() {
+fn picker_rows_keep_claude_code_on_providers_advertised_to_claude() {
     let mut personal = provider(true, &["go-minimax-m3"]);
     personal.personal_key = true;
     let rows = picker_rows(&[
-        on_surface(ApiSurface::OpenAi, true, &["deepseek-v4-pro", "go-kimi-k3"]),
-        on_surface(ApiSurface::Gemini, true, &["gemini-2.5-pro"]),
+        for_clients(
+            &[ClientFamily::OpenAi],
+            true,
+            &["deepseek-v4-pro", "go-kimi-k3"],
+        ),
+        for_clients(&[ClientFamily::Gemini], true, &["gemini-2.5-pro"]),
+        for_clients(&[], true, &["hidden-judge"]),
         personal,
         provider(true, &["vertex-sonnet-compat"]),
     ]);

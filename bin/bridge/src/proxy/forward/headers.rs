@@ -9,13 +9,18 @@
 //! caller sent; the raw secret only proves the channel (`bridge-secret`), so
 //! the caller's own declaration is passed through for the gateway to weigh.
 //!
+//! `x-session-id` belongs to the client: the gateway binds the session to the
+//! credential and records the client's header as `client_session`, so a
+//! client-supplied value is forwarded byte-for-byte and none is synthesized
+//! when the client sent none (not even from configured extra headers).
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
 
 use hyper::HeaderMap;
-use systemprompt_identifiers::{GatewayConversationId, SessionId, headers as sp_headers};
+use systemprompt_identifiers::{GatewayConversationId, headers as sp_headers};
 use systemprompt_models::origin::{ClientAttestation, ClientKind};
 
 use super::{ForwardError, ForwardResult, HeaderBuildError};
@@ -45,7 +50,6 @@ const HOP_BY_HOP: &[&str] = &[
 pub struct UpstreamHeaderInputs<'a> {
     pub src: &'a HeaderMap,
     pub bearer: &'a str,
-    pub session_id: &'a SessionId,
     pub gateway_conversation_id: Option<&'a GatewayConversationId>,
     pub extra: &'a BTreeMap<String, String>,
     pub attest: Option<&'a LoopbackCredential>,
@@ -55,22 +59,15 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
     let UpstreamHeaderInputs {
         src,
         bearer,
-        session_id,
         gateway_conversation_id,
         extra,
         attest,
     } = *inputs;
-    let mut headers = HeaderMap::with_capacity(src.len() + 6 + extra.len());
+    let mut headers = HeaderMap::with_capacity(src.len() + 5 + extra.len());
     copy_request_headers(src, &mut headers);
     stamp_attestation(&mut headers, attest)?;
 
     headers.insert(reqwest::header::AUTHORIZATION, bearer_value(bearer)?);
-    let session_value = reqwest::header::HeaderValue::try_from(session_id.as_str())
-        .map_err(|e| invalid_header(sp_headers::SESSION_ID, e))?;
-    headers.insert(
-        reqwest::header::HeaderName::from_static(sp_headers::SESSION_ID),
-        session_value,
-    );
     if let Some(id) = gateway_conversation_id {
         let value = reqwest::header::HeaderValue::try_from(id.as_str())
             .map_err(|e| invalid_header(sp_headers::GATEWAY_CONVERSATION_ID, e))?;
@@ -80,7 +77,10 @@ pub fn build_upstream_headers(inputs: &UpstreamHeaderInputs<'_>) -> ForwardResul
         );
     }
 
-    for (k, v) in extra {
+    for (k, v) in extra
+        .iter()
+        .filter(|(k, _)| !k.eq_ignore_ascii_case(sp_headers::SESSION_ID))
+    {
         let name = reqwest::header::HeaderName::from_bytes(k.as_bytes())
             .map_err(|e| invalid_header(k, e))?;
         let value = reqwest::header::HeaderValue::try_from(v).map_err(|e| invalid_header(k, e))?;

@@ -1,12 +1,11 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use systemprompt_bridge::gateway::rejection::rejection_is_stale;
 use systemprompt_bridge::gateway::types::HelperOutput;
 use systemprompt_bridge::ids::BearerToken;
 use systemprompt_bridge::proxy::forward::ForwardError;
-use systemprompt_bridge::proxy::token_cache::{
-    AuthState, RefreshFn, TokenCache, rejection_is_stale,
-};
+use systemprompt_bridge::proxy::token_cache::{AuthState, RefreshFn, TokenCache};
 
 const PAT_ENV: &str = "SP_BRIDGE_PAT";
 

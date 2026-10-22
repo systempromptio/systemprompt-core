@@ -61,7 +61,7 @@ pub(super) fn host_dispatch(
             app,
             parse::<PersonalKeyArgs>(args).and_then(|a| match a.api_key {
                 Some(api_key) => Ok(PersonalKeyOp::Set {
-                    provider: a.provider,
+                    credential: a.credential,
                     api_key,
                     label: a.label,
                 }),
@@ -72,7 +72,7 @@ pub(super) fn host_dispatch(
         "personalKeys.remove" => personal_key(
             app,
             parse::<PersonalKeyArgs>(args).map(|a| PersonalKeyOp::Remove {
-                provider: a.provider,
+                credential: a.credential,
             }),
             reply_id,
         ),

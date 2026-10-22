@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::drift::{DesiredProfile, EntryRole};
-use systemprompt_bridge::gateway::model_view::{effective_surfaces, has_surface_override};
+use systemprompt_bridge::gateway::model_view::{HostClients, host_client};
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, DesiredError, GeneratedProfile, HostApp, HostAppError,
     HostAppKind, HostAppSnapshot, ProbeEnv, ProfileFactsError, ProfileGenInputs, ProfileInstalled,
     ProfileRemoval, ProfileState,
 };
 use systemprompt_models::bridge::host::HostKind;
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_models::providers::ClientFamily;
 
 use crate::support::{env_with, facts, unreadable_env};
 
@@ -100,10 +100,6 @@ fn a_host_that_implements_only_the_required_methods_gets_the_default_contract() 
     assert_eq!(host.icon_id(), "hermes", "the icon defaults to the host id");
     assert_eq!(host.config_format(), ConfigFormat::Json);
     assert_eq!(host.download_url(), "");
-    assert!(
-        host.accepted_surfaces().is_empty(),
-        "no declared surfaces means the host accepts whatever the gateway offers"
-    );
 }
 
 #[test]
@@ -170,57 +166,52 @@ fn by_default_no_sync_failure_is_observed_by_the_probe() {
 }
 
 #[test]
-fn a_host_without_an_override_keeps_its_declared_surfaces() {
-    let overrides = surface_overrides(&[("hermes", &["openai"])]);
-    assert_eq!(
-        effective_surfaces(HostKind::CodexCli, &[ApiSurface::OpenAi], &overrides),
-        vec![ApiSurface::OpenAi]
-    );
-    assert!(!has_surface_override(HostKind::CodexCli, &overrides));
-    assert!(has_surface_override(HostKind::Hermes, &overrides));
+fn a_host_without_a_filter_keeps_its_own_family() {
+    let filters = surface_overrides(&[("hermes", &["claude"])]);
+    let codex = HostClients::for_host(HostKind::CodexCli, &filters);
+    assert_eq!(codex.families, vec![ClientFamily::OpenAi]);
+    assert!(!codex.filtered);
+    assert!(HostClients::for_host(HostKind::Hermes, &filters).filtered);
 }
 
 #[test]
-fn an_override_replaces_the_declared_surfaces_entirely() {
-    let overrides = surface_overrides(&[("codex-cli", &["anthropic", "gemini"])]);
+fn a_filter_replaces_the_host_family_entirely() {
+    let filters = surface_overrides(&[("codex-cli", &["claude", "gemini"])]);
     assert_eq!(
-        effective_surfaces(HostKind::CodexCli, &[ApiSurface::OpenAi], &overrides),
-        vec![ApiSurface::Anthropic, ApiSurface::Gemini],
-        "the override wins outright rather than merging with the default"
+        HostClients::for_host(HostKind::CodexCli, &filters).families,
+        vec![ClientFamily::Claude, ClientFamily::Gemini],
+        "the filter wins outright rather than merging with the default"
     );
 }
 
 #[test]
-fn an_unknown_surface_tag_in_an_override_is_dropped_not_defaulted() {
-    let overrides = surface_overrides(&[("codex-cli", &["not-a-surface", "openai"])]);
+fn an_unknown_tag_in_a_filter_is_dropped_not_defaulted() {
+    let filters = surface_overrides(&[("codex-cli", &["anthropic", "openai"])]);
     assert_eq!(
-        effective_surfaces(HostKind::CodexCli, &[ApiSurface::Anthropic], &overrides),
-        vec![ApiSurface::OpenAi],
-        "an unreadable tag must not fall back to the host default"
+        HostClients::for_host(HostKind::CodexCli, &filters).families,
+        vec![ClientFamily::OpenAi],
+        "a pre-0.73 surface tag is not a client family and must not fall back"
     );
 }
 
 #[test]
-fn an_override_of_only_unknown_tags_yields_no_surfaces_at_all() {
-    let overrides = surface_overrides(&[("codex-cli", &["nonsense"])]);
+fn a_filter_of_only_unknown_tags_yields_no_families_at_all() {
+    let filters = surface_overrides(&[("codex-cli", &["nonsense"])]);
     assert!(
-        effective_surfaces(HostKind::CodexCli, &[ApiSurface::Anthropic], &overrides).is_empty(),
-        "an override that names nothing recognisable narrows to nothing"
+        HostClients::for_host(HostKind::CodexCli, &filters)
+            .families
+            .is_empty(),
+        "a filter that names nothing recognisable narrows to nothing"
     );
 }
 
 #[test]
-fn claude_desktop_is_the_only_narrowing_host() {
+fn every_registered_host_has_a_client_family() {
     for host in systemprompt_bridge::integration::host_apps() {
-        if host.accepted_surfaces().is_empty() {
-            continue;
-        }
-        assert_eq!(
-            host.id(),
-            HostKind::ClaudeDesktop,
-            "every host is offered the whole advertised catalog; Claude Desktop is the \
-             single carve-out because it rejects non-Claude ids in inferenceModels"
-        );
-        assert_eq!(host.accepted_surfaces(), &[ApiSurface::Anthropic]);
+        let expected = match host.id() {
+            HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
+            HostKind::CodexCli | HostKind::OpenCode | HostKind::Hermes => ClientFamily::OpenAi,
+        };
+        assert_eq!(host_client(host.id()), expected, "{:?}", host.id());
     }
 }

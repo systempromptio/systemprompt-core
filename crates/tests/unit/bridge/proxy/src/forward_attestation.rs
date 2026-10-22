@@ -9,7 +9,6 @@ use systemprompt_bridge::proxy::credential::LoopbackCredential;
 use systemprompt_bridge::proxy::forward::headers::{
     UpstreamHeaderInputs, build_upstream_headers, copy_request_headers, stamp_attestation,
 };
-use systemprompt_identifiers::SessionId;
 use systemprompt_identifiers::headers::{CLIENT_ATTESTATION, CLIENT_KIND};
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::origin::ClientKind;
@@ -96,7 +95,6 @@ fn an_inbound_attestation_header_is_always_removed() {
     let built = build_upstream_headers(&UpstreamHeaderInputs {
         src: &src,
         bearer: "jwt",
-        session_id: &SessionId::new("session"),
         gateway_conversation_id: None,
         extra: &BTreeMap::new(),
         attest: Some(&LoopbackCredential::Secret),
@@ -116,7 +114,6 @@ fn hook_and_mcp_routes_stamp_nothing_and_strip_the_declaration() {
     let built = build_upstream_headers(&UpstreamHeaderInputs {
         src: &src,
         bearer: "jwt",
-        session_id: &SessionId::new("session"),
         gateway_conversation_id: None,
         extra: &BTreeMap::new(),
         attest: None,

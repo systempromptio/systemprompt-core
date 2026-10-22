@@ -126,6 +126,21 @@ pub struct HostEntryPayload<'a> {
     pub unconfigured_providers: Vec<String>,
     pub model_protocols: Vec<String>,
     pub model_protocols_overridden: bool,
+    pub cowork_session: Option<CoworkSessionPayload>,
     pub surface: AgentSurface,
     pub verdict: AgentVerdict,
+}
+
+/// The Cowork session Claude Desktop's org plugins are enabled in.
+///
+/// `source` names the rule that chose it: `pinned` (`cowork.session_org_dir`),
+/// `gateway` (the profile's `organization_uuid`), `personal` or
+/// `only-session`.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts-export", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts-export", ts(export, export_to = "web/js/types/"))]
+pub struct CoworkSessionPayload {
+    pub org: String,
+    pub path: String,
+    pub source: &'static str,
 }

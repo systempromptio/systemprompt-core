@@ -48,7 +48,14 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
     snap.plugin_count = None;
     snap.malformed_plugin_count = None;
     snap.enabled_hosts.clear();
-    snap.host_model_protocols.clear();
+    snap.host_model_protocols =
+        match crate::install::profile_inputs::ProfileFacts::persisted_overrides() {
+            Ok(filters) => filters,
+            Err(e) => {
+                tracing::warn!(error = %e, "server host model filters unreadable; hosts show their defaults");
+                std::collections::BTreeMap::new()
+            },
+        };
     if crate::auth::has_credential_source(&cfg) {
         let gateway = config::gateway_url_or_default(&cfg);
         snap.cached_token = match cache::read_for(&cfg, &gateway, 30) {
@@ -79,7 +86,6 @@ pub(super) fn reload_into(snap: &mut AppStateSnapshot) {
             Ok(Some(record)) if record.belongs_to(&gateway) => {
                 snap.last_sync_summary = Some(record.summary_line());
                 snap.enabled_hosts = record.enabled_hosts;
-                snap.host_model_protocols = record.host_model_protocols;
             },
             Ok(_) => {},
             Err(e) => {

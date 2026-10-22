@@ -8,7 +8,6 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -54,8 +53,6 @@ pub struct LastSyncState {
     #[serde(default)]
     pub enabled_hosts: Vec<String>,
     #[serde(default)]
-    pub host_model_protocols: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
     #[serde(default)]
     pub host_failures: Vec<String>,
@@ -72,7 +69,7 @@ impl LastSyncState {
     }
 
     // Why: a manifest that only partially applied is not in force. The host
-    // set, protocol map and update policy the enroller and the updater read
+    // set and update policy the enroller and the updater read
     // back must stay those of the last manifest that fully applied, and the
     // replay checkpoint with them, or a host whose emitter failed is reported
     // as enabled and a tightened update policy as delivered.
@@ -81,7 +78,6 @@ impl LastSyncState {
         Self {
             manifest_version: prior.manifest_version.clone(),
             enabled_hosts: prior.enabled_hosts.clone(),
-            host_model_protocols: prior.host_model_protocols.clone(),
             auto_update: prior.auto_update,
             ..self
         }

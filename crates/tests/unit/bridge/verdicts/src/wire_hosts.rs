@@ -214,8 +214,9 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
         models_checked: true,
         compatible_models_available: true,
         unconfigured_providers: Vec::new(),
-        model_protocols: vec!["anthropic".to_owned()],
+        model_protocols: vec!["claude".to_owned()],
         model_protocols_overridden: false,
+        cowork_session: None,
         surface: AgentSurface::LocalProfile,
         verdict: verdict(),
     };
@@ -228,7 +229,7 @@ fn host_entry_carries_the_row_the_agents_list_renders() {
     assert_eq!(v["can_open"], json!(true));
     assert_eq!(v["enabled"], json!(true));
     assert_eq!(v["compatible_models"], json!(["sonnet"]));
-    assert_eq!(v["model_protocols"], json!(["anthropic"]));
+    assert_eq!(v["model_protocols"], json!(["claude"]));
     assert_eq!(
         v["last_generated_profile"]["path"],
         json!("/tmp/managed.json")
@@ -266,6 +267,7 @@ fn an_unprobed_host_ships_null_health_rather_than_omitting_it() {
         unconfigured_providers: vec!["openai".to_owned()],
         model_protocols: Vec::new(),
         model_protocols_overridden: true,
+        cowork_session: None,
         surface: AgentSurface::SyncOnly,
         verdict: verdict(),
     };
@@ -405,6 +407,7 @@ fn host_entry_keys() -> Vec<String> {
         unconfigured_providers: Vec::new(),
         model_protocols: Vec::new(),
         model_protocols_overridden: false,
+        cowork_session: None,
         surface: AgentSurface::SyncOnly,
         verdict: verdict(),
     };

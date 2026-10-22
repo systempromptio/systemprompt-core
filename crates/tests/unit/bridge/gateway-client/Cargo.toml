@@ -14,6 +14,7 @@ workspace = true
 reqwest = { workspace = true }
 systemprompt-bridge = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
 tokio = { workspace = true }
 wiremock = { workspace = true }
 serde_json = { workspace = true }

@@ -270,13 +270,10 @@ fn the_opencode_host_describes_itself_as_a_json_cli_tool_openable_only_with_the_
         "{}",
         OPENCODE_HOST.description()
     );
-    // No declared surfaces: the gateway translates any inbound wire to any
-    // provider wire, so filtering the catalogue by a provider's native family
-    // would hide servable models. Backend never reaches a host either way — it
-    // is excluded from the advertised set itself.
-    assert!(
-        OPENCODE_HOST.accepted_surfaces().is_empty(),
-        "OpenCode is offered every advertised provider"
+    assert_eq!(
+        systemprompt_bridge::gateway::model_view::host_client(OPENCODE_HOST.id()),
+        systemprompt_models::providers::ClientFamily::OpenAi,
+        "OpenCode lists the models the catalog advertises to openai clients"
     );
     assert!(
         OPENCODE_HOST

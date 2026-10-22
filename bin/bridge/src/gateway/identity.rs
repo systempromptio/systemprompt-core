@@ -1,7 +1,7 @@
 //! Gateway endpoints describing *who this bridge is* and what its plan allows:
-//! whoami, the bridge profile, token usage, governance decisions, and the
-//! per-host model filter. The artefact endpoints — pubkey, signed manifest,
-//! plugin files and releases — live in `fetch.rs`.
+//! whoami, token usage, governance decisions, and the per-host model filter.
+//! The bridge profile fetch lives in `profile_fetch.rs`. The artefact endpoints
+//! — pubkey, signed manifest, plugin files and releases — live in `fetch.rs`.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +14,7 @@ use systemprompt_models::bridge::host::HostKind;
 
 use crate::gateway::errors::GatewayError;
 use crate::gateway::identity_source::whoami_path;
-use crate::gateway::types::{BridgeProfile, SelfEnrollRequest, SelfEnrollResponse, WhoamiResponse};
+use crate::gateway::types::{SelfEnrollRequest, SelfEnrollResponse, WhoamiResponse};
 use crate::gateway::{GatewayClient, ensure_success, record_span};
 
 #[derive(serde::Serialize)]
@@ -107,37 +107,6 @@ impl GatewayClient {
         record_span(&resp, started);
         ensure_success(resp, "enabled-hosts").await?;
         Ok(())
-    }
-
-    #[tracing::instrument(
-        level = "debug",
-        skip(self),
-        fields(endpoint = "profile", status, latency_ms)
-    )]
-    pub async fn fetch_bridge_profile(
-        &self,
-        bearer: Option<&BearerToken>,
-    ) -> Result<BridgeProfile, GatewayError> {
-        let url = self.url("/v1/bridge/profile");
-        let started = Instant::now();
-        let mut request = self.http().get(&url);
-        if let Some(bearer) = bearer {
-            request = request.bearer_auth(bearer.expose());
-        }
-        let resp = request
-            .send()
-            .await
-            .map_err(|e| GatewayError::ProfileFetch(Box::new(e)))?;
-        record_span(&resp, started);
-        let resp = ensure_success(resp, "profile").await?;
-        let profile = resp
-            .json::<BridgeProfile>()
-            .await
-            .map_err(|e| GatewayError::ProfileDecode(Box::new(e)))?;
-        if let Err(error) = super::profile_cache::remember(self.base_url().as_str(), &profile) {
-            tracing::warn!(%error, "could not cache the bridge profile");
-        }
-        Ok(profile)
     }
 
     #[tracing::instrument(

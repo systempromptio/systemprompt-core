@@ -128,7 +128,11 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
                 "provider": { "systemprompt": {
                     "npm": "@ai-sdk/openai-compatible",
                     "name": "systemprompt.io gateway",
-                    "options": { "baseURL": "http://127.0.0.1:1/v1", "apiKey": key },
+                    "options": {
+                        "baseURL": "http://127.0.0.1:1/v1",
+                        "apiKey": key,
+                        "headers": { "x-inference-protocol": "openai" }
+                    },
                     "models": {}
                 } },
                 "enabled_providers": ["systemprompt"]
@@ -152,7 +156,6 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
                 profile: None,
                 mcp_servers: None,
                 overrides: ModelProtocolOverrides::new(),
-                operator_org_uuid: None,
             }),
             policy_writer_ready: false,
         };

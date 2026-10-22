@@ -98,9 +98,10 @@
         "anthropic"
       ],
       "model_protocols": [
-        "anthropic"
+        "claude"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
@@ -165,6 +166,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
@@ -228,6 +230,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
@@ -291,6 +294,7 @@
         "openai"
       ],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "local-profile",
       "verdict": {
         "state": "attention",
@@ -330,6 +334,7 @@
       "unconfigured_providers": [],
       "model_protocols": [],
       "model_protocols_overridden": false,
+      "cowork_session": null,
       "surface": "sync-only",
       "verdict": {
         "state": "working",

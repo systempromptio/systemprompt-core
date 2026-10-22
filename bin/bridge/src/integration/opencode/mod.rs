@@ -8,16 +8,11 @@
 //! a user editing the file or connecting another provider, and sync rewrites
 //! it. Governance is enforced at the gateway.
 //!
-//! `OpenCode` takes the default `accepted_surfaces` — the empty slice, meaning
-//! every advertised provider. `OpenCode` speaks the OpenAI-compatible wire and
-//! the gateway serves it at `/v1/chat/completions`, but the gateway normalises
-//! any inbound wire to canonical and renders any provider wire outbound, so a
-//! gemini- or anthropic-native provider is just as servable over that one wire.
-//! Filtering by the provider's native family hid every working `claude-*` and
-//! `gemini-*` model from the picker while advertising only providers whose
-//! credentials were unresolvable. `Backend` is still absent: it is excluded
-//! from the advertised set itself, precisely to hide a provider from every
-//! picker.
+//! `OpenCode` lists the models the catalog advertises to `openai` clients
+//! (`model_view::host_client`). It speaks the OpenAI-compatible wire, and the
+//! gateway transcodes that wire to any provider's, so a Claude or Gemini model
+//! reaches `OpenCode` whenever its catalog entry lists `openai` among its
+//! `clients`; the catalog, not the provider's native wire, is the rule.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
