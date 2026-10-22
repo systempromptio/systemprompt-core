@@ -59,6 +59,7 @@ fn judge(snap: &HostAppSnapshot, pending: PendingStep, failures: &[ApplyFailure]
             checked: true,
             available: true,
             unconfigured_providers: &[],
+            missing_personal_keys: &[],
             compatible_models: &[],
         },
         has_download_url: true,

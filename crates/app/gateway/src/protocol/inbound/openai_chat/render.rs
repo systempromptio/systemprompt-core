@@ -26,10 +26,12 @@ pub(super) const STREAM_CHUNK_ID: &str = "chatcmpl-systemprompt-stream";
 // response.
 pub fn render_response_object(response: &CanonicalResponse) -> Value {
     let mut text = String::new();
+    let mut reasoning = String::new();
     let mut tool_calls: Vec<Value> = Vec::new();
     for part in &response.content {
         match part {
             CanonicalContent::Text { text: t, .. } => text.push_str(t),
+            CanonicalContent::Thinking { text: t, .. } => reasoning.push_str(t),
             CanonicalContent::ToolUse {
                 id, name, input, ..
             } => {
@@ -44,7 +46,6 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
                 }));
             },
             CanonicalContent::AnthropicToolBlock { .. }
-            | CanonicalContent::Thinking { .. }
             | CanonicalContent::Image { .. }
             | CanonicalContent::ToolResult { .. } => {},
         }
@@ -60,6 +61,10 @@ pub fn render_response_object(response: &CanonicalResponse) -> Value {
             Value::String(text)
         },
     );
+    // Why: OpenCode and DeepSeek carry reasoning as `reasoning_content`.
+    if !reasoning.is_empty() {
+        message.insert("reasoning_content".into(), Value::String(reasoning));
+    }
     if !tool_calls.is_empty() {
         message.insert("tool_calls".into(), Value::Array(tool_calls));
     }
@@ -85,10 +90,13 @@ pub(super) fn finish_reason(stop_reason: Option<CanonicalStopReason>) -> &'stati
 // JSON: OpenAI Chat Completions response/chunk — rendered from the canonical
 // response.
 pub(super) fn usage_object(usage: &CanonicalUsage) -> Value {
+    // Why: Chat Completions counts cached prompt tokens inside `prompt_tokens`;
+    // canonical `input_tokens` excludes them, as Anthropic's usage does.
+    let prompt = usage.input_tokens + usage.cache_read_tokens + usage.cache_creation_tokens;
     json!({
-        "prompt_tokens": usage.input_tokens,
+        "prompt_tokens": prompt,
         "completion_tokens": usage.output_tokens,
-        "total_tokens": usage.input_tokens + usage.output_tokens,
+        "total_tokens": prompt + usage.output_tokens,
         "prompt_tokens_details": { "cached_tokens": usage.cache_read_tokens },
         // Why: OpenAI includes reasoning tokens in completion_tokens; they are not an additional
         // total.
@@ -106,6 +114,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
     let delta: Value = match event {
         CanonicalEvent::MessageStart { .. } => json!({ "role": "assistant", "content": "" }),
         CanonicalEvent::TextDelta { text, .. } => json!({ "content": text }),
+        CanonicalEvent::ThinkingDelta { text, .. } => json!({ "reasoning_content": text }),
         CanonicalEvent::ContentBlockStart { index, block } => match block {
             ContentBlockKind::ToolUse { id, name, .. } => json!({
                 "tool_calls": [{
@@ -127,8 +136,7 @@ pub fn render_event_frame(event: &CanonicalEvent, model: &str) -> Option<Bytes> 
             }],
         }),
         CanonicalEvent::Error(msg) => return Some(render_error_frame(msg)),
-        CanonicalEvent::ThinkingDelta { .. }
-        | CanonicalEvent::SignatureDelta { .. }
+        CanonicalEvent::SignatureDelta { .. }
         | CanonicalEvent::EncryptedContentDelta { .. }
         | CanonicalEvent::ContentBlockStop { .. }
         | CanonicalEvent::UsageDelta(_)

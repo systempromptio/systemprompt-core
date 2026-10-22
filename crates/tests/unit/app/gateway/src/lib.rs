@@ -49,6 +49,8 @@ mod inspect_equals_send;
 #[cfg(test)]
 mod journal_open;
 #[cfg(test)]
+mod openai_chat_reasoning;
+#[cfg(test)]
 mod openai_passthrough;
 #[cfg(test)]
 mod outbound;

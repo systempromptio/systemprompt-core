@@ -1,0 +1,42 @@
+/* The Cowork session picker: the one native <dialog> in the app, opened from
+   the Claude Desktop row when several org sessions are usable. */
+.sp-cowork-picker {
+  max-width: 520px;
+  padding: var(--sp-space-5);
+  border: 1px solid var(--sp-line);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-bg-elev-2);
+  color: var(--sp-text);
+  box-shadow: var(--sp-shadow-2);
+}
+.sp-cowork-picker::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+.sp-cowork-picker__title {
+  margin: 0 0 var(--sp-space-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+.sp-cowork-picker__hint {
+  margin: 0 0 var(--sp-space-4);
+  color: var(--sp-muted);
+  font-size: 12.5px;
+}
+.sp-cowork-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-space-2);
+  margin-bottom: var(--sp-space-4);
+}
+.sp-cowork-picker__choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-space-1);
+  text-align: left;
+}
+.sp-cowork-picker__path {
+  color: var(--sp-muted);
+  font-size: 11px;
+  word-break: break-all;
+}

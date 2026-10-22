@@ -46,7 +46,13 @@ fn host_verdict(
         Some(step) => step,
         None => PendingStep::None,
     };
-    crate::integration::agent_health::verdict(&HostHealthInputs {
+    let cowork_ambiguous = host.id() == HostKind::ClaudeDesktop
+        && !failures.is_empty()
+        && matches!(
+            crate::integration::cowork_plugins::resolve_target(),
+            Err(crate::integration::cowork_plugins::ResolveTargetError::Ambiguous { .. })
+        );
+    let verdict = crate::integration::agent_health::verdict(&HostHealthInputs {
         snapshot: snap.hosts.get(host.id()).and_then(|s| s.snapshot.as_ref()),
         apply_failures: &failures,
         proxy: &snap.hosts.local_proxy,
@@ -57,7 +63,11 @@ fn host_verdict(
         gateway_routed: true,
         can_open: host.can_open(),
         pending,
-    })
+    });
+    if cowork_ambiguous && verdict.is_set_up {
+        return verdict.with_cowork_session_ambiguous();
+    }
+    verdict
 }
 
 fn sync_only_verdict(snap: &AppStateSnapshot, agent: &SyncOnlyAgent) -> AgentVerdict {
@@ -70,6 +80,7 @@ fn sync_only_verdict(snap: &AppStateSnapshot, agent: &SyncOnlyAgent) -> AgentVer
             checked: false,
             available: false,
             unconfigured_providers: &[],
+            missing_personal_keys: &[],
             compatible_models: &[],
         },
         has_download_url: false,

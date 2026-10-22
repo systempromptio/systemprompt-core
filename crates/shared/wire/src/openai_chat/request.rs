@@ -18,7 +18,7 @@ use serde_json::{Map, Value, json};
 
 use crate::canonical::{
     CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ImageSource,
-    ResponseFormat, Role,
+    ResponseFormat, Role, TurnMerge, normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -33,7 +33,7 @@ pub fn build_request_body(
     if let Some(sys) = request.system_text() {
         messages.push(json!({ "role": "system", "content": sys }));
     }
-    for msg in &request.messages {
+    for msg in &normalize_turns(&request.messages, TurnMerge::UserAndTool) {
         messages.extend(canonical_message_to_chat(msg));
     }
 

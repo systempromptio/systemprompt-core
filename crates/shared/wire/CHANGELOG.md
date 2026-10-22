@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.72.0] - 2026-10-22
+
+### Added
+
+- `canonical::normalize_turns`, `TurnMerge` and `INTERRUPTED_TOOL_RESULT`: one pass, run before every upstream encoder, that merges consecutive same-side turns, orders tool results first, answers an unanswered `tool_use` with a synthetic error result and drops an orphan tool result.
+- `anthropic::upstream_messages`, `anthropic::history_is_strict` and `openai_chat::history_is_strict`.
+
+### Fixed
+
+- Tool results that follow an Anthropic server-tool turn are kept.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

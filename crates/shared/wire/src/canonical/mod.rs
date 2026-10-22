@@ -15,8 +15,8 @@ mod usage;
 
 pub use request::{
     CacheControl, CacheTtl, CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalTool,
-    CanonicalToolChoice, ImageDetail, ImageSource, ReasoningEffort, ResponseFormat, Role,
-    SearchConfig, SystemBlock, ThinkingConfig,
+    CanonicalToolChoice, INTERRUPTED_TOOL_RESULT, ImageDetail, ImageSource, ReasoningEffort,
+    ResponseFormat, Role, SearchConfig, SystemBlock, ThinkingConfig, TurnMerge, normalize_turns,
 };
 pub use response::{
     CanonicalEvent, CanonicalResponse, CanonicalStopReason, CodeExecutionOutput, ContentBlockKind,

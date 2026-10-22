@@ -65,6 +65,12 @@ pub trait InboundAdapter: Send + Sync + std::fmt::Debug {
         None
     }
 
+    // Why: OpenAI Chat numbers streamed `tool_calls` from 0 per choice rather
+    // than by content block.
+    fn indexes_tool_calls_by_ordinal(&self) -> bool {
+        false
+    }
+
     fn wants_stream_usage(&self, _raw: &Bytes) -> bool {
         false
     }

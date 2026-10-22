@@ -219,39 +219,45 @@ fn openai_chat_emits_tool_message_after_assistant_tool_call() {
 #[test]
 fn openai_chat_emits_one_tool_message_per_result_ids_preserved() {
     let mut req = base_request();
-    req.messages = vec![CanonicalMessage {
-        role: Role::User,
-        content: vec![tool_result("call_A", "a"), tool_result("call_B", "b")],
-    }];
+    req.messages = vec![
+        super::assistant_calls(&["call_A", "call_B"]),
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![tool_result("call_A", "a"), tool_result("call_B", "b")],
+        },
+    ];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     let messages = body["messages"].as_array().expect("messages");
     assert_eq!(
         messages.len(),
-        2,
-        "one tool message per result, no user message"
+        3,
+        "the call, then one tool message per result, no user message"
     );
-    assert_eq!(messages[0]["role"], "tool");
-    assert_eq!(messages[0]["tool_call_id"], "call_A");
-    assert_eq!(messages[1]["tool_call_id"], "call_B");
+    assert_eq!(messages[1]["role"], "tool");
+    assert_eq!(messages[1]["tool_call_id"], "call_A");
+    assert_eq!(messages[2]["tool_call_id"], "call_B");
 }
 
 #[test]
 fn openai_chat_tool_results_precede_trailing_user_text() {
     let mut req = base_request();
-    req.messages = vec![CanonicalMessage {
-        role: Role::User,
-        content: vec![
-            tool_result("call_A", "a"),
-            CanonicalContent::text("and now this".to_owned()),
-        ],
-    }];
+    req.messages = vec![
+        assistant_tool_call("call_A"),
+        CanonicalMessage {
+            role: Role::User,
+            content: vec![
+                tool_result("call_A", "a"),
+                CanonicalContent::text("and now this".to_owned()),
+            ],
+        },
+    ];
     let body = openai_chat::build_request_body(&req, "upstream", None);
     let messages = body["messages"].as_array().expect("messages");
-    assert_eq!(messages.len(), 2);
-    assert_eq!(messages[0]["role"], "tool");
-    assert_eq!(messages[0]["tool_call_id"], "call_A");
-    assert_eq!(messages[1]["role"], "user");
-    assert_eq!(messages[1]["content"], "and now this");
+    assert_eq!(messages.len(), 3);
+    assert_eq!(messages[1]["role"], "tool");
+    assert_eq!(messages[1]["tool_call_id"], "call_A");
+    assert_eq!(messages[2]["role"], "user");
+    assert_eq!(messages[2]["content"], "and now this");
 }
 
 #[test]

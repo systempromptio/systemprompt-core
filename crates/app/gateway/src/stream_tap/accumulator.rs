@@ -99,6 +99,36 @@ pub fn extract_summary(state: &mut TapState) -> Summary {
     }
 }
 
+// Why: OpenAI Chat clients index `tool_calls` from 0 per choice; the canonical
+// index counts thinking and text blocks too.
+pub fn with_tool_ordinal(state: &TapState, event: &CanonicalEvent) -> Option<CanonicalEvent> {
+    let ordinal = |index: u32| {
+        state
+            .blocks
+            .iter()
+            .take(index as usize)
+            .filter(|b| matches!(b, BlockAccumulator::ToolUse { .. }))
+            .count() as u32
+    };
+    match event {
+        CanonicalEvent::ContentBlockStart {
+            index,
+            block: block @ ContentBlockKind::ToolUse { .. },
+        } => Some(CanonicalEvent::ContentBlockStart {
+            index: ordinal(*index),
+            block: block.clone(),
+        }),
+        CanonicalEvent::ToolUseDelta {
+            index,
+            partial_json,
+        } => Some(CanonicalEvent::ToolUseDelta {
+            index: ordinal(*index),
+            partial_json: partial_json.clone(),
+        }),
+        _ => None,
+    }
+}
+
 pub fn snapshot(state: &TapState) -> CanonicalResponse {
     build_response(state)
 }

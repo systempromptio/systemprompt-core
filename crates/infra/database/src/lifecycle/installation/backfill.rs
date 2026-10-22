@@ -57,10 +57,11 @@ impl BackfillStatement {
 }
 
 #[must_use]
-pub fn projection_tables<'a>(schemas: impl IntoIterator<Item = &'a str>) -> BTreeSet<String> {
+pub fn projection_tables<S: AsRef<str>>(schemas: impl IntoIterator<Item = S>) -> BTreeSet<String> {
     let mut queued = BTreeSet::new();
     let mut created = BTreeSet::new();
     for sql in schemas {
+        let sql = sql.as_ref();
         queued.extend(queued_projections(sql));
         created.extend(created_tables(sql));
     }

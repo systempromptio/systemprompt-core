@@ -15,6 +15,7 @@ mod headers;
 mod parse;
 mod sse;
 mod strict;
+mod turns;
 
 pub use beta::{
     ANTHROPIC_BETA_HEADER, AnthropicBeta, BETA_GATED_FIELDS, BetaGatedField, BetaHeader,
@@ -30,11 +31,10 @@ pub use headers::{
 };
 pub use parse::{buffered_defect, parse_response};
 pub use sse::AnthropicStreamState;
+pub use turns::{history_is_strict, upstream_messages};
 
 // JSON: protocol boundary — the Anthropic Messages wire format is dynamic JSON.
 use serde_json::{Map, Value, json};
-
-use blocks::{BlockAudience, canonical_message_to_anthropic};
 
 use crate::canonical::{
     CanonicalRequest, CanonicalTool, CanonicalToolChoice, ResponseFormat, SearchConfig,
@@ -49,14 +49,7 @@ pub fn build_request_body(
     limits: Option<ModelLimits>,
     // JSON: Anthropic Messages API request body; upstream JSON is the contract.
 ) -> Value {
-    // Why: a mid-history system message is harness context (Claude Code's
-    // environment block and available-skills listing); the block mapper
-    // renders it as a user turn, which the Messages API accepts consecutively.
-    let messages: Vec<Value> = request
-        .messages
-        .iter()
-        .filter_map(|m| canonical_message_to_anthropic(m, BlockAudience::Upstream))
-        .collect();
+    let messages = upstream_messages(&request.messages);
 
     let mut obj = Map::new();
     obj.insert("model".into(), Value::String(upstream_model.to_owned()));

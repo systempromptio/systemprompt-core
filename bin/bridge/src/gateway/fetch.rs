@@ -169,12 +169,31 @@ impl GatewayClient {
         bearer: &BearerToken,
         platform: &str,
     ) -> Result<ReleaseManifest, GatewayError> {
-        let url = self.url(&format!("/v1/bridge/latest?platform={platform}"));
+        self.fetch_release(bearer, platform, false).await
+    }
+
+    pub async fn fetch_latest_release_fresh(
+        &self,
+        bearer: &BearerToken,
+        platform: &str,
+    ) -> Result<ReleaseManifest, GatewayError> {
+        self.fetch_release(bearer, platform, true).await
+    }
+
+    async fn fetch_release(
+        &self,
+        bearer: &BearerToken,
+        platform: &str,
+        refresh: bool,
+    ) -> Result<ReleaseManifest, GatewayError> {
+        let refresh = if refresh { "&refresh=true" } else { "" };
+        let url = self.url(&format!("/v1/bridge/latest?platform={platform}{refresh}"));
         let started = Instant::now();
         let resp = self
             .http()
             .get(&url)
             .bearer_auth(bearer.expose())
+            .header(reqwest::header::CACHE_CONTROL, "no-cache")
             .send()
             .await
             .map_err(|e| GatewayError::ReleaseFetch(Box::new(e)))?;

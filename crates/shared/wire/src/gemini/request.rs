@@ -14,7 +14,8 @@ use super::wire::{
     GeminiSystemInstruction, GeminiTool, GeminiToolConfig,
 };
 use crate::canonical::{
-    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ResponseFormat, Role,
+    CanonicalContent, CanonicalMessage, CanonicalRequest, CanonicalToolChoice, ResponseFormat,
+    Role, TurnMerge, normalize_turns,
 };
 use crate::schema::SchemaSanitizer;
 use crate::{ModelLimits, WireProtocol};
@@ -128,7 +129,7 @@ fn tool_config(choice: &CanonicalToolChoice) -> GeminiToolConfig {
 fn contents(request: &CanonicalRequest) -> Vec<GeminiContent> {
     let call_names = tool_call_names(request);
     let mut contents: Vec<GeminiContent> = Vec::new();
-    for msg in &request.messages {
+    for msg in &normalize_turns(&request.messages, TurnMerge::UserSide) {
         let Some(content) = message_to_content(msg, &call_names) else {
             continue;
         };

@@ -47,6 +47,8 @@ pub const CACHE_TTL: Duration = Duration::from_secs(300);
 #[derive(Debug, Deserialize)]
 pub struct LatestQuery {
     pub platform: String,
+    #[serde(default)]
+    pub refresh: bool,
 }
 
 pub async fn latest(
@@ -57,7 +59,11 @@ pub async fn latest(
 ) -> Result<Json<ReleaseManifest>, ReleaseError> {
     authenticate_bridge(&jwt_extractor, &headers).await?;
     let spec = releases_spec()?;
-    let resolved = feed.resolve(&spec, &query.platform).await?;
+    let resolved = if query.refresh {
+        feed.resolve_fresh(&spec, &query.platform).await?
+    } else {
+        feed.resolve(&spec, &query.platform).await?
+    };
     Ok(Json(resolved.manifest))
 }
 

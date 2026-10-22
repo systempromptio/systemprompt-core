@@ -56,6 +56,10 @@ impl InboundAdapter for OpenAiChatInbound {
         render_terminal::render_terminal_event_frame(event, snapshot)
     }
 
+    fn indexes_tool_calls_by_ordinal(&self) -> bool {
+        true
+    }
+
     fn wants_stream_usage(&self, raw: &Bytes) -> bool {
         serde_json::from_slice::<Value>(raw).is_ok_and(|v| {
             v.get("stream_options")
