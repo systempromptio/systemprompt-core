@@ -52,8 +52,6 @@ crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI ou
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer
 crates/infra/cloud/src/credentials_bootstrap/mod.rs:CREDENTIALS — debt: cloud credentials bootstrap
-crates/infra/database/src/services/postgres/connection.rs:POOL_CLOCK — debt: pool clock
-crates/infra/database/src/services/postgres/connection.rs:SCHEMA_CHANGED_AT_NANOS — debt: schema-change stamp
 crates/infra/loader/src/bundle/provenance.rs:CACHE — debt: tree-hash memo
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
 crates/infra/security/src/credential/http.rs:CLIENT — debt: process-wide HTTP client
