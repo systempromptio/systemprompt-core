@@ -36,6 +36,7 @@ use systemprompt_traits::Job;
 
 use super::scheduling::make_job_context;
 use crate::error::{SchedulerError, SchedulerResult};
+use crate::jobs::InventoryRefreshMemo;
 use crate::models::{JobRunRecord, JobStatus};
 use crate::repository::{JobRepository, SchedulerRepository};
 use claim::Claimed;
@@ -62,6 +63,7 @@ pub struct JobExecutionService {
     job_repo: JobRepository,
     scheduler_repo: SchedulerRepository,
     lock_wait: Duration,
+    inventory_memo: Arc<InventoryRefreshMemo>,
 }
 
 impl std::fmt::Debug for JobExecutionService {
@@ -86,6 +88,7 @@ impl JobExecutionService {
             job_repo,
             scheduler_repo,
             lock_wait: Duration::ZERO,
+            inventory_memo: Arc::new(InventoryRefreshMemo::new()),
         }
     }
 
@@ -231,6 +234,7 @@ impl JobExecutionService {
             Arc::clone(self.ctx.db_pool()),
             Arc::clone(&self.ctx),
             runnable.as_job().db_budget(),
+            &self.inventory_memo,
         )
         .with_enforce(enforce)
         .with_parameters(merged);

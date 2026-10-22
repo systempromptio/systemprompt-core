@@ -4,18 +4,6 @@
 use systemprompt_cloud::{CloudError, CredentialsBootstrapError};
 
 #[test]
-fn not_initialized_display() {
-    let err = CredentialsBootstrapError::NotInitialized;
-    assert!(err.to_string().contains("not initialized"));
-}
-
-#[test]
-fn already_initialized_display() {
-    let err = CredentialsBootstrapError::AlreadyInitialized;
-    assert!(err.to_string().contains("already initialized"));
-}
-
-#[test]
 fn not_available_display() {
     let err = CredentialsBootstrapError::NotAvailable;
     assert!(err.to_string().contains("not available"));
@@ -72,8 +60,6 @@ fn is_file_not_found_true_for_file_not_found() {
 
 #[test]
 fn is_file_not_found_false_for_other_variants() {
-    assert!(!CredentialsBootstrapError::NotInitialized.is_file_not_found());
-    assert!(!CredentialsBootstrapError::AlreadyInitialized.is_file_not_found());
     assert!(!CredentialsBootstrapError::NotAvailable.is_file_not_found());
     assert!(!CredentialsBootstrapError::TokenExpired.is_file_not_found());
     assert!(
@@ -100,21 +86,6 @@ fn debug_format_file_not_found() {
     let d = format!("{err:?}");
     assert!(d.contains("FileNotFound"));
     assert!(d.contains("/tmp/creds.json"));
-}
-
-#[test]
-fn into_cloud_error_not_initialized_yields_credentials_not_initialized() {
-    let cloud_err: CloudError = CredentialsBootstrapError::NotInitialized.into();
-    assert!(matches!(cloud_err, CloudError::CredentialsNotInitialized));
-}
-
-#[test]
-fn into_cloud_error_already_initialized_yields_credentials_already_initialized() {
-    let cloud_err: CloudError = CredentialsBootstrapError::AlreadyInitialized.into();
-    assert!(matches!(
-        cloud_err,
-        CloudError::CredentialsAlreadyInitialized
-    ));
 }
 
 #[test]
@@ -181,8 +152,6 @@ fn into_cloud_error_api_validation_failed_preserves_message() {
 #[test]
 fn all_conversions_produce_non_empty_display() {
     let errs: Vec<CredentialsBootstrapError> = vec![
-        CredentialsBootstrapError::NotInitialized,
-        CredentialsBootstrapError::AlreadyInitialized,
         CredentialsBootstrapError::NotAvailable,
         CredentialsBootstrapError::TokenExpired,
         CredentialsBootstrapError::FileNotFound {

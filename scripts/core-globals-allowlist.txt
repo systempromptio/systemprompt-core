@@ -31,7 +31,6 @@ crates/shared/manifest/src/env.rs:INTERPOLATION_REGEX — immutable data
 crates/shared/extension/src/gateway_guard.rs:GATEWAY_GUARDS — immutable data: link-time inventory of gateway guards, collected once
 crates/domain/mcp/src/lib.rs:VERSION — immutable data: the MCP protocol version string rendered once
 crates/domain/mcp/src/services/ui_renderer/artifact_ui.rs:REGISTRY — immutable data: the built-in UI renderer set, built once
-crates/infra/governance/src/policy/secrets/fingerprint.rs:KEY — immutable data: per-process fingerprint key derived once
 
 # Third-party set-once globals mirrored by a static.
 crates/infra/logging/src/lib.rs:SUBSCRIBER_INITIALIZED — tracing's global dispatcher is itself set-once
@@ -45,23 +44,10 @@ crates/infra/logging/src/services/output/mod.rs:STARTUP_MODE — debt: CLI outpu
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_MODE — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI output mode
 crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer
-crates/infra/cloud/src/credentials_bootstrap/mod.rs:CREDENTIALS — debt: cloud credentials bootstrap
-crates/infra/config/src/private_file.rs:TEMP_NONCE — debt: temp-file nonce counter
-crates/infra/config/src/state_dir.rs:PROBE_SEQ — debt: write-probe sequence counter
-crates/infra/database/src/services/postgres/connection.rs:POOL_CLOCK — debt: pool clock
-crates/infra/database/src/services/postgres/connection.rs:SCHEMA_CHANGED_AT_NANOS — debt: schema-change stamp
 crates/infra/loader/src/bundle/provenance.rs:CACHE — debt: tree-hash memo
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
-crates/infra/security/src/credential/http.rs:CLIENT — debt: process-wide HTTP client
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
 crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HTTP client
-crates/app/scheduler/src/jobs/otlp_export/transport.rs:CLIENT — debt: process-wide HTTP client
-crates/app/scheduler/src/jobs/inventory.rs:LAST — debt: per-job memo
-crates/app/scheduler/src/jobs/vertex_discovery.rs:LATEST — debt: last discovery report
 crates/app/oauth-issuance/src/token_exchange/subject.rs:SHARED_JWKS — debt: JWKS client cache
-crates/app/generator/src/atomic.rs:SEQUENCE — debt: temp-file sequence counter
-crates/app/generator/src/prerender/context.rs:PRERENDER_ASSETS — debt: prerender asset memo
-crates/domain/analytics/src/services/extractor/geoip.rs:NO_READER_NOTICE — debt: once-only notice
-crates/domain/marketplace/src/catalog/content/revision_cache.rs:VERIFIED — debt: verified revision memo
 crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo

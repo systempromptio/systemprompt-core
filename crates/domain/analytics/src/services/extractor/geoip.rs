@@ -12,16 +12,7 @@ pub(crate) fn lookup_geoip(
     ip_str: &str,
     geoip_reader: Option<&GeoIpReader>,
 ) -> Option<(Option<String>, Option<String>, Option<String>)> {
-    let Some(reader) = geoip_reader else {
-        static NO_READER_NOTICE: std::sync::Once = std::sync::Once::new();
-        NO_READER_NOTICE.call_once(|| {
-            tracing::debug!(
-                geoip_skip_reason = "no_reader",
-                "GeoIP enrichment inactive: no MaxMind reader configured; location fields will be empty for all requests"
-            );
-        });
-        return None;
-    };
+    let reader = geoip_reader?;
 
     let ip: std::net::IpAddr = match ip_str.parse() {
         Ok(ip) => ip,

@@ -45,6 +45,9 @@
 - **Breaking:** `systemprompt_mcp::{TaskContext, TaskManager, TaskOptions}` re-exports are removed, and `services::registry::trait_impl` is folded into `services::registry` (`McpDeploymentProviderImpl` stays at the crate root). Migrate by importing from `rmcp::task_manager`.
 - **Breaking:** `StreamEvent::Error` carries `Arc<AgentServiceError>` and `AgentServiceError::StreamFailed` is `{ source: Arc<AgentServiceError> }`. Migrate by matching the typed error and formatting it where text is needed.
 - **Breaking:** in `systemprompt_agent::services::a2a_server`, `MessageProcessor` is `MessageHandler` and `StreamProcessor` is `StreamService`; `processing::message::stream_processor` is `stream_service` (its `helpers` module is `synthesis`), and `handlers::request::helpers` is `handlers::request::routing`. Migrate by renaming the imports.
+- **Breaking:** `systemprompt_database::mark_schema_changed()` → `Database::mark_schema_changed(&self)`; `PostgresProvider::new_with_pool` and `connection::build_pool_options` take a `&SchemaEpoch`, the stamp every pool a `Database` opens shares. Migrate by calling `mark_schema_changed` on the `Database` that ran the migrations.
+- **Breaking:** `systemprompt_cloud::CredentialsBootstrap::{init, get, try_init, is_initialized, init_empty, expires_within}` → `CredentialsBootstrap::load() -> CloudResult<Option<CloudCredentials>>`, an async `require() -> CloudResult<CloudCredentials>` and `read_unvalidated()`; `CredentialsBootstrapError::{NotInitialized, AlreadyInitialized}` and `CloudError::{CredentialsNotInitialized, CredentialsAlreadyInitialized}` are removed. Migrate by keeping the value `load` returns and passing it to its consumers; the CLI hands it to commands through `CommandContext::cloud_credentials()`.
+- **Breaking:** `systemprompt_scheduler::jobs::vertex_discovery::latest_report` → `VertexDiscoveryJob::probe()`, which returns the report of one pass. Migrate by keeping the returned report; `systemprompt_cli::admin::config::catalog_discovery::render_discovery` renders any report.
 
 ### Added
 
@@ -73,6 +76,13 @@
 - Reading a log row whose stored level, metadata or context id does not decode returns `LoggingError::Repository(RepositoryError::Decode)` with the parse error as its source, instead of an `Info` row with the field dropped.
 - An entry enqueued before the database sink attaches counts toward `LogSink::dropped_entries`.
 - `systemprompt_analytics::models`, its `reporting` module and `systemprompt_marketplace::inventory` re-export explicit item lists instead of globs; the exported set is unchanged.
+- Private temp files, state-dir write probes and generator staging files take a random suffix instead of a process-wide counter.
+- `SecretScanner` draws its evidence-fingerprint key when it is built; fingerprints do not correlate across scanner rebuilds.
+- `TokenCache` owns the bounded HTTP client its credential exchanges use.
+- The prerender jobs load their content config, web config and template registry on every run, so template edits apply on the next run without a restart.
+- The managed inventory refresh keeps its last-pass fingerprint in an `InventoryRefreshMemo` the scheduler owns and passes to each run through the job context; the OTLP export job builds its HTTP client once per run.
+- The "no GeoIP reader" notice is logged once when `AnalyticsService` is built.
+- The verified-revision memo lives on `ManagedRepository`.
 
 ### Removed
 

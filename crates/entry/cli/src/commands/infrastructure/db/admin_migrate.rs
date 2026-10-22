@@ -5,7 +5,6 @@
 
 use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
-use systemprompt_database::services::DatabaseProvider;
 use systemprompt_database::{
     Database, MigrationConfig, MigrationService, install_extension_schemas_full,
 };
@@ -54,7 +53,7 @@ pub(super) async fn execute_migrate(
 
     run_install(
         &ExtensionRegistry::discover()?,
-        database.session(),
+        &database,
         config,
         allow_checksum_drift,
         repair_drift,
@@ -71,7 +70,7 @@ pub(super) async fn execute_migrate_standalone(
     let database = db_ctx.db_pool();
     run_install(
         &ExtensionRegistry::discover()?,
-        database.session(),
+        database,
         config,
         allow_checksum_drift,
         repair_drift,
@@ -81,11 +80,12 @@ pub(super) async fn execute_migrate_standalone(
 
 async fn run_install(
     registry: &ExtensionRegistry,
-    write_provider: &dyn DatabaseProvider,
+    database: &Database,
     config: &CliConfig,
     allow_checksum_drift: bool,
     repair_drift: bool,
 ) -> Result<()> {
+    let write_provider = database.session();
     let extension_count = registry.schema_extensions().len();
 
     if config.should_show_verbose() {
@@ -120,7 +120,7 @@ async fn run_install(
             },
             Err(e) => return Err(failure(&e)),
         };
-    systemprompt_database::mark_schema_changed();
+    database.mark_schema_changed();
     if !report.is_clean() {
         let drift: Vec<String> = report
             .foreign_key_drift

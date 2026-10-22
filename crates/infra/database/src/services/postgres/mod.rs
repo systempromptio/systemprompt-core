@@ -34,18 +34,24 @@ pub struct PostgresProvider {
 
 impl PostgresProvider {
     pub async fn new(database_url: &str) -> DatabaseResult<Self> {
-        Self::new_with_pool(database_url, &connection::PoolConfig::default()).await
+        Self::new_with_pool(
+            database_url,
+            &connection::PoolConfig::default(),
+            &connection::SchemaEpoch::new(),
+        )
+        .await
     }
 
     pub async fn new_with_pool(
         database_url: &str,
         pool_config: &connection::PoolConfig,
+        epoch: &connection::SchemaEpoch,
     ) -> DatabaseResult<Self> {
         let connect_options = connection::connect_options(database_url)?
             .statement_cache_capacity(pool_config.statement_cache_capacity);
 
         let pool = connection::connect_with_retry(
-            connection::build_pool_options(pool_config),
+            connection::build_pool_options(pool_config, epoch),
             connect_options,
         )
         .await?;

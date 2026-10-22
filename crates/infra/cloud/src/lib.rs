@@ -8,8 +8,8 @@
 //! ## Public surface
 //!
 //! - [`CloudApiClient`] — bearer-token-authenticated REST client.
-//! - [`CloudCredentials`] / [`CredentialsBootstrap`] — on-disk and process-wide
-//!   cloud credentials.
+//! - [`CloudCredentials`] / [`CredentialsBootstrap`] — on-disk cloud
+//!   credentials and the bootstrap that loads and validates them.
 //! - [`StoredTenant`] / [`TenantStore`] — persistent tenants index.
 //! - [`CliSession`] / [`SessionStore`] — multi-tenant CLI sessions.
 //! - [`run_oauth_flow`] — browser-driven OAuth login flow.

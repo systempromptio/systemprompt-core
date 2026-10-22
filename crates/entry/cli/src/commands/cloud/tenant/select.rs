@@ -3,36 +3,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::{
-    CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
-};
+use anyhow::{Result, anyhow};
+use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, StoredTenant, TenantType};
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_identifiers::TenantId;
 
 use crate::interactive::Prompter;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
-    if CredentialsBootstrap::is_initialized() {
-        return CredentialsBootstrap::require()
-            .map_err(|e| {
-                anyhow!(
-                    "Credentials required. Run 'systemprompt cloud auth login': {}",
-                    e
-                )
-            })?
-            .clone()
-            .pipe(Ok);
-    }
-
-    let cloud_paths = get_cloud_paths();
-    let creds_path = cloud_paths.resolve(CloudPath::Credentials);
-
-    if creds_path.exists() {
-        CloudCredentials::load_from_path(&creds_path).map_err(Into::into)
-    } else {
-        bail!("Not logged in. Run 'systemprompt cloud auth login' first.")
-    }
+    CredentialsBootstrap::read_unvalidated()
+        .map_err(|e| anyhow!("Credentials required. Run 'systemprompt cloud auth login': {e}"))?
+        .ok_or_else(|| anyhow!("Not logged in. Run 'systemprompt cloud auth login' first."))
 }
 
 pub fn select_tenant<'a>(
@@ -67,14 +48,3 @@ pub fn resolve_tenant_id(tenant: Option<TenantId>) -> Result<TenantId> {
             anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")
         })
 }
-
-trait Pipe: Sized {
-    fn pipe<F, R>(self, f: F) -> R
-    where
-        F: FnOnce(Self) -> R,
-    {
-        f(self)
-    }
-}
-
-impl<T> Pipe for T {}

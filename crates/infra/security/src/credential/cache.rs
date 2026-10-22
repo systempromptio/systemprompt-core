@@ -29,7 +29,7 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::{Arc, PoisonError, RwLock};
+use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 use std::time::{Duration, SystemTime};
 
 use super::error::CredentialError;
@@ -47,12 +47,15 @@ struct CachedToken {
 }
 
 /// Minted tokens keyed by secret name, with single-flight minting per key.
-/// Owned by the service that mints (storage token source, MCP client); it is
-/// shared by handle, never process-wide.
+///
+/// It also owns the bounded HTTP client every exchange through it uses. Owned
+/// by the service that mints (storage token source, MCP client); it is shared
+/// by handle, never process-wide.
 #[derive(Debug, Default)]
 pub struct TokenCache {
     entries: RwLock<HashMap<String, CachedToken>>,
     mints: tokio::sync::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    http: OnceLock<Result<reqwest::Client, Arc<reqwest::Error>>>,
 }
 
 #[must_use]
@@ -67,6 +70,13 @@ impl TokenCache {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn http_client(&self) -> Result<&reqwest::Client, CredentialError> {
+        self.http
+            .get_or_init(super::http::build_client)
+            .as_ref()
+            .map_err(|e| CredentialError::Client(Arc::clone(e)))
     }
 
     fn cached(&self, key: &str) -> Option<String> {

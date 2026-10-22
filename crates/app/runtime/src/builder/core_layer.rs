@@ -240,7 +240,7 @@ pub(super) async fn init_extensions(
                 .await?;
         crate::schema_currency::refuse_breaking(&report.ahead, ProfileBootstrap::get()?)?;
         crate::schema_currency::warn_ahead(&report.ahead);
-        systemprompt_database::mark_schema_changed();
+        database.mark_schema_changed();
         report
     } else if schema.verify {
         let profile = ProfileBootstrap::get()?;

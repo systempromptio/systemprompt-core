@@ -1,5 +1,4 @@
-//! Helpers shared by the prerender pipeline: deep-merging JSON objects from
-//! template-data providers, and rendering registered template components.
+//! Rendering of registered template components into page data.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,25 +9,6 @@ use systemprompt_template_provider::{ComponentContext, RenderedComponent};
 use systemprompt_templates::TemplateRegistry;
 
 use crate::error::{GeneratorResult, PublishError};
-
-// JSON: Handlebars template variables — provider JSON deep-merged in.
-pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
-    match (base, extension) {
-        (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
-            for (key, ext_value) in ext_obj {
-                match base_obj.get_mut(key) {
-                    Some(base_value) => merge_json_data(base_value, ext_value),
-                    None => {
-                        base_obj.insert(key.clone(), ext_value.clone());
-                    },
-                }
-            }
-        },
-        (base, extension) => {
-            *base = extension.clone();
-        },
-    }
-}
 
 // JSON: Handlebars template variables; components are inserted by name.
 pub(super) async fn render_components(

@@ -73,25 +73,6 @@ fn test_credentials_file_not_found_display() {
 }
 
 #[test]
-fn test_credentials_not_initialized() {
-    let err = CloudError::CredentialsNotInitialized;
-    assert_eq!(err.to_string(), "Credentials not initialized");
-    assert_eq!(err.user_message(), "Credentials bootstrap not initialised");
-    assert!(err.recovery_hint().contains("Restart the process"));
-    assert!(!err.requires_login());
-}
-
-#[test]
-fn test_credentials_already_initialized() {
-    let err = CloudError::CredentialsAlreadyInitialized;
-    assert_eq!(err.to_string(), "Credentials already initialized");
-    assert_eq!(
-        err.user_message(),
-        "Credentials bootstrap already initialised"
-    );
-}
-
-#[test]
 fn test_session_version_mismatch_display() {
     let err = CloudError::SessionVersionMismatch {
         min: 1,
@@ -158,7 +139,7 @@ fn test_json_from_conversion() {
 
 #[test]
 fn test_requires_login_false_for_misc() {
-    assert!(!CloudError::CredentialsAlreadyInitialized.requires_login());
+    assert!(!CloudError::JwtDecode.requires_login());
     assert!(
         !CloudError::HttpStatus {
             status: 500,
@@ -186,8 +167,6 @@ fn test_all_variants_have_user_message() {
         CloudError::TokenExpired,
         CloudError::JwtDecode,
         CloudError::TenantsNotSynced,
-        CloudError::CredentialsNotInitialized,
-        CloudError::CredentialsAlreadyInitialized,
         CloudError::Unauthorized,
     ];
     for v in variants {
