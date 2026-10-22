@@ -14,7 +14,6 @@ mod request_base_url;
 mod server_health_stats;
 mod server_metrics;
 mod server_ops_metrics;
-mod server_reconciliation_stale;
 mod server_reconciliation_verify;
 mod server_shutdown;
 mod validation;

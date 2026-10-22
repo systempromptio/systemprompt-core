@@ -23,7 +23,8 @@ use systemprompt_manifest::services::QuotaFaultMode;
 use super::{DispatchError, GatewayError, GuardUnavailable, QuotaExceeded};
 use crate::GatewayRepositories;
 use crate::audit::GatewayAudit;
-use crate::policies::{GatewayPolicySpec, RateSubject, RateWindow};
+use crate::policies::{GatewayPolicySpec, RateWindow};
+use systemprompt_identifiers::QuotaSubjectKind;
 
 const RATE_POLICY_PREFIX: &str = "gateway_rate";
 const UNAVAILABLE_RETRY_SECONDS: i32 = 1;
@@ -77,12 +78,13 @@ pub(super) async fn enforce_rate_windows(
         charged: Vec::new(),
     };
     for window in &policy.rate_windows {
-        let subject = match window.subject {
-            RateSubject::User => ctx.user_id.as_str().to_owned(),
-            RateSubject::ApiKey => match ctx.attribution.api_key_id.as_ref() {
+        let subject = match &window.subject {
+            QuotaSubjectKind::User => ctx.user_id.as_str().to_owned(),
+            QuotaSubjectKind::ApiKey => match ctx.attribution.api_key_id.as_ref() {
                 Some(key) => key.as_str().to_owned(),
                 None => continue,
             },
+            QuotaSubjectKind::Dimension(_) => continue,
         };
         let policy_id = PolicyId::new(format!("{RATE_POLICY_PREFIX}_{}", window.subject.as_str()));
         let window_secs = u64::from(window.window_seconds);

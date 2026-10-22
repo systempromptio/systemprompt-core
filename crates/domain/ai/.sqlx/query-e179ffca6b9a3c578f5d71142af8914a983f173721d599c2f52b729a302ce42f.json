@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE ai_requests\n        SET input_tokens = $2, output_tokens = $3, cache_read_tokens = $4,\n            cache_creation_tokens = $5, reasoning_tokens = $6, tokens_used = $7,\n            cost_microdollars = $8, latency_ms = $9, upstream_latency_ms = $10,\n            cache_hit = $11, finish_reason = $12,\n            status = CASE WHEN accounting_failed_at IS NULL THEN $13::text ELSE $14::text END,\n            completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),\n            updated_at = CURRENT_TIMESTAMP\n        WHERE id = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Bool",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e179ffca6b9a3c578f5d71142af8914a983f173721d599c2f52b729a302ce42f"
+}

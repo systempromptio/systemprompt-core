@@ -7,22 +7,43 @@ use crate::harness::internal_mcp_config;
 use systemprompt_database::{CreateServiceInput, ServiceModule, ServiceRepository, ServiceStatus};
 use systemprompt_identifiers::ServiceName;
 use systemprompt_mcp::services::database::sync::{
-    cleanup_stale_services, delete_crashed_services, delete_disabled_services, sync_database_state,
+    delete_disabled_services, reap_stale_services, sync_database_state,
 };
 use systemprompt_test_fixtures::{test_db_pool, unique_instance};
 
 #[tokio::test]
-async fn cleanup_stale_services_empty_table_returns_ok() {
+async fn reap_stale_services_empty_instance_reaps_nothing() {
     let db = test_db_pool().await;
     let svc_repo = ServiceRepository::new(&db, unique_instance());
-    cleanup_stale_services(&svc_repo).await.unwrap();
+    assert_eq!(reap_stale_services(&svc_repo).await.unwrap().total(), 0);
 }
 
 #[tokio::test]
-async fn delete_crashed_services_empty_table_returns_ok() {
+async fn reap_stale_services_deletes_error_and_pidless_running_rows() {
     let db = test_db_pool().await;
-    let svc_repo = ServiceRepository::new(&db, unique_instance());
-    delete_crashed_services(&svc_repo).await.unwrap();
+    let repo = ServiceRepository::new(&db, unique_instance());
+    let crashed = ServiceName::new(format!("sync-err-{}", uuid::Uuid::new_v4().simple()));
+    let pidless = ServiceName::new(format!("sync-nopid-{}", uuid::Uuid::new_v4().simple()));
+    for (name, status, port) in [
+        (&crashed, ServiceStatus::Error, 65511u16),
+        (&pidless, ServiceStatus::Running, 65510u16),
+    ] {
+        repo.create_service(CreateServiceInput {
+            name,
+            module_name: ServiceModule::Mcp,
+            status,
+            port,
+            binary_mtime: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let reaped = reap_stale_services(&repo).await.unwrap();
+    assert_eq!(reaped.stale_rows, 2);
+    assert!(reaped.dead.is_empty());
+    assert!(repo.find_service_by_name(&crashed).await.unwrap().is_none());
+    assert!(repo.find_service_by_name(&pidless).await.unwrap().is_none());
 }
 
 #[tokio::test]

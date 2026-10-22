@@ -150,6 +150,14 @@ lint-inline-tests:
 lint-layers:
     ./scripts/lint-layers.sh
 
+# One EnforcementMode and one ServiceStatus vocabulary; copies fail
+lint-mode-enums:
+    ./scripts/lint-mode-enums.sh
+
+# Each CHECK-constrained vocabulary column agrees with its Rust enum; no status literals in query! strings
+lint-sql-vocab:
+    ./scripts/lint-sql-vocab.sh
+
 # Reject ad-hoc Repository::new() outside composition roots
 lint-repo-construction:
     ./scripts/lint-repo-construction.sh

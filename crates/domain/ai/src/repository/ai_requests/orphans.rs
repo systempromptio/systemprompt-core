@@ -12,7 +12,7 @@ use std::time::Duration;
 use systemprompt_identifiers::{AiRequestId, UserId};
 
 use super::AiRequestRepository;
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{RepositoryError, RequestStatus};
 
 pub const ORPHANED_REASON: &str = "settlement never arrived; usage unknown";
 
@@ -33,15 +33,17 @@ impl AiRequestRepository {
         let rows = sqlx::query!(
             r#"
             UPDATE ai_requests
-            SET status = 'failed', error_message = $2,
+            SET status = $3, error_message = $2,
                 completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                 updated_at = CURRENT_TIMESTAMP
-            WHERE status = 'pending'
+            WHERE status = $4
               AND created_at < CURRENT_TIMESTAMP - make_interval(secs => $1::double precision)
             RETURNING id, user_id
             "#,
             age as f64,
-            ORPHANED_REASON
+            ORPHANED_REASON,
+            RequestStatus::Failed.as_str(),
+            RequestStatus::Pending.as_str()
         )
         .fetch_all(self.write_pool())
         .await?;

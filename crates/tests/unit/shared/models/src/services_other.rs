@@ -1,55 +1,10 @@
-use std::str::FromStr;
 use systemprompt_identifiers::{ExtensionId, JobName};
 
 use systemprompt_identifiers::{ExternalAgentId, SkillId, UserId};
 use systemprompt_manifest::services::{
-    DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, RuntimeStatus,
-    SchedulerConfig, ServiceType, Settings, SystemAdmin, split_frontmatter, strip_frontmatter,
+    DiskSkillConfig, ExternalAgentConfig, ExternalAgentKind, JobConfig, SchedulerConfig,
+    ServiceType, Settings, SystemAdmin, split_frontmatter, strip_frontmatter,
 };
-
-#[test]
-fn runtime_status_display_round_trips() {
-    for (variant, s) in [
-        (RuntimeStatus::Running, "running"),
-        (RuntimeStatus::Starting, "starting"),
-        (RuntimeStatus::Stopped, "stopped"),
-        (RuntimeStatus::Crashed, "crashed"),
-        (RuntimeStatus::Orphaned, "orphaned"),
-    ] {
-        assert_eq!(variant.to_string(), s);
-        assert_eq!(RuntimeStatus::from_str(s).unwrap(), variant);
-    }
-}
-
-#[test]
-fn runtime_status_from_str_accepts_error_alias_and_uppercase() {
-    assert_eq!(
-        RuntimeStatus::from_str("ERROR").unwrap(),
-        RuntimeStatus::Crashed
-    );
-    assert_eq!(
-        RuntimeStatus::from_str("Error").unwrap(),
-        RuntimeStatus::Crashed
-    );
-    assert_eq!(
-        RuntimeStatus::from_str("Running").unwrap(),
-        RuntimeStatus::Running
-    );
-    assert!(RuntimeStatus::from_str("nope").is_err());
-}
-
-#[test]
-fn runtime_status_helpers() {
-    assert!(RuntimeStatus::Running.is_healthy());
-    assert!(RuntimeStatus::Starting.is_healthy());
-    assert!(!RuntimeStatus::Stopped.is_healthy());
-    assert!(!RuntimeStatus::Crashed.is_healthy());
-
-    assert!(RuntimeStatus::Crashed.needs_cleanup());
-    assert!(RuntimeStatus::Orphaned.needs_cleanup());
-    assert!(!RuntimeStatus::Running.needs_cleanup());
-    assert!(!RuntimeStatus::Stopped.needs_cleanup());
-}
 
 #[test]
 fn service_type_display_round_trip() {

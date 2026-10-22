@@ -11,15 +11,16 @@
 //! so a typo can never silently downgrade enforcement.
 //! [`GovernanceConfig::parse`] is the strict form over a string.
 //!
-//! Each policy also carries a [`PolicyMode`]. A declared policy without a mode
-//! defaults to `enforce`, while the vendor-neutral fallback chain is explicitly
-//! warn-only. `enforce` halts the chain on a deny; `warn` records the identical
-//! finding and lets the call through, so tunables can be calibrated against
-//! real traffic instead of guesses. A top-level `governance.mode` sets the
-//! default for every policy that does not name its own. An unrecognised mode is
-//! a parse error rather than a silent fallback: reading `mode: warnn` as
-//! `enforce` would block traffic an operator believed they had unblocked, and
-//! reading it as `warn` would disable enforcement nobody asked to disable.
+//! Each policy also carries an [`EnforcementMode`]. A declared policy without a
+//! mode defaults to `enforce`, while the vendor-neutral fallback chain is
+//! explicitly warn-only. `enforce` halts the chain on a deny; `warn` records
+//! the identical finding and lets the call through, so tunables can be
+//! calibrated against real traffic instead of guesses. A top-level
+//! `governance.mode` sets the default for every policy that does not name its
+//! own. An unrecognised mode is a parse error rather than a silent fallback:
+//! reading `mode: warnn` as `enforce` would block traffic an operator believed
+//! they had unblocked, and reading it as `warn` would disable enforcement
+//! nobody asked to disable.
 //!
 //! The fallback chain runs every policy in warn mode. Its secret scanner has no
 //! signatures because credential applicability belongs to the installation.
@@ -34,9 +35,11 @@ use std::path::Path;
 
 use serde_yaml::Value as YamlValue;
 use systemprompt_identifiers::PolicyId;
+use systemprompt_manifest::EnforcementMode;
+use systemprompt_manifest::services::UnknownEnforcementMode;
 use thiserror::Error;
 
-use super::builtin::SECRET_SCAN_ID;
+use super::builtin::{BUILTIN_POLICY_IDS, SECRET_SCAN_ID};
 use super::secrets::{SecretPatternError, SecretScanner};
 
 #[derive(Debug, Error)]
@@ -52,52 +55,20 @@ pub enum GovernanceConfigError {
     #[error(
         "governance config has an unknown mode `{value}` at {location}; expected `enforce` or `warn`"
     )]
-    InvalidMode { location: String, value: String },
+    InvalidMode {
+        location: String,
+        value: String,
+        #[source]
+        source: Option<UnknownEnforcementMode>,
+    },
     #[error("governance secret pattern catalog is invalid: {0}")]
     InvalidSecretPatterns(#[from] SecretPatternError),
-}
-
-/// Whether a policy halts the chain on a finding or only records it.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub enum PolicyMode {
-    #[default]
-    Enforce,
-    Warn,
-}
-
-impl PolicyMode {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Enforce => "enforce",
-            Self::Warn => "warn",
-        }
-    }
-
-    #[must_use]
-    pub const fn is_warn(self) -> bool {
-        matches!(self, Self::Warn)
-    }
-
-    fn parse_str(value: &str) -> Option<Self> {
-        match value {
-            "enforce" => Some(Self::Enforce),
-            "warn" => Some(Self::Warn),
-            _ => None,
-        }
-    }
-}
-
-impl std::fmt::Display for PolicyMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
 }
 
 fn read_mode(
     node: Option<&YamlValue>,
     location: &str,
-) -> Result<Option<PolicyMode>, GovernanceConfigError> {
+) -> Result<Option<EnforcementMode>, GovernanceConfigError> {
     let Some(raw) = node.and_then(|n| n.get("mode")) else {
         return Ok(None);
     };
@@ -106,12 +77,14 @@ fn read_mode(
         .ok_or_else(|| GovernanceConfigError::InvalidMode {
             location: location.to_owned(),
             value: format!("{raw:?}"),
+            source: None,
         })?;
-    PolicyMode::parse_str(text)
+    text.parse::<EnforcementMode>()
         .map(Some)
-        .ok_or_else(|| GovernanceConfigError::InvalidMode {
+        .map_err(|source| GovernanceConfigError::InvalidMode {
             location: location.to_owned(),
             value: text.to_owned(),
+            source: Some(source),
         })
 }
 
@@ -121,7 +94,7 @@ fn read_mode(
 pub struct PolicyConfig {
     pub id: PolicyId,
     pub enabled: bool,
-    pub mode: PolicyMode,
+    pub mode: EnforcementMode,
     pub params: YamlValue,
 }
 
@@ -129,25 +102,25 @@ pub struct PolicyConfig {
 #[derive(Debug, Clone)]
 pub struct GovernanceConfig {
     pub enabled: bool,
-    pub mode: PolicyMode,
+    pub mode: EnforcementMode,
     pub policies: Vec<PolicyConfig>,
 }
 
 impl GovernanceConfig {
     #[must_use]
     pub fn defaults() -> Self {
-        let policies = ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
-            .into_iter()
+        let policies = BUILTIN_POLICY_IDS
+            .iter()
             .map(|id| PolicyConfig {
-                id: PolicyId::new(id),
+                id: PolicyId::new(*id),
                 enabled: true,
-                mode: PolicyMode::Warn,
+                mode: EnforcementMode::Warn,
                 params: YamlValue::Null,
             })
             .collect();
         Self {
             enabled: true,
-            mode: PolicyMode::Warn,
+            mode: EnforcementMode::Warn,
             policies,
         }
     }

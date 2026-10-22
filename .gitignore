@@ -137,6 +137,9 @@ scripts/*
 !scripts/lint-host-ids.sh
 !scripts/lint-header-literals.sh
 !scripts/lint-path-literals.sh
+!scripts/lint-mode-enums.sh
+!scripts/lint-sql-vocab.sh
+!scripts/sql-vocabularies.txt
 !scripts/lint-authoritative-reads.sh
 !scripts/lint-field-copy-from.py
 !scripts/check-sqlx.sh

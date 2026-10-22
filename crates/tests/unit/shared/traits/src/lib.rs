@@ -55,6 +55,9 @@ mod content_filter;
 mod ai_providers;
 
 #[cfg(test)]
+mod request_status;
+
+#[cfg(test)]
 mod agent_run_launcher;
 
 #[cfg(test)]

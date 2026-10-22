@@ -23,6 +23,6 @@ pub use files::{
 pub use image::{ImageGenerationInfo, ImageMetadata};
 pub use sessions::{AiSessionProvider, CreateAiSessionParams, DynAiSessionProvider};
 pub use trace::{
-    AiRequestTrace, TraceMessage, TraceRequestStatus, TraceRequestUsage, TraceSample,
-    TraceSampleFilter, TraceSampleMode,
+    AiRequestTrace, RequestStatus, TraceMessage, TraceRequestUsage, TraceSample, TraceSampleFilter,
+    TraceSampleMode, UnknownRequestStatus,
 };

@@ -22,7 +22,7 @@
 use axum::http::{HeaderMap, StatusCode};
 use systemprompt_governance::authz::{SharedSubjectAttributeProvider, SubjectProviderSet};
 use systemprompt_identifiers::headers::SCOPE_PREFIX;
-use systemprompt_identifiers::{ApiKeyId, ScopeDimension, UserId};
+use systemprompt_identifiers::{ApiKeyId, QuotaSubjectKind, ScopeDimension, UserId};
 use systemprompt_models::attribution::{
     AttributionEntry, AttributionSource, RequestAttribution, ScopeBinding,
 };
@@ -31,7 +31,7 @@ use super::RejectionPartial;
 use crate::routes::gateway::messages::RequestContext;
 use crate::routes::gateway::messages::auth::AuthedPrincipal;
 use crate::routes::gateway::messages::error::RejectionError;
-use systemprompt_gateway::policies::{API_KEY_QUOTA_SUBJECT, QuotaWindow};
+use systemprompt_gateway::policies::QuotaWindow;
 use systemprompt_manifest::services::gateway::GatewayConfig;
 
 /// The `x-systemprompt-scope-*` headers of one request, parsed before the
@@ -254,7 +254,7 @@ pub fn api_key_windows(principal: &AuthedPrincipal) -> Vec<QuotaWindow> {
             vec![QuotaWindow {
                 window_seconds,
                 calendar: None,
-                subject: API_KEY_QUOTA_SUBJECT.to_owned(),
+                subject: QuotaSubjectKind::ApiKey.to_string(),
                 max_requests: limits.max_requests.map(i64::from),
                 max_input_tokens: None,
                 max_output_tokens: None,

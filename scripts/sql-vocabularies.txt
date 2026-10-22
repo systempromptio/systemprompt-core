@@ -1,8 +1,14 @@
-# SQL vocabularies checked by scripts/lint-sql-vocab.sh, one per line:
-#   table.column|schema.sql|enum.rs|EnumName
-# The CHECK (col IN (...)) set in the schema file must equal the enum's
-# as_str() string set, and the column's SQL DEFAULT must be the enum's
-# #[default] variant.
+# Persisted vocabularies: one Rust enum per CHECK-constrained column.
+#
+#   table.column|schema.sql|enum.rs|EnumName[|open]
+#
+# lint-sql-vocab.sh verifies, per line, that the schema's CHECK (column IN (...))
+# set equals the enum's as_str()/Display string set and that the SQL DEFAULT is
+# the enum's #[default] variant. An `open` vocabulary (closed principals plus
+# installation-defined names) only has to carry a CHECK and a DEFAULT that the
+# enum spells. For every registered column, a `column = '<lit>'`,
+# `column <> '<lit>'` or `column IN ('…')` literal inside a sqlx::query*! string
+# in crates/**/src fails: bind the enum's as_str() instead.
 #
 # Rule for the same script: the literals `is_bot = false` and
 # `is_behavioral_bot = false` inside a sqlx::query*! string in crates/**/src
@@ -10,5 +16,9 @@
 # is_human_traffic(is_bot, is_ai_crawler, is_scanner, is_behavioral_bot)
 # (crates/domain/users/schema/user_sessions.sql), called directly or through
 # v_clean_traffic / v_engaged_traffic. The allowlist is empty.
+ai_requests.status|crates/domain/ai/schema/ai_requests.sql|crates/shared/traits/src/ai_providers/trace.rs|RequestStatus
+ai_quota_buckets.subject_kind|crates/domain/ai/schema/ai_quota_buckets.sql|crates/shared/identifiers/src/quota.rs|QuotaSubjectKind|open
+mcp_tool_executions.status|crates/domain/mcp/schema/mcp_tool_executions.sql|crates/shared/models/src/mcp/execution_status.rs|McpToolExecutionStatus
+services.status|crates/infra/database/schema/services.sql|crates/shared/manifest/src/services/registry.rs|ServiceStatus
 user_sessions.session_source|crates/domain/users/schema/user_sessions.sql|crates/shared/identifiers/src/session.rs|SessionSource
 session_traffic_rollup_hourly.traffic_class|crates/domain/users/schema/session_traffic_rollup_hourly.sql|crates/shared/models/src/analytics/traffic_class.rs|TrafficClass

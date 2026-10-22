@@ -9,18 +9,18 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_governance::authz::SubjectProviderSet;
+use systemprompt_identifiers::QuotaSubjectKind;
 
 use super::QuotaWindow;
 use super::reserve::QuotaSubjects;
-use crate::policies::{API_KEY_QUOTA_SUBJECT, USER_QUOTA_SUBJECT};
 
-pub(super) struct WindowSubject<'a> {
-    pub(super) kind: &'a str,
+pub(super) struct WindowSubject {
+    pub(super) kind: QuotaSubjectKind,
     pub(super) id: String,
 }
 
-pub(super) enum SubjectResolution<'a> {
-    Resolved(WindowSubject<'a>),
+pub(super) enum SubjectResolution {
+    Resolved(WindowSubject),
     Fault(&'static str),
 }
 
@@ -29,30 +29,36 @@ pub(super) const FAULT_PROVIDER_EMPTY: &str = "subject attribute provider return
 pub(super) const FAULT_PROVIDER_MISSING: &str = "no subject attribute provider for this dimension";
 pub(super) const FAULT_NO_API_KEY: &str = "request was not authenticated by an API key";
 
-pub(super) async fn resolve_subject<'a>(
-    window: &'a QuotaWindow,
+pub(super) async fn resolve_subject(
+    window: &QuotaWindow,
     subjects: &QuotaSubjects<'_>,
     providers: &SubjectProviderSet,
-) -> SubjectResolution<'a> {
-    if window.subject == USER_QUOTA_SUBJECT {
-        return SubjectResolution::Resolved(WindowSubject {
-            kind: USER_QUOTA_SUBJECT,
-            id: subjects.user_id.as_str().to_owned(),
-        });
-    }
-    if window.subject == API_KEY_QUOTA_SUBJECT {
-        return subjects
-            .api_key_id
-            .map_or(SubjectResolution::Fault(FAULT_NO_API_KEY), |key| {
-                SubjectResolution::Resolved(WindowSubject {
-                    kind: API_KEY_QUOTA_SUBJECT,
-                    id: key.as_str().to_owned(),
-                })
+) -> SubjectResolution {
+    let Ok(kind) = window.subject.parse::<QuotaSubjectKind>() else {
+        return SubjectResolution::Fault(FAULT_PROVIDER_MISSING);
+    };
+    match kind {
+        QuotaSubjectKind::User => {
+            return SubjectResolution::Resolved(WindowSubject {
+                kind,
+                id: subjects.user_id.as_str().to_owned(),
             });
+        },
+        QuotaSubjectKind::ApiKey => {
+            return subjects
+                .api_key_id
+                .map_or(SubjectResolution::Fault(FAULT_NO_API_KEY), |key| {
+                    SubjectResolution::Resolved(WindowSubject {
+                        kind,
+                        id: key.as_str().to_owned(),
+                    })
+                });
+        },
+        QuotaSubjectKind::Dimension(_) => {},
     }
     if let Some(value) = subjects.attribution.value_for(&window.subject) {
         return SubjectResolution::Resolved(WindowSubject {
-            kind: &window.subject,
+            kind,
             id: value.to_owned(),
         });
     }
@@ -77,8 +83,5 @@ pub(super) async fn resolve_subject<'a>(
         );
         return SubjectResolution::Fault(FAULT_PROVIDER_EMPTY);
     };
-    SubjectResolution::Resolved(WindowSubject {
-        kind: &window.subject,
-        id,
-    })
+    SubjectResolution::Resolved(WindowSubject { kind, id })
 }

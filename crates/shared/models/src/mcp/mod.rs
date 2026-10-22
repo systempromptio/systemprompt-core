@@ -14,6 +14,7 @@ pub mod client_profile;
 pub mod connector;
 pub mod deployment;
 pub mod execution_source;
+pub mod execution_status;
 pub mod registry;
 pub mod registry_trait;
 pub mod server;
@@ -35,6 +36,7 @@ pub use deployment::{
     Deployment, DeploymentConfig, ExternalAuth, McpServerType, OAuthRequirement, Settings,
 };
 pub use execution_source::{Correlation, ExecutionSource};
+pub use execution_status::{McpToolExecutionStatus, UnknownMcpToolExecutionStatus};
 pub use registry::RegistryConfig;
 pub use registry_trait::{McpRegistry, McpServerState};
 pub use server::{McpAuthState, McpServerConfig};

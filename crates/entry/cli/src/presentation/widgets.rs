@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 use systemprompt_logging::services::cli::{
-    BrandColors, ServiceStatus, ServiceTableEntry, render_phase_warning, render_service_table,
+    BrandColors, ServiceTableEntry, StatusGlyph, render_phase_warning, render_service_table,
     render_startup_banner, render_startup_complete,
 };
 use systemprompt_traits::{ServiceInfo, ServiceState};
@@ -30,10 +30,10 @@ impl ServiceTable {
             .iter()
             .map(|s| {
                 let status = match s.state {
-                    ServiceState::Running => ServiceStatus::Running,
-                    ServiceState::Starting => ServiceStatus::Starting,
-                    ServiceState::Stopped => ServiceStatus::Stopped,
-                    ServiceState::Failed => ServiceStatus::Failed,
+                    ServiceState::Running => StatusGlyph::Running,
+                    ServiceState::Starting => StatusGlyph::Starting,
+                    ServiceState::Stopped => StatusGlyph::Stopped,
+                    ServiceState::Failed => StatusGlyph::Failed,
                 };
                 ServiceTableEntry::new(&s.name, s.service_type.label(), s.port, status)
             })

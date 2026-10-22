@@ -11,7 +11,7 @@ use systemprompt_gateway::quota::{AccountingOutcome, QuotaReservation, ReservedW
 use systemprompt_gateway::service::finalize::record_accounting_outcome;
 use systemprompt_gateway::{GatewayAudit, GatewayRequestContext};
 use systemprompt_governance::policy::types::AccessScope;
-use systemprompt_identifiers::{AiRequestId, ContextId, UserId};
+use systemprompt_identifiers::{AiRequestId, ContextId, QuotaSubjectKind, UserId};
 use systemprompt_manifest::services::QuotaFaultMode;
 
 use crate::support::{minimal_request, seed_user, setup_db};
@@ -117,7 +117,7 @@ pub(crate) async fn status_of(db: &DbPool, id: &AiRequestId) -> String {
 pub(crate) fn reservation_for(user_id: &UserId) -> QuotaReservation {
     QuotaReservation {
         windows: vec![ReservedWindow {
-            subject_kind: "user".to_owned(),
+            subject_kind: QuotaSubjectKind::User,
             subject_id: user_id.as_str().to_owned(),
             window_seconds: 60,
             window_start: sqlx::types::chrono::Utc::now(),

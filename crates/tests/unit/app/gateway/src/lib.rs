@@ -91,6 +91,8 @@ mod quota_calendar;
 #[cfg(test)]
 mod quota_estimate;
 #[cfg(test)]
+mod quota_subject_kind;
+#[cfg(test)]
 mod registry;
 #[cfg(test)]
 mod route_match_descriptor;

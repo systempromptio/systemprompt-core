@@ -39,13 +39,14 @@ use thiserror::Error;
 
 use super::audit::ChainEntryOutcome;
 use super::builtin::SECRET_SCAN_ID;
-use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig, PolicyMode};
+use super::config::{GovernanceConfig, GovernanceConfigError, PolicyConfig};
 use super::governed::GovernedInput;
 use super::rate_window::RateWindowRepository;
 use super::registry::{PolicyConfigurationError, PolicyFactory, PolicyRegistration};
 use super::secrets::{SecretFinding, SecretScanner};
 use super::types::{GovernancePolicy, PolicyContext};
 use crate::authz::types::Decision;
+use systemprompt_manifest::EnforcementMode;
 
 /// The outcome of one traced chain run: the first-deny-wins [`Decision`] and
 /// the ordered per-entry trace destined for the audit row.
@@ -164,7 +165,7 @@ impl GovernanceEngine {
             let config = PolicyConfig {
                 id: PolicyId::new(r.id),
                 enabled: false,
-                mode: PolicyMode::Enforce,
+                mode: EnforcementMode::Enforce,
                 params: serde_yaml::Value::Null,
             };
             let instance = (r.factory)(&config.params).map_err(|source| {

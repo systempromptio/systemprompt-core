@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT instance_id as \"instance_id: InstanceId\", name, module_name, status, pid, port, binary_mtime,\n                   heartbeat_at::text as \"heartbeat_at!\",\n                   created_at::text as \"created_at!\", updated_at::text as \"updated_at!\"\n            FROM services\n            WHERE instance_id = $1 AND status = 'running'\n            ORDER BY name\n            ",
+  "query": "\n            SELECT instance_id as \"instance_id: InstanceId\", name, module_name, status, pid, port, binary_mtime,\n                   heartbeat_at::text as \"heartbeat_at!\",\n                   created_at::text as \"created_at!\", updated_at::text as \"updated_at!\"\n            FROM services\n            WHERE instance_id = $1 AND module_name = $2 AND status = $3\n            ORDER BY name\n            ",
   "describe": {
     "columns": [
       {
@@ -101,6 +101,8 @@
     ],
     "parameters": {
       "Left": [
+        "Text",
+        "Text",
         "Text"
       ]
     },
@@ -117,5 +119,5 @@
       null
     ]
   },
-  "hash": "785aadb86e4d1fab35318c8bb07bc0e96eb49c2415b06cfc71cc39365cf64885"
+  "hash": "d157e94436bea74b4765d83dcc2a7a0825511876b206003df5e26c61d3705a1f"
 }

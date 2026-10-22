@@ -9,6 +9,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::fmt;
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -119,25 +122,55 @@ pub struct TraceSample {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Lifecycle status of a persisted AI request, the `ai_requests.status`
+/// vocabulary.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TraceRequestStatus {
+pub enum RequestStatus {
+    #[default]
     Pending,
     Completed,
     Failed,
     Rejected,
-    Other,
 }
 
-impl TraceRequestStatus {
+impl RequestStatus {
     #[must_use]
-    pub fn parse(status: &str) -> Self {
-        match status {
-            "pending" => Self::Pending,
-            "completed" => Self::Completed,
-            "failed" => Self::Failed,
-            "rejected" => Self::Rejected,
-            _ => Self::Other,
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Rejected => "rejected",
+        }
+    }
+
+    #[must_use]
+    pub const fn is_settled(self) -> bool {
+        matches!(self, Self::Completed | Self::Failed | Self::Rejected)
+    }
+}
+
+impl fmt::Display for RequestStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("unknown AI request status `{0}`")]
+pub struct UnknownRequestStatus(pub String);
+
+impl FromStr for RequestStatus {
+    type Err = UnknownRequestStatus;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pending" => Ok(Self::Pending),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            "rejected" => Ok(Self::Rejected),
+            other => Err(UnknownRequestStatus(other.to_owned())),
         }
     }
 }
@@ -152,7 +185,7 @@ impl TraceRequestStatus {
 pub struct TraceRequestUsage {
     pub request_id: AiRequestId,
     pub session_id: Option<SessionId>,
-    pub status: TraceRequestStatus,
+    pub status: RequestStatus,
     pub completed_at: Option<DateTime<Utc>>,
     pub accounting_failed_at: Option<DateTime<Utc>>,
     pub cost_microdollars: i64,
@@ -166,7 +199,7 @@ impl TraceRequestUsage {
     #[must_use]
     pub fn is_settled(&self) -> bool {
         self.completed_at.is_some()
-            && (self.status == TraceRequestStatus::Completed || self.accounting_failed_at.is_some())
+            && (self.status == RequestStatus::Completed || self.accounting_failed_at.is_some())
     }
 }
 

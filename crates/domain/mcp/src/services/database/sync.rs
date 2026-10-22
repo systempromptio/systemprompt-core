@@ -1,9 +1,10 @@
 //! Reconciliation between recorded MCP service state and live processes.
 //!
-//! Functions here compare the `mcp_services` table against actual port
-//! liveness and process existence, marking crashed services and pruning
-//! disabled rows so the orchestrator can converge the database on reality at
-//! startup.
+//! Functions here compare the `services` rows against process identity —
+//! never a port probe, which cannot tell our child from a stranger on the
+//! same port — marking crashed services and pruning disabled rows so the
+//! orchestrator can converge the database on reality at startup. Stale rows
+//! are reaped by [`ServiceRepository::reap_stale`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,62 +13,15 @@ use crate::McpServerConfig;
 use crate::error::McpDomainResult;
 use crate::services::database::stored_pid;
 use crate::services::process::ProcessService;
-use systemprompt_database::ServiceRepository;
+use systemprompt_database::{Reaped, ServiceRepository};
+use systemprompt_loader::subprocess::SubprocessLiveness;
 use systemprompt_manifest::services::ServiceStatus;
-use tokio::net::TcpStream;
-use tokio::time::{Duration, timeout};
 
-const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
-
-async fn is_port_listening(port: u16) -> bool {
-    matches!(
-        timeout(
-            Duration::from_secs(HEALTH_CHECK_TIMEOUT_SECS),
-            TcpStream::connect(format!("127.0.0.1:{port}")),
-        )
-        .await,
-        Ok(Ok(_))
-    )
-}
-
-async fn is_service_healthy(port: u16, pid: Option<i32>) -> bool {
-    let port_healthy = is_port_listening(port).await;
-
-    let process_alive = match stored_pid(pid) {
-        Some(pid) => ProcessService::is_running(pid).await,
-        None => false,
-    };
-
-    port_healthy && process_alive
-}
-
-pub async fn cleanup_stale_services(repository: &ServiceRepository) -> McpDomainResult<()> {
-    let services = repository.list_mcp_services().await?;
-
-    for service in services {
-        if service.status == ServiceStatus::Running {
-            let port = service.port as u16;
-            if !is_port_listening(port).await {
-                repository
-                    .update_service_status(&service.name, ServiceStatus::Stopped)
-                    .await?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn delete_crashed_services(repository: &ServiceRepository) -> McpDomainResult<()> {
-    let services = repository.list_mcp_services().await?;
-
-    for service in services {
-        if service.status == ServiceStatus::Error {
-            repository.delete_service(&service.name).await?;
-        }
-    }
-
-    Ok(())
+pub async fn reap_stale_services(repository: &ServiceRepository) -> McpDomainResult<Reaped> {
+    repository
+        .reap_stale(&SubprocessLiveness)
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn sync_database_state(
@@ -77,10 +31,11 @@ pub async fn sync_database_state(
     for server in servers {
         let server_name = server.service_name();
         if let Some(service) = repository.find_service_by_name(&server_name).await? {
-            let port = service.port as u16;
-            let pid = service.pid;
-
-            if !is_service_healthy(port, pid).await {
+            let owned = match stored_pid(service.pid) {
+                Some(pid) => ProcessService::owns(pid, &server_name).await,
+                None => false,
+            };
+            if service.status == ServiceStatus::Running && !owned {
                 repository.mark_service_crashed(&server_name).await?;
             }
         }

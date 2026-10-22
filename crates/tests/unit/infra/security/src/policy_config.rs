@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use systemprompt_governance::policy::{GovernanceConfig, GovernanceConfigError, PolicyMode};
+use systemprompt_governance::policy::{GovernanceConfig, GovernanceConfigError};
+use systemprompt_manifest::EnforcementMode;
 use tempfile::{NamedTempFile, tempdir};
 
 #[test]
@@ -12,8 +13,8 @@ fn defaults_declare_the_four_builtins_in_order() {
         ["scope_check", "secret_scan", "tool_blocklist", "rate_limit"]
     );
     assert!(cfg.policies.iter().all(|p| p.enabled));
-    assert!(cfg.policies.iter().all(|p| p.mode == PolicyMode::Warn));
-    assert_eq!(cfg.mode, PolicyMode::Warn);
+    assert!(cfg.policies.iter().all(|p| p.mode == EnforcementMode::Warn));
+    assert_eq!(cfg.mode, EnforcementMode::Warn);
     assert!(cfg.enabled);
 }
 
@@ -124,7 +125,7 @@ fn parse_rejects_invalid_yaml() {
 fn load_falls_back_to_the_warn_only_chain_only_when_the_file_is_absent() {
     let cfg = GovernanceConfig::load(Path::new("/nonexistent/governance/config.yaml"))
         .expect("an absent file is the documented fallback");
-    assert_eq!(cfg.mode, PolicyMode::Warn);
+    assert_eq!(cfg.mode, EnforcementMode::Warn);
     assert_eq!(
         cfg.policies.len(),
         GovernanceConfig::defaults().policies.len()
@@ -175,7 +176,7 @@ fn load_rejects_a_present_but_broken_file_instead_of_downgrading_enforcement() {
     let good = dir.join("good.yaml");
     std::fs::write(&good, "governance:\n  policies:\n    - id: secret_scan\n").unwrap();
     let cfg = GovernanceConfig::load(&good).expect("valid file loads");
-    assert_eq!(cfg.mode, PolicyMode::Enforce);
+    assert_eq!(cfg.mode, EnforcementMode::Enforce);
 
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -197,10 +198,10 @@ fn engine_uses_defaults_when_services_root_has_no_governance_config() {
     assert_eq!(
         policies,
         vec![
-            ("scope_check", true, PolicyMode::Warn),
-            ("secret_scan", true, PolicyMode::Warn),
-            ("tool_blocklist", true, PolicyMode::Warn),
-            ("rate_limit", true, PolicyMode::Warn),
+            ("scope_check", true, EnforcementMode::Warn),
+            ("secret_scan", true, EnforcementMode::Warn),
+            ("tool_blocklist", true, EnforcementMode::Warn),
+            ("rate_limit", true, EnforcementMode::Warn),
         ]
     );
 }

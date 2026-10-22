@@ -8750,6 +8750,7 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-security",
+ "systemprompt-traits",
  "systemprompt-wire",
  "tar",
  "thiserror 2.0.21",

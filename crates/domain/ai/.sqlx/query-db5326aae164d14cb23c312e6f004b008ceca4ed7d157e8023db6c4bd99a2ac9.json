@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE ai_requests SET status=$4, accounting_failed_at=COALESCE(accounting_failed_at,CURRENT_TIMESTAMP), accounting_error=COALESCE(accounting_error,$3), error_message=COALESCE(accounting_error,$3), updated_at=CASE WHEN accounting_failed_at IS NULL THEN CURRENT_TIMESTAMP ELSE updated_at END WHERE id=$1 AND user_id=$2 AND (accounting_error IS NULL OR accounting_error=$3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "db5326aae164d14cb23c312e6f004b008ceca4ed7d157e8023db6c4bd99a2ac9"
+}
