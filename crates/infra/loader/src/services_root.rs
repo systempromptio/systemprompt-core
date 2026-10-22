@@ -8,7 +8,7 @@
 //!
 //! The cell is installed once, before [`crate::ConfigLoader`] reads anything;
 //! [`ServicesRootBootstrap::require`] is the accessor for callers that need
-//! it, and fails when boot has not installed it.
+//! it, and installs the profile's baked tree when no bundle bootstrap ran.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
+use systemprompt_config::ProfileBootstrap;
 
 use crate::error::ConfigLoadError;
 
@@ -69,8 +70,14 @@ impl ServicesRootBootstrap {
     }
 
     pub fn require() -> Result<&'static ActiveServicesRoot, ConfigLoadError> {
-        ACTIVE_ROOT
-            .get()
-            .ok_or(ConfigLoadError::ServicesRootUninitialised)
+        if let Some(root) = ACTIVE_ROOT.get() {
+            return Ok(root);
+        }
+        let path = PathBuf::from(&ProfileBootstrap::get()?.paths.services);
+        Ok(Self::install(ActiveServicesRoot {
+            base: path.clone(),
+            path,
+            provenance: ServicesProvenance::Bundled,
+        }))
     }
 }

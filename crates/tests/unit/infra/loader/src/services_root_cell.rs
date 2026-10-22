@@ -16,10 +16,7 @@ use systemprompt_loader::services_root::{
 fn the_cell_refuses_before_installation_then_serves_the_installed_root() {
     assert!(!ServicesRootBootstrap::is_initialized());
     assert_eq!(ServicesRootBootstrap::get(), None);
-    assert!(matches!(
-        ServicesRootBootstrap::require(),
-        Err(systemprompt_loader::ConfigLoadError::ServicesRootUninitialised)
-    ));
+    assert!(ServicesRootBootstrap::require().is_err());
 
     let installed = ServicesRootBootstrap::install(ActiveServicesRoot {
         path: PathBuf::from("/cache/composed/abc"),
