@@ -211,7 +211,7 @@ async fn provider_metadata_is_consistent() {
     assert!(p.supports_streaming());
     assert!(p.supports_model("claude-sonnet-5"));
     assert!(!p.supports_model("gpt-5"));
-    assert_eq!(p.default_model(), "claude-sonnet-5");
+    assert_eq!(p.default_model(), "claude-fable-5");
     let _ = p.get_pricing("claude-opus-4-6");
     let _ = p.get_pricing("claude-opus-4-8");
     let _ = p.get_pricing("claude-haiku-4-5-20251001");

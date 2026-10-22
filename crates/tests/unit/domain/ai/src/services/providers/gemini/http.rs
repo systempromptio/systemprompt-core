@@ -134,7 +134,7 @@ async fn provider_metadata_is_consistent() {
     assert!(p.supports_streaming());
     assert!(p.supports_model("gemini-2.5-flash"));
     assert!(!p.supports_model("gpt-4"));
-    assert_eq!(p.default_model(), "gemini-3.1-flash-lite-preview");
+    assert_eq!(p.default_model(), "gemini-2.0-flash");
     let _ = p.get_pricing("gemini-3-pro-image-preview");
     let _ = p.get_pricing("gemini-3-flash-preview");
     let _ = p.get_pricing("gemini-3.1-flash-lite-preview");

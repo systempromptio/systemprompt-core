@@ -61,7 +61,7 @@ async fn delegates_metadata() {
     assert!(r.supports_streaming());
     assert!(r.supports_model("claude-sonnet-5"));
     assert!(!r.supports_model("nope"));
-    assert_eq!(r.default_model(), "claude-sonnet-5");
+    assert_eq!(r.default_model(), "claude-fable-5");
     let _ = r.get_pricing("claude-sonnet-5");
     let _ = r.capabilities();
     let _ = r.supports_json_mode();

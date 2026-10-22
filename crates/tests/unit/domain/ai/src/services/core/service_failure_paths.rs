@@ -172,6 +172,7 @@ async fn a_catalog_with_no_usable_endpoint_fails_construction() {
     let pool = bootstrapped_pool().await;
     let catalog = fixture_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned())
         .with_provider(ANTHROPIC, |p| p.enabled = false)
+        .without_default_model()
         .build();
     let err = service_from(&pool, Arc::new(catalog))
         .expect_err("a service with no usable endpoint cannot serve anything");

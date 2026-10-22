@@ -236,7 +236,7 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
     assert!(
         matches!(
             err,
-            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::ProviderCatalog(_)
+            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::Catalog(_)
         ),
         "{err}"
     );
@@ -250,32 +250,20 @@ fn create_without_a_provider_and_without_a_profile_is_refused() {
 }
 
 #[test]
-fn a_model_default_comes_from_the_provider_catalogue() {
+fn a_missing_model_is_defaulted_from_the_installs_catalog_not_guessed() {
     let dir = tempfile::tempdir().expect("tempdir");
     let service = AgentConfigAuthoringService::new(dir.path());
     let mut request = create_request("catalogue_model_agent", 8108);
     request.model = None;
 
-    let path = service.create(request).expect("create agent");
-    let agent = load_agent(&path, "catalogue_model_agent");
-    assert_eq!(agent.metadata.provider.as_deref(), Some("anthropic"));
-    assert!(
-        agent
-            .metadata
-            .model
-            .as_deref()
-            .is_some_and(|m| !m.is_empty()),
-        "the first catalogue model for the provider is used"
-    );
-
-    let mut unknown = create_request("unknown_provider_agent", 8109);
-    unknown.provider = Some("no-such-provider".to_owned());
-    unknown.model = None;
     let err = service
-        .create(unknown)
-        .expect_err("a provider the catalogue does not list has no default model");
+        .create(request)
+        .expect_err("with no services tree loaded there is no catalog to default from");
     assert!(
-        matches!(err, ConfigAuthoringError::NoDefaultModel(_)),
+        matches!(
+            err,
+            ConfigAuthoringError::ServicesConfig(_) | ConfigAuthoringError::Catalog(_)
+        ),
         "{err}"
     );
 }

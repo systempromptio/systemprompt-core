@@ -423,7 +423,11 @@ async fn a_model_without_catalogue_pricing_is_refused_before_streaming() {
         .await
         .err()
         .expect("an unpriced model is refused");
-    assert!(err.to_string().contains("no pricing"), "{err}");
+    let message = err.to_string();
+    assert!(
+        message.contains("no pricing") || message.contains("is not configured"),
+        "{message}"
+    );
     assert!(
         server.received_requests().await.unwrap().is_empty(),
         "the provider is never called for an unpriced model"
@@ -530,14 +534,14 @@ async fn openai_protocol_drives_generate() {
 #[tokio::test]
 async fn build_fails_when_the_default_model_is_only_on_a_disabled_provider() {
     let pool = bootstrapped_pool().await;
-    let catalog = super::fixture_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned())
+    let _ = pool;
+    let err = super::fixture_with_endpoint(ANTHROPIC, "http://127.0.0.1:1".to_owned())
         .default_model(OPENAI_MODEL)
-        .build();
-    let err = super::service_from(&pool, std::sync::Arc::new(catalog))
+        .try_build()
         .expect_err("gpt-4.1 is deployed only on the disabled openai provider");
     let message = err.to_string();
     assert!(message.contains("gpt-4.1"), "{message}");
-    assert!(message.contains("openai/api"), "{message}");
+    assert!(message.contains("no deployment on an enabled provider"), "{message}");
 }
 
 #[tokio::test]

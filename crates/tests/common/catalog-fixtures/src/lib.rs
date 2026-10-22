@@ -177,6 +177,12 @@ impl CatalogFixture {
     }
 
     #[must_use]
+    pub fn without_default_model(mut self) -> Self {
+        self.gateway_mut().default_model = None;
+        self
+    }
+
+    #[must_use]
     pub fn gateway_enabled(mut self, enabled: bool) -> Self {
         self.gateway_mut().enabled = enabled;
         self

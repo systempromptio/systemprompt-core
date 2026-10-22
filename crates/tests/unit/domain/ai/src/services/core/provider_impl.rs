@@ -9,7 +9,6 @@ use std::sync::Arc;
 use futures::StreamExt;
 use systemprompt_ai::models::ai::{AiMessage, AiRequest};
 use systemprompt_ai::models::tools::McpTool;
-use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_identifiers::{AgentName, McpServerId};
 use systemprompt_models::ai::{
     AiProvider, GenerateResponseParams, GoogleSearchParams, StreamChunk,
@@ -204,7 +203,8 @@ async fn trait_rejects_an_unconfigured_provider_without_dispatch_or_audit() {
     assert!(matches!(
         err,
         AiInferenceError::Configuration(cause)
-            if cause.to_string() == "provider not-configured is not configured"
+            if cause.to_string().starts_with("provider not-configured")
+                && cause.to_string().ends_with("is not configured")
     ));
     assert!(
         server

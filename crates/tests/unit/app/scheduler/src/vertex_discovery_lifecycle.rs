@@ -1,31 +1,17 @@
 use chrono::{Days, NaiveDate};
-use systemprompt_identifiers::{ProviderId, SecretName};
-use systemprompt_manifest::services::{ProviderEntry, ProviderRegistry, VertexRateCard};
-use systemprompt_models::providers::ApiSurface;
+use systemprompt_identifiers::ModelId;
+use systemprompt_manifest::services::VertexRateCard;
+use systemprompt_manifest::services::catalog::ModelRegistry;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_scheduler::jobs::vertex_discovery::{LIFECYCLE_NOTICE_DAYS, lifecycle_notices};
-use systemprompt_wire::WireProtocol;
 
-fn registry_with(model: systemprompt_manifest::services::VertexRateCardEntry) -> ProviderRegistry {
-    let provider = ProviderEntry {
-        name: ProviderId::new("vertex"),
-        display_name: None,
-        description: None,
-        wire: WireProtocol::Gemini,
-        surface: ApiSurface::Gemini,
-        endpoint: "https://example.invalid".to_owned(),
-        api_key_secret: Some(SecretName::new("vertex_key")),
-        credential: Default::default(),
-        credential_from: None,
-        user_agent: None,
-        forward_headers: Vec::new(),
-        extra_headers: Default::default(),
-        accepted_betas: None,
-        models: vec![model.to_provider_model()],
-        governance: Default::default(),
-    };
-    ProviderRegistry {
-        providers: vec![provider],
-    }
+fn registry_with(model: systemprompt_manifest::services::VertexRateCardEntry) -> ModelRegistry {
+    let mut registry = ModelRegistry::default();
+    registry.models.insert(
+        ModelId::new(model.id.as_str()),
+        model.to_model_entry(vec![ClientFamily::Gemini]),
+    );
+    registry
 }
 
 #[test]
@@ -44,9 +30,7 @@ fn lifecycle_notices_include_only_served_models_at_or_before_the_notice_horizon(
         vec![(entry.id.to_string(), "retires", entry.retires_on.unwrap())]
     );
 
-    let absent = ProviderRegistry {
-        providers: Vec::new(),
-    };
+    let absent = ModelRegistry::default();
     assert!(lifecycle_notices(&absent, &card, today).is_empty());
 }
 
