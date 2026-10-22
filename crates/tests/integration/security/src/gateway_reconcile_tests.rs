@@ -502,3 +502,36 @@ async fn reconcile_never_overwrites_an_entitys_declared_default_included() {
     cleanup(&f.pg, &declared).await;
     cleanup(&f.pg, &catalog_only).await;
 }
+
+// A console edit opens a route by setting `default_included = true`; the boot
+// catalog writer runs again on every restart and must leave that edit alone.
+#[tokio::test]
+async fn gateway_route_reconcile_keeps_a_console_edited_default_included() {
+    let f = setup().await;
+    let repo = AccessControlRepository::new(&f.db);
+    let id = f.default_route_id.clone();
+    cleanup(&f.pg, &id).await;
+
+    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "profile:test")
+        .await
+        .expect("first reconcile");
+    repo.upsert_entity(EntityKind::GatewayRoute, id.as_str(), true, "dashboard")
+        .await
+        .expect("console opens the route");
+    reconcile_gateway_entities_exact(&repo, &[id.as_str()], "profile:test")
+        .await
+        .expect("reconcile on the next boot");
+
+    let row = repo
+        .get_entity(EntityKind::GatewayRoute, id.as_str())
+        .await
+        .expect("get")
+        .expect("row present");
+    assert!(
+        row.default_included,
+        "a boot reconcile must not close a route the console opened"
+    );
+    assert_eq!(row.source, "dashboard", "the console's provenance is kept");
+
+    cleanup(&f.pg, &id).await;
+}
