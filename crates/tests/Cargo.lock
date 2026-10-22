@@ -7817,6 +7817,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-catalog-fixtures"
+version = "0.1.0"
+dependencies = [
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-wire",
+]
+
+[[package]]
 name = "systemprompt-cli"
 version = "0.73.0"
 dependencies = [
@@ -8515,13 +8525,10 @@ name = "systemprompt-gateway-golden-tests"
 version = "0.0.11"
 dependencies = [
  "serde_json",
- "systemprompt-gateway",
+ "systemprompt-catalog-fixtures",
  "systemprompt-identifiers",
- "systemprompt-loader",
  "systemprompt-manifest",
  "systemprompt-models",
- "systemprompt-wire",
- "tempfile",
 ]
 
 [[package]]
@@ -8851,6 +8858,20 @@ dependencies = [
  "url",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "systemprompt-manifest-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-catalog-fixtures",
+ "systemprompt-identifiers",
+ "systemprompt-manifest",
+ "systemprompt-models",
+ "systemprompt-wire",
 ]
 
 [[package]]
@@ -9778,6 +9799,7 @@ dependencies = [
  "systemprompt-agent",
  "systemprompt-ai",
  "systemprompt-analytics",
+ "systemprompt-catalog-fixtures",
  "systemprompt-config",
  "systemprompt-content",
  "systemprompt-database",

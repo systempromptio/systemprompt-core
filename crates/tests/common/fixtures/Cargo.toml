@@ -10,6 +10,7 @@ reqwest = { workspace = true }
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }

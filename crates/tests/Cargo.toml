@@ -110,6 +110,8 @@ members = [
     "common/mocks",
     "common/migrate",
     "common/fixtures",
+    "common/catalog-fixtures",
+    "unit/shared/manifest",
     # Advanced testing - Phase 6
     "property",
     "contract",
@@ -289,6 +291,7 @@ systemprompt-bridge = { path = "../../bin/bridge" }
 trybuild = "1.0"
 systemprompt-test-mocks = { path = "common/mocks" }
 systemprompt-test-fixtures = { path = "common/fixtures" }
+systemprompt-catalog-fixtures = { path = "common/catalog-fixtures" }
 
 # Optimise everything that is not a test crate.
 #

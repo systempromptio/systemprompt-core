@@ -1,0 +1,13 @@
+[package]
+name = "systemprompt-catalog-fixtures"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license.workspace = true
+description = "Catalog builder and canned catalogs for every test that needs a ResolvedCatalog"
+
+[dependencies]
+systemprompt-identifiers = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }

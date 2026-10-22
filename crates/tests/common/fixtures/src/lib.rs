@@ -11,6 +11,7 @@
 pub mod agent;
 pub mod app_context;
 pub mod bootstrap;
+pub mod catalog;
 pub mod credential;
 pub mod db;
 pub mod disposable_db;
