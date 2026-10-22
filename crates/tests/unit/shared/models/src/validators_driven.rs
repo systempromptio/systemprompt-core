@@ -22,123 +22,95 @@ fn services_with_ai_json(ai: serde_json::Value) -> ServicesConfig {
 
 mod ai_validator {
     use super::*;
+    use systemprompt_manifest::services::catalog::DefaultCatalog;
+    use systemprompt_manifest::services::{GatewayConfigSpec, GatewayState};
 
-    #[test]
-    fn errors_when_default_provider_empty() {
-        let services = ServicesConfig::default();
+    fn services_with_catalog(ai: serde_json::Value, default_model: Option<&str>) -> ServicesConfig {
+        let mut services = services_with_ai_json(ai);
+        let document = DefaultCatalog::document().expect("default catalog parses");
+        services.credentials = document.credentials;
+        services.providers = document.providers;
+        services.models = document.models;
+        services.deployments = document.deployments;
+        let mut gateway = document.gateway.unwrap_or_else(GatewayConfigSpec::default);
+        gateway.default_model = default_model.map(systemprompt_identifiers::ModelId::new);
+        services.gateway = Some(GatewayState::Spec(gateway));
+        services
+    }
+
+    fn report_for(
+        services: ServicesConfig,
+    ) -> systemprompt_traits::validation_report::ValidationReport {
         let prov = provider(base_config(), services);
         let mut v = AiConfigValidator::new();
         v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        v.validate().expect("validate")
+    }
+
+    #[test]
+    fn errors_when_no_default_model_is_configured() {
+        let report = report_for(services_with_catalog(serde_json::json!({}), None));
         assert!(report.has_errors());
     }
 
     #[test]
-    fn errors_when_default_provider_not_in_providers() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "ghost",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+    fn errors_when_the_default_model_is_not_in_the_catalog() {
+        let report = report_for(services_with_catalog(serde_json::json!({}), Some("ghost")));
         assert!(report.has_errors());
     }
 
     #[test]
     fn errors_when_no_providers_enabled() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": false, "default_model": "claude" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
-        assert!(report.has_errors());
+        let mut services = services_with_catalog(serde_json::json!({}), None);
+        for provider in services.providers.providers.values_mut() {
+            provider.enabled = false;
+        }
+        assert!(report_for(services).has_errors());
+    }
+
+    #[test]
+    fn the_retired_provider_keys_do_not_deserialize() {
+        let json = serde_json::json!({ "ai": { "default_provider": "anthropic" } });
+        assert!(serde_json::from_value::<ServicesConfig>(json).is_err());
     }
 
     #[test]
     fn valid_config_has_no_errors() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({}),
+            Some("claude-sonnet-5"),
+        ));
         assert!(!report.has_errors(), "report: {report:?}");
     }
 
     #[test]
-    fn warns_when_enabled_provider_has_no_default_model() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "" }
-            }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
-        assert!(!report.has_errors());
-        assert!(report.has_warnings());
-    }
-
-    #[test]
     fn warns_when_history_retention_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "history": { "retention_days": 0 }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({ "history": { "retention_days": 0 } }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_warnings());
     }
 
     #[test]
     fn errors_when_mcp_connect_timeout_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "mcp": { "resilience": { "connect_timeout_ms": 0, "request_timeout_ms": 1000 } }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({
+                "mcp": { "resilience": { "connect_timeout_ms": 0, "request_timeout_ms": 1000 } }
+            }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_errors());
     }
 
     #[test]
     fn errors_when_mcp_request_timeout_zero() {
-        let services = services_with_ai_json(serde_json::json!({
-            "default_provider": "anthropic",
-            "providers": {
-                "anthropic": { "enabled": true, "default_model": "claude-3" }
-            },
-            "mcp": { "resilience": { "connect_timeout_ms": 1000, "request_timeout_ms": 0 } }
-        }));
-        let prov = provider(base_config(), services);
-        let mut v = AiConfigValidator::new();
-        v.load(&prov).expect("load");
-        let report = v.validate().expect("validate");
+        let report = report_for(services_with_catalog(
+            serde_json::json!({
+                "mcp": { "resilience": { "connect_timeout_ms": 1000, "request_timeout_ms": 0 } }
+            }),
+            Some("claude-sonnet-5"),
+        ));
         assert!(report.has_errors());
     }
 

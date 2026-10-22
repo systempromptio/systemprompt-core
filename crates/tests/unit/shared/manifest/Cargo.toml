@@ -1,0 +1,23 @@
+[package]
+name = "systemprompt-manifest-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for the systemprompt-manifest catalog (credentials, providers, models, deployments, routes)"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-catalog-fixtures = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-manifest = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
+
+[dev-dependencies]
+chrono = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }

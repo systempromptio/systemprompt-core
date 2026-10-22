@@ -71,14 +71,6 @@ mod validators;
 #[cfg(test)]
 mod profile;
 
-#[cfg(test)]
-mod profile_gateway;
-
-#[cfg(test)]
-mod profile_gateway_chains;
-
-#[cfg(test)]
-mod profile_gateway_hidden;
 
 #[cfg(test)]
 mod profile_secrets_vault;
@@ -119,19 +111,6 @@ mod oci_reference;
 #[cfg(test)]
 mod services_bundle;
 
-#[cfg(test)]
-mod provider_catalog_parity;
-#[cfg(test)]
-mod provider_model_lookup;
-#[cfg(test)]
-mod vertex_rate_card;
-
-#[cfg(test)]
-mod provider_extra_headers;
-#[cfg(test)]
-mod provider_project_placeholder;
-#[cfg(test)]
-mod provider_protocol_filter;
 
 #[cfg(test)]
 mod wire_codec;
@@ -162,8 +141,6 @@ mod routing;
 #[cfg(test)]
 mod marketplace;
 
-#[cfg(test)]
-mod gateway_cache_pricing_gate;
 
 #[cfg(test)]
 mod gateway_hash;
@@ -381,6 +358,3 @@ mod feedback_contracts;
 
 #[cfg(test)]
 mod skill_frontmatter_render;
-
-#[cfg(test)]
-mod personal_key_sharing;

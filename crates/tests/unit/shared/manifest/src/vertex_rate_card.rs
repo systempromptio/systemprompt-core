@@ -1,5 +1,7 @@
 use chrono::NaiveDate;
-use systemprompt_manifest::services::{DocumentedLaunchStage, VertexRateCard};
+use systemprompt_manifest::services::catalog::vertex::{DocumentedLaunchStage, VertexRateCard};
+use systemprompt_models::providers::ClientFamily;
+use systemprompt_wire::WireProtocol;
 
 fn card() -> VertexRateCard {
     VertexRateCard::embedded().expect("the embedded Vertex rate card must parse")
@@ -38,7 +40,7 @@ fn ids_and_upstreams_are_each_declared_once() {
 // gateway refuses to dispatch to a model it cannot price. An entry that is not
 // billable would therefore publish a model that 500s on first use.
 #[test]
-fn every_entry_is_billable_and_belongs_to_a_vertex_provider() {
+fn every_entry_is_billable_and_keyed_by_a_vertex_endpoint_shape() {
     for entry in &card().entries {
         assert!(
             entry.pricing.is_billable(),
@@ -46,10 +48,10 @@ fn every_entry_is_billable_and_belongs_to_a_vertex_provider() {
             entry.id.as_str()
         );
         assert!(
-            matches!(entry.provider.as_str(), "vertex" | "vertex-maas"),
-            "{} names provider {}, which is not a Vertex provider",
+            matches!(entry.wire, WireProtocol::Gemini | WireProtocol::OpenAiChat),
+            "{} is keyed by wire {}, which no Vertex endpoint shape serves",
             entry.id.as_str(),
-            entry.provider.as_str()
+            entry.wire.as_tag()
         );
     }
 }
@@ -61,15 +63,18 @@ fn lookup_finds_an_entry_by_its_vertex_name() {
         .lookup("qwen/qwen3-235b-a22b-instruct-2507-maas")
         .expect("the qwen 235b entry is priced");
     assert_eq!(entry.id.as_str(), "qwen.qwen3-235b");
-    assert_eq!(entry.provider.as_str(), "vertex-maas");
+    assert_eq!(entry.wire, WireProtocol::OpenAiChat);
     assert!(card.lookup("google/gemini-embedding-001").is_none());
 }
 
 #[test]
-fn publishers_are_listed_once_per_provider() {
+fn publishers_are_listed_once_per_endpoint_shape() {
     let card = card();
-    assert_eq!(card.publishers_for("vertex"), vec!["google".to_string()]);
-    let maas = card.publishers_for("vertex-maas");
+    assert_eq!(
+        card.publishers_for(WireProtocol::Gemini),
+        vec!["google".to_string()]
+    );
+    let maas = card.publishers_for(WireProtocol::OpenAiChat);
     assert!(maas.contains(&"qwen".to_string()), "{maas:?}");
     assert!(maas.contains(&"zai-org".to_string()), "{maas:?}");
     assert!(!maas.contains(&"google".to_string()), "{maas:?}");
@@ -79,21 +84,19 @@ fn publishers_are_listed_once_per_provider() {
     assert_eq!(sorted.len(), maas.len(), "a publisher is listed twice");
 }
 
-// Why: discovery publishes `to_provider_model()` verbatim, so anything it
+// Why: discovery publishes `to_model_entry()` verbatim, so anything it
 // drops is a model that reaches the gateway mispriced or misrouted.
 #[test]
-fn to_provider_model_carries_the_id_upstream_name_and_price() {
+fn to_model_entry_carries_the_upstream_name_price_and_clients() {
     let card = card();
     let entry = card
         .lookup("google/gemini-2.5-flash")
         .expect("gemini-2.5-flash is priced");
-    let model = entry.to_provider_model();
-    assert_eq!(model.id.as_str(), "vertex-gemini-2.5-flash");
+    assert_eq!(entry.id.as_str(), "vertex-gemini-2.5-flash");
+    let model = entry.to_model_entry(vec![ClientFamily::Gemini]);
     assert_eq!(model.upstream_model.as_deref(), Some("gemini-2.5-flash"));
-    assert_eq!(
-        model.effective_upstream_model("anything"),
-        "gemini-2.5-flash"
-    );
+    assert_eq!(model.upstream_name(&entry.id), "gemini-2.5-flash");
+    assert_eq!(model.clients, vec![ClientFamily::Gemini]);
     assert!(
         (model.pricing.input_per_million - entry.pricing.input_per_million).abs() < f64::EPSILON
     );
@@ -101,7 +104,12 @@ fn to_provider_model_carries_the_id_upstream_name_and_price() {
         (model.pricing.output_per_million - entry.pricing.output_per_million).abs() < f64::EPSILON
     );
     assert_eq!(model.limits.context_window, entry.limits.context_window);
-    assert!(model.capabilities.tools);
+    assert_eq!(
+        model
+            .capabilities
+            .get(&systemprompt_manifest::services::catalog::Capability::Tools),
+        Some(&true)
+    );
     assert!(
         model.governance.is_none(),
         "a discovered model inherits its provider's posture"
