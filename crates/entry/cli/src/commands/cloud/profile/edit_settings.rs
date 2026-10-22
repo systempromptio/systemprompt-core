@@ -20,13 +20,8 @@ pub fn edit_server_settings(prompter: &dyn Prompter, profile: &mut Profile) -> R
         .parse()
         .context("Invalid port")?;
 
-    profile.server.api_server_url =
-        prompter.input_with_default("API Server URL", &profile.server.api_server_url)?;
-
-    profile.server.api_external_url =
-        prompter.input_with_default("API External URL", &profile.server.api_external_url)?;
-
-    profile.server.use_https = prompter.confirm("Use HTTPS?", profile.server.use_https)?;
+    profile.server.external_url =
+        prompter.input_with_default("External URL", &profile.server.external_url)?;
 
     CliService::success("Server settings updated");
     Ok(())
@@ -34,9 +29,6 @@ pub fn edit_server_settings(prompter: &dyn Prompter, profile: &mut Profile) -> R
 
 pub fn edit_security_settings(prompter: &dyn Prompter, profile: &mut Profile) -> Result<()> {
     CliService::section("Security Settings");
-
-    profile.security.issuer =
-        prompter.input_with_default("JWT Issuer", &profile.security.issuer)?;
 
     profile.security.access_token_expiration = prompter
         .input_with_default(

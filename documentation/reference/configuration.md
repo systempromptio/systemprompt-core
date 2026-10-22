@@ -2,11 +2,11 @@
 
 Complete schema for the `profile.yaml` document that configures a systemprompt-core deployment. Every key, type, default, and constraint below is defined in `crates/shared/manifest/src/profile/*` and `crates/shared/manifest/src/services/system_admin.rs`.
 
-A profile lives at `.systemprompt/profiles/<name>/profile.yaml`. It is the single source of truth for configuration; there are no environment-variable fallbacks for profile keys (environment variables are used only for `${VAR}` interpolation and the secrets envelope, documented below).
+A profile is the overlay `.systemprompt/profiles/<name>/profile.yaml` layered over the optional shared `.systemprompt/profiles/base.yaml` (`crates/shared/manifest/src/profile/layered.rs`). The base holds what every environment shares; the overlay holds only what differs (URLs, tenant, sources, log level, `allow_registration`). Maps merge key by key with the overlay winning; a sequence or scalar in the overlay replaces the base value whole, so lists are never concatenated. A missing base is fine; a missing overlay is an error. `admin config` setters and `cloud profile edit` write only the changed keys into the overlay, never the base. A pre-0.73 shape (a top-level `providers:`, `gateway:` or `evaluation:` key, or a `*.secrets.profile.yaml` file) is refused with a hint to run `systemprompt admin config migrate`. The profile is the single source of truth for configuration; there are no environment-variable fallbacks for profile keys (environment variables are used only for `${VAR}` interpolation and the secrets envelope, documented below).
 
 ## Strictness
 
-The top-level `Profile` struct and every nested config struct in this document carry `#[serde(deny_unknown_fields)]` (`crates/shared/manifest/src/profile/mod.rs:109`). An unrecognized key anywhere in `profile.yaml` is a hard parse error. Do not add keys that are not listed here. The two exceptions that do **not** deny unknown fields are `ProfileInfo` (a runtime status projection, not part of `profile.yaml`) and the secrets document (a JSON file, see [Secrets envelope](#secrets-envelope)).
+The top-level `Profile` struct and every nested config struct in this document carry `#[serde(deny_unknown_fields)]` (`crates/shared/manifest/src/profile/mod.rs:109`). An unrecognized key anywhere in `profile.yaml` is a hard parse error. Do not add keys that are not listed here. The one exception that does **not** deny unknown fields is the secrets document (a JSON file, see [Secrets envelope](#secrets-envelope)).
 
 ## Top-level keys
 
@@ -68,11 +68,10 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 |-----|------|----------|---------|---------|
 | `host` | string | yes | — | Bind address (e.g. `127.0.0.1`, `0.0.0.0`). |
 | `port` | u16 | yes | — | Bind port. |
-| `api_server_url` | string | yes | — | Canonical server URL. |
-| `api_internal_url` | string | yes | — | Internal-facing base URL. |
-| `api_external_url` | string | yes | — | External-facing base URL. |
-| `use_https` | bool | no | `false` | Whether the public scheme is HTTPS. |
-| `cors_allowed_origins` | list of string | no | `[]` | Allowed CORS origins. |
+| `external_url` | string | yes | — | The one public URL (`http://` or `https://`). The API server/external URLs, `use_https`, the JWT issuer and the first CORS origin are derived from it at load. |
+| `extra_cors_origins` | list of string | no | `[]` | CORS origins allowed in addition to the origin of `external_url`. |
+
+Derived, never stated (`crates/shared/manifest/src/profile/derived.rs`): `api_server_url`, `api_external_url`, `use_https`, `cors_allowed_origins` and `security.jwt_issuer` come from `external_url`; `api_internal_url` (`http://<host>:<port>`, with `0.0.0.0`/`::` read as `localhost`) and `governance.authz.hook.url` (`<api_internal_url>/api/public/govern/authz` in `webhook` mode) come from `host` and `port`. A profile that states any of them is refused at load with an error naming the field and its source.
 | `content_negotiation` | object | no | see below | Markdown content negotiation. |
 | `security_headers` | object | no | see below | HTTP security response headers. |
 | `instance_id` | string | no (required on `cloud` unless `HOSTNAME` is set) | `HOSTNAME`, else a random id on local targets | Stable replica identifier. Keys the service registry, event outbox origin and node-scoped scheduler runs; stamped on logs, `ai_requests`, metrics and `x-served-by`. A cloud profile that resolves to neither refuses to boot. |
@@ -118,10 +117,11 @@ The connection string itself is never in `profile.yaml`; it lives in the secrets
 
 ## `paths`
 
-`crates/shared/manifest/src/profile/paths.rs`. Relative paths are resolved against the profile directory at load time (`profile/mod.rs:173`). Required-vs-optional and `/app`-rooting rules differ by `target` (`profile/validation.rs:31-89`).
+`crates/shared/manifest/src/profile/paths.rs`. Relative paths are resolved against `root` at load time; `root` itself is relative to the overlay's directory and defaults to it. `admin config validate --profile` refuses a committed profile layer that names an absolute temp path (`/tmp/…`, `/var/tmp/…`). Required-vs-optional and `/app`-rooting rules differ by `target` (`profile/validation.rs:31-89`).
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
+| `root` | string | no | the overlay's directory | The one root every other relative path resolves against. |
 | `system` | string | yes | — | System root directory. Logs derive as `<system>/logs`. For `target: cloud`, must start with `/app`. |
 | `services` | string | yes | — | Services root. Subpaths derive from it: `skills`, `plugins`, `marketplaces`, `hooks`, `agents`, and config files under `config/`, `ai/`, `content/`, `web/`. For `target: cloud`, must start with `/app`. |
 | `bin` | string | yes | — | Binary directory. For `target: cloud`, must start with `/app`. |
@@ -157,7 +157,7 @@ File records hold the path relative to `paths.storage` (for example `files/uploa
 
 | Key | YAML key | Type | Required | Default | Meaning |
 |-----|----------|------|----------|---------|---------|
-| `issuer` | `jwt_issuer` | string | yes | — | JWT `iss` claim issued and expected by this deployment. |
+| `issuer` | — | string | derived | — | JWT `iss` claim issued and expected by this deployment. Derived from `server.external_url`; stating `jwt_issuer` is a load error. |
 | `access_token_expiration` | `jwt_access_token_expiration` | i64 (seconds) | yes | — | Access token lifetime. |
 | `refresh_token_expiration` | `jwt_refresh_token_expiration` | i64 (seconds) | yes | — | Refresh token lifetime. |
 | `audiences` | `jwt_audiences` | list of audience | yes | — | Accepted JWT audiences. Each entry is one of `web`, `api`, `a2a`, `mcp`, `internal`, `bridge`, `hook`, or an arbitrary resource string (`auth/enums.rs:10`). |
@@ -400,8 +400,7 @@ its `providers[]` entries into `providers` and expresses each `models[]` entry a
 
 | Key | Type | Required | Default | Meaning |
 |-----|------|----------|---------|---------|
-| `mode` | enum `webhook` \| `disabled` \| `unrestricted` | yes | — | `webhook`: POST each request to `url`; any transport error, non-2xx, or decode failure denies. `disabled`: deny every request (surface installed). `unrestricted`: allow every request — test/dev only. |
-| `url` | string | conditional | absent | Required for `webhook` mode. |
+| `mode` | enum `webhook` \| `disabled` \| `unrestricted` | yes | — | `webhook`: POST each request to the server's own `/api/public/govern/authz` (derived from `server.host`/`server.port`); any transport error, non-2xx, or decode failure denies. `disabled`: deny every request (surface installed). `unrestricted`: allow every request — test/dev only. |
 | `timeout_ms` | u64 | no | `500` | Per-request hook timeout. |
 | `acknowledgement` | string | conditional | absent | Required for `unrestricted` mode; must equal the literal `I understand this disables all authorization` or bootstrap errors. |
 
@@ -410,7 +409,6 @@ governance:
   authz:
     hook:
       mode: webhook
-      url: http://localhost:8080/api/public/govern/authz
       timeout_ms: 500
 ```
 
@@ -451,7 +449,7 @@ Before YAML parsing, the loader substitutes `${VAR}` tokens in the raw profile t
 
 ```yaml
 server:
-  api_external_url: ${PUBLIC_BASE_URL}
+  external_url: ${PUBLIC_BASE_URL}
 ```
 
 ## Secrets envelope
@@ -528,15 +526,13 @@ database:
 server:
   host: 127.0.0.1
   port: 8080
-  api_server_url: http://127.0.0.1:8080
-  api_internal_url: http://127.0.0.1:8080
-  api_external_url: http://127.0.0.1:8080
+  external_url: http://127.0.0.1:8080
 paths:
-  system: /var/www/html/myapp
-  services: /var/www/html/myapp/services
-  bin: /var/www/html/myapp/bin
+  root: ../../..
+  system: .
+  services: services
+  bin: target/release
 security:
-  jwt_issuer: http://127.0.0.1:8080
   jwt_access_token_expiration: 3600
   jwt_refresh_token_expiration: 2592000
   jwt_audiences: [web, api, a2a, mcp]

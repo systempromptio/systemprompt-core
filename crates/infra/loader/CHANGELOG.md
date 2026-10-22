@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `ProfileLoader::load`/`load_and_validate` take the profiles directory and load `<dir>/<name>/profile.yaml` over `<dir>/base.yaml`; `save` writes the overlay; `list_available` lists `<dir>/<name>/profile.yaml`. The `<name>.secrets.profile.yaml` layout is gone.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

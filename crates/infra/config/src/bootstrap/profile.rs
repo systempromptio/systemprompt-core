@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::sync::OnceLock;
 
-use systemprompt_manifest::profile::{Profile, ProfileError};
+use systemprompt_manifest::profile::Profile;
 
 use crate::error::ConfigResult;
 
@@ -102,11 +102,7 @@ impl ProfileBootstrap {
     }
 
     fn load_from_path_and_validate(path: &Path) -> ConfigResult<Profile> {
-        let content = std::fs::read_to_string(path).map_err(|source| ProfileError::ReadFile {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        let profile = Profile::from_yaml(&content, path)?;
+        let profile = Profile::load_from_path(path)?;
         profile.validate()?;
         Ok(profile)
     }

@@ -2,6 +2,10 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- `ProfileBootstrap` loads the layered profile (`Profile::load_from_path`).
+
 ### Fixed
 
 - `ProviderCatalogService::upsert_provider` keeps the existing entry's credential source, `credential_from`, user agent, forwarded headers, extra headers and accepted betas instead of resetting a personal provider to Platform.

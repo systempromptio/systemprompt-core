@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `LocalProfileBuilder::build` and `CloudProfileBuilder::build` return `ProfileResult<Profile>` with the derived URL fields filled from `server.external_url`.
+
 ## [0.71.0] - 2026-10-21
 
 ### Changed

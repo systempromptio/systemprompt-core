@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.73.0] - Unreleased
+
+### Breaking
+
+- `admin config` setters load the layered profile and write only changed keys to the overlay. `admin config server set --external-url` replaces `--use-https`/`--api-server-url`/`--api-internal-url`/`--api-external-url`; `admin config server cors add/remove` edits `server.extra_cors_origins`; `admin config governance set` drops `--url`. `cloud profile edit` prompts for the external URL only. `admin config validate --profile` also runs the committed-profile temp-path gate.
+
 ## [0.71.0] - 2026-10-21
 
 ### Added

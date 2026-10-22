@@ -3,9 +3,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, bail};
-use std::fs;
-use systemprompt_manifest::Profile;
+pub(super) use super::super::profile_io::{load_profile as load_profile_for_edit, save_profile};
+use anyhow::{Result, bail};
 use systemprompt_manifest::profile::RateLimitsConfig;
 
 use super::super::types::ResetChange;
@@ -59,19 +58,6 @@ pub(super) fn set_endpoint_rate(
     Ok(())
 }
 
-pub(super) fn load_profile_for_edit(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {}", path))?;
-    Ok(profile)
-}
-
-pub(super) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
-    Ok(())
-}
 
 pub(super) fn collect_endpoint_changes(
     current: &RateLimitsConfig,

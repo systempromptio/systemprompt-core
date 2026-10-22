@@ -12,7 +12,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// Filesystem roots for one profile.
+/// Filesystem roots for one profile. Relative entries resolve against
+/// `root`.
 ///
 /// `shipped_files` is an optional read-only directory holding the files an
 /// image ships under `files/` (CSS, JS, fonts, downloads). `/files/*` reads
@@ -21,6 +22,9 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PathsConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub root: Option<String>,
+
     pub system: String,
     pub services: String,
     pub bin: String,
@@ -42,7 +46,10 @@ pub struct PathsConfig {
 }
 
 impl PathsConfig {
-    pub fn resolve_relative_to(&mut self, base: &Path) {
+    pub fn resolve_relative_to(&mut self, profile_dir: &Path) {
+        let root = resolve_path(profile_dir, self.root.as_deref().unwrap_or("."));
+        let base = Path::new(&root);
+        self.root = Some(root.clone());
         self.system = resolve_path(base, &self.system);
         self.services = resolve_path(base, &self.services);
         self.bin = resolve_path(base, &self.bin);

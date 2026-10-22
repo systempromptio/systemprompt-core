@@ -142,9 +142,9 @@ fn init_profile(path: &Path) -> Result<()> {
 }
 
 pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
-    let content = std::fs::read_to_string(profile_path).ok()?;
-    let profile: Profile = serde_yaml::from_str(&content).ok()?;
-    Some(profile.runtime.log_level)
+    Profile::load_from_path(profile_path)
+        .ok()
+        .map(|profile| profile.runtime.log_level)
 }
 
 pub(super) async fn init_credentials_gracefully(announce: bool) -> Result<()> {

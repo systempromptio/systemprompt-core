@@ -35,9 +35,6 @@ pub enum SecurityCommands {
 
 #[derive(Debug, Clone, Args)]
 pub struct SetArgs {
-    #[arg(long, help = "JWT issuer")]
-    pub jwt_issuer: Option<String>,
-
     #[arg(long, help = "Access token expiry in seconds")]
     pub access_expiry: Option<i64>,
 
@@ -107,13 +104,12 @@ pub(super) fn execute_show(config: &CliConfig) -> Result<()> {
 }
 
 pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
-    if args.jwt_issuer.is_none()
-        && args.access_expiry.is_none()
+    if args.access_expiry.is_none()
         && args.refresh_expiry.is_none()
         && args.resource_audiences.is_empty()
     {
         bail!(
-            "Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry, --resource-audience"
+            "Must specify at least one option: --access-expiry, --refresh-expiry, --resource-audience"
         );
     }
 
@@ -121,7 +117,6 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     let mut profile = load_profile(profile_path)?;
 
     let update = SecurityUpdate {
-        jwt_issuer: args.jwt_issuer.clone(),
         access_token_expiration: args.access_expiry,
         refresh_token_expiration: args.refresh_expiry,
         resource_audiences: args.resource_audiences.clone(),
@@ -133,13 +128,6 @@ pub(super) fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
             .collect();
 
     save_profile(&profile, profile_path)?;
-
-    if args.jwt_issuer.is_some() {
-        crate::session::clear_session(&crate::paths::ResolvedPaths::discover())?;
-        CliService::info(
-            "Cleared the stored CLI session: its token was minted under the previous issuer.",
-        );
-    }
 
     render_changes(&changes, config);
     Ok(())

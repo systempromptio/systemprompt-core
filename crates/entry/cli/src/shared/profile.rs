@@ -256,16 +256,7 @@ pub fn generate_oauth_at_rest_pepper() -> String {
 }
 
 pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
-    }
-
-    let yaml = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-
-    let content = header.map_or_else(|| yaml.clone(), |h| format!("{}\n\n{}", h, yaml));
-
-    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
-
-    Ok(())
+    profile
+        .create_overlay(path, header)
+        .with_context(|| format!("Failed to write {}", path.display()))
 }

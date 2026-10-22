@@ -2,8 +2,9 @@
 //!
 //! Authz is **fail-closed** with an explicit-opt-in surface. Four modes:
 //!
-//! - `webhook` — production. Core POSTs every request to the configured URL;
-//!   any transport error, non-2xx, or decode failure denies the request.
+//! - `webhook` — production. Core POSTs every request to the server's own
+//!   `/api/public/govern/authz`, derived from `server.host`/`server.port`; any
+//!   transport error, non-2xx, or decode failure denies the request.
 //! - `extension` — production, explicit opt-in. The hook is supplied at
 //!   bootstrap by the binary via `register_authz_hook!` or
 //!   `AppContextBuilder::with_authz_hook(...)`. Bootstrap errors if no hook is
@@ -35,7 +36,6 @@
 //!   authz:
 //!     hook:
 //!       mode: webhook
-//!       url: http://localhost:8080/api/public/govern/authz
 //!       timeout_ms: 500
 //!   audit:
 //!     payload_cap_bytes: 4194304
@@ -147,7 +147,7 @@ pub enum AuthzMode {
 #[serde(deny_unknown_fields)]
 pub struct AuthzHookConfig {
     pub mode: AuthzMode,
-    #[serde(default)]
+    #[serde(skip)]
     pub url: Option<String>,
     #[serde(default = "default_timeout_ms")]
     pub timeout_ms: u64,

@@ -143,10 +143,12 @@ fn print_profile_schema() -> Result<(CommandOutput, bool)> {
 }
 
 fn validate_profile_file(path: &std::path::Path) -> Result<(CommandOutput, bool)> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| anyhow!("failed to read profile {}: {e}", path.display()))?;
+    let loaded = Profile::load_from_path(path).and_then(|profile| {
+        profile.validate_committed(path)?;
+        Ok(profile)
+    });
 
-    match Profile::from_yaml(&content, path) {
+    match loaded {
         Ok(profile) => {
             let output = ConfigValidateOutput {
                 files: vec![ConfigFileInfo {

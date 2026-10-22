@@ -6,14 +6,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use clap::{Args, Subcommand};
-use std::fs;
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_logging::CliService;
-use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{Environment, LogLevel, OutputFormat as ProfileOutputFormat};
 
+use super::profile_io::{load_profile, save_profile};
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
 use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
@@ -146,19 +145,5 @@ pub(super) fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         CliService::warning("Restart services for changes to take effect");
     }
 
-    Ok(())
-}
-
-fn load_profile(path: &str) -> Result<Profile> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
-    let profile: Profile = serde_yaml::from_str(&content)
-        .with_context(|| format!("Failed to parse profile: {}", path))?;
-    Ok(profile)
-}
-
-pub(super) fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
-    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())
 }

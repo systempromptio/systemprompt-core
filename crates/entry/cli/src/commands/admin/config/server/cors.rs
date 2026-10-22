@@ -82,10 +82,7 @@ fn execute_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    profile
-        .server
-        .cors_allowed_origins
-        .push(args.origin.clone());
+    profile.server.extra_cors_origins.push(args.origin.clone());
     save_profile(&profile, profile_path)?;
 
     let output = CorsModifyOutput {
@@ -109,17 +106,20 @@ fn execute_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
 
-    let original_len = profile.server.cors_allowed_origins.len();
+    let original_len = profile.server.extra_cors_origins.len();
     profile
         .server
-        .cors_allowed_origins
+        .extra_cors_origins
         .retain(|o| o != &args.origin);
 
-    if profile.server.cors_allowed_origins.len() == original_len {
+    if profile.server.extra_cors_origins.len() == original_len {
         let output = CorsModifyOutput {
             action: "skipped".to_owned(),
             origin: args.origin.clone(),
-            message: format!("Origin {} not found", args.origin),
+            message: format!(
+                "Origin {} is not an extra origin (the external_url origin is derived)",
+                args.origin
+            ),
         };
         render_result(&CommandOutput::card_value("CORS Origin", &output), config);
         return Ok(());

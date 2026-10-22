@@ -1,7 +1,7 @@
 //! Security-section mutations behind the `admin config security` surface.
 //!
-//! [`SecurityConfigService`] edits the profile's [`SecurityConfig`]: the JWT
-//! issuer, token expiries, the allowed resource audiences, and the federated
+//! [`SecurityConfigService`] edits the profile's [`SecurityConfig`]: token
+//! expiries, the allowed resource audiences, and the federated
 //! trusted-issuer list. Every mutation yields a [`SecurityChange`] record
 //! (field, old value, new value, message) for rendering or auditing. Audience
 //! updates always re-seed from
@@ -25,7 +25,6 @@ pub struct SecurityChange {
 
 #[derive(Debug, Clone, Default)]
 pub struct SecurityUpdate {
-    pub jwt_issuer: Option<String>,
     pub access_token_expiration: Option<i64>,
     pub refresh_token_expiration: Option<i64>,
     pub resource_audiences: Vec<String>,
@@ -40,17 +39,6 @@ impl SecurityConfigService {
         update: &SecurityUpdate,
     ) -> ConfigResult<Vec<SecurityChange>> {
         let mut changes = Vec::new();
-
-        if let Some(ref issuer) = update.jwt_issuer {
-            let old = security.issuer.clone();
-            security.issuer.clone_from(issuer);
-            changes.push(SecurityChange {
-                field: "jwt_issuer".to_owned(),
-                old_value: old,
-                new_value: issuer.clone(),
-                message: format!("Updated JWT issuer to {}", issuer),
-            });
-        }
 
         if let Some(expiry) = update.access_token_expiration {
             if expiry <= 0 {

@@ -5,13 +5,12 @@
 
 use systemprompt_identifiers::{Email, TenantId};
 use systemprompt_manifest::profile::{
-    SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
+    ProfileResult, SecretsConfig, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };
 use systemprompt_manifest::services::SystemAdminConfig;
 use systemprompt_manifest::{
-    CloudConfig, CloudValidationMode, ContentNegotiationConfig, ExtensionsConfig, PathsConfig,
-    Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, SecurityHeadersConfig,
-    ServerConfig, SiteConfig,
+    CloudConfig, CloudValidationMode, ExtensionsConfig, PathsConfig, Profile,
+    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, ServerConfig, SiteConfig,
 };
 
 use super::{cloud_runtime_config, generate_display_name, security_config, webhook_governance};
@@ -77,15 +76,13 @@ impl CloudProfileBuilder {
         self
     }
 
-    #[must_use]
-    pub fn build(self) -> Profile {
+    pub fn build(self) -> ProfileResult<Profile> {
         let display_name = generate_display_name(&self.name);
         let external = self
             .external_url
             .unwrap_or_else(|| consts::DEFAULT_CLOUD_URL.to_owned());
-        let internal_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
 
-        Profile {
+        let mut profile = Profile {
             storage: systemprompt_manifest::profile::StorageConfig::default(),
             observability: systemprompt_manifest::profile::ObservabilityConfig::default(),
             config_planes: systemprompt_manifest::profile::ConfigPlanesConfig::default(),
@@ -102,25 +99,13 @@ impl CloudProfileBuilder {
                 migrate_on_boot: true,
                 pool: None,
             },
-            security: security_config(&external, self.trusted_issuers, false),
-            server: ServerConfig {
-                host: consts::CLOUD_HOST.to_owned(),
-                port: consts::DEFAULT_PORT,
-                api_server_url: external.clone(),
-                api_internal_url: internal_url.clone(),
-                api_external_url: external.clone(),
-                use_https: true,
-                cors_allowed_origins: vec![external],
-                content_negotiation: ContentNegotiationConfig::default(),
-                security_headers: SecurityHeadersConfig::default(),
-                instance_id: None,
-                metrics_port: None,
-                max_concurrent_streams:
-                    systemprompt_manifest::config::DEFAULT_MAX_CONCURRENT_STREAMS,
-                role: systemprompt_manifest::profile::NodeRole::All,
-                max_in_flight: None,
-                shutdown: systemprompt_manifest::profile::ShutdownConfig::default(),
-                trusted_proxies: crate::trusted_proxies::default_cloud_trusted_proxies(),
+            security: security_config(self.trusted_issuers, false),
+            server: {
+                let mut server =
+                    ServerConfig::new(consts::CLOUD_HOST, consts::DEFAULT_PORT, external.clone());
+                server.role = systemprompt_manifest::profile::NodeRole::All;
+                server.trusted_proxies = crate::trusted_proxies::default_cloud_trusted_proxies();
+                server
             },
             paths: cloud_paths(self.geoip_database),
             rate_limits: RateLimitsConfig::default(),
@@ -138,7 +123,7 @@ impl CloudProfileBuilder {
                 refresh_secs: None,
             }),
             extensions: ExtensionsConfig::default(),
-            governance: Some(webhook_governance(&internal_url)),
+            governance: Some(webhook_governance()),
             services: systemprompt_manifest::profile::ServicesProfileConfig::default(),
             judge: systemprompt_manifest::profile::JudgeProfile::default(),
             retention: systemprompt_manifest::profile::RetentionConfig::default(),
@@ -146,12 +131,15 @@ impl CloudProfileBuilder {
                 username: "admin".to_owned(),
                 email: Some(Email::local_admin()),
             },
-        }
+        };
+        profile.derive_fields()?;
+        Ok(profile)
     }
 }
 
 fn cloud_paths(geoip_database: Option<String>) -> PathsConfig {
     PathsConfig {
+        root: None,
         system: container::APP.to_owned(),
         services: container::SERVICES.to_owned(),
         bin: container::BIN.to_owned(),

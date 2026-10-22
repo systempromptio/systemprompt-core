@@ -6,6 +6,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod committed;
 mod config_planes;
 mod network;
 mod observability;
@@ -13,6 +14,8 @@ mod security;
 mod server;
 mod services;
 mod storage;
+
+pub use committed::committed_source_errors;
 
 use super::{Profile, ProfileError, ProfileResult};
 
@@ -106,17 +109,7 @@ impl Profile {
         Self::require_non_empty(errors, &self.display_name, "Profile display_name");
         Self::require_non_empty(errors, &self.site.name, "Site name");
         Self::require_non_empty(errors, &self.server.host, "Server host");
-        Self::require_non_empty(errors, &self.server.api_server_url, "Server api_server_url");
-        Self::require_non_empty(
-            errors,
-            &self.server.api_internal_url,
-            "Server api_internal_url",
-        );
-        Self::require_non_empty(
-            errors,
-            &self.server.api_external_url,
-            "Server api_external_url",
-        );
+        Self::require_non_empty(errors, &self.server.external_url, "Server external_url");
 
         if self.server.port == 0 {
             errors.push("Server port must be greater than 0".to_owned());

@@ -2,6 +2,15 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- `Profile::load_layered`, `Profile::load_from_path` and `Profile::from_layers` load `profiles/<env>/profile.yaml` over `profiles/base.yaml` (`merge_yaml`: maps merge, sequences replace). `Profile::from_yaml` layers the overlay text over the base beside it.
+- `ServerConfig` gains `external_url` and `extra_cors_origins`; `api_server_url`, `api_internal_url`, `api_external_url`, `use_https`, `cors_allowed_origins`, `SecurityConfig::issuer` and `AuthzHookConfig::url` are `#[serde(skip)]` and filled by `Profile::derive_fields`. Stating one is `ProfileError::DerivedField`. `ServerConfig::new` builds one from host, port and external URL.
+- `PathsConfig` gains `root`; every other relative path resolves against it.
+- `Profile::save_overlay` / `create_overlay` and `profile::overlay::apply_changes` write edits to the overlay only.
+- Removed `ProfileInfo`, `ProfileError::MovedToServices`, `MOVED_SECTIONS` and the `evaluation` alias. Legacy shapes are `ProfileError::LegacyShape` with `MIGRATE_COMMAND`. New `ProfileError::{MissingOverlay, WriteFile, InvalidExternalUrl}`.
+- `Profile::validate_committed` / `committed_source_errors` refuse absolute temp paths in committed profile layers.
+
 ### Fixed
 
 - `ProviderEntry::bills_same_credential`: two entries bill the same account when both use deployment secrets or both use the one personal key named by the same `credential_owner()`.
