@@ -31,10 +31,12 @@ mod billing_source;
 pub mod image_generation;
 pub mod request_kind;
 pub(crate) mod rows;
+mod served_hop;
 
 pub use ai_request_record::{AiRequestRecord, AiRequestRecordBuilder, CacheInfo, TokenInfo};
 pub use billing_source::BillingSource;
 pub use request_kind::{RequestKind, RequestStatus};
+pub use served_hop::{CatalogHop, ServedHop};
 pub use systemprompt_models::origin::{
     ClientAttestation, ClientEvidence, ClientKind, InboundWireProtocol, NativeMarker, RequestOrigin,
 };

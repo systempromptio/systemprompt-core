@@ -132,7 +132,12 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             "user_provider_credentials",
             include_str!("../schema/user_provider_credentials.sql"),
         )
-        .with_required_columns(columns(&["user_id", "provider", "ciphertext"])),
+        .with_required_columns(columns(&["user_id", "credential", "ciphertext"])),
+        SchemaDefinition::new(
+            "ai_catalog_legacy_map",
+            include_str!("../schema/ai_catalog_legacy_map.sql"),
+        )
+        .with_required_columns(columns(&["legacy_provider", "credential"])),
     ]
 }
 

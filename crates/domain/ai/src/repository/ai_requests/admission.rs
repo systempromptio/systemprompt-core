@@ -24,10 +24,10 @@ use super::AiRequestRepository;
 use super::attributions::insert_attributions;
 use super::message_operations::{RequestMessageRow, insert_messages_with};
 use super::mutations::{
-    insert_request_row, update_route_match_with, update_served_provider_with,
+    insert_request_row, update_route_match_with, update_served_hop_with,
     update_system_prompt_override_with,
 };
-use crate::models::AiRequestRecord;
+use crate::models::{AiRequestRecord, ServedHop};
 use crate::repository::ai_request_client_evidence::upsert_with as upsert_evidence_with;
 use crate::repository::ai_request_payloads::{
     UpsertPayloadParams, upsert_offered_tools_with, upsert_prepared_with, upsert_request_with,
@@ -51,7 +51,7 @@ pub struct AdmissionWrite<'a> {
     pub offered_tools: Option<&'a Value>,
     pub messages: &'a [RequestMessageRow<'a>],
     pub route_match: Option<&'a str>,
-    pub served_provider: Option<&'a str>,
+    pub served_hop: Option<ServedHop<'a>>,
     pub system_prompt_override: Option<&'a str>,
     pub prepared: Option<PreparedDigest<'a>>,
     pub findings: &'a [InsertSafetyFinding<'a>],
@@ -94,10 +94,10 @@ async fn admit_best_effort(
         let outcome = update_route_match_with(&mut *sp, write.id, descriptor).await;
         settle_savepoint(sp, outcome, "update_route_match failed").await?;
     }
-    if let Some(provider) = write.served_provider {
+    if let Some(hop) = write.served_hop {
         let mut sp = tx.begin().await?;
-        let outcome = update_served_provider_with(&mut *sp, write.id, provider).await;
-        settle_savepoint(sp, outcome, "update_served_provider failed").await?;
+        let outcome = update_served_hop_with(&mut *sp, write.id, hop).await;
+        settle_savepoint(sp, outcome, "update_served_hop failed").await?;
     }
     if let Some(descriptor) = write.system_prompt_override {
         let mut sp = tx.begin().await?;

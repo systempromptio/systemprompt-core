@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     mcp_execution_id VARCHAR(255),
     provider TEXT,
     served_provider TEXT,
+    credential TEXT,
+    endpoint TEXT,
     model TEXT,
     requested_model TEXT,
     system_prompt_override TEXT,
