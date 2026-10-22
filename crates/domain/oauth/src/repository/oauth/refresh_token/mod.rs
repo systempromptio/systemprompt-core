@@ -10,7 +10,7 @@
 
 mod ops;
 
-use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
 #[derive(Debug)]
 pub struct RefreshTokenParams<'a> {
@@ -83,7 +83,7 @@ impl<'a> RefreshTokenParams<'a> {
 pub struct ConsumedRefreshToken {
     pub user_id: UserId,
     pub scope: String,
-    pub family_id: String,
+    pub family_id: RefreshTokenFamilyId,
 }
 
 #[derive(Debug, Clone)]

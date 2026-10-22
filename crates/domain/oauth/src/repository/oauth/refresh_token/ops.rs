@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
+use systemprompt_identifiers::{ClientId, RefreshTokenFamilyId, RefreshTokenId, UserId};
 
 use super::{ConsumedRefreshToken, RefreshTokenHolder, RefreshTokenParams};
 use crate::error::{OauthError, OauthResult};
@@ -67,7 +67,7 @@ impl OAuthRepository {
             return Ok(ConsumedRefreshToken {
                 user_id: UserId::new(row.user_id),
                 scope: row.scope,
-                family_id: row.family_id,
+                family_id: RefreshTokenFamilyId::new(row.family_id),
             });
         }
 
