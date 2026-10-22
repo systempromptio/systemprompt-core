@@ -164,7 +164,10 @@ pub use jwt::{
 };
 
 mod startup_events;
-pub use startup_events::*;
+pub use startup_events::{
+    ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, StartupEventExt,
+    StartupEventReceiver, StartupEventSender, startup_channel,
+};
 
 pub mod session_store;
 pub mod sso;
