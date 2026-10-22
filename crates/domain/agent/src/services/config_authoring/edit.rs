@@ -13,35 +13,7 @@ use std::fs;
 
 use systemprompt_manifest::services::{AgentConfig, ServicesConfig};
 
-use super::{AgentConfigAuthoringService, ConfigAuthoringError};
-
-#[derive(Debug, Clone, Default)]
-pub struct AgentEditRequest {
-    pub enable: bool,
-    pub disable: bool,
-    pub port: Option<u16>,
-    pub endpoint: Option<String>,
-    pub dev_only: bool,
-    pub is_primary: bool,
-    pub default: bool,
-    pub display_name: Option<String>,
-    pub description: Option<String>,
-    pub version: Option<String>,
-    pub icon_url: Option<String>,
-    pub documentation_url: Option<String>,
-    pub streaming: Option<bool>,
-    pub push_notifications: Option<bool>,
-    pub extended_agent_card: Option<bool>,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub system_prompt: Option<String>,
-    pub system_prompt_file: Option<String>,
-    pub mcp_servers: Vec<String>,
-    pub remove_mcp_servers: Vec<String>,
-    pub skills: Vec<String>,
-    pub remove_skills: Vec<String>,
-    pub set_values: Vec<String>,
-}
+use super::{AgentConfigAuthoringService, AgentEditRequest, ConfigAuthoringError};
 
 impl AgentConfigAuthoringService {
     pub fn apply_enabled_flags(
@@ -69,19 +41,19 @@ impl AgentConfigAuthoringService {
             agent.port = port;
             changes.push(format!("port: {port}"));
         }
-        if let Some(endpoint) = &request.endpoint {
+        if let Some(endpoint) = &request.placement.endpoint {
             agent.endpoint.clone_from(endpoint);
             changes.push(format!("endpoint: {endpoint}"));
         }
-        if request.dev_only {
+        if request.placement.dev_only {
             agent.dev_only = true;
             changes.push("dev_only: true".to_owned());
         }
-        if request.is_primary {
+        if request.placement.is_primary {
             agent.is_primary = true;
             changes.push("is_primary: true".to_owned());
         }
-        if request.default {
+        if request.placement.default {
             agent.default = true;
             changes.push("default: true".to_owned());
         }
@@ -93,23 +65,23 @@ impl AgentConfigAuthoringService {
         request: &AgentEditRequest,
         changes: &mut Vec<String>,
     ) {
-        if let Some(display_name) = &request.display_name {
+        if let Some(display_name) = &request.card.display_name {
             agent.card.display_name.clone_from(display_name);
             changes.push(format!("card.display_name: {display_name}"));
         }
-        if let Some(description) = &request.description {
+        if let Some(description) = &request.card.description {
             agent.card.description.clone_from(description);
             changes.push(format!("card.description: {description}"));
         }
-        if let Some(version) = &request.version {
+        if let Some(version) = &request.card.links.version {
             agent.card.version.clone_from(version);
             changes.push(format!("card.version: {version}"));
         }
-        if let Some(icon_url) = &request.icon_url {
+        if let Some(icon_url) = &request.card.links.icon_url {
             agent.card.icon_url = Some(icon_url.clone());
             changes.push(format!("card.icon_url: {icon_url}"));
         }
-        if let Some(documentation_url) = &request.documentation_url {
+        if let Some(documentation_url) = &request.card.links.documentation_url {
             agent.card.documentation_url = Some(documentation_url.clone());
             changes.push(format!("card.documentation_url: {documentation_url}"));
         }
@@ -120,17 +92,17 @@ impl AgentConfigAuthoringService {
         request: &AgentEditRequest,
         changes: &mut Vec<String>,
     ) {
-        if let Some(streaming) = request.streaming {
+        if let Some(streaming) = request.capabilities.streaming {
             agent.card.capabilities.streaming = streaming;
             changes.push(format!("card.capabilities.streaming: {streaming}"));
         }
-        if let Some(push_notifications) = request.push_notifications {
+        if let Some(push_notifications) = request.capabilities.push_notifications {
             agent.card.capabilities.push_notifications = push_notifications;
             changes.push(format!(
                 "card.capabilities.push_notifications: {push_notifications}"
             ));
         }
-        if let Some(extended_agent_card) = request.extended_agent_card {
+        if let Some(extended_agent_card) = request.capabilities.extended_agent_card {
             agent.card.capabilities.extended_agent_card = extended_agent_card;
             changes.push(format!(
                 "card.capabilities.extended_agent_card: {extended_agent_card}"
@@ -143,15 +115,15 @@ impl AgentConfigAuthoringService {
         request: &AgentEditRequest,
         changes: &mut Vec<String>,
     ) -> Result<(), ConfigAuthoringError> {
-        if let Some(provider) = &request.provider {
+        if let Some(provider) = &request.model.provider {
             agent.metadata.provider = Some(provider.clone());
             changes.push(format!("metadata.provider: {provider}"));
         }
-        if let Some(model) = &request.model {
+        if let Some(model) = &request.model.model {
             agent.metadata.model = Some(model.clone());
             changes.push(format!("metadata.model: {model}"));
         }
-        if let Some(file_path) = &request.system_prompt_file {
+        if let Some(file_path) = &request.system_prompt.file {
             let content = fs::read_to_string(file_path).map_err(|source| {
                 ConfigAuthoringError::SystemPromptFile {
                     path: file_path.clone(),
@@ -164,7 +136,7 @@ impl AgentConfigAuthoringService {
                 file_path,
                 content.len()
             ));
-        } else if let Some(prompt) = &request.system_prompt {
+        } else if let Some(prompt) = &request.system_prompt.inline {
             agent.metadata.system_prompt = Some(prompt.clone());
             changes.push(format!("system_prompt: {} chars", prompt.len()));
         }
@@ -177,7 +149,7 @@ impl AgentConfigAuthoringService {
         services_config: &ServicesConfig,
         changes: &mut Vec<String>,
     ) -> Result<Vec<String>, ConfigAuthoringError> {
-        for mcp_server in &request.mcp_servers {
+        for mcp_server in &request.mcp_servers.add {
             if agent.metadata.mcp_servers.include.contains(mcp_server) {
                 continue;
             }
@@ -196,7 +168,7 @@ impl AgentConfigAuthoringService {
             changes.push(format!("added mcp_server: {mcp_server}"));
         }
         let mut skipped = Vec::new();
-        for mcp_server in &request.remove_mcp_servers {
+        for mcp_server in &request.mcp_servers.remove {
             if let Some(pos) = agent
                 .metadata
                 .mcp_servers
@@ -218,14 +190,14 @@ impl AgentConfigAuthoringService {
         request: &AgentEditRequest,
         changes: &mut Vec<String>,
     ) -> Vec<String> {
-        for skill in &request.skills {
+        for skill in &request.skills.add {
             if !agent.metadata.skills.include.contains(skill) {
                 agent.metadata.skills.include.push(skill.clone());
                 changes.push(format!("added skill: {skill}"));
             }
         }
         let mut skipped = Vec::new();
-        for skill in &request.remove_skills {
+        for skill in &request.skills.remove {
             if let Some(pos) = agent
                 .metadata
                 .skills

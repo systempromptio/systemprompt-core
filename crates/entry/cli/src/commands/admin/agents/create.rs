@@ -13,7 +13,8 @@ use crate::CliConfig;
 use crate::interactive::{Prompter, resolve_required};
 use crate::shared::CommandOutput;
 use systemprompt_agent::services::config_authoring::{
-    AgentConfigAuthoringService, AgentCreateRequest,
+    AgentCapabilityFlags, AgentCardLinks, AgentConfigAuthoringService, AgentCreateRequest,
+    AgentModelChoice, AgentPlacement,
 };
 use systemprompt_config::ProfileBootstrap;
 use systemprompt_loader::ConfigLoader;
@@ -140,18 +141,26 @@ fn build_create_request(
         description: input.description,
         system_prompt: input.system_prompt,
         enabled,
-        endpoint: agent.endpoint,
-        dev_only: agent.dev_only,
-        is_primary: agent.is_primary,
-        default: agent.default,
-        version: agent.version,
-        icon_url: agent.icon_url,
-        documentation_url: agent.documentation_url,
-        streaming: agent.streaming,
-        push_notifications: agent.push_notifications,
-        extended_agent_card: agent.extended_agent_card,
-        provider: agent.provider,
-        model: agent.model,
+        placement: AgentPlacement {
+            endpoint: agent.endpoint,
+            dev_only: agent.dev_only,
+            is_primary: agent.is_primary,
+            default: agent.default,
+        },
+        card_links: AgentCardLinks {
+            version: agent.version,
+            icon_url: agent.icon_url,
+            documentation_url: agent.documentation_url,
+        },
+        capabilities: AgentCapabilityFlags {
+            streaming: agent.streaming,
+            push_notifications: agent.push_notifications,
+            extended_agent_card: agent.extended_agent_card,
+        },
+        model: AgentModelChoice {
+            provider: agent.provider,
+            model: agent.model,
+        },
         mcp_servers: agent.mcp_servers,
         skills: agent.skills,
     }
