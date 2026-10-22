@@ -2,6 +2,21 @@
 
 ## [0.73.0] - Unreleased
 
+### Breaking
+
+- `AiService::new(catalog: Arc<ResolvedCatalog>, &AiConfig, AiServiceProviders, &AiRepositories)` replaces the `ProviderRegistry` + `ai.providers` constructor. Clients are built per endpoint (`ProviderClients`, keyed `provider/endpoint`) for every enabled provider with a deployment and a usable platform credential; resilience is the endpoint's effective value and web search the provider's `google_search_enabled`. A request resolves its model through the catalog's enabled deployments in failover order. The default provider and model are `gateway.default_model`'s first served deployment; `health_check` keys are `provider_<provider>/<endpoint>`.
+- `UpstreamTarget::resolve(&ResolvedCatalog, &ResolvedHop, secret)`, `resolve_personal(EndpointBinding, key, user)`, `bind(EndpointBinding, secret, TokenCacheKey)` and `from_secrets(EndpointBinding)`: wire, URL, hosting and betas from the endpoint, headers and user agent from the provider, the token cache key from the credential. `UpstreamTargetError` variants name the endpoint ref and credential id; `UserCredentialProvider` is `PersonalCredential`, and `UnknownEndpoint` is new.
+- Personal keys are stored per catalog credential: `user_provider_credentials.credential` replaces `provider` (base schema; migration `048_catalog_credentials.sql`, a metadata-only rename on a small table). `UserProviderCredentialRepository::{set_key, find_key, delete_key}` take a `CredentialId`; `UserProviderCredentialMeta.credential` replaces `.provider`. `PersonalKeyRequest.credential` replaces `.provider`.
+- `personal_credentials` / `personal_credential` / `credential_endpoints` / `credential_label` replace `personal_providers` / `personal_provider` / `credential_siblings` / `provider_label`; `PersonalKeyError::NotPersonalCredential` replaces `NotPersonalProvider` and `Unverified.credential` replaces `.provider`. `verify_personal_key` probes every endpoint of every enabled provider naming the credential; any rejection rejects the key.
+- Provider clients take `ServedModel` (catalog id, upstream name, final deployment price) instead of `ProviderModel`; `served_models_on` and `upstream_model_in` are in `services::providers`.
+- `ImageProviderParams { catalog, hop, target }` replaces `{ entry, policy, target }`; `ImageProviderFactory::from_catalog` builds `ai.default_image_model`'s first enabled image-capable deployment with a platform credential.
+- `ConfigValidator::validate(&AiConfig, &ResolvedCatalog, &ProviderClients, &[WithheldEndpoint])`; `AiConfigError::{NoDefaultModel, DefaultModelNoConnectivity}` replace `DefaultProviderNotEnabled` / `DefaultProviderNoConnectivity`.
+
+### Added
+
+- `BillingSource::{from_kind, of}` derives `ai_requests.billing_source` from the catalog credential kind (`personal` is `user_key`).
+- Migration `048_catalog_credentials.sql` (placeholder: renames `user_provider_credentials.provider` and its unique constraint; ACCESS EXCLUSIVE on that small table for milliseconds, no row rewrite, no `ai_requests` lock).
+
 ### Fixed
 
 - Storing a personal key probes every entry that shares it (`credential_siblings`, `verify_personal_key`), not only the owner entry, so a key a sibling endpoint refuses is never stored as working.
