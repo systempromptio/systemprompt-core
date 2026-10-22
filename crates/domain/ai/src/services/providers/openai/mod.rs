@@ -11,6 +11,5 @@ mod generation;
 mod provider;
 pub mod search;
 mod streaming;
-mod trait_impl;
 
 pub use provider::OpenAiProvider;
