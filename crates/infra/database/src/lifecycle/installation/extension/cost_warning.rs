@@ -80,9 +80,10 @@ pub(super) async fn warn_unmeasured_migrations(
 
 // Why: `to_regclass` yields NULL rather than an error for a table this
 // install has not created yet, and `reltuples` is -1 until the table is first
-// analysed, so an unknown estimate falls back to a bounded existence probe and
-// is reported as one row rather than read as empty. An estimate, not
-// `count(*)`: a sequential count of four million rows would itself delay boot.
+// analysed, so an unknown estimate falls back to the statistics collector's
+// live-tuple count, and a table with live rows is reported as one row rather
+// than read as empty. An estimate, not `count(*)`: a sequential count of four
+// million rows would itself delay boot.
 pub(super) async fn populated_hot_tables(
     db: &dyn DatabaseProvider,
 ) -> std::collections::HashMap<&str, i64> {
@@ -105,12 +106,17 @@ pub(super) async fn populated_hot_tables(
                 populated.insert(*table, rows);
             },
             Some(_) => {
-                let probe = format!("SELECT 1 FROM {table} LIMIT 1");
-                if db
-                    .fetch_optional(&probe.as_str(), &[])
+                let live = db
+                    .fetch_optional(
+                        &"SELECT EXISTS (SELECT 1 FROM pg_stat_user_tables WHERE relid = \
+                          to_regclass($1) AND n_live_tup > 0) AS live",
+                        &[table],
+                    )
                     .await
-                    .is_ok_and(|row| row.is_some())
-                {
+                    .ok()
+                    .flatten()
+                    .and_then(|row| row.get("live").and_then(serde_json::Value::as_bool));
+                if live == Some(true) {
                     populated.insert(*table, 1);
                 }
             },
