@@ -3,7 +3,7 @@
 //! store), the check must pass on a 200 token grant and fail with the
 //! operator-action diagnosis on a rejection.
 
-use systemprompt_bridge::auth::plugin_oauth::{self, OAuthClientCreds};
+use systemprompt_bridge::auth::plugin_oauth::{self, OAuthClientCreds, SecretStore};
 use systemprompt_bridge::cli::doctor::Status;
 use systemprompt_bridge::cli::doctor::auth::check_hook_token_mint;
 use systemprompt_bridge::gateway::GatewayClient;
@@ -18,21 +18,23 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 // the in-memory mock plays the same role without reaching for the platform
 // keychain, which would prompt or fail on a developer's machine.
 #[cfg(target_os = "linux")]
-fn use_headless_keystore() {
+fn use_headless_keystore() -> SecretStore {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         keyring_core::set_default_store(
             linux_keyutils_keyring_store::Store::new().expect("keyutils store"),
         );
     });
+    SecretStore::resolve()
 }
 
 #[cfg(not(target_os = "linux"))]
-fn use_headless_keystore() {
+fn use_headless_keystore() -> SecretStore {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         keyring_core::set_default_store(keyring_core::mock::Store::new().expect("mock store"));
     });
+    SecretStore::resolve()
 }
 
 fn unique_client(prefix: &str) -> String {
@@ -43,7 +45,7 @@ fn check_with_endpoint(
     client_id: &str,
     token_status: u16,
 ) -> systemprompt_bridge::cli::doctor::Check {
-    use_headless_keystore();
+    let secrets = use_headless_keystore();
     let temp = TempDir::new().unwrap();
     temp_env::with_var("XDG_CACHE_HOME", Some(temp.path().as_os_str()), || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -71,7 +73,7 @@ fn check_with_endpoint(
                 .mount(&server)
                 .await;
 
-            plugin_oauth::store_creds(&OAuthClientCreds {
+            plugin_oauth::store_creds(&secrets, &OAuthClientCreds {
                 client_id: ClientId::new(client_id),
                 client_secret: "shh-secret".into(),
                 token_endpoint: format!("{}/v1/oauth/token", server.uri()),
@@ -81,7 +83,7 @@ fn check_with_endpoint(
             .expect("store creds");
 
             let gateway = GatewayClient::new(ValidatedUrl::try_new(server.uri()).expect("valid ValidatedUrl"), reqwest::Client::new());
-            check_hook_token_mint(&gateway).await
+            check_hook_token_mint(&secrets, &gateway).await
         })
     })
 }

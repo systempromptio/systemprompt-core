@@ -164,13 +164,13 @@ pub fn set_gateway_url(gateway_url: &str) -> Result<PathLayout, SetupError> {
 }
 
 #[tracing::instrument(level = "debug")]
-pub fn logout() -> Result<PathLayout, SetupError> {
+pub fn logout(secrets: &crate::auth::plugin_oauth::SecretStore) -> Result<PathLayout, SetupError> {
     let paths = resolve_paths()?;
     remove_if_exists(&paths.pat_file)?;
     remove_managed_mcp_fragment()?;
     remove_sync_state()?;
     crate::auth::cache::clear().map_err(SetupError::Cache)?;
-    crate::auth::plugin_oauth::delete_creds()?;
+    crate::auth::plugin_oauth::delete_creds(secrets)?;
     if paths.config_file.exists() {
         let existing = fs::read_to_string(&paths.config_file).map_err(|source| SetupError::Io {
             action: "read",
@@ -188,7 +188,7 @@ pub fn logout() -> Result<PathLayout, SetupError> {
 }
 
 #[tracing::instrument(level = "debug")]
-pub fn clean() -> Result<CleanReport, SetupError> {
+pub fn clean(secrets: &crate::auth::plugin_oauth::SecretStore) -> Result<CleanReport, SetupError> {
     let paths = resolve_paths()?;
     let pat_removed = paths.pat_file.exists();
     remove_if_exists(&paths.pat_file)?;
@@ -203,7 +203,7 @@ pub fn clean() -> Result<CleanReport, SetupError> {
 
     crate::auth::cache::clear().map_err(SetupError::Cache)?;
     let oauth_creds_removed = crate::auth::plugin_oauth::creds_path().is_some_and(|p| p.exists());
-    crate::auth::plugin_oauth::delete_creds()?;
+    crate::auth::plugin_oauth::delete_creds(secrets)?;
     Ok(CleanReport {
         paths,
         pat_removed,

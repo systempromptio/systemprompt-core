@@ -99,8 +99,8 @@ pub fn purge_device(
     ctx: &crate::context::BridgeContext,
 ) -> Result<PurgeReport, crate::install::InstallError> {
     let uninstall = uninstall(true, ctx)?;
-    let clean =
-        crate::auth::setup::clean().map_err(crate::install::InstallError::CleanLocalState)?;
+    let clean = crate::auth::setup::clean(ctx.secrets())
+        .map_err(crate::install::InstallError::CleanLocalState)?;
     let proxy_state_removed = remove_proxy_state()?;
     let foreign_proxy = match crate::proxy::peer::probe_identity(
         crate::proxy::DEFAULT_PROXY_PORT,

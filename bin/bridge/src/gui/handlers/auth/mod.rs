@@ -189,9 +189,10 @@ pub(crate) fn on_logout_requested(app: &GuiApp, reply_to: ReplyId) {
     app.state.cancel_scope(CancelScope::Sync);
     app.append_log(i18n::t("logout-running"));
     let proxy = app.proxy.clone();
+    let ctx = Arc::clone(&app.ctx);
     app.ctx.spawn(async move {
-        let result = match tokio::task::spawn_blocking(|| {
-            setup::logout()
+        let result = match tokio::task::spawn_blocking(move || {
+            setup::logout(ctx.secrets())
                 .map(|_| ())
                 .map_err(GuiError::from)
                 .map_err(Arc::new)
