@@ -144,7 +144,9 @@ impl MachineGrant {
         cache_key: &str,
     ) -> Result<String, ConnectorGrantError> {
         tokens
-            .token_for(cache_key, || async { self.mint().await })
+            .token_for(cache_key, || async {
+                self.mint(tokens.http_client()?).await
+            })
             .await
             .map_err(ConnectorGrantError::Credential)
     }
@@ -161,7 +163,7 @@ impl MachineGrant {
         Ok(format!("{scheme} {}", self.token(tokens, cache_key).await?))
     }
 
-    async fn mint(&self) -> Result<(String, Duration), CredentialError> {
+    async fn mint(&self, client: &reqwest::Client) -> Result<(String, Duration), CredentialError> {
         match self {
             Self::ClientCredentials {
                 token_url,
@@ -177,7 +179,7 @@ impl MachineGrant {
                 if !scopes.is_empty() {
                     form.push(("scope", scopes.join(" ")));
                 }
-                let body = http::post_form(token_url, &form).await?;
+                let body = http::post_form(client, token_url, &form).await?;
                 let response: ClientCredentialsResponse =
                     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)?;
                 Ok((response.access_token, clamp_ttl(response.expires_in)))
@@ -188,7 +190,7 @@ impl MachineGrant {
                 private_key_pem,
             } => {
                 let jwt = sign_app_jwt(app_id, private_key_pem)?;
-                let body = http::post_bearer(token_url, &jwt, GITHUB_HEADERS).await?;
+                let body = http::post_bearer(client, token_url, &jwt, GITHUB_HEADERS).await?;
                 let response: InstallationTokenResponse =
                     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)?;
                 let remaining = response

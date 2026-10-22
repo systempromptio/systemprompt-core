@@ -52,7 +52,6 @@ crates/infra/logging/src/services/output/mod.rs:STRUCTURED_EMITTED — debt: CLI
 crates/infra/logging/src/services/output/mod.rs:NOTICE_BUFFER — debt: CLI output buffer
 crates/infra/loader/src/bundle/provenance.rs:CACHE — debt: tree-hash memo
 crates/infra/loader/src/subprocess/spawn.rs:SPAWNER — debt: subprocess spawner channel
-crates/infra/security/src/credential/http.rs:CLIENT — debt: process-wide HTTP client
 crates/infra/security/src/keys/authority.rs:CELL — debt: signing authority
 crates/infra/security/src/manifest_signing.rs:CELL — debt: manifest signing key
 crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HTTP client

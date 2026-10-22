@@ -52,6 +52,7 @@
 - **Bridge:** the Agents list and the setup page show only the hosts the last synced manifest enabled; before a first sync no host is listed.
 - Private temp files, state-dir write probes and generator staging files take a random suffix instead of a process-wide counter.
 - `SecretScanner` draws its evidence-fingerprint key when it is built; fingerprints do not correlate across scanner rebuilds.
+- `TokenCache` owns the bounded HTTP client its credential exchanges use.
 
 ### Removed
 

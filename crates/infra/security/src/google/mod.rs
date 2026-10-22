@@ -98,13 +98,16 @@ pub async fn access_token(
 ) -> Result<String, CredentialError> {
     tokens
         .token_for(cache_key, || async {
-            let response = exchange(key).await?;
+            let response = exchange(tokens.http_client()?, key).await?;
             Ok((response.access_token, clamp_ttl(response.expires_in)))
         })
         .await
 }
 
-async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialError> {
+async fn exchange(
+    client: &reqwest::Client,
+    key: &ServiceAccountKey,
+) -> Result<TokenResponse, CredentialError> {
     let assertion = sign_assertion(key)?;
     let form = [
         (
@@ -114,7 +117,7 @@ async fn exchange(key: &ServiceAccountKey) -> Result<TokenResponse, CredentialEr
         ("assertion", assertion),
     ];
 
-    let body = http::post_form(&key.token_uri, &form).await?;
+    let body = http::post_form(client, &key.token_uri, &form).await?;
     serde_json::from_str(&body).map_err(CredentialError::UnreadableBody)
 }
 
