@@ -8,10 +8,11 @@
 //! beside the MCP connectors, by one writer and one sync emitter shared by
 //! both packagings. That is placement, not enforcement: nothing stops a user
 //! editing the file or connecting another provider, and sync rewrites it.
-//! Governance is enforced at the gateway. The two [`HostApp`]
-//! implementations differ only in how the packaging is detected (app bundle
-//! or installer folder versus `opencode` on `PATH`), which processes count as
-//! it running, and whether it can be launched.
+//! Governance is enforced at the gateway. The two
+//! [`HostApp`](crate::integration::host_app::HostApp) implementations differ
+//! only in how the packaging is detected (app bundle or installer folder versus
+//! `opencode` on `PATH`), which processes count as it running, and whether it
+//! can be launched.
 //!
 //! `OpenCode` takes the default `accepted_surfaces` — the empty slice, meaning
 //! every advertised provider. `OpenCode` speaks the OpenAI-compatible wire and

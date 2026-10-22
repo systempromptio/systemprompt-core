@@ -1,4 +1,6 @@
-//! The two `OpenCode` packagings as [`HostApp`]s over the shared config writer.
+//! The two `OpenCode` packagings as
+//! [`HostApp`](crate::integration::host_app::HostApp)s over the shared config
+//! writer.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

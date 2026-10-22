@@ -5,9 +5,10 @@
 //! Windows `managed_config.toml`, the macOS `com.openai.codex` MDM payload),
 //! so there is one config writer, one sync emitter and one loopback
 //! credential, written once and read by whichever packagings are installed.
-//! The two [`HostApp`] implementations differ only in how the packaging is
-//! detected (app bundle or installer folder versus `codex` on `PATH`), which
-//! processes count as it running, and whether it can be launched.
+//! The two [`HostApp`](crate::integration::host_app::HostApp) implementations
+//! differ only in how the packaging is detected (app bundle or installer folder
+//! versus `codex` on `PATH`), which processes count as it running, and whether
+//! it can be launched.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
