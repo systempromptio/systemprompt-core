@@ -99,10 +99,10 @@ pub use lifecycle::{
 pub use repository::{
     CLAIM_DEAD_PEER_SECS, CoordinationRepositories, CreateServiceInput, EXTENSION_LOCK_CLASS,
     INSTANCE_CLAIM_CLASS, INSTANCE_DEAD_AFTER_SECS, InstanceClaim, InstanceClaimError,
-    InstanceLeaseRepository, PgDbPool, Reaped, ReapedService, ReleaseGate, ReleaseRun,
-    ReleaseStampError, ReleaseStampRepository, ServiceConfig, ServiceModule, ServiceRepository,
-    ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome,
-    UpsertServiceProcessInput, release_key,
+    InstanceLeaseRepository, PgConfigVersion, PgDbPool, Reaped, ReapedService, ReleaseGate,
+    ReleaseRun, ReleaseStampError, ReleaseStampRepository, ServiceConfig, ServiceModule,
+    ServiceRepository, ServiceStatus, SessionAdvisoryLock, SessionAdvisoryLocks, StampOutcome,
+    UpsertServiceProcessInput, release_key, with_change_context,
 };
 
 pub use admin::{
