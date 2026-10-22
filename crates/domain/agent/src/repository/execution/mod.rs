@@ -44,7 +44,7 @@ impl ExecutionStepRepository {
         .await?;
         row.map(|r| {
             parse_step(ParseStepParams {
-                step_id: r.step_id,
+                step_id: StepId(r.step_id),
                 task_id: r.task_id,
                 status: r.status,
                 content: r.content,
@@ -72,7 +72,7 @@ impl ExecutionStepRepository {
         rows.into_iter()
             .map(|r| {
                 parse_step(ParseStepParams {
-                    step_id: r.step_id,
+                    step_id: StepId(r.step_id),
                     task_id: r.task_id,
                     status: r.status,
                     content: r.content,
