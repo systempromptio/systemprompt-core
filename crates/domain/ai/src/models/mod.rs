@@ -18,11 +18,15 @@ use systemprompt_identifiers::{
 pub use systemprompt_models::ai as ai_models;
 
 pub mod ai {
-    pub use systemprompt_models::ai::*;
+    pub use systemprompt_models::ai::{
+        AiContentPart, AiMessage, AiRequest, AiResponse, GenerateResponseParams,
+        GoogleSearchParams, MessageRole, ResponseFormat, SamplingParams, SearchGroundedResponse,
+        StreamChunk, WebSource,
+    };
 }
 
 pub mod tools {
-    pub use systemprompt_models::ai::tools::*;
+    pub use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 }
 
 pub mod ai_request_record;
