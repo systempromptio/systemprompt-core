@@ -58,7 +58,6 @@ crates/app/gateway/src/protocol/outbound/mod.rs:CLIENT — debt: process-wide HT
 crates/domain/mcp/src/services/network/proxy.rs:CLIENT — debt: process-wide HTTP client
 crates/entry/api/src/routes/messaging/mod.rs:GUARDED_CLIENT — debt: process-wide HTTP client
 crates/app/oauth-issuance/src/token_exchange/subject.rs:SHARED_JWKS — debt: JWKS client cache
-crates/domain/analytics/src/services/extractor/geoip.rs:NO_READER_NOTICE — debt: once-only notice
 crates/domain/marketplace/src/catalog/content/revision_cache.rs:VERIFIED — debt: verified revision memo
 crates/entry/api/src/routes/admin/services/refresh.rs:REFRESH_LOCK — debt: services refresh lock
 crates/entry/api/src/routes/gateway/bridge_plugin_archive.rs:PACKED — debt: packed plugin archive memo

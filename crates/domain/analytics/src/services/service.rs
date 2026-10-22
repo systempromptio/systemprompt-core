@@ -39,6 +39,13 @@ impl AnalyticsService {
         content_routing: Option<Arc<dyn ContentRouting>>,
         repositories: &AnalyticsRepositories,
     ) -> Self {
+        #[cfg(feature = "geolocation")]
+        if geoip_reader.is_none() {
+            tracing::debug!(
+                geoip_skip_reason = "no_reader",
+                "GeoIP enrichment inactive: no MaxMind reader configured; location fields will be empty for all requests"
+            );
+        }
         Self {
             geoip_reader,
             content_routing,

@@ -56,6 +56,7 @@
 - `TokenCache` owns the bounded HTTP client its credential exchanges use.
 - The prerender jobs load their content config, web config and template registry on every run, so template edits apply on the next run without a restart.
 - The managed inventory refresh keeps its last-pass fingerprint in an `InventoryRefreshMemo` the scheduler owns and passes to each run through the job context; the OTLP export job builds its HTTP client once per run.
+- The "no GeoIP reader" notice is logged once when `AnalyticsService` is built.
 
 ### Removed
 
