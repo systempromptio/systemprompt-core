@@ -129,6 +129,11 @@ lint-schema:
 lint-extensions:
     ./scripts/lint-extensions.sh crates
 
+# Judge the migrations added since the last release against the large-table
+# rules (NOT VALID constraints, CONCURRENTLY indexes, bounded bulk writes).
+lint-migrations:
+    ./scripts/lint-migrations.sh
+
 # Check production comment syntax and Rustdoc placement; review meaning per AGENTS.md.
 lint-comments:
     ./scripts/lint-inline-comments.sh

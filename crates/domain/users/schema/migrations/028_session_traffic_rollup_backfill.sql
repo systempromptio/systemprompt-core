@@ -1,0 +1,11 @@
+-- @cost: rows=2000000 measured=1.0s triggers=live
+-- Counts the sessions an upgraded database already holds into
+-- session_traffic_rollup_hourly: one sequential pass over user_sessions
+-- under ACCESS SHARE, so session writes continue throughout.
+--
+-- Why: this runs in its own transaction, after migration 027 has committed
+-- the triggers. A session written in between is counted once: the rebuild's
+-- recount replaces the trigger's increment, and a trigger that fires during
+-- the recount waits on the counter table's SHARE ROW EXCLUSIVE lock and adds
+-- its session afterwards.
+SELECT session_traffic_rollup_rebuild();

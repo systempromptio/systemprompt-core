@@ -17,6 +17,7 @@ lint-ledger-reads
 lint-silent-skips
 lint-schema
 lint-extensions
+lint-migrations
 lint-comments
 lint-inline-tests
 lint-test-seams

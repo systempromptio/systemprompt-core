@@ -67,6 +67,7 @@ BEGIN
     FROM new_rows n
     WHERE NOT EXISTS (SELECT 1 FROM users d WHERE d.id = n.user_id AND d.status = 'deleted')
     GROUP BY 1, 2
+    ORDER BY 1, 2
     ON CONFLICT (bucket, traffic_class) DO UPDATE
         SET sessions = session_traffic_rollup_hourly.sessions + EXCLUDED.sessions;
     RETURN NULL;
@@ -82,6 +83,7 @@ BEGIN
     FROM old_rows o
     WHERE NOT EXISTS (SELECT 1 FROM users d WHERE d.id = o.user_id AND d.status = 'deleted')
     GROUP BY 1, 2
+    ORDER BY 1, 2
     ON CONFLICT (bucket, traffic_class) DO UPDATE
         SET sessions = session_traffic_rollup_hourly.sessions + EXCLUDED.sessions;
     RETURN NULL;
@@ -113,15 +115,24 @@ BEGIN
         WHERE NOT EXISTS (SELECT 1 FROM users d WHERE d.id = c.new_user_id AND d.status = 'deleted')
     )
     INSERT INTO session_traffic_rollup_hourly (bucket, traffic_class, sessions)
-    SELECT bucket, traffic_class, SUM(delta) FROM deltas GROUP BY 1, 2
+    SELECT bucket, traffic_class, SUM(delta) FROM deltas GROUP BY 1, 2 ORDER BY 1, 2
     ON CONFLICT (bucket, traffic_class) DO UPDATE
         SET sessions = session_traffic_rollup_hourly.sessions + EXCLUDED.sessions;
     RETURN NULL;
 END $$;
 
+-- Why: a column list cannot be combined with transition tables, so the
+-- trigger fires on every UPDATE of users and leaves before touching
+-- user_sessions unless a row crossed status 'deleted'.
 CREATE OR REPLACE FUNCTION session_traffic_rollup_user_status_changed()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM new_rows n JOIN old_rows o ON o.id = n.id
+        WHERE (o.status = 'deleted') IS DISTINCT FROM (n.status = 'deleted')
+    ) THEN
+        RETURN NULL;
+    END IF;
     INSERT INTO session_traffic_rollup_hourly (bucket, traffic_class, sessions)
     SELECT date_trunc('hour', s.started_at),
            session_traffic_class(s.is_bot, s.is_ai_crawler, s.is_scanner, s.is_behavioral_bot, s.landing_page, s.request_count),
@@ -131,6 +142,7 @@ BEGIN
     JOIN user_sessions s ON s.user_id = n.id
     WHERE (o.status = 'deleted') IS DISTINCT FROM (n.status = 'deleted')
     GROUP BY 1, 2
+    ORDER BY 1, 2
     ON CONFLICT (bucket, traffic_class) DO UPDATE
         SET sessions = session_traffic_rollup_hourly.sessions + EXCLUDED.sessions;
     RETURN NULL;
@@ -150,6 +162,7 @@ BEGIN
         FROM user_sessions s
         WHERE s.user_id = OLD.id
         GROUP BY 1, 2
+        ORDER BY 1, 2
         ON CONFLICT (bucket, traffic_class) DO UPDATE
             SET sessions = session_traffic_rollup_hourly.sessions + EXCLUDED.sessions;
     END IF;
