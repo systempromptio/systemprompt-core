@@ -62,7 +62,11 @@ pub(super) async fn execute(args: RunArgs) -> Result<()> {
     ));
     let ai_service = Arc::new(
         AiService::new(
-            &services_config.providers,
+            Arc::new(
+                services_config
+                    .resolve_catalog(&systemprompt_loader::services_bootstrap::catalog_context())
+                    .context("The services catalog does not resolve")?,
+            ),
             &services_config.ai,
             AiServiceProviders {
                 tools: tool_provider,

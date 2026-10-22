@@ -85,37 +85,52 @@ oauth:
     .to_owned()
 }
 
-pub fn ai_config(default_provider: &str) -> anyhow::Result<String> {
-    let seed = systemprompt_manifest::services::ProviderRegistry::default_seed()
-        .context("embedded provider catalog is unreadable")?;
-    let default_model = |provider: &str| -> String {
-        seed.find_provider(provider)
-            .and_then(|entry| entry.models.first())
-            .map(|model| model.id.as_str().to_owned())
-            .unwrap_or_default()
+pub fn ai_config() -> String {
+    r"# AI policy: sampling, MCP discovery and history retention.
+# The model catalog lives beside this file in credentials.yaml, providers.yaml,
+# models.yaml, deployments.yaml and gateway.yaml.
+ai: {}
+"
+    .to_owned()
+}
+
+/// The catalog files a new project starts with: core's default catalog with
+/// `gateway.default_model` on `default_provider`, gateway off.
+pub fn catalog_files(default_provider: &str) -> anyhow::Result<Vec<(&'static str, String)>> {
+    let document = crate::commands::admin::setup::catalog::seed_document(
+        crate::commands::admin::setup::catalog::SeedRequest {
+            present: &["anthropic", "openai", "gemini"],
+            primary: Some(default_provider),
+            gateway_enabled: false,
+        },
+    )?;
+    let section = |key: &str, value: serde_yaml::Value| -> anyhow::Result<String> {
+        let mut map = serde_yaml::Mapping::new();
+        map.insert(serde_yaml::Value::String(key.to_owned()), value);
+        serde_yaml::to_string(&map).context("catalog section does not serialize")
     };
-    Ok(format!(
-        r#"# AI Configuration
-default_provider: "{provider}"
-
-providers:
-  anthropic:
-    enabled: true
-    default_model: "{anthropic}"
-
-  openai:
-    enabled: true
-    default_model: "{openai}"
-
-  gemini:
-    enabled: true
-    default_model: "{gemini}"
-"#,
-        provider = default_provider,
-        anthropic = default_model("anthropic"),
-        openai = default_model("openai"),
-        gemini = default_model("gemini"),
-    ))
+    Ok(vec![
+        (
+            "credentials.yaml",
+            section("credentials", serde_yaml::to_value(&document.credentials)?)?,
+        ),
+        (
+            "providers.yaml",
+            section("providers", serde_yaml::to_value(&document.providers)?)?,
+        ),
+        (
+            "models.yaml",
+            section("models", serde_yaml::to_value(&document.models)?)?,
+        ),
+        (
+            "deployments.yaml",
+            section("deployments", serde_yaml::to_value(&document.deployments)?)?,
+        ),
+        (
+            "gateway.yaml",
+            section("gateway", serde_yaml::to_value(&document.gateway)?)?,
+        ),
+    ])
 }
 
 pub fn content_config() -> String {

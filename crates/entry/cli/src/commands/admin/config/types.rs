@@ -181,28 +181,6 @@ pub struct PathValidation {
     pub required: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderInfo {
-    pub name: String,
-    pub enabled: bool,
-    pub is_default: bool,
-    pub model: String,
-    pub endpoint: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderListOutput {
-    pub providers: Vec<ProviderInfo>,
-    pub default_provider: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ProviderSetOutput {
-    pub provider: String,
-    pub action: String,
-    pub message: String,
-}
-
 /// One row of `admin config catalog discovery`.
 ///
 /// A model id (or the upstream name it is published under), why it is or is
